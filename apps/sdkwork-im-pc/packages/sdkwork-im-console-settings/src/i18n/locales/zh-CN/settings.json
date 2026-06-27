@@ -1,0 +1,39 @@
+{
+  "loading": "加载配置中...",
+  "nav": {
+    "infrastructure": "基础设施与基本信息",
+    "apiKeys": "API Keys 与集成",
+    "webhook": "Webhook 订阅",
+    "sso": "单点登录 (SSO)",
+    "security": "全局安全配置",
+    "notifications": "通知与推送设置"
+  },
+  "infra": {
+    "title": "基础设施与基本信息",
+    "desc": "配置您的企业即时通信环境基本标识和环境",
+    "orgName": "企业/组织名称",
+    "envFlag": "环境标志",
+    "envFlagHint": "环境标志在租户创建后不可修改。",
+    "customDomain": "自定义域名 (Cname)",
+    "customDomainPlaceholder": "例如: chat.acmecorp.com",
+    "verify": "验证",
+    "branding": "客户端品牌定制",
+    "brandingDesc": "上传您企业的Logo，它将显示在员工的聊天客户端和登录界面中。",
+    "uploadImage": "上传新图片",
+    "remove": "移除",
+    "logoHint": "建议尺寸 512x512，PNG 格式",
+    "saving": "保存中...",
+    "save": "保存配置修改"
+  },
+  "apiKeys": {
+    "title": "API Keys (生产环境)",
+    "desc": "用于服务器端集成与客户端初始化的鉴权凭证",
+    "rotate": "轮换密钥",
+    "publishableKey": "发布密钥 (Publishable Key)",
+    "publishableKeyHint": "用于客户端 SDK 初始化",
+    "secretKey": "私有密钥 (Secret Key)",
+    "secretKeyHint": "用于服务器端 API 调用，请勿在客户端暴露",
+    "copy": "复制",
+    "show": "显示"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@sdkwork/im-pc-orders",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@sdkwork/order-app-sdk": "workspace:*",
+    "@sdkwork/shop-app-sdk": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*"
+  }
+}

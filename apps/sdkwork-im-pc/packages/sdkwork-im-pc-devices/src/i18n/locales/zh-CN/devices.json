@@ -1,0 +1,89 @@
+{
+  "status": {
+    "online": "在线",
+    "offline": "离线",
+    "error": "异常",
+    "unactivated": "未激活"
+  },
+  "sidebar": {
+    "title": "智能硬件管理",
+    "searchPlaceholder": "搜索设备名称或 MAC 地址...",
+    "noDevices": "未找到相关设备"
+  },
+  "detail": {
+    "activateModule": "激活动力模块",
+    "editConfig": "编辑配置",
+    "coreNotActivated": "硬件核心未激活",
+    "coreNotActivatedDesc": "激活后即可下载指令集，接入 AI Agent 托管系统",
+    "startActivation": "启动激活序列",
+    "visionWizard": "Vision 视觉处理向导",
+    "configureAgent": "配置 Agent 技能",
+    "unbindAgent": "解除绑定",
+    "standaloneMode": "独立运行模式",
+    "standaloneModeDesc": "设备当前未关联大脑，接入 Agent 后可获得空间感知与决策能力",
+    "cloudBindAgent": "云端绑定 Agent",
+    "personTracking": "实时人员检测 (Person Tracking)",
+    "personTrackingDesc": "调用视觉端侧模型，实时分析画面中出现的人员轨迹与停留情况。",
+    "behaviorAlert": "异常行为告警 (Behavior Alert)",
+    "behaviorAlertDesc": "连续侦测画面行为，识别跌倒、争执等关键异常并自动拉起事件流。",
+    "simulationTest": "仿真测试"
+  },
+  "form": {
+    "editDevice": "编辑设备",
+    "addDevice": "添加新设备",
+    "deviceName": "设备名称",
+    "deviceNamePlaceholder": "输入设备名称，如'会议室摄像头'",
+    "macAddress": "MAC 地址",
+    "deviceType": "设备类型",
+    "camera": "摄像头",
+    "speaker": "智能音箱",
+    "display": "显示设备",
+    "sensor": "传感器",
+    "saveDevice": "保存设备",
+    "saving": "保存中...",
+    "cancel": "取消"
+  },
+  "activation": {
+    "title": "激活设备",
+    "activatingDevice": "正在激活设备：",
+    "activationCode": "激活码",
+    "codePlaceholder": "请输入6位或以上激活码",
+    "activating": "激活中...",
+    "verifyAndActivate": "验证激活码并激活"
+  },
+  "bindAgent": {
+    "title": "分配智能体",
+    "selectForDevice": "为设备",
+    "selectCore": "选择托管核心",
+    "searchPlaceholder": "搜索智能体名称或描述...",
+    "allCategories": "全部分类",
+    "deviceHardware": "硬件专管",
+    "devAssistant": "研发助手",
+    "officeEfficiency": "办公效率",
+    "syncingAgents": "正在同步智能体网络...",
+    "noMatch": "未找到匹配的智能体组件",
+    "selectedCount": "已选择的智能体:",
+    "multiSelect": "(允许多选)",
+    "singleExclusive": "(单节点独占)",
+    "cancel": "取消",
+    "confirmArrange": "确认编排"
+  },
+  "empty": {
+    "title": "未选择设备",
+    "desc": "请在左侧列表中选择一个智能硬件进行查看和管理。"
+  },
+  "toast": {
+    "loadFailed": "加载设备失败",
+    "deleteSuccess": "设备删除成功",
+    "deleteFailed": "设备删除失败",
+    "deleteConfirm": "确定要删除设备 {{name}} 吗？",
+    "fillComplete": "请填写完整的设备信息",
+    "updateSuccess": "设备更新成功",
+    "addSuccess": "设备添加成功",
+    "saveFailed": "保存失败",
+    "enterCode": "请输入激活码",
+    "activateSuccess": "设备激活成功",
+    "activateFailed": "激活失败，请检查激活码",
+    "loadAgentsFailed": "获取智能体列表失败"
+  }
+}

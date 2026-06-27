@@ -1,0 +1,58 @@
+> Migrated from `docs/架构/46-实时发布热路径禁止全局订阅表克隆标准-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 46-实时发布热路径禁止全局订阅表克隆标准-2026-04-05
+
+## 1. 背景
+
+`publish_scope_event(...)` 是 realtime fanout 的核心热路径。  
+如果每次发布都先克隆整张设备订阅表，再从克隆结果里筛选命中设备，在 50 万到 500 万在线的目标规模下会产生以下问题：
+
+- 每次发布都按全局订阅规模放大 CPU 与内存分配
+- `subscriptions` 锁持有时间被整表 clone 拉长
+- 发布路径的延迟会受到无关设备订阅数量影响
+
+这类做法不符合平台型 IM 服务端的商业化热路径标准。
+
+## 2. 标准
+
+### 2.1 发布只允许扫描本次 fanout 的候选设备
+
+`publish_scope_event(...)` 在计算投递目标时，必须只基于本次 `registeredDevices` 做定向检查：
+
+1. 对 `registeredDevices` 去重
+2. 逐个设备读取对应的 subscription 项
+3. 判断是否命中 `scopeType + scopeId + eventType`
+4. 仅把命中的设备加入后续窗口写入与 notifier 推送
+
+禁止先克隆整张全局 subscription registry 再筛选。
+
+### 2.2 无关设备数量不能放大发布热路径
+
+发布某个 scope 事件时：
+
+- 无关设备的订阅记录不应参与 clone
+- 无关设备的 subscription 规模不应线性放大发布路径分配量
+
+换句话说，热路径成本应主要由：
+
+- 本次 `registeredDevices` 数量
+- 实际命中的订阅设备数量
+
+来决定，而不是由全局订阅表大小决定。
+
+## 3. 落地要求
+
+- `session-gateway` 的 realtime runtime 必须把订阅匹配逻辑收敛成“按注册设备定向匹配”
+- 回归测试至少覆盖：
+  - 去重后的注册设备只命中一次
+  - scope 不匹配时不投递
+  - eventType 不匹配时不投递
+  - 空 `eventTypes` 作为 wildcard 时仍然命中
+
+## 4. 关联标准
+
+- [14-实时订阅与断线补偿标准](./14-实时订阅与断线补偿标准.md)
+- [17-会话关联流实时广播标准](./17-会话关联流实时广播标准.md)
+- [20-WebSocket实时传输绑定标准](./20-WebSocket实时传输绑定标准.md)
+

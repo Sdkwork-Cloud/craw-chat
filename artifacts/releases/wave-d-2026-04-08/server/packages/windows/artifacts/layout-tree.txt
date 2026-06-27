@@ -1,0 +1,5 @@
+artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/
+artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md
+artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt
+artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/sdkwork-im-server-windows-x86_64.zip
+artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/sdkwork-im-server-<version>-x64.msi

@@ -1,0 +1,31 @@
+[package]
+name = "sdkwork-im-gateway-assembly"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Generated gateway assembly for sdkwork-im application HTTP plane."
+
+[lib]
+name = "sdkwork_im_gateway_assembly"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread"] }
+social-service = { path = "../../services/social-service" }
+space-service = { path = "../../services/space-service" }
+calls-service = { path = "../../services/im-calls-service" }
+sdkwork_routes_im_audit_backend_api = { package = "sdkwork-routes-im-audit-backend-api", path = "../sdkwork-routes-im-audit-backend-api" }
+sdkwork_routes_im_automation_app_api = { package = "sdkwork-routes-im-automation-app-api", path = "../sdkwork-routes-im-automation-app-api" }
+sdkwork_routes_im_calls_open_api = { package = "sdkwork-routes-im-calls-open-api", path = "../sdkwork-routes-im-calls-open-api" }
+sdkwork_routes_im_chat_open_api = { package = "sdkwork-routes-im-chat-open-api", path = "../sdkwork-routes-im-chat-open-api" }
+sdkwork_routes_im_governance_backend_api = { package = "sdkwork-routes-im-governance-backend-api", path = "../sdkwork-routes-im-governance-backend-api" }
+sdkwork_routes_im_media_app_api = { package = "sdkwork-routes-im-media-app-api", path = "../sdkwork-routes-im-media-app-api" }
+sdkwork_routes_im_notification_app_api = { package = "sdkwork-routes-im-notification-app-api", path = "../sdkwork-routes-im-notification-app-api" }
+sdkwork_routes_im_ops_backend_api = { package = "sdkwork-routes-im-ops-backend-api", path = "../sdkwork-routes-im-ops-backend-api" }
+sdkwork_routes_im_projection_open_api = { package = "sdkwork-routes-im-projection-open-api", path = "../sdkwork-routes-im-projection-open-api" }
+sdkwork_routes_im_realtime_open_api = { package = "sdkwork-routes-im-realtime-open-api", path = "../sdkwork-routes-im-realtime-open-api" }
+sdkwork_routes_im_social_backend_api = { package = "sdkwork-routes-im-social-backend-api", path = "../sdkwork-routes-im-social-backend-api" }
+sdkwork_routes_im_social_open_api = { package = "sdkwork-routes-im-social-open-api", path = "../sdkwork-routes-im-social-open-api" }
+sdkwork_routes_im_space_open_api = { package = "sdkwork-routes-im-space-open-api", path = "../sdkwork-routes-im-space-open-api" }
+sdkwork_routes_im_stream_app_api = { package = "sdkwork-routes-im-stream-app-api", path = "../sdkwork-routes-im-stream-app-api" }

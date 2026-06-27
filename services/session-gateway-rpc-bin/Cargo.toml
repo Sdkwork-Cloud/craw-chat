@@ -1,0 +1,18 @@
+[package]
+name = "session-gateway-rpc-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "session-gateway-rpc"
+path = "src/main.rs"
+
+[dependencies]
+session-gateway = { path = "../session-gateway" }
+sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
+sdkwork-rpc-server = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-server" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

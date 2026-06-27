@@ -1,0 +1,21 @@
+{
+  "profile": "session-gateway",
+  "tier": "CI Smoke Tier",
+  "websocketE2e": {
+    "connectedDeviceCount": 3,
+    "liveMessageCount": 12,
+    "backlogMessageCount": 1050,
+    "expectedFanoutPerLiveMessage": 3,
+    "expectedCapacityTrimmedEventCount": 38,
+    "ackCheckpointSeq": 12,
+    "minConnectSuccessPermille": 1000,
+    "minLiveFanoutSuccessPermille": 1000,
+    "maxConnectP95Ms": 150.0,
+    "maxSubscribeP95Ms": 50.0,
+    "maxLivePushP95Ms": 50.0,
+    "maxAckP95Ms": 50.0,
+    "maxDisconnectRecoveryMs": 250.0,
+    "maxBacklogRestoreMs": 100.0,
+    "maxClusterHandoffMs": 100.0
+  }
+}

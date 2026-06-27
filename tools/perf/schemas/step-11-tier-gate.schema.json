@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/perf/schemas/step-11-tier-gate.schema.json",
+  "title": "Step 11 Tier Gate",
+  "type": "object",
+  "required": [
+    "$schema",
+    "step",
+    "tierId",
+    "tier",
+    "profile",
+    "state",
+    "operatorDocPath",
+    "scenarioCatalogPath",
+    "artifactRoot",
+    "goal",
+    "requiredScenarioFamilies",
+    "requiredOutputs",
+    "collectionSummary",
+    "evidenceSlots",
+    "reviewBackwrite",
+    "boundary"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "step": {
+      "type": "string"
+    },
+    "tierId": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "operatorDocPath": {
+      "type": "string"
+    },
+    "scenarioCatalogPath": {
+      "type": "string"
+    },
+    "artifactRoot": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string"
+    },
+    "requiredScenarioFamilies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredReports": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredOutputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "scenarioFamily",
+          "artifactKind",
+          "requiredFields"
+        ],
+        "properties": {
+          "scenarioFamily": {
+            "type": "string"
+          },
+          "artifactKind": {
+            "type": "string"
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "collectionSummary": {
+      "type": "object",
+      "required": [
+        "totalSlots",
+        "requiredSlots",
+        "optionalSlots",
+        "collectedSlots",
+        "pendingSlots",
+        "skippedOptionalSlots"
+      ],
+      "properties": {
+        "totalSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requiredSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "optionalSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "collectedSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pendingSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skippedOptionalSlots": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "evidenceSlots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "required",
+          "status",
+          "artifactPath",
+          "suggestedRelativePath",
+          "collectedAt",
+          "sizeBytes",
+          "checksumSha256"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scenarioFamily": {
+            "type": "string"
+          },
+          "reportId": {
+            "type": "string"
+          },
+          "artifactKind": {
+            "type": "string"
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredSections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "artifactPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suggestedRelativePath": {
+            "type": "string"
+          },
+          "collectedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "checksumSha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "reviewBackwrite": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "boundary": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

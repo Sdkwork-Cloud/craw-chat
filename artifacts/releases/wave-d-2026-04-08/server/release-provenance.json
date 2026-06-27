@@ -1,0 +1,46 @@
+{
+  "$schema": "../../schemas/server-release-provenance.schema.json",
+  "version": 1,
+  "bundleId": "wave-d-2026-04-08",
+  "wave": "wave-d",
+  "artifact": "server-release-provenance",
+  "state": "template_only_pending_capture",
+  "updatedAt": "2026-04-17",
+  "canonicalBuildCommand": "cargo build -p sdkwork-im-cloud-gateway --release --bin sdkwork-im-server --offline",
+  "contractPaths": [
+    "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+    "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+    "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+    "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+    "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+    "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+    "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+    "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json"
+  ],
+  "payloadSourcePaths": [
+    "services/sdkwork-im-cloud-gateway/Cargo.toml",
+    "deployments/templates/server.yaml.example",
+    "deployments/templates/server.env.example",
+    "deployments/templates/postgresql.yaml.example",
+    "deployments/systemd/sdkwork-im-server.service",
+    "deployments/launchd/com.sdkwork.SdkworkIm.server.plist",
+    "deployments/windows-service/SdkworkImServer.xml"
+  ],
+  "platformArtifactRoots": [
+    {
+      "platform": "linux",
+      "artifactRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json"
+    },
+    {
+      "platform": "macos",
+      "artifactRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json"
+    },
+    {
+      "platform": "windows",
+      "artifactRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json"
+    }
+  ]
+}

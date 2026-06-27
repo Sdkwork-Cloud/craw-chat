@@ -1,0 +1,51 @@
+> Migrated from `docs/review/step-12-架构兑现-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 12 架构兑现 - 2026-04-08
+
+## 对应架构能力
+- `146`：CLI / SDK 统一消费 CCP 协议、compatibility matrix 与 facade 边界
+- `148`：control-plane governance baseline、runtime 生效结果与 operator / SDK 消费面对齐
+- `149`：升级兼容、consumer-side 安全降级与发布前可重复验证路径
+
+## 已兑现能力
+- `tools/chat-cli` 已成为真实 protocol consumer，而不是临时脚本集合：
+  - authority fields 通过 bearer 与 `auth_bind`
+  - `session.resume` 只在协商成功后启用
+  - `watch / chat-session / wrapper` 共用同一条 realtime / CCP 主链路
+- SDK workspace 入口与 facade 边界已冻结：
+  - app-facing `sdkwork-im-sdk`
+  - admin-facing `sdkwork-control-plane-sdk`
+  - `TypeScript / Flutter` 子目录具备稳定占位入口
+- compatibility matrix 已具备同一套闭环证据：
+  - operator 文档
+  - contract / registry / control-plane 测试
+  - `sdkCompatibilityBaseline`
+- `open-chat-test` 已形成发布前可重复执行验证资产：
+  - 保留人工双窗口验证
+  - 新增 scripted validation
+  - 可回传 `realtime.connected`、`event.window` 与 `timeline` 落地摘要
+
+## 未兑现能力
+- 多语言 SDK 的真实生成与发布链
+- close / error registry 的客户端恢复策略
+- tenant / client segment 级治理
+- protocol release bundle、发布后观测与更高 tier 治理演练
+- cell / region 级动态 rollout orchestration 与跨 region 灾备切换自动化
+
+## 偏离判断
+- 无偏离。
+- 本轮没有把 Step 12 误做成 GUI 自动化工程，而是坚持用真实 consumer-side 主链路完成最小可信 scripted validation。
+- 手工双窗口路径继续保留，说明当前实现没有偏离文档里“多终端聊天验证”和“可重复验证资产”并存的要求。
+
+## 证据
+- `docs/review/step-12-执行卡-2026-04-08.md`
+- `docs/review/step-12-cp12-1-cli与实时握手契约收口-架构兑现与回写决议-2026-04-08.md`
+- `docs/review/step-12-cp12-2-sdk目录README与facade边界收口-架构兑现与回写决议-2026-04-08.md`
+- `docs/review/step-12-cp12-3-兼容矩阵文档测试与控制面映射收口-架构兑现与回写决议-2026-04-08.md`
+- `docs/review/step-12-cp12-4-多终端聊天与流式验证脚本收口-架构兑现与回写决议-2026-04-08.md`
+
+## 当前判断
+- `Step 12`：架构能力闭环通过
+- 后续焦点：进入 `Step 13`，做发布就绪、go/no-go 与下一轮 backlog 收口
+

@@ -1,0 +1,9 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional, List, Dict, Any
+
+
+@dataclass
+class ProviderBindingCommitResponse:
+    """Provider binding mutation result after applying a control-plane policy change."""
+    pass

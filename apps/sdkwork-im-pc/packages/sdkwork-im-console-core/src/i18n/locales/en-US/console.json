@@ -1,0 +1,21 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "users": "Organization & Members",
+    "roles": "Roles & Permissions",
+    "groups": "Groups & Communications",
+    "messages": "Messages & Content",
+    "stores": "Stores & Outlets",
+    "products": "Products & Inventory",
+    "announcements": "Announcements",
+    "integrations": "Apps & Bots",
+    "security": "Security & Compliance",
+    "analytics": "Analytics",
+    "course": "Courses",
+    "settings": "Settings",
+    "coreManagement": "Core Management",
+    "switchToClient": "Switch to Client",
+    "brandTitle": "Sdkwork IM Console",
+    "brandSubtitle": "Tenant Console"
+  }
+}

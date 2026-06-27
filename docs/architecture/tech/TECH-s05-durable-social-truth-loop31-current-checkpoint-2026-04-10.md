@@ -1,0 +1,26 @@
+> Migrated from `docs/step/102-S05-durable-social-truth-loop31-current-checkpoint-2026-04-10.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# S05 Loop31 当前检查点 - 2026-04-10
+
+- Step: `S05`
+- 状态: `not_closed / local_closure`
+- 本轮新增:
+  - `control-plane-api` social runtime 收敛为统一 `SocialControlState`
+  - 新增 `social-state.json` durable snapshot
+  - 新增 `social-commit-journal.json` social outbox
+  - `SDKWORK_IM_RUNTIME_DIR` 命中时自动启用 file-backed social store
+  - 新增显式 builder：`build_app_with_cluster_and_governance_sinks_and_runtime_dir(...)`
+  - 新增重启恢复与直聊 pair 唯一性回归测试
+- 当前已具备:
+  - `friend_request / friendship / user_block / direct_chat`
+  - `external_connection / external_member_link / shared_channel_policy`
+  - control-plane 写口、快照读口、audit、file-backed snapshot、commit journal
+- 当前仍缺:
+  - 真正事务边界
+  - 基于 `social-commit-journal.json` 的 replay 恢复
+  - Step 级 durable truth 闭环
+- 下一主刀:
+  - social journal replay 恢复
+  - snapshot + journal checkpoint / rollback hardening
+

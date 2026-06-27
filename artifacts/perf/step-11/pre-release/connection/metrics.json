@@ -1,0 +1,21 @@
+{
+  "step": "11",
+  "tierId": "pre-release",
+  "tier": "Pre-Release Tier",
+  "profile": "self-hosted.split-services.development",
+  "scenarioFamily": "connection",
+  "artifactKind": "metrics_json",
+  "runId": "step11-cp11-2-local-connection-2026-04-08-doc-capture",
+  "collectedAt": "2026-04-08",
+  "sourceProfile": "self-hosted.split-services.development",
+  "sourceTier": "CI Smoke Tier",
+  "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
+  "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
+  "connectionCount": 32,
+  "successCount": 32,
+  "totalDurationMs": 17.754,
+  "connectP95Ms": 15.108,
+  "connectionsPerSecond": 1802.431,
+  "boundary": "This artifact backfills one published local CP11-2 connection baseline into the Pre-Release Tier artifact root. All metric values are doc-captured from published local quant evidence, and this remains a truthful partial collection record rather than full Pre-Release Tier sign-off."
+}

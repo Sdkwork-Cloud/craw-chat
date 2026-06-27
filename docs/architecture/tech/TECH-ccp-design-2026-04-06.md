@@ -1,0 +1,412 @@
+> Migrated from `docs/架构/144-CCP传输绑定与握手协商设计-2026-04-06.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# CCP 传输绑定与握手协商设计
+
+## 1. 文档定位
+
+本文档用于冻结`CCP` 在不同传输上的绑定方式，以及连接建立后的统一握手、认证、恢复、保活与关闭流程
+
+协议基线目标是：
+
+- 不同 transport 共享同一套会话语义
+- 浏览器、App、桌面端、AIoT 设备都能找到合适绑定
+- 握手、恢复和断开不再散落在业务 API 中
+- 后续连接层扩容、Route Plane fencing、设备补偿恢复能够统一建模
+
+## 2. 绑定原则
+
+### 2.1 绑定不是分叉协议
+
+`ccp/http/1`、`ccp/ws/1`、`ccp/sse/1`、`ccp/mqtt/1` 只是 `CCP` 的不同承载方式，不是四套独立协议
+
+不同绑定必须共享：
+
+- 相同的协议版本语义
+- 相同的权威身份边界
+- 相同的envelope 模型
+- 相同的resume / heartbeat / goaway 行为约束
+
+### 2.2 主实时链路与辅助链路分离
+
+推荐的默认连接模型是：
+
+- `HTTP` 负责命令提交、查询、上传与补偿拉取
+- `WebSocket` 负责双向实时通信
+- `SSE` 负责单向服务端推送或 AI 流结果输出
+- `MQTT` 负责设备与边缘侧实时接入
+
+这使得浏览器、移动端与AIoT 设备可以采用最贴合自身约束：transport，而不破坏统一协议面
+
+## 3. 传输绑定一览
+
+| 绑定 | 用途| 特点 | 推荐角色 |
+| --- | --- | --- | --- |
+| `ccp/http/1` | 请求响应、短命令、补偿查询| 简单、易接入、与网关生态兼容| 浏览器、App、服务端 |
+| `ccp/ws/1` | 主实时双向链路| 全双工、延迟低、适合消息与流 | 浏览器、App、桌面端 |
+| `ccp/sse/1` | 单向持续输出 | 服务端推送友好、接入成本低 | 浏览器、服务端 |
+| `ccp/mqtt/1` | 设备与边缘链路| 轻量、可离线缓冲、适合低功耗设计| 设备、边缘节点|
+| `ccp/quic/1` | 预留高性能绑定 | 多路复用、低时延、弱网潜力更高| 未来客户端|
+
+## 4. 统一连接状态机
+
+无论采用哪种绑定，连接或会话都遵循统一状态机：
+
+`Disconnected -> Connected -> HelloNegotiated -> Authenticated -> Resuming -> Active -> Draining -> Closed`
+
+各状态含义如下：
+
+- `Disconnected`：尚未建立 transport 级连接
+- `Connected`：transport 已建立，但尚未完成CCP 协议协商
+- `HelloNegotiated`：协议版本、绑定、codec、feature 已协商
+- `Authenticated`：身份完成绑定，服务端已获得权威 actor / tenant / device 上下文
+- `Resuming`：正在尝试恢复旧 session、route 或未确认窗口
+- `Active`：允许发送普通命令、消息、流与 RTC 信令
+- `Draining`：节点排空或服务端准备关闭，允许迁移和有限度收尾
+- `Closed`：连接或会话终止
+
+## 5. L2 控制帧冻结
+
+当前阶段冻结以下控制帧类型：
+
+- `hello`
+- `hello_ack`
+- `auth_bind`
+- `auth_ok`
+- `session_resume`
+- `session_resumed`
+- `heartbeat`
+- `goaway`
+- `error`
+
+### 5.1 `hello`
+
+客户端发起，用于声明
+
+- 支持有`protocol` 版本
+- 当前 `binding`
+- 支持有`codec`
+- 支持有`feature_flags`
+- 客户端类型与平台信息
+- 是否具备 `resume` 能力
+
+示例
+
+```json
+{
+  "protocol": "ccp/1.0",
+  "kind": "control",
+  "type": "hello",
+  "id": "fr_01HHELLO",
+  "schema": "cc.control.hello.v1",
+  "payload": {
+    "supportedProtocols": ["ccp/1.0"],
+    "binding": "ccp/ws/1",
+    "supportedCodecs": ["json", "cbor"],
+    "featureFlags": ["stream.delta", "session.resume"],
+    "client": {
+      "kind": "desktop",
+      "platform": "windows"
+    },
+    "resumeCapable": true
+  }
+}
+```
+
+### 5.2 `hello_ack`
+
+服务端返回，用于确认
+
+- 实际协商成功`protocol`
+- 选择`binding`
+- 选择`codec`
+- 服务端支持的 `feature_flags`
+- 心跳间隔、最大帧大小、恢复窗口等约束
+
+### 5.3 `auth_bind`
+
+客户端提交认证绑定信息，但不直接提交权威业务字段。可支持有
+
+- `Bearer token`
+- `session ticket / resume ticket`
+- `device credential`
+- `device signature`
+
+### 5.4 `auth_ok`
+
+服务端返回认证成功结果，并在服务端内部固定：
+
+- `tenantId`
+- `actorId`
+- `actorKind`
+- `clientRouteId`
+- `sessionId`
+- 当前允许可feature / capability
+
+### 5.5 `session_resume`
+
+客户端在认证完成后发起恢复请求，声明
+
+- 想恢复的 `sessionId`
+- 上次确认到的 checkpoint / sync 序号
+- `resumeToken`
+- 当前已知 `routeEpoch`
+
+### 5.6 `session_resumed`
+
+服务端返回恢复结果：
+
+- 是否恢复成功
+- 是否需要补偿拉
+- 当前最`routeEpoch`
+- 新的恢复窗口
+- 是否需要重新订阅或重新打开启
+
+### 5.7 `heartbeat`
+
+用于保活、时钟采样和活跃度刷新。统一约束：
+
+- `heartbeat` 不承担业务语义
+- 心跳超时后，连接层可以关transport
+- presence 是否外显为在线状态，由业务策略决定，不由心跳帧直接决
+
+### 5.8 `goaway`
+
+服务端通知客户端连接即将迁移、关闭或重连。典型原因：
+
+- 节点排空
+- 服务升级
+- 租户限流
+- binding 不再适用
+- 版本不兼容需要重新协商
+
+### 5.9 `error`
+
+控制面错误统一通过 `error` 帧表达，不能和业务错误码混杂
+
+## 6. 标准握手顺序
+
+统一推荐握手顺序如下行
+
+1. 建立 transport 连接
+2. 客户端发送`hello`
+3. 服务端返回 `hello_ack`
+4. 客户端发送`auth_bind`
+5. 服务端返回 `auth_ok`
+6. 客户端按需发送`session_resume`
+7. 服务端返回 `session_resumed`
+8. 进入 `Active` 状态
+
+注意
+
+- `session_resume` 是可选步骤，但对长连接主链路应视为标准能力
+- `auth_bind` 失败后必须终止会话，不允许匿名继续进入业务阶
+- 仅`Active` 之前，禁止发送普`cmd / stream / rtc` 
+
+## 7. 各绑定的详细设计
+
+### 7.1 `ccp/http/1`
+
+#### 定位
+
+- 承担命令、查询、上传初始化、补偿拉
+- 适合请求响应场景
+- 不作为主双向实时链路
+
+#### 约束
+
+- 请求体承载CCP envelope
+- 推荐内容类型：`application/ccp+json`
+- 请求认证优先使用 `Authorization: Bearer`
+- 响应可以是单一 `ack / evt / error`，也可以是带 chunk 的流式响
+
+#### 典型场景
+
+- `POST /im/v3/api/chat/conversations/{id}/messages`
+- `GET /im/v3/api/chat/inbox`
+- `GET /im/v3/api/realtime/events`
+- `POST /im/v3/api/streams`
+
+### 7.2 `ccp/ws/1`
+
+#### 定位
+
+- 浏览器、App、桌面端的主实时通道
+- 承担消息投递、流式输出、RTC 信令、ACK、心跳与 goaway
+
+#### 约束
+
+- 建连后第一批帧必须完成 `hello -> auth_bind`
+- `session_resume` 必须在进入普通业务帧前完成
+- 控制帧优先级高于普通消息帧
+- 慢消费者治理、出站队列和 backpressure 必须Link Plane 统一实现
+
+#### 推荐用法
+
+- 默认所有“在线态”客户端都优先使用`ccp/ws/1`
+- HTTP 仅作为补偿、回退与管理接
+
+### 7.3 `ccp/sse/1`
+
+#### 定位
+
+- 主要解决“单向服务端持续输出”场
+- 尤其适合浏览器中：AI 流式结果输出、通知下行和受限网络环境
+
+#### 约束
+
+- `SSE` 只负责下行
+- 上行命令通过 `ccp/http/1` 提交
+- SSE 会话可通过服务端签发的订阅票据关联到权限session
+- 下行数据仍然使用 CCP envelope，不允许改成另一名ad-hoc JSON
+
+#### 推荐场景
+
+- AI 回复 token 
+- 后台任务进度
+- 只读型实时通知面板
+
+### 7.4 `ccp/mqtt/1`
+
+#### 定位
+
+- 面向 AIoT 设备、边缘网关、低功耗或不稳定网络场
+
+#### 约束
+
+- MQTT 只是一transport binding，payload 仍然遵循 CCP envelope
+- 认证可通过 broker 凭据、设备证书或设备签名扩展完成
+- 设备不允许直接声`tenantId / actorId / sender / routeEpoch`
+- QoS topic 规划服从设备侧可靠性策略，但不能破坏CCP 的幂等和恢复语义
+
+#### 推荐主题分工
+
+当前阶段仅冻结“职责分工”，不冻结所有部署字符串
+
+- `control uplink`
+- `cmd uplink`
+- `evt downlink`
+- `stream uplink / downlink`
+- `presence / device telemetry`
+
+### 7.5 `ccp/quic/1`
+
+第一阶段只做预留
+
+- 协议语义必须与既binding 共用同一套握手和 envelope
+- 不允许因为上 QUIC 而重新定义一套不兼容协议
+
+## 8. 能力协商
+
+能力协商`hello` / `hello_ack` 阶段完成，典型能力包括：
+
+- `session.resume`
+- `stream.delta`
+- `stream.patch`
+- `rtc.signal`
+- `agent.tool_call`
+- `device.signature`
+- `payload.cbor`
+
+协商规则
+
+- 客户端上报“自己支持什么
+- 服务端返回“本次会话允许什么
+- 未协商成功的能力不得直接使用
+
+## 9. 恢复、排空与迁移
+
+### 9.1 恢复
+
+恢复必须服务于两个目标：
+
+- 减少断线重连带来的用户感知抖
+- 仅Route Plane fencing 和多节点迁移提供稳定模型
+
+恢复过程中必须校验：
+
+- `resumeToken`
+- `sessionId`
+- `clientRouteId`
+- 最近确认的窗口或序
+- `routeEpoch`
+
+### 9.2 排空
+
+当节点进`Draining`
+
+- 服务端通过 `goaway` 明确告知客户端
+- 客户端应尽快重连并重新协商
+- 老连接在安全窗口后关
+
+### 9.3 迁移
+
+连接迁移不得依赖“隐式断开再赌一把重连”，而要基于
+
+- 明确`goaway`
+- 明确`session_resume`
+- 明确`routeEpoch` fencing
+
+## 10. 观测要求
+
+握手和绑定必须进入统一观测体系。至少记录：
+
+- 协议版本协商成功
+- 仅binding 建连成功
+- `hello -> auth_ok` 时延
+- `session_resume` 成功率与平均耗时
+- `goaway` 原因分布
+- 心跳超时断开比例
+
+## 11. 结论
+
+`CCP` 的传输绑定策略已经明确：
+
+- `HTTP` 负责命令与查询
+- `WebSocket` 负责主实时链路
+- `SSE` 负责单向流输出
+- `MQTT` 负责设备接入
+- `QUIC` 作为后续高性能演进方向
+
+而握手、恢复、保活、关闭与错误帧全部收敛到统一控制面，不再允许每个 transport 独立发明一套连接协议
+
+## 2026-04-09 增补：传输绑定标准与当前实现边界
+
+### A. 当前实现真相
+
+- 当前仓库已具备协议母体、握治理基线和部runtime 消费链，但并不等于本文列出的所binding、恢复语义、设备路径与未来 `QUIC` 规划都已完整落地
+- 当前真实已兑现部分，应以本文文末 `As-Built`、`143 / 145 / 148` `As-Built`、以`session-gateway / runtime-link / control-plane-api` 的代码事实为准
+
+### B. 本文哪些是目标：
+
+- 第 2-11 节中：binding 原则、统一状态机、L2 控制帧、标准握手顺序和 binding 设计，属于标准目标面
+- 这些章节用于冻结长期连接语义transport contract，不等于所transport 都已商用交付
+
+### C. 文档口径规则
+
+- 写当前握手现状时，只能引用已落地 binding、真hello/auth/resume 行为和对应测试证据
+- 写未binding 设计时，必须显式标记 `目标态`、`预留` `标准目标面`
+- 若某 transport 只存在冻结语义而未形成真实服务链路，不得写成“已支持”
+
+## 2026-04-07 As-Built 1
+
+- `WebSocket` 主实时链路已在真实入口落地到 `services/session-gateway/src/websocket.rs`
+  - 子协议固定为 `sdkwork-im.ccp.ws.v1`
+  - 线协议通过 `RealtimeWebsocketMode::{LegacyJson, CcpJson}` 同时支持有JSON 帧和 CCP JSON 
+- 当前仓库的实际握手顺序已经从文档冻结转为主入口实现：
+  - transport 建连
+  - 客户端发送`hello`
+  - 服务端发送`hello_ack`
+  - 客户端发送`auth_bind`
+  - 服务端发送`auth_ok`
+  - 进入 `Active` 阶段后收敛CCP-wrapped 业务
+- `sdkwork-im-server` `/im/v3/api/realtime/ws` 入口已复用相同的子协议协商和 wire mode 选择，不再维护独WebSocket 协议细节
+- `tools/chat-cli/src/realtime.rs` 已作为当前桌CLI L2/L3 参考实现：
+  - 主动请求 `sdkwork-im.ccp.ws.v1`
+  - 完成 `hello -> hello_ack -> auth_bind -> auth_ok`
+  - 仅CCP 业务帧解包为既有 JSON 业务输出，作Step 03 的兼容桥
+- 尚未在本 step 落地的部分：
+  - `session_resume / session_resumed` 的真实恢复链
+  - `goaway / drain / routeEpoch` 的热迁移运行
+  - 以上继续由 `Step 04` Link Plane / Route Plane 兑现
+

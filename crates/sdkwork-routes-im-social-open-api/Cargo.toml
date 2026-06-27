@@ -1,0 +1,17 @@
+[package]
+name = "sdkwork-routes-im-social-open-api"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "SDKWork IM social open-api route crate for /im/v3/api/social/*"
+
+[lib]
+name = "sdkwork_routes_im_social_open_api"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+social-service = { path = "../../services/social-service" }
+sdkwork_im_web_bootstrap.workspace = true
+sdkwork_web_contract.workspace = true
+sdkwork_web_core.workspace = true

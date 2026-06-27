@@ -1,0 +1,207 @@
+{
+  "workspace": "sdkwork-im-app-sdk",
+  "title": "SDKWork IM App API SDK",
+  "apiVersion": "0.1.0",
+  "openapiVersion": "3.1.2",
+  "authoritySpec": "../../apis/app-api/communication/sdkwork-im-app-api.openapi.yaml",
+  "generationInputSpec": "openapi/sdkwork-im-app-api.sdkgen.yaml",
+  "derivedSpecs": {
+    "default": "openapi/sdkwork-im-app-api.sdkgen.yaml",
+    "flutter": "openapi/sdkwork-im-app-api.flutter.sdkgen.yaml"
+  },
+  "discoverySurface": {
+    "sdkTarget": "app",
+    "apiPrefix": "/app/v3/api",
+    "schemaUrl": "/app/v3/openapi.json",
+    "generatedProtocols": [
+      "http"
+    ],
+    "manualTransports": []
+  },
+  "sdkDependencies": [
+    {
+      "workspace": "sdkwork-iam-app-sdk",
+      "role": "appbase-identity-and-session-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/iam-app-sdk",
+        "flutter": "sdkwork_iam_app_sdk",
+        "rust": "sdkwork-iam-app-sdk",
+        "java": "com.sdkwork:sdkwork-iam-app-sdk",
+        "csharp": "SDKWork.Appbase.AppSdk",
+        "swift": "sdkwork-iam-app-sdk",
+        "kotlin": "com.sdkwork:sdkwork-iam-app-sdk",
+        "go": "github.com/sdkwork/sdkwork-iam-app-sdk",
+        "python": "sdkwork-iam-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-im-sdk",
+      "role": "standardized-im-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/im/v3/api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/im-sdk",
+        "flutter": "im_sdk",
+        "rust": "im-sdk",
+        "java": "com.sdkwork:im-sdk",
+        "csharp": "Sdkwork.Im.Sdk",
+        "swift": "ImSdk",
+        "kotlin": "com.sdkwork:im-sdk",
+        "go": "github.com/sdkwork/im-sdk",
+        "python": "sdkwork-im-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-aiot-app-sdk",
+      "role": "device-aiot-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api/iot",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/aiot-app-sdk",
+        "flutter": "sdkwork_aiot_app_sdk",
+        "rust": "sdkwork-aiot-app-sdk",
+        "java": "com.sdkwork:sdkwork-aiot-app-sdk",
+        "csharp": "SDKWork.Aiot.AppSdk",
+        "swift": "sdkwork-aiot-app-sdk",
+        "kotlin": "com.sdkwork:sdkwork-aiot-app-sdk",
+        "go": "github.com/sdkwork/sdkwork-aiot-app-sdk",
+        "python": "sdkwork-aiot-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-rtc-sdk",
+      "role": "provider-standard-rtc-runtime",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": null,
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/rtc-sdk",
+        "flutter": "rtc_sdk",
+        "rust": "rtc_sdk",
+        "java": "com.sdkwork:rtc-sdk",
+        "csharp": "Sdkwork.Rtc.Sdk",
+        "swift": "RtcSdk",
+        "kotlin": "com.sdkwork:rtc-sdk",
+        "go": "github.com/sdkwork/rtc-sdk",
+        "python": "sdkwork-rtc-sdk"
+      }
+    }
+  ],
+  "languages": [
+    {
+      "language": "typescript",
+      "workspace": "sdkwork-im-app-sdk-typescript",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-typescript/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-typescript/generated/server-openapi/package.json",
+      "name": "@sdkwork-internal/im-app-api-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned TypeScript transport SDK for the Sdkwork IM app-development API.",
+      "consumerSurface": {
+        "primaryClient": "SdkworkImAppClient",
+        "legacyClient": "SdkworkAppClient",
+        "apiPrefix": "/app/v3/api"
+      }
+    },
+    {
+      "language": "flutter",
+      "workspace": "sdkwork-im-app-sdk-flutter",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-flutter/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-flutter/generated/server-openapi/pubspec.yaml",
+      "name": "im_app_api_generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Flutter transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "rust",
+      "workspace": "sdkwork-im-app-sdk-rust",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-rust/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-rust/generated/server-openapi/Cargo.toml",
+      "name": "sdkwork-im-app-api-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Rust transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "java",
+      "workspace": "sdkwork-im-app-sdk-java",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-java/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-java/generated/server-openapi/pom.xml",
+      "name": "com.sdkwork:im-app-api-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Java transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "csharp",
+      "workspace": "sdkwork-im-app-sdk-csharp",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-csharp/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-csharp/generated/server-openapi/Sdkwork.Im.AppApi.Generated.csproj",
+      "name": "Sdkwork.Im.AppApi.Generated",
+      "version": "0.1.0",
+      "description": "Generator-owned C# transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "swift",
+      "workspace": "sdkwork-im-app-sdk-swift",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-swift/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-swift/generated/server-openapi/Package.swift",
+      "name": "ImAppApiGenerated",
+      "version": "0.1.0",
+      "description": "Generator-owned Swift transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "kotlin",
+      "workspace": "sdkwork-im-app-sdk-kotlin",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-kotlin/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-kotlin/generated/server-openapi/build.gradle.kts",
+      "name": "com.sdkwork:im-app-api-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Kotlin transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "go",
+      "workspace": "sdkwork-im-app-sdk-go",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-go/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-go/generated/server-openapi/go.mod",
+      "name": "github.com/sdkwork/im-app-api-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Go transport SDK for the Sdkwork IM app-development API."
+    },
+    {
+      "language": "python",
+      "workspace": "sdkwork-im-app-sdk-python",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-app-sdk-python/generated/server-openapi",
+      "manifestPath": "sdkwork-im-app-sdk-python/generated/server-openapi/pyproject.toml",
+      "name": "sdkwork-im-app-api-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Python transport SDK for the Sdkwork IM app-development API."
+    }
+  ],
+  "sdkOwner": "sdkwork-im",
+  "apiAuthority": "sdkwork-im.app"
+}

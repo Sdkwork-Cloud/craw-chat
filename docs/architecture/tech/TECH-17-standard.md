@@ -1,0 +1,160 @@
+> Migrated from `docs/架构/17-会话关联流实时广播标准.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 17-会话关联流实时广播标准
+
+## 1. 目标
+
+本标准定义 `scopeKind = conversation` 的 stream 会话如何向会话成员实时广播流帧事件，支撑以下场景：
+
+- 大模型流式回复在群成员多端实时下发
+- 机器人流式输出在群会话内共享
+- 游戏数据流、状态流、增量事件流按统一 stream 标准传输
+- 未来将 WebSocket 绑定到同一 stream 事件内核
+
+本标准只覆盖已落地的 `stream.frame.appended` 实时广播行为。
+
+## 2. 核心原则
+
+### 2.1 订阅 scope 仍然是 stream
+
+即使 stream 绑定到会话，订阅边界仍然保持：
+
+- `scopeType = stream`
+- `scopeId = streamId`
+
+而不是直接复用 `conversation` scope。
+
+这样做的原因：
+
+- stream 是独立的一等数据通道，不应被消息会话语义吞没
+- 同一会话未来可并行存在多个 stream，会话 scope 无法表达精确过滤
+- 客户端、机器人、工作流可以按具体 stream 精准订阅
+
+### 2.2 广播目标按会话成员计算
+
+当 stream 的 `scopeKind = conversation` 时，事件目标不再局限于发起者本人，而是扩展为：
+
+- 当前会话成员
+- 每个成员当前已注册设备
+- 同时订阅该 `streamId` 的设备窗口
+
+这保证 stream 是“会话共享通道”，而不是“发送者私有通道”。
+
+### 2.3 scope 与 fanout 解耦
+
+本标准明确区分两个概念：
+
+- 订阅 scope：`stream`
+- 目标 principal 计算来源：`conversation`
+
+也就是说，scope 描述“订阅什么”，fanout 描述“发给谁”，二者不能混为一谈。
+
+## 3. 订阅标准
+
+客户端订阅 conversation 绑定 stream 的方式如下：
+
+```json
+{
+  "items": [
+    {
+      "scopeType": "stream",
+      "scopeId": "st_llm_reply_1",
+      "eventTypes": ["stream.frame.appended"]
+    }
+  ]
+}
+```
+
+## 4. 事件载荷标准
+
+### 4.1 `stream.frame.appended`
+
+```json
+{
+  "streamId": "st_llm_reply_1",
+  "streamType": "custom.delta.text",
+  "scopeKind": "conversation",
+  "scopeId": "c_demo",
+  "frameSeq": 1,
+  "frameType": "delta"
+}
+```
+
+字段语义：
+
+- `streamId`: 稳定的流会话标识
+- `streamType`: 流协议类型，例如文本增量流、数据流、控制流
+- `scopeKind`: 当前已落地 `conversation`
+- `scopeId`: 绑定的会话标识
+- `frameSeq`: 严格递增的帧序号
+- `frameType`: 当前帧类型，如 `delta`、`chunk`、`event`
+
+## 5. 投递规则
+
+### 5.1 conversation 绑定 stream
+
+当 stream session 满足：
+
+- `scopeKind = conversation`
+- `scopeId = conversationId`
+
+则 `stream.frame.appended` 必须执行以下步骤：
+
+1. 按 `conversationId` 查询当前成员
+2. 按成员 principal 查询已注册设备
+3. 仅向订阅了 `scopeType=stream` 且 `scopeId=streamId` 的设备写入 realtime window
+
+### 5.2 非 conversation 绑定 stream
+
+对于其他 `scopeKind`，当前保留原始行为：
+
+- 目标默认是当前 actor 自己的已注册设备
+
+后续如果新增 `scopeKind = rtc_session / agent / workflow / job`，可以复用同一套 fanout 抽象继续扩展。
+
+## 6. 与消息实时广播的关系
+
+消息实时广播与 stream 实时广播共享同一套底层 realtime window，但它们在建模上严格分离：
+
+- message 事件使用 `conversation` scope
+- stream 事件使用 `stream` scope
+
+这样可以避免以下问题：
+
+- 消息订阅误收到所有流帧
+- 流式消费者无法只订阅某一条 stream
+- 后续一个会话里多个 stream 相互干扰
+
+## 7. 本地最小实现映射
+
+当前 `sdkwork-im-server` 的落地边界如下：
+
+- `append_stream_frame` 仍然生产 `stream.frame.appended`
+- 如果 stream 绑定到 `conversation`，则从 `conversation_runtime.list_members` 解析目标 principal
+- 设备集合来自 `projection_service.registered_devices`
+- 实际事件写入统一由 `realtime_runtime.publish_scope_event` 完成
+
+这意味着本地最小版本已经具备：
+
+- stream scope 精确订阅
+- conversation 成员级 fanout
+- device 级别在线窗口投递
+- 与消息实时广播一致的可扩展内核
+
+## 8. 后续扩展
+
+在不破坏本标准的前提下，后续建议继续补齐：
+
+- `stream.completed`
+- `stream.aborted`
+- `stream.checkpointed`
+- WebSocket 绑定 realtime window 的下行适配
+- 跨节点 fanout 路由与 shard 转发
+
+这些能力都应沿用本标准的三个稳定边界：
+
+- 订阅 scope 仍然是 `stream`
+- conversation 绑定 stream 的 fanout 目标来自会话成员
+- realtime 只负责在线低延迟投递，durable 补偿仍由上层同步机制承担
+

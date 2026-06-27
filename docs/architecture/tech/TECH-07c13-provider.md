@@ -1,0 +1,49 @@
+> Migrated from `docs/step/07-C13-控制面provider快照状态闭环-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 07-C13: 控制面 provider 快照状态闭环
+## 当前闭环编号
+
+- 所属 step: `Step 07`
+- 当前波次: `07-C13 / CP07-13A`
+- 目标: 为 provider control-plane 的只读快照接口补显式 `status`，让 `provider-registry / provider-bindings` 与 provider-policy 路由形成一致消费方式。
+
+## 本轮实现
+
+- `services/control-plane-api/src/lib.rs`
+  - `GET /backend/v3/api/control/provider-registry` 返回 `status=registry`
+  - `GET /backend/v3/api/control/provider_bindings` 返回 `status=bindings`
+- `provider-bindings` 的 GET 读面新增 `status`，POST 提交结果仍保持 `status=applied|noop`
+- 不改动 provider-policy 相关 success/error `status`
+
+## 接口冻结
+
+- `GET /backend/v3/api/control/provider-registry`
+  - `status=registry`
+  - `interfaceVersion`
+  - `plugins`
+  - `effectiveBindings`
+  - `precedence`
+- `GET /backend/v3/api/control/provider_bindings`
+  - `status=bindings`
+  - `interfaceVersion`
+  - `tenantId`
+  - `effectiveBindings`
+  - `precedence`
+
+## 验证
+
+- `cargo test -p control-plane-api --offline --test provider_registry_test -- --nocapture`
+- `cargo test -p sdkwork-im-cloud-gateway --offline --test provider_plugin_docs_test -- --nocapture`
+
+## 文档同步
+
+- `docs/step/07-C13-控制面provider快照状态闭环-2026-04-08.md`
+- `docs/架构/09P-实施计划-provider快照状态补充-2026-04-08.md`
+- `docs/架构/150P-control-plane-provider-snapshot-status设计-2026-04-08.md`
+- `docs/review/continuous-optimization-control-plane-provider-snapshot-status-2026-04-08.md`
+
+## 下一缺口
+
+- 下一轮进入 `07-C14`，评估是否继续把 provider control-plane 全部收口到单一 envelope，或把当前“所有 provider 读写/成功失败都带 status”的边界正式冻结。
+

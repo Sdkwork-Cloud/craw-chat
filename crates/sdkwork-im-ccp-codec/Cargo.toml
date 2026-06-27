@@ -1,0 +1,5 @@
+[package]
+name = "sdkwork-im-ccp-codec"
+edition.workspace = true
+license.workspace = true
+version.workspace = true

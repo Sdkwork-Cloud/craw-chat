@@ -1,0 +1,16 @@
+[package]
+name = "im-adapters-push-fcm"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+im-platform-contracts = { path = "../../../crates/im-platform-contracts" }
+im-time = { path = "../../../crates/im-time" }
+sdkwork-im-contract-core = { path = "../../../crates/sdkwork-im-contract-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+jsonwebtoken = { version = "9", features = ["use_pem"] }
+tokio.workspace = true
+tracing.workspace = true

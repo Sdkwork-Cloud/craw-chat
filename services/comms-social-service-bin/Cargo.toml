@@ -1,0 +1,19 @@
+[package]
+name = "comms-social-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "comms-social-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+social-service = { path = "../social-service" }
+sdkwork_im_service_readiness = { workspace = true }
+sdkwork-routes-im-social-backend-api = { path = "../../crates/sdkwork-routes-im-social-backend-api" }
+sdkwork-routes-im-social-open-api = { path = "../../crates/sdkwork-routes-im-social-open-api" }
+tokio.workspace = true
+tracing.workspace = true

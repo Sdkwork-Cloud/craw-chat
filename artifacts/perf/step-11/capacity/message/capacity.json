@@ -1,0 +1,24 @@
+{
+  "step": "11",
+  "tierId": "capacity",
+  "tier": "Capacity Tier",
+  "profile": "capacity-dedicated",
+  "scenarioFamily": "message",
+  "artifactKind": "capacity_json",
+  "runId": "step11-capacity-local-message-2026-06-17-doc-capture",
+  "collectedAt": "2026-06-17",
+  "sourceProfile": "self-hosted.split-services.development",
+  "sourceTier": "CI Smoke Tier",
+  "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
+  "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
+  "sourceFieldMapping": {
+    "messageTps": "messageTps",
+    "fanoutP95Ms": "postP95Ms",
+    "fanoutP99Ms": "postP99Ms"
+  },
+  "messageTps": 7745.652,
+  "fanoutP95Ms": 0.152,
+  "fanoutP99Ms": 0.201,
+  "boundary": "This artifact backfills published local CP11-2 message evidence into the Capacity Tier artifact root using capacity_json field names. fanoutP95Ms and fanoutP99Ms are doc-captured from published postP95Ms."
+}

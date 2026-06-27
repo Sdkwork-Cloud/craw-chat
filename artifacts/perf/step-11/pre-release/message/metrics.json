@@ -1,0 +1,25 @@
+{
+  "step": "11",
+  "tierId": "pre-release",
+  "tier": "Pre-Release Tier",
+  "profile": "self-hosted.split-services.development",
+  "scenarioFamily": "message",
+  "artifactKind": "metrics_json",
+  "runId": "step11-cp11-2-local-message-2026-04-08-doc-capture",
+  "collectedAt": "2026-04-08",
+  "sourceProfile": "self-hosted.split-services.development",
+  "sourceTier": "CI Smoke Tier",
+  "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
+  "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
+  "sourceFieldMapping": {
+    "messageP95Ms": "postP95Ms",
+    "messagesPerSecond": "messageTps"
+  },
+  "messageCount": 64,
+  "successCount": 64,
+  "totalDurationMs": 8.263,
+  "messageP95Ms": 0.152,
+  "messagesPerSecond": 7745.652,
+  "boundary": "This artifact backfills one published local CP11-2 message baseline into the Pre-Release Tier artifact root. messageP95Ms is doc-captured from published postP95Ms, messagesPerSecond is doc-captured from published messageTps, and this remains a truthful partial collection record rather than full Pre-Release Tier sign-off."
+}

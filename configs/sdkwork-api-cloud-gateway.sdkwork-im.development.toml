@@ -1,0 +1,138 @@
+﻿mode = "embedded"
+
+[service]
+name = "sdkwork-api-cloud-gateway"
+environment = "development"
+
+[server]
+bind = "127.0.0.1:3900"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-iam-app-api"
+workspace = "sdkwork-appbase"
+sdkFamily = "sdkwork-iam-app-sdk"
+apiAuthority = "sdkwork-iam-app-api"
+surface = "app"
+apiPrefix = "/app/v3/api"
+runtimeMode = "split-or-embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router"
+cargoFeature = "foundation-appbase"
+cargoDependency = "sdkwork_routes_iam_app_api"
+coverage = "appbase-iam-routes"
+requiredBaseUrlKey = "SDKWORK_APPBASE_APP_API_BASE_URL"
+
+# IM HTTP API surface -> upstream application.public-ingress (127.0.0.1:18079).
+# Generates the catch-all route `/im/v3/api/{*path}` covering social/chat/
+# conversations/streams/calls/media/presence HTTP endpoints. WebSocket
+# realtime traffic stays on web-gateway (127.0.0.1:18079); the SDK is given
+# an independent websocketBaseUrl so it is never derived from this prefix.
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-sdk"
+apiAuthority = "sdkwork-im-http"
+surface = "app"
+apiPrefix = "/im/v3/api"
+runtimeMode = "split-or-embedded"
+sameOriginAllowed = true
+
+# Backend HTTP API surface -> upstream sdkwork-im-backend-http (127.0.0.1:18079).
+# Generates the catch-all route `/backend/v3/api/{*path}` covering control/
+# ops/audit backend endpoints.
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-backend-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-backend-sdk"
+apiAuthority = "sdkwork-im-backend-http"
+surface = "backend"
+apiPrefix = "/backend/v3/api"
+runtimeMode = "split-or-embedded"
+sameOriginAllowed = true
+
+[[upstreams]]
+serviceId = "sdkwork-im-http"
+baseUrl = "http://127.0.0.1:18079"
+
+[[upstreams]]
+serviceId = "sdkwork-im-portal-http"
+baseUrl = "http://127.0.0.1:18079"
+
+[[upstreams]]
+serviceId = "sdkwork-im-backend-http"
+baseUrl = "http://127.0.0.1:18079"
+
+# NOTE: routes are generated automatically from [[dependencySurfaces]] above.
+# Each surface becomes a catch-all `{apiPrefix}/{*path}` route matching all
+# HTTP methods and resolved to the upstream with the same serviceId. The
+# gateway runtime ignores any `[[routeDescriptors]]` block
+# (RawGatewayRuntimeConfig has no such field and serde drops unknown keys),
+# so per-path descriptors were dead config and have been removed. Unmatched
+# API paths fail closed with an `application/problem+json` 404 鈥?the gateway
+# never serves HTML.
+
+[cors]
+allowAnyOrigin = true
+allowedOrigins = []
+
+[request]
+maxBodyBytes = 33554432
+timeoutMs = 0
+
+[readiness]
+checkUpstreams = false
+timeoutMs = 1000
+
+[observability]
+accessLogEnabled = true
+auditLogEnabled = true
+accessLogSampleRateBasisPoints = 10000
+auditLogSampleRateBasisPoints = 10000
+metricsEnabled = false
+metricsPath = "/metrics"
+tracingEnabled = false
+redactHeaders = ["authorization", "access-token", "cookie", "x-api-key", "set-cookie"]
+
+[diagnostics]
+enabled = false
+path = "/internal/gateway/diagnostics"
+includePolicyInventory = true
+includeRouteInventory = true
+
+[security]
+allowedHosts = []
+trustedProxyCidrs = []
+secureHeadersEnabled = true
+maxHeaderBytes = 65536
+maxHeaderCount = 128
+rejectCredentialHeadersOnAnonymousAuthRoutes = true
+csrfGuardEnabled = false
+
+[security.waf]
+enabled = false
+mode = "monitor"
+inspectQuery = true
+inspectHeaders = true
+inspectJsonBody = false
+
+[traffic]
+rateLimitEnabled = false
+compatXRateLimitHeaders = true
+globalMaxInFlight = 1024
+rateLimits = []
+concurrencyLimits = []
+
+[policy]
+enabled = true
+dryRun = false
+rules = []
+
+[resilience]
+retryEnabled = false
+maxAttempts = 1
+retryStatuses = [502, 503, 504]
+retryBackoffMs = 0
+circuitBreakerEnabled = false
+failureThreshold = 5
+openSeconds = 30
+halfOpenMaxAttempts = 1

@@ -1,0 +1,12 @@
+[package]
+name = "sdkwork-im-database-pool"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Sdkwork IM sqlx pool bootstrap through sdkwork-database"
+
+[dependencies]
+sdkwork_database_config.workspace = true
+sdkwork_database_sqlx.workspace = true
+sdkwork_im_database_host.workspace = true
+tokio.workspace = true

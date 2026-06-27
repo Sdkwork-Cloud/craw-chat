@@ -1,0 +1,18 @@
+﻿[package]
+name = "automation-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "automation-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+automation-service = { path = "../automation-service" }
+sdkwork-routes-im-automation-app-api = { path = "../../crates/sdkwork-routes-im-automation-app-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

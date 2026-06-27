@@ -1,0 +1,15 @@
+[package]
+name = "sdkwork-im-iam-application-bootstrap"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Ensure Sdkwork IM IAM tenant applications through the shared embedded bootstrap framework."
+
+[lib]
+name = "sdkwork_im_iam_application_bootstrap"
+path = "src/lib.rs"
+
+[dependencies]
+sdkwork_iam_database_host = { path = "../../../sdkwork-iam/crates/sdkwork-iam-database-host", package = "sdkwork-iam-database-host" }
+sdkwork_iam_embedded_application_bootstrap = { path = "../../../sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap", package = "sdkwork-iam-embedded-application-bootstrap" }
+sqlx = { workspace = true }

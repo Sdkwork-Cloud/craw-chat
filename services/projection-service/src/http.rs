@@ -1,0 +1,508 @@
+use std::sync::{Arc, OnceLock};
+
+use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
+use axum::http::{HeaderMap, Request, header::CONTENT_TYPE};
+use axum::middleware::{self, Next};
+use axum::response::{Html, IntoResponse, Response};
+use axum::{Json, Router, routing::get};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_domain_core::conversation::ConversationReadCursorView;
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use serde::{Deserialize, Serialize};
+use tokio::sync::Semaphore;
+
+use super::{
+    ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,
+    MessageInteractionSummaryView, ProjectionAccessError, ProjectionRuntime, TimelineProjectionService,
+    TimelineWindowView,
+};
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct TimelineQuery {
+    after_seq: Option<u64>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ListQuery {
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
+type TimelineResponse = TimelineWindowView;
+type InboxResponse = InboxWindowView;
+type ContactsResponse = ContactWindowView;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MemberDirectoryResponse {
+    items: Vec<ConversationMemberDirectoryEntry>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PinnedMessagesResponse {
+    items: Vec<MessageInteractionSummaryView>,
+}
+
+const PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_PROJECTION_MAX_IN_FLIGHT_REQUESTS";
+const PROJECTION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const PROJECTION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
+const PROJECTION_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_PROJECTION_MAX_REQUEST_BODY_BYTES";
+const PROJECTION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const PROJECTION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+}
+
+#[derive(Debug)]
+pub struct ProjectionApiError {
+    status: axum::http::StatusCode,
+    code: &'static str,
+    message: String,
+}
+
+impl ProjectionApiError {
+    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code,
+            message: message.into(),
+        }
+    }
+}
+
+impl From<AppContextError> for ProjectionApiError {
+    fn from(value: AppContextError) -> Self {
+        Self {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: value.code(),
+            message: value.message().to_owned(),
+        }
+    }
+}
+
+impl From<ProjectionAccessError> for ProjectionApiError {
+    fn from(value: ProjectionAccessError) -> Self {
+        Self {
+            status: value.status(),
+            code: value.code(),
+            message: value.message().to_owned(),
+        }
+    }
+}
+
+impl IntoResponse for ProjectionApiError {
+    fn into_response(self) -> axum::response::Response {
+        let status = self.status;
+        let detail = self.message;
+        let message = detail.clone();
+        let title = status.canonical_reason().unwrap_or("Unknown Error");
+        (
+            status,
+            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
+            Json(serde_json::json!({
+                "type": "about:blank",
+                "title": title,
+                "status": status.as_u16(),
+                "detail": detail,
+                "code": self.code,
+                "message": message
+            })),
+        )
+            .into_response()
+    }
+}
+
+static DEFAULT_PROJECTION_RUNTIME: OnceLock<Arc<ProjectionRuntime>> = OnceLock::new();
+
+pub fn default_projection_service() -> Arc<TimelineProjectionService> {
+    default_projection_runtime().service()
+}
+
+pub fn default_projection_runtime() -> Arc<ProjectionRuntime> {
+    DEFAULT_PROJECTION_RUNTIME
+        .get_or_init(|| {
+            Arc::new(
+                crate::build_projection_runtime_from_env().unwrap_or_else(|error| {
+                    tracing::warn!(
+                        "projection-service bootstrap failed ({error}); \
+                         falling back to in-memory projection runtime for local development"
+                    );
+                    ProjectionRuntime::in_memory()
+                }),
+            )
+        })
+        .clone()
+}
+
+pub fn build_default_app() -> Router {
+    let runtime = default_projection_runtime();
+    build_app(runtime.service())
+}
+
+pub fn build_supplemental_domain_api_router(service: Arc<TimelineProjectionService>) -> Router {
+    Router::new()
+        .route("/im/v3/api/chat/contacts", get(get_contacts))
+        .route("/im/v3/api/chat/inbox", get(get_inbox))
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}",
+            get(get_conversation_summary),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/member_directory",
+            get(get_member_directory),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/pins",
+            get(get_pinned_messages),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
+            get(get_message_interaction_summary),
+        )
+        .with_state(service)
+}
+
+pub fn build_domain_api_router(service: Arc<TimelineProjectionService>) -> Router {
+    Router::new()
+        .route("/im/v3/api/chat/contacts", get(get_contacts))
+        .route("/im/v3/api/chat/inbox", get(get_inbox))
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}",
+            get(get_conversation_summary),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/read_cursor",
+            get(get_read_cursor),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/member_directory",
+            get(get_member_directory),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/pins",
+            get(get_pinned_messages),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
+            get(get_message_interaction_summary),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/messages",
+            get(get_timeline),
+        )
+        .with_state(service)
+}
+
+pub fn apply_public_http_guardrails(router: Router) -> Router {
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+    };
+    router
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            enforce_in_flight_gate,
+        ))
+}
+
+pub fn build_public_app() -> Router {
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(
+            default_projection_runtime().service(),
+        )),
+        im_service_router_config(),
+    )
+}
+
+pub fn build_public_app_with_service(service: Arc<TimelineProjectionService>) -> Router {
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(service)),
+        im_service_router_config(),
+    )
+}
+
+pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
+    mount_im_infra_routes(
+        build_business_router(service),
+        im_service_router_config(),
+    )
+}
+
+fn build_business_router(service: Arc<TimelineProjectionService>) -> Router {
+    Router::new()
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
+        .merge(build_domain_api_router(service))
+}
+
+async fn enforce_in_flight_gate(
+    State(guardrails): State<PublicAppGuardrails>,
+    request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
+    if matches!(
+        request.uri().path(),
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
+    ) {
+        return next.run(request).await;
+    }
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            return ProjectionApiError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "http_overloaded",
+                message:
+                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+            }
+            .into_response();
+        }
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
+}
+
+async fn openapi_json() -> Result<Json<serde_json::Value>, ProjectionApiError> {
+    Ok(Json(build_projection_service_openapi_document().map_err(
+        |message| ProjectionApiError::internal("openapi_export_failed", message),
+    )?))
+}
+
+async fn docs() -> Html<String> {
+    Html(render_docs_html(&projection_service_openapi_spec()))
+}
+
+fn build_projection_service_openapi_document() -> Result<serde_json::Value, String> {
+    let http_source = include_str!("http.rs");
+    let mut routes = extract_routes_from_function(
+        http_source,
+        "build_business_router",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
+    routes.extend(extract_routes_from_function(
+        http_source,
+        "build_domain_api_router",
+        &[],
+        &[],
+    )?);
+
+    Ok(build_openapi_document(
+        &projection_service_openapi_spec(),
+        &routes,
+        projection_service_tag,
+        projection_service_requires_app_context,
+        projection_service_summary,
+    ))
+}
+
+fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
+    OpenApiServiceSpec {
+        title: "Sdkwork IM Projection Service API",
+        version: env!("CARGO_PKG_VERSION"),
+        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, contacts, read cursor, and interaction summary queries.",
+        openapi_path: "/openapi.json",
+        docs_path: "/docs",
+    }
+}
+
+fn projection_service_tag(path: &str, _method: HttpMethod) -> String {
+    match path {
+        "/healthz" | "/readyz" => "system".to_owned(),
+        "/im/v3/api/chat/contacts" => "contacts".to_owned(),
+        "/im/v3/api/chat/inbox" => "inbox".to_owned(),
+        _ => "conversations".to_owned(),
+    }
+}
+
+fn projection_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
+    !matches!(path, "/healthz" | "/readyz")
+}
+
+fn projection_service_summary(path: &str, method: HttpMethod) -> String {
+    match (path, method) {
+        ("/healthz", HttpMethod::Get) => "Check projection service health".to_owned(),
+        ("/readyz", HttpMethod::Get) => "Check projection service readiness".to_owned(),
+        _ => format!(
+            "{} {}",
+            projection_service_method_display(method),
+            path.trim_matches('/').replace('/', " ")
+        ),
+    }
+}
+
+fn projection_service_method_display(method: HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Delete => "Delete",
+        HttpMethod::Get => "Get",
+        HttpMethod::Head => "Head",
+        HttpMethod::Options => "Options",
+        HttpMethod::Patch => "Patch",
+        HttpMethod::Post => "Post",
+        HttpMethod::Put => "Put",
+    }
+}
+
+async fn get_timeline(
+    Path(conversation_id): Path<String>,
+    Query(query): Query<TimelineQuery>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<TimelineResponse>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(service.timeline_window_from_auth_context(
+        &auth,
+        conversation_id.as_str(),
+        query.after_seq,
+        query.limit,
+    )?))
+}
+
+async fn get_inbox(
+    Query(query): Query<ListQuery>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<InboxResponse>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(service.inbox_window_from_auth_context(
+        &auth,
+        query.limit,
+        query.cursor.as_deref(),
+    )?))
+}
+
+async fn get_contacts(
+    Query(query): Query<ListQuery>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<ContactsResponse>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(service.contact_window_from_auth_context(
+        &auth,
+        query.limit,
+        query.cursor.as_deref(),
+    )?))
+}
+
+async fn get_conversation_summary(
+    Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<ConversationSummaryView>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    let summary = service
+        .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
+        .ok_or_else(|| ProjectionApiError {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "conversation_summary_not_found",
+            message: format!("conversation summary not found: {conversation_id}"),
+        })?;
+    Ok(Json(summary))
+}
+
+async fn get_read_cursor(
+    Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<ConversationReadCursorView>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    let cursor = service
+        .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
+        .ok_or_else(|| ProjectionApiError {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "conversation_read_cursor_not_found",
+            message: format!("conversation read cursor not found: {conversation_id}"),
+        })?;
+    Ok(Json(cursor))
+}
+
+async fn get_member_directory(
+    Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<MemberDirectoryResponse>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(MemberDirectoryResponse {
+        items: service.member_directory_from_auth_context(&auth, conversation_id.as_str())?,
+    }))
+}
+
+async fn get_pinned_messages(
+    Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<PinnedMessagesResponse>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(PinnedMessagesResponse {
+        items: service.pinned_messages_from_auth_context(&auth, conversation_id.as_str())?,
+    }))
+}
+
+async fn get_message_interaction_summary(
+    Path((conversation_id, message_id)): Path<(String, String)>,
+    auth: Option<Extension<AppContext>>,
+    headers: HeaderMap,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Result<Json<MessageInteractionSummaryView>, ProjectionApiError> {
+    let auth = resolve_request_app_context(auth, &headers)?;
+    let summary = service
+        .message_interaction_summary_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            message_id.as_str(),
+        )?
+        .ok_or_else(|| ProjectionApiError {
+            status: axum::http::StatusCode::NOT_FOUND,
+            code: "message_interaction_summary_not_found",
+            message: format!(
+                "message interaction summary not found: {conversation_id}/{message_id}"
+            ),
+        })?;
+    Ok(Json(summary))
+}
+
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, ProjectionApiError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(ProjectionApiError::from),
+    }
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(PROJECTION_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(PROJECTION_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(PROJECTION_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(PROJECTION_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(PROJECTION_MAX_REQUEST_BODY_BYTES_MAX)
+}

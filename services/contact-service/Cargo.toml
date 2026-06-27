@@ -1,0 +1,11 @@
+[package]
+name = "contact-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+social-service = { path = "../social-service" }
+sdkwork-routes-im-social-open-api = { path = "../../crates/sdkwork-routes-im-social-open-api" }

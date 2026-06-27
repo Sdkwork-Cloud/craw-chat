@@ -1,0 +1,22 @@
+[package]
+name = "sdkwork-im-websocket-auth-gate"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Shared WebSocket auth.init gate for Sdkwork IM gateways and upstream compat paths"
+
+[lib]
+name = "sdkwork_im_websocket_auth_gate"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+futures-util.workspace = true
+im-app-context = { path = "../im-app-context" }
+serde.workspace = true
+serde_json.workspace = true
+sdkwork_im_realtime_api_paths.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

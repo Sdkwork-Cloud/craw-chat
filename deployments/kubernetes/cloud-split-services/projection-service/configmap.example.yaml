@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: projection-service-runtime
+  namespace: sdkwork-im
+data:
+  SDKWORK_IM_PROJECTION_SERVICE_BIND_ADDR: 0.0.0.0:18083
+  SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318

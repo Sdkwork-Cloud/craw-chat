@@ -1,0 +1,21 @@
+{
+  "nav": {
+    "dashboard": "工作台",
+    "users": "组织架构与成员",
+    "roles": "角色与权限",
+    "groups": "群组与通信管理",
+    "messages": "消息与内容管理",
+    "stores": "门店与网点管理",
+    "products": "商品与库房管理",
+    "announcements": "租户通知与公告",
+    "integrations": "应用与机器人",
+    "security": "安全合规",
+    "analytics": "数据分析",
+    "course": "课程管理",
+    "settings": "系统设置",
+    "coreManagement": "核心管理",
+    "switchToClient": "切换到客户端",
+    "brandTitle": "Sdkwork IM Console",
+    "brandSubtitle": "租户管理台"
+  }
+}

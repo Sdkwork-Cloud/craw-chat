@@ -1,0 +1,301 @@
+{
+  "$schema": "tools/perf/schemas/step-11-scenario-catalog.schema.json",
+  "version": 1,
+  "step": "11",
+  "checkpoint": "CP11-1",
+  "title": "step-11-performance-ha-dr-scenario-catalog",
+  "updatedAt": "2026-06-24",
+  "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
+  "reviewBackwrite": [
+    "docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
+    "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
+  ],
+  "sharedConstraints": [
+    "Reuse the Step 10 standalone.split-services.development deployment and runtime-ops baseline.",
+    "Freeze scenario inventory before adding new load infrastructure.",
+    "Use the same metric vocabulary across performance and HA/DR drills.",
+    "Treat docs/review as the source of checkpoint evidence."
+  ],
+  "executionOrder": [
+    "Freeze scenario inventory and execution tiers.",
+    "Run connection, message, and stream quantitative drills.",
+    "Run IM realtime core quantitative drill for fanout, checkpoint, trimming, compensation, and route handoff.",
+    "Run IM websocket E2E quantitative drill for long connections, live push, reconnect recovery, backlog restore, and route handoff.",
+    "Run drain, rebalance, restore, failover, and upgrade rollback drills.",
+    "Write quantitative results and conclusions back into docs/review."
+  ],
+  "tiers": [
+    {
+      "id": "ci-smoke",
+      "name": "CI Smoke Tier",
+      "goal": "Fast in-repo regression for connection, routing, stream, and recovery semantics.",
+      "intendedScale": "single-node standalone.split-services.development and targeted multi-node simulation",
+      "evidence": "targeted cargo tests or smoke scripts finish quickly and leave reproducible output"
+    },
+    {
+      "id": "pre-release",
+      "name": "Pre-Release Tier",
+      "profile": "self-hosted.split-services.development",
+      "state": "evidence_collected_gate_blocked",
+      "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
+      "goal": "Release-gate validation for medium-scale concurrency, throughput, and operator drills.",
+      "intendedScale": "standalone.split-services.development or dedicated pre-release topology with controlled clients",
+      "evidence": "at least one quantitative run per major scenario family",
+      "gateTemplate": "tools/perf/step-11-pre-release-tier-gate.json",
+      "artifactRoot": "artifacts/perf/step-11/pre-release"
+    },
+    {
+      "id": "capacity",
+      "name": "Capacity Tier",
+      "profile": "capacity-dedicated",
+      "state": "evidence_collected_gate_passed",
+      "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
+      "goal": "Dedicated environment for density, throughput ceiling, and tail-latency validation.",
+      "intendedScale": "single-node high-density or clustered cell/region drill environment",
+      "evidence": "capacity report with explicit input scale, latency, throughput, and recovery timing",
+      "gateTemplate": "tools/perf/step-11-capacity-tier-gate.json",
+      "artifactRoot": "artifacts/perf/step-11/capacity"
+    }
+  ],
+  "scenarioFamilies": [
+    {
+      "id": "connection-baseline",
+      "family": "connection",
+      "goal": "Freeze handshake, websocket establishment, multi-client command flow, and session resume baselines.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release",
+        "capacity"
+      ],
+      "metrics": [
+        "handshake_success_rate",
+        "active_connections",
+        "resume_success_rate",
+        "connect_p95_ms"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/websocket_smoke_test.rs",
+        "services/session-gateway/tests/cluster_routing_test.rs",
+        "tools/perf/step-11-cp11-2-local-baseline.json",
+        "tools/smoke/local_stack_smoke.ps1",
+        "tools/smoke/local_stack_smoke.sh"
+      ],
+      "nextCheckpoints": [
+        "CP11-2"
+      ],
+      "status": "measured-local-baseline"
+    },
+    {
+      "id": "message-throughput-baseline",
+      "family": "message",
+      "goal": "Freeze the baseline for routed message delivery and multi-client conversation fanout throughput.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release",
+        "capacity"
+      ],
+      "metrics": [
+        "message_tps",
+        "delivery_success_rate",
+        "fanout_p95_ms",
+        "route_transfer_success_rate"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/cluster_routing_test.rs",
+        "services/session-gateway/tests/performance_realtime_core_baseline_test.rs",
+        "tools/perf/step-11-cp11-2-local-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-2"
+      ],
+      "status": "measured-local-baseline"
+    },
+    {
+      "id": "stream-throughput-baseline",
+      "family": "stream",
+      "goal": "Freeze the baseline for persisted stream frames, checkpointing, and replay-safe stream throughput.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release",
+        "capacity"
+      ],
+      "metrics": [
+        "stream_frames_per_second",
+        "checkpoint_success_rate",
+        "stream_replay_success_rate",
+        "frame_p95_ms"
+      ],
+      "repoAssets": [
+        "services/streaming-service/tests/stream_lifecycle_test.rs",
+        "tools/perf/step-11-cp11-2-local-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-2"
+      ],
+      "status": "measured-local-baseline"
+    },
+    {
+      "id": "im-realtime-core-baseline",
+      "family": "im-realtime-core",
+      "goal": "Freeze the IM realtime core commercial gate for fanout, bounded windows, checkpoints, compensation rollback, and cluster handoff.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release",
+        "capacity"
+      ],
+      "metrics": [
+        "fanout_success_permille",
+        "publish_p95_ms",
+        "publish_p99_ms",
+        "publish_tps",
+        "ack_p95_ms",
+        "restore_duration_ms",
+        "compensation_rollback_ms",
+        "cluster_handoff_ms",
+        "capacity_trimmed_event_count"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/performance_realtime_core_baseline_test.rs",
+        "services/session-gateway/tests/commercial_realtime_acceptance_test.rs",
+        "tools/perf/step-11-cp11-4-im-realtime-core-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-4"
+      ],
+      "status": "measured-local-baseline"
+    },
+    {
+      "id": "im-websocket-e2e-baseline",
+      "family": "im-websocket-e2e",
+      "goal": "Freeze the IM websocket E2E commercial gate for real TCP websocket sessions, live fanout, reconnect recovery, backlog restore, capacity trimming, ack checkpointing, and cluster handoff.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release"
+      ],
+      "metrics": [
+        "connect_success_permille",
+        "live_fanout_success_permille",
+        "connect_p95_ms",
+        "subscribe_p95_ms",
+        "live_push_p95_ms",
+        "ack_p95_ms",
+        "disconnect_recovery_ms",
+        "backlog_restore_ms",
+        "cluster_handoff_ms",
+        "capacity_trimmed_event_count"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/performance_websocket_e2e_baseline_test.rs",
+        "services/session-gateway/tests/websocket_smoke_test.rs",
+        "tools/perf/step-11-cp11-5-websocket-e2e-baseline.json",
+        "artifacts/perf/step-11/pre-release/im-websocket-e2e/metrics.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-5",
+        "CP11-6"
+      ],
+      "status": "supplement_collected_gate_blocked_pending_real_pre_release_run"
+    },
+    {
+      "id": "drain-rebalance-drill",
+      "family": "drain-rebalance",
+      "goal": "Freeze the operator drill for drain, route migration, and rebalance timing on a shared deployment baseline.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release"
+      ],
+      "metrics": [
+        "drain_completion_seconds",
+        "route_migration_success_rate",
+        "rebalance_p95_ms",
+        "post_drain_route_loss"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/cluster_routing_test.rs",
+        "services/session-gateway/tests/performance_ha_dr_drill_test.rs",
+        "services/governance-service/tests/governance_loop_test.rs",
+        "tools/perf/step-11-cp11-3-local-drill-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-3"
+      ],
+      "status": "measured-local-drill"
+    },
+    {
+      "id": "restore-recovery-drill",
+      "family": "restore-recovery",
+      "goal": "Freeze the operator drill for backup preview, restore, and runtime recovery timing.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release"
+      ],
+      "metrics": [
+        "restore_success_rate",
+        "restore_rto_seconds",
+        "data_loss_rpo_events",
+        "preview_diff_accuracy"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/performance_ha_dr_drill_test.rs",
+        "artifacts/perf/step-11/pre-release/restore-recovery/drill.json",
+        "tools/perf/step-11-cp11-3-local-drill-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-3"
+      ],
+      "status": "measured-local-drill"
+    },
+    {
+      "id": "failover-drill",
+      "family": "failover",
+      "goal": "Freeze the cross-node resume takeover drill for owner switch convergence and stale-session rejection.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release"
+      ],
+      "metrics": [
+        "takeover_duration_ms",
+        "owner_switch_accuracy",
+        "stale_session_rejection_rate",
+        "resume_takeover_success_rate"
+      ],
+      "repoAssets": [
+        "services/session-gateway/tests/cluster_routing_test.rs",
+        "services/session-gateway/tests/performance_ha_dr_drill_test.rs",
+        "tools/perf/step-11-cp11-3-local-drill-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-3"
+      ],
+      "status": "measured-local-drill"
+    },
+    {
+      "id": "upgrade-rollback-drill",
+      "family": "upgrade-rollback",
+      "goal": "Freeze the compatibility and rollback drill surface before multi-cell or multi-region rollout execution.",
+      "tierIds": [
+        "ci-smoke",
+        "pre-release"
+      ],
+      "metrics": [
+        "compatibility_matrix_pass_rate",
+        "rollback_activation_seconds",
+        "kill_switch_propagation_success_rate",
+        "post_rollback_protocol_error_rate"
+      ],
+      "repoAssets": [
+        "crates/sdkwork-im-ccp-registry/tests/compatibility_matrix_test.rs",
+        "services/session-gateway/tests/performance_ha_dr_drill_test.rs",
+        "services/governance-service/tests/protocol_registry_test.rs",
+        "services/governance-service/tests/protocol_governance_test.rs",
+        "tools/perf/step-11-cp11-3-local-drill-baseline.json"
+      ],
+      "nextCheckpoints": [
+        "CP11-3"
+      ],
+      "status": "measured-local-drill"
+    }
+  ]
+}

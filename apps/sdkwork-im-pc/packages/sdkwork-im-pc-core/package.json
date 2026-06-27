@@ -1,0 +1,132 @@
+{
+  "name": "@sdkwork/im-pc-core",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtime/desktopEnvironment": {
+      "types": "./src/runtime/desktopEnvironment.ts",
+      "default": "./src/runtime/desktopEnvironment.ts"
+    },
+    "./sdk/agentAppSdkClient": {
+      "types": "./src/sdk/agentAppSdkClient.ts",
+      "default": "./src/sdk/agentAppSdkClient.ts"
+    },
+    "./sdk/aiotAppSdkClient": {
+      "types": "./src/sdk/aiotAppSdkClient.ts",
+      "default": "./src/sdk/aiotAppSdkClient.ts"
+    },
+    "./sdk/appSdkClient": {
+      "types": "./src/sdk/appSdkClient.ts",
+      "default": "./src/sdk/appSdkClient.ts"
+    },
+    "./sdk/appbaseAppSdkClient": {
+      "types": "./src/sdk/appbaseAppSdkClient.ts",
+      "default": "./src/sdk/appbaseAppSdkClient.ts"
+    },
+    "./sdk/driveAppSdkClient": {
+      "types": "./src/sdk/driveAppSdkClient.ts",
+      "default": "./src/sdk/driveAppSdkClient.ts"
+    },
+    "./sdk/catalogAppSdkClient": {
+      "types": "./src/sdk/catalogAppSdkClient.ts",
+      "default": "./src/sdk/catalogAppSdkClient.ts"
+    },
+    "./sdk/shopAppSdkClient": {
+      "types": "./src/sdk/shopAppSdkClient.ts",
+      "default": "./src/sdk/shopAppSdkClient.ts"
+    },
+    "./sdk/orderAppSdkClient": {
+      "types": "./src/sdk/orderAppSdkClient.ts",
+      "default": "./src/sdk/orderAppSdkClient.ts"
+    },
+    "./sdk/appSdkResponseHelpers": {
+      "types": "./src/sdk/appSdkResponseHelpers.ts",
+      "default": "./src/sdk/appSdkResponseHelpers.ts"
+    },
+    "./sdk/mailAppSdkClient": {
+      "types": "./src/sdk/mailAppSdkClient.ts",
+      "default": "./src/sdk/mailAppSdkClient.ts"
+    },
+    "./sdk/mailApiHelpers": {
+      "types": "./src/sdk/mailApiHelpers.ts",
+      "default": "./src/sdk/mailApiHelpers.ts"
+    },
+    "./sdk/communityAppSdkClient": {
+      "types": "./src/sdk/communityAppSdkClient.ts",
+      "default": "./src/sdk/communityAppSdkClient.ts"
+    },
+    "./sdk/communityApiHelpers": {
+      "types": "./src/sdk/communityApiHelpers.ts",
+      "default": "./src/sdk/communityApiHelpers.ts"
+    },
+    "./sdk/courseAppSdkClient": {
+      "types": "./src/sdk/courseAppSdkClient.ts",
+      "default": "./src/sdk/courseAppSdkClient.ts"
+    },
+    "./sdk/imSdkClient": {
+      "types": "./src/sdk/imSdkClient.ts",
+      "default": "./src/sdk/imSdkClient.ts"
+    },
+    "./sdk/pcRealtimeConnectionManager": {
+      "types": "./src/sdk/pcRealtimeConnectionManager.ts",
+      "default": "./src/sdk/pcRealtimeConnectionManager.ts"
+    },
+    "./sdk/session": {
+      "types": "./src/sdk/session.ts",
+      "default": "./src/sdk/session.ts"
+    },
+    "./sdk": {
+      "types": "./src/sdk/index.ts",
+      "import": "./src/sdk/index.ts",
+      "default": "./src/sdk/index.ts"
+    },
+    "./modules": {
+      "types": "./src/modules/index.ts",
+      "import": "./src/modules/index.ts",
+      "default": "./src/modules/index.ts"
+    },
+    "./host": {
+      "types": "./src/host/index.ts",
+      "import": "./src/host/index.ts",
+      "default": "./src/host/index.ts"
+    },
+    "./session": {
+      "types": "./src/session/index.ts",
+      "import": "./src/session/index.ts",
+      "default": "./src/session/index.ts"
+    },
+    "./composition": {
+      "types": "./src/composition/index.ts",
+      "import": "./src/composition/index.ts",
+      "default": "./src/composition/index.ts"
+    }
+  },
+  "dependencies": {
+    "@sdkwork/aiot-app-sdk": "workspace:*",
+    "@sdkwork/auth-runtime-pc-react": "workspace:*",
+    "@sdkwork/catalog-app-sdk": "workspace:*",
+    "@sdkwork/shop-app-sdk": "workspace:*",
+    "@sdkwork/order-app-sdk": "workspace:*",
+    "@sdkwork/mail-app-sdk": "workspace:*",
+    "@sdkwork/community-app-sdk": "workspace:*",
+    "@sdkwork/course-app-sdk": "workspace:*",
+    "@sdkwork/course-backend-sdk": "workspace:*",
+    "@sdkwork/course-pc-course": "workspace:*",
+    "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/drive-pc-drive": "workspace:*",
+    "@sdkwork/knowledgebase-app-sdk": "workspace:*",
+    "@sdkwork/knowledgebase-pc-knowledge": "workspace:*",
+    "@sdkwork/notary-app-sdk": "workspace:*",
+    "@sdkwork/notary-pc-commons": "workspace:*",
+    "@sdkwork/notary-pc-notary": "workspace:*",
+    "sdkwork-drive-pc-core": "workspace:*",
+    "sdkwork-knowledgebase-pc-core": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
+    "@sdkwork/im-sdk": "workspace:*"
+  }
+}

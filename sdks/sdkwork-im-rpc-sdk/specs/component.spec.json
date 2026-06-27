@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-rpc-sdk",
+    "displayName": "SDKWork IM RPC SDK",
+    "version": "0.1.0",
+    "type": "sdk-family",
+    "root": "sdkwork-im/sdks/sdkwork-im-rpc-sdk",
+    "domain": "communication",
+    "declaredDomain": null,
+    "capability": "chat",
+    "status": "standardizing",
+    "languages": [
+      "go",
+      "java",
+      "python",
+      "rust",
+      "typescript"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      ".sdkwork-assembly.json",
+      "rpc/sdkwork-im-rpc.manifest.json"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "RPC_SPEC.md",
+      "path": "../../../sdkwork-specs/RPC_SPEC.md",
+      "purpose": "Language-neutral gRPC/protobuf contract rules."
+    },
+    {
+      "file": "RPC_SDK_WORKSPACE_SPEC.md",
+      "path": "../../../sdkwork-specs/RPC_SDK_WORKSPACE_SPEC.md",
+      "purpose": "RPC SDK family layout, proto inputs, RPC manifest, and generated RPC SDK rules."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "SDK generation and SDK integration rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "RPC contract and SDK verification rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    }
+  ],
+  "contracts": {
+    "rpcManifest": "rpc/sdkwork-im-rpc.manifest.json",
+    "protoRoot": "../../apis/rpc",
+    "protoPackages": [
+      "sdkwork.communication.app.v3",
+      "sdkwork.communication.backend.v3",
+      "sdkwork.communication.internal.v1",
+      "sdkwork.common.v1"
+    ],
+    "publicExports": [
+      "@sdkwork/im-rpc-sdk"
+    ],
+    "runtimeEntrypoints": [
+      ".sdkwork-assembly.json",
+      "rpc/sdkwork-im-rpc.manifest.json"
+    ],
+    "sdkDependencies": [],
+    "inspectionPolicy": {
+      "mode": "convention",
+      "protocol": "rpc",
+      "optionalControlPlane": {
+        "emitFlag": "--emit-control-plane",
+        "purpose": [
+          "release",
+          "ci",
+          "audit",
+          "migration"
+        ]
+      }
+    },
+    "generatedSdkWorkspaces": [
+      {
+        "language": "go",
+        "workspace": "sdkwork-im-rpc-sdk-go",
+        "packageName": "github.com/sdkwork/im-rpc-sdk-go",
+        "bufTemplate": "sdkwork-im-rpc-sdk-go/buf.gen.yaml",
+        "generatedPath": "sdkwork-im-rpc-sdk-go/generated/proto",
+        "methodCatalog": "sdkwork-im-rpc-sdk-go/rpc-methods.json",
+        "inspection": {
+          "mode": "convention",
+          "protocol": "rpc",
+          "inspectCommand": "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go --json",
+          "requiredEvidence": [
+            "../.sdkwork-assembly.json",
+            "../rpc/sdkwork-im-rpc.manifest.json",
+            "buf.gen.yaml",
+            "rpc-methods.json",
+            "sdkwork-im-rpc-sdk-go/generated/proto"
+          ]
+        }
+      },
+      {
+        "language": "java",
+        "workspace": "sdkwork-im-rpc-sdk-java",
+        "packageName": "com.sdkwork.im.rpc",
+        "bufTemplate": "sdkwork-im-rpc-sdk-java/buf.gen.yaml",
+        "generatedPath": "sdkwork-im-rpc-sdk-java/generated/proto/java",
+        "methodCatalog": "sdkwork-im-rpc-sdk-java/rpc-methods.json",
+        "inspection": {
+          "mode": "convention",
+          "protocol": "rpc",
+          "inspectCommand": "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java --json",
+          "requiredEvidence": [
+            "../.sdkwork-assembly.json",
+            "../rpc/sdkwork-im-rpc.manifest.json",
+            "buf.gen.yaml",
+            "rpc-methods.json",
+            "sdkwork-im-rpc-sdk-java/generated/proto/java"
+          ]
+        }
+      },
+      {
+        "language": "python",
+        "workspace": "sdkwork-im-rpc-sdk-python",
+        "packageName": "sdkwork_im_rpc_sdk",
+        "bufTemplate": "sdkwork-im-rpc-sdk-python/buf.gen.yaml",
+        "generatedPath": "sdkwork-im-rpc-sdk-python/generated/proto",
+        "methodCatalog": "sdkwork-im-rpc-sdk-python/rpc-methods.json",
+        "inspection": {
+          "mode": "convention",
+          "protocol": "rpc",
+          "inspectCommand": "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-python --json",
+          "requiredEvidence": [
+            "../.sdkwork-assembly.json",
+            "../rpc/sdkwork-im-rpc.manifest.json",
+            "buf.gen.yaml",
+            "rpc-methods.json",
+            "sdkwork-im-rpc-sdk-python/generated/proto"
+          ]
+        }
+      },
+      {
+        "language": "rust",
+        "workspace": "sdkwork-im-rpc-sdk-rust",
+        "packageName": "sdkwork-im-rpc-sdk-rust",
+        "bufTemplate": "sdkwork-im-rpc-sdk-rust/buf.gen.yaml",
+        "generatedPath": "sdkwork-im-rpc-sdk-rust/generated/proto",
+        "methodCatalog": "sdkwork-im-rpc-sdk-rust/rpc-methods.json",
+        "inspection": {
+          "mode": "convention",
+          "protocol": "rpc",
+          "inspectCommand": "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust --json",
+          "requiredEvidence": [
+            "../.sdkwork-assembly.json",
+            "../rpc/sdkwork-im-rpc.manifest.json",
+            "buf.gen.yaml",
+            "rpc-methods.json",
+            "sdkwork-im-rpc-sdk-rust/generated/proto"
+          ]
+        }
+      },
+      {
+        "language": "typescript",
+        "workspace": "sdkwork-im-rpc-sdk-typescript",
+        "packageName": "@sdkwork/im-rpc-sdk",
+        "bufTemplate": "sdkwork-im-rpc-sdk-typescript/buf.gen.yaml",
+        "generatedPath": "sdkwork-im-rpc-sdk-typescript/generated/proto",
+        "methodCatalog": "sdkwork-im-rpc-sdk-typescript/rpc-methods.json",
+        "inspection": {
+          "mode": "convention",
+          "protocol": "rpc",
+          "inspectCommand": "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript --json",
+          "requiredEvidence": [
+            "../.sdkwork-assembly.json",
+            "../rpc/sdkwork-im-rpc.manifest.json",
+            "buf.gen.yaml",
+            "rpc-methods.json",
+            "sdkwork-im-rpc-sdk-typescript/generated/proto"
+          ]
+        }
+      }
+    ],
+    "sdkClients": [
+      "SdkworkImRpcClient"
+    ],
+    "events": [],
+    "configKeys": [
+      ".sdkwork-assembly.json"
+    ]
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "dependencyPolicy": "Consumers integrate through generated RPC SDK clients or approved composed wrappers only.",
+    "sdkPolicy": "RPC SDK clients are injected through service/runtime boundaries; business modules must not assemble raw gRPC metadata.",
+    "languagePolicy": "Generated protobuf output remains separate from handwritten metadata providers and service facades."
+  },
+  "verification": {
+    "commands": [
+      "node scripts/dev/sdkwork-im-rpc-contract.test.mjs",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --dry-run --no-sync-published-version",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --dry-run --no-sync-published-version",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --dry-run --no-sync-published-version",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-python --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language python --package-name sdkwork_im_rpc_sdk --dry-run --no-sync-published-version",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language rust --package-name sdkwork-im-rpc-sdk-rust --dry-run --no-sync-published-version",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript --json",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go --json",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java --json",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-python --json",
+      "node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust --json"
+    ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im-rpc-sdk",
+    "standardVersion": "2026-06-09"
+  }
+}

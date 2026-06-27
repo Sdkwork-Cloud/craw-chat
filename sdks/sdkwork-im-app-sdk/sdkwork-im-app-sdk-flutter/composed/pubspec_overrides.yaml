@@ -1,0 +1,7 @@
+dependency_overrides:
+  im_app_api_generated:
+    path: ../generated/server-openapi
+  rtc_sdk:
+    path: ../../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter
+  sdkwork_common_flutter:
+    path: ../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-flutter

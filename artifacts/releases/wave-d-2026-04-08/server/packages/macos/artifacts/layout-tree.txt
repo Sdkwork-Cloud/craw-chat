@@ -1,0 +1,5 @@
+artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/
+artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md
+artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt
+artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/sdkwork-im-server-darwin-universal.tar.gz
+artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/sdkwork-im-server-<version>.pkg

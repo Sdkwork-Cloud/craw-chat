@@ -1,0 +1,30 @@
+{
+  "header": {
+    "title": "Work Reports",
+    "received": "Received",
+    "sent": "Sent",
+    "writeReport": "Write Report"
+  },
+  "editor": {
+    "title": "New Report",
+    "currentWork": "Current Work",
+    "currentWorkPlaceholder": "Fill in your {{type}} content...",
+    "nextPlan": "Next Plan",
+    "nextPlanPlaceholder": "Fill in next plan (optional)...",
+    "cancel": "Cancel",
+    "submit": "Submit Report"
+  },
+  "types": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly"
+  },
+  "report": {
+    "completedWork": "Completed Work",
+    "nextPlan": "Next Plan"
+  },
+  "toast": {
+    "fillContent": "Please fill in report content",
+    "submitSuccess": "Report submitted"
+  }
+}

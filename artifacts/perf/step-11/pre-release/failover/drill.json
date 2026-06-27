@@ -1,0 +1,22 @@
+{
+  "step": "11",
+  "tierId": "pre-release",
+  "tier": "Pre-Release Tier",
+  "profile": "self-hosted.split-services.development",
+  "scenarioFamily": "failover",
+  "artifactKind": "drill_json",
+  "runId": "step11-cp11-3-local-failover-2026-04-08-doc-capture",
+  "collectedAt": "2026-04-08",
+  "sourceProfile": "self-hosted.split-services.development",
+  "sourceTier": "CI Smoke Tier",
+  "sourceBaselinePath": "tools/perf/step-11-cp11-3-local-drill-baseline.json",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_websocket_live_drill_test.rs",
+  "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
+  "activeOwnerNodeId": "node_b",
+  "staleDisconnectCode": "stale_session",
+  "staleDisconnectRejected": true,
+  "takeoverDurationMs": 0.553,
+  "ownerSwitchAccuracy": 1.0,
+  "resumeTakeoverSuccessRate": 1.0,
+  "boundary": "This artifact backfills one published local CP11-3 failover drill into the Pre-Release Tier artifact root. It is a truthful partial collection record, not full Pre-Release Tier sign-off."
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-ccp-binding-udp",
+    "displayName": "Sdkwork IM Ccp Binding Udp",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/crates/sdkwork-im-ccp-binding-udp",
+    "domain": "communication",
+    "capability": "chat",
+    "status": "standardizing",
+    "languages": ["rust"],
+    "generated": false,
+    "private": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-im-ccp-binding-udp --offline"
+    ]
+  }
+}

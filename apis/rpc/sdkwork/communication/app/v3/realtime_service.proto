@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package sdkwork.communication.app.v3;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.app.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3;communicationappv3";
+
+service PresenceService {
+  rpc CreatePresenceHeartbeat(CreatePresenceHeartbeatRequest) returns (CreatePresenceHeartbeatResponse);
+  rpc RetrieveMyPresence(RetrieveMyPresenceRequest) returns (RetrieveMyPresenceResponse);
+  rpc WatchPresence(WatchPresenceRequest) returns (stream WatchPresenceResponse);
+}
+
+service RealtimeService {
+  rpc SyncRealtimeSubscriptions(SyncRealtimeSubscriptionsRequest) returns (SyncRealtimeSubscriptionsResponse);
+  rpc AckRealtimeEvents(AckRealtimeEventsRequest) returns (AckRealtimeEventsResponse);
+  rpc ListRealtimeEvents(ListRealtimeEventsRequest) returns (ListRealtimeEventsResponse);
+  rpc WatchRealtimeEvents(WatchRealtimeEventsRequest) returns (stream WatchRealtimeEventsResponse);
+}
+
+message PresenceView {
+  string user_id = 1;
+  string device_id = 2;
+  string status = 3;
+  string last_seen_at = 4;
+}
+
+message RealtimeSubscription {
+  string subscription_id = 1;
+  string conversation_id = 2;
+  string stream_id = 3;
+  string event_cursor = 4;
+}
+
+message RealtimeEventView {
+  string event_id = 1;
+  string event_type = 2;
+  string aggregate_type = 3;
+  string aggregate_id = 4;
+  string cursor = 5;
+  string payload_json = 6;
+}
+
+message CreatePresenceHeartbeatRequest {
+  string device_id = 1;
+  string status = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreatePresenceHeartbeatResponse {
+  PresenceView presence = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveMyPresenceRequest {
+  string device_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveMyPresenceResponse {
+  PresenceView presence = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message WatchPresenceRequest {
+  repeated string user_ids = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message WatchPresenceResponse {
+  PresenceView presence = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message SyncRealtimeSubscriptionsRequest {
+  repeated RealtimeSubscription subscriptions = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message SyncRealtimeSubscriptionsResponse {
+  repeated RealtimeSubscription subscriptions = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message AckRealtimeEventsRequest {
+  repeated string event_ids = 1;
+  string cursor = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message AckRealtimeEventsResponse {
+  string ack_cursor = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListRealtimeEventsRequest {
+  string cursor = 1;
+  sdkwork.common.v1.PageRequest page = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListRealtimeEventsResponse {
+  repeated RealtimeEventView events = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message WatchRealtimeEventsRequest {
+  repeated string conversation_ids = 1;
+  string cursor = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message WatchRealtimeEventsResponse {
+  RealtimeEventView event = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

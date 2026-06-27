@@ -1,0 +1,13 @@
+<service>
+  <id>SdkworkImServer</id>
+  <name>SdkworkImServer</name>
+  <description>Sdkwork IM Server Windows Service wrapper</description>
+
+  <executable>__INSTALL_ROOT__\bin\sdkwork-im-server.exe</executable>
+  <arguments>--config &quot;__CONFIG_DIR__\server.yaml&quot;</arguments>
+
+  <logpath>__LOG_DIR__</logpath>
+  <log mode="roll" />
+
+  <onfailure action="restart" delay="10 sec" />
+</service>

@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifacts/releases/schemas/server-release-execution.schema.json",
+  "title": "sdkwork-im server release execution manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "version",
+    "bundleId",
+    "wave",
+    "artifact",
+    "state",
+    "updatedAt",
+    "canonicalBuild",
+    "canonicalStartupCommand",
+    "packageCatalogPath",
+    "releaseChecklistPath",
+    "checksumManifestPath",
+    "artifactFileListPath",
+    "platformExecutions"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/server-release-execution.schema.json"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "bundleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wave": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact": {
+      "const": "server-release-execution"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "template_only_pending_execution",
+        "artifacts_staged_pending_acceptance",
+        "accepted_ready_for_release",
+        "released"
+      ]
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date"
+    },
+    "canonicalBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "package",
+        "binary",
+        "profile"
+      ],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "canonicalStartupCommand": {
+      "type": "string",
+      "minLength": 1
+    },
+    "packageCatalogPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "releaseChecklistPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checksumManifestPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactFileListPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platformExecutions": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "platform",
+          "stagingRoot",
+          "stagingReadmePath",
+          "acceptanceManifestPath",
+          "layoutTreePath",
+          "packageIds",
+          "checksumCommandExample",
+          "serviceManager",
+          "status"
+        ],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "linux",
+              "macos",
+              "windows"
+            ]
+          },
+          "stagingRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stagingReadmePath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "acceptanceManifestPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "layoutTreePath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "packageIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "checksumCommandExample": {
+            "type": "string",
+            "minLength": 1
+          },
+          "serviceManager": {
+            "type": "string",
+            "enum": [
+              "systemd",
+              "launchd",
+              "windows-service"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "template_only_pending_execution",
+              "artifacts_staged_pending_acceptance",
+              "accepted_ready_for_release",
+              "released"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

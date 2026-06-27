@@ -1,0 +1,10 @@
+[package]
+name = "im-postgres-realtime-contracts"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-contract-control = { path = "../sdkwork-im-contract-control" }
+im-domain-core = { path = "../im-domain-core" }
+serde_json.workspace = true

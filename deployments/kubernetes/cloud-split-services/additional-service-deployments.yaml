@@ -1,0 +1,707 @@
+# Additional cloud-split service deployments: audit, automation, social, space,
+# contact, interaction, ops.
+# All deployments enforce Restricted Pod Security Standards:
+#   - runAsNonRoot, non-privileged, read-only root filesystem
+#   - seccomp RuntimeDefault, all Linux capabilities dropped
+#   - imagePullSecrets for private registry authentication
+#   - writable /tmp via emptyDir volume
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: audit-service
+    app.kubernetes.io/component: audit
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: audit-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: audit-service
+        app.kubernetes.io/component: audit
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: audit-service
+          image: ghcr.io/sdkwork/audit-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18090
+          envFrom:
+            - configMapRef:
+                name: audit-service-runtime
+            - secretRef:
+                name: audit-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-audit-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: audit-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: audit-service
+  ports:
+    - name: http
+      port: 18090
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: automation-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: automation-service
+    app.kubernetes.io/component: automation
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: automation-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: automation-service
+        app.kubernetes.io/component: automation
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: automation-service
+          image: ghcr.io/sdkwork/automation-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18091
+          envFrom:
+            - configMapRef:
+                name: automation-service-runtime
+            - secretRef:
+                name: automation-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-automation-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: automation-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: automation-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: automation-service
+  ports:
+    - name: http
+      port: 18091
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: social-service
+    app.kubernetes.io/component: social
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: social-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: social-service
+        app.kubernetes.io/component: social
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: social-service
+          image: ghcr.io/sdkwork/social-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18092
+          envFrom:
+            - configMapRef:
+                name: social-service-runtime
+            - secretRef:
+                name: social-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-social-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: social-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: social-service
+  ports:
+    - name: http
+      port: 18092
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: space-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: space-service
+    app.kubernetes.io/component: space
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: space-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: space-service
+        app.kubernetes.io/component: space
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: space-service
+          image: ghcr.io/sdkwork/space-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18093
+          envFrom:
+            - configMapRef:
+                name: space-service-runtime
+            - secretRef:
+                name: space-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-space-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: space-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: space-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: space-service
+  ports:
+    - name: http
+      port: 18093
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contact-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: contact-service
+    app.kubernetes.io/component: contact
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: contact-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: contact-service
+        app.kubernetes.io/component: contact
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: contact-service
+          image: ghcr.io/sdkwork/contact-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18094
+          envFrom:
+            - configMapRef:
+                name: contact-service-runtime
+            - secretRef:
+                name: contact-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-contact-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: contact-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: contact-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: contact-service
+  ports:
+    - name: http
+      port: 18094
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interaction-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: interaction-service
+    app.kubernetes.io/component: interaction
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: interaction-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: interaction-service
+        app.kubernetes.io/component: interaction
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: interaction-service
+          image: ghcr.io/sdkwork/interaction-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18095
+          envFrom:
+            - configMapRef:
+                name: interaction-service-runtime
+            - secretRef:
+                name: interaction-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-interaction-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: interaction-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: interaction-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: interaction-service
+  ports:
+    - name: http
+      port: 18095
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: ops-service
+    app.kubernetes.io/component: ops
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ops-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ops-service
+        app.kubernetes.io/component: ops
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ops-service
+          image: ghcr.io/sdkwork/ops-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18096
+          envFrom:
+            - configMapRef:
+                name: ops-service-runtime
+            - secretRef:
+                name: ops-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-ops-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: ops-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ops-service
+  ports:
+    - name: http
+      port: 18096
+      targetPort: http

@@ -1,0 +1,57 @@
+{
+  "sidebar": {
+    "compose": "写邮件",
+    "folders": "邮件夹",
+    "inbox": "收件箱",
+    "starred": "星标邮件",
+    "drafts": "稍后处理",
+    "sent": "已发送",
+    "trash": "已删除"
+  },
+  "search": {
+    "placeholder": "搜索邮件..."
+  },
+  "list": {
+    "empty": "当前文件夹为空"
+  },
+  "detail": {
+    "sentTo": "发送至",
+    "attachments": "附件 ({{count}})",
+    "replyPlaceholder": "快速回复给 {{name}}...",
+    "send": "发送",
+    "noMail": "未选择邮件",
+    "noMailDesc": "从左侧列表中选择一封邮件进行阅读，或者点击写邮件开始新的通信。"
+  },
+  "actions": {
+    "delete": "删除",
+    "defer": "延后处理",
+    "archive": "归档",
+    "markUnread": "标记为未读",
+    "addToTask": "添加到任务",
+    "muteSender": "不再接收此发件人邮件",
+    "reportSpam": "举报为垃圾邮件",
+    "addAttachment": "添加附件",
+    "insertImage": "插入图片",
+    "replyWithAttach": "回复邮件（带附件）"
+  },
+  "compose": {
+    "title": "新邮件",
+    "to": "收件人",
+    "subject": "主题",
+    "bodyPlaceholder": "撰写邮件正文...",
+    "send": "发送"
+  },
+  "toast": {
+    "replySent": "回复发送成功",
+    "sendFailed": "发送失败",
+    "enterRecipientSubject": "请输入收件人和主题",
+    "mailSent": "邮件发送成功",
+    "mailDeleted": "邮件已移至垃圾箱",
+    "mailDeferred": "邮件已延后处理",
+    "mailArchived": "邮件已归档",
+    "markedUnread": "已标记为未读",
+    "addedToTask": "已添加到任务",
+    "senderMuted": "已静音此邮件发件人",
+    "spamReported": "已举报垃圾邮件"
+  }
+}

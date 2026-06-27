@@ -1,0 +1,130 @@
+use sdkwork_web_contract::{HttpMethod, HttpRoute};
+use sdkwork_web_core::HttpRouteManifest;
+
+/// API surface: open-api
+pub const API_SURFACE: &str = "open-api";
+
+const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/users",
+        "social",
+        "social.users.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/friend_requests",
+        "social",
+        "social.friendRequests.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/friend_requests",
+        "social",
+        "social.friendRequests.create",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/friend_requests/{requestId}/accept",
+        "social",
+        "social.friendRequests.accept",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/friend_requests/{requestId}/decline",
+        "social",
+        "social.friendRequests.decline",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/friend_requests/{requestId}/cancel",
+        "social",
+        "social.friendRequests.cancel",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/friendships/{friendshipId}/remove",
+        "social",
+        "social.friendships.remove",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/contacts/tags",
+        "social",
+        "social.contacts.tags.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/contacts/tags",
+        "social",
+        "social.contacts.tags.create",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Patch,
+        "/im/v3/api/social/contacts/tags/{tagId}",
+        "social",
+        "social.contacts.tags.update",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Delete,
+        "/im/v3/api/social/contacts/tags/{tagId}",
+        "social",
+        "social.contacts.tags.delete",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/contacts/{targetUserId}/preferences",
+        "social",
+        "social.contacts.preferences.retrieve",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Patch,
+        "/im/v3/api/social/contacts/{targetUserId}/preferences",
+        "social",
+        "social.contacts.preferences.update",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/contacts/{targetUserId}/recommendations",
+        "social",
+        "social.contacts.recommendations.create",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/friendships",
+        "social",
+        "social.friendships.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/user_blocks",
+        "social",
+        "social.userBlocks.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Delete,
+        "/im/v3/api/social/user_blocks/{block_id}",
+        "social",
+        "social.userBlocks.delete",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/direct_chats",
+        "social",
+        "social.directChats.create",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/direct_chats",
+        "social",
+        "social.directChats.list",
+    ),
+];
+
+pub fn open_routes() -> Vec<HttpRoute> {
+    SOCIAL_OPEN_API_ROUTES.to_vec()
+}
+
+pub fn open_route_manifest() -> HttpRouteManifest {
+    HttpRouteManifest::new(SOCIAL_OPEN_API_ROUTES)
+}

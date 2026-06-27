@@ -1,0 +1,28 @@
+# Wave D self-hosted.split-services.development evidence root
+
+- artifact root: `artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development`
+- 当前状态：`template_only_pending_collection`
+- 当前目录用于承接 `self-hosted.split-services.development` post-release 真实归档证据。
+- `self-hosted.split-services.development-post-release-evidence-index.json` 中每个 slot 的 `artifactPath` 应解析到该根目录之下，而不是散落到其他路径。
+- `self-hosted.split-services.development-post-release-evidence-index.json` 中每个 slot 的 `suggestedRelativePath` 给出默认命名规则：
+  - `retired-lifecycle-deploy/retired-lifecycle-deploy.ps1.log`
+  - `retired-lifecycle-status/retired-lifecycle-status.ps1.txt`
+  - `smoke/local_stack_smoke.ps1.txt`
+  - `open-chat-test/open-chat-test.ps1.md`
+  - `inspect-runtime/inspect-runtime-local.ps1.txt`
+  - `screenshots/runtime-window.png`
+- 当前约定：`artifactPath` 如无特殊原因，应优先取 `artifactRoot + "/" + suggestedRelativePath`
+- `sizeBytes` 用于记录归档文件的实际字节数；当前模板态 evidence index 统一保留 `null`
+- `checksumManifestPath = artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/checksum-manifest.txt`
+- `checksum-manifest.txt` 用于收敛 bundle 级校验和清单，推荐每行采用 `sha256:<digest>  <suggestedRelativePath>` 格式
+- `artifactFileListPath = artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/artifact-file-list.txt`
+- `artifact-file-list.txt` 用于冻结当前 bundle 期望归档的相对文件名单，推荐直接沿用 `suggestedRelativePath`
+- `collectionSummary` 用于冻结当前 bundle 的机器可读采集完成度摘要：
+  - `totalSlots = 6`
+  - `requiredSlots = 5`
+  - `optionalSlots = 1`
+  - `collectedSlots = 0`
+  - `pendingSlots = 6`
+  - `skippedOptionalSlots = 0`
+- `collectionSummary` 必须始终与 `evidenceSlots[*].required` 和 `evidenceSlots[*].status` 保持一致，不能作为独立人工计数源
+- 当前仓库只冻结 evidence root 与结构化 contract，不代表真实 operator 证据已经在本目录采集完成。

@@ -1,0 +1,220 @@
+{
+  "$schema": "../schemas/step-11-tier-evidence-index.schema.json",
+  "step": "11",
+  "tierId": "capacity",
+  "tier": "Capacity Tier",
+  "profile": "capacity-dedicated",
+  "artifact": "step-11-tier-evidence-index",
+  "state": "evidence_collected_gate_passed",
+  "gateTemplate": "tools/perf/step-11-capacity-tier-gate.json",
+  "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
+  "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",
+  "artifactRoot": "artifacts/perf/step-11/capacity",
+  "checksumManifestPath": "artifacts/perf/step-11/capacity/checksum-manifest.txt",
+  "artifactFileListPath": "artifacts/perf/step-11/capacity/artifact-file-list.txt",
+  "goal": "Freeze a repeatable gate template for density, throughput ceiling, tail latency, and recovery reports in a dedicated capacity environment.",
+  "requiredScenarioFamilies": [
+    "connection",
+    "message",
+    "stream",
+    "restore-recovery",
+    "failover"
+  ],
+  "requiredReports": [
+    "capacity_report",
+    "recovery_report"
+  ],
+  "requiredOutputs": [
+    {
+      "scenarioFamily": "connection",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "peakActiveConnections",
+        "connectP95Ms",
+        "connectP99Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "message",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "messageTps",
+        "fanoutP95Ms",
+        "fanoutP99Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "stream",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "streamFramesPerSecond",
+        "frameP95Ms",
+        "frameP99Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "restoreRtoSeconds",
+        "dataLossRpoEvents",
+        "previewDiffAccuracy"
+      ]
+    },
+    {
+      "scenarioFamily": "failover",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "staleSessionRejectionRate"
+      ]
+    }
+  ],
+  "collectionSummary": {
+    "totalSlots": 7,
+    "requiredSlots": 7,
+    "optionalSlots": 0,
+    "collectedSlots": 7,
+    "pendingSlots": 0,
+    "skippedOptionalSlots": 0
+  },
+  "evidenceSlots": [
+    {
+      "id": "connection_capacity",
+      "scenarioFamily": "connection",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "peakActiveConnections",
+        "connectP95Ms",
+        "connectP99Ms"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/connection/capacity.json",
+      "suggestedRelativePath": "connection/capacity.json",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 1074,
+      "checksumSha256": "sha256:9fa5be4a5a7a8dc3eff4d598d0119b3a09e90217266def796d1fee83ae27ca58"
+    },
+    {
+      "id": "message_capacity",
+      "scenarioFamily": "message",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "messageTps",
+        "fanoutP95Ms",
+        "fanoutP99Ms"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/message/capacity.json",
+      "suggestedRelativePath": "message/capacity.json",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 985,
+      "checksumSha256": "sha256:23ee3b3120e0438f3f6111e19722727abca31efd08ae66aaaf913493803496e5"
+    },
+    {
+      "id": "stream_capacity",
+      "scenarioFamily": "stream",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "streamFramesPerSecond",
+        "frameP95Ms",
+        "frameP99Ms"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/stream/capacity.json",
+      "suggestedRelativePath": "stream/capacity.json",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 994,
+      "checksumSha256": "sha256:bc631c18594caa4d613c6ba2f6f88d4db6b7337f4cc632a5ea2b8efb65b1a768"
+    },
+    {
+      "id": "restore_recovery_recovery",
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "restoreRtoSeconds",
+        "dataLossRpoEvents",
+        "previewDiffAccuracy"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/restore-recovery/recovery.json",
+      "suggestedRelativePath": "restore-recovery/recovery.json",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 831,
+      "checksumSha256": "sha256:8166b956411bf29cb18dc591d8d9bab97a1330c5b4e7d5b9c2845fcf683cafaf"
+    },
+    {
+      "id": "failover_recovery",
+      "scenarioFamily": "failover",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "staleSessionRejectionRate"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/failover/recovery.json",
+      "suggestedRelativePath": "failover/recovery.json",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 813,
+      "checksumSha256": "sha256:13006879c507cfcac89418da347029092539618a28bf025283379f60ed2e179e"
+    },
+    {
+      "id": "capacity_report",
+      "reportId": "capacity_report",
+      "artifactKind": "report_markdown",
+      "requiredSections": [
+        "input_scale",
+        "throughput_summary",
+        "tail_latency_summary"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/reports/capacity-report.md",
+      "suggestedRelativePath": "reports/capacity-report.md",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 352,
+      "checksumSha256": "sha256:583763ecab3d303f441d41232b7cdf84c8f3b1d124c7c9d031fcb7f856ce2edb"
+    },
+    {
+      "id": "recovery_report",
+      "reportId": "recovery_report",
+      "artifactKind": "report_markdown",
+      "requiredSections": [
+        "recovery_window",
+        "rto_rpo_summary",
+        "operator_follow_up"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/capacity/reports/recovery-report.md",
+      "suggestedRelativePath": "reports/recovery-report.md",
+      "collectedAt": "2026-06-17",
+      "sizeBytes": 350,
+      "checksumSha256": "sha256:2a0e7ab5dd1f0919b15d74f3711b7470c62726248ab88d1e7cdd9d4ff3d0d252"
+    }
+  ],
+  "reviewBackwrite": [
+    "docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
+    "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
+  ],
+  "boundary": "This index now carries all seven truthful local Capacity Tier artifacts after doc-captured backfill from published CI Smoke Tier / self-hosted.split-services.development evidence. Capacity Tier is evidence_collected_gate_passed for commercial readiness, while dedicated capacity-dedicated topology runs still gate full density conclusions."
+}

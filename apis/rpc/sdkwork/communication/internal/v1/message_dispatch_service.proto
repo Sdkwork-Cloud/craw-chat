@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package sdkwork.communication.internal.v1;
+
+import "sdkwork/common/v1/context.proto";
+import "sdkwork/communication/app/v3/message_service.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.internal.v1";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/internal/v1;communicationinternalv1";
+
+service MessageDispatchService {
+  rpc DispatchConversationMessage(DispatchConversationMessageRequest) returns (DispatchConversationMessageResponse);
+}
+
+message DispatchConversationMessageRequest {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string conversation_id = 3;
+  string sender_id = 4;
+  string sender_kind = 5;
+  string schema_ref = 6;
+  string payload_json = 7;
+  string encoding = 8;
+  string client_msg_id = 9;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message DispatchConversationMessageResponse {
+  sdkwork.communication.app.v3.MessageView message = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

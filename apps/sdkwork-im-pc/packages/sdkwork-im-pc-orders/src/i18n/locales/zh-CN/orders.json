@@ -1,0 +1,111 @@
+{
+  "status": {
+    "PENDING_PAY": "待支付",
+    "PENDING_SHIP": "待发货/处理",
+    "SHIPPED": "服务中/已发货",
+    "COMPLETED": "已完成",
+    "CANCELLED": "已取消"
+  },
+  "statusDetail": {
+    "PENDING_PAY": "待支付",
+    "PENDING_SHIP": "已付款，等待发货",
+    "SHIPPED": "卖家已发货",
+    "COMPLETED": "交易成功",
+    "CANCELLED": "交易已关闭"
+  },
+  "statusDesc": {
+    "PENDING_PAY": "请尽快完成支付，超时订单将自动取消",
+    "PENDING_SHIP": "商品正在打包中，请耐心等待",
+    "SHIPPED": "包裹已在运输途中，请留意快递通知",
+    "COMPLETED": "感谢您的购物，期待您的再次光临",
+    "CANCELLED": "订单已关闭，原因：买家/系统取消"
+  },
+  "tabs": {
+    "ALL": "全部订单",
+    "PENDING_PAY": "待支付",
+    "PENDING_SHIP": "待发货/处理",
+    "SHIPPED": "服务中/已发货",
+    "COMPLETED": "已完成",
+    "CANCELLED": "已取消"
+  },
+  "header": {
+    "title": "订单中心",
+    "export": "导出报表"
+  },
+  "filter": {
+    "searchPlaceholder": "搜索订单号 / 客户名称 / 产品信息...",
+    "advancedFilter": "功能筛选"
+  },
+  "table": {
+    "productDetails": "商品详情",
+    "price": "单价",
+    "quantity": "数量",
+    "total": "实付款",
+    "status": "交易状态",
+    "actions": "操作"
+  },
+  "order": {
+    "orderNo": "订单号:",
+    "customer": "客户:",
+    "deleteOrder": "删除订单",
+    "minimalPack": "极简包装组合",
+    "freeShipping": "包邮",
+    "orderDetails": "订单详情",
+    "payNow": "立即付款",
+    "cancelOrder": "取消订单",
+    "shipProcess": "发货处理",
+    "applyRefund": "申请退款",
+    "confirmComplete": "确认完成",
+    "review": "评价",
+    "applyAfterSales": "申请售后",
+    "noOrders": "暂无符合条件的订单"
+  },
+  "pagination": {
+    "prev": "上一页",
+    "next": "下一页"
+  },
+  "export": {
+    "title": "导出报表",
+    "cancel": "取消",
+    "exportBtn": "导出",
+    "exportSuccess": "报表 (格式: {{format}}) 已开始生成下载"
+  },
+  "detail": {
+    "backToList": "返回订单列表",
+    "title": "订单详情",
+    "shippingInfo": "收揽信息",
+    "orderInfo": "订单信息",
+    "orderNo": "订单编号",
+    "copy": "复制",
+    "createTime": "创建时间",
+    "payTime": "付款时间",
+    "completeTime": "完成时间",
+    "deliveredOnTime": "交易已按时交付",
+    "officialStore": "官方自营旗舰店",
+    "customConfig": "高级定制 / 标准版配置",
+    "returnPolicy": "7天无理由退换",
+    "authenticGuarantee": "官方正品保证",
+    "noItemDetail": "无商品明细信息，仅订单概要：{{info}}",
+    "productTotal": "商品总价",
+    "shippingFee": "运费 (快递)",
+    "shopDiscount": "店铺优惠",
+    "actualPayment": "实付款",
+    "cancelOrder": "取消订单",
+    "payNow": "立即付款",
+    "applyRefund": "申请退款",
+    "remindShip": "提醒发货 / 模拟发货",
+    "viewLogistics": "查看物流",
+    "confirmReceive": "确认收货",
+    "applyAfterSales": "申请售后",
+    "reviewOrder": "评价订单"
+  },
+  "toast": {
+    "orderCancelled": "订单已取消",
+    "orderShipped": "订单已发货",
+    "refundSubmitted": "退款申请已提交，等待卖家处理",
+    "tradeSuccess": "交易成功",
+    "afterSalesApplied": "已发起售后申请",
+    "addressCopied": "已复制收揽地址",
+    "orderNoCopied": "已复制订单号"
+  }
+}

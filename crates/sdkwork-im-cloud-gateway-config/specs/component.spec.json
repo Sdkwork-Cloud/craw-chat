@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-cloud-gateway-config",
+    "displayName": "Sdkwork IM Gateway Config",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/crates/sdkwork-im-cloud-gateway-config",
+    "domain": "communication",
+    "declaredDomain": null,
+    "capability": "chat",
+    "status": "standardizing",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Local component specs directory and manifest rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration, environment, SDK bootstrap, and feature flag rules."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "SaaS/private/local runtime parity and deployment rules."
+    },
+    {
+      "file": "DOCUMENTATION_SPEC.md",
+      "path": "../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "purpose": "Module README, examples, ADR, changelog, and runbook rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Canonical domain ownership and naming."
+    },
+    {
+      "file": "GOVERNANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/GOVERNANCE_SPEC.md",
+      "purpose": "Standard ownership, exception, compatibility, and migration rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable package contract and dependency direction."
+    },
+    {
+      "file": "OBSERVABILITY_SPEC.md",
+      "path": "../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "purpose": "Log, metric, trace, audit, and diagnostic rules."
+    },
+    {
+      "file": "PERFORMANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "purpose": "Latency, pagination, bundle, scalability, and retry budget rules."
+    },
+    {
+      "file": "README.md",
+      "path": "../../../sdkwork-specs/README.md",
+      "purpose": "SDKWork root standards entrypoint."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Contract, frontend, SDK, security, parity, and documentation verification rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    }
+  ],
+  "contracts": {
+    "publicExports": [],
+    "runtimeEntrypoints": [
+      "Cargo.toml"
+    ],
+    "sdkClients": [],
+    "events": [],
+    "configKeys": [
+      "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+      "SDKWORK_API_CLOUD_GATEWAY_BASE_URL",
+      "SDKWORK_API_CLOUD_GATEWAY_BIND",
+      "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
+      "SDKWORK_APPBASE_APP_API_BIND_ADDR",
+      "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
+      "SDKWORK_DRIVE_APP_API_UPSTREAM",
+      "SDKWORK_DRIVE_APP_API_BASE_URL",
+      "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
+      "SDKWORK_NOTARY_APP_API_UPSTREAM",
+      "SDKWORK_NOTARY_APP_API_BASE_URL"
+    ],
+    "routeManifest": null
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
+    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
+    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract.",
+    "foundationApiGateway": {
+      "targetApplication": "sdkwork-api-cloud-gateway",
+      "targetMode": "shared-gateway",
+      "gatewayBaseUrlEnvKeys": [
+        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+        "SDKWORK_API_CLOUD_GATEWAY_BASE_URL"
+      ],
+      "gatewayBindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
+      "defaultLocalGatewayBaseUrl": "http://127.0.0.1:3900",
+      "defaultFoundationServiceIds": [
+        "sdkwork-iam-app-api",
+        "sdkwork-drive-app-api",
+        "sdkwork-notary-app-api",
+        "sdkwork-account-app-api",
+        "sdkwork-catalog-app-api",
+        "sdkwork-inventory-app-api",
+        "sdkwork-invoice-app-api",
+        "sdkwork-membership-app-api",
+        "sdkwork-merchandise-app-api",
+        "sdkwork-order-app-api",
+        "sdkwork-payment-app-api",
+        "sdkwork-promotion-app-api",
+        "sdkwork-shop-app-api",
+        "sdkwork-mail-app-api",
+        "sdkwork-community-app-api",
+        "sdkwork-course-app-api",
+        "sdkwork-knowledgebase-app-api"
+      ],
+      "splitOverrideEnvKeys": {
+        "sdkwork-iam-app-api": [
+          "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
+          "SDKWORK_APPBASE_APP_API_BIND_ADDR"
+        ],
+        "sdkwork-drive-app-api": [
+          "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
+          "SDKWORK_DRIVE_APP_API_UPSTREAM",
+          "SDKWORK_DRIVE_APP_API_BASE_URL"
+        ],
+        "sdkwork-notary-app-api": [
+          "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
+          "SDKWORK_NOTARY_APP_API_UPSTREAM",
+          "SDKWORK_NOTARY_APP_API_BASE_URL"
+        ],
+        "sdkwork-account-app-api": [
+          "SDKWORK_IM_ACCOUNT_APP_API_UPSTREAM",
+          "SDKWORK_ACCOUNT_APP_API_UPSTREAM",
+          "SDKWORK_ACCOUNT_APP_API_BASE_URL"
+        ],
+        "sdkwork-catalog-app-api": [
+          "SDKWORK_IM_CATALOG_APP_API_UPSTREAM",
+          "SDKWORK_CATALOG_APP_API_UPSTREAM",
+          "SDKWORK_CATALOG_APP_API_BASE_URL"
+        ],
+        "sdkwork-inventory-app-api": [
+          "SDKWORK_IM_INVENTORY_APP_API_UPSTREAM",
+          "SDKWORK_INVENTORY_APP_API_UPSTREAM",
+          "SDKWORK_INVENTORY_APP_API_BASE_URL"
+        ],
+        "sdkwork-invoice-app-api": [
+          "SDKWORK_IM_INVOICE_APP_API_UPSTREAM",
+          "SDKWORK_INVOICE_APP_API_UPSTREAM",
+          "SDKWORK_INVOICE_APP_API_BASE_URL"
+        ],
+        "sdkwork-membership-app-api": [
+          "SDKWORK_IM_MEMBERSHIP_APP_API_UPSTREAM",
+          "SDKWORK_MEMBERSHIP_APP_API_UPSTREAM",
+          "SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+        ],
+        "sdkwork-merchandise-app-api": [
+          "SDKWORK_IM_MERCHANDISE_APP_API_UPSTREAM",
+          "SDKWORK_MERCHANDISE_APP_API_UPSTREAM",
+          "SDKWORK_MERCHANDISE_APP_API_BASE_URL"
+        ],
+        "sdkwork-order-app-api": [
+          "SDKWORK_IM_ORDER_APP_API_UPSTREAM",
+          "SDKWORK_ORDER_APP_API_UPSTREAM",
+          "SDKWORK_ORDER_APP_API_BASE_URL"
+        ],
+        "sdkwork-payment-app-api": [
+          "SDKWORK_IM_PAYMENT_APP_API_UPSTREAM",
+          "SDKWORK_PAYMENT_APP_API_UPSTREAM",
+          "SDKWORK_PAYMENT_APP_API_BASE_URL"
+        ],
+        "sdkwork-promotion-app-api": [
+          "SDKWORK_IM_PROMOTION_APP_API_UPSTREAM",
+          "SDKWORK_PROMOTION_APP_API_UPSTREAM",
+          "SDKWORK_PROMOTION_APP_API_BASE_URL"
+        ],
+        "sdkwork-shop-app-api": [
+          "SDKWORK_IM_SHOP_APP_API_UPSTREAM",
+          "SDKWORK_SHOP_APP_API_UPSTREAM",
+          "SDKWORK_SHOP_APP_API_BASE_URL"
+        ],
+        "sdkwork-mail-app-api": [
+          "SDKWORK_IM_MAIL_APP_API_UPSTREAM",
+          "SDKWORK_MAIL_APP_API_UPSTREAM",
+          "SDKWORK_MAIL_APP_API_BASE_URL"
+        ],
+        "sdkwork-community-app-api": [
+          "SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM",
+          "SDKWORK_COMMUNITY_APP_API_UPSTREAM",
+          "SDKWORK_COMMUNITY_APP_API_BASE_URL"
+        ],
+        "sdkwork-course-app-api": [
+          "SDKWORK_IM_COURSE_APP_API_UPSTREAM",
+          "SDKWORK_COURSE_APP_API_UPSTREAM",
+          "SDKWORK_COURSE_APP_API_BASE_URL"
+        ],
+        "sdkwork-knowledgebase-app-api": [
+          "SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM",
+          "SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM",
+          "SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL"
+        ]
+      },
+      "catalogPolicy": "no-dedicated-gateway-catalog"
+    }
+  },
+  "verification": {
+    "commands": [
+      "cargo test --manifest-path apps/sdkwork-im/crates/sdkwork-im-cloud-gateway-config/Cargo.toml"
+    ]
+  },
+  "metadata": {
+    "managedBy": "apps/scripts/initialize-component-specs.mjs",
+    "standardVersion": "2026-05-13"
+  }
+}

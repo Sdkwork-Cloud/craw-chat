@@ -1,0 +1,17 @@
+[package]
+name = "sdkwork-routes-im-social-backend-api"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "SDKWork IM social backend-api control routes for /backend/v3/api/control/social/*"
+
+[lib]
+name = "sdkwork_routes_im_social_backend_api"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+social-service = { path = "../../services/social-service" }
+sdkwork_im_web_bootstrap.workspace = true
+sdkwork_web_contract.workspace = true
+sdkwork_web_core.workspace = true

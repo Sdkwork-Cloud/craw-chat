@@ -1,0 +1,52 @@
+> Migrated from `docs/step/13-CP13-1J-sdk容器README版本决议来源收敛-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 13-CP13-1J - SDK 容器 README 版本决议来源收敛
+
+## 本轮目的
+
+`versionDecisionSourcePath = null` bundle、总入口和叶子 README 继续补到 app/admin 两个容器 README，彻底打SDK release 导航链里关于“版本决议来源尚未分配”的占位表达
+
+## 发现的问
+
+- `sdks/README.md` 与四个叶README 已公开
+  - `versionDecisionSourcePath = null`
+- `sdks/sdkwork-im-sdk/README.md` `sdks/sdkwork-control-plane-sdk/README.md` 两个容器入口还没有同步这条占位语
+- 结果是：导航链在中间层再次出现版本决议来源字段断
+
+## 本轮决策
+
+- 继续使用 `tools/chat-cli/tests/chat_cli_contract_test.rs` contract gate
+- 新增 `test_continuous_optimization_sdk_container_readmes_freeze_version_decision_source_boundary`
+- 最小要求：
+  - 两个容器 README 都必须公开
+    - `versionDecisionSourcePath`
+    - `null`
+
+## 实施结果
+
+- 更新
+  - `sdks/sdkwork-im-sdk/README.md`
+  - `sdks/sdkwork-control-plane-sdk/README.md`
+- 现在容器 README 也显式对齐：
+  - `plannedVersion = null`
+  - `versionStatus = version_unassigned_pending_freeze`
+  - `versionDecisionSourcePath = null`
+
+## 验证
+
+- 红灯
+  - `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_continuous_optimization_sdk_container_readmes_freeze_version_decision_source_boundary -- --nocapture`
+  - 失败点：`app SDK container README must contain version decision source boundary text versionDecisionSourcePath`
+- 绿灯
+  - `cargo fmt --all --check`
+  - `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_continuous_optimization_sdk_container_readmes_freeze_version_decision_source_boundary -- --nocapture`
+  - `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture`
+
+## 下一轮建
+
+- 这条 release 链关version decision source 的导航表达已经打
+- 下一个更小的真实缺口将转向：
+  - 真实 freeze evidence path 的产生条
+  - 真实生成输入或真实发包归
+

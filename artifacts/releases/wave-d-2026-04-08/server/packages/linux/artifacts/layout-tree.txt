@@ -1,0 +1,6 @@
+artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/
+artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md
+artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt
+artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server-linux-x86_64.tar.gz
+artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server_<version>_amd64.deb
+artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server-<version>-1.x86_64.rpm

@@ -1,0 +1,216 @@
+{
+  "$schema": "tools/perf/schemas/step-11-tier-gate.schema.json",
+  "step": "11",
+  "tierId": "capacity",
+  "tier": "Capacity Tier",
+  "profile": "capacity-dedicated",
+  "state": "template_only_pending_execution",
+  "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
+  "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",
+  "artifactRoot": "artifacts/perf/step-11/capacity",
+  "goal": "Freeze a repeatable gate template for density, throughput ceiling, tail latency, and recovery reports in a dedicated capacity environment.",
+  "requiredScenarioFamilies": [
+    "connection",
+    "message",
+    "stream",
+    "restore-recovery",
+    "failover"
+  ],
+  "requiredReports": [
+    "capacity_report",
+    "recovery_report"
+  ],
+  "requiredOutputs": [
+    {
+      "scenarioFamily": "connection",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "peakActiveConnections",
+        "connectP95Ms",
+        "connectP99Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "message",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "messageTps",
+        "fanoutP95Ms",
+        "fanoutP99Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "stream",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "streamFramesPerSecond",
+        "frameP95Ms",
+        "frameP99Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "restoreRtoSeconds",
+        "dataLossRpoEvents",
+        "previewDiffAccuracy"
+      ]
+    },
+    {
+      "scenarioFamily": "failover",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "staleSessionRejectionRate"
+      ]
+    }
+  ],
+  "collectionSummary": {
+    "totalSlots": 7,
+    "requiredSlots": 7,
+    "optionalSlots": 0,
+    "collectedSlots": 0,
+    "pendingSlots": 7,
+    "skippedOptionalSlots": 0
+  },
+  "evidenceSlots": [
+    {
+      "id": "connection_capacity",
+      "scenarioFamily": "connection",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "peakActiveConnections",
+        "connectP95Ms",
+        "connectP99Ms"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "connection/capacity.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "message_capacity",
+      "scenarioFamily": "message",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "messageTps",
+        "fanoutP95Ms",
+        "fanoutP99Ms"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "message/capacity.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "stream_capacity",
+      "scenarioFamily": "stream",
+      "artifactKind": "capacity_json",
+      "requiredFields": [
+        "runId",
+        "streamFramesPerSecond",
+        "frameP95Ms",
+        "frameP99Ms"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "stream/capacity.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "restore_recovery_recovery",
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "restoreRtoSeconds",
+        "dataLossRpoEvents",
+        "previewDiffAccuracy"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "restore-recovery/recovery.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "failover_recovery",
+      "scenarioFamily": "failover",
+      "artifactKind": "recovery_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "staleSessionRejectionRate"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "failover/recovery.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "capacity_report",
+      "reportId": "capacity_report",
+      "artifactKind": "report_markdown",
+      "requiredSections": [
+        "input_scale",
+        "throughput_summary",
+        "tail_latency_summary"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "reports/capacity-report.md",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "recovery_report",
+      "reportId": "recovery_report",
+      "artifactKind": "report_markdown",
+      "requiredSections": [
+        "recovery_window",
+        "rto_rpo_summary",
+        "operator_follow_up"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "reports/recovery-report.md",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    }
+  ],
+  "reviewBackwrite": [
+    "docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
+    "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
+  ],
+  "boundary": "This gate template defines what Capacity Tier evidence must exist before claiming density or recovery conclusions. It is not a capacity result."
+}

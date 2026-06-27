@@ -1,0 +1,713 @@
+# Fragment merged into sdkwork-im-im.openapi.yaml before /im/v3/api/streams.
+# Paths align with services/space-service/src/http.rs (OpenAPI uses camelCase path params).
+/im/v3/api/spaces:
+  post:
+    tags: [spaces]
+    operationId: spaces.create
+    summary: Create a space
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceCreateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  get:
+    tags: [spaces]
+    operationId: spaces.list
+    summary: List spaces
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}:
+  get:
+    tags: [spaces]
+    operationId: spaces.get
+    summary: Get a space
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  patch:
+    tags: [spaces]
+    operationId: spaces.update
+    summary: Update a space
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceUpdateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.delete
+    summary: Delete a space
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/members:
+  get:
+    tags: [spaces]
+    operationId: spaces.members.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceMemberListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.members.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceMemberCreateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceMemberView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/members/{userId}:
+  get:
+    tags: [spaces]
+    operationId: spaces.members.get
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceMemberView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  patch:
+    tags: [spaces]
+    operationId: spaces.members.update
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceMemberUpdateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceMemberView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.members.delete
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/groups:
+  get:
+    tags: [spaces]
+    operationId: spaces.groups.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.groups.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceGroupCreateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/groups/{groupId}:
+  get:
+    tags: [spaces]
+    operationId: spaces.groups.get
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  patch:
+    tags: [spaces]
+    operationId: spaces.groups.update
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceGroupUpdateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.groups.delete
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/groups/{groupId}/members:
+  get:
+    tags: [spaces]
+    operationId: spaces.groups.members.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupMemberListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.groups.members.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceGroupMemberCreateRequest'
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupMemberView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}:
+  get:
+    tags: [spaces]
+    operationId: spaces.groups.members.get
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupMemberView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  patch:
+    tags: [spaces]
+    operationId: spaces.groups.members.update
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceGroupMemberUpdateRequest'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.groups.members.delete
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/GroupIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/channels:
+  get:
+    tags: [spaces]
+    operationId: spaces.channels.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceChannelListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.channels.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceChannelCreateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceChannelView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/channels/{channelId}:
+  get:
+    tags: [spaces]
+    operationId: spaces.channels.get
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/ChannelIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceChannelView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  patch:
+    tags: [spaces]
+    operationId: spaces.channels.update
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/ChannelIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceChannelUpdateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceChannelView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.channels.delete
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/ChannelIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules:
+  get:
+    tags: [spaces]
+    operationId: spaces.channels.accessRules.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/ChannelIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceChannelAccessRuleListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.channels.accessRules.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/ChannelIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceChannelAccessRuleCreateRequest'
+    responses:
+      '201':
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceChannelAccessRuleView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules/{ruleId}:
+  delete:
+    tags: [spaces]
+    operationId: spaces.channels.accessRules.delete
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/ChannelIdPath'
+      - $ref: '#/components/parameters/RuleIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/invites:
+  get:
+    tags: [spaces]
+    operationId: spaces.invites.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceInviteListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.invites.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceInviteCreateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceInviteView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/invites/{inviteCode}:
+  get:
+    tags: [spaces]
+    operationId: spaces.invites.get
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/InviteCodePath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceInviteView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.invites.revoke
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/InviteCodePath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept:
+  post:
+    tags: [spaces]
+    operationId: spaces.invites.accept
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/InviteCodePath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/bans:
+  get:
+    tags: [spaces]
+    operationId: spaces.bans.list
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceBanListResponse'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  post:
+    tags: [spaces]
+    operationId: spaces.bans.create
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SpaceBanCreateRequest'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceBanView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+/im/v3/api/spaces/{spaceId}/bans/{userId}:
+  get:
+    tags: [spaces]
+    operationId: spaces.bans.get
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceBanView'
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im
+  delete:
+    tags: [spaces]
+    operationId: spaces.bans.delete
+    parameters:
+      - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    responses:
+      '204':
+        description: No Content
+    security:
+      - AuthToken: []
+        AccessToken: []
+    x-sdkwork-owner: sdkwork-im
+    x-sdkwork-api-authority: sdkwork-im.im

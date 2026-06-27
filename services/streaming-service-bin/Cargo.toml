@@ -1,0 +1,18 @@
+﻿[package]
+name = "streaming-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "streaming-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+streaming-service = { path = "../streaming-service" }
+sdkwork-routes-im-stream-app-api = { path = "../../crates/sdkwork-routes-im-stream-app-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

@@ -1,0 +1,11 @@
+name: im_backend_sdk
+description: Composed Flutter backend SDK built on the generated im_backend_api_generated package
+version: 0.1.0 
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  im_backend_api_generated: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

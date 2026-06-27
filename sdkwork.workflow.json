@@ -1,0 +1,508 @@
+{
+  "$schema": "../sdkwork-github-workflow/schemas/sdkwork-workflow.schema.json",
+  "schemaVersion": "2026-06-06.sdkwork.workflow.v1",
+  "app": {
+    "id": "sdkwork-im",
+    "name": "Sdkwork IM",
+    "repository": "Sdkwork-Cloud/sdkwork-im",
+    "sourcePath": ".",
+    "configPath": "sdkwork.app.config.json"
+  },
+  "release": {
+    "artifactPrefix": "sdkwork-im",
+    "defaultVersion": "0.1.0",
+    "changelog": {
+      "source": "auto",
+      "maxCommitSubjects": 50
+    }
+  },
+  "dependencies": [
+    {
+      "id": "sdkwork-app-topology",
+      "repository": "Sdkwork-Cloud/sdkwork-app-topology",
+      "ref": "main",
+      "refInput": "SDKWORK_APP_TOPOLOGY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-appbase",
+      "repository": "Sdkwork-Cloud/sdkwork-appbase",
+      "ref": "4e287906b0d712213f8b6ede39b505aac3a67722",
+      "refInput": "SDKWORK_APPBASE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-core",
+      "repository": "Sdkwork-Cloud/sdkwork-core",
+      "ref": "fd64773e8f73ce38f6995ded0ee63c00d6c5e675",
+      "refInput": "SDKWORK_CORE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-database",
+      "repository": "Sdkwork-Cloud/sdkwork-database",
+      "ref": "main",
+      "refInput": "SDKWORK_DATABASE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-web-framework",
+      "repository": "Sdkwork-Cloud/sdkwork-web-framework",
+      "ref": "main",
+      "refInput": "SDKWORK_WEB_FRAMEWORK_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-rpc-framework",
+      "repository": "Sdkwork-Cloud/sdkwork-rpc-framework",
+      "ref": "main",
+      "refInput": "SDKWORK_RPC_FRAMEWORK_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-utils",
+      "repository": "Sdkwork-Cloud/sdkwork-utils",
+      "ref": "main",
+      "refInput": "SDKWORK_UTILS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-ui",
+      "repository": "Sdkwork-Cloud/sdkwork-ui",
+      "ref": "672b9a990cdd077422f60651fbc9413b44343ab2",
+      "refInput": "SDKWORK_UI_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-drive",
+      "repository": "Sdkwork-Cloud/sdkwork-drive",
+      "ref": "5ee91f5162d114edf2a10165916436aa03f97b4a",
+      "refInput": "SDKWORK_DRIVE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-iam",
+      "repository": "Sdkwork-Cloud/sdkwork-iam",
+      "ref": "main",
+      "refInput": "SDKWORK_IAM_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-account",
+      "repository": "Sdkwork-Cloud/sdkwork-account",
+      "ref": "main",
+      "refInput": "SDKWORK_ACCOUNT_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-catalog",
+      "repository": "Sdkwork-Cloud/sdkwork-catalog",
+      "ref": "main",
+      "refInput": "SDKWORK_CATALOG_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-inventory",
+      "repository": "Sdkwork-Cloud/sdkwork-inventory",
+      "ref": "main",
+      "refInput": "SDKWORK_INVENTORY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-invoice",
+      "repository": "Sdkwork-Cloud/sdkwork-invoice",
+      "ref": "main",
+      "refInput": "SDKWORK_INVOICE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-membership",
+      "repository": "Sdkwork-Cloud/sdkwork-membership",
+      "ref": "main",
+      "refInput": "SDKWORK_MEMBERSHIP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-merchandise",
+      "repository": "Sdkwork-Cloud/sdkwork-merchandise",
+      "ref": "main",
+      "refInput": "SDKWORK_MERCHANDISE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-order",
+      "repository": "Sdkwork-Cloud/sdkwork-order",
+      "ref": "main",
+      "refInput": "SDKWORK_ORDER_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-payment",
+      "repository": "Sdkwork-Cloud/sdkwork-payment",
+      "ref": "main",
+      "refInput": "SDKWORK_PAYMENT_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-promotion",
+      "repository": "Sdkwork-Cloud/sdkwork-promotion",
+      "ref": "main",
+      "refInput": "SDKWORK_PROMOTION_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-shop",
+      "repository": "Sdkwork-Cloud/sdkwork-shop",
+      "ref": "main",
+      "refInput": "SDKWORK_SHOP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-agents",
+      "repository": "Sdkwork-Cloud/sdkwork-agents",
+      "ref": "main",
+      "refInput": "SDKWORK_AGENTS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-mail",
+      "repository": "Sdkwork-Cloud/sdkwork-mail",
+      "ref": "55296ee2738c1665f8228c6c00c99f2d8d681251",
+      "refInput": "SDKWORK_MAIL_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-community",
+      "repository": "Sdkwork-Cloud/sdkwork-community",
+      "ref": "b850b99b5948b2f233dd6e6c5fa0b820343389df",
+      "refInput": "SDKWORK_COMMUNITY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-course",
+      "repository": "Sdkwork-Cloud/sdkwork-course",
+      "ref": "e367b334397bbf6a1fef37986cc7e6e9074e8170",
+      "refInput": "SDKWORK_COURSE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-notary",
+      "repository": "Sdkwork-Cloud/sdkwork-notary",
+      "ref": "3d7a1943c9df771bcfee1548d97ff892b7b01cf2",
+      "refInput": "SDKWORK_NOTARY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-knowledgebase",
+      "repository": "Sdkwork-Cloud/sdkwork-knowledgebase",
+      "ref": "2f092afa9cd713cd920bd2a7fdea59bc3d956ce8",
+      "refInput": "SDKWORK_KNOWLEDGEBASE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-rtc",
+      "repository": "Sdkwork-Cloud/sdkwork-rtc",
+      "ref": "1c1ff3b753a2e856faeef58f3a62a9bd153041e1",
+      "refInput": "SDKWORK_RTC_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-kernel",
+      "repository": "Sdkwork-Cloud/sdkwork-kernel",
+      "ref": "3bd785900224f7519a60477419edb79424be1bea",
+      "refInput": "SDKWORK_KERNEL_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-aiot",
+      "repository": "Sdkwork-Cloud/sdkwork-aiot",
+      "ref": "ca545c873d17bdcf92a9de6b4a1c47dc07481adf",
+      "refInput": "SDKWORK_AIOT_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sdk-commons",
+      "repository": "Sdkwork-Cloud/sdkwork-sdk-commons",
+      "ref": "c9adc5a02fed0d9ce70ab719e5d2155ed40676da",
+      "refInput": "SDKWORK_SDK_COMMONS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sdk-generator",
+      "repository": "Sdkwork-Cloud/sdkwork-sdk-generator",
+      "ref": "715562e30be876661a1c78f4a84b058e75aba937",
+      "refInput": "SDKWORK_SDK_GENERATOR_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    }
+  ],
+  "toolchains": {
+    "node": "22",
+    "pnpm": "10.0.0",
+    "rust": "stable",
+    "dotnet": "8.0.x",
+    "wix": "5.0.2"
+  },
+  "lifecycle": {
+    "preflight": [
+      {
+        "name": "Install native release prerequisites",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\" -and $env:SDKWORK_PACKAGE_PLATFORM -eq \"linux\") {\n  sudo apt-get update\n  sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf\n}"
+      }
+    ],
+    "install": [
+      {
+        "name": "Install workspace dependencies",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_SHARED_SDK_MODE = \"git\"\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\npnpm install --no-frozen-lockfile --config.auto-install-peers=false"
+      }
+    ],
+    "build": [
+      {
+        "name": "Validate SDKWork dependency management",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm check:dependency-management"
+      },
+      {
+        "name": "Validate release contract",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nnode scripts/release/sdkwork-im-release-package.test.mjs\npnpm release:plan -- --check --version $env:SDKWORK_PACKAGE_VERSION\npnpm release:package:check -- --json --version $env:SDKWORK_PACKAGE_VERSION"
+      },
+      {
+        "name": "Build selected production artifacts",
+        "shell": "pwsh",
+        "env": {
+          "SDKWORK_SHARED_SDK_MODE": "git"
+        },
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:prod -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:prod -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  throw \"Unsupported Sdkwork IM package profile $env:SDKWORK_PACKAGE_PROFILE\"\n}"
+      }
+    ],
+    "stage": [
+      {
+        "name": "Stage selected release package",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:stage -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
+      }
+    ],
+    "package": [
+      {
+        "name": "Build selected release package",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:package -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
+      }
+    ],
+    "sign": [
+      {
+        "name": "Sign release artifacts",
+        "shell": "pwsh",
+        "run": "Write-Host \"Signing policy is configured by release environment for $env:SDKWORK_PACKAGE_ID\""
+      }
+    ],
+    "sbom": [
+      {
+        "name": "Generate release SBOM",
+        "shell": "pwsh",
+        "run": "Write-Host \"SBOM generation is configured by release environment for $env:SDKWORK_PACKAGE_ID\""
+      }
+    ],
+    "validate": [
+      {
+        "name": "Validate selected release package",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\n$artifactPrefix = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"sdkwork-im-server\" } else { \"sdkwork-im-desktop\" }\n$legacyArtifactSegment = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-server\" } else { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-desktop\" }\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"$artifactPrefix-$legacyArtifactSegment-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\npnpm release:validate -- --package-id $legacyPackageId --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
+      }
+    ]
+  },
+  "targets": [
+    {
+      "id": "linux-x64-standalone-server-tar-gz",
+      "profile": "server",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": [
+        "tar.gz"
+      ],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
+    },
+    {
+      "id": "linux-arm64-standalone-server-tar-gz",
+      "profile": "server",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": [
+        "tar.gz"
+      ],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
+    },
+    {
+      "id": "macos-x64-standalone-server-tar-gz",
+      "profile": "server",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": [
+        "tar.gz"
+      ],
+      "runner": "macos-15-intel",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
+    },
+    {
+      "id": "macos-arm64-standalone-server-tar-gz",
+      "profile": "server",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": [
+        "tar.gz"
+      ],
+      "runner": "macos-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
+    },
+    {
+      "id": "windows-x64-standalone-server-zip",
+      "profile": "server",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "windows-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
+    },
+    {
+      "id": "windows-arm64-standalone-server-zip",
+      "profile": "server",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "windows-11-arm",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
+    },
+    {
+      "id": "linux-x64-standalone-desktop-zip",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
+    },
+    {
+      "id": "linux-arm64-standalone-desktop-zip",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
+    },
+    {
+      "id": "macos-x64-standalone-desktop-zip",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "macos-15-intel",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
+    },
+    {
+      "id": "macos-arm64-standalone-desktop-zip",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "macos-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
+    },
+    {
+      "id": "windows-x64-standalone-desktop-zip",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "windows-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
+    },
+    {
+      "id": "windows-arm64-standalone-desktop-zip",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": [
+        "zip"
+      ],
+      "runner": "windows-11-arm",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
+    }
+  ],
+  "security": {
+    "artifactAttestations": true,
+    "sbomRequired": true,
+    "signingRequired": true
+  },
+  "publish": {
+    "workflowArtifact": true,
+    "githubRelease": true,
+    "retentionDays": 30
+  }
+}

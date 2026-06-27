@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../schemas/server-package-acceptance.schema.json",
+  "version": 1,
+  "bundleId": "wave-d-2026-04-08",
+  "platform": "macos",
+  "artifact": "server-package-acceptance-manifest",
+  "artifactRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+  "validationStatus": "template_only_pending_execution",
+  "updatedAt": "2026-04-17",
+  "packageChecks": [
+    {
+      "packageId": "macos-tar-gz",
+      "packageType": "tar.gz",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/sdkwork-im-server-darwin-universal.tar.gz",
+      "installModel": "archive",
+      "serviceManager": "launchd",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
+      "requiredEntries": [
+        "bin/sdkwork-im-server",
+        "deployments/templates/server.yaml.example",
+        "deployments/launchd/com.sdkwork.SdkworkIm.server.plist"
+      ],
+      "validationEvidencePath": null,
+      "status": "pending_validation"
+    },
+    {
+      "packageId": "macos-pkg",
+      "packageType": "pkg",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/sdkwork-im-server-<version>.pkg",
+      "installModel": "native-installer",
+      "serviceManager": "launchd",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
+      "requiredEntries": [
+        "bin/sdkwork-im-server",
+        "deployments/templates/server.yaml.example",
+        "deployments/launchd/com.sdkwork.SdkworkIm.server.plist"
+      ],
+      "validationEvidencePath": null,
+      "status": "pending_validation"
+    }
+  ]
+}

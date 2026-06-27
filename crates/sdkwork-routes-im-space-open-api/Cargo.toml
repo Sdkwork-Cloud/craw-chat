@@ -1,0 +1,16 @@
+[package]
+name = "sdkwork-routes-im-space-open-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "sdkwork_routes_im_space_open_api"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+sdkwork_web_contract.workspace = true
+sdkwork_web_core.workspace = true
+sdkwork_im_web_bootstrap.workspace = true
+space-service = { path = "../../services/space-service" }

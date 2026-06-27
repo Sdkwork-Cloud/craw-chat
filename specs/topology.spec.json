@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 2,
+  "kind": "sdkwork.app.topology",
+  "appId": "sdkwork-im",
+  "archetype": "realtime-application-platform",
+  "profileRoot": "configs/topology",
+  "profilePattern": "{deploymentProfile}.{serviceLayout}.{environment}.env",
+  "vocabulary": {
+    "deploymentProfile": {
+      "allowed": [
+        "standalone",
+        "cloud"
+      ]
+    },
+    "serviceLayout": {
+      "allowed": [
+        "unified-process",
+        "split-services"
+      ]
+    },
+    "environment": {
+      "allowed": [
+        "development",
+        "staging",
+        "production"
+      ]
+    },
+    "connectivityPlane": {
+      "allowed": [
+        "application",
+        "platform",
+        "operations",
+        "edge"
+      ]
+    }
+  },
+  "defaults": {
+    "developmentProfileId": "standalone.unified-process.development",
+    "productionProfileId": "cloud.split-services.production",
+    "desktopBuildProfileId": "cloud.split-services.production",
+    "gatewayBind": "127.0.0.1:18079"
+  },
+  "profileFiles": {
+    "standalone.split-services.development": "configs/topology/standalone.split-services.development.env",
+    "standalone.unified-process.development": "configs/topology/standalone.unified-process.development.env",
+    "standalone.split-services.production": "configs/topology/standalone.split-services.production.env",
+    "standalone.unified-process.production": "configs/topology/standalone.unified-process.production.env",
+    "cloud.split-services.production": "configs/topology/cloud.split-services.production.env",
+    "cloud.split-services.staging": "configs/topology/cloud.split-services.staging.env",
+    "cloud.split-services.development": "configs/topology/cloud.split-services.development.env"
+  },
+  "envKeys": {
+    "deploymentProfile": "SDKWORK_IM_DEPLOYMENT_PROFILE",
+    "serviceLayout": "SDKWORK_IM_SERVICE_LAYOUT",
+    "environment": "SDKWORK_IM_ENVIRONMENT",
+    "profileId": "SDKWORK_IM_PROFILE_ID",
+    "clientDeploymentProfile": "VITE_SDKWORK_IM_DEPLOYMENT_PROFILE",
+    "gatewayAutostart": "SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART",
+    "standaloneGatewayBind": "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+    "standaloneGatewayConfig": "SDKWORK_IM_STANDALONE_GATEWAY_CONFIG",
+    "standaloneGatewayEnvironment": "SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT",
+    "cloudGatewayBind": "SDKWORK_API_CLOUD_GATEWAY_BIND",
+    "cloudGatewayConfig": "SDKWORK_API_CLOUD_GATEWAY_CONFIG",
+    "clientApiGatewayBaseUrl": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+    "apiGatewayBaseUrl": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL"
+  },
+  "surfaces": {
+    "application.public-ingress": {
+      "connectivityPlane": "application",
+      "protocols": [
+        "http",
+        "websocket"
+      ],
+      "bindEnv": "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+      "httpUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+      "websocketUrlEnv": "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
+      "websocketPath": "/im/v3/api/realtime/ws",
+      "clientHttpEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+      "clientWebsocketEnv": "VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL"
+    },
+    "platform.api-gateway": {
+      "connectivityPlane": "platform",
+      "protocols": [
+        "http"
+      ],
+      "owner": "sdkwork-api-cloud-gateway",
+      "bindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
+      "httpUrlEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+      "clientHttpEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+      "autostartEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART"
+    },
+    "operations.control-ingress": {
+      "connectivityPlane": "operations",
+      "protocols": [
+        "http"
+      ],
+      "bindEnv": "SDKWORK_IM_OPERATIONS_CONTROL_INGRESS_BIND",
+      "httpUrlEnv": "SDKWORK_IM_OPERATIONS_CONTROL_HTTP_URL",
+      "optional": true
+    }
+  },
+  "database": {
+    "appPrefix": "SDKWORK_IM"
+  },
+  "components": {
+    "standaloneGateway": {
+      "crate": "sdkwork-im-standalone-gateway",
+      "binary": "sdkwork-im-standalone-gateway",
+      "configGlob": "configs/sdkwork-im-standalone-gateway.{profile}.toml"
+    },
+    "cloudGateway": {
+      "crate": "sdkwork-api-cloud-gateway",
+      "binary": "sdkwork-api-cloud-gateway",
+      "repository": "sdkwork-api-cloud-gateway",
+      "configGlob": "configs/sdkwork-api-cloud-gateway.sdkwork-im.{profile}.toml"
+    }
+  },
+  "orchestration": {
+    "profiles": {
+      "standalone.split-services.development": {
+        "processes": [
+          {
+            "id": "platform.standalone-gateway",
+            "crate": "sdkwork-im-standalone-gateway",
+            "binary": "sdkwork-im-standalone-gateway",
+            "required": true
+          },
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-cloud-gateway",
+            "binary": "sdkwork-im-server",
+            "required": true
+          },
+          {
+            "id": "pc-renderer",
+            "package": "apps/sdkwork-im-pc",
+            "script": "dev",
+            "required": true
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress"
+        ]
+      },
+      "standalone.unified-process.development": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-standalone-gateway",
+            "binary": "sdkwork-im-standalone-gateway",
+            "required": true
+          },
+          {
+            "id": "pc-renderer",
+            "package": "apps/sdkwork-im-pc",
+            "script": "dev",
+            "required": true
+          }
+        ],
+        "capabilitySubset": [
+          "application-http",
+          "application-websocket",
+          "platform-iam-adapter"
+        ],
+        "healthSurfaces": [
+          "application.public-ingress"
+        ]
+      },
+      "cloud.split-services.development": {
+        "processes": [
+          {
+            "id": "platform.api-gateway",
+            "crate": "sdkwork-api-cloud-gateway",
+            "binary": "sdkwork-api-cloud-gateway",
+            "repository": "sdkwork-api-cloud-gateway",
+            "required": false
+          },
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-cloud-gateway",
+            "binary": "sdkwork-im-server",
+            "required": true
+          },
+          {
+            "id": "pc-renderer",
+            "package": "apps/sdkwork-im-pc",
+            "script": "dev",
+            "required": true
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      },
+      "cloud.split-services.production": {
+        "processes": [
+          {
+            "id": "platform.api-gateway",
+            "crate": "sdkwork-api-cloud-gateway",
+            "binary": "sdkwork-api-cloud-gateway",
+            "repository": "sdkwork-api-cloud-gateway",
+            "required": true
+          },
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-cloud-gateway",
+            "binary": "sdkwork-im-server",
+            "required": true
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      },
+      "cloud.split-services.staging": {
+        "processes": [
+          {
+            "id": "platform.api-gateway",
+            "crate": "sdkwork-api-cloud-gateway",
+            "binary": "sdkwork-api-cloud-gateway",
+            "repository": "sdkwork-api-cloud-gateway",
+            "required": true
+          },
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-im-cloud-gateway",
+            "binary": "sdkwork-im-server",
+            "required": true
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      }
+    }
+  },
+  "internalUpstreams": {
+    "split-services": {
+      "session-gateway": {
+        "bindEnv": "SDKWORK_IM_INTERNAL_SESSION_GATEWAY_BIND",
+        "defaultBind": "127.0.0.1:18080"
+      },
+      "session-gateway-rpc": {
+        "bindEnv": "SDKWORK_IM_SESSION_GATEWAY_RPC_BIND_ADDR",
+        "defaultBind": "127.0.0.1:50051",
+        "grpcUrlEnv": "SDKWORK_IM_SESSION_GATEWAY_RPC_PUBLIC_ENDPOINT"
+      },
+      "conversation-service": {
+        "bindEnv": "SDKWORK_IM_INTERNAL_CONVERSATION_SERVICE_BIND",
+        "defaultBind": "127.0.0.1:18082"
+      },
+      "comms-conversation-rpc": {
+        "bindEnv": "SDKWORK_IM_COMMS_CONVERSATION_RPC_BIND_ADDR",
+        "defaultBind": "127.0.0.1:50052",
+        "grpcUrlEnv": "SDKWORK_IM_COMMS_CONVERSATION_RPC_PUBLIC_ENDPOINT"
+      },
+      "comms-conversation-internal-rpc": {
+        "bindEnv": "SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_BIND_ADDR",
+        "defaultBind": "127.0.0.1:50053",
+        "grpcUrlEnv": "SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_PUBLIC_ENDPOINT",
+        "discoveryServiceName": "sdkwork-communication-internal-rpc"
+      },
+      "streaming-service": {
+        "bindEnv": "SDKWORK_IM_INTERNAL_STREAMING_SERVICE_BIND",
+        "defaultBind": "127.0.0.1:18084"
+      },
+      "media-service": {
+        "bindEnv": "SDKWORK_IM_INTERNAL_MEDIA_SERVICE_BIND",
+        "defaultBind": "127.0.0.1:18086"
+      },
+      "notification-service": {
+        "bindEnv": "SDKWORK_IM_INTERNAL_NOTIFICATION_SERVICE_BIND",
+        "defaultBind": "127.0.0.1:18087"
+      }
+    }
+  },
+  "cloudPublicHosts": {
+    "application.public-ingress": {
+      "httpHost": "im.sdkwork.com",
+      "websocketHost": "im.sdkwork.com",
+      "note": "chat.sdkwork.com is reserved for LLM conversational apps, not IM"
+    },
+    "platform.api-gateway": {
+      "httpHost": "api.sdkwork.com"
+    }
+  },
+  "packaging": {
+    "cloudConfigFiles": [
+      "sdkwork-api-cloud-gateway.sdkwork-im.development.toml",
+      "sdkwork-api-cloud-gateway.sdkwork-im.production.toml"
+    ],
+    "targets": [
+      {
+        "id": "linux-x64-standalone-gateway-tar-gz",
+        "profile": "standalone",
+        "platform": "linux",
+        "architecture": "x64",
+        "formats": [
+          "tar.gz"
+        ],
+        "surface": "application.public-ingress"
+      },
+      {
+        "id": "linux-x64-application-public-ingress-tar-gz",
+        "surface": "application.public-ingress",
+        "platform": "linux",
+        "architecture": "x64",
+        "formats": [
+          "tar.gz"
+        ]
+      }
+    ]
+  },
+  "retired": {
+    "vocabulary": {
+      "hosting": [
+        "self-hosted",
+        "cloud-hosted"
+      ],
+      "topology": [
+        "standalone",
+        "cloud"
+      ],
+      "distribution": [
+        "embedded",
+        "distributed"
+      ],
+      "plane": [
+        "product",
+        "foundation",
+        "admin",
+        "device"
+      ]
+    },
+    "archetypes": [
+      "multi-plane-realtime",
+      "http-product-gateway",
+      "dual-plane-connected"
+    ],
+    "surfaceIds": [
+      "product-ingress",
+      "foundation-gateway",
+      "admin-ingress"
+    ],
+    "profileIds": [
+      "self-hosted.split-services.development",
+      "self-hosted.unified-process.development",
+      "self-hosted.split-services.production",
+      "cloud-hosted.split-services.production",
+      "standalone.distributed.development",
+      "standalone.embedded.development",
+      "standalone.distributed.production",
+      "cloud.distributed.production",
+      "local-minimal",
+      "local-default"
+    ],
+    "binaries": [
+      "local-minimal-node"
+    ],
+    "envKeys": [
+      "SDKWORK_IM_HOSTING",
+      "SDKWORK_IM_SERVER_API_BASE_URL",
+      "SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL",
+      "SDKWORK_IM_PRODUCT_INGRESS_BIND",
+      "SDKWORK_IM_PRODUCT_HTTP_URL",
+      "SDKWORK_IM_PRODUCT_WS_URL",
+      "SDKWORK_IM_FOUNDATION_HTTP_URL",
+      "SDKWORK_IM_FOUNDATION_GATEWAY_AUTOSTART",
+      "SDKWORK_IM_ADMIN_INGRESS_BIND",
+      "SDKWORK_IM_ADMIN_HTTP_URL",
+      "SDKWORK_IM_UPSTREAM_SESSION_GATEWAY_BIND",
+      "SDKWORK_IM_UPSTREAM_CONVERSATION_BIND",
+      "SDKWORK_IM_UPSTREAM_STREAMING_BIND",
+      "SDKWORK_IM_UPSTREAM_MEDIA_BIND",
+      "SDKWORK_IM_UPSTREAM_NOTIFICATION_BIND",
+      "VITE_SDKWORK_IM_APP_API_BASE_URL",
+      "VITE_SDKWORK_IM_IM_API_BASE_URL",
+      "VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL",
+      "VITE_SDKWORK_IM_PRODUCT_HTTP_URL",
+      "VITE_SDKWORK_IM_PRODUCT_WS_URL",
+      "VITE_SDKWORK_IM_FOUNDATION_HTTP_URL",
+      "SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE",
+      "SDKWORK_IM_BIND_ADDR",
+      "SDKWORK_CLAW_DATABASE_*"
+    ],
+    "scripts": [
+      "run-sdkwork-im-pc-dev.mjs",
+      "start-sdkwork-im-unified-web.mjs"
+    ],
+    "cliFlags": [
+      "--distribution",
+      "--topology",
+      "--hosting"
+    ]
+  }
+}

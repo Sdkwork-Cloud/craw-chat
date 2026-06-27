@@ -1,0 +1,19 @@
+{
+  "rating": "评分",
+  "sold": "已售",
+  "inStock": "现货立发",
+  "specs": "规格款式",
+  "saved": "已省 {{currencySymbol}}{{amount}}",
+  "feature1": "支付后即刻生效发货",
+  "feature2_virtual": "虚拟权益免运费交付",
+  "feature2_physical": "全场满 {{currencySymbol}}99 免运费",
+  "feature3_virtual": "虚拟商品防沉迷退款",
+  "feature3_physical": "7 天无理由退换",
+  "feature4": "顺丰冷链包邮",
+  "unfavorited": "已取消收藏",
+  "favorited": "商品已收藏",
+  "copied": "分享链接已复制到剪贴板",
+  "addToCart": "加入购物车",
+  "buyNow": "立即购买",
+  "addedToCart": "已加入购物车"
+}

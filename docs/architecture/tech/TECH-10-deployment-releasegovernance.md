@@ -1,0 +1,257 @@
+> Migrated from `docs/step/10-部署脚本与多环境发布治理.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 10 - 部署脚本与多环境发布治理
+
+## 1. 目标与范围
+
+本 step 用于把当前已经存在的本地脚本、docker-compose、bootstrap 脚本和最小运行 profile，统一收敛成可安装、可启动、可恢复、可扩展的多环境交付体系。
+
+本 step 主要覆盖：
+
+- 本地单机开发环境
+- standalone.split-services.development / standalone.split-services.development profile
+- Docker / Compose 启动
+- 私有化与多环境配置模板
+- `bin/` 启动、停止、状态、重启、修复、恢复脚本
+
+### 1.1 执行输入
+
+- step 09 已稳定的存储、恢复与可观测基线
+- 当前 `bin/`、`deployments/`、`README.md`、`docs/部署/` 现状
+- 当前 standalone.split-services.development、standalone.split-services.development 的真实启动链路
+- 当前 Docker / Compose 与 bootstrap 脚本现状
+
+### 1.2 本步非目标
+
+- 不在本 step 内完成最终容量调优和高可用结论
+- 不在本 step 内扩展新的业务功能
+- 不在本 step 内完成所有 SDK 发布流程
+
+### 1.3 最小输出
+
+- 统一命名与语义的跨平台脚本体系
+- 多环境 profile 和配置模板
+- provider / plugin 的 endpoint、secret、默认选择与 rollout 配置模板
+- 安装、初始化、启动、停止、状态、恢复的 smoke 验证
+- 可用于 step 11 与 step 13 的交付入口
+
+## 2. 架构对齐
+
+本 step 重点对齐：
+
+- `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
+- `docs/架构/138-高可用与灾备恢复设计-2026-04-06.md`
+- `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
+- `docs/架构/150-插件化提供商体系与设备接入设计-2026-04-08.md`
+
+## 3. 当前现状与问题
+
+当前仓库已具备较丰富的脚本资产：
+
+- `bin/retired-lifecycle-start.*`
+- `bin/retired-lifecycle-stop.*`
+- `bin/retired-lifecycle-status.*`
+- `bin/retired-lifecycle-restart.*`
+- `bin/retired-lifecycle-install.*`
+- `bin/init-config-local.*`
+- `bin/open-chat-test.*`
+- `(removed compose file)`
+- `deployments/scripts/bootstrap-local.ps1`
+
+但仍需继续治理：
+
+- 多 profile 的职责边界需要更清晰
+- 多环境配置模板需要更成体系
+- 脚本与服务 profile 的映射需要收口
+- 私有化、多节点和未来多 cell 部署需要提前设计入口
+- RTC / Object Storage / IoT provider 的 endpoint、secret、默认 provider 和 rollout 配置需要统一进入 profile
+
+## 4. 设计
+
+### 4.1 部署分层
+
+建议至少形成以下环境层次：
+
+- `standalone.split-services.development`：单机闭环验证
+- `standalone.split-services.development`：更接近真实依赖的本地环境
+- `private-saas-single-cell`：私有化单 cell
+- `cloud-shared-cell`：共享 SaaS cell
+- `cloud-dedicated-cell`：专属租户 cell
+
+### 4.2 脚本职责
+
+`bin/` 应统一承载：
+
+- 安装依赖
+- 初始化配置
+- 启动
+- 停止
+- 重启
+- 状态检查
+- 运行时检查
+- 修复
+- 备份与恢复
+- 聊天测试工具启动
+
+### 4.3 配置治理
+
+必须形成：
+
+- 环境变量模板
+- 配置文件模板
+- profile 说明
+- 端口、存储、日志、认证相关配置默认值
+- provider endpoint、bucket、AK/SK、callback secret、default provider 相关默认值
+
+### 4.4 发布治理
+
+部署不只是启动脚本，还要定义：
+
+- 版本发布约束
+- 配置升级约束
+- 回滚入口
+- 健康检查
+- smoke 验证
+
+## 5. 实施落地规划
+
+### 5.1 任务拆解
+
+1. 统一梳理 `bin/` 命令语义和命名规范
+2. 统一 `deployments/` 中 profile 与镜像、compose 的映射
+3. 建立 provider / plugin 配置模板和默认参数文档
+4. 建立多环境配置模板和默认参数文档
+5. 建立部署后健康检查和 smoke 验证脚本
+6. 把恢复、修复、检查类脚本纳入标准运维闭环
+7. 为私有化和多环境扩展预留参数层
+
+### 5.2 重点路径
+
+重点涉及：
+
+- `bin/`
+- `deployments/docker-compose/`
+- `deployments/docker/`
+- `deployments/scripts/`
+- `README.md`
+- `docs/部署/`
+
+### 5.3 脚本治理原则
+
+- Windows / PowerShell / Bash 三套脚本能力对齐
+- 相同语义的命令采用一致命名
+- 所有脚本都输出明确错误信息和退出码
+- 统一 PID、runtime dir、日志目录和 health check 逻辑
+
+### 5.4 快速交付目标
+
+本 step 完成后，理想目标是：
+
+- 一条命令安装
+- 一条命令初始化
+- 一条命令启动
+- 一条命令查看状态
+- 一条命令打开聊天验证
+- 一条命令停止或恢复
+
+## 6. 测试计划
+
+建议重点测试：
+
+- install / init / start / status / restart / stop 全链路测试
+- Docker Compose 启动 smoke 测试
+- provider endpoint / secret / default provider 配置测试
+- runtime inspection / repair / restore 测试
+- open-chat-test 与 chat-cli 脚本测试
+- healthz 与 readiness 检查
+
+建议验证：
+
+- `(retired lifecycle script)`
+- `bin/init-config-local.ps1`
+- `pnpm dev:server`
+- `bin/retired-lifecycle-status.ps1`
+- `bin/retired-lifecycle-restart.ps1`
+- `bin/retired-lifecycle-stop.ps1`
+- `bin/open-chat-test.ps1`
+- `docker compose -f (removed compose file) up -d --build`
+
+## 7. 结果验证
+
+本 step 完成后，需要验证：
+
+- 当前应用可通过标准脚本在不同平台快速安装和启动
+- 本地、Docker、私有化 profile 的入口一致
+- provider / plugin 配置不再散落在脚本内，而是进入统一 profile / template / control-plane 口径
+- 修复、恢复、检查路径具备可操作性
+- 运维人员可以不读代码也能完成基础部署和排障
+
+## 8. 检查点
+
+- `CP10-1`：`bin/` 脚本体系已按统一命名和统一语义治理
+- `CP10-2`：多环境 profile、provider 配置模板与默认选择已清晰
+- `CP10-3`：部署后健康检查与 smoke 验证可重复执行
+- `CP10-4`：恢复、修复、检查脚本已经纳入标准运维闭环
+
+### 8.1 推荐 review 产物
+
+- `docs/review/step-10-执行卡-YYYY-MM-DD.md`
+- `docs/review/step-10-deploy-scripts矩阵-YYYY-MM-DD.md`
+- `docs/review/step-10-profile-smoke验证-YYYY-MM-DD.md`
+- `docs/review/step-10-恢复命令演练-YYYY-MM-DD.md`
+
+### 8.2 推荐并行车道
+
+- `10-A`：`bin/` 安装、启动、停止、重启、状态、初始化脚本
+- `10-B`：`deployments/`、多环境 profile、Docker / 本地编排
+- `10-C`：smoke、恢复命令、交付文档与运维操作面验证
+- 收口要求：统一命令入口与 profile 语义由 `10-Owner` 冻结，任何平台脚本都必须通过同一 smoke 口径验证。
+- 车道编排参考：[`94-Step并行执行编排与车道拆分建议`](./94-Step并行执行编排与车道拆分建议.md)
+
+### 8.3 架构能力闭环判定
+
+- 必须证明安装、启动、停止、重启、状态、恢复在至少一套本地链路和一套容器链路上真实可执行。
+- 如果只是脚本文件存在但没有 smoke 验证，或 profile 只有名称没有职责边界，本 step 不算闭环。
+- 闭环验收以 [`95-架构能力闭环验收标准`](./95-架构能力闭环验收标准.md) 中 Step 10 条目为准。
+
+### 8.4 快速并行执行建议
+
+- 先冻结统一命令面：`install/start/stop/restart/status/init`，再按平台和环境拆脚本车道。
+- 推荐“bin 命令”“deployments/profile”“smoke/恢复验证”三车道并行，并保持统一输出口径。
+- 平台特定差异只能在脚本适配层消化，不能演化成不同平台不同启动语义。
+
+### 8.5 完成后必须回写的架构文档
+
+- 强制范围：本文件 `## 2. 架构对齐` 中列出的全部架构文档，以及必要时回写 `docs/架构/README.md` 的交付入口说明。
+- 回写重点：多环境 profile、安装启动恢复链路、控制面配置接入和部署拓扑假设是否已经被真实脚本和 smoke 验证覆盖。
+- 必备证据：`docs/review/step-10-架构兑现-YYYY-MM-DD.md` 与 `docs/review/step-10-架构回写决议-YYYY-MM-DD.md`。
+
+## 9. 风险与回滚
+
+### 9.1 风险
+
+- 脚本能力和真实服务行为不一致，会造成交付失真
+- profile 定义不清，会导致环境配置污染
+- 没有健康检查和恢复路径的部署不具备可交付性
+
+### 9.2 回滚
+
+- 现有脚本保留兼容入口，新脚本以统一语义渐进替换
+- 新 profile 先以补充方式加入，避免覆盖已稳定的 standalone.split-services.development
+- 脚本变更必须在至少一个真实启动闭环中验证后再切默认
+
+## 10. 完成定义
+
+满足以下条件时，本 step 完成：
+
+- 部署脚本、配置模板和 profile 已形成统一交付体系
+- 本地安装、启动、状态、停止、恢复可重复执行
+- 交付能力不再依赖口头说明
+
+## 11. 下一步准入条件
+
+进入 step 11 前必须确认：
+
+- 压测、故障演练和灾备验证能够基于统一部署入口进行
+

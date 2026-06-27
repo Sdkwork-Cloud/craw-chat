@@ -1,0 +1,8 @@
+[package]
+name = "sdkwork-im-ccp-registry"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }

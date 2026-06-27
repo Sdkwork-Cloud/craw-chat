@@ -1,0 +1,68 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom": ["./node_modules/@types/react-dom/index.d.ts"],
+      "react-router-dom": ["./node_modules/react-router-dom/dist/index.d.ts"],
+      "@sdkwork/auth-pc-react": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts"
+      ],
+      "@sdkwork/auth-runtime-pc-react": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts"
+      ],
+      "@sdkwork/appbase-pc-react": [
+        "../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"
+      ],
+      "@sdkwork/core-pc-react": [
+        "../../../sdkwork-core/sdkwork-core-pc-react/src/index.ts"
+      ],
+      "@sdkwork/i18n-pc-react": [
+        "../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts"
+      ],
+      "@sdkwork/ui-pc-react": [
+        "../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
+      ],
+      "@sdkwork/iam-app-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/iam-backend-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/iam-contracts": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/iam-runtime": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-ports": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/iam-service": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service/src/index.ts"
+      ],
+      "@sdkwork/runtime-bootstrap": [
+        "../../../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts"
+      ],
+      "@sdkwork/im-sdk": [
+        "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/im-sdk-generated": [
+        "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "packages/sdkwork-im-h5-core/src",
+    "packages/sdkwork-im-h5-commons/src",
+    "packages/sdkwork-im-h5-shell/src",
+    "packages/sdkwork-im-h5-chat/src"
+  ]
+}

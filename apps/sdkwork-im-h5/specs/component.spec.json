@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-h5",
+    "displayName": "SDKWork IM H5",
+    "version": "0.1.0",
+    "type": "h5-app-root",
+    "root": "apps/sdkwork-im-h5",
+    "domain": "chat",
+    "capability": "chat",
+    "surface": "app",
+    "languages": ["typescript"],
+    "generated": false,
+    "manifests": ["package.json", "sdkwork.app.config.json"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "purpose": "H5 mobile application root architecture standard."
+    },
+    {
+      "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "purpose": "Cross-client architecture alignment."
+    }
+  ],
+  "contracts": {
+    "publicExports": ["src/main.tsx"],
+    "runtimeEntrypoints": ["package.json#scripts.dev"],
+    "sdkClients": ["@sdkwork/im-sdk"],
+    "sdkDependencies": ["sdkwork-im-sdk"],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "dependencyComposition": "specs/dependency.composition.json"
+  },
+  "verification": {
+    "commands": ["pnpm run lint", "pnpm run build"]
+  }
+}

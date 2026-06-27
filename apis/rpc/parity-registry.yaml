@@ -1,0 +1,259 @@
+schemaVersion: 1
+kind: sdkwork.rpc.parity-registry
+domain: communication
+owner: sdkwork-im
+entries:
+  - operationId: presence.heartbeat.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/presence/heartbeat
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: PresenceService
+    rpcMethod: CreatePresenceHeartbeat
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: realtime.subscriptions.sync
+    httpSurface: open-api
+    httpPath: /im/v3/api/realtime/subscriptions/sync
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: RealtimeService
+    rpcMethod: SyncRealtimeSubscriptions
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: CreateConversation
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.agentDialogs.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/agent_dialogs
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: CreateAgentDialog
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.agentHandoffs.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/agent_handoffs
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: CreateAgentHandoff
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.systemChannels.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/system_channels
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: CreateSystemChannel
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.threads.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/threads
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: CreateThread
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.directChats.bind
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/direct_chats/bindings
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: BindDirectChat
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.retrieve
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/binding
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: RetrieveConversation
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: inbox.retrieve
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/inbox
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: RetrieveInbox
+    rpcSurface: app
+    parityStatus: partial
+    owner: im-open-api
+    rpcPartialReason: conversation-runtime RPC inbox scans loaded runtime state; projection inbox is authoritative for cold storage
+  - operationId: conversations.members.list
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/members
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: ListConversationMembers
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.messages.list
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/messages
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: MessageService
+    rpcMethod: ListConversationMessages
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: conversations.messages.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/messages
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: MessageService
+    rpcMethod: CreateConversationMessage
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: rooms.create
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/rooms
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: RoomService
+    rpcMethod: CreateRoom
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: rooms.get
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/rooms/{roomId}
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: RoomService
+    rpcMethod: RetrieveRoom
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: rooms.enter
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/rooms/{roomId}/enter
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: RoomService
+    rpcMethod: EnterRoom
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: rooms.leave
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/rooms/{roomId}/leave
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: RoomService
+    rpcMethod: LeaveRoom
+    rpcSurface: app
+    parityStatus: full
+    owner: im-open-api
+  - operationId: internal.messages.dispatch
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: MessageDispatchService
+    rpcMethod: DispatchConversationMessage
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: game custom-schema fanout for service-to-service message dispatch
+  - operationId: internal.rooms.create
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: RoomOrchestrationService
+    rpcMethod: CreateRoom
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: room orchestration for split-deploy service-mtls callers
+  - operationId: internal.rooms.retrieve
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: RoomOrchestrationService
+    rpcMethod: RetrieveRoom
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: room orchestration for split-deploy service-mtls callers
+  - operationId: internal.rooms.enter
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: RoomOrchestrationService
+    rpcMethod: EnterRoom
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: room orchestration for split-deploy service-mtls callers
+  - operationId: internal.rooms.leave
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: RoomOrchestrationService
+    rpcMethod: LeaveRoom
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: room orchestration for split-deploy service-mtls callers
+  - operationId: conversations.preferences.retrieve
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/preferences
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: RetrieveConversationPreferences
+    rpcSurface: app
+    parityStatus: http-only
+    owner: im-open-api
+    httpOnlyReason: conversation preferences are projection-owned until runtime preference store ships
+  - operationId: conversations.profile.retrieve
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/profile
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: ConversationService
+    rpcMethod: RetrieveConversationProfile
+    rpcSurface: app
+    parityStatus: http-only
+    owner: im-open-api
+    httpOnlyReason: conversation profile is projection-owned until runtime profile store ships
+  - operationId: messages.favorites.list
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/messages/favorites
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: MessageService
+    rpcMethod: ListFavoriteMessages
+    rpcSurface: app
+    parityStatus: http-only
+    owner: im-open-api
+    httpOnlyReason: favorites are projection-owned until runtime favorite index ships
+  - operationId: messages.visibility.delete
+    httpSurface: open-api
+    httpPath: /im/v3/api/chat/messages/{messageId}/visibility
+    rpcPackage: sdkwork.communication.app.v3
+    rpcService: MessageService
+    rpcMethod: DeleteMessageVisibility
+    rpcSurface: app
+    parityStatus: http-only
+    owner: im-open-api
+    httpOnlyReason: per-user visibility deletes are projection-owned until runtime visibility store ships
+  - operationId: internal.routeLeases.claim
+    httpSurface: null
+    httpPath: null
+    rpcPackage: sdkwork.communication.internal.v1
+    rpcService: RouteLeaseService
+    rpcMethod: ClaimRouteLease
+    rpcSurface: internal
+    parityStatus: rpc-only
+    owner: communication-internal
+    rpcOnlyReason: distributed route lease coordination for session-gateway HA

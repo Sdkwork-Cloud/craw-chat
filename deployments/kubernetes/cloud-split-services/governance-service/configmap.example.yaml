@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: governance-service-runtime
+  namespace: sdkwork-im
+data:
+  SDKWORK_IM_GOVERNANCE_SERVICE_BIND_ADDR: 0.0.0.0:18081
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318

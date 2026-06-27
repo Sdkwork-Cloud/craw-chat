@@ -1,0 +1,8 @@
+[package]
+name = "sdkwork-im-cloud-gateway-config"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+serde.workspace = true

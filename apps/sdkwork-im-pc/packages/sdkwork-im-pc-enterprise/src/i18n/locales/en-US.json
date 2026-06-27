@@ -1,0 +1,88 @@
+{
+  "title": "Enterprise Center",
+  "publish": "Publish",
+  "searchPlaceholder": "Search enterprises, opportunities, and talents...",
+  "applySettle": "Apply to Settle",
+  "postRecruit": "Post Job",
+  "postSupply": "Post Supply",
+  "postPurchase": "Post Purchase",
+  "loading": "Loading...",
+  "empty": "No enterprises found",
+  "marketplace": {
+    "emptyRecruits": "No recruit listings available yet.",
+    "emptySupplies": "No supply listings available yet.",
+    "emptyPurchases": "No purchase listings available yet.",
+    "emptyProducts": "No enterprise products are available yet.",
+    "profileUnavailable": "Extended enterprise profile data is not available yet.",
+    "unavailable": "Unavailable"
+  },
+  "tabs": {
+    "enterprises": "Enterprises",
+    "supplies": "Bulk Supply",
+    "purchases": "Sourcing",
+    "recruits": "Talent Recruitment"
+  },
+  "list": {
+    "allEnterprises": "All Enterprises",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "visitHome": "Visit Homepage"
+  },
+  "detail": {
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "about": "About Us",
+    "products": "Products & Services",
+    "requirements": "Requirements",
+    "recruiting": "Recruiting",
+    "consult": "Online Consult",
+    "exclusiveConsult": "Exclusive Consult",
+    "getContact": "Get Contact Info",
+    "call": "Call Now",
+    "back": "Back",
+    "establishedDate": "Established",
+    "registeredCapital": "Registered Capital",
+    "legalRepresentative": "Legal Representative",
+    "operatingStatus": "Operating Status",
+    "album": "Enterprise Album",
+    "albumEmpty": "No enterprise album media is available yet.",
+    "contactInfo": "Contact Information",
+    "website": "Official Website",
+    "phone": "Phone Number",
+    "email": "Email",
+    "address": "Address",
+    "coreProducts": "Core Products & Services",
+    "contactForQuote": "Contact for Quote",
+    "learnMore": "Learn More",
+    "allJobs": "All Jobs",
+    "hotJobs": "{{count}} Hot Jobs",
+    "jobDesc": "Job Description:",
+    "jobReq": "Job Requirements:",
+    "applyJob": "Apply Now"
+  },
+  "supply": {
+    "contactSupplier": "Contact Supplier",
+    "price": "Price",
+    "minOrder": "Min. Order",
+    "publishedAt": "Published At",
+    "status": {
+      "supplying": "Supplying"
+    }
+  },
+  "recruit": {
+    "salary": "Salary",
+    "experience": "Experience",
+    "education": "Education",
+    "apply": "Apply Now"
+  },
+  "purchase": {
+    "contactBuyer": "Contact Buyer",
+    "quantity": "Quantity",
+    "budget": "Budget",
+    "deadline": "Deadline",
+    "publishedAt": "Published At",
+    "status": {
+      "purchasing": "Purchasing"
+    }
+  }
+}

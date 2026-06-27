@@ -1,0 +1,43 @@
+[runtime]
+environment = "production"
+deployment_mode = "server"
+app_code = "chat"
+
+[server]
+bind_address = "0.0.0.0:18080"
+trust_forwarded_headers = true
+
+[public_endpoints]
+base_url = "https://im.sdkwork.com"
+api_base_url = "https://im.sdkwork.com"
+websocket_base_url = "wss://im.sdkwork.com"
+docs_base_url = "https://im.sdkwork.com/docs"
+
+[paths]
+config_directory = "/etc/sdkwork/chat"
+config_file = "/etc/sdkwork/chat/chat.toml"
+data_directory = "/var/lib/sdkwork/chat"
+log_directory = "/var/log/sdkwork/chat"
+cache_directory = "/var/cache/sdkwork/chat"
+runtime_directory = "/run/sdkwork/chat"
+
+[database]
+engine = "postgresql"
+host = "db.example.com"
+port = 5432
+database = "sdkwork_ai_prod"
+schema = "sdkwork_ai_prod"
+username = "sdkwork_ai_prod"
+password_file = "/etc/sdkwork/chat/database.secret"
+ssl_mode = "require"
+max_connections = 20
+
+[redis]
+enabled = true
+host = "redis.example.com"
+port = 6379
+database = 0
+password_file = "/etc/sdkwork/chat/redis.secret"
+key_prefix = "chat"
+tls = false
+max_connections = 16

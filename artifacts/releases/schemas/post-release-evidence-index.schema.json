@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifacts/releases/schemas/post-release-evidence-index.schema.json",
+  "title": "sdkwork-im post-release evidence index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundleId",
+    "wave",
+    "profile",
+    "artifact",
+    "state",
+    "boundary",
+    "sampleDoc",
+    "recordTemplate",
+    "artifactRoot",
+    "checksumManifestPath",
+    "artifactFileListPath",
+    "collectionSummary",
+    "evidenceSlots"
+  ],
+  "properties": {
+    "bundleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wave": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact": {
+      "const": "post-release-evidence-index"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "template_only_pending_collection",
+        "evidence_partially_collected",
+        "evidence_collected_go",
+        "evidence_collected_no_go"
+      ]
+    },
+    "boundary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sampleDoc": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recordTemplate": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactRoot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checksumManifestPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactFileListPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "collectionSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalSlots",
+        "requiredSlots",
+        "optionalSlots",
+        "collectedSlots",
+        "pendingSlots",
+        "skippedOptionalSlots"
+      ],
+      "properties": {
+        "totalSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requiredSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "optionalSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "collectedSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pendingSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skippedOptionalSlots": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "evidenceSlots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "required",
+          "status",
+          "command"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_collection",
+              "collected",
+              "skipped_optional"
+            ]
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "suggestedRelativePath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "collectedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "checksumSha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

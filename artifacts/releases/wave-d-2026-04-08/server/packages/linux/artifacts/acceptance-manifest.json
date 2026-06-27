@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../schemas/server-package-acceptance.schema.json",
+  "version": 1,
+  "bundleId": "wave-d-2026-04-08",
+  "platform": "linux",
+  "artifact": "server-package-acceptance-manifest",
+  "artifactRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+  "validationStatus": "template_only_pending_execution",
+  "updatedAt": "2026-04-17",
+  "packageChecks": [
+    {
+      "packageId": "linux-tar-gz",
+      "packageType": "tar.gz",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server-linux-x86_64.tar.gz",
+      "installModel": "archive",
+      "serviceManager": "systemd",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
+      "requiredEntries": [
+        "bin/sdkwork-im-server",
+        "deployments/templates/server.yaml.example",
+        "deployments/systemd/sdkwork-im-server.service"
+      ],
+      "validationEvidencePath": null,
+      "status": "pending_validation"
+    },
+    {
+      "packageId": "linux-deb",
+      "packageType": "deb",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server_<version>_amd64.deb",
+      "installModel": "native-installer",
+      "serviceManager": "systemd",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
+      "requiredEntries": [
+        "bin/sdkwork-im-server",
+        "deployments/templates/server.yaml.example",
+        "deployments/systemd/sdkwork-im-server.service"
+      ],
+      "validationEvidencePath": null,
+      "status": "pending_validation"
+    },
+    {
+      "packageId": "linux-rpm",
+      "packageType": "rpm",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server-<version>-1.x86_64.rpm",
+      "installModel": "native-installer",
+      "serviceManager": "systemd",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
+      "requiredEntries": [
+        "bin/sdkwork-im-server",
+        "deployments/templates/server.yaml.example",
+        "deployments/systemd/sdkwork-im-server.service"
+      ],
+      "validationEvidencePath": null,
+      "status": "pending_validation"
+    }
+  ]
+}

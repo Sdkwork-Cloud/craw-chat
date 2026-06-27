@@ -1,0 +1,31 @@
+﻿[package]
+name = "governance-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+audit-service = { path = "../audit-service" }
+axum.workspace = true
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-ccp-registry = { path = "../../crates/sdkwork-im-ccp-registry" }
+im-app-context = { path = "../../crates/im-app-context" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+ops-service = { path = "../ops-service" }
+serde.workspace = true
+serde_json.workspace = true
+session-gateway = { path = "../session-gateway" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+
+[dev-dependencies]
+audit-service = { path = "../audit-service" }
+http-body-util.workspace = true
+ops-service = { path = "../ops-service" }
+session-gateway = { path = "../session-gateway" }
+tower.workspace = true
+sdkwork-routes-im-governance-backend-api = { path = "../../crates/sdkwork-routes-im-governance-backend-api" }
+

@@ -1,0 +1,17 @@
+[package]
+name = "sdkwork-routes-im-calls-open-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Gateway route crate for the IM-owned call signaling open-api surface."
+
+[lib]
+name = "sdkwork_routes_im_calls_open_api"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+sdkwork_web_contract.workspace = true
+sdkwork_web_core.workspace = true
+sdkwork_im_web_bootstrap.workspace = true
+calls-service = { path = "../../services/im-calls-service" }

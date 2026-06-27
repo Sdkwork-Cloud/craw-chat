@@ -1,0 +1,14 @@
+{
+  "cart": "Cart",
+  "emptyCart": "Your cart is empty",
+  "emptyCartDesc": "There's nothing in your cart, go find some good stuff!",
+  "goShopping": "Go Shopping",
+  "selectAll": "Select All",
+  "deleteSelected": "Delete Selected",
+  "orderSummary": "Order Summary",
+  "subtotal": "Subtotal",
+  "shipping": "Shipping",
+  "shippingTBD": "TBD",
+  "total": "Total",
+  "checkout": "Checkout ({{count}})"
+}

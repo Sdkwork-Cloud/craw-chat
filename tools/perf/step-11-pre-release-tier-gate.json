@@ -1,0 +1,242 @@
+{
+  "$schema": "tools/perf/schemas/step-11-tier-gate.schema.json",
+  "step": "11",
+  "tierId": "pre-release",
+  "tier": "Pre-Release Tier",
+  "profile": "standalone.split-services.development",
+  "state": "template_only_pending_execution",
+  "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
+  "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",
+  "artifactRoot": "artifacts/perf/step-11/pre-release",
+  "goal": "Freeze a repeatable release-gate template for medium-scale quantitative validation and operator drills.",
+  "requiredScenarioFamilies": [
+    "connection",
+    "message",
+    "stream",
+    "drain-rebalance",
+    "restore-recovery",
+    "failover",
+    "upgrade-rollback"
+  ],
+  "requiredOutputs": [
+    {
+      "scenarioFamily": "connection",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "connectionCount",
+        "successCount",
+        "connectP95Ms",
+        "connectionsPerSecond"
+      ]
+    },
+    {
+      "scenarioFamily": "message",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "messageCount",
+        "successCount",
+        "messageP95Ms",
+        "messagesPerSecond"
+      ]
+    },
+    {
+      "scenarioFamily": "stream",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "frameCount",
+        "successCount",
+        "frameP95Ms",
+        "framesPerSecond"
+      ]
+    },
+    {
+      "scenarioFamily": "drain-rebalance",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "drainCompletionSeconds",
+        "routeMigrationSuccessRate",
+        "rebalanceP95Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "restoreSuccessRate",
+        "restoreRtoSeconds",
+        "previewDiffAccuracy"
+      ]
+    },
+    {
+      "scenarioFamily": "failover",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "resumeTakeoverSuccessRate"
+      ]
+    },
+    {
+      "scenarioFamily": "upgrade-rollback",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "compatibilityMatrixPassRate",
+        "rollbackActivationSeconds",
+        "postRollbackProtocolErrorRate"
+      ]
+    }
+  ],
+  "collectionSummary": {
+    "totalSlots": 7,
+    "requiredSlots": 7,
+    "optionalSlots": 0,
+    "collectedSlots": 0,
+    "pendingSlots": 7,
+    "skippedOptionalSlots": 0
+  },
+  "evidenceSlots": [
+    {
+      "id": "connection_metrics",
+      "scenarioFamily": "connection",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "connectionCount",
+        "successCount",
+        "connectP95Ms",
+        "connectionsPerSecond"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "connection/metrics.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "message_metrics",
+      "scenarioFamily": "message",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "messageCount",
+        "successCount",
+        "messageP95Ms",
+        "messagesPerSecond"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "message/metrics.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "stream_metrics",
+      "scenarioFamily": "stream",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "frameCount",
+        "successCount",
+        "frameP95Ms",
+        "framesPerSecond"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "stream/metrics.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "drain_rebalance_drill",
+      "scenarioFamily": "drain-rebalance",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "drainCompletionSeconds",
+        "routeMigrationSuccessRate",
+        "rebalanceP95Ms"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "drain-rebalance/drill.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "restore_recovery_drill",
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "restoreSuccessRate",
+        "restoreRtoSeconds",
+        "previewDiffAccuracy"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "restore-recovery/drill.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "failover_drill",
+      "scenarioFamily": "failover",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "resumeTakeoverSuccessRate"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "failover/drill.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    },
+    {
+      "id": "upgrade_rollback_drill",
+      "scenarioFamily": "upgrade-rollback",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "compatibilityMatrixPassRate",
+        "rollbackActivationSeconds",
+        "postRollbackProtocolErrorRate"
+      ],
+      "required": true,
+      "status": "pending_collection",
+      "artifactPath": null,
+      "suggestedRelativePath": "upgrade-rollback/drill.json",
+      "collectedAt": null,
+      "sizeBytes": null,
+      "checksumSha256": null
+    }
+  ],
+  "reviewBackwrite": [
+    "docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
+    "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
+  ],
+  "boundary": "This gate template is executable documentation only. It does not claim that Pre-Release Tier metrics or drills have already been collected."
+}

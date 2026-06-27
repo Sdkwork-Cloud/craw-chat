@@ -1,0 +1,31 @@
+[package]
+name = "im-platform-contracts"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-contract-admin.workspace = true
+sdkwork-im-contract-agent.workspace = true
+sdkwork-im-contract-control.workspace = true
+sdkwork-im-contract-core.workspace = true
+sdkwork-im-contract-message.workspace = true
+sdkwork-im-contract-notification.workspace = true
+sdkwork-im-contract-stream.workspace = true
+im-time.workspace = true
+sdkwork-communication-rtc-service.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+im-domain-core.workspace = true
+sdkwork-im-ccp-binding-http.workspace = true
+sdkwork-im-ccp-binding-mqtt.workspace = true
+sdkwork-im-ccp-binding-sse.workspace = true
+sdkwork-im-ccp-binding-ws.workspace = true
+sdkwork-im-ccp-codec.workspace = true
+sdkwork-im-ccp-codec-cbor.workspace = true
+sdkwork-im-ccp-codec-json.workspace = true
+sdkwork-im-ccp-control.workspace = true
+sdkwork-im-ccp-core.workspace = true
+sdkwork-im-ccp-registry.workspace = true
+serde_json.workspace = true

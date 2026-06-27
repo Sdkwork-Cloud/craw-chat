@@ -1,0 +1,46 @@
+> Migrated from `docs/review/step-12-cp12-3-兼容矩阵文档测试与控制面映射收口-质量审计与复盘-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 12 / CP12-3 兼容矩阵文档测试与控制面映射收口 质量审计与复盘- 2026-04-08
+
+## 审计范围
+- `docs/部署/CLI聊天验证与兼容矩阵md`
+- `sdks/README.md`
+- `services/control-plane-api/src/lib.rs`
+- `tools/chat-cli/tests/chat_cli_contract_test.rs`
+- `crates/sdkwork-im-ccp-registry/tests/compatibility_matrix_test.rs`
+- `services/control-plane-api/tests/protocol_registry_test.rs`
+- `services/control-plane-api/tests/protocol_governance_test.rs`
+
+## 审计结论
+- 本轮未发现阻`CP12-3` 关闭的剩余缺陷
+- 当前最大的质量增益在于 compatibility matrix 不再停留在“有几条分散测试”，而是已经形成
+  - 文档上的 client row
+  - registry 的原始矩阵
+  - governance 的生效基
+- `sdkCompatibilityBaseline` 的加入让 SDK facade 首次在控制面响应里拥有明确锚点
+
+## 正向结果
+- Step 12 文档现在明确列出 `web / desktop / mobile / backend` 四类 client row
+- `ccp/mqtt/1`、`cbor`、`payload.cbor` 的“registry 可声明但 governance 可能收回”边界已经被显式写明
+- control-plane governance 已开始同时暴露：
+  - 生效中的 `effectiveSnapshot`
+  - 面向 SDK facade `sdkCompatibilityBaseline`
+- `tools/chat-cli/tests/chat_cli_contract_test.rs` 现在会阻止兼容矩阵文档再次回退成模糊描述
+
+## 仍需关注的风
+- 当前 matrix baseline 仍只覆盖 `web / desktop / mobile / backend` 四类 client type，不代表所有未来语言 SDK 都已真实接入
+- `sdkCompatibilityBaseline` 目前Step 12 所需的最小控制面锚点，不等于完整 protocol profile / release bundle 模型
+- `CP12-3` 已闭环不代表 Step 12 完成，`CP12-4` 的多终端聊天与流式验证脚本仍未形成稳定可重复执行闭环
+
+## 验证证据
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture`
+- `cargo test -p sdkwork-im-ccp-registry --offline --test compatibility_matrix_test -- --nocapture`
+- `cargo test -p control-plane-api --offline -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture`
+- `cargo fmt --all --check`
+
+## 复盘结论
+- 本轮最关键的决策是没有再单独补一份“兼容矩阵说明”，而是把文档、control-plane 字段SDK facade baseline 一起钉到同一套回归门禁
+- 这样后续`CP12-4` 或多语言 SDK 真正实现时，就不会再回到“registry 一套、文档一套、控制面一套”的分叉状态
+

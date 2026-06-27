@@ -1,0 +1,5729 @@
+openapi: 3.1.2
+info:
+  title: Sdkwork IM Backend Management API
+  version: 0.1.0
+  description: Backend management OpenAPI contract for operator, governance, control, and admin APIs under one SDK family.
+servers:
+  - url: http://127.0.0.1:18079
+security:
+  - AuthToken: []
+    AccessToken: []
+tags:
+  - name: ops
+  - name: audit
+  - name: automation
+  - name: control
+    description: Control-plane and governance management APIs.
+  - name: admin
+    description: Admin-console and backend administration APIs.
+paths:
+  /backend/v3/api/ops/health:
+    get:
+      tags:
+        - ops
+      operationId: health.retrieve
+      summary: Retrieve ops health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/cluster:
+    get:
+      tags:
+        - ops
+      operationId: cluster.retrieve
+      summary: Retrieve cluster state
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/lag:
+    get:
+      tags:
+        - ops
+      operationId: lag.retrieve
+      summary: Retrieve projection lag
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/replay_status:
+    get:
+      tags:
+        - ops
+      operationId: replayStatus.retrieve
+      summary: Retrieve replay status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/commercial_readiness:
+    get:
+      tags:
+        - ops
+      operationId: commercialReadiness.retrieve
+      summary: Retrieve commercial readiness
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/runtime_dir:
+    get:
+      tags:
+        - ops
+      operationId: runtimeDir.retrieve
+      summary: Inspect runtime directory
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/provider_bindings:
+    get:
+      tags:
+        - ops
+      operationId: ops.providerBindings.list
+      summary: List provider bindings
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/provider_bindings/drift:
+    get:
+      tags:
+        - ops
+      operationId: ops.providerBindings.drift.retrieve
+      summary: Retrieve provider binding drift
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/ops/diagnostics:
+    get:
+      tags:
+        - ops
+      operationId: diagnostics.retrieve
+      summary: Retrieve diagnostics
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/audit/records:
+    get:
+      tags:
+        - audit
+      operationId: records.list
+      summary: List audit records
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      tags:
+        - audit
+      operationId: records.create
+      summary: Record audit anchor
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/audit/export:
+    get:
+      tags:
+        - audit
+      operationId: export.retrieve
+      summary: Export audit bundle
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/automation/governance:
+    get:
+      tags:
+        - automation
+      operationId: governance.retrieve
+      summary: Retrieve automation governance
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/nodes/{nodeId}/activate:
+    post:
+      operationId: nodes.activate
+      parameters:
+        - description: Realtime node identifier.
+          in: path
+          name: nodeId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteNodeLifecycle'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Activate a realtime node and clear drain state.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/nodes/{nodeId}/drain:
+    post:
+      operationId: nodes.drain
+      parameters:
+        - description: Realtime node identifier.
+          in: path
+          name: nodeId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteNodeLifecycle'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Mark a realtime node as draining.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/nodes/{nodeId}/routes/migrate:
+    post:
+      operationId: nodes.routes.migrate
+      parameters:
+        - description: Source realtime node identifier.
+          in: path
+          name: nodeId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MigrateRoutesRequest'
+        description: Route migration target payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteMigrationResult'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Migrate owned routes from the source node to the target node.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/protocol_governance:
+    get:
+      operationId: protocolGovernance.retrieve
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolGovernanceResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read the control-plane protocol governance snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/protocol_registry:
+    get:
+      operationId: protocolRegistry.retrieve
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtocolRegistryResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read the control-plane protocol registry snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/provider_policies:
+    get:
+      operationId: providerPolicies.list
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderPolicyHistoryResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read provider policy history.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/provider_policies/diff:
+    get:
+      operationId: providerPolicies.diff.list
+      parameters:
+        - description: Base provider policy version.
+          in: query
+          name: fromVersion
+          required: true
+          schema:
+            type: string
+            format: int64
+            pattern: ^[0-9]+$
+            x-sdkwork-int64-string: true
+            x-sdkwork-rust-type: i64
+        - description: Target provider policy version.
+          in: query
+          name: toVersion
+          required: true
+          schema:
+            type: string
+            format: int64
+            pattern: ^[0-9]+$
+            x-sdkwork-int64-string: true
+            x-sdkwork-rust-type: i64
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderPolicyDiffResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read provider policy diff between two versions.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/provider_policies/preview:
+    post:
+      operationId: providerPolicies.preview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertProviderBindingPolicyRequest'
+        description: Provider binding preview payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderBindingCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Preview the effective provider policy result before commit.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/provider_policies/rollback:
+    post:
+      operationId: providerPolicies.rollback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderPolicyRollbackRequest'
+        description: Provider policy rollback payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderBindingCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Rollback provider policy history to a target version.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/provider_registry:
+    get:
+      operationId: providerRegistry.retrieve
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderRegistrySnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read the provider registry snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/provider_bindings:
+    get:
+      operationId: control.providerBindings.list
+      parameters:
+        - description: Optional tenant scope for effective provider bindings.
+          in: query
+          name: tenantId
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderBindingsResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read effective provider bindings.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: control.providerBindings.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertProviderBindingPolicyRequest'
+        description: Provider binding mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderBindingCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Upsert a provider binding policy.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/direct_chats/bindings:
+    post:
+      operationId: social.directChats.bindings.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindDirectChatRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialDirectChatCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Bind a direct chat to a conversation.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/direct_chats/{directChatId}:
+    get:
+      operationId: social.directChats.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: directChatId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialDirectChatSnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read a direct chat snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/external_connections:
+    post:
+      operationId: social.externalConnections.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EstablishExternalConnectionRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialExternalConnectionCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Establish an external collaboration connection.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/external_connections/{connectionId}:
+    get:
+      operationId: social.externalConnections.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: connectionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialExternalConnectionSnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read an external connection snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/external_member_links:
+    post:
+      operationId: social.externalMemberLinks.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindExternalMemberLinkRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialExternalMemberLinkCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Bind an external member link.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/external_member_links/{linkId}:
+    get:
+      operationId: social.externalMemberLinks.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: linkId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialExternalMemberLinkSnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read an external member link snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friend_requests:
+    post:
+      operationId: social.friendRequests.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitFriendRequestRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Submit a friend request event.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friend_requests/{requestId}:
+    get:
+      operationId: social.friendRequests.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendRequestSnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read a friend request snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friend_requests/{requestId}/accept:
+    post:
+      operationId: social.friendRequests.accept
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptFriendRequestRequest'
+        description: Social action payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Accept a friend request.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friend_requests/{requestId}/decline:
+    post:
+      operationId: social.friendRequests.decline
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeclineFriendRequestRequest'
+        description: Social action payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Decline a friend request.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friend_requests/{requestId}/cancel:
+    post:
+      operationId: social.friendRequests.cancel
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelFriendRequestRequest'
+        description: Social action payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Cancel a friend request.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friendships:
+    post:
+      operationId: social.friendships.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateFriendshipRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendshipCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Activate a friendship event.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friendships/{friendshipId}:
+    get:
+      operationId: social.friendships.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: friendshipId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendshipSnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read a friendship snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/friendships/{friendshipId}/remove:
+    post:
+      operationId: social.friendships.remove
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: friendshipId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveFriendshipRequest'
+        description: Social action payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFriendshipCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Remove a friendship.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted:
+    post:
+      operationId: social.runtime.claimPendingSharedChannelSyncTargeted.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialSharedChannelSyncPendingTargetedClaimRequest'
+        description: Targeted request-key payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncPendingClaimResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Claim selected pending shared-channel sync entries.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync:
+    get:
+      operationId: social.runtime.deadLetterSharedChannelSync.list
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterInventoryResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read the dead-letter shared-channel sync queue.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/delivered_shared_channel_sync:
+    get:
+      operationId: social.runtime.deliveredSharedChannelSync.list
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncDeliveredInventoryResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read the delivered shared-channel sync ledger.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync:
+    get:
+      operationId: social.runtime.deliveryStateSharedChannelSync.list
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncDeliveryStateInventoryResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read merged shared-channel sync delivery state.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/pending_shared_channel_sync:
+    get:
+      operationId: social.runtime.pendingSharedChannelSync.list
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncPendingInventoryResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read the pending shared-channel sync queue.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/reclaim_stale_pending_shared_channel_sync:
+    post:
+      operationId: social.runtime.reclaimStalePendingSharedChannelSync.create
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncPendingStaleReclaimResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Reclaim stale shared-channel sync pending ownership.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted:
+    post:
+      operationId: social.runtime.releasePendingSharedChannelSyncTargeted.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialSharedChannelSyncPendingTargetedReleaseRequest'
+        description: Targeted request-key payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncPendingReleaseResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Release selected pending shared-channel sync entries.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/repair_derived_snapshot:
+    post:
+      operationId: social.runtime.repairDerivedSnapshot.create
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialRuntimeRepairResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Repair the persisted social runtime derived snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/repair_shared_channel_sync:
+    post:
+      operationId: social.runtime.repairSharedChannelSync.create
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncRepairResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Repair shared-channel sync backlog state.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted:
+    post:
+      operationId: social.runtime.republishPendingSharedChannelSyncTargeted.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialSharedChannelSyncTargetedRepublishRequest'
+        description: Targeted request-key payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncTargetedRepublishResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Republish selected pending shared-channel sync entries.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync:
+    post:
+      operationId: social.runtime.requeueDeadLetterSharedChannelSync.create
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterRequeueResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Requeue all dead-letter shared-channel sync entries.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted:
+    post:
+      operationId: social.runtime.requeueDeadLetterSharedChannelSyncTargeted.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest'
+        description: Targeted request-key payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Requeue selected dead-letter shared-channel sync entries.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted:
+    post:
+      operationId: social.runtime.takeoverPendingSharedChannelSyncTargeted.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialSharedChannelSyncPendingTargetedTakeoverRequest'
+        description: Targeted request-key payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelSyncPendingTakeoverResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Take over selected pending shared-channel sync entries.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/shared_channel_policies:
+    post:
+      operationId: social.sharedChannelPolicies.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplySharedChannelPolicyRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelPolicyCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Apply a shared-channel policy.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/shared_channel_policies/{policyId}:
+    get:
+      operationId: social.sharedChannelPolicies.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: policyId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialSharedChannelPolicySnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read a shared-channel policy snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/user_blocks:
+    post:
+      operationId: social.userBlocks.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockUserRequest'
+        description: Social mutation payload.
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialUserBlockCommitResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Block a user in the social graph.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/control/social/user_blocks/{blockId}:
+    get:
+      operationId: social.userBlocks.retrieve
+      parameters:
+        - description: Aggregate identifier.
+          in: path
+          name: blockId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialUserBlockSnapshotResponse'
+          description: Successful response.
+        '400':
+          description: Invalid request.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Authentication required.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Permission denied.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Resource not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Request conflicts with current control-plane state.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Control-plane dependency is unavailable.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      summary: Read a user block snapshot.
+      tags:
+        - control
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/api_key_groups:
+    get:
+      operationId: apiKeyGroups.list
+      tags:
+        - admin
+      summary: listApiKeyGroups
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: apiKeyGroups.create
+      tags:
+        - admin
+      summary: createApiKeyGroup
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/api_key_groups/{groupId}:
+    patch:
+      operationId: apiKeyGroups.update
+      tags:
+        - admin
+      summary: updateApiKeyGroup
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    delete:
+      operationId: apiKeyGroups.delete
+      tags:
+        - admin
+      summary: deleteApiKeyGroup
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/api_key_groups/{groupId}/status:
+    post:
+      operationId: apiKeyGroups.status
+      tags:
+        - admin
+      summary: updateApiKeyGroupStatus
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/api_keys:
+    get:
+      operationId: apiKeys.list
+      tags:
+        - admin
+      summary: listApiKeys
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: apiKeys.create
+      tags:
+        - admin
+      summary: createApiKey
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/api_keys/{hashedKey}:
+    put:
+      operationId: apiKeys.update
+      tags:
+        - admin
+      summary: updateApiKey
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    delete:
+      operationId: apiKeys.delete
+      tags:
+        - admin
+      summary: deleteApiKey
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/api_keys/{hashedKey}/status:
+    post:
+      operationId: apiKeys.status
+      tags:
+        - admin
+      summary: updateApiKeyStatus
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/billing/events:
+    get:
+      operationId: billing.events.list
+      tags:
+        - admin
+      summary: listBillingEvents
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/billing/events/summary:
+    get:
+      operationId: billing.events.summary.retrieve
+      tags:
+        - admin
+      summary: getBillingEventSummary
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/billing/summary:
+    get:
+      operationId: billing.summary.retrieve
+      tags:
+        - admin
+      summary: getBillingSummary
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/channel_models:
+    get:
+      operationId: channelModels.list
+      tags:
+        - admin
+      summary: listChannelModels
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: channelModels.create
+      tags:
+        - admin
+      summary: saveChannelModel
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/channel_models/{channelId}/models/{modelId}:
+    delete:
+      operationId: channelModels.models.delete
+      tags:
+        - admin
+      summary: deleteChannelModel
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/channels:
+    get:
+      operationId: channels.list
+      tags:
+        - admin
+      summary: listChannels
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: channels.create
+      tags:
+        - admin
+      summary: saveChannel
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/channels/{channelId}:
+    delete:
+      operationId: channels.delete
+      tags:
+        - admin
+      summary: deleteChannel
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/credentials:
+    get:
+      operationId: credentials.list
+      tags:
+        - admin
+      summary: listCredentials
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: credentials.create
+      tags:
+        - admin
+      summary: saveCredential
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}:
+    delete:
+      operationId: credentials.providers.keys.delete
+      tags:
+        - admin
+      summary: deleteCredential
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/extensions/runtime_reloads:
+    post:
+      operationId: extensions.runtimeReloads.create
+      tags:
+        - admin
+      summary: reloadExtensionRuntimes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/extensions/runtime_statuses:
+    get:
+      operationId: extensions.runtimeStatuses.list
+      tags:
+        - admin
+      summary: listRuntimeStatuses
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/gateway/rate_limit_policies:
+    get:
+      operationId: gateway.rateLimitPolicies.list
+      tags:
+        - admin
+      summary: listRateLimitPolicies
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: gateway.rateLimitPolicies.create
+      tags:
+        - admin
+      summary: createRateLimitPolicy
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/gateway/rate_limit_windows:
+    get:
+      operationId: gateway.rateLimitWindows.list
+      tags:
+        - admin
+      summary: listRateLimitWindows
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/marketing/campaigns:
+    get:
+      operationId: marketing.campaigns.list
+      tags:
+        - admin
+      summary: listMarketingCampaigns
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: marketing.campaigns.create
+      tags:
+        - admin
+      summary: saveMarketingCampaign
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/marketing/campaigns/{marketingCampaignId}/status:
+    post:
+      operationId: marketing.campaigns.status
+      tags:
+        - admin
+      summary: updateMarketingCampaignStatus
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/model_prices:
+    get:
+      operationId: modelPrices.list
+      tags:
+        - admin
+      summary: listModelPrices
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: modelPrices.create
+      tags:
+        - admin
+      summary: saveModelPrice
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/model_prices/{channelId}/models/{modelId}/providers/{proxyProviderId}:
+    delete:
+      operationId: modelPrices.models.providers.delete
+      tags:
+        - admin
+      summary: deleteModelPrice
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/models:
+    get:
+      operationId: models.list
+      tags:
+        - admin
+      summary: listModels
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: models.create
+      tags:
+        - admin
+      summary: saveModel
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/models/{externalName}/providers/{providerId}:
+    delete:
+      operationId: models.providers.delete
+      tags:
+        - admin
+      summary: deleteModel
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/providers:
+    get:
+      operationId: providers.list
+      tags:
+        - admin
+      summary: listProviders
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: providers.create
+      tags:
+        - admin
+      summary: saveProvider
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/providers/{providerId}:
+    delete:
+      operationId: providers.delete
+      tags:
+        - admin
+      summary: deleteProvider
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/routing/decision_logs:
+    get:
+      operationId: routing.decisionLogs.list
+      tags:
+        - admin
+      summary: listRoutingDecisionLogs
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/routing/health_snapshots:
+    get:
+      operationId: routing.healthSnapshots.retrieve
+      tags:
+        - admin
+      summary: listProviderHealthSnapshots
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/routing/profiles:
+    get:
+      operationId: routing.profiles.list
+      tags:
+        - admin
+      summary: listRoutingProfiles
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: routing.profiles.create
+      tags:
+        - admin
+      summary: createRoutingProfile
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/routing/snapshots:
+    get:
+      operationId: routing.snapshots.list
+      tags:
+        - admin
+      summary: listCompiledRoutingSnapshots
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/audit:
+    get:
+      operationId: storage.audit.list
+      tags:
+        - admin
+      summary: listStorageAuditTrail
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/config:
+    get:
+      operationId: storage.config.retrieve
+      tags:
+        - admin
+      summary: getGlobalStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: storage.config.create
+      tags:
+        - admin
+      summary: saveGlobalStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/config/tenants/{tenantId}:
+    get:
+      operationId: storage.config.tenants.retrieve
+      tags:
+        - admin
+      summary: getTenantStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    post:
+      operationId: storage.config.tenants.create
+      tags:
+        - admin
+      summary: saveTenantStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+    delete:
+      operationId: storage.config.tenants.delete
+      tags:
+        - admin
+      summary: deleteTenantStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '204':
+          description: Delete succeeded and no payload is returned
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/effective/tenants/{tenantId}:
+    get:
+      operationId: storage.effective.tenants.retrieve
+      tags:
+        - admin
+      summary: getTenantEffectiveStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/providers:
+    get:
+      operationId: storage.providers.list
+      tags:
+        - admin
+      summary: listStorageProviders
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/validate:
+    post:
+      operationId: storage.validation.create
+      tags:
+        - admin
+      summary: validateGlobalStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/storage/validate/tenants/{tenantId}:
+    post:
+      operationId: storage.validation.tenants.create
+      tags:
+        - admin
+      summary: validateTenantStorageConfig
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LooseJsonObject'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/usage/records:
+    get:
+      operationId: usage.records.list
+      tags:
+        - admin
+      summary: listUsageRecords
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+  /backend/v3/api/admin/usage/summary:
+    get:
+      operationId: usage.summary.retrieve
+      tags:
+        - admin
+      summary: getUsageSummary
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseJsonValue'
+        '401':
+          description: Authentication failed or no active operator session
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: backend-api
+components:
+  securitySchemes:
+    AuthToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    AccessToken:
+      type: apiKey
+      in: header
+      name: Access-Token
+  responses:
+    BadRequestError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    UnauthorizedError:
+      description: Bearer authentication failed or is missing
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ForbiddenError:
+      description: Caller is not allowed to access the resource
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NotFoundError:
+      description: Resource was not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ConflictError:
+      description: Request conflicts with the current resource state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ServiceUnavailableError:
+      description: Required runtime capability or provider is unavailable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+  schemas:
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+        retryable:
+          type: boolean
+    ActivateFriendshipRequest:
+      additionalProperties: false
+      properties:
+        directChatId:
+          nullable: true
+          type: string
+        establishedAt:
+          type: string
+        eventId:
+          type: string
+        friendshipId:
+          type: string
+        initiatorUserId:
+          type: string
+        peerUserId:
+          type: string
+      required:
+        - friendshipId
+        - eventId
+        - initiatorUserId
+        - peerUserId
+        - establishedAt
+      type: object
+    ApplySharedChannelPolicyRequest:
+      additionalProperties: false
+      properties:
+        appliedAt:
+          type: string
+        channelId:
+          type: string
+        connectionId:
+          type: string
+        conversationId:
+          nullable: true
+          type: string
+        eventId:
+          type: string
+        historyVisibility:
+          type: string
+        policyId:
+          type: string
+        policyVersion:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+      required:
+        - policyId
+        - eventId
+        - connectionId
+        - channelId
+        - policyVersion
+        - historyVisibility
+        - appliedAt
+      type: object
+    BindDirectChatRequest:
+      additionalProperties: false
+      properties:
+        boundAt:
+          type: string
+        conversationId:
+          type: string
+        directChatId:
+          type: string
+        eventId:
+          type: string
+        leftActorId:
+          type: string
+        rightActorId:
+          type: string
+      required:
+        - directChatId
+        - eventId
+        - leftActorId
+        - rightActorId
+        - conversationId
+        - boundAt
+      type: object
+    BindExternalMemberLinkRequest:
+      additionalProperties: false
+      properties:
+        connectionId:
+          type: string
+        eventId:
+          type: string
+        externalDisplayName:
+          nullable: true
+          type: string
+        externalMemberId:
+          type: string
+        linkId:
+          type: string
+        linkedAt:
+          type: string
+        localActorId:
+          type: string
+        localActorKind:
+          type: string
+      required:
+        - linkId
+        - eventId
+        - connectionId
+        - localActorId
+        - localActorKind
+        - externalMemberId
+        - linkedAt
+      type: object
+    BlockUserRequest:
+      additionalProperties: false
+      properties:
+        blockId:
+          type: string
+        blockedUserId:
+          type: string
+        blockerUserId:
+          type: string
+        directChatId:
+          nullable: true
+          type: string
+        effectiveAt:
+          type: string
+        eventId:
+          type: string
+        expiresAt:
+          nullable: true
+          type: string
+        scope:
+          type: string
+      required:
+        - blockId
+        - eventId
+        - blockerUserId
+        - blockedUserId
+        - scope
+        - effectiveAt
+      type: object
+    BusinessPolicyVocabularyResponse:
+      additionalProperties: false
+      properties:
+        capabilityFlagsField:
+          type: string
+        historyVisibilityField:
+          type: string
+        historyVisibilityModes:
+          items:
+            type: string
+          type: array
+        policyVersionField:
+          type: string
+        retentionPolicyRefField:
+          type: string
+        retentionPolicyScopes:
+          items:
+            type: string
+          type: array
+      required:
+        - policyVersionField
+        - capabilityFlagsField
+        - historyVisibilityField
+        - historyVisibilityModes
+        - retentionPolicyRefField
+        - retentionPolicyScopes
+      type: object
+    CapabilityProfileResponse:
+      additionalProperties: false
+      properties:
+        enabledCapabilities:
+          items:
+            type: string
+          type: array
+        experimentalCapabilities:
+          items:
+            type: string
+          type: array
+        profileId:
+          type: string
+        releaseChannel:
+          type: string
+      required:
+        - profileId
+        - releaseChannel
+        - enabledCapabilities
+        - experimentalCapabilities
+      type: object
+    ClientCompatibilityResponse:
+      additionalProperties: false
+      properties:
+        blockedExperimentalCapabilities:
+          items:
+            type: string
+          type: array
+        clientType:
+          type: string
+        minimumProtocolVersion:
+          type: string
+        supportedBindings:
+          items:
+            type: string
+          type: array
+        supportedCapabilities:
+          items:
+            type: string
+          type: array
+        supportedCodecs:
+          items:
+            type: string
+          type: array
+      required:
+        - clientType
+        - minimumProtocolVersion
+        - supportedBindings
+        - supportedCodecs
+        - supportedCapabilities
+        - blockedExperimentalCapabilities
+      type: object
+    EffectiveProtocolSnapshotResponse:
+      additionalProperties: false
+      properties:
+        allowedBindings:
+          items:
+            type: string
+          type: array
+        allowedCodecs:
+          items:
+            type: string
+          type: array
+        enabledCapabilities:
+          items:
+            type: string
+          type: array
+        killSwitchActive:
+          type: boolean
+        precedence:
+          items:
+            type: string
+          type: array
+        protocolVersion:
+          type: string
+        quotaProfileId:
+          type: string
+        releaseChannel:
+          type: string
+      required:
+        - protocolVersion
+        - releaseChannel
+        - enabledCapabilities
+        - allowedBindings
+        - allowedCodecs
+        - quotaProfileId
+        - killSwitchActive
+        - precedence
+      type: object
+    EstablishExternalConnectionRequest:
+      additionalProperties: false
+      properties:
+        connectionId:
+          type: string
+        connectionKind:
+          type: string
+        establishedAt:
+          type: string
+        eventId:
+          type: string
+        externalOrgName:
+          nullable: true
+          type: string
+        externalTenantId:
+          type: string
+      required:
+        - connectionId
+        - eventId
+        - externalTenantId
+        - connectionKind
+        - establishedAt
+      type: object
+    KillSwitchResponse:
+      additionalProperties: false
+      properties:
+        active:
+          type: boolean
+        disabledBindings:
+          items:
+            type: string
+          type: array
+        disabledCapabilities:
+          items:
+            type: string
+          type: array
+        disabledCodecs:
+          items:
+            type: string
+          type: array
+        reason:
+          type: string
+        ruleId:
+          type: string
+      required:
+        - ruleId
+        - active
+        - reason
+        - disabledCapabilities
+        - disabledBindings
+        - disabledCodecs
+      type: object
+    MigrateRoutesRequest:
+      additionalProperties: false
+      properties:
+        targetNodeId:
+          type: string
+      required:
+        - targetNodeId
+      type: object
+    ProtocolGovernanceResponse:
+      additionalProperties: false
+      properties:
+        businessPolicyVocabulary:
+          $ref: '#/components/schemas/BusinessPolicyVocabularyResponse'
+        capabilityProfile:
+          $ref: '#/components/schemas/CapabilityProfileResponse'
+        effectiveSnapshot:
+          $ref: '#/components/schemas/EffectiveProtocolSnapshotResponse'
+        killSwitch:
+          $ref: '#/components/schemas/KillSwitchResponse'
+        quotaProfile:
+          $ref: '#/components/schemas/QuotaProfileResponse'
+        rolloutPolicy:
+          $ref: '#/components/schemas/RolloutPolicyResponse'
+        sdkCompatibilityBaseline:
+          $ref: '#/components/schemas/SdkCompatibilityBaselineResponse'
+      required:
+        - capabilityProfile
+        - quotaProfile
+        - rolloutPolicy
+        - killSwitch
+        - effectiveSnapshot
+        - businessPolicyVocabulary
+        - sdkCompatibilityBaseline
+      type: object
+    ProtocolRegistryResponse:
+      additionalProperties: false
+      properties:
+        bindings:
+          items:
+            type: string
+          type: array
+        codecs:
+          items:
+            type: string
+          type: array
+        compatibilityMatrix:
+          items:
+            $ref: '#/components/schemas/ClientCompatibilityResponse'
+          type: array
+        protocolVersion:
+          type: string
+        schemas:
+          items:
+            $ref: '#/components/schemas/ProtocolSchemaResponse'
+          type: array
+      required:
+        - protocolVersion
+        - bindings
+        - codecs
+        - schemas
+        - compatibilityMatrix
+      type: object
+    ProtocolSchemaResponse:
+      additionalProperties: false
+      properties:
+        bindingProtocols:
+          items:
+            type: string
+          type: array
+        kind:
+          type: string
+        requiredCapabilities:
+          items:
+            type: string
+          type: array
+        schema:
+          type: string
+        stage:
+          type: string
+        supportedConsumers:
+          items:
+            type: string
+          type: array
+      required:
+        - schema
+        - kind
+        - stage
+        - bindingProtocols
+        - requiredCapabilities
+        - supportedConsumers
+      type: object
+    ProviderBindingCommitResponse:
+      additionalProperties: true
+      description: Provider binding mutation result after applying a control-plane policy change.
+      properties: {}
+      type: object
+    ProviderBindingsResponse:
+      additionalProperties: true
+      description: Effective provider bindings resolved for the current tenant scope.
+      properties: {}
+      type: object
+    ProviderPolicyDiffResponse:
+      additionalProperties: true
+      description: Provider policy diff between two committed versions.
+      properties: {}
+      type: object
+    ProviderPolicyHistoryResponse:
+      additionalProperties: true
+      description: Provider policy history snapshot for the current tenant scope.
+      properties: {}
+      type: object
+    ProviderPolicyRollbackRequest:
+      additionalProperties: false
+      properties:
+        targetVersion:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+      required:
+        - targetVersion
+      type: object
+    ProviderRegistrySnapshotResponse:
+      additionalProperties: true
+      description: Provider registry snapshot for the current control-plane view.
+      properties: {}
+      type: object
+    QuotaProfileResponse:
+      additionalProperties: false
+      properties:
+        maxConcurrentSessionsPerTenant:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        maxInflightMessages:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        maxPayloadBytes:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        maxSubscriptionsPerSession:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        profileId:
+          type: string
+      required:
+        - profileId
+        - maxConcurrentSessionsPerTenant
+        - maxSubscriptionsPerSession
+        - maxInflightMessages
+        - maxPayloadBytes
+      type: object
+    RolloutPolicyResponse:
+      additionalProperties: false
+      properties:
+        cellSelector:
+          type: string
+        operatorOverride:
+          type: boolean
+        policyId:
+          type: string
+        regionSelector:
+          type: string
+        releaseChannel:
+          type: string
+        tenantAllowlist:
+          items:
+            type: string
+          type: array
+        trafficPercent:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+      required:
+        - policyId
+        - releaseChannel
+        - trafficPercent
+        - cellSelector
+        - regionSelector
+        - operatorOverride
+        - tenantAllowlist
+      type: object
+    RouteMigrationResult:
+      additionalProperties: false
+      properties:
+        migratedRouteCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        sourceDrainStatus:
+          type: string
+        sourceNodeId:
+          type: string
+        sourceRebalanceState:
+          type: string
+        targetDrainStatus:
+          type: string
+        targetNodeId:
+          type: string
+        targetRebalanceState:
+          type: string
+      required:
+        - sourceNodeId
+        - targetNodeId
+        - migratedRouteCount
+        - sourceDrainStatus
+        - sourceRebalanceState
+        - targetDrainStatus
+        - targetRebalanceState
+      type: object
+    RouteNodeLifecycle:
+      additionalProperties: false
+      properties:
+        drainStatus:
+          type: string
+        nodeId:
+          type: string
+        ownedRouteCount:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        rebalanceState:
+          type: string
+      required:
+        - nodeId
+        - drainStatus
+        - rebalanceState
+        - ownedRouteCount
+      type: object
+    SdkCompatibilityBaselineResponse:
+      additionalProperties: false
+      properties:
+        appSdkFamily:
+          type: string
+        backendSdkFamily:
+          type: string
+        imSdkFamily:
+          type: string
+        rtcSdkFamily:
+          type: string
+        matrixClientTypes:
+          items:
+            type: string
+          type: array
+        protocolGovernancePath:
+          type: string
+        protocolRegistryPath:
+          type: string
+      required:
+        - imSdkFamily
+        - appSdkFamily
+        - backendSdkFamily
+        - rtcSdkFamily
+        - matrixClientTypes
+        - protocolRegistryPath
+        - protocolGovernancePath
+      type: object
+    AcceptFriendRequestRequest:
+      additionalProperties: false
+      properties:
+        acceptedAt:
+          type: string
+        acceptedByUserId:
+          type: string
+        eventId:
+          type: string
+      required:
+        - eventId
+        - acceptedByUserId
+        - acceptedAt
+      type: object
+    DeclineFriendRequestRequest:
+      additionalProperties: false
+      properties:
+        declinedAt:
+          type: string
+        declinedByUserId:
+          type: string
+        eventId:
+          type: string
+      required:
+        - eventId
+        - declinedByUserId
+        - declinedAt
+      type: object
+    CancelFriendRequestRequest:
+      additionalProperties: false
+      properties:
+        canceledAt:
+          type: string
+        canceledByUserId:
+          type: string
+        eventId:
+          type: string
+      required:
+        - eventId
+        - canceledByUserId
+        - canceledAt
+      type: object
+    RemoveFriendshipRequest:
+      additionalProperties: false
+      properties:
+        eventId:
+          type: string
+        removedAt:
+          type: string
+        removedByUserId:
+          type: string
+      required:
+        - eventId
+        - removedByUserId
+        - removedAt
+      type: object
+    SocialDirectChatCommitResponse:
+      additionalProperties: true
+      description: Direct chat binding result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialDirectChatSnapshotResponse:
+      additionalProperties: true
+      description: Direct chat snapshot plus commit history.
+      properties: {}
+      type: object
+    SocialExternalConnectionCommitResponse:
+      additionalProperties: true
+      description: External connection write result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialExternalConnectionSnapshotResponse:
+      additionalProperties: true
+      description: External connection snapshot plus commit history.
+      properties: {}
+      type: object
+    SocialExternalMemberLinkCommitResponse:
+      additionalProperties: true
+      description: External member link write result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialExternalMemberLinkSnapshotResponse:
+      additionalProperties: true
+      description: External member link snapshot plus commit history.
+      properties: {}
+      type: object
+    SocialFriendRequestCommitResponse:
+      additionalProperties: true
+      description: Friend request write result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialFriendRequestSnapshotResponse:
+      additionalProperties: true
+      description: Friend request snapshot plus commit history.
+      properties: {}
+      type: object
+    SocialFriendshipCommitResponse:
+      additionalProperties: true
+      description: Friendship write result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialFriendshipSnapshotResponse:
+      additionalProperties: true
+      description: Friendship snapshot plus commit history.
+      properties: {}
+      type: object
+    SocialRuntimeRepairResponse:
+      additionalProperties: true
+      description: Derived social runtime repair report.
+      properties: {}
+      type: object
+    SocialSharedChannelPolicyCommitResponse:
+      additionalProperties: true
+      description: Shared-channel policy write result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialSharedChannelPolicySnapshotResponse:
+      additionalProperties: true
+      description: Shared-channel policy snapshot plus commit history.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncDeadLetterInventoryResponse:
+      additionalProperties: true
+      description: Dead-letter shared-channel sync queue snapshot.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncDeadLetterRequeueResponse:
+      additionalProperties: true
+      description: Bulk requeue result for dead-letter shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncDeadLetterTargetedRequeueRequest:
+      additionalProperties: false
+      properties:
+        requestKeys:
+          items:
+            type: string
+          type: array
+      required:
+        - requestKeys
+      type: object
+    SocialSharedChannelSyncDeadLetterTargetedRequeueResponse:
+      additionalProperties: true
+      description: Targeted requeue result for selected dead-letter shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncDeliveredInventoryResponse:
+      additionalProperties: true
+      description: Delivered shared-channel sync ledger snapshot.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncDeliveryStateInventoryResponse:
+      additionalProperties: true
+      description: Merged shared-channel sync delivery-state inventory snapshot.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncPendingClaimResponse:
+      additionalProperties: true
+      description: Targeted claim result for pending shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncPendingInventoryResponse:
+      additionalProperties: true
+      description: Pending shared-channel sync queue snapshot.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncPendingReleaseResponse:
+      additionalProperties: true
+      description: Targeted release result for pending shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncPendingStaleReclaimResponse:
+      additionalProperties: true
+      description: Automatic stale reclaim result for pending shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncPendingTakeoverResponse:
+      additionalProperties: true
+      description: Targeted takeover result for pending shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncPendingTargetedClaimRequest:
+      additionalProperties: false
+      properties:
+        requestKeys:
+          items:
+            type: string
+          type: array
+      required:
+        - requestKeys
+      type: object
+    SocialSharedChannelSyncPendingTargetedReleaseRequest:
+      additionalProperties: false
+      properties:
+        requestKeys:
+          items:
+            type: string
+          type: array
+      required:
+        - requestKeys
+      type: object
+    SocialSharedChannelSyncPendingTargetedTakeoverRequest:
+      additionalProperties: false
+      properties:
+        allowLegacyUntracked:
+          type: boolean
+        requestKeys:
+          items:
+            type: string
+          type: array
+      required:
+        - requestKeys
+      type: object
+    SocialSharedChannelSyncRepairResponse:
+      additionalProperties: true
+      description: Repair result for shared-channel sync backlog processing.
+      properties: {}
+      type: object
+    SocialSharedChannelSyncTargetedRepublishRequest:
+      additionalProperties: false
+      properties:
+        requestKeys:
+          items:
+            type: string
+          type: array
+      required:
+        - requestKeys
+      type: object
+    SocialSharedChannelSyncTargetedRepublishResponse:
+      additionalProperties: true
+      description: Targeted republish result for selected shared-channel sync entries.
+      properties: {}
+      type: object
+    SocialUserBlockCommitResponse:
+      additionalProperties: true
+      description: User block write result plus persistence metadata.
+      properties: {}
+      type: object
+    SocialUserBlockSnapshotResponse:
+      additionalProperties: true
+      description: User block snapshot plus commit history.
+      properties: {}
+      type: object
+    SubmitFriendRequestRequest:
+      additionalProperties: false
+      properties:
+        eventId:
+          type: string
+        requestId:
+          type: string
+        requestMessage:
+          nullable: true
+          type: string
+        requestedAt:
+          type: string
+        requesterUserId:
+          type: string
+        targetUserId:
+          type: string
+      required:
+        - requestId
+        - eventId
+        - requesterUserId
+        - targetUserId
+        - requestedAt
+      type: object
+    UpsertProviderBindingPolicyRequest:
+      additionalProperties: false
+      properties:
+        domain:
+          type: string
+        expectedBaseVersion:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+          nullable: true
+        pluginId:
+          type: string
+        tenantId:
+          nullable: true
+          type: string
+      required:
+        - domain
+        - pluginId
+      type: object
+    LooseJsonValue: {}
+    LooseJsonObject:
+      type: object
+      additionalProperties: true
+x-sdkwork-owner: sdkwork-im
+x-sdkwork-api-authority: sdkwork-im.backend

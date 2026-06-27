@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package sdkwork.common.v1;
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.common.v1";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/common/v1;commonv1";
+
+message DriveReference {
+  string space_id = 1;
+  string node_id = 2;
+  string drive_uri = 3;
+  string upload_session_id = 4;
+}
+
+message MediaResource {
+  string media_id = 1;
+  string source = 2;
+  string kind = 3;
+  string content_type = 4;
+  string filename = 5;
+  int64 file_size_bytes = 6;
+  int32 width = 7;
+  int32 height = 8;
+  int32 duration_ms = 9;
+  string checksum = 10;
+  string access = 11;
+  string expires_at = 12;
+  DriveReference drive = 15;
+  map<string, string> metadata = 16;
+}

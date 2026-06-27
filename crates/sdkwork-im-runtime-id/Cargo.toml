@@ -1,0 +1,13 @@
+[package]
+name = "sdkwork-im-runtime-id"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+im-platform-contracts = { path = "../im-platform-contracts" }
+sdkwork_id.workspace = true
+sdkwork_database_config.workspace = true
+sdkwork_database_sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true

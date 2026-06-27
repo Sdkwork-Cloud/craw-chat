@@ -1,0 +1,19 @@
+{
+  "rating": "Rating",
+  "sold": "Sold",
+  "inStock": "In Stock",
+  "specs": "Specifications",
+  "saved": "Save {{currencySymbol}}{{amount}}",
+  "feature1": "Effective immediately after payment",
+  "feature2_virtual": "Virtual goods delivered free",
+  "feature2_physical": "Free shipping over {{currencySymbol}}99",
+  "feature3_virtual": "Virtual goods refund protection",
+  "feature3_physical": "7-day return policy",
+  "feature4": "Express cold chain shipping",
+  "unfavorited": "Removed from favorites",
+  "favorited": "Added to favorites",
+  "copied": "Share link copied to clipboard",
+  "addToCart": "Add to Cart",
+  "buyNow": "Buy Now",
+  "addedToCart": "Added to cart successfully"
+}

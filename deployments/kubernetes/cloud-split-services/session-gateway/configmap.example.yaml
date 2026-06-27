@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: session-gateway-runtime
+  namespace: sdkwork-im
+data:
+  SDKWORK_IM_SESSION_GATEWAY_BIND_ADDR: 0.0.0.0:18080
+  SDKWORK_IM_REDIS_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318

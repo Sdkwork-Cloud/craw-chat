@@ -1,0 +1,6 @@
+# Wave D self-hosted.split-services.development checksum manifest
+# state: template_only_pending_collection
+# path owner: checksumManifestPath
+# line format: sha256:<digest>  <suggestedRelativePath>
+# example:
+# sha256:<digest>  retired-lifecycle-deploy/retired-lifecycle-deploy.ps1.log

@@ -1,0 +1,7 @@
+sdkwork-im-server-linux-x86_64.tar.gz
+sdkwork-im-server_<version>_amd64.deb
+sdkwork-im-server-<version>-1.x86_64.rpm
+sdkwork-im-server-darwin-universal.tar.gz
+sdkwork-im-server-<version>.pkg
+sdkwork-im-server-windows-x86_64.zip
+sdkwork-im-server-<version>-x64.msi

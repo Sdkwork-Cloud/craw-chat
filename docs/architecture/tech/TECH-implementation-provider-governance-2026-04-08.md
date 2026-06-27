@@ -1,0 +1,51 @@
+> Migrated from `docs/架构/09C-实施计划-控制面provider绑定治理补充-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 09C 实施计划：控制面provider绑定治理补充
+
+## 目标
+
+- 在不破坏现有 `provider-registry` 静态快照契约的前提下，把 provider 实际绑定结果暴露到控制面。
+- 让 `tenant override / deployment_profile / global default` 的求值顺序具备真实 HTTP 可见性。
+
+## 实施范围
+
+1. 在 `services/control-plane-api` 新增 `GET /backend/v3/api/control/provider_bindings`
+2. 支持 `tenantId` 查询参数，用于查看租户视角下的求值结果
+3. 保留 `GET /backend/v3/api/control/provider-registry` 作为 provider/plugin 静态矩阵
+4. 新增装配入口 `build_app_with_cluster_and_provider_registry(...)`，允许测试和未来控制面装配显式注入 `ProviderRegistry`
+
+## 最小契约
+
+返回体最小包含：
+
+- `interfaceVersion`
+- `tenantId`
+- `effectiveBindings`
+- `precedence`
+
+其中：
+
+- `precedence` 固定为 `tenant_override -> deployment_profile -> global_default`
+- `effectiveBindings` 复用 `EffectiveProviderBinding`
+
+## 实施步骤
+
+1. 先写红测，要求 `provider-bindings` 暴露 RTC 与对象存储域的求值结果
+2. 再写红测，要求带 `tenantId` 时返回 `tenant_override`
+3. 增加 public auth 红测，证明新接口仍受 `control.read` 保护
+4. 用最小代码实现查询、装配入口和路由注册
+5. 回写 `docs/step / docs/架构 / docs/review`
+
+## 验证命令
+
+- `cargo test -p control-plane-api --offline --test provider_registry_test -- --nocapture`
+- `cargo test -p control-plane-api --offline --test public_auth_test -- --nocapture`
+
+## 收口标准
+
+- 控制面能同时保留“静态矩阵”和“动态求值”两种 provider 视图
+- 对象存储能显示 `deployment_profile = object-storage-volcengine`
+- 指定租户时能显示 `rtc-aliyun / object-storage-aws` 的 `tenant_override`
+- 权限模型仍保持 `control.read / control.write`
+

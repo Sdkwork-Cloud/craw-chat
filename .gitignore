@@ -1,0 +1,78 @@
+# Rust
+/target/
+**/target/
+/target-alt/
+**/target-alt/
+
+# Buf staging output when generate runs from apis/rpc instead of SDK workspaces
+/apis/rpc/generated/
+
+# Runtime data
+/.runtime/
+/tmp/
+/.worktrees/
+.env
+.env.*
+!.env.*.example
+
+# Local helper output
+/.codex-submit-probe/
+/.codex-tmp/
+/.npm-cache/
+/.sdkwork/local/
+/.sdkwork/tmp/
+/.sdkwork/cache/
+/.sdkwork/secrets/
+/.sdkwork/dart/pub-cache/
+/$jsonFile
+/$outputFile
+/$null
+*.log
+*.pid
+*.tmp
+*.zip
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+/.mimocode/
+
+# Test output
+**/test-results/
+**/playwright-report/
+**/coverage/
+
+# Frontend dependency caches and build output
+**/node_modules/
+**/node_modules.codex-filter/
+**/node_modules.codex-fresh/
+target-codex-test/
+**/.pnpm-store/
+**/.dart_tool/
+**/.sdkwork/manual-backups/
+**/.sdkwork/sdkwork-generator-changes.json
+**/.sdkwork/sdkwork-generator-manifest.json
+**/.sdkwork/sdkwork-generator-report.json
+**/dist/
+**/build/
+apps/control-plane/node_modules.__stale__donor/
+apps/control-plane/dist/
+apps/control-plane/dist-portal/
+apps/control-plane/src-tauri/target/
+apps/control-plane/src-tauri/target-local/
+apps/sdkwork-im-pc.zip
+# Prevent stale pnpm donor directories from being tracked
+**/node_modules.__stale__donor/
+**/node_modules.__stale__donor_*/
+
+# SDKWork local environment and runtime config overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.staging.local
+.env.production.local
+.env.postgres
+.env.release.local
+config/*.local.toml

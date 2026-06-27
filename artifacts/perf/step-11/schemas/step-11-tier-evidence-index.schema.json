@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifacts/perf/step-11/schemas/step-11-tier-evidence-index.schema.json",
+  "title": "Step 11 Tier Evidence Index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "step",
+    "tierId",
+    "tier",
+    "profile",
+    "artifact",
+    "state",
+    "gateTemplate",
+    "operatorDocPath",
+    "scenarioCatalogPath",
+    "artifactRoot",
+    "checksumManifestPath",
+    "artifactFileListPath",
+    "goal",
+    "requiredScenarioFamilies",
+    "requiredOutputs",
+    "collectionSummary",
+    "evidenceSlots",
+    "reviewBackwrite",
+    "boundary"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "step": {
+      "type": "string"
+    },
+    "tierId": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "artifact": {
+      "const": "step-11-tier-evidence-index"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "template_only_pending_execution",
+        "evidence_partially_collected",
+        "evidence_collected_gate_ready",
+        "evidence_collected_gate_passed",
+        "evidence_collected_gate_blocked"
+      ]
+    },
+    "gateTemplate": {
+      "type": "string"
+    },
+    "operatorDocPath": {
+      "type": "string"
+    },
+    "scenarioCatalogPath": {
+      "type": "string"
+    },
+    "artifactRoot": {
+      "type": "string"
+    },
+    "checksumManifestPath": {
+      "type": "string"
+    },
+    "artifactFileListPath": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string"
+    },
+    "requiredScenarioFamilies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredReports": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredOutputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "scenarioFamily",
+          "artifactKind"
+        ],
+        "properties": {
+          "scenarioFamily": {
+            "type": "string"
+          },
+          "artifactKind": {
+            "type": "string"
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "collectionSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalSlots",
+        "requiredSlots",
+        "optionalSlots",
+        "collectedSlots",
+        "pendingSlots",
+        "skippedOptionalSlots"
+      ],
+      "properties": {
+        "totalSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requiredSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "optionalSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "collectedSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pendingSlots": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skippedOptionalSlots": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "evidenceSlots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "required",
+          "status",
+          "artifactPath",
+          "suggestedRelativePath",
+          "collectedAt",
+          "sizeBytes",
+          "checksumSha256"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scenarioFamily": {
+            "type": "string"
+          },
+          "reportId": {
+            "type": "string"
+          },
+          "artifactKind": {
+            "type": "string"
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredSections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_collection",
+              "collected",
+              "skipped_optional"
+            ]
+          },
+          "artifactPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suggestedRelativePath": {
+            "type": "string"
+          },
+          "collectedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sizeBytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "checksumSha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "reviewBackwrite": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "boundary": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+> Migrated from `docs/架构/09U-实施计划-sdk发布目录清单收敛-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 09U - 实施计划 - SDK 发布目录清单收敛
+
+## 目标
+
+把 `Wave D` release bundle 与 SDK workspace 已有的文本边界，继续推进成 bundle 级 machine-readable SDK 目录清单，让发布审计、后续脚本与人工 review 都能读取同一份结构化状态。
+
+## 最小实施面
+
+1. 先在 `tools/chat-cli/tests/chat_cli_contract_test.rs` 写红测
+2. 新增 `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
+3. 固定以下顶层字段：
+   - `bundleId = wave-d-2026-04-08`
+   - `artifact = sdk-release-catalog`
+   - `state = template_only_pending_generation`
+4. 固定最小 `sdkArtifacts`：
+   - `app-typescript`
+   - `app-flutter`
+   - `admin-typescript`
+   - `admin-flutter`
+5. 更新：
+   - `sdks/README.md`
+   - `artifacts/releases/README.md`
+   - `artifacts/releases/wave-d-2026-04-08/bundle-manifest.md`
+6. 回归同一条契约测试
+7. 回写 `docs/step`、`docs/架构`、`docs/review`
+
+## 约束
+
+- 不伪造真实 SDK 生成产物
+- 不伪造真实 SDK 发布记录
+- 不新增 runtime / SDK facade 行为
+- 当前只冻结 bundle 级目录 contract，不引入完整发布流水线
+
+## 放行标准
+
+- `sdk-release-catalog.json` 存在且可解析
+- 四个 SDK 入口都包含：
+  - `audience`
+  - `language`
+  - `package`
+  - `readmePath`
+  - `generationStatus`
+  - `releaseStatus`
+- `sdks/README.md`、`artifacts/releases/README.md`、`bundle-manifest.md` 全部回链 `sdk-release-catalog.json`
+- 契约测试与整份 `chat_cli_contract_test` fresh 保持通过
+

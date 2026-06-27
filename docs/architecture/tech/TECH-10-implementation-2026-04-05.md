@@ -1,0 +1,143 @@
+> Migrated from `docs/架构/10-实施进度-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 实施进度（2026-04-05）
+
+## 当前状态
+
+- 已完成 Task 15: `session.resume` 与 `presence snapshot`
+- 已完成 Task 16: `presence.heartbeat` 与 `session.disconnect`
+- 已完成 Task 17: `message edit / recall`
+- 已完成 Task 18: `stream abort`
+- 已完成 Task 23: `节点排空 / 路由迁移 / 控制面写路径`
+- 已完成 Task 24: `realtime ack checkpoint 持久化边界`
+
+## Task 17 已落地范围
+
+- `im-domain-core`
+  - 新增 `MessageEdited`、`MessageRecalled` 变更载荷
+- `conversation-runtime`
+  - 支持 `EditMessageCommand`
+  - 支持 `RecallMessageCommand`
+  - 写入 `message.edited`、`message.recalled` 事件
+  - 保持原始 `messageSeq` 不变
+- `projection-service`
+  - 时间线摘要可被编辑事件覆盖
+  - 最后一条消息摘要可被编辑/撤回事件覆盖
+  - `client-route event window` 可下发 `message.posted` / `message.edited` / `message.recalled`
+- `sdkwork-im-server`
+  - 暴露 `POST /im/v3/api/chat/messages/{message_id}/edit`
+  - 暴露 `POST /im/v3/api/chat/messages/{message_id}/recall`
+  - 接入审计锚点记录
+
+## 验证结果
+
+已在离线工作区完成以下验证：
+
+- `cargo fmt`
+- `cargo test --workspace --offline`
+- `cargo build --workspace --offline`
+
+结果：全部通过。
+
+## Task 18 已落地范围
+
+- `streaming-service`
+  - 新增 `AbortStreamRequest`
+  - 新增 `POST /im/v3/api/streams/{stream_id}/abort`
+  - 中止后流状态进入 `aborted`
+  - 关闭后禁止再次 `checkpoint` 或 `complete`
+- `sdkwork-im-server`
+  - 透传 `POST /im/v3/api/streams/{stream_id}/abort`
+  - 本地最小部署链路已覆盖端到端验证
+
+## 当前约束
+
+- 当前环境为离线工作区，不适合在本轮强行引入新的 WebSocket 依赖链
+- 后续优先继续实现不新增外部依赖的高价值消息能力，再评估实时长连接层的正式落地
+
+## Task 23 已落地范围
+
+- `docs/架构`
+  - 新增 `23-节点排空与路由迁移控制标准.md`
+  - 冻结 `drain -> migrate -> activate` 的控制面写路径
+  - 明确 route ownership 与 realtime runtime state 必须一起迁移
+- `session-gateway`
+  - `RealtimeClusterBridge` 新增节点生命周期状态
+  - `bind_client_route` 支持在 `draining/drained` 状态下拒绝新 bind
+  - 新增 `mark_node_draining`、`activate_node`、`migrate_node_routes`
+  - route migration 时同步迁移 subscriptions / realtime window / ack-trim checkpoint
+- `control-plane-api`
+  - 新增 `POST /backend/v3/api/control/nodes/{nodeId}/drain`
+  - 新增 `POST /backend/v3/api/control/nodes/{nodeId}/activate`
+  - 新增 `POST /backend/v3/api/control/nodes/{nodeId}/routes/migrate`
+- `sdkwork-im-server`
+  - 所有设备 bind 路径接入 drain 拒绝语义
+  - `ops/cluster` 与 `ops/diagnostics` 读取前同步 cluster lifecycle 与 route ownership
+  - 新增端到端 drain -> migrate -> realtime delivery 验证
+
+## Task 23 验证结果
+
+本轮完成后已新增并通过以下定向验证：
+
+- `cargo test -p session-gateway test_cluster_bridge_rejects_new_route_binds_when_node_is_draining --offline`
+- `cargo test -p session-gateway test_cluster_bridge_migrates_route_and_realtime_state_to_target_node --offline`
+- `cargo test -p control-plane-api test_control_plane_can_drain_and_migrate_routes --offline`
+- `cargo test -p sdkwork-im-cloud-gateway test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime_delivery --offline`
+
+## Task 24 已落地范围
+
+- `docs/架构`
+  - 新增 `24-实时确认点持久化与恢复标准.md`
+  - 冻结 `latestRealtimeSeq / ackedThroughSeq / trimmedThroughSeq` 的 checkpoint durable 模型
+  - 明确 checkpoint 与 realtime event window 解耦，runtime 重建后只恢复 checkpoint，不强制恢复旧窗口事件
+- `im-platform-contracts`
+  - 新增 `RealtimeCheckpointRecord`
+  - 新增 `RealtimeCheckpointStore` 可替换契约
+- `im-adapters-local-memory`
+  - 新增 `MemoryRealtimeCheckpointStore`
+  - 支持按 `tenantId + principalId + clientRouteId` 读写 checkpoint
+- `session-gateway`
+  - `RealtimeDeliveryRuntime` 支持通过 `with_checkpoint_store(...)` 注入 checkpoint store
+  - `ensure_client_route_state` 首次访问设备时可从 store 恢复 checkpoint
+  - `publish_scope_event`、`ack_events`、`restore_client_route_state` 会把最新 checkpoint 写回 store
+  - runtime 重建后，新 publish 会从恢复后的 `latestRealtimeSeq + 1` 继续递增
+- `sdkwork-im-server`
+  - 已改为通过 `MemoryRealtimeCheckpointStore` 组合 realtime runtime
+
+## Task 24 验证结果
+
+本轮完成后已新增并通过以下定向验证：
+
+- `cargo test -p im-adapters-local-memory test_memory_realtime_checkpoint_store_overwrites_same_device_checkpoint --offline`
+- `cargo test -p session-gateway test_runtime_persists_checkpoint_and_recovers_on_rebuild --offline`
+
+## Review Cycle 1 已落地范围
+
+- 新增 `docs/架构/25-实现Review与修复计划-2026-04-05.md`
+- 已修复会话成员写路径缺少 active member 校验的问题
+- 已修复私有会话视图读取缺少成员校验的问题
+- 已修复通知查询未按 recipient 隔离的问题
+- 已新增本轮 review 回归测试，并完成 `cargo test --workspace --offline`
+
+## Review Cycle 2 已落地范围
+
+- 新增 `docs/架构/26-消息变更授权与通知收件人标准-2026-04-05.md`
+- 已冻结 `message.edited / message.recalled` 授权矩阵：
+  - 编辑仅允许原发送者
+  - 群聊撤回允许原发送者或 `owner / admin`
+  - 单聊不允许 `owner / admin` 覆盖撤回对端消息
+- 已修复 `conversation-runtime` 中“活跃成员可编辑/撤回他人消息”的越权问题
+- 已修复 `sdkwork-im-server` 中 `message.posted` 仅给发送者自己创建通知的问题
+- 已同步更新能力测试，明确“消息不自通知、自动化结果仍通知调用者”的最小标准
+
+## Review Cycle 3 已落地范围
+
+- 新增 `docs/架构/27-外部认证与Trusted-Identity边界标准-2026-04-05.md`
+- `im-auth-context` 新增 Bearer-only 解析入口，显式拒绝 trusted headers fallback
+- `sdkwork-im-server` 新增 `build_public_app()`，作为外部 app-facing 入口
+- `sdkwork-im-server main` 已切换到 `build_public_app()`，不再把宽松 builder 直接暴露为默认启动入口
+- 已新增 public auth 回归测试，验证：
+  - trusted headers-only 请求会被 public app 拒绝
+  - Bearer 请求可正常访问 app-facing API
+

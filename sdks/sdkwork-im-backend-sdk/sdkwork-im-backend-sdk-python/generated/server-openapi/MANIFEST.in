@@ -1,0 +1,2 @@
+include README.md
+recursive-include sdkwork_im_backend_api_generated *.py

@@ -1,0 +1,9 @@
+[package]
+name = "sdkwork-im-openapi"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-api-registry = { path = "../sdkwork-im-api-registry" }
+serde_json.workspace = true

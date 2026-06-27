@@ -1,0 +1,22 @@
+[runtime]
+environment = "production"
+deployment_mode = "desktop"
+app_code = "chat"
+
+[paths]
+config_directory = "~/.sdkwork/chat/config"
+config_file = "~/.sdkwork/chat/config/chat.toml"
+data_directory = "~/.sdkwork/chat/data"
+log_directory = "~/.sdkwork/chat/logs"
+cache_directory = "~/.sdkwork/chat/cache"
+runtime_directory = "~/.sdkwork/chat/tmp"
+
+[database]
+engine = "sqlite"
+file = "~/.sdkwork/chat/data/chat.sqlite"
+max_connections = 1
+auto_migrate = true
+
+[redis]
+enabled = false
+key_prefix = "chat"

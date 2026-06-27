@@ -1,0 +1,72 @@
+[package]
+name = "sdkwork-im-standalone-gateway"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Sdkwork IM standalone gateway embedding IAM and application ingress on one bind."
+
+[[bin]]
+name = "sdkwork-im-standalone-gateway"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+sdkwork-api-config = { path = "../../crates/sdkwork-api-config" }
+sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime" }
+sdkwork-im-cloud-gateway-config = { path = "../../crates/sdkwork-im-cloud-gateway-config" }
+sdkwork-im-cloud-gateway-observability = { path = "../../crates/sdkwork-im-cloud-gateway-observability" }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork-im-cloud-gateway = { path = "../sdkwork-im-cloud-gateway" }
+web_gateway = { package = "sdkwork-im-cloud-gateway", path = "../sdkwork-im-cloud-gateway" }
+sdkwork_routes_iam_app_api = { package = "sdkwork-routes-iam-app-api", path = "../../../sdkwork-iam/crates/sdkwork-routes-iam-app-api" }
+sdkwork_im_service_readiness = { workspace = true }
+sdkwork_im_database_pool = { workspace = true }
+sdkwork_iam_database_host = { path = "../../../sdkwork-iam/crates/sdkwork-iam-database-host", package = "sdkwork-iam-database-host" }
+sdkwork_im_iam_application_bootstrap = { workspace = true }
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
+sdkwork-im-gateway-assembly = { path = "../../crates/sdkwork-im-gateway-assembly" }
+sdkwork-drive-gateway-assembly = { path = "../../../sdkwork-drive/crates/sdkwork-drive-gateway-assembly" }
+sdkwork-notary-gateway-assembly = { path = "../../../sdkwork-notary/crates/sdkwork-notary-gateway-assembly" }
+sdkwork-course-gateway-assembly = { path = "../../../sdkwork-course/crates/sdkwork-course-gateway-assembly" }
+sdkwork-drive-config = { path = "../../../sdkwork-drive/crates/sdkwork-drive-config" }
+sdkwork-drive-security = { path = "../../../sdkwork-drive/crates/sdkwork-drive-security" }
+sdkwork-drive-workspace-service = { path = "../../../sdkwork-drive/crates/sdkwork-drive-workspace-service" }
+sdkwork-knowledgebase-gateway-assembly = { path = "../../../sdkwork-knowledgebase/crates/sdkwork-knowledgebase-gateway-assembly" }
+sdkwork-mail-gateway-assembly = { path = "../../../sdkwork-mail/crates/sdkwork-mail-gateway-assembly" }
+sdkwork-routes-agents-app-api = { path = "../../../sdkwork-agents/crates/sdkwork-routes-agents-app-api" }
+sdkwork-intelligence-agents-service = { path = "../../../sdkwork-agents/crates/sdkwork-intelligence-agents-service", features = ["http-axum", "postgres-sync"] }
+sdkwork-account-gateway-assembly = { path = "../../../sdkwork-account/crates/sdkwork-account-gateway-assembly" }
+sdkwork-account-service-host = { path = "../../../sdkwork-account/crates/sdkwork-account-service-host" }
+sdkwork-catalog-gateway-assembly = { path = "../../../sdkwork-catalog/crates/sdkwork-catalog-gateway-assembly" }
+sdkwork-catalog-service-host = { path = "../../../sdkwork-catalog/crates/sdkwork-catalog-service-host" }
+sdkwork-inventory-gateway-assembly = { path = "../../../sdkwork-inventory/crates/sdkwork-inventory-gateway-assembly" }
+sdkwork-inventory-service-host = { path = "../../../sdkwork-inventory/crates/sdkwork-inventory-service-host" }
+sdkwork-invoice-gateway-assembly = { path = "../../../sdkwork-invoice/crates/sdkwork-invoice-gateway-assembly" }
+sdkwork-invoice-service-host = { path = "../../../sdkwork-invoice/crates/sdkwork-invoice-service-host" }
+sdkwork-membership-gateway-assembly = { path = "../../../sdkwork-membership/crates/sdkwork-membership-gateway-assembly" }
+sdkwork-membership-service-host = { path = "../../../sdkwork-membership/crates/sdkwork-membership-service-host" }
+sdkwork-merchandise-gateway-assembly = { path = "../../../sdkwork-merchandise/crates/sdkwork-merchandise-gateway-assembly" }
+sdkwork-merchandise-service-host = { path = "../../../sdkwork-merchandise/crates/sdkwork-merchandise-service-host" }
+sdkwork-order-gateway-assembly = { path = "../../../sdkwork-order/crates/sdkwork-order-gateway-assembly" }
+sdkwork-order-service-host = { path = "../../../sdkwork-order/crates/sdkwork-order-service-host" }
+sdkwork-payment-gateway-assembly = { path = "../../../sdkwork-payment/crates/sdkwork-payment-gateway-assembly" }
+sdkwork-payment-service-host = { path = "../../../sdkwork-payment/crates/sdkwork-payment-service-host" }
+sdkwork-promotion-gateway-assembly = { path = "../../../sdkwork-promotion/crates/sdkwork-promotion-gateway-assembly" }
+sdkwork-promotion-service-host = { path = "../../../sdkwork-promotion/crates/sdkwork-promotion-service-host" }
+sdkwork-shop-gateway-assembly = { path = "../../../sdkwork-shop/crates/sdkwork-shop-gateway-assembly" }
+sdkwork-shop-service-host = { path = "../../../sdkwork-shop/crates/sdkwork-shop-service-host" }
+sdkwork-iam-embedded-application-bootstrap = { path = "../../../sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap" }
+sdkwork_database_config = { package = "sdkwork-database-config", path = "../../../sdkwork-database/crates/sdkwork-database-config" }
+sdkwork_database_sqlx = { package = "sdkwork-database-sqlx", path = "../../../sdkwork-database/crates/sdkwork-database-sqlx" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "net", "signal"] }
+toml = "0.8"
+tower-http = { version = "0.6.6", features = ["cors"] }
+tracing.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+session-gateway = { path = "../session-gateway" }
+sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
+tokio-tungstenite = "0.28.0"

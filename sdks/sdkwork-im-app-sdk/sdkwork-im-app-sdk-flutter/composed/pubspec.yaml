@@ -1,0 +1,14 @@
+name: im_app_sdk
+description: Composed Flutter app SDK built on the generated im_app_api_generated package
+version: 0.1.0
+homepage: https://
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  im_app_api_generated: ^0.1.0
+  rtc_sdk: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

@@ -1,0 +1,47 @@
+> Migrated from `docs/review/step-11-架构兑现-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 11 架构兑现 - 2026-04-08
+
+## 对应架构能力
+- `131`：连接量化、连接故障恢复、safe binding rollback
+- `137`：分层容量验证与统一部署基线
+- `138`：排空、恢复、failover、rollback 的最小可信演练
+- `140`：统一性能 / drill 指标词汇与 review 证据
+- `149`：协议升级、kill switch rollback、兼容矩阵与 runtime 协商收口
+
+## 已兑现能力
+- 至少一轮 `connection / message / stream` 真实量化结果已沉淀到 `docs/review/`
+- 至少一轮 `drain-rebalance / restore-recovery / failover / upgrade-rollback` 真实演练结果已沉淀到 `docs/review/`
+- 同一 `CI Smoke Tier / standalone.split-services.development` 基线已经同时承载：
+  - quant baseline
+  - HA / DR drill baseline
+  - upgrade rollback drill baseline
+- 架构文档中的核心主张已获得最低可交付证据：
+  - 可量化
+  - 可恢复
+  - 可回滚
+  - 可审计
+
+## 未兑现能力
+- `Pre-Release Tier` 与 `Capacity Tier` 的更高规模量化与 drill 结果
+- 多 cell / 多 region rollout orchestration
+- 跨 region 灾备切换自动化
+
+## 偏离判断
+- 无偏离。
+- 本轮严格保持了架构文档中的边界：
+  - `CI Smoke Tier` 只声明仓库内最小可信结果
+  - 多 cell / 多 region 仍保留在后续 backlog，不提前宣称已完成
+
+## 证据
+- `docs/review/step-11-执行卡-2026-04-08.md`
+- `docs/review/step-11-performance-ha-dr演练-2026-04-08.md`
+- `docs/review/step-11-容量基准结果-2026-04-08.md`
+- `docs/review/step-11-故障恢复复盘-2026-04-08.md`
+- `docs/review/step-11-cp11-4-升级回滚与整步收口-架构兑现与回写决议-2026-04-08.md`
+
+## 当前判断
+- `Step 11`：架构能力闭环通过
+- 后续焦点：进入 `Step 12`，同时保留更高 tier quant / rollback backlog
+

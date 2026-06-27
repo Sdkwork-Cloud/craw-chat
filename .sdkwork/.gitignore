@@ -1,0 +1,10 @@
+local/
+tmp/
+cache/
+secrets/
+dart/pub-cache/
+*.local.json
+*.local.toml
+*.local.yaml
+*.local.yml
+

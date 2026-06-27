@@ -1,0 +1,15 @@
+{
+  "name": "sdkwork-im-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:generate": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs generate\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs generate || node ./scripts/run-docs-task.mjs generate",
+    "docs:dev": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs dev\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs dev || node ./scripts/run-docs-task.mjs dev",
+    "docs:build": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs build\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs build || node ./scripts/run-docs-task.mjs build",
+    "docs:preview": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs preview\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs preview || node ./scripts/run-docs-task.mjs preview",
+    "docs:verify": "%ComSpec% /d /s /c \"\"%npm_node_execpath%\" ./scripts/run-docs-task.mjs verify\" || \"$npm_node_execpath\" ./scripts/run-docs-task.mjs verify || node ./scripts/run-docs-task.mjs verify"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

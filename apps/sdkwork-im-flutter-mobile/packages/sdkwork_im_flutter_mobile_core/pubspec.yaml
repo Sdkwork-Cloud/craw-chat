@@ -1,0 +1,16 @@
+name: sdkwork_im_flutter_mobile_core
+description: SDKWork IM Flutter Mobile Core - SDK factories, session, route registry
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  im_sdk_composed:
+    path: ../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed/im_sdk_composed
+  im_sdk_generated:
+    path: ../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/generated/server-openapi

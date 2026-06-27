@@ -1,0 +1,97 @@
+> Migrated from `docs/review/step-06-架构兑现与回写决议-2026-04-07.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 06 架构兑现与回写决议 - 2026-04-07
+
+## 1. 当前判断
+
+- 当前 Step：`06`
+- 当前状态：`step-wide 91 / 95 / 97 已完成，Step 06 已闭环`
+- 本轮结论：`当前仓库里的 stream / rtc 真实能力已经落地，本轮完成 review 收口与架构回写`
+
+## 2. 本轮对应架构文档
+
+- `docs/架构/09-实施计划.md`
+- `docs/架构/130-连接优先的AI时代即时通讯架构蓝图-2026-04-06.md`
+- `docs/架构/134-AI-Agent-IoT统一实时通信模型设计-2026-04-06.md`
+- `docs/架构/136-关键业务链路与跨Plane时序设计-2026-04-06.md`
+- `docs/架构/143-统一协议总纲与分层设计-2026-04-06.md`
+
+## 3. 本轮已兑现能力力力力力
+
+### 3.1 stream 已成为一等实时能力
+
+已兑现：
+
+- 通用 stream frame transport 已能在本地 profile 暴露
+- completion / abort fanout 已能进入 conversation 订阅链路
+- stream runtime persistence 已有独立回归验证
+
+这意味着：
+
+- stream 不再只是 message 字段附属物
+- stream 已经具备独立生命周期、桥接、持久化语义
+
+### 3.2 RTC 已成为一等 signaling 能力
+
+已兑现：
+
+- `im-call-runtime` 已有独立自动化验证
+- RTC 状态变化已能投影为 signal message
+- RTC runtime persistence 已有独立回归验证
+
+这意味着：
+
+- RTC 当前边界保持在 signaling plane
+- 媒体面逻辑没有被错误混回 Step 06
+
+### 3.3 stream / rtc 与消息主链路桥接语义已稳定
+
+已兑现：
+
+- stream completion / abort 可 fanout 到其他成员订阅端
+- RTC 状态变化可桥接为 signal message
+- 本地 profile 验证了 bridge 规则不是设计口号，而是可重复执行的运行时能力
+
+## 4. 本轮未兑现能力力力力力
+
+- Step 08 的 AI / Agent / Device 全量统一主体治理不在本 step 范围内
+- RTC 媒体基础设施与更复杂音视频平面不在本 step 范围内
+- SDK / CLI 收口不在本 step 范围内
+
+这些未兑现项不构成 Step 06 阻塞，因为它们不属于 [`docs/step/06-流式与RTC实时能力重构.md`](../step/06-流式与RTC实时能力重构.md) 的闭环要求。
+
+## 5. 偏离检查
+
+- 未发现偏离 `Step 06` 设计文档的情况
+- 本轮没有把 stream 回退成消息字段
+- 本轮没有把 RTC 扩张成媒体面实现
+- 本轮没有跳过 `91 / 95 / 97`
+
+## 6. 回写决议
+
+- 允许回写 `09 / 130 / 134 / 136 / 143`
+- 允许将 `Step 06` 标记为已闭环
+- 允许在 `Wave B` 范围内触发 `93` 总验收
+
+## 7. 证据
+
+### 7.1 代码与测试资产
+
+- `services/streaming-service`
+- `services/im-call-runtime`
+- `services/sdkwork-im-cloud-gateway/tests/http_e2e_test.rs`
+- `services/sdkwork-im-cloud-gateway/tests/stream_runtime_persistence_test.rs`
+- `services/sdkwork-im-cloud-gateway/tests/rtc_runtime_persistence_test.rs`
+
+### 7.2 fresh verification
+
+- `cargo test -p streaming-service --offline`
+- `cargo test -p im-call-runtime --offline`
+- `cargo test -p sdkwork-im-cloud-gateway --test http_e2e_test test_local_minimal_profile_exposes_generic_stream_frame_transport --offline --target-dir target-step06-stream-transport -- --exact`
+- `cargo test -p sdkwork-im-cloud-gateway --test http_e2e_test test_local_minimal_profile_fanouts_conversation_stream_completion_to_other_member_subscribers --offline --target-dir target-step06-stream-complete-fanout -- --exact`
+- `cargo test -p sdkwork-im-cloud-gateway --test http_e2e_test test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_member_subscribers --offline --target-dir target-step06-stream-abort-fanout -- --exact`
+- `cargo test -p sdkwork-im-cloud-gateway --test http_e2e_test test_local_minimal_profile_projects_rtc_state_changes_into_signal_messages --offline --target-dir target-step06-rtc-message-bridge -- --exact`
+- `cargo test -p sdkwork-im-cloud-gateway --test stream_runtime_persistence_test --offline --target-dir target-step06-stream-persistence`
+- `cargo test -p sdkwork-im-cloud-gateway --test rtc_runtime_persistence_test --offline --target-dir target-step06-rtc-persistence`
+

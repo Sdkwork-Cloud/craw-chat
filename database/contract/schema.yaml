@@ -1,0 +1,169 @@
+schema_version: 1
+kind: sdkwork.database.schema
+module_id: im
+contract_version: 1.0.0
+owner_team: im-platform
+compliance_level: L2
+engines:
+  - postgres
+table_prefix: im_
+tables:
+  - name: im_commit_journal
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_outbox_events
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_inbox_events
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_idempotency_keys
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_conversation_messages
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_message_media_refs
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_realtime_device_events
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_realtime_checkpoints
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_realtime_subscriptions
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_realtime_subscription_scopes
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_presence_states
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_route_bindings
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_realtime_disconnect_fences
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_rtc_sessions
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_rtc_signals
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_audit_records
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_notification_tasks
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_automation_executions
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_timeline_entries
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_metadata_snapshots
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_conversation_summaries
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_conversation_members
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_read_cursors
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_registered_client_routes
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_client_route_sync_feeds
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_client_route_sync_checkpoints
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_contacts
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_direct_chat_bindings
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_stream_sessions
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_stream_frames
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_conversation_seq_counters
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_friend_requests
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_friendships
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_user_blocks
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_direct_chats
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_external_connections
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_external_member_links
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_shared_channel_policies
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_spaces
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_space_members
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_chat_groups
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_group_members
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_chat_channels
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_channel_access_rules
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_message_reactions
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_message_pins
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_threads
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_thread_subscriptions
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_user_profiles
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_user_settings
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_conversation_settings
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_invitations
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_ban_records
+    lifecycle_status: active
+    owner: im-platform

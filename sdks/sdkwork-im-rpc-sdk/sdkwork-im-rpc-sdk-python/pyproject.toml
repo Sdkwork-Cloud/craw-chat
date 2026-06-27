@@ -1,0 +1,19 @@
+[project]
+name = "sdkwork-im-rpc-sdk"
+version = "1.0.3"
+description = "SdkworkImRpc RPC SDK"
+requires-python = ">=3.10"
+dependencies = [
+  "grpcio>=1.66.0",
+  "protobuf>=5.28.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src", "sdkwork" = "generated/proto/sdkwork"}
+
+[tool.setuptools.packages.find]
+where = ["src", "generated/proto"]

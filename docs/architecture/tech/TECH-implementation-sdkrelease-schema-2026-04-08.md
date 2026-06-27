@@ -1,0 +1,39 @@
+> Migrated from `docs/架构/09V-实施计划-sdk发布目录schema收敛-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 09V - 实施计划 - SDK 发布目录 schema 收敛
+
+## 目标
+
+把 bundle 级 `sdk-release-catalog.json` 从“有样例 JSON”继续推进到“有正式 schema contract”，让后续 bundle、脚本校验与人工审计围绕同一份字段定义工作。
+
+## 最小实施面
+
+1. 先在 `tools/chat-cli/tests/chat_cli_contract_test.rs` 写红测
+2. 新增 `artifacts/releases/schemas/sdk-release-catalog.schema.json`
+3. 为 `sdk-release-catalog.json` 增加：
+   - `$schema = ../schemas/sdk-release-catalog.schema.json`
+4. 更新：
+   - `artifacts/releases/README.md`
+   - `artifacts/releases/wave-d-2026-04-08/bundle-manifest.md`
+5. 回归同一条 schema 契约测试
+6. 回写 `docs/step`、`docs/架构`、`docs/review`
+
+## 约束
+
+- 不伪造真实 SDK 生成产物
+- 不伪造真实 SDK 发布记录
+- 不在当前轮次引入完整包管理仓库发布流程
+- 当前只冻结结构化字段 contract 与最小状态枚举
+
+## 放行标准
+
+- schema 文件存在且可解析
+- catalog 自带 `$schema`
+- schema 明确冻结：
+  - `artifact`
+  - `state`
+  - `sdkArtifacts[*].releaseStatus`
+- release README 与 bundle manifest 全部回链 schema 路径
+- fresh `fmt --check` 与 `chat_cli_contract_test` 保持通过
+

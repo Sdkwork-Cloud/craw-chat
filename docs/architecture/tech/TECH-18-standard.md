@@ -1,0 +1,158 @@
+> Migrated from `docs/架构/18-流完成与中止实时广播标准.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 18-流完成与中止实时广播标准
+
+## 1. 目标
+
+本标准补齐会话关联 stream 的生命周期实时事件，让在线订阅者不仅能看到 `stream.frame.appended`，也能看到流的终态：
+
+- `stream.completed`
+- `stream.aborted`
+
+这对以下场景是必要的：
+
+- 大模型流式回复结束后，前端需要明确关闭流式渲染状态
+- 机器人流输出被用户取消时，其他端需要立即同步停止
+- 工作流和自动化订阅者需要根据流终态触发后续动作
+- WebSocket 绑定 realtime kernel 时，需要稳定的 lifecycle 事件，不依赖轮询查询
+
+## 2. 标准边界
+
+本标准只约束：
+
+- `scopeType = stream`
+- stream session 的终态 realtime 事件
+- `scopeKind = conversation` 下的成员级广播规则
+
+不改变以下既有边界：
+
+- stream 订阅仍按 `streamId` 精确过滤
+- realtime 仍然只负责在线低延迟下行
+- durable 补偿仍不由 realtime 承担
+
+## 3. 事件类型
+
+### 3.1 `stream.completed`
+
+表示流已经正常结束，后续不允许继续追加 frame。
+
+### 3.2 `stream.aborted`
+
+表示流被中止或取消，后续不允许继续追加 frame。
+
+## 4. 广播规则
+
+### 4.1 scope 规则
+
+订阅端保持使用 stream scope：
+
+```json
+{
+  "scopeType": "stream",
+  "scopeId": "st_demo",
+  "eventTypes": ["stream.completed", "stream.aborted"]
+}
+```
+
+### 4.2 目标集合规则
+
+当 stream session 的 `scopeKind = conversation` 时：
+
+1. 按 `scopeId = conversationId` 查询当前会话成员
+2. 查询每个成员的已注册设备
+3. 仅向已订阅该 `streamId` 且 event type 匹配的设备写入 realtime window
+
+当 `scopeKind` 不是 `conversation` 时，当前阶段维持单 actor 目标行为。
+
+## 5. 载荷标准
+
+### 5.1 `stream.completed`
+
+```json
+{
+  "streamId": "st_demo",
+  "streamType": "custom.delta.text",
+  "scopeKind": "conversation",
+  "scopeId": "c_demo",
+  "state": "completed",
+  "lastFrameSeq": 12,
+  "lastCheckpointSeq": 12,
+  "resultMessageId": "msg_result_1",
+  "closedAt": "2026-04-05T10:05:00Z",
+  "reason": null
+}
+```
+
+语义要求：
+
+- `state` 必须稳定为 `completed`
+- `lastFrameSeq` 表示流结束时的最后帧位置
+- `resultMessageId` 用于将终态与最终消息对象关联
+- `reason` 在 completed 场景下应为 `null`
+
+### 5.2 `stream.aborted`
+
+```json
+{
+  "streamId": "st_demo",
+  "streamType": "custom.delta.text",
+  "scopeKind": "conversation",
+  "scopeId": "c_demo",
+  "state": "aborted",
+  "lastFrameSeq": 8,
+  "lastCheckpointSeq": 8,
+  "resultMessageId": null,
+  "closedAt": "2026-04-05T10:04:00Z",
+  "reason": "user_cancelled"
+}
+```
+
+语义要求：
+
+- `state` 必须稳定为 `aborted`
+- `reason` 用于描述中止原因，允许为 `null`
+- 收到该事件的订阅端应立即停止等待后续 frame
+
+## 6. 顺序语义
+
+同一设备窗口内，conversation 关联 stream 的典型事件顺序如下：
+
+1. `stream.frame.appended`
+2. `stream.frame.appended`
+3. `stream.completed`
+
+或：
+
+1. `stream.frame.appended`
+2. `stream.aborted`
+
+终态事件写入后，该 stream 在业务语义上视为关闭，后续不能再出现新的 `stream.frame.appended`。
+
+## 7. 本地最小实现映射
+
+当前 `sdkwork-im-server` 落地方式如下：
+
+- `append_stream_frame` 负责发布 `stream.frame.appended`
+- `complete_stream` 负责发布 `stream.completed`
+- `abort_stream` 负责发布 `stream.aborted`
+- 目标 principal 统一通过 stream scope 的 fanout helper 解析
+- 当 `scopeKind = conversation` 时，principal 集合来自 `conversation_runtime.list_members`
+- 设备集合来自 `projection_service.registered_devices`
+- 具体写入窗口由 `realtime_runtime.publish_scope_event` 执行
+
+## 8. 与后续阶段的关系
+
+本标准是后续以下能力的直接前置：
+
+- WebSocket 将 stream 终态即时下发到在线订阅端
+- 工作流在 `stream.completed` 后衔接消息落库、摘要、通知
+- 取消型操作在 `stream.aborted` 后统一结束客户端 loading 状态
+- 跨节点 fanout 时按 `streamId` 做精确路由
+
+后续可以继续扩展，但不能破坏三条稳定边界：
+
+- stream lifecycle 事件继续使用 `stream` scope
+- conversation 绑定 stream 的目标集继续由会话成员解析
+- `completed` / `aborted` 必须是稳定终态，不允许再接受后续 frame
+

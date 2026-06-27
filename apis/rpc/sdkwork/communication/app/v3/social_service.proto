@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package sdkwork.communication.app.v3;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.app.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3;communicationappv3";
+
+service SocialService {
+  rpc ListSocialUsers(ListSocialUsersRequest) returns (ListSocialUsersResponse);
+  rpc ListFriendRequests(ListFriendRequestsRequest) returns (ListFriendRequestsResponse);
+  rpc CreateFriendRequest(CreateFriendRequestRequest) returns (CreateFriendRequestResponse);
+  rpc AcceptFriendRequest(AcceptFriendRequestRequest) returns (AcceptFriendRequestResponse);
+  rpc DeclineFriendRequest(DeclineFriendRequestRequest) returns (DeclineFriendRequestResponse);
+  rpc CancelFriendRequest(CancelFriendRequestRequest) returns (CancelFriendRequestResponse);
+  rpc RemoveFriendship(RemoveFriendshipRequest) returns (RemoveFriendshipResponse);
+}
+
+message SocialUserView {
+  string user_id = 1;
+  string display_name = 2;
+  string avatar_uri = 3;
+  string relation_state = 4;
+}
+
+message FriendRequestView {
+  string friend_request_id = 1;
+  string requester_user_id = 2;
+  string target_user_id = 3;
+  string state = 4;
+  string message = 5;
+}
+
+message ListSocialUsersRequest {
+  string query = 1;
+  sdkwork.common.v1.PageRequest page = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListSocialUsersResponse {
+  repeated SocialUserView users = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListFriendRequestsRequest {
+  string state = 1;
+  sdkwork.common.v1.PageRequest page = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListFriendRequestsResponse {
+  repeated FriendRequestView friend_requests = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateFriendRequestRequest {
+  string target_user_id = 1;
+  string message = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateFriendRequestResponse {
+  FriendRequestView friend_request = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message AcceptFriendRequestRequest {
+  string friend_request_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message AcceptFriendRequestResponse {
+  FriendRequestView friend_request = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message DeclineFriendRequestRequest {
+  string friend_request_id = 1;
+  string reason = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message DeclineFriendRequestResponse {
+  FriendRequestView friend_request = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CancelFriendRequestRequest {
+  string friend_request_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CancelFriendRequestResponse {
+  FriendRequestView friend_request = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RemoveFriendshipRequest {
+  string friendship_id = 1;
+  string user_id = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RemoveFriendshipResponse {
+  string friendship_id = 1;
+  string status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

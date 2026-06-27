@@ -1,0 +1,82 @@
+groups:
+  - name: sdkwork-im.availability
+    rules:
+      - alert: SdkworkImGatewayNotReady
+        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="im-gateway"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: im-gateway
+        annotations:
+          summary: IM gateway has no ready replicas
+          description: Deployment im-gateway in namespace sdkwork-im has zero ready replicas for 5 minutes.
+      - alert: SdkworkImSessionGatewayNotReady
+        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="session-gateway"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: session-gateway
+        annotations:
+          summary: Session gateway has no ready replicas
+          description: Deployment session-gateway in namespace sdkwork-im has zero ready replicas for 5 minutes.
+      - alert: SdkworkImConversationServiceNotReady
+        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="conversation-service"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: conversation-service
+        annotations:
+          summary: Conversation service has no ready replicas
+          description: Deployment conversation-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
+      - alert: SdkworkImProjectionServiceNotReady
+        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="projection-service"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: projection-service
+        annotations:
+          summary: Projection service has no ready replicas
+          description: Deployment projection-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
+      - alert: SdkworkImMediaServiceNotReady
+        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="media-service"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: media-service
+        annotations:
+          summary: Media service has no ready replicas
+          description: Deployment media-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
+      - alert: SdkworkImStreamingServiceNotReady
+        expr: kube_deployment_status_replicas_ready{namespace="sdkwork-im", deployment="streaming-service"} < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: streaming-service
+        annotations:
+          summary: Streaming service has no ready replicas
+          description: Deployment streaming-service in namespace sdkwork-im has zero ready replicas for 5 minutes.
+  - name: sdkwork-im.slo
+    rules:
+      - alert: SdkworkImGatewayReadyzFailures
+        expr: increase(probe_http_status_code{namespace="sdkwork-im", job="im-gateway", path="/readyz", code!="200"}[5m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: im-gateway
+        annotations:
+          summary: IM gateway readiness probe failures
+          description: /readyz returned non-200 responses for im-gateway over the last 10 minutes.
+      - alert: SdkworkImHighHttp5xxRate
+        expr: |
+          (
+            sum(rate(http_requests_total{namespace="sdkwork-im", status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total{namespace="sdkwork-im"}[5m])), 1)
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          service: sdkwork-im
+        annotations:
+          summary: IM HTTP 5xx rate above 1%
+          description: Aggregate 5xx ratio for sdkwork-im namespace exceeded 1% for 15 minutes.

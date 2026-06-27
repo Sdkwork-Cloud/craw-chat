@@ -1,0 +1,94 @@
+> Migrated from `docs/架构/52-RTC已接受会话禁止重新Invite改写信令流标准-2026-04-06.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 52-RTC已接受会话禁止重新Invite改写信令流标准-2026-04-06
+
+## 1. 问题背景
+
+本轮 review 在 `im-call-runtime` 与 `sdkwork-im-server` 的 RTC 写路径中确认了一个状态机漏洞：
+
+- RTC 会话进入 `accepted` 后，`invite` 仍然允许携带新的 `signalingStreamId` 改写现有会话。
+- 聚合入口 `sdkwork-im-server` 会把这次改写视为一次新的有效变更，再次写入 IM `rtc.invite` 信令消息。
+
+这会直接破坏以下商业化边界：
+
+- 已落定的 RTC 会话元数据被后续请求静默覆盖。
+- 客户端会在 `accepted` 之后再次收到新的 `rtc.invite`，破坏会话状态机一致性。
+- SDK 无法区分“幂等重试”与“非法状态覆盖”，冲突恢复语义失真。
+
+## 2. 标准
+
+### 2.1 状态边界
+
+RTC 会话状态仍保持：
+
+- `started`
+- `accepted`
+- `rejected`
+- `ended`
+
+其中：
+
+- `accepted` 表示会话已经完成接听落定，后续不允许再通过 `invite` 改写邀约阶段的会话元数据。
+
+### 2.2 invite 语义
+
+`POST /im/v3/api/calls/sessions/{rtc_session_id}/invite` 必须遵循以下规则：
+
+1. 当会话处于 `started`：
+   - 相同请求视为幂等重试，返回 `200`，并返回现有会话。
+   - 不同且合法的 `signalingStreamId` 允许首次生效，返回 `200`。
+2. 当会话处于 `accepted`：
+   - 与当前会话完全一致的 `invite` 请求视为幂等重试，返回 `200`。
+   - 任何试图改写 `signalingStreamId` 的请求都必须返回 `409 rtc_session_state_conflict`。
+3. 当会话处于 `rejected` 或 `ended`：
+   - 任意 `invite` 请求都必须返回 `409 rtc_session_state_conflict`。
+
+### 2.3 applied 语义
+
+RTC 写路径返回的 `RtcSessionMutationOutcome` 继续遵循：
+
+- `applied = true`：本次请求首次生效，可触发副作用。
+- `applied = false`：本次请求属于幂等重试，不可触发副作用。
+
+因此：
+
+- `accepted` 状态下的相同 `invite` 请求只能返回 `applied = false`。
+- `accepted` 状态下的不同 `invite` 请求不能返回 `applied = true`，而必须直接冲突失败。
+
+## 3. 聚合入口约束
+
+`sdkwork-im-server` 必须继续只在 `outcome.applied = true` 时发出 IM `rtc.invite`。
+
+在本标准下：
+
+- `started` 状态的首次 `invite` 可以产生一条 IM `rtc.invite`。
+- `accepted` 状态的幂等重试不能产生第二条 IM `rtc.invite`。
+- `accepted` 状态的冲突 `invite` 必须直接失败，不能产生新的状态副作用、消息副作用或审计副作用。
+
+## 4. 回归测试要求
+
+至少覆盖以下自动化场景：
+
+1. `im-call-runtime`
+   - `accept` 之后以不同 `signalingStreamId` 再次 `invite`，返回 `409 rtc_session_state_conflict`。
+2. `sdkwork-im-server`
+   - 会话在首个 `invite` 和 `accept` 后，再次以不同 `signalingStreamId` 发起 `invite`，返回 `409 rtc_session_state_conflict`。
+   - 会话时间线中只允许存在首条 `rtc.invite` 和后续 `rtc.accept`，禁止出现第二条 `rtc.invite`。
+
+## 5. 实施结果
+
+本标准落地后，RTC 写路径形成以下稳定边界：
+
+- `invite` 只负责邀约阶段元数据初始化和幂等重试。
+- `accept` 之后的会话不再允许回到“重新邀约并覆盖元数据”的不稳定状态。
+- 聚合入口的 IM 信令消息与 RTC 会话状态机重新保持一一对应关系。
+
+## 6. 下一轮 Review 重点
+
+本问题收口后，下一轮优先继续检查：
+
+1. `post_signal` 是否需要对 `accepted` / `started` 的不同阶段施加更细粒度约束。
+2. RTC 自定义信令、通知、审计链路是否还存在“幂等重放触发重复副作用”的残留点。
+3. 分布式节点场景下，同一 `rtcSessionId` 的跨节点并发写入是否需要进一步冻结单写主约束。
+

@@ -1,0 +1,62 @@
+> Migrated from `docs/架构/41-路由迁移必须以Draining为前置状态标准-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 41-路由迁移必须以Draining为前置状态标准-2026-04-05
+
+## 1. 背景
+
+`POST /backend/v3/api/control/nodes/{nodeId}/routes/migrate` 的职责是搬迁 `nodeId` 当前持有的客户端路由与实时状态。
+它不是一个通用状态切换接口，更不能在 source 节点没有进入 drain 流程时，把节点从 `active` 直接推进到 `drained`。
+
+如果允许“active + 0 route”直接调用 migrate 成功，会带来两个问题：
+
+- 把迁移接口误用成节点状态翻转接口
+- 让控制面观测到未经 drain 请求的 `active -> drained` 跳变，破坏排空编排语义
+
+## 2. 标准
+
+### 2.1 source 节点必须先进入 `draining`
+
+调用 `migrate_node_routes(sourceNodeId, targetNodeId)` 之前，`sourceNodeId` 必须已经处于：
+
+- `drainStatus = draining`
+
+不满足时必须直接拒绝。
+
+### 2.2 是否存在 owned routes 不影响前置条件
+
+即使 `ownedRouteCount = 0`，也不能跳过 `draining` 前置条件。
+
+原因是：
+
+- `migrate` 表示“执行 drain 过程中的路由搬迁”
+- `ownedRouteCount = 0` 只表示当前没有可搬迁路由，不表示可以跳过 drain 编排
+
+### 2.3 显式返回 `node_not_draining`
+
+source 节点不处于 `draining` 时：
+
+- cluster bridge 返回 `node_not_draining`
+- control plane HTTP 返回 `409 Conflict`
+- source/target 节点 lifecycle 不得发生变化
+
+示例：
+
+```json
+{
+  "code": "node_not_draining",
+  "message": "source node must be draining before migration: node_a"
+}
+```
+
+## 3. 落地要求
+
+- `session-gateway` 需要回归测试覆盖 “active + 0 route 直接 migrate” 的拒绝行为
+- `control-plane-api` 需要回归测试覆盖对应 HTTP `409` 语义
+- 失败请求不得把 source 节点从 `active` 翻转到 `drained`
+
+## 4. 与既有标准的关系
+
+- 细化 [23-节点排空与路由迁移控制标准](./23-节点排空与路由迁移控制标准.md) 中 “迁移前必须先 drain” 的约束
+- 与 [39-控制面节点存在性与幽灵节点防护标准-2026-04-05](./39-控制面节点存在性与幽灵节点防护标准-2026-04-05.md) 共同保证控制面写操作不可隐式改写节点元状态
+

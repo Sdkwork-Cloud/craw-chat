@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools/perf/schemas/step-11-scenario-catalog.schema.json",
+  "title": "Step 11 Scenario Catalog",
+  "type": "object",
+  "required": [
+    "$schema",
+    "version",
+    "step",
+    "checkpoint",
+    "title",
+    "updatedAt",
+    "operatorDocPath",
+    "reviewBackwrite",
+    "sharedConstraints",
+    "executionOrder",
+    "tiers",
+    "scenarioFamilies"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "step": {
+      "type": "string"
+    },
+    "checkpoint": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "operatorDocPath": {
+      "type": "string"
+    },
+    "reviewBackwrite": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sharedConstraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "executionOrder": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "goal",
+          "intendedScale",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "operatorDocPath": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "intendedScale": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "gateTemplate": {
+            "type": "string"
+          },
+          "artifactRoot": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "scenarioFamilies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "family",
+          "goal",
+          "tierIds",
+          "metrics",
+          "repoAssets",
+          "nextCheckpoints",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "tierIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repoAssets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nextCheckpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,60 @@
+{
+  "sources": {
+    "sdkwork-appbase": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-appbase.git",
+      "ref": "main"
+    },
+    "sdkwork-core": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-core.git",
+      "ref": "main"
+    },
+    "sdkwork-ui": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-ui.git",
+      "ref": "main"
+    },
+    "sdkwork-drive": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-drive.git",
+      "ref": "5ee91f5162d114edf2a10165916436aa03f97b4a"
+    },
+    "sdkwork-mail": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-mail.git",
+      "ref": "55296ee2738c1665f8228c6c00c99f2d8d681251"
+    },
+    "sdkwork-community": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-community.git",
+      "ref": "b850b99b5948b2f233dd6e6c5fa0b820343389df"
+    },
+    "sdkwork-course": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-course.git",
+      "ref": "e367b334397bbf6a1fef37986cc7e6e9074e8170"
+    },
+    "sdkwork-im-app-sdk": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-app-sdk.git",
+      "ref": "main"
+    },
+    "sdkwork-im-backend-sdk": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-backend-sdk.git",
+      "ref": "main"
+    },
+    "sdkwork-im-sdk": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-sdk.git",
+      "ref": "main"
+    },
+    "sdkwork-notary": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-notary.git",
+      "ref": "3d7a1943c9df771bcfee1548d97ff892b7b01cf2"
+    },
+    "sdkwork-knowledgebase": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-knowledgebase.git",
+      "ref": "2f092afa9cd713cd920bd2a7fdea59bc3d956ce8"
+    },
+    "sdkwork-clawrouter": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-clawrouter.git",
+      "ref": "main"
+    },
+    "sdkwork-birdcoder": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-birdcoder.git",
+      "ref": "main"
+    }
+  }
+}

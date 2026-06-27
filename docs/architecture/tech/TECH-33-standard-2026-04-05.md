@@ -1,0 +1,88 @@
+> Migrated from `docs/架构/33-媒体资产所有权隔离标准-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 媒体资产所有权隔离标准 2026-04-05
+
+## 1. 背景
+
+在完成会话、通知、审计、运维和控制面的权限收敛后，继续审查 `media-service` 与 `sdkwork-im-server` 的媒体上传链路，确认存在租户内主体越权问题：
+
+- A 创建的媒体上传会话，B 只要知道 `mediaAssetId` 就可以继续完成上传
+- B 可以读取 A 的媒体资产元数据
+- B 可以把 A 的媒体资产 attach 到自己的会话消息中
+- 若使用相同 `mediaAssetId`，还可能覆盖同租户其他主体的上传会话
+
+这意味着当前实现只有 `tenant` 隔离，没有 `principal` 隔离，不满足商用 IM 对文件资源所有权的基本要求。
+
+## 2. 标准结论
+
+媒体资产必须同时具备以下两个隔离维度：
+
+1. `tenant_id`
+2. `principal_id + principal_kind`
+
+也就是说，`mediaAssetId` 不是“租户内任何人都可见的公共句柄”，而是“租户内某主体拥有的资源句柄”。
+
+## 3. 领域模型要求
+
+`MediaAsset` 至少补齐以下字段：
+
+- `principal_id`
+- `principal_kind`
+
+推荐语义：
+
+- `principal_id` 指向创建上传会话的 user / agent / bot / system principal
+- `principal_kind` 取值与其他领域模型保持一致，例如 `user`、`agent`、`bot`、`system`
+
+## 4. 访问控制标准
+
+以下接口默认只允许资产所有者访问：
+
+- `POST /im/v3/api/media/uploads/{id}/complete`
+- `GET /im/v3/api/media/{id}`
+- `POST /im/v3/api/media/{id}/attach`
+
+默认行为：
+
+1. 所有者可读、可完成上传、可 attach
+2. 非所有者访问返回 `404 media_asset_not_found`
+3. 同租户其他主体不得通过复用相同 `mediaAssetId` 覆盖现有上传会话
+4. 若需要平台级代操作，后续应通过显式能力权限或内部 trusted profile 单独开放，不应把 app-facing 默认入口做成共享资产池
+
+## 5. 最小实现策略
+
+当前阶段采用以下最小收敛方式：
+
+- 创建上传时写入 `principal_id/principal_kind`
+- 读取、完成上传、attach 时校验当前认证主体与资产所有者一致
+- 跨主体重复创建相同 `mediaAssetId` 时返回 `409 media_asset_already_exists`
+- 同一主体重复创建相同 `mediaAssetId` 视为幂等返回现有资产
+
+## 6. 测试标准
+
+至少保留以下回归测试：
+
+1. Bearer 用户不能读取其他主体创建的媒体资产
+2. Bearer 用户不能 attach 其他主体创建的媒体资产
+3. Bearer 用户不能用相同 `mediaAssetId` 覆盖其他主体上传会话
+4. 资产响应和 `media.asset.created` 事件负载中保留 `principalId/principalKind`
+
+## 7. 本次落地文件
+
+- `crates/im-domain-core/src/media.rs`
+- `services/media-service/src/lib.rs`
+- `services/media-service/tests/public_auth_test.rs`
+- `services/media-service/tests/media_asset_test.rs`
+- `services/media-service/tests/media_event_test.rs`
+- `services/sdkwork-im-cloud-gateway/tests/public_auth_e2e_test.rs`
+
+## 8. 后续建议
+
+本次修复解决的是“媒体资产归属”最小边界。后续还应继续补齐：
+
+- `attach` 能力在独立 `media-service` 与聚合 `sdkwork-im-server` 之间的职责划分
+- conversation 绑定后的资源可见性策略
+- 资源分享、转发、引用时的授权模型
+- 上传会话过期、垃圾回收与防枚举策略
+

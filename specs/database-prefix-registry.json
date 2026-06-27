@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.prefixRegistry",
+  "appCode": "chat",
+  "product": "sdkwork-chat",
+  "authority": "../../../specs/DATABASE_SPEC.md",
+  "prefixes": [
+    {
+      "prefix": "im",
+      "status": "ACTIVE",
+      "businessDomain": "instant_messaging",
+      "boundedContext": "conversation messages, realtime delivery, presence, routing, IM call signaling, IM projections, IM notifications, IM automation, and IM stream frames",
+      "ownerTeam": "sdkwork-chat",
+      "writeOwners": [
+        "session-gateway",
+        "conversation-runtime",
+        "projection-service",
+        "im-call-runtime",
+        "notification-service",
+        "automation-service",
+        "streaming-service",
+        "audit-service"
+      ],
+      "allowedTableNamePattern": "^im_[a-z0-9]+(_[a-z0-9]+)*$",
+      "tableExamples": [
+        "im_conversation_messages",
+        "im_realtime_device_events",
+        "im_presence_states",
+        "im_rtc_sessions",
+        "im_projection_timeline_entries"
+      ],
+      "forbiddenAliases": [
+        "chat",
+        "craw",
+        "sdkwork_im",
+        "sdkwork",
+        "app",
+        "sys",
+        "common",
+        "comms"
+      ],
+      "validFrom": "2026-06-04",
+      "notes": [
+        "Use im_ only for instant-messaging-owned tables.",
+        "Do not rename unrelated IAM, Drive, integration, ops, or platform tables to im_.",
+        "Desktop SQLite tables that materialize IM state must use the same im_ logical table names."
+      ]
+    }
+  ],
+  "nonImPrefixPolicy": {
+    "mustNotUseImPrefix": true,
+    "keepExistingBusinessPrefix": true,
+    "description": "Tables outside the instant messaging bounded context keep their own business-domain prefix or existing approved legacy name. The im_ prefix is not a product-wide default."
+  }
+}

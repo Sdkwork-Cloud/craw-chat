@@ -1,0 +1,12 @@
+mode = "standalone"
+
+[service]
+name = "sdkwork-im-standalone-gateway"
+environment = "development"
+
+[server]
+bind = "127.0.0.1:18079"
+
+[cors]
+allowAnyOrigin = true
+allowedOrigins = []

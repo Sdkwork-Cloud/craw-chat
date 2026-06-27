@@ -1,0 +1,1654 @@
+openapi: 3.1.2
+info:
+  title: Sdkwork IM App API
+  version: 0.1.0
+  description: >-
+    Owner-only app-development OpenAPI contract for Sdkwork IM-owned app-business and non-management HTTP APIs.
+    Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through
+    sdkDependencies and dependency SDKs instead of being regenerated here.
+servers:
+  - url: http://127.0.0.1:18079
+security:
+  - AuthToken: []
+    AccessToken: []
+tags:
+  - name: portal
+  - name: media
+  - name: automation
+  - name: notifications
+  - name: principal
+paths:
+  /app/v3/api/automation/agent_responses:
+    post:
+      tags:
+        - automation
+      operationId: automation.agentResponses.create
+      summary: Start an agent response stream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartAgentResponseRequest'
+      responses:
+        '200':
+          description: Agent response stream session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSession'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/automation/agent_responses/{streamId}/complete:
+    post:
+      tags:
+        - automation
+      operationId: automation.agentResponses.complete
+      summary: Complete an agent response stream
+      parameters:
+        - $ref: '#/components/parameters/StreamIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteAgentResponseRequest'
+      responses:
+        '200':
+          description: Completed agent response stream session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSession'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/automation/agent_responses/{streamId}/frames:
+    post:
+      tags:
+        - automation
+      operationId: automation.agentResponses.frames.create
+      summary: Append a frame to an agent response stream
+      parameters:
+        - $ref: '#/components/parameters/StreamIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppendAgentResponseDeltaRequest'
+      responses:
+        '200':
+          description: Agent response stream frame
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamFrame'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/automation/agent_tool_calls:
+    post:
+      tags:
+        - automation
+      operationId: automation.agentToolCalls.create
+      summary: Request an agent tool call
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAgentToolCallRequest'
+      responses:
+        '200':
+          description: Agent tool call
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentToolCall'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/automation/executions:
+    post:
+      tags:
+        - automation
+      operationId: automation.executions.create
+      summary: Request an automation execution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAutomationExecution'
+      responses:
+        '200':
+          description: Automation execution request result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationExecutionRequestResponse'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/automation/executions/{executionId}:
+    get:
+      tags:
+        - automation
+      operationId: automation.executions.retrieve
+      summary: Get an automation execution
+      parameters:
+        - $ref: '#/components/parameters/ExecutionIdPath'
+      responses:
+        '200':
+          description: Automation execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationExecution'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete:
+    post:
+      tags:
+        - automation
+      operationId: automation.agentToolCalls.complete
+      summary: Complete an agent tool call
+      parameters:
+        - $ref: '#/components/parameters/ExecutionIdPath'
+        - $ref: '#/components/parameters/ToolCallIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteAgentToolCallRequest'
+      responses:
+        '200':
+          description: Completed agent tool call
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentToolCall'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/notifications:
+    get:
+      tags:
+        - notifications
+      operationId: notifications.list
+      summary: List notifications for the current principal
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/notifications/requests:
+    post:
+      tags:
+        - notifications
+      operationId: notifications.requests.create
+      summary: Request a notification task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestNotification'
+      responses:
+        '200':
+          description: Notification request result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRequestResponse'
+        '400':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '413':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/notifications/{notificationId}:
+    get:
+      tags:
+        - notifications
+      operationId: notifications.retrieve
+      summary: Get a notification task
+      parameters:
+        - $ref: '#/components/parameters/NotificationIdPath'
+      responses:
+        '200':
+          description: Notification task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationTask'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/access:
+    get:
+      tags:
+        - portal
+      operationId: access.retrieve
+      summary: Read the tenant portal sign-in snapshot
+      security: []
+      responses:
+        '200':
+          description: Tenant portal sign-in snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/automation:
+    get:
+      tags:
+        - portal
+      operationId: automation.retrieve
+      summary: Read the tenant automation snapshot
+      responses:
+        '200':
+          description: Tenant automation snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/conversations:
+    get:
+      tags:
+        - portal
+      operationId: conversationSnapshot.retrieve
+      summary: Read the tenant conversations snapshot
+      responses:
+        '200':
+          description: Tenant conversations snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/dashboard:
+    get:
+      tags:
+        - portal
+      operationId: dashboard.retrieve
+      summary: Read the tenant dashboard snapshot
+      responses:
+        '200':
+          description: Tenant dashboard snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/governance:
+    get:
+      tags:
+        - portal
+      operationId: governance.retrieve
+      summary: Read the tenant governance snapshot
+      responses:
+        '200':
+          description: Tenant governance snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/home:
+    get:
+      tags:
+        - portal
+      operationId: home.retrieve
+      summary: Read the tenant portal home snapshot
+      security: []
+      responses:
+        '200':
+          description: Tenant portal home snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/media:
+    get:
+      tags:
+        - portal
+      operationId: media.retrieve
+      summary: Read the tenant media snapshot
+      responses:
+        '200':
+          description: Tenant media snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/realtime:
+    get:
+      tags:
+        - portal
+      operationId: realtime.retrieve
+      summary: Read the tenant realtime snapshot
+      responses:
+        '200':
+          description: Tenant realtime snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalSnapshot'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/portal/workspace:
+    get:
+      tags:
+        - portal
+      operationId: workspace.retrieve
+      summary: Read the current tenant workspace snapshot
+      responses:
+        '200':
+          description: Tenant workspace snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalWorkspaceView'
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/media/provider_health:
+    get:
+      tags:
+        - provider
+      operationId: mediaHealth.retrieve
+      summary: Retrieve media provider health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+  /app/v3/api/principal/profiles/provider_health:
+    get:
+      tags:
+        - provider
+      operationId: principalProfileHealth.retrieve
+      summary: Retrieve principal-profile provider health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: Problem detail response
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
+components:
+  securitySchemes:
+    AuthToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    AccessToken:
+      type: apiKey
+      in: header
+      name: Access-Token
+  parameters:
+    StreamIdPath:
+      name: streamId
+      in: path
+      required: true
+      schema:
+        type: string
+    ExecutionIdPath:
+      in: path
+      name: executionId
+      required: true
+      schema:
+        type: string
+    NotificationIdPath:
+      in: path
+      name: notificationId
+      required: true
+      schema:
+        type: string
+    ToolCallIdPath:
+      in: path
+      name: toolCallId
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequestError:
+      description: Request validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    UnauthorizedError:
+      description: Bearer authentication failed or is missing
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ForbiddenError:
+      description: Caller is not allowed to access the resource
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NotFoundError:
+      description: Resource was not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ConflictError:
+      description: Request conflicts with the current resource state
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ServiceUnavailableError:
+      description: Required runtime capability or provider is unavailable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+  schemas:
+    StringMap:
+      type: object
+      additionalProperties:
+        type: string
+    PortalSnapshot:
+      type: object
+      additionalProperties: true
+    PortalWorkspaceView:
+      type: object
+      required:
+        - name
+        - slug
+        - tier
+        - region
+        - supportPlan
+        - seats
+        - activeBrands
+        - uptime
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        tier:
+          type: string
+        region:
+          type: string
+        supportPlan:
+          type: string
+        seats:
+          type: integer
+          format: int32
+        activeBrands:
+          type: integer
+          format: int32
+        uptime:
+          type: string
+    Sender:
+      type: object
+      required:
+        - id
+        - kind
+        - metadata
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        memberId:
+          type: string
+        deviceId:
+          type: string
+        sessionId:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/StringMap'
+    StreamDurabilityClass:
+      type: string
+      enum:
+        - transient
+        - durableSession
+        - eventLog
+    StreamSessionState:
+      type: string
+      enum:
+        - created
+        - opened
+        - active
+        - checkpointed
+        - completed
+        - aborted
+        - expired
+    StreamSession:
+      type: object
+      required:
+        - tenantId
+        - streamId
+        - streamType
+        - scopeKind
+        - scopeId
+        - durabilityClass
+        - orderingScope
+        - state
+        - lastFrameSeq
+        - openedAt
+      properties:
+        tenantId:
+          type: string
+        streamId:
+          type: string
+        streamType:
+          type: string
+        scopeKind:
+          type: string
+        scopeId:
+          type: string
+        durabilityClass:
+          $ref: '#/components/schemas/StreamDurabilityClass'
+        orderingScope:
+          type: string
+        schemaRef:
+          type: string
+        state:
+          $ref: '#/components/schemas/StreamSessionState'
+        lastFrameSeq:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        lastCheckpointSeq:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        resultMessageId:
+          type: string
+        openedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+    StreamFrame:
+      type: object
+      required:
+        - tenantId
+        - streamId
+        - streamType
+        - scopeKind
+        - scopeId
+        - frameSeq
+        - frameType
+        - encoding
+        - payload
+        - sender
+        - attributes
+        - occurredAt
+      properties:
+        tenantId:
+          type: string
+        streamId:
+          type: string
+        streamType:
+          type: string
+        scopeKind:
+          type: string
+        scopeId:
+          type: string
+        frameSeq:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        frameType:
+          type: string
+        schemaRef:
+          type: string
+        encoding:
+          type: string
+        payload:
+          type: string
+        sender:
+          $ref: '#/components/schemas/Sender'
+        attributes:
+          $ref: '#/components/schemas/StringMap'
+        occurredAt:
+          type: string
+          format: date-time
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+        retryable:
+          type: boolean
+    AgentSubject:
+      type: object
+      required:
+        - agent_id
+        - metadata
+      properties:
+        agent_id:
+          type: string
+        session_id:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/StringMap'
+    AgentToolCallState:
+      type: string
+      enum:
+        - requested
+        - completed
+        - failed
+    AgentToolCall:
+      type: object
+      required:
+        - tenantId
+        - executionId
+        - agentId
+        - toolCallId
+        - toolName
+        - argumentsPayload
+        - state
+        - requestedAt
+      properties:
+        tenantId:
+          type: string
+        executionId:
+          type: string
+        agentId:
+          type: string
+        toolCallId:
+          type: string
+        toolName:
+          type: string
+        argumentsPayload:
+          type: string
+        resultPayload:
+          type: string
+        state:
+          $ref: '#/components/schemas/AgentToolCallState'
+        requestedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+    AppendAgentResponseDeltaRequest:
+      type: object
+      required:
+        - frameSeq
+        - frameType
+        - encoding
+        - payload
+      properties:
+        frameSeq:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        frameType:
+          type: string
+        schemaRef:
+          type: string
+        encoding:
+          type: string
+        payload:
+          type: string
+        attributes:
+          $ref: '#/components/schemas/StringMap'
+    AutomationExecutionState:
+      type: string
+      enum:
+        - requested
+        - running
+        - succeeded
+        - failed
+    AutomationExecution:
+      type: object
+      required:
+        - tenantId
+        - principalId
+        - principalKind
+        - executionId
+        - triggerType
+        - targetKind
+        - targetRef
+        - state
+        - retryCount
+        - requestedAt
+      properties:
+        tenantId:
+          type: string
+        principalId:
+          type: string
+        principalKind:
+          type: string
+        executionId:
+          type: string
+        triggerType:
+          type: string
+        targetKind:
+          type: string
+        targetRef:
+          type: string
+        inputPayload:
+          type: string
+        outputPayload:
+          type: string
+        state:
+          $ref: '#/components/schemas/AutomationExecutionState'
+        retryCount:
+          type: integer
+          format: int32
+        requestedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+    AutomationExecutionDeliveryStatus:
+      type: string
+      enum:
+        - accepted
+        - applied
+        - replayed
+        - failed
+    AutomationExecutionRequestResponse:
+      type: object
+      required:
+        - tenantId
+        - principalId
+        - principalKind
+        - executionId
+        - triggerType
+        - targetKind
+        - targetRef
+        - state
+        - retryCount
+        - requestedAt
+        - requestKey
+        - deliveryStatus
+        - proofVersion
+      properties:
+        tenantId:
+          type: string
+        principalId:
+          type: string
+        principalKind:
+          type: string
+        executionId:
+          type: string
+        triggerType:
+          type: string
+        targetKind:
+          type: string
+        targetRef:
+          type: string
+        inputPayload:
+          type: string
+        outputPayload:
+          type: string
+        state:
+          $ref: '#/components/schemas/AutomationExecutionState'
+        retryCount:
+          type: integer
+          format: int32
+        requestedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+        requestKey:
+          type: string
+        deliveryStatus:
+          $ref: '#/components/schemas/AutomationExecutionDeliveryStatus'
+        proofVersion:
+          type: string
+    CompleteAgentResponseRequest:
+      type: object
+      required:
+        - frameSeq
+      properties:
+        frameSeq:
+          type: string
+          format: int64
+          pattern: ^[0-9]+$
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
+        resultMessageId:
+          type: string
+    CompleteAgentToolCallRequest:
+      type: object
+      required:
+        - resultPayload
+      properties:
+        resultPayload:
+          type: string
+    NotificationRequestDeliveryStatus:
+      type: string
+      enum:
+        - accepted
+        - applied
+        - replayed
+        - failed
+    NotificationStatus:
+      type: string
+      enum:
+        - requested
+        - dispatched
+        - failed
+    NotificationTask:
+      type: object
+      required:
+        - tenantId
+        - notificationId
+        - sourceEventId
+        - sourceEventType
+        - category
+        - channel
+        - recipientId
+        - recipientKind
+        - status
+        - requestedAt
+      properties:
+        tenantId:
+          type: string
+        notificationId:
+          type: string
+        sourceEventId:
+          type: string
+        sourceEventType:
+          type: string
+        category:
+          type: string
+        channel:
+          type: string
+        recipientId:
+          type: string
+        recipientKind:
+          type: string
+        status:
+          $ref: '#/components/schemas/NotificationStatus'
+        title:
+          type: string
+        body:
+          type: string
+        payload:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        dispatchedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+    NotificationListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationTask'
+    NotificationRequestResponse:
+      type: object
+      required:
+        - tenantId
+        - notificationId
+        - sourceEventId
+        - sourceEventType
+        - category
+        - channel
+        - recipientId
+        - recipientKind
+        - status
+        - requestedAt
+        - requestKey
+        - deliveryStatus
+        - proofVersion
+      properties:
+        tenantId:
+          type: string
+        notificationId:
+          type: string
+        sourceEventId:
+          type: string
+        sourceEventType:
+          type: string
+        category:
+          type: string
+        channel:
+          type: string
+        recipientId:
+          type: string
+        recipientKind:
+          type: string
+        status:
+          $ref: '#/components/schemas/NotificationStatus'
+        title:
+          type: string
+        body:
+          type: string
+        payload:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        dispatchedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+        requestKey:
+          type: string
+        deliveryStatus:
+          $ref: '#/components/schemas/NotificationRequestDeliveryStatus'
+        proofVersion:
+          type: string
+    RequestAgentToolCallRequest:
+      type: object
+      required:
+        - executionId
+        - toolCallId
+        - toolName
+        - argumentsPayload
+      properties:
+        executionId:
+          type: string
+        toolCallId:
+          type: string
+        toolName:
+          type: string
+        argumentsPayload:
+          type: string
+    RequestAutomationExecution:
+      type: object
+      required:
+        - executionId
+        - triggerType
+        - targetKind
+        - targetRef
+      properties:
+        executionId:
+          type: string
+        triggerType:
+          type: string
+        targetKind:
+          type: string
+        targetRef:
+          type: string
+        inputPayload:
+          type: string
+    RequestNotification:
+      type: object
+      required:
+        - notificationId
+        - sourceEventId
+        - sourceEventType
+        - category
+        - channel
+        - recipientId
+        - recipientKind
+      properties:
+        notificationId:
+          type: string
+        sourceEventId:
+          type: string
+        sourceEventType:
+          type: string
+        category:
+          type: string
+        channel:
+          type: string
+        recipientId:
+          type: string
+        recipientKind:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        payload:
+          type: string
+    StartAgentResponseRequest:
+      type: object
+      required:
+        - executionId
+        - streamId
+        - streamType
+        - conversationId
+        - agent
+      properties:
+        executionId:
+          type: string
+        streamId:
+          type: string
+        streamType:
+          type: string
+        conversationId:
+          type: string
+        schemaRef:
+          type: string
+        memberId:
+          type: string
+        agent:
+          $ref: '#/components/schemas/AgentSubject'
+x-sdkwork-owner: sdkwork-im
+x-sdkwork-api-authority: sdkwork-im.app

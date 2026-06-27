@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-im-flutter-mobile",
+    "displayName": "SDKWork IM Flutter Mobile",
+    "version": "0.1.0",
+    "type": "flutter-app-root",
+    "root": "apps/sdkwork-im-flutter-mobile",
+    "domain": "chat",
+    "capability": "chat",
+    "surface": "app",
+    "languages": ["dart"],
+    "generated": false,
+    "manifests": ["pubspec.yaml", "sdkwork.app.config.json"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "purpose": "Flutter mobile application root architecture standard."
+    }
+  ],
+  "contracts": {
+    "publicExports": ["lib/main.dart"],
+    "runtimeEntrypoints": ["pubspec.yaml#environment.sdk"],
+    "sdkClients": ["im_sdk_generated", "im_sdk_composed"],
+    "sdkDependencies": ["sdkwork-im-sdk"],
+    "dependencyComposition": "specs/dependency.composition.json"
+  },
+  "verification": {
+    "commands": ["flutter analyze", "flutter test"]
+  }
+}

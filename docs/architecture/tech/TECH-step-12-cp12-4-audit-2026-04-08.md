@@ -1,0 +1,49 @@
+> Migrated from `docs/review/step-12-cp12-4-多终端聊天与流式验证脚本收口-质量审计与复盘-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 12 / CP12-4 多终端聊天与流式验证脚本收口 质量审计与复盘- 2026-04-08
+
+## 审计范围
+- `bin/open-chat-test.ps1`
+- `bin/open-chat-test.sh`
+- `docs/部署/CLI聊天验证与兼容矩阵md`
+- `tools/chat-cli/tests/chat_cli_contract_test.rs`
+- `tools/chat-cli/tests/chat_cli_e2e_test.rs`
+
+## 审计结论
+- 本轮未发现阻`CP12-4` 关闭的剩余缺陷
+- 当前最重要的质量提升不是“多写了一段脚本逻辑”，而是`open-chat-test` 从人工演示工具升级成了可重复 scripted validation 入口，同时没有破坏原有双窗口人工收口路径
+- PowerShell 路径当前已具备真E2E 证据，说明scripted validation 不是文档承诺，而是仓库内可执行、可断言的资产
+
+## 正向结果
+- `open-chat-test` 现在同时承载
+  - 人工双窗口验证
+  - scripted validation
+- scripted validation 摘要已经公开给自动化消费方，而不是只打印“看起来成功”的文本
+- 验证脚本当前直接观察
+  - `realtime.connected`
+  - `event.window`
+  - `timeline` 中的消息落地
+- Windows 下的成功判定已避免依赖不稳定的空`ExitCode`，转而消费真watch frames
+
+## 仍需关注的风
+- Bash scripted mode 当前没有独立 E2E 测试，现阶段主要依靠脚本表面、文档合同和 PowerShell 语义对齐来约束回归
+- scripted validation 当前覆盖的是 `watch + timeline` 主链路，不等GUI `chat-window` 的全面自动化
+- `CP12-4` 已闭环不代表 `Step 13` 的发布前总验收已完成；release gate 仍需在下一 step 统一汇总
+
+## 验证证据
+- `cargo fmt --all --check`
+- `cargo test -p session-gateway --offline --test websocket_smoke_test -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture`
+- `cargo test -p sdkwork-im-ccp-registry --offline --test compatibility_matrix_test -- --nocapture`
+- `cargo test -p control-plane-api --offline -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture`
+
+## 复盘结论
+- 本轮最关键的决策是没有再创建独立验证脚本，而是`open-chat-test` 直接升级为统一 operator 入口
+- 这样 `Step 12` 的手工验证、脚本化验证和文档入口保持在同一条命令语义上，后续进`Step 13` 时也更容易形成发布前 go/no-go 门禁
+- 当前 `CP12-4` 的结论可信：
+  - scripted validation 已落
+  - operator 文档已追
+  - Step 12 可进入整步关
+

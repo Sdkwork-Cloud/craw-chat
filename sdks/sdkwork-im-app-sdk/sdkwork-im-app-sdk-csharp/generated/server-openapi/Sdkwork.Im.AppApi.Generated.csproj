@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Sdkwork.Im.AppApi.Generated</RootNamespace>
+    <AssemblyName>Sdkwork.Im.AppApi.Generated</AssemblyName>
+    <PackageId>Sdkwork.Im.AppApi.Generated</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>SDKWork Team</Authors>
+    <Description>sdkwork-im-app-sdk SDK</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SDKwork.Common" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Net.Http.Json" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+    <None Include="Tests/**/*.cs" />
+  </ItemGroup>
+
+</Project>

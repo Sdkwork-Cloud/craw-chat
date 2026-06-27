@@ -1,0 +1,9 @@
+[package]
+name = "sdkwork-im-contract-message"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-contract-core = { path = "../sdkwork-im-contract-core" }
+im-domain-events = { path = "../im-domain-events" }

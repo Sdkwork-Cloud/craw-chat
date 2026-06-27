@@ -1,0 +1,31 @@
+> Migrated from `docs/step/07-C15-控制面provider状态矩阵收敛-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 07-C15: 控制面 provider 状态矩阵收敛
+
+## 目标
+
+- 把 provider control-plane 的顶层 `status` 收敛为一份集中契约
+- 交付 `07-C15 / 09R / 150R`
+- 用单测冻结 read / write / error / auth 四类路径
+
+## 状态矩阵
+
+- `registry`
+- `bindings`
+- `preview`
+- `applied`
+- `noop`
+- `history`
+- `diff`
+- `rolled_back`
+- `invalid`
+- `conflict`
+- `unavailable`
+- `forbidden`
+- `unauthorized`
+
+## 验证
+
+- `cargo test -p control-plane-api --offline --test provider_status_contract_test -- --nocapture`
+

@@ -1,0 +1,236 @@
+syntax = "proto3";
+
+package sdkwork.communication.backend.v3;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.backend.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/backend/v3;communicationbackendv3";
+
+service CommunicationOpsService {
+  rpc RetrieveHealth(RetrieveHealthRequest) returns (RetrieveHealthResponse);
+  rpc RetrieveCluster(RetrieveClusterRequest) returns (RetrieveClusterResponse);
+  rpc RetrieveLag(RetrieveLagRequest) returns (RetrieveLagResponse);
+  rpc RetrieveReplayStatus(RetrieveReplayStatusRequest) returns (RetrieveReplayStatusResponse);
+  rpc RetrieveCommercialReadiness(RetrieveCommercialReadinessRequest) returns (RetrieveCommercialReadinessResponse);
+  rpc RetrieveRuntimeDir(RetrieveRuntimeDirRequest) returns (RetrieveRuntimeDirResponse);
+  rpc ListOpsProviderBindings(ListOpsProviderBindingsRequest) returns (ListOpsProviderBindingsResponse);
+  rpc RetrieveProviderBindingDrift(RetrieveProviderBindingDriftRequest) returns (RetrieveProviderBindingDriftResponse);
+  rpc RetrieveDiagnostics(RetrieveDiagnosticsRequest) returns (RetrieveDiagnosticsResponse);
+}
+
+service RealtimeNodeAdminService {
+  rpc ActivateRealtimeNode(ActivateRealtimeNodeRequest) returns (ActivateRealtimeNodeResponse);
+  rpc DrainRealtimeNode(DrainRealtimeNodeRequest) returns (DrainRealtimeNodeResponse);
+  rpc MigrateRealtimeNodeRoutes(MigrateRealtimeNodeRoutesRequest) returns (MigrateRealtimeNodeRoutesResponse);
+}
+
+service CommunicationControlService {
+  rpc RetrieveProtocolGovernance(RetrieveProtocolGovernanceRequest) returns (RetrieveProtocolGovernanceResponse);
+  rpc RetrieveProtocolRegistry(RetrieveProtocolRegistryRequest) returns (RetrieveProtocolRegistryResponse);
+  rpc ListProviderPolicies(ListProviderPoliciesRequest) returns (ListProviderPoliciesResponse);
+  rpc PreviewProviderPolicy(PreviewProviderPolicyRequest) returns (PreviewProviderPolicyResponse);
+  rpc RollbackProviderPolicy(RollbackProviderPolicyRequest) returns (RollbackProviderPolicyResponse);
+  rpc RetrieveProviderRegistry(RetrieveProviderRegistryRequest) returns (RetrieveProviderRegistryResponse);
+  rpc ListControlProviderBindings(ListControlProviderBindingsRequest) returns (ListControlProviderBindingsResponse);
+  rpc CreateControlProviderBinding(CreateControlProviderBindingRequest) returns (CreateControlProviderBindingResponse);
+}
+
+service SocialAdminService {
+  rpc CreateDirectChatBinding(CreateDirectChatBindingRequest) returns (CreateDirectChatBindingResponse);
+  rpc RetrieveDirectChat(RetrieveDirectChatRequest) returns (RetrieveDirectChatResponse);
+  rpc CreateExternalConnection(CreateExternalConnectionRequest) returns (CreateExternalConnectionResponse);
+  rpc RetrieveExternalConnection(RetrieveExternalConnectionRequest) returns (RetrieveExternalConnectionResponse);
+  rpc CreateExternalMemberLink(CreateExternalMemberLinkRequest) returns (CreateExternalMemberLinkResponse);
+  rpc RetrieveExternalMemberLink(RetrieveExternalMemberLinkRequest) returns (RetrieveExternalMemberLinkResponse);
+  rpc CreateManagedFriendRequest(CreateManagedFriendRequestRequest) returns (CreateManagedFriendRequestResponse);
+  rpc RetrieveManagedFriendRequest(RetrieveManagedFriendRequestRequest) returns (RetrieveManagedFriendRequestResponse);
+  rpc AcceptManagedFriendRequest(AcceptManagedFriendRequestRequest) returns (AcceptManagedFriendRequestResponse);
+  rpc DeclineManagedFriendRequest(DeclineManagedFriendRequestRequest) returns (DeclineManagedFriendRequestResponse);
+  rpc CancelManagedFriendRequest(CancelManagedFriendRequestRequest) returns (CancelManagedFriendRequestResponse);
+  rpc CreateManagedFriendship(CreateManagedFriendshipRequest) returns (CreateManagedFriendshipResponse);
+  rpc RetrieveManagedFriendship(RetrieveManagedFriendshipRequest) returns (RetrieveManagedFriendshipResponse);
+  rpc RemoveManagedFriendship(RemoveManagedFriendshipRequest) returns (RemoveManagedFriendshipResponse);
+  rpc CreateSharedChannelPolicy(CreateSharedChannelPolicyRequest) returns (CreateSharedChannelPolicyResponse);
+  rpc RetrieveSharedChannelPolicy(RetrieveSharedChannelPolicyRequest) returns (RetrieveSharedChannelPolicyResponse);
+  rpc CreateUserBlock(CreateUserBlockRequest) returns (CreateUserBlockResponse);
+  rpc RetrieveUserBlock(RetrieveUserBlockRequest) returns (RetrieveUserBlockResponse);
+}
+
+service SocialRuntimeAdminService {
+  rpc ClaimPendingSharedChannelSyncTargeted(ClaimPendingSharedChannelSyncTargetedRequest) returns (ClaimPendingSharedChannelSyncTargetedResponse);
+  rpc ListDeadLetterSharedChannelSync(ListDeadLetterSharedChannelSyncRequest) returns (ListDeadLetterSharedChannelSyncResponse);
+  rpc ListDeliveredSharedChannelSync(ListDeliveredSharedChannelSyncRequest) returns (ListDeliveredSharedChannelSyncResponse);
+  rpc ListDeliveryStateSharedChannelSync(ListDeliveryStateSharedChannelSyncRequest) returns (ListDeliveryStateSharedChannelSyncResponse);
+  rpc ListPendingSharedChannelSync(ListPendingSharedChannelSyncRequest) returns (ListPendingSharedChannelSyncResponse);
+  rpc ReclaimStalePendingSharedChannelSync(ReclaimStalePendingSharedChannelSyncRequest) returns (ReclaimStalePendingSharedChannelSyncResponse);
+  rpc ReleasePendingSharedChannelSyncTargeted(ReleasePendingSharedChannelSyncTargetedRequest) returns (ReleasePendingSharedChannelSyncTargetedResponse);
+  rpc RepairDerivedSnapshot(RepairDerivedSnapshotRequest) returns (RepairDerivedSnapshotResponse);
+  rpc RepairSharedChannelSync(RepairSharedChannelSyncRequest) returns (RepairSharedChannelSyncResponse);
+  rpc RepublishPendingSharedChannelSyncTargeted(RepublishPendingSharedChannelSyncTargetedRequest) returns (RepublishPendingSharedChannelSyncTargetedResponse);
+  rpc RequeueDeadLetterSharedChannelSync(RequeueDeadLetterSharedChannelSyncRequest) returns (RequeueDeadLetterSharedChannelSyncResponse);
+  rpc RequeueDeadLetterSharedChannelSyncTargeted(RequeueDeadLetterSharedChannelSyncTargetedRequest) returns (RequeueDeadLetterSharedChannelSyncTargetedResponse);
+  rpc TakeoverPendingSharedChannelSyncTargeted(TakeoverPendingSharedChannelSyncTargetedRequest) returns (TakeoverPendingSharedChannelSyncTargetedResponse);
+}
+
+service AuditAdminService {
+  rpc ListAuditRecords(ListAuditRecordsRequest) returns (ListAuditRecordsResponse);
+  rpc CreateAuditRecord(CreateAuditRecordRequest) returns (CreateAuditRecordResponse);
+  rpc RetrieveAuditExport(RetrieveAuditExportRequest) returns (RetrieveAuditExportResponse);
+}
+
+message AdminStatusView {
+  string status = 1;
+  string detail_json = 2;
+}
+
+message RealtimeNodeView {
+  string node_id = 1;
+  string state = 2;
+  string bind_addr = 3;
+  int64 active_route_count = 4;
+}
+
+message ProviderPolicyView {
+  string policy_id = 1;
+  string version = 2;
+  string state = 3;
+  string policy_json = 4;
+}
+
+message SocialAdminView {
+  string resource_id = 1;
+  string resource_type = 2;
+  string state = 3;
+  string payload_json = 4;
+}
+
+message SharedChannelSyncView {
+  string sync_id = 1;
+  string state = 2;
+  string lease_expires_at = 3;
+  string payload_json = 4;
+}
+
+message AuditRecordView {
+  string audit_record_id = 1;
+  string actor_id = 2;
+  string action = 3;
+  string resource = 4;
+  string payload_json = 5;
+}
+
+message RetrieveHealthRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveHealthResponse { AdminStatusView health = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveClusterRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveClusterResponse { repeated RealtimeNodeView nodes = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveLagRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveLagResponse { AdminStatusView lag = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveReplayStatusRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveReplayStatusResponse { AdminStatusView replay_status = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveCommercialReadinessRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveCommercialReadinessResponse { AdminStatusView commercial_readiness = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveRuntimeDirRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveRuntimeDirResponse { AdminStatusView runtime_dir = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListOpsProviderBindingsRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListOpsProviderBindingsResponse { repeated AdminStatusView bindings = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveProviderBindingDriftRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveProviderBindingDriftResponse { AdminStatusView drift = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveDiagnosticsRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveDiagnosticsResponse { AdminStatusView diagnostics = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message ActivateRealtimeNodeRequest { string node_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ActivateRealtimeNodeResponse { RealtimeNodeView node = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message DrainRealtimeNodeRequest { string node_id = 1; string reason = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message DrainRealtimeNodeResponse { RealtimeNodeView node = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message MigrateRealtimeNodeRoutesRequest { string source_node_id = 1; string target_node_id = 2; repeated string route_ids = 3; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message MigrateRealtimeNodeRoutesResponse { repeated RealtimeNodeView nodes = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message RetrieveProtocolGovernanceRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveProtocolGovernanceResponse { AdminStatusView governance = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveProtocolRegistryRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveProtocolRegistryResponse { AdminStatusView registry = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListProviderPoliciesRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListProviderPoliciesResponse { repeated ProviderPolicyView policies = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message PreviewProviderPolicyRequest { string policy_json = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message PreviewProviderPolicyResponse { ProviderPolicyView policy = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RollbackProviderPolicyRequest { string target_version = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RollbackProviderPolicyResponse { ProviderPolicyView policy = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveProviderRegistryRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveProviderRegistryResponse { AdminStatusView registry = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListControlProviderBindingsRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListControlProviderBindingsResponse { repeated AdminStatusView bindings = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateControlProviderBindingRequest { string binding_json = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateControlProviderBindingResponse { AdminStatusView binding = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message CreateDirectChatBindingRequest { string first_user_id = 1; string second_user_id = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateDirectChatBindingResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveDirectChatRequest { string direct_chat_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveDirectChatResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateExternalConnectionRequest { string connection_json = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateExternalConnectionResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveExternalConnectionRequest { string connection_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveExternalConnectionResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateExternalMemberLinkRequest { string member_link_json = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateExternalMemberLinkResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveExternalMemberLinkRequest { string member_link_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveExternalMemberLinkResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateManagedFriendRequestRequest { string requester_user_id = 1; string target_user_id = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateManagedFriendRequestResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveManagedFriendRequestRequest { string friend_request_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveManagedFriendRequestResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message AcceptManagedFriendRequestRequest { string friend_request_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message AcceptManagedFriendRequestResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message DeclineManagedFriendRequestRequest { string friend_request_id = 1; string reason = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message DeclineManagedFriendRequestResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CancelManagedFriendRequestRequest { string friend_request_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CancelManagedFriendRequestResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateManagedFriendshipRequest { string first_user_id = 1; string second_user_id = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateManagedFriendshipResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveManagedFriendshipRequest { string friendship_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveManagedFriendshipResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RemoveManagedFriendshipRequest { string friendship_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RemoveManagedFriendshipResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateSharedChannelPolicyRequest { string policy_json = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateSharedChannelPolicyResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveSharedChannelPolicyRequest { string policy_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveSharedChannelPolicyResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateUserBlockRequest { string blocked_user_id = 1; string reason = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateUserBlockResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveUserBlockRequest { string block_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveUserBlockResponse { SocialAdminView resource = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message ClaimPendingSharedChannelSyncTargetedRequest { string sync_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ClaimPendingSharedChannelSyncTargetedResponse { SharedChannelSyncView sync = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListDeadLetterSharedChannelSyncRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListDeadLetterSharedChannelSyncResponse { repeated SharedChannelSyncView syncs = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListDeliveredSharedChannelSyncRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListDeliveredSharedChannelSyncResponse { repeated SharedChannelSyncView syncs = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListDeliveryStateSharedChannelSyncRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListDeliveryStateSharedChannelSyncResponse { repeated SharedChannelSyncView syncs = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListPendingSharedChannelSyncRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListPendingSharedChannelSyncResponse { repeated SharedChannelSyncView syncs = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ReclaimStalePendingSharedChannelSyncRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ReclaimStalePendingSharedChannelSyncResponse { repeated SharedChannelSyncView syncs = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ReleasePendingSharedChannelSyncTargetedRequest { string sync_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ReleasePendingSharedChannelSyncTargetedResponse { SharedChannelSyncView sync = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RepairDerivedSnapshotRequest { string reason = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RepairDerivedSnapshotResponse { AdminStatusView repair = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RepairSharedChannelSyncRequest { string reason = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RepairSharedChannelSyncResponse { AdminStatusView repair = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RepublishPendingSharedChannelSyncTargetedRequest { string sync_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RepublishPendingSharedChannelSyncTargetedResponse { SharedChannelSyncView sync = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RequeueDeadLetterSharedChannelSyncRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RequeueDeadLetterSharedChannelSyncResponse { repeated SharedChannelSyncView syncs = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RequeueDeadLetterSharedChannelSyncTargetedRequest { string sync_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RequeueDeadLetterSharedChannelSyncTargetedResponse { SharedChannelSyncView sync = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message TakeoverPendingSharedChannelSyncTargetedRequest { string sync_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message TakeoverPendingSharedChannelSyncTargetedResponse { SharedChannelSyncView sync = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message ListAuditRecordsRequest { sdkwork.common.v1.PageRequest page = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListAuditRecordsResponse { repeated AuditRecordView records = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message CreateAuditRecordRequest { string action = 1; string resource = 2; string payload_json = 3; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message CreateAuditRecordResponse { AuditRecordView record = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RetrieveAuditExportRequest { string export_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveAuditExportResponse { string export_uri = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }

@@ -1,0 +1,57 @@
+{
+  "sidebar": {
+    "compose": "Compose",
+    "folders": "Folders",
+    "inbox": "Inbox",
+    "starred": "Starred",
+    "drafts": "Later",
+    "sent": "Sent",
+    "trash": "Trash"
+  },
+  "search": {
+    "placeholder": "Search emails..."
+  },
+  "list": {
+    "empty": "This folder is empty"
+  },
+  "detail": {
+    "sentTo": "Sent to",
+    "attachments": "Attachments ({{count}})",
+    "replyPlaceholder": "Quick reply to {{name}}...",
+    "send": "Send",
+    "noMail": "No Email Selected",
+    "noMailDesc": "Select an email from the list to read, or click Compose to start a new message."
+  },
+  "actions": {
+    "delete": "Delete",
+    "defer": "Defer",
+    "archive": "Archive",
+    "markUnread": "Mark as Unread",
+    "addToTask": "Add to Task",
+    "muteSender": "Mute this sender",
+    "reportSpam": "Report Spam",
+    "addAttachment": "Add Attachment",
+    "insertImage": "Insert Image",
+    "replyWithAttach": "Reply with Attachments"
+  },
+  "compose": {
+    "title": "New Email",
+    "to": "To",
+    "subject": "Subject",
+    "bodyPlaceholder": "Write your email...",
+    "send": "Send"
+  },
+  "toast": {
+    "replySent": "Reply sent",
+    "sendFailed": "Send failed",
+    "enterRecipientSubject": "Please enter recipient and subject",
+    "mailSent": "Email sent",
+    "mailDeleted": "Moved to trash",
+    "mailDeferred": "Deferred for later",
+    "mailArchived": "Archived",
+    "markedUnread": "Marked as unread",
+    "addedToTask": "Added to task",
+    "senderMuted": "Sender muted",
+    "spamReported": "Reported as spam"
+  }
+}

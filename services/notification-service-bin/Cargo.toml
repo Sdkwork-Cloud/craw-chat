@@ -1,0 +1,18 @@
+﻿[package]
+name = "notification-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "notification-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+notification-service = { path = "../notification-service" }
+sdkwork-routes-im-notification-app-api = { path = "../../crates/sdkwork-routes-im-notification-app-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

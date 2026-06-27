@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.tableRegistry",
+  "appCode": "chat",
+  "authority": "../../../specs/DATABASE_SPEC.md",
+  "prefixRegistry": "./database-prefix-registry.json",
+  "databaseProfiles": [
+    "postgresql",
+    "sqlite"
+  ],
+  "tables": [
+    {
+      "tableName": "im_commit_journal",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "event_log",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_outbox_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "outbox_event",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_inbox_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "inbox_event",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_idempotency_keys",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "idempotency",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_conversation_messages",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_conversation_seq_counters",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "sequence_allocator",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_message_media_refs",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "relation_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_realtime_device_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "event_log",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_realtime_checkpoints",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "checkpoint",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_realtime_subscriptions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "subscription",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_realtime_subscription_scopes",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "fanout_index",
+      "systemOfRecord": false,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_presence_states",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "presence_state",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_route_bindings",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "route_state",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_realtime_disconnect_fences",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "coordination_fence",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_rtc_sessions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "rtc_session",
+      "systemOfRecord": true,
+      "writeOwner": "im-call-runtime",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_rtc_signals",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "rtc_signal_log",
+      "systemOfRecord": true,
+      "writeOwner": "im-call-runtime",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_audit_records",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "audit_log",
+      "systemOfRecord": true,
+      "writeOwner": "audit-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_notification_tasks",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "notification_task",
+      "systemOfRecord": true,
+      "writeOwner": "notification-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql",
+      "notes": "IM notification tasks use im_ because the source of truth is the chat message/realtime domain. Product-wide notification tables must use their own notification prefix."
+    },
+    {
+      "tableName": "im_automation_executions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "automation_execution",
+      "systemOfRecord": true,
+      "writeOwner": "automation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql",
+      "notes": "IM automation executions use im_ only when they execute against chat/realtime message flows."
+    },
+    {
+      "tableName": "im_projection_timeline_entries",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_metadata_snapshots",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_conversation_summaries",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_conversation_members",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_read_cursors",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_registered_client_routes",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_client_route_sync_feeds",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_client_route_sync_checkpoints",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_contacts",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_projection_direct_chat_bindings",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_stream_sessions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "stream_session",
+      "systemOfRecord": true,
+      "writeOwner": "streaming-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_stream_frames",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "stream_frame_log",
+      "systemOfRecord": true,
+      "writeOwner": "streaming-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_friend_requests",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_friendships",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_user_blocks",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_direct_chats",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_external_connections",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_external_member_links",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_shared_channel_policies",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_spaces",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_space_members",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_chat_groups",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_group_members",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_chat_channels",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_channel_access_rules",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_message_reactions",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_message_pins",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_threads",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_thread_subscriptions",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "comms-conversation-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_user_profiles",
+      "modulePrefix": "im",
+      "boundedContext": "user",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_user_settings",
+      "modulePrefix": "im",
+      "boundedContext": "user",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_conversation_settings",
+      "modulePrefix": "im",
+      "boundedContext": "user",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "projection-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_invitations",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    },
+    {
+      "tableName": "im_ban_records",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    }
+  ]
+}

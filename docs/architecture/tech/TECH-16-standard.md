@@ -1,0 +1,221 @@
+> Migrated from `docs/架构/16-消息变更实时广播标准.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 16-消息变更实时广播标准
+
+## 1. 目标
+
+本标准定义会话范围内消息变更事件的低延迟广播规则，用于补齐以下商业化场景：
+
+- 群成员在其他端实时看到消息编辑结果
+- 群成员在其他端实时看到消息撤回结果
+- 机器人、Webhook、工作流引擎可以订阅统一的消息变更事件
+- 在线实时下行与离线补偿保持同一事件语义
+
+本标准不替代 durable `client-route event window`。它只定义在线设备的实时事件窗口投递规则。
+
+## 2. 标准范围
+
+本阶段约束在 `conversation` scope 下的三类消息事件：
+
+- `message.posted`
+- `message.edited`
+- `message.recalled`
+
+约束如下：
+
+- 事件生产源是消息写路径，不能由客户端直接伪造
+- 事件广播目标是会话当前成员的已注册设备
+- 事件过滤入口是 `realtime/subscriptions/sync`
+- 事件拉取入口是 `realtime/events`
+- 断线补偿仍然以 `client-route event window` 为准
+
+## 3. 设计原则
+
+### 3.1 统一内核
+
+消息发送、编辑、撤回虽然属于不同写操作，但必须复用同一套 realtime 内核：
+
+- 同一 scope 维度：`scopeType = conversation`
+- 同一订阅模型：`eventTypes` 精确过滤
+- 同一事件窗口：按设备维护 `realtimeSeq`
+- 同一成员扇出策略：按会话成员和设备注册表计算目标设备
+
+这样后续引入 WebSocket、SSE、MQ bridge 时，只需要绑定同一事件窗口，不需要改写业务事件模型。
+
+### 3.2 durable 与 ephemeral 分层
+
+- `client-route event window` 是 durable truth，负责断线重放和补偿
+- `realtime/events` 是 ephemeral downlink，负责低延迟在线推送
+
+二者必须共享同一业务语义，但不要求载荷完全相同。实时载荷应优先服务在线渲染和机器人触发。
+
+### 3.3 成员级扇出
+
+消息变更不是“发送者自己的本地事件”，而是会话范围的共享事实。因此广播目标必须是：
+
+- 当前会话成员
+- 每个成员当前已注册的设备
+- 同时满足订阅条件的设备窗口
+
+## 4. 事件模型
+
+### 4.1 scope 约束
+
+```json
+{
+  "scopeType": "conversation",
+  "scopeId": "c_demo"
+}
+```
+
+### 4.2 订阅声明
+
+客户端可精确声明所需事件：
+
+```json
+{
+  "items": [
+    {
+      "scopeType": "conversation",
+      "scopeId": "c_demo",
+      "eventTypes": [
+        "message.posted",
+        "message.edited",
+        "message.recalled"
+      ]
+    }
+  ]
+}
+```
+
+如果 `eventTypes` 为空，则表示订阅该 scope 下全部实时事件。
+
+### 4.3 事件窗口项
+
+实时窗口项保持现有统一结构：
+
+```json
+{
+  "tenantId": "100001",
+  "principalId": "u_other_demo",
+  "clientRouteId": "d_other",
+  "realtimeSeq": 3,
+  "scopeType": "conversation",
+  "scopeId": "c_demo",
+  "eventType": "message.edited",
+  "deliveryClass": "ephemeral",
+  "payload": "{\"conversationId\":\"c_demo\",\"messageId\":\"msg_c_demo_1\",\"messageSeq\":1,\"summary\":\"edited hello\"}",
+  "occurredAt": "2026-04-05T10:10:00Z"
+}
+```
+
+## 5. 载荷标准
+
+### 5.1 `message.posted`
+
+```json
+{
+  "conversationId": "c_demo",
+  "messageId": "msg_c_demo_1",
+  "messageSeq": 1,
+  "messageType": "standard",
+  "summary": "hello"
+}
+```
+
+### 5.2 `message.edited`
+
+```json
+{
+  "conversationId": "c_demo",
+  "messageId": "msg_c_demo_1",
+  "messageSeq": 1,
+  "summary": "edited hello"
+}
+```
+
+语义约束：
+
+- `messageId` 与原消息稳定绑定，不因编辑而变化
+- `messageSeq` 保持原消息序号，不重新分配
+- `summary` 表示最新摘要，用于列表和通知渲染
+
+### 5.3 `message.recalled`
+
+```json
+{
+  "conversationId": "c_demo",
+  "messageId": "msg_c_demo_1",
+  "messageSeq": 1,
+  "summary": "[recalled]"
+}
+```
+
+语义约束：
+
+- 撤回事件仍指向原消息主键和原消息序号
+- `summary` 为撤回后的展示占位语义
+- 客户端收到后应刷新本地消息状态，而不是新增一条独立消息
+
+## 6. 投递语义
+
+### 6.1 顺序
+
+同一设备窗口内，事件按写路径发生顺序递增分配 `realtimeSeq`。
+
+同一消息的典型顺序为：
+
+1. `message.posted`
+2. `message.edited`
+3. `message.recalled`
+
+### 6.2 过滤
+
+设备只有在同时满足以下条件时才会收到事件：
+
+- 设备已注册
+- 设备已同步 realtime 订阅
+- 订阅的 `scopeType/scopeId` 与事件匹配
+- `eventTypes` 为空，或显式包含当前事件类型
+
+### 6.3 失败补偿
+
+若设备未在线、未订阅、窗口丢失，不能依赖 realtime 重放。恢复路径必须走：
+
+1. `session.resume`
+2. `client-route event window`
+3. 必要时重新拉取 timeline
+
+## 7. 本地最小实现映射
+
+当前 `sdkwork-im-server` 的落地约束如下：
+
+- `message.posted`、`message.edited`、`message.recalled` 都在写路径结束后发布 realtime 事件
+- 成员集合来自 `conversation_runtime.list_members`
+- 设备集合来自 `projection_service.registered_devices`
+- 实际写入窗口由 `realtime_runtime.publish_scope_event` 完成
+
+这意味着本地最小实现已经满足：
+
+- 会话成员级广播
+- 设备级过滤
+- 事件类型精确过滤
+- 写路径到实时窗口的一致业务语义
+
+## 8. 与后续阶段的关系
+
+本标准是后续以下能力的前置：
+
+- conversation scope 的 WebSocket 实时下行
+- 机器人订阅消息变更触发器
+- 工作流引擎按消息变更驱动自动化
+- 审计、风控、合规侧的在线事件镜像
+- stream scope / rtc scope 的统一事件总线抽象
+
+后续演进时可以继续增强，但不能破坏本标准中的三个稳定边界：
+
+- 事件类型名称稳定
+- `conversationId + messageId + messageSeq` 的主标识稳定
+- realtime 只做在线下行，durable 补偿仍由 `client-route event window` 承担
+

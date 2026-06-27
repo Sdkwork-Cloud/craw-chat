@@ -1,0 +1,80 @@
+> Migrated from `docs/review/step-11-cp11-4-升级回滚与整步收口-架构兑现与回写决议-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 11 / CP11-4 升级回滚与整步收口 架构兑现与回写决议 - 2026-04-08
+
+## 对应架构文档
+- `docs/架构/09-实施计划.md`
+- `docs/架构/131-连接管理与分层弹性扩容架构设计-2026-04-06.md`
+- `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
+- `docs/架构/138-高可用与灾备恢复设计-2026-04-06.md`
+- `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
+- `docs/架构/149-多Cell多Region协议升级与灾备兼容设计-2026-04-06.md`
+
+## 本轮已兑现能力力力力力
+- `09`
+  - `Wave D / Step 11` 已从“局部 quant + 局部 drill”推进到“整步闭环判断已完成”
+- `131`
+  - 连接管理现在不仅有 handshake 量化与 failover 演练，还新增了 binding rollback 与 safe binding 零协议错误率证据
+- `137`
+  - 同一 `CI Smoke Tier / standalone.split-services.development` 基线现在同时覆盖 quant、HA / DR 与 upgrade rollback
+- `138`
+  - HA / DR 证据链不再只停留在 drain / restore / failover，已补齐最小 rollback recovery 语义
+- `140`
+  - Step 11 的统一指标词汇已扩展到：
+    - `compatibilityMatrixPassRate`
+    - `rollbackActivationMs`
+    - `killSwitchPropagationSuccessRate`
+    - `postRollbackProtocolErrorRate`
+- `149`
+  - 多 cell / 多 region 协议升级设计首次拥有一条真实 Step 11 rollback 证据：
+    - control-plane governance snapshot
+    - runtime hello 协商
+    - kill switch rollback
+    - safe path preserved
+
+## 本轮未兑现能力力力力力
+- `Pre-Release Tier` 与 `Capacity Tier` 的真实结果尚未补齐
+- 多 cell / 多 region rollout orchestration 仍未开始
+- 跨 region 灾备切换自动化仍未进入本轮范围
+
+## 是否偏离架构
+- 无偏离。
+- 本轮明确坚持“最小可信路径”原则：
+  - 不把本地 kill switch rollback 伪装成多 cell / 多 region rollout 完成
+  - 不把 `CI Smoke Tier` 结果误写成容量结论
+
+## 回写决议
+- `docs/架构/09-实施计划.md`
+  - 追加 `As-Built 105`
+- `docs/架构/131-连接管理与分层弹性扩容架构设计-2026-04-06.md`
+  - 追加 `As-Built 27`
+- `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
+  - 追加 `As-Built 9`
+- `docs/架构/138-高可用与灾备恢复设计-2026-04-06.md`
+  - 追加 `As-Built 15`
+- `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
+  - 追加 `As-Built 10`
+- `docs/架构/149-多Cell多Region协议升级与灾备兼容设计-2026-04-06.md`
+  - 追加 `As-Built 6`
+
+## 证据
+- 代码 / 配置：
+  - `tools/perf/step-11-cp11-3-local-drill-baseline.json`
+  - `services/sdkwork-im-cloud-gateway/tests/performance_ha_dr_drill_test.rs`
+  - `tools/perf/step-11-scenario-catalog.json`
+- 文档：
+  - `docs/部署/性能与灾备演练场景.md`
+  - `docs/review/step-11-执行卡-2026-04-08.md`
+  - `docs/review/step-11-performance-ha-dr演练-2026-04-08.md`
+- 验证：
+  - `cargo fmt --all --check`
+  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_drill_catalog_test`
+  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_quant_baseline_test -- --nocapture`
+  - `cargo test -p sdkwork-im-cloud-gateway --offline --test performance_ha_dr_drill_test -- --nocapture`
+
+## 当前判断
+- `CP11-4`：通过
+- `Step 11`：通过
+- 下一步：进入 `Step 12`
+

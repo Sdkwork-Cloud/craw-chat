@@ -1,0 +1,13 @@
+{
+  "profile": "standalone.split-services.development",
+  "tier": "CI Smoke Tier",
+  "connection": {
+    "connectionCount": 32
+  },
+  "message": {
+    "messageCount": 64
+  },
+  "stream": {
+    "frameCount": 64
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "profile": "session-gateway",
+  "tier": "CI Smoke Tier",
+  "realtimeCore": {
+    "messageCount": 1050,
+    "subscribedDeviceCount": 3,
+    "expectedFanoutPerMessage": 3,
+    "expectedCapacityTrimmedEventCount": 150,
+    "ackCheckpointCount": 3,
+    "minFanoutSuccessPermille": 1000,
+    "maxPublishP95Ms": 25.0,
+    "maxPublishP99Ms": 50.0,
+    "maxAckP95Ms": 25.0,
+    "maxRestoreDurationMs": 50.0,
+    "maxCompensationRollbackMs": 25.0,
+    "maxClusterHandoffMs": 50.0
+  }
+}

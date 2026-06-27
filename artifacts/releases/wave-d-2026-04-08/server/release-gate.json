@@ -1,0 +1,92 @@
+{
+  "$schema": "../../schemas/server-release-gate.schema.json",
+  "version": 1,
+  "bundleId": "wave-d-2026-04-08",
+  "wave": "wave-d",
+  "artifact": "server-release-gate",
+  "state": "template_only_pending_evaluation",
+  "decisionStatus": "pending_go_no_go",
+  "updatedAt": "2026-04-17",
+  "releaseChecklistPath": "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+  "packageCatalogPath": "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+  "releaseExecutionPath": "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+  "releaseProvenancePath": "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+  "reviewDocPaths": [
+    "docs/review/step-13-release-readiness-2026-04-08.md",
+    "docs/review/step-13-go-no-go清单-2026-04-08.md"
+  ],
+  "gateChecks": [
+    {
+      "gateId": "release_checklist_frozen",
+      "description": "release checklist remains the canonical go/no-go sequence for server packaging",
+      "contractPath": "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+      "status": "pending_validation",
+      "blocking": true
+    },
+    {
+      "gateId": "package_catalog_frozen",
+      "description": "package catalog keeps the package matrix and install-root truth machine-readable",
+      "contractPath": "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+      "status": "pending_validation",
+      "blocking": true
+    },
+    {
+      "gateId": "release_execution_frozen",
+      "description": "release execution manifest keeps the canonical build and staging graph explicit",
+      "contractPath": "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
+      "status": "pending_validation",
+      "blocking": true
+    },
+    {
+      "gateId": "release_provenance_frozen",
+      "description": "release provenance keeps the payload-defining source and contract roots auditable",
+      "contractPath": "artifacts/releases/wave-d-2026-04-08/server/release-provenance.json",
+      "status": "pending_validation",
+      "blocking": true
+    },
+    {
+      "gateId": "checksum_manifest_frozen",
+      "description": "checksum manifest path is fixed before go/no-go review",
+      "contractPath": "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+      "status": "pending_validation",
+      "blocking": true
+    },
+    {
+      "gateId": "artifact_file_list_frozen",
+      "description": "artifact file list path is fixed before go/no-go review",
+      "contractPath": "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+      "status": "pending_validation",
+      "blocking": true
+    }
+  ],
+  "platformGateChecks": [
+    {
+      "platform": "linux",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+      "requiredPackageIds": [
+        "linux-tar-gz",
+        "linux-deb",
+        "linux-rpm"
+      ],
+      "status": "pending_validation"
+    },
+    {
+      "platform": "macos",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+      "requiredPackageIds": [
+        "macos-tar-gz",
+        "macos-pkg"
+      ],
+      "status": "pending_validation"
+    },
+    {
+      "platform": "windows",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+      "requiredPackageIds": [
+        "windows-zip",
+        "windows-msi"
+      ],
+      "status": "pending_validation"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@sdkwork/im-pc-community",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/community-app-sdk": "workspace:*",
+    "lucide-react": "catalog:",
+    "motion": "catalog:",
+    "react-i18next": "catalog:"
+  }
+}

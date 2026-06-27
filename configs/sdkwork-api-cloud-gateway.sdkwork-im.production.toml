@@ -1,0 +1,112 @@
+mode = "split"
+
+[service]
+name = "sdkwork-api-cloud-gateway"
+environment = "production"
+
+[server]
+bind = "127.0.0.1:3900"
+
+[[dependencySurfaces]]
+serviceId = "sdkwork-iam-app-api"
+workspace = "sdkwork-appbase"
+sdkFamily = "sdkwork-iam-app-sdk"
+apiAuthority = "sdkwork-iam-app-api"
+surface = "app"
+apiPrefix = "/app/v3/api"
+runtimeMode = "split-or-embedded"
+sameOriginAllowed = true
+executableExport = "sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router"
+cargoFeature = "foundation-appbase"
+cargoDependency = "sdkwork_routes_iam_app_api"
+coverage = "appbase-iam-routes"
+requiredBaseUrlKey = "SDKWORK_APPBASE_APP_API_BASE_URL"
+
+
+# CORS: explicit, environment-specific allowlist per SECURITY_SPEC §4.
+# Production MUST NOT use allowAnyOrigin. Browser origins serving the IM PC/H5
+# clients are enumerated; SDK/server-to-server callers are not browser-scoped.
+[cors]
+allowAnyOrigin = false
+allowedOrigins = [
+    "https://api.sdkwork.com",
+    "https://www.sdkwork.com",
+    "https://sdkwork.com",
+    "https://cdn.sdkwork.com",
+    "https://chat.sdkwork.com",
+]
+
+[request]
+maxBodyBytes = 33554432
+timeoutMs = 30000
+
+[readiness]
+checkUpstreams = false
+timeoutMs = 1000
+
+[observability]
+accessLogEnabled = true
+auditLogEnabled = true
+accessLogSampleRateBasisPoints = 10000
+auditLogSampleRateBasisPoints = 10000
+metricsEnabled = true
+metricsPath = "/metrics"
+tracingEnabled = true
+redactHeaders = ["authorization", "access-token", "cookie", "x-api-key", "set-cookie"]
+
+[diagnostics]
+enabled = false
+path = "/internal/gateway/diagnostics"
+includePolicyInventory = true
+includeRouteInventory = true
+
+[security]
+allowedHosts = ["api.sdkwork.com", "chat.sdkwork.com"]
+trustedProxyCidrs = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+secureHeadersEnabled = true
+maxHeaderBytes = 65536
+maxHeaderCount = 128
+rejectCredentialHeadersOnAnonymousAuthRoutes = true
+# CSRF protection is required for cookie-authenticated browser flows
+# (SECURITY_SPEC §4). The IM PC/H5 clients are browser-facing and use cookie
+# sessions alongside bearer tokens, so the guard MUST be enabled in production.
+csrfGuardEnabled = true
+
+[security.waf]
+enabled = true
+mode = "monitor"
+inspectQuery = true
+inspectHeaders = true
+inspectJsonBody = true
+
+[traffic]
+rateLimitEnabled = true
+compatXRateLimitHeaders = true
+globalMaxInFlight = 1024
+# Per-IP token bucket for auth/mutation hot paths (SECURITY_SPEC §5).
+# Login, token refresh, verification, and mutation endpoints are throttled.
+rateLimits = [
+    { path = "/app/v3/api/auth/login", methods = ["POST"], requestsPerWindow = 20, windowSeconds = 60 },
+    { path = "/app/v3/api/auth/refresh", methods = ["POST"], requestsPerWindow = 30, windowSeconds = 60 },
+    { path = "/app/v3/api/auth/verify", methods = ["POST"], requestsPerWindow = 30, windowSeconds = 60 },
+    { path = "/app/v3/api/auth/password-reset", methods = ["POST"], requestsPerWindow = 5, windowSeconds = 60 },
+    { path = "/im/v3/api/chat/messages", methods = ["POST"], requestsPerWindow = 300, windowSeconds = 60 },
+    { path = "/im/v3/api/media", methods = ["POST"], requestsPerWindow = 60, windowSeconds = 60 },
+    { path = "/im/v3/api/streams", methods = ["POST"], requestsPerWindow = 120, windowSeconds = 60 },
+]
+concurrencyLimits = []
+
+[policy]
+enabled = true
+dryRun = false
+rules = []
+
+[resilience]
+retryEnabled = false
+maxAttempts = 1
+retryStatuses = [502, 503, 504]
+retryBackoffMs = 0
+circuitBreakerEnabled = true
+failureThreshold = 5
+openSeconds = 30
+halfOpenMaxAttempts = 1

@@ -1,0 +1,18 @@
+﻿[package]
+name = "audit-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "audit-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+audit-service = { path = "../audit-service" }
+sdkwork-routes-im-audit-backend-api = { path = "../../crates/sdkwork-routes-im-audit-backend-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

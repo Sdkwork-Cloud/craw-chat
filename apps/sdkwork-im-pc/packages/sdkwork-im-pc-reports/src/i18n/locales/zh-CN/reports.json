@@ -1,0 +1,30 @@
+{
+  "header": {
+    "title": "工作汇报",
+    "received": "我收到的",
+    "sent": "我发出的",
+    "writeReport": "写汇报"
+  },
+  "editor": {
+    "title": "新建汇报",
+    "currentWork": "本期工作内容",
+    "currentWorkPlaceholder": "请填写您的{{type}}内容...",
+    "nextPlan": "下期工作计划",
+    "nextPlanPlaceholder": "请填写下期计划（可选）...",
+    "cancel": "取消",
+    "submit": "提交汇报"
+  },
+  "types": {
+    "daily": "日报",
+    "weekly": "周报",
+    "monthly": "月报"
+  },
+  "report": {
+    "completedWork": "已完成工作",
+    "nextPlan": "后续计划"
+  },
+  "toast": {
+    "fillContent": "请填写汇报内容",
+    "submitSuccess": "汇报发送成功"
+  }
+}

@@ -1,0 +1,29 @@
+[package]
+name = "sdkwork-im-rpc-service-rust"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lib]
+name = "sdkwork_im_rpc_service_rust"
+path = "src/lib.rs"
+
+[dependencies]
+futures-util.workspace = true
+prost = "0.14"
+sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
+sdkwork-rpc-client = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-client" }
+sdkwork-rpc-core = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-core" }
+sdkwork-rpc-discovery = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-discovery" }
+sdkwork-rpc-server = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-server" }
+tokio.workspace = true
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "0.14", features = ["transport"] }
+tonic-health = "0.14"
+
+[build-dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tonic-prost = "0.14"

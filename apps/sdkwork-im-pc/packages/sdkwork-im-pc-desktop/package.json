@@ -1,0 +1,20 @@
+{
+  "name": "@sdkwork/im-pc-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:desktop": "node ../../../../scripts/run-tauri-cli.mjs dev",
+    "start:renderer": "node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-dev.mjs",
+    "build": "pnpm --dir ../.. build",
+    "build:renderer": "node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-build.mjs",
+    "build:desktop:local": "node ../../../../scripts/run-tauri-cli.mjs build",
+    "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "catalog:"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "catalog:"
+  }
+}

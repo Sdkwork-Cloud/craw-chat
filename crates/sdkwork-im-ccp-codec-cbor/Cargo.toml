@@ -1,0 +1,10 @@
+[package]
+name = "sdkwork-im-ccp-codec-cbor"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+ciborium = { path = "../../vendor/ciborium-0.2.2" }
+sdkwork-im-ccp-codec = { path = "../sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }

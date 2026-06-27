@@ -1,0 +1,44 @@
+> Migrated from `docs/review/step-12-cp12-1-cli与实时握手契约收口-质量审计与复盘-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 12 / CP12-1 CLI 与实时握手契约收口质量审计与复盘- 2026-04-08
+
+## 审计范围
+- `tools/chat-cli/src/lib.rs`
+- `tools/chat-cli/src/realtime.rs`
+- `services/session-gateway/src/websocket.rs`
+- `services/session-gateway/tests/websocket_smoke_test.rs`
+- `tools/chat-cli/tests/chat_cli_contract_test.rs`
+- `tools/chat-cli/tests/chat_cli_e2e_test.rs`
+- `docs/部署/CLI聊天验证与兼容矩阵md`
+
+## 审计结论
+- 本轮未发现阻`CP12-1` 关闭的剩余缺陷
+- 当前修复的核心价值在于它修正的是“协商能力与运行时握手不一致”的真实协议缺陷，而不是测试等待时间
+- `watch`、`chat-session` PowerShell wrapper 均已在同一 public app 主链路上 fresh 通过
+
+## 正向结果
+- 当前 default snapshot 只协商`payload.json` 的现实，已经CLI、runtime、文档和测试同时接受
+- future `session.resume` 路径没有被回归掉
+  - CLI 仍能在协商成功时发`session_resume`
+  - 针对该路径的 focused unit test 已存
+- `watch` 错误上下文已细化到具体阶段，后续若再出现回归，不会再退化成只会提示“超时”等待实时帧
+
+## 仍需关注的风
+- 当前 `session.resume` 只在 focused test 中覆negotiated path，尚未有基于真实 control-plane 开关的端到端演练
+- `CP12-1` 只覆CLI realtime 主链路，不代`Step 12` SDK README、compatibility matrix 文档与脚本链路已闭环
+- `watch` 当前仍是最小可信验证工具，不等同于完整历史回放或多 region 会话恢复产品能力
+
+## 验证证据
+- `cargo test -p session-gateway --offline --test websocket_smoke_test -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture`
+- `cargo fmt --all --check`
+
+## 复盘结论
+- 本轮最关键的决策是没有继续sleep，而是`chat_cli_e2e_test -> tools/chat-cli/src/realtime.rs -> services/session-gateway/src/websocket.rs` 把根因追到协商边界：
+- 这使 `CP12-1` 的结论真实可信：
+  - CLI 现在确实消费当前 public app realtime / CCP 主链
+  - control-plane snapshot runtime hello / connected 首帧逻辑不再分叉
+  - 后续 `CP12-2 / CP12-3 / CP12-4` 可以建立在稳定的 CLI 基线上继续推
+

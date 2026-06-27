@@ -1,0 +1,18 @@
+﻿[package]
+name = "sdkwork-comms-conversation-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "sdkwork-comms-conversation-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+conversation_runtime = { path = "../sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
+sdkwork-routes-im-chat-open-api = { path = "../../crates/sdkwork-routes-im-chat-open-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

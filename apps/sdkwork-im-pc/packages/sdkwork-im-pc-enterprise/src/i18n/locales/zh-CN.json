@@ -1,0 +1,88 @@
+{
+  "title": "企业中心",
+  "publish": "发布",
+  "searchPlaceholder": "搜索海量企业、商机与人才...",
+  "applySettle": "申请入驻",
+  "postRecruit": "发布招聘",
+  "postSupply": "发布供应",
+  "postPurchase": "发布求购",
+  "loading": "加载中...",
+  "empty": "暂无企业",
+  "marketplace": {
+    "emptyRecruits": "暂无招聘职位",
+    "emptySupplies": "暂无大宗供应",
+    "emptyPurchases": "暂无集采求购",
+    "emptyProducts": "暂无企业产品",
+    "profileUnavailable": "扩展企业资料暂未开放",
+    "unavailable": "暂未开放"
+  },
+  "tabs": {
+    "enterprises": "企业列表",
+    "supplies": "大宗供应",
+    "purchases": "集采求购",
+    "recruits": "人才招聘"
+  },
+  "list": {
+    "allEnterprises": "全部企业",
+    "verified": "已认证",
+    "unverified": "未认证",
+    "visitHome": "访问主页"
+  },
+  "detail": {
+    "verified": "已认证",
+    "unverified": "未认证",
+    "about": "企业简介",
+    "products": "产品服务",
+    "requirements": "当前需求",
+    "recruiting": "招聘",
+    "consult": "在线洽谈",
+    "exclusiveConsult": "专属咨询",
+    "getContact": "获取联系方式",
+    "call": "电话联系",
+    "back": "返回",
+    "establishedDate": "成立日期",
+    "registeredCapital": "注册资本",
+    "legalRepresentative": "法定代表人",
+    "operatingStatus": "经营状态",
+    "album": "企业相册",
+    "albumEmpty": "暂无企业相册",
+    "contactInfo": "联系方式",
+    "website": "官方网站",
+    "phone": "联系电话",
+    "email": "企业邮箱",
+    "address": "公司地址",
+    "coreProducts": "核心产品与服务",
+    "contactForQuote": "联系获取报价",
+    "learnMore": "了解详情",
+    "allJobs": "全部招聘职位",
+    "hotJobs": "{{count}} 个热招",
+    "jobDesc": "职位描述：",
+    "jobReq": "岗位要求：",
+    "applyJob": "投递简历"
+  },
+  "supply": {
+    "contactSupplier": "联系供应商",
+    "price": "价格",
+    "minOrder": "起订",
+    "publishedAt": "发布于",
+    "status": {
+      "supplying": "供应中"
+    }
+  },
+  "recruit": {
+    "salary": "薪资",
+    "experience": "经验",
+    "education": "学历",
+    "apply": "投递简历"
+  },
+  "purchase": {
+    "contactBuyer": "联系采购方",
+    "quantity": "采购量",
+    "budget": "预算",
+    "deadline": "截止",
+    "publishedAt": "发布于",
+    "status": {
+      "purchasing": "求购中"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+> Migrated from `docs/架构/47-实时Checkpoint持久化采样归一化标准-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 47-实时Checkpoint持久化采样归一化标准-2026-04-05
+
+## 1. 背景
+
+`RealtimeDeliveryRuntime` 的内存态 checkpoint 由以下三个序列共同描述：
+
+- `latestRealtimeSeq`
+- `ackedThroughSeq`
+- `trimmedThroughSeq`
+
+运行时已经要求三者始终满足以下不变量：
+
+- `0 <= ackedThroughSeq <= latestRealtimeSeq`
+- `0 <= trimmedThroughSeq <= ackedThroughSeq`
+
+但是 durable checkpoint 的持久化采样来自多把锁上的独立读取，极短时间窗口内可能观测到瞬时不一致状态。即便这种状态随后会在内存中被修正，也不能允许它被落盘并在重启、迁移、恢复时再次放大。
+
+## 2. 标准
+
+### 2.1 durable checkpoint 落盘前必须执行最终归一化
+
+所有进入 `RealtimeCheckpointStore::save_checkpoint(...)` 的记录都必须在持久化出口执行一次最终归一化，至少满足：
+
+1. `ackedThroughSeq = min(ackedThroughSeq, latestRealtimeSeq)`
+2. `trimmedThroughSeq = min(trimmedThroughSeq, ackedThroughSeq)`
+
+该约束属于 durable 边界约束，不允许依赖“上游通常已经正确”作为前提。
+
+### 2.2 运行时归一化不能替代持久化归一化
+
+以下路径中的归一化都不能替代 durable 采样归一化：
+
+- `ensure_client_route_state(...)` 的恢复归一化
+- `restore_client_route_state(...)` 的 handoff 归一化
+- `ack_events(...)` 的窗口裁剪归一化
+
+原因是这些归一化发生在不同时间点，无法证明 `checkpoint_record()` 采样瞬间仍然观察到同一份一致状态。
+
+### 2.3 durable store 中不允许存在非法 checkpoint 记录
+
+任何 adapter 的 checkpoint 存储实现都必须把以下记录视为非法输出：
+
+- `ackedThroughSeq > latestRealtimeSeq`
+- `trimmedThroughSeq > ackedThroughSeq`
+
+如果调用方传入非法组合，调用方必须在进入 store 之前完成纠正；不得把纠正责任下推给具体存储适配器。
+
+## 3. 落地要求
+
+- `session-gateway` 的 `checkpoint_record(...)` 必须在采样后三元组归一化，再构造 `RealtimeCheckpointRecord`
+- 回归测试必须覆盖“内存态故意注入非法序列组合，persist 后 durable 记录被纠正”的场景
+- 后续新增任何 checkpoint 导出、备份、迁移路径时，必须复用同样的不变量归一化逻辑
+
+## 4. 关联标准
+
+- [24-实时确认点持久化与恢复标准](./24-实时确认点持久化与恢复标准.md)
+- [43-实时Checkpoint不变量归一化标准-2026-04-05](./43-实时Checkpoint不变量归一化标准-2026-04-05.md)
+- [45-路由迁移导出前必须恢复懒加载Checkpoint标准-2026-04-05](./45-路由迁移导出前必须恢复懒加载Checkpoint标准-2026-04-05.md)
+

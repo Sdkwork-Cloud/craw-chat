@@ -1,0 +1,10 @@
+{
+  "name": "@sdkwork/im-console-communications",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/im-sdk": "workspace:*"
+  }
+}

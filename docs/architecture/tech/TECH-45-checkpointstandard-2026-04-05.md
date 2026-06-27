@@ -1,0 +1,55 @@
+> Migrated from `docs/架构/45-路由迁移导出前必须恢复懒加载Checkpoint标准-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 45-路由迁移导出前必须恢复懒加载Checkpoint标准-2026-04-05
+
+## 1. 背景
+
+`route migration` 的最小 runtime handoff 已经要求源节点导出：
+
+- subscriptions
+- realtime window
+- checkpoint state
+
+但如果源节点 runtime 采用懒加载策略，客户端路由状态可能只存在 durable checkpoint store 中，尚未被载入内存。  
+此时如果直接执行 `take_client_route_state(...)` 并导出快照，就会把 `latestRealtimeSeq`、`ackedThroughSeq`、`trimmedThroughSeq` 误导成 0，导致目标节点恢复后的实时序号回退。
+
+## 2. 标准
+
+### 2.1 导出前必须先恢复客户端路由状态
+
+`take_client_route_state(tenantId, principalId, clientRouteId)` 在导出 runtime handoff 快照前，必须先执行与普通读路径一致的状态恢复：
+
+1. 从 checkpoint store 读取 durable checkpoint
+2. 将 `latestRealtimeSeq / ackedThroughSeq / trimmedThroughSeq` 载入 runtime 内存
+3. 再执行 subscriptions / window / checkpoint / notifier 的导出与移除
+
+### 2.2 不能要求控制面先“预热”设备
+
+控制面执行 route migration 时，不能依赖调用方先显式访问一次 `window_checkpoint()`、`list_events()` 或其他读路径来“预热”源节点状态。  
+导出接口本身必须具备恢复懒加载 checkpoint 的能力。
+
+### 2.3 迁移后序号必须连续
+
+若源节点 durable checkpoint 已经记录：
+
+- `latestRealtimeSeq = x`
+- `ackedThroughSeq = y`
+- `trimmedThroughSeq = z`
+
+则迁移到目标节点后，目标节点恢复出的 checkpoint 必须仍然是同一组值。  
+后续新的 realtime publish 必须从 `x + 1` 继续递增，不能从 1 或 0 重新开始。
+
+## 3. 回归要求
+
+至少覆盖以下回归测试：
+
+1. 源节点仅有 durable checkpoint、未预热内存状态时，route migration 后目标节点仍能恢复原 checkpoint
+2. 迁移后的 `window_checkpoint()` 返回与源 checkpoint 一致的 `latest/acked/trimmed`
+
+## 4. 关联标准
+
+- [23-节点排空与路由迁移控制标准](./23-节点排空与路由迁移控制标准.md)
+- [24-实时确认点持久化与恢复标准](./24-实时确认点持久化与恢复标准.md)
+- [43-实时Checkpoint不变量归一化标准-2026-04-05](./43-实时Checkpoint不变量归一化标准-2026-04-05.md)
+

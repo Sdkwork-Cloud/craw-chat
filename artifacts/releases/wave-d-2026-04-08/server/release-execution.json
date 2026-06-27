@@ -1,0 +1,65 @@
+{
+  "$schema": "../../schemas/server-release-execution.schema.json",
+  "version": 1,
+  "bundleId": "wave-d-2026-04-08",
+  "wave": "wave-d",
+  "artifact": "server-release-execution",
+  "state": "template_only_pending_execution",
+  "updatedAt": "2026-04-17",
+  "canonicalBuild": {
+    "command": "cargo build -p sdkwork-im-cloud-gateway --release --bin sdkwork-im-server --offline",
+    "package": "sdkwork-im-cloud-gateway",
+    "binary": "sdkwork-im-server",
+    "profile": "release"
+  },
+  "canonicalStartupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
+  "packageCatalogPath": "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
+  "releaseChecklistPath": "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
+  "checksumManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",
+  "artifactFileListPath": "artifacts/releases/wave-d-2026-04-08/server/packages/artifact-file-list.txt",
+  "platformExecutions": [
+    {
+      "platform": "linux",
+      "stagingRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
+      "stagingReadmePath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/acceptance-manifest.json",
+      "layoutTreePath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
+      "packageIds": [
+        "linux-tar-gz",
+        "linux-deb",
+        "linux-rpm"
+      ],
+      "checksumCommandExample": "sha256sum -b <artifact> >> ../SHA256SUMS",
+      "serviceManager": "systemd",
+      "status": "template_only_pending_execution"
+    },
+    {
+      "platform": "macos",
+      "stagingRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
+      "stagingReadmePath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/acceptance-manifest.json",
+      "layoutTreePath": "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
+      "packageIds": [
+        "macos-tar-gz",
+        "macos-pkg"
+      ],
+      "checksumCommandExample": "shasum -a 256 <artifact> >> ../SHA256SUMS",
+      "serviceManager": "launchd",
+      "status": "template_only_pending_execution"
+    },
+    {
+      "platform": "windows",
+      "stagingRoot": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
+      "stagingReadmePath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
+      "acceptanceManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/acceptance-manifest.json",
+      "layoutTreePath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
+      "packageIds": [
+        "windows-zip",
+        "windows-msi"
+      ],
+      "checksumCommandExample": "Get-FileHash -Algorithm SHA256 <artifact> | Format-Table -HideTableHeaders >> ../SHA256SUMS",
+      "serviceManager": "windows-service",
+      "status": "template_only_pending_execution"
+    }
+  ]
+}

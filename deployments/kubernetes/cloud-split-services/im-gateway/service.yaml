@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: im-gateway
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: im-gateway
+    app.kubernetes.io/component: gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: im-gateway
+  ports:
+    - name: http
+      port: 18079
+      targetPort: http
+      protocol: TCP

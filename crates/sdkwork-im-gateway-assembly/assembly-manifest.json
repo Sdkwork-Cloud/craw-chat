@@ -1,0 +1,150 @@
+{
+  "kind": "sdkwork.gateway.assembly",
+  "schemaVersion": 1,
+  "applicationCode": "im",
+  "packageName": "sdkwork-im-gateway-assembly",
+  "crateDir": "crates/sdkwork-im-gateway-assembly",
+  "generatedAt": "2026-06-27T07:06:56.177Z",
+  "routeCrates": [
+    {
+      "packageName": "sdkwork-routes-im-audit-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-audit-backend-api",
+      "libName": "sdkwork_routes_im_audit_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 0,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-automation-app-api",
+      "memberDir": "crates/sdkwork-routes-im-automation-app-api",
+      "libName": "sdkwork_routes_im_automation_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 1,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-calls-open-api",
+      "memberDir": "crates/sdkwork-routes-im-calls-open-api",
+      "libName": "sdkwork_routes_im_calls_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 2,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-chat-open-api",
+      "memberDir": "crates/sdkwork-routes-im-chat-open-api",
+      "libName": "sdkwork_routes_im_chat_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 3,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-governance-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-governance-backend-api",
+      "libName": "sdkwork_routes_im_governance_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 4,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-media-app-api",
+      "memberDir": "crates/sdkwork-routes-im-media-app-api",
+      "libName": "sdkwork_routes_im_media_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 5,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-notification-app-api",
+      "memberDir": "crates/sdkwork-routes-im-notification-app-api",
+      "libName": "sdkwork_routes_im_notification_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 6,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-ops-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-ops-backend-api",
+      "libName": "sdkwork_routes_im_ops_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 7,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-projection-open-api",
+      "memberDir": "crates/sdkwork-routes-im-projection-open-api",
+      "libName": "sdkwork_routes_im_projection_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 8,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-realtime-open-api",
+      "memberDir": "crates/sdkwork-routes-im-realtime-open-api",
+      "libName": "sdkwork_routes_im_realtime_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 9,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-social-backend-api",
+      "memberDir": "crates/sdkwork-routes-im-social-backend-api",
+      "libName": "sdkwork_routes_im_social_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 10,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-social-open-api",
+      "memberDir": "crates/sdkwork-routes-im-social-open-api",
+      "libName": "sdkwork_routes_im_social_open_api",
+      "surface": "open-api",
+      "pathPrefix": "/im/v3/api/social",
+      "mountOrder": 11,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-space-open-api",
+      "memberDir": "crates/sdkwork-routes-im-space-open-api",
+      "libName": "sdkwork_routes_im_space_open_api",
+      "surface": "open-api",
+      "pathPrefix": null,
+      "mountOrder": 12,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-im-stream-app-api",
+      "memberDir": "crates/sdkwork-routes-im-stream-app-api",
+      "libName": "sdkwork_routes_im_stream_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 13,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    }
+  ]
+}

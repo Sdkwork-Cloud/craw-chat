@@ -1,0 +1,28 @@
+﻿[package]
+name = "space-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+chrono = "0.4"
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+sdkwork_database_config.workspace = true
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-app-context = { path = "../../crates/im-app-context" }
+sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+sdkwork_im_service_readiness = { workspace = true }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+
+[dev-dependencies]
+http-body-util.workspace = true
+sdkwork-routes-im-space-open-api = { path = "../../crates/sdkwork-routes-im-space-open-api" }
+sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
+tower.workspace = true

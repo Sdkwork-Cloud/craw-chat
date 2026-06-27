@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package sdkwork.communication.app.v3;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.app.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3;communicationappv3";
+
+service AutomationService {
+  rpc CreateAutomationExecution(CreateAutomationExecutionRequest) returns (CreateAutomationExecutionResponse);
+  rpc RetrieveAutomationExecution(RetrieveAutomationExecutionRequest) returns (RetrieveAutomationExecutionResponse);
+  rpc CreateAgentResponse(CreateAgentResponseRequest) returns (CreateAgentResponseResponse);
+  rpc CompleteAgentResponse(CompleteAgentResponseRequest) returns (CompleteAgentResponseResponse);
+  rpc CreateAgentResponseFrame(CreateAgentResponseFrameRequest) returns (CreateAgentResponseFrameResponse);
+  rpc RequestAgentToolCall(RequestAgentToolCallRequest) returns (RequestAgentToolCallResponse);
+  rpc CompleteAgentToolCall(CompleteAgentToolCallRequest) returns (CompleteAgentToolCallResponse);
+}
+
+message AutomationExecutionView {
+  string execution_id = 1;
+  string conversation_id = 2;
+  string state = 3;
+  string agent_id = 4;
+}
+
+message AgentResponseView {
+  string response_id = 1;
+  string execution_id = 2;
+  string state = 3;
+  string stream_id = 4;
+}
+
+message AgentToolCallView {
+  string tool_call_id = 1;
+  string execution_id = 2;
+  string name = 3;
+  string state = 4;
+  string arguments_json = 5;
+  string result_json = 6;
+}
+
+message CreateAutomationExecutionRequest {
+  string conversation_id = 1;
+  string agent_id = 2;
+  string prompt = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateAutomationExecutionResponse {
+  AutomationExecutionView execution = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveAutomationExecutionRequest {
+  string execution_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveAutomationExecutionResponse {
+  AutomationExecutionView execution = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateAgentResponseRequest {
+  string execution_id = 1;
+  string stream_type = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateAgentResponseResponse {
+  AgentResponseView response = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CompleteAgentResponseRequest {
+  string response_id = 1;
+  string final_state = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CompleteAgentResponseResponse {
+  AgentResponseView response = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateAgentResponseFrameRequest {
+  string response_id = 1;
+  string frame_type = 2;
+  string payload_json = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateAgentResponseFrameResponse {
+  string frame_id = 1;
+  string delivery_status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RequestAgentToolCallRequest {
+  string execution_id = 1;
+  string name = 2;
+  string arguments_json = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RequestAgentToolCallResponse {
+  AgentToolCallView tool_call = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CompleteAgentToolCallRequest {
+  string tool_call_id = 1;
+  string result_json = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CompleteAgentToolCallResponse {
+  AgentToolCallView tool_call = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

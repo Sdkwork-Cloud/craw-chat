@@ -1,0 +1,6 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-sdkwork-im-pc-qr-code"
+description = "Allows Sdkwork IM PC to decode QR code image files and camera frames through the native desktop shell."
+commands.allow = ["sdkwork_chat_pc_decode_qr_code_image", "sdkwork_chat_pc_decode_qr_code_rgba"]

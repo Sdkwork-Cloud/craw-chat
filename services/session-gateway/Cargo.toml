@@ -1,0 +1,62 @@
+[package]
+name = "session-gateway"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-ccp-binding-tcp = { path = "../../crates/sdkwork-im-ccp-binding-tcp" }
+sdkwork-im-ccp-binding-udp = { path = "../../crates/sdkwork-im-ccp-binding-udp" }
+sdkwork-im-ccp-binding-ws = { path = "../../crates/sdkwork-im-ccp-binding-ws" }
+sdkwork-im-ccp-codec = { path = "../../crates/sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-codec-json = { path = "../../crates/sdkwork-im-ccp-codec-json" }
+sdkwork-im-ccp-control = { path = "../../crates/sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "../../crates/sdkwork-im-ccp-core" }
+sdkwork-im-contract-control = { path = "../../crates/sdkwork-im-contract-control" }
+sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
+sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
+sdkwork-im-runtime-route = { path = "../../crates/sdkwork-im-runtime-route" }
+futures-util.workspace = true
+im-app-context = { path = "../../crates/im-app-context" }
+sdkwork_utils_rust.workspace = true
+sdkwork_iam_web_adapter.workspace = true
+sdkwork_database_sqlx.workspace = true
+sqlx.workspace = true
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-postgres-realtime-contracts = { path = "../../crates/im-postgres-realtime-contracts" }
+im-time = { path = "../../crates/im-time" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+prost = "0.14"
+sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
+sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
+tokio-stream = "0.1"
+quinn = "0.11.9"
+rustls = "0.23.40"
+rustls-pemfile = "2.2.0"
+sdkwork-im-ccp-binding-quic = { version = "0.1.0", path = "../../crates/sdkwork-im-ccp-binding-quic" }
+sdkwork_im_realtime_api_paths.workspace = true
+sdkwork_im_websocket_auth_gate.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+sdkwork_utils_rust.workspace = true
+sdkwork_web_core.workspace = true
+tokio-tungstenite = "0.28.0"
+tower.workspace = true
+sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
+rcgen = "0.14.8"
+

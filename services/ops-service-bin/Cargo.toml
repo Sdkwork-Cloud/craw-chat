@@ -1,0 +1,19 @@
+﻿[package]
+name = "ops-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "ops-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
+ops-service = { path = "../ops-service" }
+sdkwork-routes-im-ops-backend-api = { path = "../../crates/sdkwork-routes-im-ops-backend-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

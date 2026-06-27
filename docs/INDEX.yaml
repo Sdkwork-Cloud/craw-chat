@@ -1,0 +1,29 @@
+schemaVersion: 1
+kind: sdkwork.docs.index
+repository: chat
+canon:
+  prd: docs/product/prd/PRD.md
+  techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md
+entries:
+  - path: docs/product/roadmap/README.md
+    type: roadmap
+    title: Sdkwork IM Product Roadmap
+  - path: docs/product/pricing/README.md
+    type: pricing
+    title: Sdkwork IM Commercialization & Pricing
+  - path: docs/runbooks/RUNBOOK-token-key-rotation.md
+    type: runbook
+    title: Token and Key Rotation
+  - path: docs/runbooks/RUNBOOK-tenant-isolation-verification.md
+    type: runbook
+    title: Tenant Isolation Verification
+  - path: docs/runbooks/RUNBOOK-migration-rollback.md
+    type: runbook
+    title: Database Migration Rollback
+  - path: docs/runbooks/RUNBOOK-provider-outage.md
+    type: runbook
+    title: Provider Outage Response
+  - path: docs/runbooks/RUNBOOK-audit-log-investigation.md
+    type: runbook
+    title: Audit Log Investigation
+domains: []

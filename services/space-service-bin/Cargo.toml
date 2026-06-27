@@ -1,0 +1,19 @@
+﻿[package]
+name = "space-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "space-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+space-service = { path = "../space-service" }
+sdkwork-routes-im-space-open-api = { path = "../../crates/sdkwork-routes-im-space-open-api" }
+im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

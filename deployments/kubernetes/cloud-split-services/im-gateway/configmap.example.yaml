@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: im-gateway-runtime
+  namespace: sdkwork-im
+data:
+  SDKWORK_IM_PROFILE_ID: cloud.split-services.production
+  SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: https://im.sdkwork.com
+  SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: wss://im.sdkwork.com
+  SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: https://api.sdkwork.com
+  SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART: "false"
+  SDKWORK_IM_REDIS_ENABLED: "true"
+  SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE: "true"
+  SDKWORK_WEB_STORE_DATABASE_URL: sqlite:///var/lib/sdkwork/web-store/web-store.sqlite
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: im-gateway-config
+  namespace: sdkwork-im
+data:
+  chat.toml: |
+    # Mount production chat.toml generated from deployments/templates/server.yaml.example

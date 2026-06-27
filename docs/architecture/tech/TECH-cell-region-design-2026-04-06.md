@@ -1,0 +1,474 @@
+> Migrated from `docs/架构/149-多Cell多Region协议升级与灾备兼容设计-2026-04-06.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Cell 多 Region 协议升级与灾备兼容设。
+
+## 1. 文档定位
+
+本文档用于把 `CCP` 的协议升级、灰度发布、跨 cell / region 兼容和灾备切换策略冻结下来。
+
+前面的文档已经回答了：
+
+- 协议是什么？
+- 如何握手与协商？
+- 如何做版本兼容？
+- 如何做注册表与 SDK 治理
+- 如何把协议落到 crate 和控制面
+
+本文件补齐最后一块关键能力：
+
+- 当系统已经进入多 cell、多 region、多租户和私有化交付阶段时，协议如何安全升级、切流、降级与回滚
+
+## 2. 设计目标
+
+### 2.1 核心目标
+
+- 让协议升级不破坏正在运行的长连接与 SDK
+- 让跨 cell / region 的切流与灾备保持协议兼容
+- 让 SaaS、独cell 和私有化都拥有明确升级路径
+- 让协议升级具备“先扩兼容、再切默认、最后回收旧版”的稳定节奏
+
+### 2.2 非目标
+
+- 不追求一次升级所按 region 同步切换
+- 不在第一阶段建设复杂分布式配置一致性系统
+- 不让灾备切换绑定单一云厂商能力
+
+## 3. 升级总原。
+
+### 3.1 协议升级三阶。
+
+所有协议升级都必须遵循三阶段：
+
+1. `Expand`
+2. `Shift`
+3. `Contract`
+
+#### Expand
+
+- 服务端先支持新旧能力并存
+- registry 与 compatibility matrix 先补齐
+- SDK 先具备向后兼容能力
+
+#### Shift
+
+- 默认协商结果逐步切向capability / schema
+- 通过 rollout policy 扩大流量
+- 持续观测失败率和降级。
+
+#### Contract
+
+- 停止新流量使用旧 schema
+- 标记schema deprecated
+- 在长兼容窗口后移。
+
+### 3.2 长连接优先原。
+
+即时通讯的主风险不只HTTP 请求失败，而是。
+
+- 现有长连接上的握手与恢复断裂
+- 重连时协商结果不一。
+- 不同 cell close contract 不一。
+
+因此协议升级必须优先保护。
+
+- `hello / auth_bind / session_resume`
+- `routeEpoch`
+- close / error contract
+- capability negotiation
+
+## 4. Cell / Region 分层发布模型
+
+### 4.1 Cell 是最小协议发布域
+
+推荐`cell` 视为协议发布、回滚和故障隔离的最小单元。
+
+原因。
+
+- cell 已经是部署域、扩容域和故障域
+- 协议升级出问题时可以cell 级快速止。
+- 不需要一开始就 region 级同步切。
+
+### 4.2 Region 是次级汇聚域
+
+同一 region 内可包含多个 cell。
+
+region 主要负责。
+
+- 汇rollout 状。
+- 控制cell 流量导向
+- 作为灾备切换的组织层
+
+### 4.3 发布顺序建议
+
+建议固定顺序如下。
+
+1. `local / test`
+2. `private pre-release cell`
+3. `shared canary cell`
+4. `shared beta cells`
+5. `shared stable cells`
+6. `dedicated cells`
+7. `private lts bundle`
+
+## 5. 兼容矩阵在升级中的作。
+
+升级不能只看服务端版本，还必须看客户端矩阵。
+
+每次协议变更都必须回答：
+
+- 哪些客户端类型支。
+- 哪些 SDK 版本支持
+- 哪些租户需要保留旧。
+- 哪些 region 尚未准备好切。
+
+### 5.1 必须覆盖的矩阵维。
+
+- `protocol version`
+- `binding`
+- `codec`
+- `capability set`
+- `schema stage`
+- `client type`
+- `sdk version`
+- `deployment profile`
+
+## 6. 典型升级场景
+
+### 6.1 capability 上线
+
+例如上线 `stream.patch`。
+
+标准流程：
+
+1. 服务端先支持 `stream.patch`，但默认关闭
+2. registry 标记`beta`
+3. canary cell 对部tenant 打开
+4. SDK 在协商成功后启用
+5. 观测稳定后提升为 `stable`
+
+### 6.2 schema 主版本上。
+
+例如 `cc.message.send.v2`。
+
+标准流程：
+
+1. 新旧 schema 并存
+2. 服务端优先同时消`v1 / v2`
+3. SDK 逐步切换到默认发 `v2`
+4. 服务端统`v1` 使用。
+5. 低于阈值后标记 `v1 deprecated`
+
+### 6.3 codec 上线
+
+例如在设备侧启用 `cbor`。
+
+标准流程：
+
+1. 先通过 capability 协商开`payload.cbor`
+2. 只对 `iot-device / edge-gateway` 打开
+3. 浏览器与SDK 继续使用 `json`
+4. 不允许因`cbor` 上线而影`json` 兼容链路
+
+## 7. 灾备切换中的协议要求
+
+灾备时最容易被忽略的问题是：按 region 不仅要能运行，还要能讲同一种协议。
+
+### 7.1 灾备 region 必须满足
+
+- 支持相同`protocol profile`
+- 支持相同close / error contract
+- 支持兼容窗口内的schema
+- 支持相同`session resume` 语义
+
+### 7.2 不允许的做法
+
+- 按 region 已升级新 close code，灾按 region 仍保留旧含义
+- 按 region 默认启用capability，灾按 region 不认。
+- 按 region 允许SDK，灾按 region 拒绝握手
+
+## 8. 回滚模型
+
+协议升级必须有明确回滚等级。
+
+### 8.1 Capability 回滚
+
+最轻量。
+
+- 关闭单个 capability
+- 不需要改变协议主版本
+- 与 kill switch 即可
+
+### 8.2 Profile 回滚
+
+中等等级。
+
+- 回退一protocol profile
+- 适用于某一 cell / tenant / region
+
+### 8.3 Bundle 回滚
+
+更高等级。
+
+- 私有化或 region 级回退整套 registry bundle
+- 适用于控制面配置或兼容矩阵整体误。
+
+### 8.4 服务端二进制回滚
+
+最高等级：
+
+- 回退实际部署二进。
+- 只在 Expand 阶段兼容已准备好的前提下允许快速回退
+
+## 9. 长连接升级策。
+
+### 9.1 不强制踢全量连接
+
+发布新协议能力时，不应默认踢掉全量连接。
+
+优先策略。
+
+- 新连接使用新协商结果
+- 老连接在自然重连时升。
+- 仅在高风险场景使`goaway` 触发迁移
+
+### 9.2 需要强制迁移的场景
+
+- close contract 发生必须统一的安全修。
+- route fencing 语义必须整体切换
+- 存在高危协议漏洞
+
+### 9.3 迁移方式
+
+- 通过 `goaway` 给出明确原因
+- 客户端重`hello`
+- 若支持则执行 `session_resume`
+
+## 10. 私有化升级策。
+
+私有化不应跟让 SaaS 每一轮协议实验。
+
+推荐模式。
+
+- SaaS `canary -> beta -> stable`
+- 私有化走 `lts -> private bundle`
+
+交付要求。
+
+- 提供兼容矩阵说明
+- 提供回滚 bundle
+- 提供升级前检查脚。
+- 提供升级后协议观测基。
+
+## 11. 观测与门。
+
+协议升级必须配合门禁指标。
+
+### 11.1 发布门禁
+
+至少检查：
+
+- 握手成功。
+- `auth_bind` 成功。
+- `session_resume` 成功。
+- close code 异常占比
+- capability 协商失败。
+- schema decode 失败。
+
+### 11.2 回滚触发建议
+
+建议触发回滚的情况：
+
+- canary cell 握手失败率明显上。
+- `session_resume` 失败率超阈。
+- SDK 版本异常集中报错
+- 某租户出现大close / error 异常
+
+## 12. 与部署、控制面、灾备文档的关系
+
+本文档与以下文档配套。
+
+- `137`：定cell / region / deployment profile
+- `138`：定义高可用与恢复原。
+- `142`：定义控制面feature flag / runtime control config
+- `148`：定protocol registry、release channel rollout policy
+
+## 13. 结论
+
+`CCP` 的协议升级必须被设计成：
+
+- cell 为最小发布域
+- 按 region 为汇聚与灾备。
+- compatibility matrix 为判断依。
+- expand / shift / contract 为固定升级节。
+- 与 kill switch / profile rollback / bundle rollback 为回滚手。
+
+只有这样，`sdkwork-im` 在进入多集群、多租户和私有化交付阶段后，协议层才不会成为最大的不确定性来源。
+
+## 2026-04-09 增补：多 Cell / Region 升级标准与当前实现边。
+
+### A. 当前实现真相
+
+- 当前仓库已开始具compatibility matrix、governance snapshot、kill switch、rollout selector 等升级判断基线。
+- 当前仍未形成完整的多 cell / 按 region 发布平台、真bundle 交付体系与灾备切换编排产品。
+- 因此前文不能被理解为当前已经具备完整升级/灾备运营能力，文`As-Built` 才是现状证据。
+
+### B. 本文哪些是目标。
+
+- 2-13 节中`expand / shift / contract`、cell/region 发布模型、升级场景、灾备协议要求、回滚模型与门禁，属于标准目标面。
+- 这些章节定义的是终局升级治理方式，不等于当前控制面已经能完整执行所有升级与回滚路径。
+
+### C. 文档口径规则
+
+- 写当前升级治理现状时，以本文 `As-Built`、`148`、`152CJ` 与当control-plane / runtime 证据为准。
+- 写未来多 region 标准时，必须显式标记 `目标态`、`终局治理` `标准目标面`。
+- rollout、bundle、灾备切换仍未形成真实平台，不得写成“已支持完整按 region 升级治理”。
+
+## 2026-04-07 As-Built 1
+
+- `Step 07 / CP07-1` 先补齐了 `149` 依赖的基础判断材料。
+  - registry 已开始提client compatibility matrix
+  - snapshot 已带 `protocolVersion`
+  - schema lifecycle 已具`stage` 元数。
+- 这意味着后续cell / 按 region 升级判断终于有了真实代码中的 baseline，而不再完全依赖文档假设。
+- `149` 的关键能力仍未落地：
+  - cell / region rollout 编排
+  - canary / beta / stable / lts 真实发布通道
+  - rollback bundle 与灾备切换控。
+- 所以本轮只能判定“升级兼容判断底座开始真实化”，不能判定 `149` 设计闭环。
+
+## 2026-04-07 As-Built 2
+
+- `Step 07 / CP07-2` 已把 `149` 里“跨 cell / region 的协议升级与回滚控制”推进到控制baseline。
+  - rollout policy 已包`cell_selector / region_selector`
+  - kill switch 已成为第一优先级回滚手。
+  - effective snapshot 已冻结成 runtime 后续可只读消费的对象
+- 这意味着按 region 的协议发布不再只停留在文档抽象，而是已经具备。
+  - capability rollback primitive
+  - binding rollback primitive
+  - codec rollback primitive
+  - 固定 precedence 的只读发布结。
+- 当前仍未完成。
+  - runtime 尚未`effective snapshot` 真实协商 hello capability
+  - cell / region 级别的真实动态编排与观测仍待 `CP07-3 / CP07-4`
+
+## 2026-04-07 As-Built 3
+
+- `Step 07 / CP07-3` 已把 `149` 中的 rollback primitive 接到runtime 默认 hello 协商边界。
+  - runtime 默认 binding 接受面现在遵`effective snapshot.allowed_bindings`
+  - runtime 默认 capability 协商现在遵从 `effective snapshot.enabled_capabilities`
+  - 因此cell / region 升级阶段与 kill switch 暂停binding capability，已经会在热路径协商里被真实拒绝
+- 这意味着 `149` 中“先冻结升级结果，再由运行时只读消费”的设计开始真正生效。
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后观测门禁与灾备切换闭环
+
+## 2026-04-07 As-Built 4
+
+- `Step 07 / CP07-4` 已把 `149` 中的排空与迁移编排补到最小运维闭环：
+  - `drain_node(...)`、`activate_node(...)`、`migrate_node_routes(...)` 的执行结果会同步进入 ops / audit
+  - route migrate 会同时刷source / target 节点的运维视图，便于后续扩展cell / region 级编。
+  - control-plane 现在已能为升/ 回滚 primitive 提供最小可追溯证据。
+- 这说`149` 的升级编排不再只有：
+  - rollback primitive
+  - runtime 只读消费
+- 还开始具备：
+  - 运维可见
+  - 审计可追。
+  - 路由迁移结果可核。
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后门禁观测
+  - 灾备切换自动化
+
+## 2026-04-08 As-Built 5
+
+- `Wave D / Step 11 / CP11-1` 已把本文中的升级与回滚验证路径冻结为正式 `upgrade-rollback` 场景族。
+- 当前明确承接该场景族的种子资产包括：
+  - `crates/sdkwork-im-ccp-registry/tests/compatibility_matrix_test.rs`
+  - `services/control-plane-api/tests/protocol_registry_test.rs`
+  - `services/control-plane-api/tests/protocol_governance_test.rs`
+- 这意味着cell / 按 region 升级兼容设计现在不仅有：
+  - rollback primitive
+  - governance snapshot
+  - runtime 只读消费边界
+  还开始具备：
+  - Step 11 演练目录
+  - 统一compatibility / rollback timing 指标口径
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后门禁观测
+  - 按 region 灾备切换自动化
+
+## 2026-04-08 As-Built 6
+
+- `Wave D / Step 11 / CP11-4` 已把本文中的升级与回滚设计推进到第一条真Step 11 演练证据。
+- 当前新增的最小可rollback 证据链包括：
+  - canary 风险路径rollback 前仍可协。
+  - rollback `ccp/mqtt/1` runtime hello 拒绝
+  - rollback `payload.cbor` capability negotiated capabilities 剥离
+  - safe binding 路径保持 `compatibleClientCount = 4 / 4`
+  - `postRollbackProtocolErrorRate = 0.0`
+- 这意味着 `149` 中“effective snapshot 先冻结，再由 runtime hello 只读消费”的设计，已经不再只停留Step 07 的静态能力层。
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后门禁观测
+  - 按 region 灾备切换自动化
+
+## 2026-04-08 As-Built 7
+
+- `Wave D / Step 12 / CP12-1` 已把 `149` 中“客户端仅在 capability negotiation 成功后启用新能力、未协商成功必须安全降级”的原则推进CLI realtime consumer path。
+- 当前真实新增的安全降级证据包括：
+  - default snapshot 未协`session.resume` 时，CLI runtime 会直接进`realtime.connected`
+  - future `session.resume` 路径仍保focused regression test，不会因为当前默认关闭而被回归。
+  - `watch / chat-session / wrapper` 已在当前 public app 主链路上 fresh 通过
+- 这意味着 `149` 中的升级兼容设计现在不仅Step 11 rollback drill，还Step 12 的真consumer-side degrade 证据。
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后门禁观测
+  - 按 region 灾备切换自动化
+
+## 2026-04-08 As-Built 8
+
+- `Wave D / Step 12 / CP12-3` 已把 `149` 中升级兼容所需的“声明能力”和“当前允许能力”边界继续推进到 Step 12 operator / SDK 交付面。
+- 当前新增的最小可信证据包括：
+  - raw compatibility matrix 明确声明。
+    - `backend` 可声`ccp/mqtt/1`
+    - `desktop / mobile / backend` 可声`cbor`
+  - governance `effectiveSnapshot` 明确收回。
+    - `ccp/mqtt/1`
+    - `cbor`
+    - `payload.cbor`
+  - `sdkCompatibilityBaseline` 已把当前可核对的 matrix client baseline 固定control-plane API
+- 这意味着 `149` 中的升级兼容设计现在不仅能在 runtime hello rollback drill 中生效，还能被：
+  - SDK facade
+  - operator 文档
+  - control-plane API
+ 共同核对同一upgrade / downgrade 语义
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后门禁观测
+  - 按 region 灾备切换自动化
+
+## 2026-04-08 As-Built 9
+
+- `Wave D / Step 12 / CP12-4` 已把 `149` 中“consumer-side upgrade / downgrade 语义必须可在发布前重复验证”的要求推进到真实脚本资产。
+- 当前新增的最小可信证据包括：
+  - `open-chat-test` scripted validation 会在当前协商基线下重复验证：
+    - `realtime.connected`
+    - `event.window`
+    - 消息已进`timeline`
+  - 这条路径保留了原有人工双窗口验证，因此既能做现场多终端收口，也能做发布前重复验证
+  - 当前 PowerShell 路径已通过仓库E2E，说Step 12 consumer-side degrade / mainline validation 已不依赖人工口头说明
+- 这意味着 `149` 中的升级兼容设计现在不仅能在 runtime hello、rollback drill、control-plane baseline 中成立，也开始拥有发布前 operator 可重复执行的 consumer-side 验证工具。
+- 当前新增证据。
+  - `bin/open-chat-test.ps1`
+  - `bin/open-chat-test.sh`
+  - `docs/部署/CLI聊天验证与兼容矩md`
+  - `tools/chat-cli/tests/chat_cli_contract_test.rs`
+  - `tools/chat-cli/tests/chat_cli_e2e_test.rs`
+- 当前仍未完成。
+  - cell / region 级动作 rolloverut orchestration
+  - 发布后门禁观测
+  - 按 region 灾备切换自动化
+

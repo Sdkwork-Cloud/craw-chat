@@ -1,0 +1,210 @@
+[workspace]
+members = [
+    "adapters/local-disk",
+    "adapters/local-memory",
+    "adapters/postgres-realtime",
+    "adapters/postgres-journal",
+    "adapters/postgres-projection",
+    "adapters/redis-cache",
+    "adapters/social-postgres",
+    "adapters/object-storage-s3",
+    "crates/sdkwork-im-database-host",
+    "crates/sdkwork-im-database-pool",
+    "crates/sdkwork-im-web-bootstrap",
+    "crates/sdkwork-im-iam-application-bootstrap",
+    "crates/sdkwork-im-gateway-assembly",
+    "crates/sdkwork-im-service-readiness",
+    "crates/sdkwork-routes-im-social-open-api",
+    "crates/sdkwork-routes-im-social-backend-api",
+    "crates/sdkwork-routes-im-space-open-api",
+    "crates/sdkwork-routes-im-chat-open-api",
+    "crates/sdkwork-routes-im-realtime-open-api",
+    "crates/sdkwork-routes-im-media-app-api",
+    "crates/sdkwork-routes-im-automation-app-api",
+    "crates/sdkwork-routes-im-notification-app-api",
+    "crates/sdkwork-routes-im-stream-app-api",
+    "crates/sdkwork-routes-im-calls-open-api",
+    "crates/sdkwork-routes-im-audit-backend-api",
+    "crates/sdkwork-routes-im-ops-backend-api",
+    "crates/sdkwork-routes-im-governance-backend-api",
+    "crates/sdkwork-routes-im-projection-open-api",
+    "crates/sdkwork-im-contract-admin",
+    "crates/sdkwork-im-contract-agent",
+    "crates/sdkwork-im-contract-control",
+    "crates/sdkwork-im-contract-core",
+    "crates/sdkwork-im-contract-message",
+    "crates/sdkwork-im-contract-notification",
+    "crates/sdkwork-im-contract-stream",
+    "crates/sdkwork-im-api-registry",
+    "crates/sdkwork-im-cloud-gateway-config",
+    "crates/sdkwork-im-cloud-gateway-observability",
+    "crates/sdkwork-im-openapi",
+    "crates/sdkwork-im-realtime-api-paths",
+    "crates/sdkwork-im-websocket-auth-gate",
+    "crates/sdkwork-im-rpc-service-rust",
+    "crates/im-storage-contracts",
+    "crates/im-storage-runtime",
+    "crates/sdkwork-im-runtime-link",
+    "crates/sdkwork-im-runtime-route",
+    "crates/sdkwork-im-runtime-id",
+    "crates/sdkwork-api-config",
+    "crates/sdkwork-api-product-runtime",
+    "crates/im-app-context",
+    "crates/sdkwork-im-ccp-binding-http",
+    "crates/sdkwork-im-ccp-binding-mqtt",
+    "crates/sdkwork-im-ccp-binding-sse",
+    "crates/sdkwork-im-ccp-binding-tcp",
+    "crates/sdkwork-im-ccp-binding-udp",
+    "crates/sdkwork-im-ccp-binding-quic",
+    "crates/sdkwork-im-ccp-binding-ws",
+    "crates/sdkwork-im-ccp-codec",
+    "crates/sdkwork-im-ccp-codec-cbor",
+    "crates/sdkwork-im-ccp-codec-json",
+    "crates/sdkwork-im-ccp-control",
+    "crates/sdkwork-im-ccp-core",
+    "crates/sdkwork-im-ccp-registry",
+    "crates/im-domain-core",
+    "crates/im-domain-events",
+    "crates/im-platform-contracts",
+    "crates/im-postgres-realtime-contracts",
+    "crates/im-time",
+    "services/automation-service",
+    "services/automation-service-bin",
+    "services/audit-service",
+    "services/audit-service-bin",
+    "services/notification-service",
+    "services/notification-service-bin",
+    "services/ops-service",
+    "services/ops-service-bin",
+    "services/governance-service",
+    "services/governance-service-bin",
+    "services/sdkwork-comms-conversation-service",
+    "services/sdkwork-comms-conversation-service-bin",
+    "services/contact-service",
+    "services/interaction-service",
+    "services/media-service",
+    "services/media-service-bin",
+    "services/projection-service",
+    "services/projection-service-bin",
+    "services/session-gateway",
+    "services/session-gateway-bin",
+    "services/session-gateway-rpc-bin",
+    "services/sdkwork-comms-conversation-rpc-bin",
+    "services/sdkwork-comms-conversation-internal-rpc-bin",
+    "services/social-service",
+    "services/comms-social-service-bin",
+    "services/space-service",
+    "services/space-service-bin",
+    "services/streaming-service",
+    "services/streaming-service-bin",
+    "services/sdkwork-im-cloud-gateway",
+    "services/sdkwork-im-standalone-gateway",
+    "services/im-calls-service",
+    "adapters/push-providers/push-apns",
+    "adapters/push-providers/push-fcm",
+    "tools/chat-cli",
+]
+exclude = [
+    "sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust",
+    "vendor/ciborium-0.2.2",
+    "vendor/ciborium-io-0.2.2",
+    "vendor/ciborium-ll-0.2.2",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-or-later"
+version = "0.1.0"
+
+[workspace.dependencies]
+axum = { version = "0.8.8", features = ["ws"] }
+futures-util = { version = "0.3.32", features = ["sink"] }
+http-body-util = "0.1.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "time"] }
+tower = { version = "0.5.3", features = ["util"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Internal SDKWork workspace members - declared once at workspace root
+im-adapters-local-disk = { path = "adapters/local-disk" }
+im-adapters-postgres-journal = { path = "adapters/postgres-journal" }
+im-adapters-postgres-projection = { path = "adapters/postgres-projection" }
+im-storage-contracts = { path = "crates/im-storage-contracts" }
+im-storage-runtime = { path = "crates/im-storage-runtime" }
+sdkwork-api-config = { path = "crates/sdkwork-api-config" }
+# Cross-repository SDKWork dependencies.
+# IM consumes the canonical reusable Rust crates published under
+# `sdkwork-appbase/crates/`. The workspace keys below keep IM's short
+# import names (`sdkwork_id`, `sdkwork_http_context`) while binding them
+# to the real crate paths. See DATABASE_SPEC §6.10 (snowflake ID) and
+# IAM_SPEC §2 (layered package boundary) for the contract these crates
+# implement.
+sdkwork_id = { path = "../sdkwork-appbase/crates/sdkwork-platform-id-service", package = "sdkwork-platform-id-service" }
+sdkwork_web_core = { path = "../sdkwork-web-framework/crates/sdkwork-web-core", package = "sdkwork-web-core" }
+sdkwork_web_axum = { path = "../sdkwork-web-framework/crates/sdkwork-web-axum", package = "sdkwork-web-axum" }
+sdkwork_web_bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap", package = "sdkwork-web-bootstrap" }
+sdkwork_web_store_sqlx = { path = "../sdkwork-web-framework/crates/sdkwork-web-store-sqlx", package = "sdkwork-web-store-sqlx" }
+sdkwork_web_contract = { path = "../sdkwork-web-framework/crates/sdkwork-web-contract", package = "sdkwork-web-contract" }
+# DATABASE_SPEC §33: unified database config (env, pool, table prefix).
+sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
+sdkwork_database_lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }
+sdkwork_database_spi = { path = "../sdkwork-database/crates/sdkwork-database-spi", package = "sdkwork-database-spi" }
+sdkwork_database_sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx", package = "sdkwork-database-sqlx" }
+sdkwork_im_database_host = { path = "crates/sdkwork-im-database-host", package = "sdkwork-im-database-host" }
+sdkwork_im_database_pool = { path = "crates/sdkwork-im-database-pool", package = "sdkwork-im-database-pool" }
+sdkwork_im_web_bootstrap = { path = "crates/sdkwork-im-web-bootstrap", package = "sdkwork-im-web-bootstrap" }
+sdkwork_im_service_readiness = { path = "crates/sdkwork-im-service-readiness", package = "sdkwork-im-service-readiness" }
+sdkwork_im_realtime_api_paths = { path = "crates/sdkwork-im-realtime-api-paths", package = "sdkwork-im-realtime-api-paths" }
+sdkwork_im_websocket_auth_gate = { path = "crates/sdkwork-im-websocket-auth-gate", package = "sdkwork-im-websocket-auth-gate" }
+sdkwork_utils_rust = { path = "../sdkwork-utils/packages/sdkwork-utils-rust", package = "sdkwork-utils-rust" }
+# sdkwork-discovery is deferred until hosted gRPC RPC service processes ship (ADR-20260619).
+sdkwork_iam_web_adapter = { path = "../sdkwork-iam/crates/sdkwork-iam-web-adapter", package = "sdkwork-iam-web-adapter" }
+sdkwork_iam_bootstrap = { path = "../sdkwork-iam/crates/sdkwork-iam-bootstrap", package = "sdkwork-iam-bootstrap" }
+sdkwork_iam_database_host = { path = "../sdkwork-iam/crates/sdkwork-iam-database-host", package = "sdkwork-iam-database-host" }
+sdkwork_im_iam_application_bootstrap = { path = "crates/sdkwork-im-iam-application-bootstrap", package = "sdkwork-im-iam-application-bootstrap" }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "tls-rustls"] }
+# IM consumes RTC media/provider runtime from the canonical `sdkwork-rtc`
+# authority workspace. Signaling remains IM-owned; RTC must not depend back on IM.
+sdkwork-communication-rtc-service = { path = "../sdkwork-rtc/crates/sdkwork-communication-rtc-service" }
+sdkwork-rtc-app-context = { path = "../sdkwork-rtc/crates/sdkwork-rtc-app-context" }
+sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc/plugins/rtc-agora" }
+sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc/plugins/rtc-aliyun" }
+sdkwork-rtc-adapter-livekit = { path = "../sdkwork-rtc/plugins/rtc-livekit" }
+sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc/plugins/rtc-tencent" }
+sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc/plugins/rtc-volcengine" }
+# Internal IM workspace members
+conversation-runtime = { path = "services/sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
+calls-service = { path = "services/im-calls-service" }
+sdkwork-routes-im-calls-open-api = { path = "crates/sdkwork-routes-im-calls-open-api" }
+im-domain-core = { path = "crates/im-domain-core" }
+im-domain-events = { path = "crates/im-domain-events" }
+im-time = { path = "crates/im-time" }
+sdkwork-im-contract-admin = { path = "crates/sdkwork-im-contract-admin" }
+sdkwork-im-contract-agent = { path = "crates/sdkwork-im-contract-agent" }
+sdkwork-im-contract-control = { path = "crates/sdkwork-im-contract-control" }
+sdkwork-im-contract-core = { path = "crates/sdkwork-im-contract-core" }
+sdkwork-im-contract-message = { path = "crates/sdkwork-im-contract-message" }
+sdkwork-im-contract-notification = { path = "crates/sdkwork-im-contract-notification" }
+sdkwork-im-contract-stream = { path = "crates/sdkwork-im-contract-stream" }
+sdkwork-im-ccp-binding-http = { path = "crates/sdkwork-im-ccp-binding-http" }
+sdkwork-im-ccp-binding-mqtt = { path = "crates/sdkwork-im-ccp-binding-mqtt" }
+sdkwork-im-ccp-binding-sse = { path = "crates/sdkwork-im-ccp-binding-sse" }
+sdkwork-im-ccp-binding-tcp = { path = "crates/sdkwork-im-ccp-binding-tcp" }
+sdkwork-im-ccp-binding-udp = { path = "crates/sdkwork-im-ccp-binding-udp" }
+sdkwork-im-ccp-binding-quic = { path = "crates/sdkwork-im-ccp-binding-quic" }
+sdkwork-im-ccp-binding-ws = { path = "crates/sdkwork-im-ccp-binding-ws" }
+sdkwork-im-ccp-codec = { path = "crates/sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-codec-cbor = { path = "crates/sdkwork-im-ccp-codec-cbor" }
+sdkwork-im-ccp-codec-json = { path = "crates/sdkwork-im-ccp-codec-json" }
+sdkwork-im-ccp-control = { path = "crates/sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "crates/sdkwork-im-ccp-core" }
+sdkwork-im-ccp-registry = { path = "crates/sdkwork-im-ccp-registry" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3

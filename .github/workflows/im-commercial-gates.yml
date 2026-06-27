@@ -1,0 +1,538 @@
+name: IM Commercial Gates
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - '.github/workflows/im-commercial-gates.yml'
+      - '.github/workflows/package.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'config/shared-sdk-release-sources.json'
+      - 'package.json'
+      - 'sdkwork.workflow.json'
+      - 'README.md'
+      - 'adapters/**'
+      - 'apps/sdkwork-im-pc/**'
+      - 'crates/**'
+      - 'deployments/**'
+      - 'docs/**'
+      - 'scripts/build-sdkwork-im-desktop-assets.mjs'
+      - 'scripts/commercial-gates-governance-node-test-catalog.mjs'
+      - 'scripts/commercial-gates-governance-node-test-catalog.test.mjs'
+      - 'scripts/im-commercial-gates-contracts.mjs'
+      - 'scripts/im-commercial-gates-step-contract-catalog.mjs'
+      - 'scripts/im-commercial-gates-step-contract-catalog.test.mjs'
+      - 'scripts/im-commercial-gates-watch-catalog.mjs'
+      - 'scripts/im-commercial-gates-watch-catalog.test.mjs'
+      - 'scripts/im-commercial-gates-workflow.test.mjs'
+      - 'scripts/prepare-ci-dependencies.mjs'
+      - 'scripts/run-commercial-gates-governance-node-tests.mjs'
+      - 'scripts/run-commercial-gates-governance-node-tests.test.mjs'
+      - 'scripts/strict-contract-catalog.mjs'
+      - 'scripts/strict-contract-catalog.test.mjs'
+      - 'scripts/dev/**'
+      - 'scripts/release/**'
+      - 'services/**'
+      - 'sdks/**'
+      - 'vendor/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+concurrency:
+  group: im-commercial-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-runtime-tests:
+    name: Core Runtime Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sdkwork_im_test
+          POSTGRES_USER: sdkwork_im_test
+          POSTGRES_PASSWORD: sdkwork_im_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
+      - name: Run commercial gates governance node tests
+        run: node scripts/run-commercial-gates-governance-node-tests.mjs
+
+      - name: Run SDKWork standards verification
+        run: pnpm verify
+
+      - name: Install PC workspace for commercial readiness
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install Playwright Chromium for PC shell e2e
+        working-directory: apps/sdkwork-im-pc
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run commercial readiness gate
+        run: pnpm check:commercial-readiness
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Test sdkwork-im-cloud-gateway integration suite
+        run: cargo test -p sdkwork-im-cloud-gateway --tests
+      - name: Test sdkwork-im-openapi crate
+        run: cargo test -p sdkwork-im-openapi --tests
+      - name: Test sdkwork-comms-conversation-service
+        run: cargo test -p sdkwork-comms-conversation-service --tests
+
+      - name: Test sdkwork-comms-conversation-service duplicate direct-chat binding
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+
+      - name: Test sdkwork-comms-conversation-service duplicate direct-chat binding over HTTP
+        run: cargo test -p sdkwork-comms-conversation-service --test http_smoke_test test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact
+
+      - name: Test sdkwork-comms-conversation-service oversized creator attributes
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_create_conversation_rejects_oversized_creator_attributes -- --exact
+
+      - name: Test sdkwork-comms-conversation-service oversized member attributes over HTTP
+        run: cargo test -p sdkwork-comms-conversation-service --test http_smoke_test test_add_member_rejects_oversized_attributes_over_http -- --exact
+
+      - name: Test sdkwork-comms-conversation-service oversized sender metadata
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_post_message_rejects_oversized_sender_metadata -- --exact
+
+      - name: Test sdkwork-comms-conversation-service oversized render hints
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_post_message_rejects_oversized_render_hints -- --exact
+
+      - name: Test governance-service
+        run: cargo test -p governance-service --tests
+
+      - name: Test provider policy diff version range contract
+        run: cargo test -p im-platform-contracts --test provider_registry_contract_test test_runtime_provider_registry_rejects_reversed_policy_diff_version_range -- --exact
+
+      - name: Test control-plane provider policy diff version range over HTTP
+        run: cargo test -p governance-service --test provider_registry_test test_control_plane_rejects_provider_policy_diff_with_reversed_version_range -- --exact
+
+      - name: Test provider tenant override rejects empty tenant id
+        run: cargo test -p im-platform-contracts --test provider_registry_contract_test test_runtime_provider_registry_rejects_empty_tenant_override_id -- --exact
+
+      - name: Test control-plane provider bindings rejects empty tenant query
+        run: cargo test -p governance-service --test governance_loop_test test_control_plane_rejects_empty_tenant_provider_bindings_query_without_polluting_ops_runtime -- --exact
+
+      - name: Test control-plane provider policy write rejects empty tenant id
+        run: cargo test -p governance-service --test governance_loop_test test_control_plane_rejects_empty_tenant_provider_policy_write_without_mutating_ops_or_audit -- --exact
+
+      - name: Test provider tenant override rejects oversized tenant id
+        run: cargo test -p im-platform-contracts --test provider_registry_contract_test test_runtime_provider_registry_rejects_oversized_tenant_override_id -- --exact
+
+      - name: Test control-plane provider bindings rejects oversized tenant query
+        run: cargo test -p governance-service --test governance_loop_test test_control_plane_rejects_oversized_tenant_provider_bindings_query_without_polluting_ops_runtime -- --exact
+
+      - name: Test control-plane provider policy write rejects oversized tenant id
+        run: cargo test -p governance-service --test governance_loop_test test_control_plane_rejects_oversized_tenant_provider_policy_write_without_mutating_ops_or_audit -- --exact
+
+      - name: Test session-gateway
+        run: cargo test -p session-gateway --tests
+
+      - name: Test space-service
+        run: cargo test -p space-service --tests
+
+      - name: Test session-gateway device registration actor-kind conflict
+        run: cargo test -p session-gateway --test http_smoke_test test_presence_heartbeat_rejects_same_route_id_with_different_actor_kind_over_http -- --exact
+
+      - name: Test session-gateway device registration principal conflict
+        run: cargo test -p session-gateway --test http_smoke_test test_presence_heartbeat_rejects_same_route_id_with_different_principal_over_http -- --exact
+
+      - name: Test session-gateway oversized realtime event types payload
+        run: cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_oversized_event_types_payload_over_http -- --exact
+
+      - name: Test session-gateway excessive realtime subscription item count
+        run: cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_too_many_items_over_http -- --exact
+
+      - name: Test session-gateway websocket oversized request id
+        run: cargo test -p session-gateway --test websocket_smoke_test test_realtime_websocket_rejects_oversized_request_id -- --exact
+
+      - name: Test session-gateway websocket oversized frame type
+        run: cargo test -p session-gateway --test websocket_smoke_test test_realtime_websocket_rejects_oversized_frame_type -- --exact
+
+      - name: Test PostgreSQL realtime SQL contracts
+        run: cargo test -p im-postgres-realtime-contracts --test postgres_realtime_contracts_test
+
+      - name: Test PostgreSQL realtime checkpoint adapter
+        run: cargo test -p im-adapters-postgres-realtime --test postgres_realtime_checkpoint_store_test
+
+      - name: Test PostgreSQL realtime live integration gate
+        env:
+          SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
+        run: cargo test -p im-adapters-postgres-realtime --test postgres_realtime_live_integration_test -- --nocapture
+
+      - name: Test session-gateway PostgreSQL realtime runtime live integration gate
+        env:
+          SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
+        run: cargo test -p session-gateway --test postgres_realtime_live_runtime_test -- --nocapture
+
+      - name: Test session-gateway PostgreSQL realtime websocket live drill gate
+        env:
+          SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
+        run: cargo test -p session-gateway --test postgres_realtime_websocket_live_drill_test -- --nocapture
+
+
+      - name: Strict clippy PostgreSQL realtime storage scope
+        run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime --tests -- -D warnings
+
+      - name: Strict clippy PostgreSQL realtime session-gateway runtime scope
+        run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p session-gateway --tests -- -D warnings
+
+
+      - name: Test Sdkwork IM PC auth appbase UI contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/auth-appbase-ui-contract.test.mjs
+
+      - name: Test Sdkwork IM PC domain app SDK auth runtime contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/domain-app-sdk-auth-runtime-contract.test.mjs
+
+      - name: Test Sdkwork IM PC notary app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/notary-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC drive app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/drive-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC knowledgebase app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/knowledgebase-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC commerce app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/commerce-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC mail app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/mail-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC community app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/community-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC course app SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/course-app-sdk-integration-contract.test.mjs
+
+      - name: Test Sdkwork IM PC AIoT devices SDK integration contract
+        working-directory: apps/sdkwork-im-pc
+        run: node scripts/sdkwork-chat-pc-aiot-devices-contract.test.mjs
+
+      - name: Verify public docs auth safety
+        working-directory: docs/sites
+        run: node ./scripts/docs-verify.mjs
+
+      - name: Test projection-service
+        run: cargo test -p projection-service --tests
+
+      - name: Test projection timeline actor-kind isolation
+        run: cargo test -p projection-service --test http_smoke_test test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact
+
+      - name: Test projection contacts actor-kind isolation
+        run: cargo test -p projection-service --test http_smoke_test test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact
+
+      - name: Test projection retention legal-hold reconcile
+        run: cargo test -p projection-service --test timeline_projection_test retention
+
+      - name: Test ops retention purge and metrics contract
+        run: cargo test -p ops-service --test http_smoke_test retention
+
+      - name: Test shared-channel stale reclaim scheduler contract
+        run: cargo test -p social-service shared_channel_sync
+
+      - name: Test shared-channel sync Prometheus metrics contract
+        run: |
+          cargo test -p social-service --lib test_render_prometheus_includes_core_counters -- --exact
+          cargo test -p social-service --test http_smoke_test
+
+      - name: Test IM service process identity bootstrap
+        run: cargo test -p sdkwork-im-service-readiness ensure_im_service_process_identity -- --exact
+
+      - name: Test governance retention vocabulary contract
+        run: cargo test -p sdkwork-im-ccp-registry governance_snapshot -- --exact
+
+      - name: Test IM retention domain and adapter contracts
+        run: |
+          cargo test -p im-domain-core retention
+          cargo test -p im-adapters-postgres-journal retention
+
+      - name: Test Rust workspace
+        run: cargo test --workspace --offline
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      - name: Strict clippy core runtime scope
+        run: cargo clippy -p sdkwork-comms-conversation-service -p governance-service --tests -- -D warnings
+
+
+  downstream-exactly-once-tests:
+    name: Downstream Exactly Once
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Test media-service
+        run: cargo test -p media-service --tests
+
+      - name: Test streaming-service
+        run: cargo test -p streaming-service --tests
+
+      - name: Test audit-service
+        run: cargo test -p audit-service --tests
+
+
+
+
+
+
+
+      - name: Test stream duplicate open
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+
+      - name: Test stream duplicate open actor scope conflict
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_with_different_actor_is_conflict -- --exact
+
+      - name: Test stream oversized durability class
+        run: cargo test -p streaming-service --test http_smoke_test test_open_stream_rejects_oversized_durability_class_over_http -- --exact
+
+      - name: Test stream oversized list stream id
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_stream_list_rejects_oversized_stream_id_over_http -- --exact
+
+      - name: Test stream request-scope append owner access
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_request_scoped_stream_append_rejects_different_actor_over_http -- --exact
+
+
+
+
+
+      - name: Test stream duplicate complete
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+
+      - name: Test stream duplicate complete actor scope conflict
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_complete_stream_request_with_different_actor_is_not_found -- --exact
+
+      - name: Test stream oversized complete result message id
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_stream_complete_rejects_oversized_result_message_id_over_http -- --exact
+
+
+      - name: Test stream duplicate abort
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+
+      - name: Test stream duplicate abort actor scope conflict
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_abort_stream_request_with_different_actor_is_not_found -- --exact
+
+      - name: Test stream oversized abort reason
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_stream_abort_rejects_oversized_reason_over_http -- --exact
+
+
+      - name: Test stream checkpoint replay
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_replays_after_stream_completes -- --exact
+
+      - name: Test stream checkpoint actor scope conflict
+        run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_with_different_actor_is_not_found -- --exact
+
+
+      - name: Test audit duplicate anchor
+        run: cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+
+      - name: Test audit duplicate anchor after session rotation
+        run: cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_replays_after_session_rotation -- --exact
+
+
+
+
+  windows-commercial-smoke:
+    name: Windows Commercial Smoke
+    runs-on: windows-latest
+    timeout-minutes: 75
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/sdkwork-cargo-target
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Test notification-service
+        run: cargo test -p notification-service --tests
+
+      - name: Test notification duplicate request idempotency
+        run: cargo test -p notification-service --test http_smoke_test test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact
+
+      - name: Test notification actor-kind inbox isolation
+        run: cargo test -p notification-service --test http_smoke_test test_notification_queries_reject_same_actor_id_with_different_actor_kind_over_http -- --exact
+
+      - name: Test automation-service
+        run: cargo test -p automation-service --tests
+
+      - name: Test automation duplicate execution idempotency
+        run: cargo test -p automation-service --test http_smoke_test test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact
+
+
+
+
+
+
+
+
+
+
+
+
+
+  performance-smoke:
+    name: Performance Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Run session gateway performance baselines
+        run: |
+          cargo test -p session-gateway --test performance_realtime_core_baseline_test -- --nocapture
+          cargo test -p session-gateway --test performance_websocket_e2e_baseline_test -- --nocapture
+          cargo test -p session-gateway --test performance_ha_dr_drill_test -- --nocapture
+  supply-chain-security:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
+      - name: Install workspace for JS audit
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Pnpm audit
+        run: pnpm audit --audit-level high
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust Artifacts
+        uses: swatinem/rust-cache@v2
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Cargo audit
+        run: cargo audit --deny warnings

@@ -1,0 +1,10 @@
+{
+  "name": "@sdkwork/im-pc-commons",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "dompurify": "^3.2.0"
+  }
+}

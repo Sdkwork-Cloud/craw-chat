@@ -1,0 +1,133 @@
+{
+  "workspace": "sdkwork-im-sdk",
+  "title": "SDKWork IM SDK",
+  "apiVersion": "0.1.0",
+  "openapiVersion": "3.1.0",
+  "authoritySpec": "../../apis/open-api/im/sdkwork-im-im.openapi.yaml",
+  "generationInputSpec": "openapi/sdkwork-im-im.sdkgen.yaml",
+  "derivedSpecs": {
+    "default": "openapi/sdkwork-im-im.sdkgen.yaml",
+    "flutter": "openapi/sdkwork-im-im.flutter.sdkgen.yaml"
+  },
+  "discoverySurface": {
+    "sdkTarget": "im",
+    "apiPrefix": "/im/v3/api",
+    "schemaUrl": "/im/v3/openapi.json",
+    "generatedProtocols": [
+      "http"
+    ],
+    "manualTransports": [
+      "websocket"
+    ]
+  },
+  "sdkDependencies": [],
+  "languages": [
+    {
+      "language": "typescript",
+      "workspace": "sdkwork-im-sdk-typescript",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-typescript/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-typescript/generated/server-openapi/package.json",
+      "name": "@sdkwork/im-sdk-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned TypeScript transport SDK for the Sdkwork IM IM standardized development API.",
+      "consumerSurface": {
+        "primaryClient": "SdkworkImClient",
+        "apiPrefix": "/im/v3/api",
+        "publicPackage": "@sdkwork/im-sdk",
+        "composedPath": "sdkwork-im-sdk-typescript/src"
+      }
+    },
+    {
+      "language": "flutter",
+      "workspace": "sdkwork-im-sdk-flutter",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-flutter/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-flutter/generated/server-openapi/pubspec.yaml",
+      "name": "im_sdk_generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Flutter transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "rust",
+      "workspace": "sdkwork-im-sdk-rust",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-rust/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-rust/generated/server-openapi/Cargo.toml",
+      "name": "im-sdk-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Rust transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "java",
+      "workspace": "sdkwork-im-sdk-java",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-java/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-java/generated/server-openapi/pom.xml",
+      "name": "com.sdkwork:im-sdk-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Java transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "csharp",
+      "workspace": "sdkwork-im-sdk-csharp",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-csharp/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-csharp/generated/server-openapi/Sdkwork.Im.Sdk.Generated.csproj",
+      "name": "Sdkwork.Im.Sdk.Generated",
+      "version": "0.1.0",
+      "description": "Generator-owned C# transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "swift",
+      "workspace": "sdkwork-im-sdk-swift",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-swift/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-swift/generated/server-openapi/Package.swift",
+      "name": "ImSdkGenerated",
+      "version": "0.1.0",
+      "description": "Generator-owned Swift transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "kotlin",
+      "workspace": "sdkwork-im-sdk-kotlin",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-kotlin/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-kotlin/generated/server-openapi/build.gradle.kts",
+      "name": "com.sdkwork:im-sdk-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Kotlin transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "go",
+      "workspace": "sdkwork-im-sdk-go",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-go/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-go/generated/server-openapi/go.mod",
+      "name": "github.com/sdkwork/im-sdk-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Go transport SDK for the Sdkwork IM IM standardized development API."
+    },
+    {
+      "language": "python",
+      "workspace": "sdkwork-im-sdk-python",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "generatedPath": "sdkwork-im-sdk-python/generated/server-openapi",
+      "manifestPath": "sdkwork-im-sdk-python/generated/server-openapi/pyproject.toml",
+      "name": "sdkwork-im-sdk-generated",
+      "version": "0.1.0",
+      "description": "Generator-owned Python transport SDK for the Sdkwork IM IM standardized development API."
+    }
+  ],
+  "sdkOwner": "sdkwork-im",
+  "apiAuthority": "sdkwork-im.im"
+}

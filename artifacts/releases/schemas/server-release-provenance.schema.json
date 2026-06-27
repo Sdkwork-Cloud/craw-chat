@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifacts/releases/schemas/server-release-provenance.schema.json",
+  "title": "sdkwork-im server release provenance manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "version",
+    "bundleId",
+    "wave",
+    "artifact",
+    "state",
+    "updatedAt",
+    "canonicalBuildCommand",
+    "contractPaths",
+    "payloadSourcePaths",
+    "platformArtifactRoots"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/server-release-provenance.schema.json"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "bundleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wave": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact": {
+      "const": "server-release-provenance"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "template_only_pending_capture",
+        "captured_ready_for_audit",
+        "released"
+      ]
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date"
+    },
+    "canonicalBuildCommand": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contractPaths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "payloadSourcePaths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "platformArtifactRoots": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "platform",
+          "artifactRoot",
+          "acceptanceManifestPath"
+        ],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "linux",
+              "macos",
+              "windows"
+            ]
+          },
+          "artifactRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "acceptanceManifestPath": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

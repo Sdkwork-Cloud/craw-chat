@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package sdkwork.communication.app.v3;
+
+import "sdkwork/common/v1/context.proto";
+import "sdkwork/communication/app/v3/conversation_service.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.app.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3;communicationappv3";
+
+service RoomService {
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc RetrieveRoom(RetrieveRoomRequest) returns (RetrieveRoomResponse);
+  rpc EnterRoom(EnterRoomRequest) returns (EnterRoomResponse);
+  rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+}
+
+message RoomView {
+  string room_id = 1;
+  string room_kind = 2;
+  string conversation_id = 3;
+  int32 active_member_count = 4;
+  int32 max_members = 5;
+}
+
+message CreateRoomRequest {
+  string conversation_id = 1;
+  string room_id = 2;
+  string room_kind = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateRoomResponse {
+  ConversationView conversation = 1;
+  RoomView room = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveRoomRequest {
+  string room_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveRoomResponse {
+  RoomView room = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message EnterRoomRequest {
+  string room_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message EnterRoomResponse {
+  ConversationMemberView member = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message LeaveRoomRequest {
+  string room_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message LeaveRoomResponse {
+  ConversationMemberView member = 1;
+  string status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

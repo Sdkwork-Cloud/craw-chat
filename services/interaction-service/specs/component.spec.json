@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component",
+  "name": "interaction-service",
+  "domain": "communication",
+  "capability": "chat",
+  "status": "deprecated",
+  "description": "Deprecated scaffold. Reactions, pins, threads, and settings use /im/v3/api/chat/* per sdkwork-im-im.openapi.yaml.",
+  "dependencies": [
+    "im-app-context"
+  ]
+}

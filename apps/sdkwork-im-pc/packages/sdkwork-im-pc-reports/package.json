@@ -1,0 +1,7 @@
+{
+  "name": "@sdkwork/im-pc-reports",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {}
+}

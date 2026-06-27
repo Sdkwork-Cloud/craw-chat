@@ -1,0 +1,11 @@
+{
+  "name": "@sdkwork/im-pc-shell",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./moduleRegistry": "./src/moduleRegistry.ts"
+  },
+  "dependencies": {}
+}

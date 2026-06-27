@@ -1,0 +1,596 @@
+> Migrated from `docs/架构/133-代码结构治理与crate拆分标准-2026-04-06.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 代码结构治理与 crate 拆分标准
+
+## 1. 文档目标
+
+本文档用于将 `sdkwork-im` 的代码组织规则从“建议”升级为“硬约束”，防止系统再次演变为少数几个几千行文件和边界混乱的服务模块：
+
+## 2. 治理目标
+
+目标包括：
+
+- 防止超大 `lib.rs`
+- 防止接口层、领域层、存储层混写
+- 控制单文件复杂度
+- 提高可维护性
+- 提高可测试性
+- 提高并行开发与代码 review 效率
+
+## 3. 硬性红线
+
+### 3.1 `lib.rs` 规则
+
+`lib.rs` 只允许承担：
+
+- `mod` 声明
+- `pub use` 导出
+- 极少量 facade / builder
+- crate 级文档
+
+`lib.rs` 禁止承担：
+
+- 大量业务实现
+- 大量路由实现
+- 大量状态机逻辑
+- 大量存储逻辑
+
+### 3.2 文件长度规则
+
+- 单文件绝对上限：`1000` 
+- 推荐目标：`200-500` 
+- `700` 行开始视为预留
+
+### 3.3 函数长度规则
+
+- 普通函数建议不超过 `80-120` 
+- 超长状态机：builder 必须拆分
+
+### 3.4 边界规则
+
+- `domain-*` 不允许依赖 `axum`
+- `domain-*` 不允许依赖具体数据库实现
+- `interface-*` 不允许直接依赖具体存储驱动
+- `services/*` 不允许承载复杂业务实现
+- `runtime-*` 只做运行时编排，不定义领域语义
+
+## 4. 标准目录模板
+
+### 4.1 领域 crate
+
+建议模板
+
+```text
+src/
+├─ lib.rs
+├─ aggregate/
+├─ command/
+├─ event/
+├─ policy/
+├─ value_object/
+├─ ids.rs
+└─ error.rs
+```
+
+### 4.2 应用 crate
+
+建议模板
+
+```text
+src/
+├─ lib.rs
+├─ service/
+├─ handler/
+├─ dto/
+├─ port/
+└─ error.rs
+```
+
+### 4.3 接口 crate
+
+建议模板
+
+```text
+src/
+├─ lib.rs
+├─ router.rs
+├─ state.rs
+├─ middleware/
+├─ conversation/
+├─ stream/
+├─ rtc/
+└─ response/
+```
+
+### 4.4 运行crate
+
+建议模板
+
+```text
+src/
+├─ lib.rs
+├─ acceptor/
+├─ shard/
+├─ session/
+├─ queue/
+├─ metrics/
+└─ recovery/
+```
+
+## 5. crate 分层规则
+
+### 5.1 基础
+
+- `kernel`
+- `config`
+- `observability`
+- `auth`
+- `policy`
+
+### 5.2 协议基础设施与契约层
+
+- `contract-*`
+- `ccp-*`
+
+职责：
+
+- `ccp-*` 负责 transport binding / codec / registry 基础设施
+- `contract-*` 负责对外协议、稳定边界、DTO 与业务 schema
+
+### 5.3 领域
+
+- `domain-*`
+
+职责：
+
+- 领域对象
+- 状态机
+- 规则
+- 领域事件
+
+### 5.4 应用途
+
+- `app-*`
+
+职责：
+
+- 用例
+- command / query
+- 权限编排
+- 事务编排
+
+### 5.5 接口
+
+- `interface-*`
+
+职责：
+
+- HTTP / WS / SSE / MQTT / CLI / Webhook
+- 只做接入与转换，不重建 `CCP` 协议逻辑
+
+### 5.6 存储与适配
+
+- `storage-*`
+- `adapter-*`
+
+职责：
+
+- 端口实现
+- 具体基础设施接入
+
+### 5.7 运行时层
+
+- `runtime-*`
+
+职责：
+
+- 连接
+- 路由
+- 投影
+- 恢复
+- 后台任务
+
+### 5.8 服务
+
+- `services/*`
+
+职责：
+
+- 启动
+- 装配
+- profile 组合
+- 外部运行入口
+
+## 6. 命名规则
+
+### 6.1 文件命名
+
+优先使用语义文件名：
+
+- `message_log.rs`
+- `route_store.rs`
+- `stream_checkpoint.rs`
+- `conversation_policy.rs`
+- `sender_codec.rs`
+- `hello_negotiator.rs`
+- `capability_registry.rs`
+- `ws_close_contract.rs`
+
+避免泛化文件名：
+
+- `utils.rs`
+- `common.rs`
+- `helper.rs`
+- `manager.rs`
+
+除非其职责非常明确
+
+### 6.2 模块命名
+
+- 模块名短、小写、语义清晰
+- 不使用难以理解的缩写
+
+## 7. 代码风格
+
+建议统一遵守：
+
+- 数据对象、领域对象、存储记录分开
+- 错误类型统一出口
+- `pub use` 只暴露稳定边界
+- 少用巨型 `mod.rs`
+- 对复杂模块增加职责说明注释
+- 先写类型边界，再写实现
+
+## 8. CI 与自动化检查
+
+必须加入：
+
+- `cargo fmt --check`
+- `cargo clippy --all-targets --all-features -D warnings`
+- `cargo test --workspace`
+- 自定义 `file-length-check`
+- 轻量 `module-boundary-check`
+- `schema-registry-check`
+- `ccp-binding-boundary-check`
+
+### 8.1 `file-length-check`
+
+规则
+
+- 超过 `1000` 行直接失败
+- 超过 `700` 行警告
+
+### 8.2 `module-boundary-check`
+
+第一阶段建议检查：
+
+- `domain-*` 禁止依赖 `axum`
+- `domain-*` 禁止依赖 `storage-postgres` / `cache-redis`
+- `interface-*` 禁止自行定义 envelope 类型或重复实现 `hello/auth/resume` 状态机
+- `services/*` 禁止直接依赖 `ccp-codec-json/cbor` 以外的协议细节实现文档
+- `interface-*` 禁止直接依赖具体 DB 驱动
+- `services/*/src/lib.rs` 禁止超长
+
+## 9. 当前工程整改重点
+
+当前高风险对象包括：
+
+- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `services/conversation-runtime/src/lib.rs`
+- `services/session-gateway/src/lib.rs`
+
+后续重构中，这些模块应拆分为：
+
+- `router.rs`
+- `state.rs`
+- `error.rs`
+- `runtime/`
+- `service/`
+- `recovery/`
+- `projection/`
+- `websocket/`
+
+## 10. 实施要求
+
+从本文档生效后：
+
+- 新增代码必须遵守本标准
+- 旧代码重构必须向本标准收敛
+- 不得再新增新的超大文档
+- 文档与代码评审应将本标准作为检查依赖
+
+## 11. 结论
+
+只有把代码结构治理升级为编译期与 CI 可执行规则，`sdkwork-im` 的架构分层才不会在实现过程中再次坍塌
+## 2026-04-09 增补：代码结构标准与当前实现边界
+
+### A. 当前实现真相
+
+- 当前 workspace 已具备多 crate / service 基础骨架，但并不等于本文所有目标拆分、命名收敛和目录治理都已全部完成度
+- 本文文末 `As-Built 回写` 才是当前结构治理的真实证据
+
+### B. 本文哪些是目标：
+
+- 第 2-11 节中的治理目标、红线、目录模板、crate 分层、命名规则和 CI 标准，属于标准目标面
+- 这些章节回答的是“代码结构应如何治理”，不等于当前仓库已达到最终拆分终态
+
+### C. 文档口径规则
+
+- 写当前工程结构时，以 workspace 真实成员、`03` 与本文 `As-Built 回写` 为准
+- 写未来拆分标准时，必须显式标注 `目标态`、`标准目标面` 或 `整改方向`
+
+## 2026-04-07 As-Built 回写
+
+### 已兑现
+
+- `services/session-gateway/src/lib.rs` 已从 `1192` 行降至 `601` 行，回到本文定义的 `1000` 行硬门禁以内
+- presence 运行时与持久化恢复逻辑已从 `lib.rs` 抽到 `src/presence.rs`，`lib.rs` 继续向“装配与稳定导出入口”收敛到
+- 已新增 `services/session-gateway/tests/lib_structure_test.rs`，对 `lib.rs` 长度做回归保护
+- `services/conversation-runtime/src/lib.rs` 已降到 `2` 行，并通过 facade 形式维持原有公开接口
+- `services/conversation-runtime/src/runtime/http.rs` 已承载HTTP 路由装配、请DTO、错误映射与 handlers，`runtime.rs` 不再直接暴露 HTTP surface
+- `services/sdkwork-im-cloud-gateway/src/lib.rs` 已降到 `2` 行，并通过 facade 形式维持原有公开接口
+
+### 仍待兑现
+
+- `services/conversation-runtime/src/lib.rs` 已降到 `2` 行，并新增 `services/conversation-runtime/src/runtime/policy.rs`，但 `services/conversation-runtime/src/runtime.rs` 仍为 `2666` 行
+- `services/sdkwork-im-cloud-gateway/src/lib.rs` 已降到 `2` 行，`services/sdkwork-im-cloud-gateway/src/node.rs` 仍为 `5214` 行
+- 因此本文列出的高风险 `lib.rs` 治理目标尚未全部完成，Step 02 仍不得宣称闭环境
+
+### 治理结论
+
+- `services/*/src/lib.rs` 禁止超长的规则已经开始进入真实代码门禁，而不再只是架构约定义
+- 后续 Step 02 必须继续处理 `services/conversation-runtime/src/runtime.rs` `services/sdkwork-im-cloud-gateway/src/node.rs`，否则不能视为本文标准已兑现有
+
+### 2026-04-07 As-Built 增量回写 2
+
+- `conversation-runtime` 已验证第二层模块切分可行
+  - `src/runtime/http.rs` 承载 interface-style HTTP surface
+  - `src/runtime/policy.rs` 承载 service 内部可复用的 rule / gate / lifecycle policy
+  - `src/runtime.rs` 留在 orchestration state mutation 主流程
+- 这说明 Step 02 的“先把超大实现文件切成可验证边界模块，再进入 Step 03 crate 化”路径仍成立
+- 最新尺寸：
+  - `services/conversation-runtime/src/runtime.rs`: `2666`
+  - `services/conversation-runtime/src/runtime/policy.rs`: `461`
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `5214`
+- 结论：
+  - `conversation-runtime` Step 02 进度继续前移，但尚未达标
+  - `sdkwork-im-server` 仍是 Step 02 主阻塞项
+  - 不能据此放行 `91 / 95 / 93`
+
+### 2026-04-07 As-Built 增量回写 3
+
+- `sdkwork-im-server` 已验证 `effects` 边界可独立抽离：
+  - `src/node/effects.rs` 承接 message side effects、realtime publish、RTC signal emit、audit record
+  - `src/node.rs` 保留 handler 层、access guard、node runtime 装配
+- 最新尺寸：
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `4676`
+  - `services/sdkwork-im-cloud-gateway/src/node/effects.rs`: `551`
+  - `services/conversation-runtime/src/runtime.rs`: `2666`
+- 结论：
+  - Step 02 的模块级治理继续兑现，但距离闭环仍远
+  - 下一轮仍需继续压缩 `node.rs` `runtime.rs`
+### 2026-04-07 As-Built 增量回写 4
+
+- `sdkwork-im-server` 已验证Step 02 可继续从单一超大实现文件推进到多边界协同实现有
+  - `src/node.rs` 负责 orchestration / handler / route assembly
+  - `src/node/access.rs` 负责 access/auth/device-scope gate
+  - `src/node/effects.rs` 负责 side effects / realtime publish / RTC signal emit / audit record
+- 最新尺寸：
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `4407`
+  - `services/sdkwork-im-cloud-gateway/src/node/access.rs`: `288`
+  - `services/sdkwork-im-cloud-gateway/src/node/effects.rs`: `551`
+- 这证明 `133` 中定义的 “先做模块边界治理，再做 crate 边界治理" 面仍然适用
+- 同时也说Step 02 仍未闭环境
+  - `services/sdkwork-im-cloud-gateway/src/node.rs` 仍高于红线
+  - `services/conversation-runtime/src/runtime.rs` 仍高于红线
+  - 因此 `91 / 95 / 93` 继续阻塞
+
+### 2026-04-07 As-Built 增量回写 5
+
+- `sdkwork-im-server` 已继续验证Step 02 可以capability cluster 切分超大 service impl
+  - `src/node.rs` 负责 orchestration / primary handler / route assembly
+  - `src/node/access.rs` 负责 access/auth/device-scope gate
+  - `src/node/effects.rs` 负责 side effects / realtime publish / RTC signal emit / audit record
+  - `src/node/platform.rs` 负责 notification / automation / audit / ops handler node operational refresh
+- 最新尺寸：
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `4166`
+  - `services/sdkwork-im-cloud-gateway/src/node/platform.rs`: `252`
+  - `services/sdkwork-im-cloud-gateway/src/node/access.rs`: `288`
+  - `services/sdkwork-im-cloud-gateway/src/node/effects.rs`: `551`
+- 这进一步证明 `133` 中定义的 “先做模块边界治理，再做 crate 边界治理" 面仍然适用
+- 同时也继续说Step 02 仍未闭环境
+  - `services/sdkwork-im-cloud-gateway/src/node.rs` 仍高于红线
+  - `services/conversation-runtime/src/runtime.rs` 仍高于红线
+  - 因此 `91 / 95 / 93` 继续阻塞
+### 2026-04-07 As-Built 6
+
+- `sdkwork-im-server` 已继续证明：Step 02 可以capability cluster 拆分超大 service impl，而不是只能停留在单一 `node.rs`
+  - `src/node/session.rs`
+  - `src/node/stream.rs`
+  - `src/node/rtc.rs`
+- 最新尺寸：
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `3672`
+  - `services/sdkwork-im-cloud-gateway/src/node/session.rs`: `232`
+  - `services/sdkwork-im-cloud-gateway/src/node/stream.rs`: `103`
+  - `services/sdkwork-im-cloud-gateway/src/node/rtc.rs`: `117`
+  - `services/conversation-runtime/src/runtime.rs`: `2666`
+- 这条 as-built 继续支持本文标准中“Step 02 先模块化，Step 03 crate 化”的执行顺序：
+- 仅Step 02 仍未闭环境
+  - `services/sdkwork-im-cloud-gateway/src/node.rs` 仍高于红线
+  - `services/conversation-runtime/src/runtime.rs` 仍高于红线
+  - `91 / 95 / 93` 仍不得判定通过
+### 2026-04-07 As-Built 7
+
+- `sdkwork-im-server` 继续验证 Step 02 的“按 capability cluster service impl”标准，而不是提前进crate 拆分
+  - `media` handler 已迁出 `node.rs`
+  - `projection` handler 已迁出 `node.rs`
+  - `membership` handler 已迁出 `node.rs`
+  - `message` handler 已迁出 `node.rs`
+- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs` 已继续增加对象structure gate，说明“边界是否回流”已经被转化为可执行验证，而不是仅靠人工约定义
+- 最新 as-built 尺寸：
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `3147`
+  - `services/sdkwork-im-cloud-gateway/src/node/media.rs`: `69`
+  - `services/sdkwork-im-cloud-gateway/src/node/projection.rs`: `115`
+  - `services/sdkwork-im-cloud-gateway/src/node/membership.rs`: `215`
+  - `services/sdkwork-im-cloud-gateway/src/node/message.rs`: `145`
+  - `services/conversation-runtime/src/runtime.rs`: `2666`
+- 这条 as-built 继续支持本文标准中的执行顺序：
+  - Step 02 先把单体超大实现文件切到模块级边界
+  - Step 03 再基于稳定边界进crate 化
+- 同时也继续说Step 02 尚未闭环境
+  - `sdkwork-im-server/src/node.rs` 仍保留 `create/handoff` 主簇
+  - `conversation-runtime/src/runtime.rs` 仍是并列主阻塞项
+  - `91 / 95 / 93` 仍不能通过
+
+### 2026-04-07 As-Built 8
+
+- `sdkwork-im-server` 继续验证 Step 02 的“按 capability / orchestration cluster 切 service impl”标准，而不是提前进crate 拆分
+  - `build/runtime assembly` 已迁出 `node.rs`
+  - `route assembly` 已迁出`node/build.rs`
+  - `runtime bootstrap / journal replay` 已迁出`node/build.rs`
+- `services/sdkwork-im-cloud-gateway/tests/lib_structure_test.rs` 已继续增加build surface gate，说明“边界是否回流”被转化为可执行验证，而不是依赖人工约定义
+- 最新 as-built 尺寸：
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `2459`
+  - `services/sdkwork-im-cloud-gateway/src/node/build.rs`: `511`
+  - `services/sdkwork-im-cloud-gateway/src/node/conversation.rs`: `84`
+  - `services/sdkwork-im-cloud-gateway/src/node/handoff.rs`: `106`
+  - `services/conversation-runtime/src/runtime.rs`: `2666`
+- 这条 as-built 继续支撑本文标准中的执行顺序：
+  - Step 02 先把单体超大实现文件切到模块级边界
+  - Step 03 再基于稳定边界进crate 化
+- 同时也继续说Step 02 尚未闭环境
+  - `sdkwork-im-server/src/node.rs` 仍保留runtime-dir / restore helper 主簇
+  - `conversation-runtime/src/runtime.rs` 仍是并列主阻塞项
+  - `91 / 95 / 93` 仍不能通过
+### 2026-04-07 As-Built 9
+
+- 本轮继续验证本标准中的执行顺序：先把超大 service impl 切成可验证模块边界，再考虑后续 crate 边界
+- `sdkwork-im-server`
+- `src/node.rs` 不再保留 runtime-dir lifecycle 实现，相关逻辑迁入 `src/node/runtime_dir.rs`
+- `test_local_minimal_node_runtime_dir_surface_moves_out_of_node_impl` red -> green
+- `conversation-runtime`
+- `src/runtime.rs` 不再保留 recovered replay handlers，相关逻辑迁入 `src/runtime/recovery.rs`
+- `test_conversation_runtime_recovery_surface_moves_out_of_runtime_impl` red -> green
+- 最新尺寸证据：
+- `services/sdkwork-im-cloud-gateway/src/node.rs`: `524`
+- `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`: `1947`
+- `services/conversation-runtime/src/runtime.rs`: `2318`
+- `services/conversation-runtime/src/runtime/recovery.rs`: `355`
+- 结论：
+- Step 02 的模块边界治理继续兑现，但整体尚未闭环境
+- 当前不得把局部收口误判为 Step 02 完成，更不得提前进入 Step 03 crate 化
+
+### 2026-04-07 As-Built 10
+
+- 本轮继续验证本标准中的执行顺序：先把超大 service impl 切成可验证模块边界，再考虑后续 crate 边界
+- `conversation-runtime`
+  - `src/runtime.rs` 不再保留 helper/envelope builder cluster，相关逻辑迁入 `src/runtime/support.rs`
+  - `test_conversation_runtime_helper_surface_moves_out_of_runtime_impl` red -> green
+- `sdkwork-im-server`
+  - 在依赖 `conversation-runtime` 最新结构后重新跑完整包测试，验证跨包稳定性保持为绿
+- 最新尺度证据：
+  - `services/conversation-runtime/src/runtime.rs`: `1916`
+  - `services/conversation-runtime/src/runtime/support.rs`: `422`
+  - `services/conversation-runtime/src/runtime/recovery.rs`: `355`
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `524`
+  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`: `1947`
+- 结论：
+  - Step 02 的模块边界治理继续兑现，但整体尚未闭环境
+  - 当前不得把局部收口误判为 Step 02 完成，更不得提前进入 Step 03 crate 化
+
+### 2026-04-07 As-Built 11
+
+- 本轮继续验证本标准中的执行顺序：先把超大 service impl 切成可验证模块边界，再考虑后续 crate 边界
+- `conversation-runtime`
+  - `src/runtime.rs` 不再保留四组 `create_*` orchestration，相关逻辑迁入 `src/runtime/creation.rs`
+  - `test_conversation_runtime_creation_surface_moves_out_of_runtime_impl` red -> green
+- `sdkwork-im-server`
+  - 在依赖 `conversation-runtime` 最新结构后重新跑完整包测试，跨包稳定性继续保持为绿
+- 最新尺度证据：
+  - `services/conversation-runtime/src/runtime.rs`: `1387`
+  - `services/conversation-runtime/src/runtime/creation.rs`: `536`
+  - `services/conversation-runtime/src/runtime/support.rs`: `422`
+  - `services/conversation-runtime/src/runtime/recovery.rs`: `355`
+  - `services/sdkwork-im-cloud-gateway/src/node.rs`: `524`
+- 结论：
+  - Step 02 的模块边界治理继续兑现，但整体尚未闭环境
+  - 当前不得把局部收口误判为 Step 02 完成，更不得提前进入 Step 03 crate 化
+
+### 2026-04-07 As-Built 12
+
+- 本轮继续验证本标准中的执行顺序：先把超大 service impl 切成可验证模块边界，再考虑后续 crate 边界
+- `sdkwork-im-server`
+  - `src/node/runtime_dir.rs` 不再保留 preview view model、typed diff summarize、restore preview formatter，相关逻辑迁入：
+    - `src/node/runtime_dir/preview.rs`
+    - `src/node/runtime_dir/preview/diff.rs`
+    - `src/node/runtime_dir/preview/format.rs`
+  - `test_local_minimal_node_runtime_dir_preview_surface_moves_out_of_runtime_dir_impl` red -> green
+- `conversation-runtime`
+  - 当前工作树中的进一步拆分已把 `handoff / membership` surface 迁出 `src/runtime.rs`
+  - 最新尺度：
+    - `services/conversation-runtime/src/runtime.rs`: `689`
+    - `services/conversation-runtime/src/runtime/handoff.rs`: `220`
+    - `services/conversation-runtime/src/runtime/membership.rs`: `492`
+- 最新尺度证据：
+  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir.rs`: `732`
+  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir/preview.rs`: `248`
+  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir/preview/diff.rs`: `829`
+  - `services/sdkwork-im-cloud-gateway/src/node/runtime_dir/preview/format.rs`: `158`
+- 结论更新：
+  - `runtime.rs`、`node.rs`、`runtime_dir.rs` 已不再违反本文的单文档`1000` 行硬红线
+  - 仅repo 内仍有生产文件超线：
+  - `tools/chat-cli/src/lib.rs`: `1565`
+  - `adapters/local-disk/src/lib.rs`: `1467`
+  - `services/projection-service/src/lib.rs`: `1347`
+  - `services/session-gateway/src/cluster.rs`: `1102`
+  - `services/session-gateway/src/realtime.rs`: `1078`
+  - 因此 Step 02 的代码结构治理仍未整体闭环，当前不得提前进入 Step 03 crate 化
+
+### 2026-04-07 As-Built 13
+
+- 本轮继续验证本标准中的执行顺序：先把超大 service impl 切成可验证模块边界，再考虑后续 crate 边界
+- `session-gateway`
+  - `src/cluster.rs` 不再保留 disconnect-fence state/store/control cluster，相关逻辑迁入 `src/cluster/disconnect.rs`
+  - `test_session_gateway_cluster_disconnect_surface_moves_out_of_cluster_impl` red -> green
+  - `src/realtime.rs` 不再保留 checkpoint/subscription memory store record helper，相关逻辑迁入 `src/realtime/storage.rs`
+  - `test_session_gateway_realtime_storage_surface_moves_out_of_realtime_impl` red -> green
+- 最新尺度证据：
+  - `services/session-gateway/src/cluster.rs`: `906`
+  - `services/session-gateway/src/cluster/disconnect.rs`: `207`
+  - `services/session-gateway/src/realtime.rs`: `900`
+  - `services/session-gateway/src/realtime/storage.rs`: `188`
+- 结论更新：
+  - `session-gateway` 已回到单文件 `1000` 行硬红线内，不再构成 Step 02 的当前阻塞项
+  - 仅repo 内仍有生产文件超线：
+    - `adapters/local-disk/src/lib.rs`: `1467`
+    - `tools/chat-cli/src/lib.rs`: `1565`
+    - `services/projection-service/src/lib.rs`: `1347`
+  - 因此 Step 02 的代码结构治理仍未整体闭环，当前不得提前进入 Step 03 crate 化
+### 2026-04-07 As-Built 14
+
+- 最新治理状态：
+  - 生产 Rust 文件 `> 1000`：`0`
+  - Step 02 红线已从“多文件超限”收敛为“全部文件回到红线以内
+- 关键文件最新行数：
+  - `services/session-gateway/src/lib.rs`: `639`
+  - `services/conversation-runtime/src/lib.rs`: `3`
+  - `services/sdkwork-im-cloud-gateway/src/lib.rs`: `3`
+  - `services/projection-service/src/lib.rs`: `965`
+  - `adapters/local-disk/src/lib.rs`: `24`
+  - `tools/chat-cli/src/lib.rs`: `848`
+  - `tools/chat-cli/src/command.rs`: `863`
+- 本轮新增的真实治理案例：
+  - `tools/chat-cli/src/lib.rs`
+    - 解析模型、usage/help、本地配置与 env 文件读取已全部下沉至 `tools/chat-cli/src/command.rs`
+    - `lib.rs` 只保留运行时执行、HTTP / WebSocket / interactive chat
+  - `adapters/local-disk/src/lib.rs`
+    - `state.rs / ops.rs / journal.rs / realtime.rs / shared.rs` 已承担主能力
+    - `lib.rs` 仅保留模块声明、导出与测试挂载
+- 当前治理判断：
+  - Step 02 的“`lib.rs` facade + 单文档<= 1000”目标已达成
+  - `services/projection-service/src/lib.rs` 虽合规但已接近红线，后续 Step 03-04 不得继续向其堆积协议或运行时逻辑
+- 后续约束：
+  - Step 03 新增协议基础设施必须落在新的 `ccp-* / contract-*` 落点
+  - 若后续实现再次把协议细节、配置解析、状态存储或业务编排堆回facade 文件，应直接视为违反本标准
+

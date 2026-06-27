@@ -1,0 +1,66 @@
+> Migrated from `docs/架构/150A-对象存储插件运行时与媒体下载面设计-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 150A 对象存储插件运行时与媒体下载面设计
+
+## 设计目标
+
+- 保持 provider/plugin 体系的一致性。
+- 让媒体链路不再依赖请求体中的裸 `storageProvider` 字符串。
+- 让下载 URL 的签发权回到 `ObjectStorageProvider`。
+
+## 关键设计
+
+### 1. Provider 选择
+
+- 运行时通过 `ProviderRegistry` 获取对象存储有效绑定。
+- 优先级：
+  1. tenant override
+  2. deployment_profile
+  3. global default
+- 当前 media 默认 deployment profile 选择 `object-storage-volcengine`。
+
+### 2. Adapter 形态
+
+- 新增 `object-storage-s3` 作为公共适配器基线。
+- 该基线实例化六个插件：
+  - `object-storage-aliyun`
+  - `object-storage-tencent`
+  - `object-storage-volcengine`
+  - `object-storage-aws`
+  - `object-storage-google`
+  - `object-storage-microsoft`
+- Google / Microsoft 走 `s3-gateway` 能力标识。
+
+### 3. Media Runtime
+
+- `complete_upload(...)` 负责：
+  - 读取对象存储有效 provider
+  - 调用 `put_object(...)`
+  - 调用 `signed_download_url(...)`
+  - 把 `storage_provider` 与 `resource.url` 规范化写回媒体资产
+- 这样业务层只看到统一 contract，而不是 provider 私有 SDK 或 URL 模板。
+
+### 4. HTTP Surface
+
+- standalone:
+  - `GET /backend/v3/api/media/provider_health`
+  - `GET /im/v3/api/media/{media_asset_id}/download-url`
+- assembled:
+  - `sdkwork-im-server` 保持同名镜像路由
+
+## 约束
+
+- 业务层禁止直接拼接对象存储下载 URL。
+- provider 增减必须同时更新：
+  - registry descriptor
+  - adapter contract test
+  - runtime installation map
+  - step / architecture / review 文档
+
+## 后续演进
+
+- RTC recording artifact 应回流到统一对象存储 provider。
+- 控制面应暴露 media/object-storage 的 effective binding。
+- 后续可在此基础上增加 multipart、retention、lifecycle policy 标准化能力。
+

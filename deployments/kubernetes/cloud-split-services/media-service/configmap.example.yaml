@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: media-service-runtime
+  namespace: sdkwork-im
+data:
+  SDKWORK_IM_MEDIA_SERVICE_BIND_ADDR: 0.0.0.0:18086
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc:4318

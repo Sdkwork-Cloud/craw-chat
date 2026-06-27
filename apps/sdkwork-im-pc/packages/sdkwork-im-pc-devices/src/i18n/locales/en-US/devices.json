@@ -1,0 +1,89 @@
+{
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "error": "Error",
+    "unactivated": "Unactivated"
+  },
+  "sidebar": {
+    "title": "Smart Hardware",
+    "searchPlaceholder": "Search device name or MAC address...",
+    "noDevices": "No devices found"
+  },
+  "detail": {
+    "activateModule": "Activate Module",
+    "editConfig": "Edit Config",
+    "coreNotActivated": "Hardware Core Not Activated",
+    "coreNotActivatedDesc": "Activate to download instruction sets and connect to the AI Agent hosting system.",
+    "startActivation": "Start Activation",
+    "visionWizard": "Vision Processing Wizard",
+    "configureAgent": "Configure Agent Skills",
+    "unbindAgent": "Unbind Agent",
+    "standaloneMode": "Standalone Mode",
+    "standaloneModeDesc": "Device is not connected to an agent. Connect an agent to enable spatial awareness and decision-making.",
+    "cloudBindAgent": "Cloud Bind Agent",
+    "personTracking": "Person Tracking",
+    "personTrackingDesc": "Uses edge vision models to analyze person trajectories and dwell time in real-time.",
+    "behaviorAlert": "Behavior Alert",
+    "behaviorAlertDesc": "Continuously monitors behavior, detects falls, disputes, and other anomalies, and auto-triggers event streams.",
+    "simulationTest": "Sim Test"
+  },
+  "form": {
+    "editDevice": "Edit Device",
+    "addDevice": "Add New Device",
+    "deviceName": "Device Name",
+    "deviceNamePlaceholder": "Enter device name, e.g. Meeting Room Camera",
+    "macAddress": "MAC Address",
+    "deviceType": "Device Type",
+    "camera": "Camera",
+    "speaker": "Smart Speaker",
+    "display": "Display",
+    "sensor": "Sensor",
+    "saveDevice": "Save Device",
+    "saving": "Saving...",
+    "cancel": "Cancel"
+  },
+  "activation": {
+    "title": "Activate Device",
+    "activatingDevice": "Activating device:",
+    "activationCode": "Activation Code",
+    "codePlaceholder": "Enter 6+ character activation code",
+    "activating": "Activating...",
+    "verifyAndActivate": "Verify & Activate"
+  },
+  "bindAgent": {
+    "title": "Assign Agent",
+    "selectForDevice": "Select hosting core for device",
+    "selectCore": "",
+    "searchPlaceholder": "Search agent name or description...",
+    "allCategories": "All",
+    "deviceHardware": "Hardware",
+    "devAssistant": "Dev Assistant",
+    "officeEfficiency": "Office",
+    "syncingAgents": "Syncing agent network...",
+    "noMatch": "No matching agents found",
+    "selectedCount": "Selected agents:",
+    "multiSelect": "(Multi-select)",
+    "singleExclusive": "(Exclusive)",
+    "cancel": "Cancel",
+    "confirmArrange": "Confirm"
+  },
+  "empty": {
+    "title": "No Device Selected",
+    "desc": "Select a smart device from the left list to view and manage."
+  },
+  "toast": {
+    "loadFailed": "Failed to load devices",
+    "deleteSuccess": "Device deleted",
+    "deleteFailed": "Failed to delete device",
+    "deleteConfirm": "Are you sure to delete device {{name}}?",
+    "fillComplete": "Please fill in complete device info",
+    "updateSuccess": "Device updated",
+    "addSuccess": "Device added",
+    "saveFailed": "Save failed",
+    "enterCode": "Please enter activation code",
+    "activateSuccess": "Device activated",
+    "activateFailed": "Activation failed, please check the code",
+    "loadAgentsFailed": "Failed to load agent list"
+  }
+}

@@ -1,0 +1,10 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-sdkwork-im-pc-notification"
+description = "Allows Sdkwork IM PC to request native notification permission and show local message notifications through the native desktop shell."
+commands.allow = [
+  "sdkwork_chat_pc_notification_permission",
+  "sdkwork_chat_pc_request_notification_permission",
+  "sdkwork_chat_pc_show_notification",
+]

@@ -1,0 +1,12 @@
+[package]
+name = "sdkwork-im-ccp-binding-udp"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-ccp-codec = { path = "../sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
+
+[dev-dependencies]
+sdkwork-im-ccp-codec-json = { path = "../sdkwork-im-ccp-codec-json" }

@@ -1,0 +1,18 @@
+﻿[package]
+name = "session-gateway-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "session-gateway"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+session-gateway = { path = "../session-gateway" }
+sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

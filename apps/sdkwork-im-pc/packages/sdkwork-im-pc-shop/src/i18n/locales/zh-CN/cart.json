@@ -1,0 +1,14 @@
+{
+  "cart": "购物车",
+  "emptyCart": "您的购物车是空的",
+  "emptyCartDesc": "购物车里空空如也，快去发现更多好物吧！",
+  "goShopping": "去逛逛",
+  "selectAll": "全选",
+  "deleteSelected": "删除选中的商品",
+  "orderSummary": "订单摘要",
+  "subtotal": "商品小计",
+  "shipping": "运费",
+  "shippingTBD": "运费待计算",
+  "total": "总计",
+  "checkout": "去结算 ({{count}})"
+}

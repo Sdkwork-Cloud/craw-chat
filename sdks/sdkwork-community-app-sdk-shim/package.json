@@ -1,0 +1,23 @@
+{
+  "name": "@sdkwork/community-app-sdk",
+  "version": "0.1.0",
+  "description": "Workspace shim that re-exports the generated sdkwork-community app SDK until the sibling composed facade ships.",
+  "type": "module",
+  "private": true,
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "sdkwork-community-app-sdk-generated-typescript": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

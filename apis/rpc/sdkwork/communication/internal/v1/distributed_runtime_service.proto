@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package sdkwork.communication.internal.v1;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.internal.v1";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/internal/v1;communicationinternalv1";
+
+service RuntimeTopologyService {
+  rpc RetrieveRuntimeTopology(RetrieveRuntimeTopologyRequest) returns (RetrieveRuntimeTopologyResponse);
+  rpc ListRuntimeCapabilities(ListRuntimeCapabilitiesRequest) returns (ListRuntimeCapabilitiesResponse);
+  rpc WatchRuntimeTopology(WatchRuntimeTopologyRequest) returns (stream WatchRuntimeTopologyResponse);
+}
+
+service RouteLeaseService {
+  rpc ClaimRouteLease(ClaimRouteLeaseRequest) returns (ClaimRouteLeaseResponse);
+  rpc RenewRouteLease(RenewRouteLeaseRequest) returns (RenewRouteLeaseResponse);
+  rpc ReleaseRouteLease(ReleaseRouteLeaseRequest) returns (ReleaseRouteLeaseResponse);
+  rpc ListRouteLeases(ListRouteLeasesRequest) returns (ListRouteLeasesResponse);
+}
+
+service DomainEventRelayService {
+  rpc PublishDomainEvent(PublishDomainEventRequest) returns (PublishDomainEventResponse);
+  rpc AckDomainEvent(AckDomainEventRequest) returns (AckDomainEventResponse);
+  rpc WatchDomainEvents(WatchDomainEventsRequest) returns (stream WatchDomainEventsResponse);
+}
+
+message RuntimeNodeView {
+  string node_id = 1;
+  string role = 2;
+  string bind_addr = 3;
+  string health = 4;
+  repeated string capabilities = 5;
+}
+
+message RouteLeaseView {
+  string lease_id = 1;
+  string route_key = 2;
+  string node_id = 3;
+  string expires_at = 4;
+}
+
+message DomainEventView {
+  string event_id = 1;
+  string event_type = 2;
+  string aggregate_id = 3;
+  string payload_json = 4;
+  string cursor = 5;
+}
+
+message RetrieveRuntimeTopologyRequest { sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RetrieveRuntimeTopologyResponse { repeated RuntimeNodeView nodes = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListRuntimeCapabilitiesRequest { string node_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListRuntimeCapabilitiesResponse { repeated string capabilities = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message WatchRuntimeTopologyRequest { string cursor = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message WatchRuntimeTopologyResponse { RuntimeNodeView node = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message ClaimRouteLeaseRequest { string route_key = 1; string node_id = 2; int32 ttl_seconds = 3; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ClaimRouteLeaseResponse { RouteLeaseView lease = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message RenewRouteLeaseRequest { string lease_id = 1; int32 ttl_seconds = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message RenewRouteLeaseResponse { RouteLeaseView lease = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ReleaseRouteLeaseRequest { string lease_id = 1; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ReleaseRouteLeaseResponse { RouteLeaseView lease = 1; string status = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message ListRouteLeasesRequest { string node_id = 1; sdkwork.common.v1.PageRequest page = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message ListRouteLeasesResponse { repeated RouteLeaseView leases = 1; sdkwork.common.v1.PageResponse page = 2; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+
+message PublishDomainEventRequest { string event_type = 1; string aggregate_id = 2; string payload_json = 3; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message PublishDomainEventResponse { DomainEventView event = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message AckDomainEventRequest { string event_id = 1; string cursor = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message AckDomainEventResponse { string ack_cursor = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }
+message WatchDomainEventsRequest { string cursor = 1; repeated string event_types = 2; sdkwork.common.v1.RequestMetadata metadata = 15; }
+message WatchDomainEventsResponse { DomainEventView event = 1; sdkwork.common.v1.ResponseMetadata metadata = 15; }

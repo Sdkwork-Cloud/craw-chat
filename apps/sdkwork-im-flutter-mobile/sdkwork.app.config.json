@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 3,
+  "kind": "sdkwork.app",
+  "app": {
+    "key": "sdkwork-im-flutter-mobile",
+    "name": "Sdkwork IM Mobile",
+    "displayName": "SDKWork IM Mobile",
+    "description": "SDKWork IM Flutter mobile application for chat inbox and conversations.",
+    "vendor": "SDKWork",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-im-flutter-mobile",
+    "supportUrl": "https://sdkwork.com/support",
+    "privacyPolicyUrl": "https://sdkwork.com/privacy",
+    "termsOfServiceUrl": "https://sdkwork.com/terms",
+    "iconUrl": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/assets/icon-1024.png",
+    "appType": "APP_FLUTTER",
+    "versionSource": "pubspec.yaml",
+    "identifiers": {
+      "packageName": "com.sdkwork.im.mobile",
+      "bundleId": "com.sdkwork.im.mobile",
+      "desktopAppId": null,
+      "containerImage": "registry.sdkwork.com/apps/sdkwork-im-flutter-mobile"
+    }
+  },
+  "backend": {
+    "profileKey": "backend-root-admin",
+    "ownerMode": "tenant",
+    "grantMode": "current",
+    "platform": "APP",
+    "appId": null,
+    "organizationId": "0",
+    "tenantId": "100001"
+  },
+  "runtime": {
+    "family": "mobile",
+    "framework": "flutter",
+    "runtimes": ["APP", "APP_ANDROID", "APP_IOS"],
+    "deliveryModes": ["DIRECT_DOWNLOAD"],
+    "defaultPlatform": "APP_ANDROID",
+    "defaultArchitecture": "universal",
+    "supportedDeploymentProfiles": ["cloud", "standalone"],
+    "defaultDeploymentProfile": "cloud"
+  },
+  "media": {
+    "icons": {
+      "primary": {
+        "id": "sdkwork-im-flutter-mobile-primary-icon",
+        "type": "ICON",
+        "purpose": "PRIMARY",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/assets/icon-1024.png",
+        "platform": "APP",
+        "locale": "en-US",
+        "width": 1024,
+        "height": 1024,
+        "format": "PNG",
+        "fileSizeBytes": 524288,
+        "alphaChannel": false,
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": { "generatedPlaceholder": true }
+      },
+      "platform": [],
+      "metadata": { "generatedPlaceholder": true }
+    },
+    "screenshots": [],
+    "previews": [],
+    "metadata": {
+      "assetVersion": "0.1.0",
+      "defaultLocale": "en-US"
+    }
+  },
+  "publish": {
+    "status": "ACTIVE",
+    "installSkill": { "name": "sdkwork-skills-app" },
+    "platforms": ["APP_ANDROID", "APP_IOS"],
+    "installPlatforms": ["APP_ANDROID", "APP_IOS"],
+    "defaultPackageId": "app-android-universal-apk",
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-im-flutter-mobile",
+    "stores": [],
+    "config": {
+      "workspaceRoot": "apps/sdkwork-im-flutter-mobile",
+      "framework": "flutter",
+      "managedBy": "sdkwork-im-manifest-v3"
+    }
+  },
+  "environments": {
+    "development": {
+      "accessUrl": "sdkworkim://auth/callback",
+      "deployUrl": "sdkworkim://auth/callback",
+      "deployEnv": "dev"
+    },
+    "test": {
+      "accessUrl": "https://api-test.sdkwork.com/apps/sdkwork-im-flutter-mobile",
+      "deployUrl": "https://api-test.sdkwork.com/apps/sdkwork-im-flutter-mobile",
+      "deployEnv": "test"
+    },
+    "production": {
+      "accessUrl": "https://api.sdkwork.com/apps/sdkwork-im-flutter-mobile",
+      "deployUrl": "https://api.sdkwork.com/apps/sdkwork-im-flutter-mobile",
+      "deployEnv": "production"
+    }
+  },
+  "artifacts": {
+    "installConfig": {
+      "defaultPackageId": "app-android-universal-apk",
+      "installCommand": "sdkwork install sdkwork-im-flutter-mobile",
+      "launchCommand": "sdkwork open sdkwork-im-flutter-mobile",
+      "uninstallCommand": "sdkwork uninstall sdkwork-im-flutter-mobile",
+      "packages": [
+        {
+          "id": "app-android-universal-apk",
+          "name": "SDKWork IM Mobile Android APK",
+          "sourceType": "DIRECT_DOWNLOAD",
+          "packageFormat": "APK",
+          "platform": "APP_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-im-flutter-mobile/STABLE/0.1.0/app-android-universal.apk",
+          "enabled": true,
+          "metadata": {},
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "android"
+        }
+      ],
+      "metadata": {
+        "workspaceRoot": "apps/sdkwork-im-flutter-mobile",
+        "framework": "flutter",
+        "packageManager": "flutter",
+        "migratedFromLegacyConfig": true
+      }
+    }
+  },
+  "release": {
+    "currentVersion": "0.1.0",
+    "defaultChannel": "STABLE",
+    "latest": { "STABLE": "0.1.0" },
+    "notes": [
+      {
+        "version": "0.1.0",
+        "releaseChannel": "STABLE",
+        "title": "SDKWork IM Mobile 0.1.0",
+        "summary": "SDKWork IM Flutter mobile App Standard v3 manifest.",
+        "content": "Initial sdkwork-im-flutter-mobile with Appbase/dev auth, inbox, and conversation REST baseline.",
+        "highlights": [
+          "SDKWork App Standard v3 configuration",
+          "Appbase IAM deep-link auth",
+          "Inbox and conversation REST baseline"
+        ],
+        "packageIds": ["app-android-universal-apk"],
+        "publishedAt": "2026-06-25T00:00:00Z",
+        "current": true,
+        "forceUpdate": false,
+        "minSupportedVersion": "0.1.0",
+        "metadata": {}
+      }
+    ]
+  },
+  "security": {
+    "checksumRequired": true,
+    "signatureRequired": false,
+    "sbomRequired": true
+  },
+  "devApp": {
+    "build": { "targets": [] },
+    "sourceRoot": "apps/sdkwork-im-flutter-mobile"
+  },
+  "metadata": {
+    "standardOwner": "sdkwork-platform",
+    "initializedAt": "2026-06-25T00:00:00Z"
+  }
+}

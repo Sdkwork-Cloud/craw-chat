@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package sdkwork.communication.app.v3;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.app.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3;communicationappv3";
+
+service StreamService {
+  rpc CreateStream(CreateStreamRequest) returns (CreateStreamResponse);
+  rpc ListStreamFrames(ListStreamFramesRequest) returns (ListStreamFramesResponse);
+  rpc AppendStreamFrame(AppendStreamFrameRequest) returns (AppendStreamFrameResponse);
+  rpc CreateStreamCheckpoint(CreateStreamCheckpointRequest) returns (CreateStreamCheckpointResponse);
+  rpc CompleteStream(CompleteStreamRequest) returns (CompleteStreamResponse);
+  rpc AbortStream(AbortStreamRequest) returns (AbortStreamResponse);
+  rpc WatchStreamFrames(WatchStreamFramesRequest) returns (stream WatchStreamFramesResponse);
+}
+
+message StreamView {
+  string stream_id = 1;
+  string conversation_id = 2;
+  string stream_type = 3;
+  string state = 4;
+  uint64 high_water_mark = 5;
+}
+
+message StreamFrameView {
+  string stream_id = 1;
+  uint64 frame_seq = 2;
+  string frame_type = 3;
+  string payload_json = 4;
+}
+
+message CreateStreamRequest {
+  string conversation_id = 1;
+  string stream_type = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateStreamResponse {
+  StreamView stream = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListStreamFramesRequest {
+  string stream_id = 1;
+  uint64 after_frame_seq = 2;
+  sdkwork.common.v1.PageRequest page = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListStreamFramesResponse {
+  repeated StreamFrameView frames = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message AppendStreamFrameRequest {
+  string stream_id = 1;
+  string frame_type = 2;
+  string payload_json = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message AppendStreamFrameResponse {
+  StreamFrameView frame = 1;
+  string delivery_status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateStreamCheckpointRequest {
+  string stream_id = 1;
+  uint64 frame_seq = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateStreamCheckpointResponse {
+  StreamView stream = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CompleteStreamRequest {
+  string stream_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CompleteStreamResponse {
+  StreamView stream = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message AbortStreamRequest {
+  string stream_id = 1;
+  string reason = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message AbortStreamResponse {
+  StreamView stream = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message WatchStreamFramesRequest {
+  string stream_id = 1;
+  uint64 after_frame_seq = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message WatchStreamFramesResponse {
+  StreamFrameView frame = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

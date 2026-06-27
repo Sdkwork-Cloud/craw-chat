@@ -1,0 +1,12 @@
+{
+  "name": "sdkwork-im-pc6",
+  "description": "",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ],
+  "majorCapabilities": [],
+  "C7": [],
+  "aq": []
+}

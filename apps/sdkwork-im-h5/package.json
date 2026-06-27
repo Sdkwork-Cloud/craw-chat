@@ -1,0 +1,30 @@
+{
+  "name": "@sdkwork/im-h5",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.app.json && vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "lint": "tsc --noEmit -p tsconfig.app.json"
+  },
+  "dependencies": {
+    "@sdkwork/auth-pc-react": "workspace:*",
+    "@sdkwork/auth-runtime-pc-react": "workspace:*",
+    "@sdkwork/im-h5-chat": "workspace:*",
+    "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/im-h5-shell": "workspace:*",
+    "@sdkwork/sdk-common": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-router-dom": "^7.17.0"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

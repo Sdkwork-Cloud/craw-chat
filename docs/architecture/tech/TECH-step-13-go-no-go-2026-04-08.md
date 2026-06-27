@@ -1,0 +1,54 @@
+> Migrated from `docs/review/step-13-go-no-go清单-2026-04-08.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 13 Go / No-Go 清单 - 2026-04-08
+
+## 决策
+- 最终决策：`Go`
+
+## 检查项
+
+| 检查项 | 结果 | 证据 |
+| --- | --- | --- |
+| `Step 10` 交付脚本体系已闭环 | 通过 | `docs/review/step-10-执行卡-2026-04-08.md` |
+| `Step 11` 性能 / HA / DR / rollback 已闭环 | 通过 | `docs/review/step-11-执行卡-2026-04-08.md` |
+| `Step 12` CLI / SDK / compatibility 已闭环 | 通过 | `docs/review/step-12-执行卡-2026-04-08.md` |
+| 全 workspace `fmt` 通过 | 通过 | `cargo fmt --all --check` |
+| 全 workspace `clippy` 通过 | 通过 | `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings` |
+| 全 workspace `test` 通过 | 通过 | `cargo test --workspace --offline` |
+| 发布入口帮助面可执行 | 通过 | `retired-lifecycle-deploy/retired-lifecycle-start/retired-lifecycle-status` |
+| 恢复入口帮助面可执行 | 通过 | `restore-runtime-local` |
+| 聊天验证帮助面可执行 | 通过 | `open-chat-test` |
+| 当前是否存在阻塞交付的已知缺陷 | 否 | 本轮未发现阻塞 `Go` 的 fresh failure |
+
+## No-Go 条件复核
+- 以下条件本轮均未触发：
+  - 全量静态门禁失败
+  - 全量回归失败
+  - 发布入口帮助面断裂
+  - 恢复入口帮助面断裂
+  - `Wave D` 的前序 step 仍未闭环
+  - 只能给出总结，无法给出正式 go / no-go 结论
+
+## 已知非阻塞遗留
+- 多语言 SDK 的真实生成与发布链
+- 更高 tier 的持续容量验证
+- 多 cell / 多 region 的正式 rollout orchestration
+- close / error registry 的更细粒度客户端恢复策略
+
+## 结论说明
+- 当前遗留均已进入下一轮 backlog，不影响当前版本作为 `Wave D` 交付基线进入总验收。
+## 2026-04-09 Correction
+
+- This historical closure claim is superseded by the Step 11 tier evidence indexes added on 2026-04-09.
+- Step 11 capability baseline was closed for CI Smoke Tier / standalone.split-services.development evidence only.
+- Pre-Release Tier now moves to evidence_collected_gate_blocked.
+- Capacity Tier still stays template_only_pending_execution.
+- message_metrics was collected on 2026-04-09.
+- stream_metrics was collected on 2026-04-09.
+- All truthful Pre-Release Tier slots are now materialized.
+- Pre-Release Tier is still not full gate sign-off because the artifacts are doc-captured from published CI Smoke Tier / standalone.split-services.development evidence.
+- Current source of truth:
+  - `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`
+  - `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json`
+

@@ -1,0 +1,137 @@
+# Network policies for SDKWork IM cloud-split deployment.
+# Enforces least-privilege network isolation between service tiers:
+#   1. Gateway tier (im-gateway, session-gateway) accepts external ingress.
+#   2. Service tier (conversation, projection, media, streaming, etc.) accepts only gateway traffic.
+#   3. Data tier (database, Redis) accepts only service tier traffic.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: im-gateway-ingress
+  namespace: sdkwork-im
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 18079
+        - protocol: TCP
+          port: 18080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: session-gateway-ingress
+  namespace: sdkwork-im
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: realtime
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 18080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: service-tier-ingress
+  namespace: sdkwork-im
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - conversation
+          - projection
+          - media
+          - streaming
+          - notification
+          - governance
+          - audit
+          - ops
+          - automation
+          - social
+          - space
+          - contact
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: realtime
+      ports:
+        - protocol: TCP
+          port: 18080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: sdkwork-im
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow egress to internal data tier (PostgreSQL, Redis) via RFC1918 ranges.
+    # Production deployments should further narrow these to exact subnet CIDRs.
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+            except:
+              - 169.254.169.254/32
+        - ipBlock:
+            cidr: 172.16.0.0/12
+            except:
+              - 169.254.169.254/32
+        - ipBlock:
+            cidr: 192.168.0.0/16
+            except:
+              - 169.254.169.254/32
+      ports:
+        # PostgreSQL
+        - protocol: TCP
+          port: 5432
+        # Redis
+        - protocol: TCP
+          port: 6379
+    # Allow egress to external object storage and push notification services.
+    # Production deployments must replace with exact provider CIDR lists.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.169.254/32
+      ports:
+        # HTTPS for external APIs (S3, FCM, APNs, etc.)
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,13 @@
+# Step 11 Pre-Release Tier artifact file list
+# state: evidence_collected_gate_blocked
+pre-release-tier-evidence-index.json
+checksum-manifest.txt
+artifact-file-list.txt
+connection/metrics.json
+message/metrics.json
+stream/metrics.json
+drain-rebalance/drill.json
+failover/drill.json
+restore-recovery/drill.json
+upgrade-rollback/drill.json
+im-websocket-e2e/metrics.json

@@ -1,0 +1,82 @@
+> Migrated from `docs/review/step-02-质量审计与复盘-2026-04-07.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 02 质量审计与复盘- 2026-04-07
+
+## 1. 审计结论
+
+- 当前波次：`Wave A`
+- 当前 Step：`02`
+- 审计结论：`通过`
+- 是否允许进入下一 Step：`是`
+
+## 2. 审计依据
+
+- `docs/step/02-workspace与crate骨架重构.md`
+- `docs/step/91-Step质量审计清单与复盘模md`
+- `docs/step/95-架构能力闭环验收标准.md`
+- `docs/step/97-Step完成后的架构回写与能力兑现清单md`
+- 当前代码、测试、脚本与 fresh 验证结果
+
+## 3. 质量评分
+
+| 维度 | 分数 | 说明 |
+| --- | --- | --- |
+| 架构对齐 | `10` | 对齐 `09 / 133`，且 Step 03 边界未被提前污染 |
+| 边界清晰 | `10` | Step 02 只收口workspace / facade / 大文件治理，不冒进做 CCP 设计 |
+| 路径真实 | `10` | 所有关键路径都落在真实文件与真实crate |
+| 实施可执行| `10` | 本轮直接完成 `chat-cli` 尾项，不停留在计|
+| 测试完整 | `9` | 关键 crate 均有 fresh `cargo test -p`，但仍依赖分包验证而非 `cargo test --workspace` |
+| 验证可重| `10` | 行数扫描、结构测试、包级测试、fmt 检查均可重|
+| 检查点可判| `10` | `> 1000` 文件清零、结构测试保持通过、架构回写完成，标准客观 |
+| 风险与回写| `9` | 风险明确，但 `projection-service` 接近红线仍需后续严控 |
+| 依赖明确 | `10` | Step 03 的进入条件已清楚 |
+| 复盘沉淀 | `10` | `docs/review` `docs/架构` 已同步回写|
+| 总分 | `98` | Step 02 质量过关，可进入 Step 03 |
+
+## 4. fresh 证据
+
+### 4.1 行数治理
+
+- 仓库级扫描结果：生产 Rust 文件 `> 1000` 数量`0`
+
+### 4.2 结构 / 包级测试
+
+- `cargo test -p session-gateway`
+- `cargo test -p conversation-runtime`
+- `cargo test -p sdkwork-im-cloud-gateway`
+- `cargo test -p projection-service`
+- `cargo test -p im-adapters-local-disk`
+- `cargo test -p sdkwork-im-cli`
+
+### 4.3 格式检查
+
+- `cargo fmt --check --package session-gateway`
+- `cargo fmt --check --package conversation-runtime`
+- `cargo fmt --check --package sdkwork-im-server`
+- `cargo fmt --check --package projection-service`
+- `cargo fmt --check --package im-adapters-local-disk`
+- `cargo fmt --check --package sdkwork-im-cli`
+
+## 5. 复盘
+
+### 5.1 本轮做对了什么
+
+- 没有`chat-cli` 留成“只差一点”的尾项，而是彻底parse/config/runtime 分开
+- 没有Step 02 的闭环标准降格为“主要大文件差不多都拆了”，而是继续追到仓库级红线清零。
+- 在宣布闭环前补了 fresh 验证，而不是引用旧结果：
+
+### 5.2 本轮仍需盯防什么
+
+- `projection-service/src/lib.rs` 仍接近红线，Step 03 不得继续向其堆积协议逻辑
+- Step 03 若开始建立`ccp-* / contract-*`，必须把新逻辑写进新的 crate 或明确的新目录，不得回流 Step 02 刚收口的 facade。
+
+## 6. 审计结论
+
+`91`：通过  
+`95`：通过  
+`97`：通过  
+`93`：未到执行时
+
+Step 02 可以正式判定为已闭环
+

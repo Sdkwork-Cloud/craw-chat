@@ -1,0 +1,27 @@
+# Dependabot — SDKWork IM supply-chain updates
+# Spec: sdkwork-specs/SUPPLY_CHAIN_SECURITY_SPEC.md
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 15
+    groups:
+      sdkwork-pc-workspace:
+        patterns:
+          - "@sdkwork/*"
+          - "@sdkwork-internal/*"
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 15

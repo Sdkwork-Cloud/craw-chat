@@ -1,0 +1,20 @@
+[package]
+name = "sdkwork-api-product-runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+axum = "0.8.6"
+bytes = "1"
+mime_guess = "2"
+rand = "0.8"
+im-adapters-local-disk.workspace = true
+im-storage-contracts.workspace = true
+im-storage-runtime.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+sdkwork-api-config.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "net", "sync"] }
+url = "2"

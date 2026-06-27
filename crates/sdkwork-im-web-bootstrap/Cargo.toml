@@ -1,0 +1,17 @@
+[package]
+name = "sdkwork-im-web-bootstrap"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Sdkwork IM HTTP service web-framework bootstrap for open-api and mixed IM surfaces"
+
+[dependencies]
+axum.workspace = true
+im-app-context = { path = "../im-app-context" }
+sdkwork_im_service_readiness = { path = "../sdkwork-im-service-readiness", package = "sdkwork-im-service-readiness" }
+sdkwork_im_realtime_api_paths.workspace = true
+sdkwork_iam_web_adapter.workspace = true
+sdkwork_web_axum.workspace = true
+sdkwork_web_bootstrap = { workspace = true, features = ["otel"] }
+sdkwork_web_core.workspace = true
+tokio.workspace = true

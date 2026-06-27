@@ -1,0 +1,111 @@
+{
+  "status": {
+    "PENDING_PAY": "Pending Payment",
+    "PENDING_SHIP": "Pending Shipment",
+    "SHIPPED": "Shipped",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled"
+  },
+  "statusDetail": {
+    "PENDING_PAY": "Pending Payment",
+    "PENDING_SHIP": "Paid, Awaiting Shipment",
+    "SHIPPED": "Shipped",
+    "COMPLETED": "Trade Successful",
+    "CANCELLED": "Order Closed"
+  },
+  "statusDesc": {
+    "PENDING_PAY": "Please complete payment soon. Overdue orders will be automatically cancelled.",
+    "PENDING_SHIP": "Items are being packed. Please wait patiently.",
+    "SHIPPED": "Package is in transit. Please watch for delivery notifications.",
+    "COMPLETED": "Thank you for shopping. We look forward to seeing you again.",
+    "CANCELLED": "Order closed. Reason: buyer/system cancellation."
+  },
+  "tabs": {
+    "ALL": "All Orders",
+    "PENDING_PAY": "Pending Payment",
+    "PENDING_SHIP": "Pending Shipment",
+    "SHIPPED": "Shipped",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled"
+  },
+  "header": {
+    "title": "Order Center",
+    "export": "Export Report"
+  },
+  "filter": {
+    "searchPlaceholder": "Search order no. / customer / product...",
+    "advancedFilter": "Advanced Filter"
+  },
+  "table": {
+    "productDetails": "Product Details",
+    "price": "Price",
+    "quantity": "Qty",
+    "total": "Total",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "order": {
+    "orderNo": "Order No:",
+    "customer": "Customer:",
+    "deleteOrder": "Delete Order",
+    "minimalPack": "Minimal Packaging",
+    "freeShipping": "Free Shipping",
+    "orderDetails": "Order Details",
+    "payNow": "Pay Now",
+    "cancelOrder": "Cancel Order",
+    "shipProcess": "Process Shipment",
+    "applyRefund": "Apply Refund",
+    "confirmComplete": "Confirm Complete",
+    "review": "Review",
+    "applyAfterSales": "After-Sales",
+    "noOrders": "No matching orders found"
+  },
+  "pagination": {
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "export": {
+    "title": "Export Report",
+    "cancel": "Cancel",
+    "exportBtn": "Export",
+    "exportSuccess": "Report (format: {{format}}) generation started."
+  },
+  "detail": {
+    "backToList": "Back to Orders",
+    "title": "Order Details",
+    "shippingInfo": "Shipping Info",
+    "orderInfo": "Order Info",
+    "orderNo": "Order No.",
+    "copy": "Copy",
+    "createTime": "Created At",
+    "payTime": "Paid At",
+    "completeTime": "Completed At",
+    "deliveredOnTime": "Delivered on time",
+    "officialStore": "Official Flagship Store",
+    "customConfig": "Premium Custom / Standard Config",
+    "returnPolicy": "7-Day Return Policy",
+    "authenticGuarantee": "Authentic Guarantee",
+    "noItemDetail": "No item details, order summary only: {{info}}",
+    "productTotal": "Product Total",
+    "shippingFee": "Shipping",
+    "shopDiscount": "Shop Discount",
+    "actualPayment": "Actual Payment",
+    "cancelOrder": "Cancel Order",
+    "payNow": "Pay Now",
+    "applyRefund": "Apply Refund",
+    "remindShip": "Remind / Simulate Shipment",
+    "viewLogistics": "View Logistics",
+    "confirmReceive": "Confirm Receipt",
+    "applyAfterSales": "After-Sales",
+    "reviewOrder": "Review Order"
+  },
+  "toast": {
+    "orderCancelled": "Order cancelled",
+    "orderShipped": "Order shipped",
+    "refundSubmitted": "Refund submitted, awaiting seller processing",
+    "tradeSuccess": "Trade successful",
+    "afterSalesApplied": "After-sales request submitted",
+    "addressCopied": "Shipping address copied",
+    "orderNoCopied": "Order number copied"
+  }
+}

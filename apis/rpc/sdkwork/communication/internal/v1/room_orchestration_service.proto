@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package sdkwork.communication.internal.v1;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.internal.v1";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/internal/v1;communicationinternalv1";
+
+service RoomOrchestrationService {
+  rpc CreateRoom(OrchestrateCreateRoomRequest) returns (OrchestrateCreateRoomResponse);
+  rpc RetrieveRoom(OrchestrateRetrieveRoomRequest) returns (OrchestrateRetrieveRoomResponse);
+  rpc EnterRoom(OrchestrateEnterRoomRequest) returns (OrchestrateEnterRoomResponse);
+  rpc LeaveRoom(OrchestrateLeaveRoomRequest) returns (OrchestrateLeaveRoomResponse);
+}
+
+message OrchestratedRoomView {
+  string room_id = 1;
+  string room_kind = 2;
+  string conversation_id = 3;
+  int32 active_member_count = 4;
+  int32 max_members = 5;
+}
+
+message OrchestrateCreateRoomRequest {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string actor_id = 3;
+  string actor_kind = 4;
+  string conversation_id = 5;
+  string room_id = 6;
+  string room_kind = 7;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message OrchestrateCreateRoomResponse {
+  string conversation_id = 1;
+  string event_id = 2;
+  OrchestratedRoomView room = 3;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message OrchestrateRetrieveRoomRequest {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string room_id = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message OrchestrateRetrieveRoomResponse {
+  OrchestratedRoomView room = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message OrchestrateEnterRoomRequest {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string room_id = 3;
+  string principal_id = 4;
+  string principal_kind = 5;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message OrchestrateEnterRoomResponse {
+  string member_id = 1;
+  string conversation_id = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message OrchestrateLeaveRoomRequest {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string room_id = 3;
+  string principal_id = 4;
+  string principal_kind = 5;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message OrchestrateLeaveRoomResponse {
+  string member_id = 1;
+  string conversation_id = 2;
+  string status = 3;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

@@ -1,0 +1,39 @@
+{
+  "loading": "Loading configuration...",
+  "nav": {
+    "infrastructure": "Infrastructure & Basics",
+    "apiKeys": "API Keys & Integrations",
+    "webhook": "Webhook Subscriptions",
+    "sso": "Single Sign-On (SSO)",
+    "security": "Global Security",
+    "notifications": "Notifications & Push"
+  },
+  "infra": {
+    "title": "Infrastructure & Basics",
+    "desc": "Configure your enterprise IM environment identity and settings",
+    "orgName": "Organization Name",
+    "envFlag": "Environment Flag",
+    "envFlagHint": "Environment flag cannot be changed after tenant creation.",
+    "customDomain": "Custom Domain (CNAME)",
+    "customDomainPlaceholder": "e.g. chat.acmecorp.com",
+    "verify": "Verify",
+    "branding": "Client Branding",
+    "brandingDesc": "Upload your company logo. It will appear in the employee chat client and login page.",
+    "uploadImage": "Upload Image",
+    "remove": "Remove",
+    "logoHint": "Recommended size 512x512, PNG format",
+    "saving": "Saving...",
+    "save": "Save Changes"
+  },
+  "apiKeys": {
+    "title": "API Keys (Production)",
+    "desc": "Authentication credentials for server-side integration and client initialization",
+    "rotate": "Rotate Keys",
+    "publishableKey": "Publishable Key",
+    "publishableKeyHint": "Used for client SDK initialization",
+    "secretKey": "Secret Key",
+    "secretKeyHint": "Used for server-side API calls. Do not expose on the client.",
+    "copy": "Copy",
+    "show": "Show"
+  }
+}

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package sdkwork.common.v1;
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.common.v1";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/common/v1;commonv1";
+
+message AppContext {
+  string tenant_id = 1;
+  string organization_id = 2;
+  string user_id = 3;
+  string session_id = 4;
+  string app_id = 5;
+  string environment = 6;
+  string deployment_mode = 7;
+  string surface_profile = 8;
+}
+
+message CallerContext {
+  string actor_type = 1;
+  string actor_id = 2;
+  string service_id = 3;
+  string tenant_id = 4;
+  string organization_id = 5;
+  string auth_level = 6;
+}
+
+message RequestMetadata {
+  string request_id = 1;
+  string traceparent = 2;
+  string idempotency_key = 3;
+  string request_hash = 4;
+  string client_version = 5;
+  AppContext app_context = 6;
+  CallerContext caller_context = 7;
+}
+
+message ResponseMetadata {
+  string request_id = 1;
+  string traceparent = 2;
+  string server_time = 3;
+  repeated string warnings = 4;
+  repeated string deprecation_notices = 5;
+}
+
+message PageRequest {
+  int32 page_size = 1;
+  string cursor = 2;
+  string sort = 3;
+  map<string, string> filters = 4;
+}
+
+message PageResponse {
+  string next_cursor = 1;
+  bool has_more = 2;
+  int64 total_count = 3;
+}

@@ -1,0 +1,61 @@
+> Migrated from `docs/review/step-07-cp07-2-架构兑现与回写决议-2026-04-07.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 07 / CP07-2 架构兑现与回写决议- 2026-04-07
+
+## 对应架构文档
+
+- `docs/架构/09-实施计划.md`
+- `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
+- `docs/架构/148-CCP控制面注册表与协议发布治理设计2026-04-06.md`
+- `docs/架构/149-多Cell多Region协议升级与灾备兼容设计2026-04-06.md`
+
+## 本轮已兑现能力力力力力
+
+- `142`
+  - capability profile
+  - quota profile
+  - runtime control config baseline
+  - effective protocol snapshot
+- `148`
+  - release channel
+  - rollout policy
+  - kill switch
+  - precedence order
+- `149`
+  - cell / region selector
+  - capability / codec / binding rollback primitive
+  - kill switch 作为第一优先级回滚手
+
+## 本轮未兑现能力力力力力
+
+- runtime 真正消费 `effective snapshot`
+- admin auth / audit / ops 治理发布闭环
+- `Step 07` step-wide `91 / 95 / 97`
+- `Wave C / 93`
+
+## 是否偏离架构
+
+- 无偏离
+- 当前实现与架构文档一致，且显式保留了“控制面先冻结，runtime 后消费”的依赖顺序
+
+## 回写决议
+
+- `docs/架构/09-实施计划.md` 追加 `As-Built 75`
+- `docs/架构/142-控制面与配置治理设计-2026-04-06.md` 追加 `As-Built 2`
+- `docs/架构/148-CCP控制面注册表与协议发布治理设计2026-04-06.md` 追加 `As-Built 2`
+- `docs/架构/149-多Cell多Region协议升级与灾备兼容设计2026-04-06.md` 追加 `As-Built 2`
+
+## 证据
+
+- 代码
+  - `crates/sdkwork-im-ccp-registry/src/lib.rs`
+  - `services/control-plane-api/src/lib.rs`
+- 测试
+  - `crates/sdkwork-im-ccp-registry/tests/governance_snapshot_test.rs`
+  - `services/control-plane-api/tests/protocol_governance_test.rs`
+- 验证
+  - `cargo test -p sdkwork-im-ccp-registry --offline --target-dir target-step07-cp072-final-registry`
+  - `cargo test -p control-plane-api --offline --target-dir target-step07-cp072-final-control-plane`
+  - `cargo test -p im-platform-contracts --test ccp_foundation_smoke_test --offline --target-dir target-step07-cp072-final-platform-smoke`
+

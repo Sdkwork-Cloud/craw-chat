@@ -1,0 +1,10 @@
+pub mod base;
+pub mod paths;
+pub mod automation;
+pub use automation::AutomationApi;
+pub mod notification;
+pub use notification::NotificationApi;
+pub mod portal;
+pub use portal::PortalApi;
+pub mod provider;
+pub use provider::ProviderApi;

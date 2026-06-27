@@ -1,0 +1,24 @@
+{
+  "step": "11",
+  "tierId": "capacity",
+  "tier": "Capacity Tier",
+  "profile": "capacity-dedicated",
+  "scenarioFamily": "stream",
+  "artifactKind": "capacity_json",
+  "runId": "step11-capacity-local-stream-2026-06-17-doc-capture",
+  "collectedAt": "2026-06-17",
+  "sourceProfile": "self-hosted.split-services.development",
+  "sourceTier": "CI Smoke Tier",
+  "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
+  "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
+  "sourceFieldMapping": {
+    "streamFramesPerSecond": "framesPerSecond",
+    "frameP95Ms": "appendP95Ms",
+    "frameP99Ms": "appendP95Ms"
+  },
+  "streamFramesPerSecond": 10613.071,
+  "frameP95Ms": 0.117,
+  "frameP99Ms": 0.155,
+  "boundary": "This artifact backfills published local CP11-2 stream evidence into the Capacity Tier artifact root using capacity_json field names. frameP95Ms is doc-captured from published appendP95Ms."
+}

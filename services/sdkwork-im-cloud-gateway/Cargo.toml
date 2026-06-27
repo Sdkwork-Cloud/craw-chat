@@ -1,0 +1,54 @@
+[package]
+name = "sdkwork-im-cloud-gateway"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lib]
+name = "web_gateway"
+
+[[bin]]
+name = "sdkwork-im-server"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-cloud-gateway-config = { path = "../../crates/sdkwork-im-cloud-gateway-config" }
+sdkwork-im-cloud-gateway-observability = { path = "../../crates/sdkwork-im-cloud-gateway-observability" }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
+futures-util.workspace = true
+im-app-context = { path = "../../crates/im-app-context" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde.workspace = true
+serde_json.workspace = true
+sdkwork-api-config = { path = "../../crates/sdkwork-api-config" }
+sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime" }
+tokio.workspace = true
+tokio-tungstenite = "0.28.0"
+tower.workspace = true
+tower-http = { version = "0.6.6", features = ["cors"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+sdkwork_iam_web_adapter.workspace = true
+sdkwork_web_axum.workspace = true
+sdkwork_web_bootstrap.workspace = true
+sdkwork_web_store_sqlx.workspace = true
+sdkwork_web_core.workspace = true
+sdkwork_im_service_readiness = { workspace = true }
+sdkwork_im_database_pool = { workspace = true }
+sdkwork_iam_database_host = { workspace = true }
+sdkwork_im_iam_application_bootstrap = { workspace = true }
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
+session-gateway = { path = "../session-gateway" }
+sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
+sdkwork_im_realtime_api_paths.workspace = true
+sdkwork_im_websocket_auth_gate.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+http-body-util.workspace = true
+tokio-tungstenite = "0.28.0"

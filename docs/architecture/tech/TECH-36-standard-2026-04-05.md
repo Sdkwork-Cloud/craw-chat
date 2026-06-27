@@ -1,0 +1,135 @@
+> Migrated from `docs/架构/36-通知请求幂等与冲突标准-2026-04-05.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 通知请求幂等与冲突标准 - 2026-04-05
+
+## 1. 背景
+
+本轮 review 发现 `notification-service` 存在一个高风险一致性缺陷：
+
+- `tenant_id + notification_id` 被当作唯一键使用，但重复请求不会做幂等判断。
+- 相同 `notificationId` 的重复提交会再次追加 `notification.requested` 和 `notification.dispatched` 事件。
+- 相同 `notificationId` 携带不同 `recipientId` 或不同内容时，会直接覆盖内存中的通知任务。
+- `sdkwork-im-server` 在调用通知运行时后总是写入 audit 记录，导致幂等重放也会重复写副作用。
+
+该问题会带来以下风险：
+
+- 审计重复，破坏审计信号可信度。
+- 事件流重复，破坏下游投影与集成幂等假设。
+- 同租户内可能通过冲突覆盖把通知可见性从一个接收者转移到另一个接收者。
+
+## 2. 标准
+
+### 2.1 幂等键
+
+通知请求的幂等键定义为：
+
+- `tenant_id + notification_id`
+
+该键在同一租户内必须唯一，不能被不同内容复用。
+
+### 2.2 同键同内容
+
+当以下字段完全一致时，重复提交必须被视为幂等重放：
+
+- `notificationId`
+- `sourceEventId`
+- `sourceEventType`
+- `category`
+- `channel`
+- `recipientId`
+- `title`
+- `body`
+- `payload`
+
+处理要求：
+
+- HTTP 返回 `200`
+- 返回与首次创建一致的通知对象
+- 不再追加新的 domain event
+- 不再重复写 audit side-effect
+
+### 2.3 同键不同内容
+
+当 `tenant_id + notification_id` 相同，但请求内容与已存在通知不一致时，必须判定为冲突。
+
+处理要求：
+
+- HTTP 返回 `409`
+- 返回错误码 `notification_conflict`
+- 保留首次成功写入的通知状态，不允许覆盖
+
+### 2.4 副作用控制
+
+聚合节点或控制层如果要在通知创建后派生副作用，必须基于运行时返回的 `is_new` 标记控制。
+
+- `is_new = true` 时允许写入 audit / 派生动作
+- `is_new = false` 时必须禁止重复副作用
+
+这条规则适用于：
+
+- `sdkwork-im-server`
+- 后续控制面编排层
+- 任何面向 webhook / workflow / bot 的通知代理层
+
+## 3. 实现约束
+
+### 3.1 运行时返回值
+
+通知运行时应提供带 outcome 的入口，返回：
+
+```rust
+pub struct NotificationRequestResult {
+    pub task: NotificationTask,
+    pub is_new: bool,
+}
+```
+
+### 3.2 存储覆盖保护
+
+在写入通知任务前必须先检查唯一键：
+
+- 不存在则创建并写入事件
+- 已存在且内容相同则直接返回已有任务
+- 已存在且内容不同则返回冲突
+
+禁止先写事件再判断冲突。
+
+### 3.3 可见性保护
+
+一旦通知任务首次写入成功，下列字段不得被重复请求改写：
+
+- `recipient_id`
+- `source_event_id`
+- `source_event_type`
+- `category`
+- `channel`
+- `title`
+- `body`
+- `payload`
+
+## 4. 验证清单
+
+必须覆盖以下自动化测试：
+
+1. 运行时层：相同请求重复提交，只生成两条事件。
+2. 运行时层：同键不同内容重复提交，返回 `409 notification_conflict`。
+3. HTTP 层：相同请求重复提交，第二次返回与第一次完全一致。
+4. 聚合节点：幂等重放不重复写 audit 记录。
+
+## 5. 参考实现
+
+- `services/notification-service/src/lib.rs`
+- `services/notification-service/tests/notification_pipeline_test.rs`
+- `services/notification-service/tests/http_smoke_test.rs`
+- `services/sdkwork-im-cloud-gateway/src/lib.rs`
+- `services/sdkwork-im-cloud-gateway/tests/task10_capabilities_e2e_test.rs`
+
+## 6. 后续 review 建议
+
+通知幂等补齐后，下一轮优先继续检查以下边界：
+
+- `streaming-service` 是否存在同一 `stream_id` 的重复 frame/complete/abort 状态覆盖问题。
+- `im-call-runtime` 是否存在跨会话重放、重复 invite 或错误 participant 绑定问题。
+- `conversation_runtime` 的成员变更、消息编辑与撤回是否都具备一致的幂等和冲突语义。
+

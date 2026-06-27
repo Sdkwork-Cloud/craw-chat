@@ -1,0 +1,95 @@
+> Migrated from `docs/review/step-07-质量审计与复盘-2026-04-07.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# Step 07 质量审计与复盘- 2026-04-07
+
+## 1. 基本信息
+
+- Step 编号：`07`
+- 波次：`Wave C`
+- 审计范围：`CP07-1 / CP07-2 / CP07-3 / CP07-4`
+- 关联 step 文档
+  - `docs/step/07-控制面与协议治理落地.md`
+  - `docs/step/91-Step质量审计清单与复盘模md`
+  - `docs/step/95-架构能力闭环验收标准.md`
+  - `docs/step/97-Step完成后的架构回写与能力兑现清md`
+
+## 2. 审计结论
+
+- 本轮未发现阻`Step 07` 闭环的剩余缺陷
+- `Step 07` 已满`91` `95` 的最低闭环要求：
+  - control-plane 已成为协议与配置治理权威入口
+  - 热路径不再依赖本地硬编码 capability / binding / protocol baseline
+  - admin / ops / audit 已形成最小可验证闭环
+- `Wave C / 93` 仍不允许提前执行，因`Step 08 / Step 09` 未完成
+
+## 3. fresh verification
+
+### 3.1 子任Red / Green 证据
+
+- `CP07-1`
+  - `cargo test -p sdkwork-im-ccp-registry --test compatibility_matrix_test --offline --target-dir target-step07-cp071-red-registry -- --exact test_control_plane_registry_freezes_schema_stage_and_client_compatibility_matrix`
+  - `cargo test -p control-plane-api --test protocol_registry_test --offline --target-dir target-step07-cp071-red-api -- --exact test_control_plane_exposes_protocol_registry_snapshot_to_control_readers`
+  - `cargo test -p sdkwork-im-ccp-registry --test compatibility_matrix_test --offline --target-dir target-step07-cp071-green-registry -- --exact test_control_plane_registry_freezes_schema_stage_and_client_compatibility_matrix`
+  - `cargo test -p control-plane-api --test protocol_registry_test --offline --target-dir target-step07-cp071-green-api -- --exact test_control_plane_exposes_protocol_registry_snapshot_to_control_readers`
+- `CP07-2`
+  - `cargo test -p sdkwork-im-ccp-registry --test governance_snapshot_test --offline --target-dir target-step07-cp072-red-registry -- --exact test_control_plane_registry_freezes_governance_snapshot_for_runtime_consumers`
+  - `cargo test -p control-plane-api --test protocol_governance_test --offline --target-dir target-step07-cp072-red-api -- --exact test_control_plane_exposes_protocol_governance_snapshot_to_control_readers`
+  - `cargo test -p sdkwork-im-ccp-registry --test governance_snapshot_test --offline --target-dir target-step07-cp072-green-registry -- --exact test_control_plane_registry_freezes_governance_snapshot_for_runtime_consumers`
+  - `cargo test -p control-plane-api --test protocol_governance_test --offline --target-dir target-step07-cp072-green-api -- --exact test_control_plane_exposes_protocol_governance_snapshot_to_control_readers`
+- `CP07-3`
+  - `cargo test -p sdkwork-im-runtime-link --offline --target-dir target-step07-cp073-red-runtime-link -- --exact test_link_session_negotiates_hello_from_effective_snapshot`
+  - `cargo test -p sdkwork-im-runtime-link --offline --target-dir target-step07-cp073-red-runtime-link-bind -- --exact test_link_session_rejects_binding_blocked_by_effective_snapshot`
+  - `cargo test -p sdkwork-im-runtime-link --offline --target-dir target-step07-cp073-green-runtime-link -- --exact tests::test_link_session_negotiates_hello_from_effective_snapshot`
+  - `cargo test -p sdkwork-im-runtime-link --offline --target-dir target-step07-cp073-green-runtime-link-bind -- --exact tests::test_link_session_rejects_binding_blocked_by_effective_snapshot`
+- `CP07-4`
+  - `cargo test -p control-plane-api --test governance_loop_test --offline --target-dir target-step07-cp074-red-governance-loop`
+  - `cargo test -p control-plane-api --test governance_loop_test --offline --target-dir target-step07-cp074-green-governance-loop`
+
+### 3.2 整步回归
+
+- `cargo test -p sdkwork-im-ccp-registry --offline --target-dir target-step07-close-registry`
+- `cargo test -p sdkwork-im-runtime-link --offline --target-dir target-step07-close-runtime-link`
+- `cargo test -p control-plane-api --offline --target-dir target-step07-close-control-plane`
+- `cargo test -p ops-service --offline --target-dir target-step07-close-ops`
+- `cargo test -p audit-service --offline --target-dir target-step07-close-audit`
+- `cargo test -p im-platform-contracts --test ccp_foundation_smoke_test --offline --target-dir target-step07-close-platform-smoke`
+- `cargo fmt -p sdkwork-im-ccp-registry -p sdkwork-im-runtime-link -p control-plane-api -p ops-service -p audit-service -- --check`
+
+## 4. 主要结果
+
+- protocol registry、compatibility matrix、governance snapshot 已进control-plane，可admin 读面统一消费
+- runtime hello 协商已切`effective snapshot`，`protocol / binding / capability` 不再由热路径本地硬编码
+- control-plane 写操作已能把 node lifecycle / route ownership 镜像ops，并admin 行为记录audit
+
+## 5. 剩余风险与边
+
+- 当前 registry / governance snapshot 仍是 code-frozen baseline，不等于“持久化、可写、动态广播”的控制面真源
+- tenant / client segment 细粒度协议策略、protocol release bundle 与跨 region 动态编排尚未纳入本 step 闭环
+- 上述能力未被误判定`Step 07` 已完成项，已在架构回写中明确标记为后续增量
+
+## 6. 质量评分
+
+| 维度 | 分数 | 说明 |
+| --- | --- | --- |
+| 架构对齐 | 95 | `139 / 142 / 148 / 149` Step 07 范围内能力已兑现 |
+| 边界清晰 | 94 | control-plane / runtime / ops / audit 分工明确 |
+| 路径真实 | 95 | registry、runtime 协商、ops / audit loop 均有真实代码 |
+| 实施可执行卡| 94 | CP07-1~4 依赖顺序正确，未跳步 |
+| 测试完整 | 93 | 子任Red/Green 与整步回归齐|
+| 验证可重| 94 | 命令可重复执行，target-dir 已隔|
+| 检查点可判定| 95 | CP07-1~4 均可明确判定通过 |
+| 风险与回写| 92 | kill switch / rollout baseline 已有，动态传播留待后|
+| 依赖明确 | 95 | 已明`Wave C / 93` 仍阻|
+| 复盘沉淀 | 94 | 子任务与整步 review 均已补齐 |
+| 总分 | 94 | 通过 |
+
+## 7. 审计决议
+
+- `CP07-1`：通过
+- `CP07-2`：通过
+- `CP07-3`：通过
+- `CP07-4`：通过
+- `Step 07`：闭环通过
+- 下一步：允许进入 `Step 08`
+

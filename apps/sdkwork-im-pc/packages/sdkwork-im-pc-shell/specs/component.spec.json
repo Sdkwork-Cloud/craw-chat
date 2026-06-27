@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/im-pc-shell",
+    "displayName": "Sdkwork IM PC Shell",
+    "version": "1.0.0",
+    "type": "node-package",
+    "root": "sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell",
+    "domain": "communication",
+    "capability": "shell",
+    "languages": ["typescript"],
+    "generated": false,
+    "manifests": ["package.json"]
+  },
+  "routeManifest": null,
+  "canonicalSpecs": [
+    {
+      "file": "APP_PC_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
+      "purpose": "PC shell composition and module registry ownership."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable module catalog and dependency direction."
+    }
+  ]
+}

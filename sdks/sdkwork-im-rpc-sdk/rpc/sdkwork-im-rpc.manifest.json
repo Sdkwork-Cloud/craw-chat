@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.rpc.manifest",
+  "domain": "communication",
+  "sdkFamily": "sdkwork-im-rpc-sdk",
+  "discoveryServiceName": "sdkwork-communication-app-rpc",
+  "defaultResilienceProfile": "rpc-default",
+  "services": [
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "PresenceService",
+      "surface": "app",
+      "methods": [
+        { "method": "CreatePresenceHeartbeat", "operationId": "presence.heartbeat.create", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveMyPresence", "operationId": "presence.me.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "WatchPresence", "operationId": "presence.watch", "auth": "app-session", "idempotency": "none", "streaming": "server", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "RealtimeService",
+      "surface": "app",
+      "methods": [
+        { "method": "SyncRealtimeSubscriptions", "operationId": "realtime.subscriptions.sync", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "AckRealtimeEvents", "operationId": "realtime.events.ack", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListRealtimeEvents", "operationId": "realtime.events.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "WatchRealtimeEvents", "operationId": "realtime.events.watch", "auth": "app-session", "idempotency": "none", "streaming": "server", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "ConversationService",
+      "surface": "app",
+      "methods": [
+        { "method": "CreateConversation", "operationId": "conversations.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateAgentDialog", "operationId": "conversations.agentDialogs.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateAgentHandoff", "operationId": "conversations.agentHandoffs.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateSystemChannel", "operationId": "conversations.systemChannels.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateThread", "operationId": "conversations.threads.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "BindDirectChat", "operationId": "conversations.directChats.bind", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveConversation", "operationId": "conversations.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveInbox", "operationId": "inbox.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListConversationMembers", "operationId": "conversations.members.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "AddConversationMember", "operationId": "conversations.members.add", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RemoveConversationMember", "operationId": "conversations.members.remove", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "TransferConversationOwner", "operationId": "conversations.members.transferOwner", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ChangeConversationMemberRole", "operationId": "conversations.members.changeRole", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "LeaveConversation", "operationId": "conversations.members.leave", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveConversationPreferences", "operationId": "conversations.preferences.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UpdateConversationPreferences", "operationId": "conversations.preferences.update", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveConversationProfile", "operationId": "conversations.profile.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UpdateConversationProfile", "operationId": "conversations.profile.update", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveReadCursor", "operationId": "conversations.readCursor.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UpdateReadCursor", "operationId": "conversations.readCursor.update", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListConversationMemberDirectory", "operationId": "conversations.memberDirectory.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListPinnedMessages", "operationId": "conversations.pins.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "ContactService",
+      "surface": "app",
+      "methods": [
+        { "method": "ListContacts", "operationId": "contacts.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListContactTags", "operationId": "social.contacts.tags.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateContactTag", "operationId": "social.contacts.tags.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UpdateContactTag", "operationId": "social.contacts.tags.update", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "DeleteContactTag", "operationId": "social.contacts.tags.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateContactRecommendation", "operationId": "social.contacts.recommendations.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveContactPreferences", "operationId": "social.contacts.preferences.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UpdateContactPreferences", "operationId": "social.contacts.preferences.update", "auth": "app-session", "idempotency": "optional", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "MessageService",
+      "surface": "app",
+      "methods": [
+        { "method": "ListConversationMessages", "operationId": "conversations.messages.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateConversationMessage", "operationId": "conversations.messages.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "PublishSystemChannelMessage", "operationId": "conversations.systemChannel.publish", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveMessageInteractionSummary", "operationId": "conversations.messages.interactionSummary.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "EditMessage", "operationId": "messages.edit", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RecallMessage", "operationId": "messages.recall", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListFavoriteMessages", "operationId": "messages.favorites.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateMessageFavorite", "operationId": "messages.favorites.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "DeleteMessageFavorite", "operationId": "messages.favorites.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "DeleteMessageVisibility", "operationId": "messages.visibility.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateMessageReaction", "operationId": "messages.reactions.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "DeleteMessageReaction", "operationId": "messages.reactions.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "PinMessage", "operationId": "messages.pin.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UnpinMessage", "operationId": "messages.pin.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "RoomService",
+      "surface": "app",
+      "methods": [
+        { "method": "CreateRoom", "operationId": "rooms.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveRoom", "operationId": "rooms.get", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "EnterRoom", "operationId": "rooms.enter", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "LeaveRoom", "operationId": "rooms.leave", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "SocialService",
+      "surface": "app",
+      "methods": [
+        { "method": "ListSocialUsers", "operationId": "social.users.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListFriendRequests", "operationId": "social.friendRequests.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateFriendRequest", "operationId": "social.friendRequests.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "AcceptFriendRequest", "operationId": "social.friendRequests.accept", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "DeclineFriendRequest", "operationId": "social.friendRequests.decline", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CancelFriendRequest", "operationId": "social.friendRequests.cancel", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RemoveFriendship", "operationId": "social.friendships.remove", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "StreamService",
+      "surface": "app",
+      "methods": [
+        { "method": "CreateStream", "operationId": "streams.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListStreamFrames", "operationId": "streams.frames.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "AppendStreamFrame", "operationId": "streams.frames.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateStreamCheckpoint", "operationId": "streams.checkpoint.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CompleteStream", "operationId": "streams.complete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "AbortStream", "operationId": "streams.abort", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "WatchStreamFrames", "operationId": "streams.frames.watch", "auth": "app-session", "idempotency": "none", "streaming": "server", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "CallService",
+      "surface": "app",
+      "methods": [
+        { "method": "CreateCallSession", "operationId": "calls.sessions.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveCallSession", "operationId": "calls.sessions.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "InviteCallSession", "operationId": "calls.sessions.invite", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "AcceptCallSession", "operationId": "calls.sessions.accept", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RejectCallSession", "operationId": "calls.sessions.reject", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "EndCallSession", "operationId": "calls.sessions.end", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateCallSignal", "operationId": "calls.sessions.signals.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "CreateCallCredential", "operationId": "calls.sessions.credentials.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "WatchCallSignals", "operationId": "calls.sessions.signals.watch", "auth": "app-session", "idempotency": "none", "streaming": "server", "owner": "im-open-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "NotificationService",
+      "surface": "app",
+      "methods": [
+        { "method": "ListNotifications", "operationId": "notifications.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "CreateNotificationRequest", "operationId": "notifications.requests.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "RetrieveNotification", "operationId": "notifications.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "WatchNotifications", "operationId": "notifications.watch", "auth": "app-session", "idempotency": "none", "streaming": "server", "owner": "im-app-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.app.v3",
+      "service": "AutomationService",
+      "surface": "app",
+      "methods": [
+        { "method": "CreateAutomationExecution", "operationId": "automation.executions.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "RetrieveAutomationExecution", "operationId": "automation.executions.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "CreateAgentResponse", "operationId": "automation.agentResponses.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "CompleteAgentResponse", "operationId": "automation.agentResponses.complete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "CreateAgentResponseFrame", "operationId": "automation.agentResponses.frames.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "RequestAgentToolCall", "operationId": "automation.agentToolCalls.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" },
+        { "method": "CompleteAgentToolCall", "operationId": "automation.agentToolCalls.complete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-app-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.backend.v3",
+      "service": "CommunicationOpsService",
+      "surface": "backend",
+      "methods": [
+        { "method": "RetrieveHealth", "operationId": "health.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveCluster", "operationId": "cluster.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveLag", "operationId": "lag.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveReplayStatus", "operationId": "replayStatus.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveCommercialReadiness", "operationId": "commercialReadiness.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveRuntimeDir", "operationId": "runtimeDir.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListOpsProviderBindings", "operationId": "ops.providerBindings.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveProviderBindingDrift", "operationId": "ops.providerBindings.drift.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveDiagnostics", "operationId": "diagnostics.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.backend.v3",
+      "service": "RealtimeNodeAdminService",
+      "surface": "backend",
+      "methods": [
+        { "method": "ActivateRealtimeNode", "operationId": "nodes.activate", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "DrainRealtimeNode", "operationId": "nodes.drain", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "MigrateRealtimeNodeRoutes", "operationId": "nodes.routes.migrate", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.backend.v3",
+      "service": "CommunicationControlService",
+      "surface": "backend",
+      "methods": [
+        { "method": "RetrieveProtocolGovernance", "operationId": "protocolGovernance.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveProtocolRegistry", "operationId": "protocolRegistry.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListProviderPolicies", "operationId": "providerPolicies.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "PreviewProviderPolicy", "operationId": "providerPolicies.preview", "auth": "backend-admin", "idempotency": "optional", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RollbackProviderPolicy", "operationId": "providerPolicies.rollback", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveProviderRegistry", "operationId": "providerRegistry.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListControlProviderBindings", "operationId": "control.providerBindings.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateControlProviderBinding", "operationId": "control.providerBindings.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.backend.v3",
+      "service": "SocialAdminService",
+      "surface": "backend",
+      "methods": [
+        { "method": "CreateDirectChatBinding", "operationId": "social.directChats.bindings.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveDirectChat", "operationId": "social.directChats.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateExternalConnection", "operationId": "social.externalConnections.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveExternalConnection", "operationId": "social.externalConnections.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateExternalMemberLink", "operationId": "social.externalMemberLinks.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveExternalMemberLink", "operationId": "social.externalMemberLinks.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateManagedFriendRequest", "operationId": "social.friendRequests.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveManagedFriendRequest", "operationId": "social.friendRequests.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "AcceptManagedFriendRequest", "operationId": "social.friendRequests.accept", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "DeclineManagedFriendRequest", "operationId": "social.friendRequests.decline", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CancelManagedFriendRequest", "operationId": "social.friendRequests.cancel", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateManagedFriendship", "operationId": "social.friendships.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveManagedFriendship", "operationId": "social.friendships.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RemoveManagedFriendship", "operationId": "social.friendships.remove", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateSharedChannelPolicy", "operationId": "social.sharedChannelPolicies.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveSharedChannelPolicy", "operationId": "social.sharedChannelPolicies.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateUserBlock", "operationId": "social.userBlocks.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveUserBlock", "operationId": "social.userBlocks.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.backend.v3",
+      "service": "SocialRuntimeAdminService",
+      "surface": "backend",
+      "methods": [
+        { "method": "ClaimPendingSharedChannelSyncTargeted", "operationId": "social.runtime.claimPendingSharedChannelSyncTargeted.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListDeadLetterSharedChannelSync", "operationId": "social.runtime.deadLetterSharedChannelSync.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListDeliveredSharedChannelSync", "operationId": "social.runtime.deliveredSharedChannelSync.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListDeliveryStateSharedChannelSync", "operationId": "social.runtime.deliveryStateSharedChannelSync.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ListPendingSharedChannelSync", "operationId": "social.runtime.pendingSharedChannelSync.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ReclaimStalePendingSharedChannelSync", "operationId": "social.runtime.reclaimStalePendingSharedChannelSync.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "ReleasePendingSharedChannelSyncTargeted", "operationId": "social.runtime.releasePendingSharedChannelSyncTargeted.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RepairDerivedSnapshot", "operationId": "social.runtime.repairDerivedSnapshot.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RepairSharedChannelSync", "operationId": "social.runtime.repairSharedChannelSync.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RepublishPendingSharedChannelSyncTargeted", "operationId": "social.runtime.republishPendingSharedChannelSyncTargeted.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RequeueDeadLetterSharedChannelSync", "operationId": "social.runtime.requeueDeadLetterSharedChannelSync.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RequeueDeadLetterSharedChannelSyncTargeted", "operationId": "social.runtime.requeueDeadLetterSharedChannelSyncTargeted.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "TakeoverPendingSharedChannelSyncTargeted", "operationId": "social.runtime.takeoverPendingSharedChannelSyncTargeted.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.backend.v3",
+      "service": "AuditAdminService",
+      "surface": "backend",
+      "methods": [
+        { "method": "ListAuditRecords", "operationId": "records.list", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "CreateAuditRecord", "operationId": "records.create", "auth": "backend-admin", "idempotency": "required", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" },
+        { "method": "RetrieveAuditExport", "operationId": "export.retrieve", "auth": "backend-admin", "idempotency": "none", "streaming": "unary", "owner": "im-backend-api", "compatibility": "v3" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "RuntimeTopologyService",
+      "surface": "internal",
+      "methods": [
+        { "method": "RetrieveRuntimeTopology", "operationId": "internal.runtimeTopology.retrieve", "auth": "service-mtls", "idempotency": "none", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "ListRuntimeCapabilities", "operationId": "internal.runtimeCapabilities.list", "auth": "service-mtls", "idempotency": "none", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "WatchRuntimeTopology", "operationId": "internal.runtimeTopology.watch", "auth": "service-mtls", "idempotency": "none", "streaming": "server", "owner": "communication-internal", "compatibility": "v1" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "RouteLeaseService",
+      "surface": "internal",
+      "methods": [
+        { "method": "ClaimRouteLease", "operationId": "internal.routeLeases.claim", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "RenewRouteLease", "operationId": "internal.routeLeases.renew", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "ReleaseRouteLease", "operationId": "internal.routeLeases.release", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "ListRouteLeases", "operationId": "internal.routeLeases.list", "auth": "service-mtls", "idempotency": "none", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "DomainEventRelayService",
+      "surface": "internal",
+      "methods": [
+        { "method": "PublishDomainEvent", "operationId": "internal.domainEvents.publish", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "AckDomainEvent", "operationId": "internal.domainEvents.ack", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "WatchDomainEvents", "operationId": "internal.domainEvents.watch", "auth": "service-mtls", "idempotency": "none", "streaming": "server", "owner": "communication-internal", "compatibility": "v1" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "RoomOrchestrationService",
+      "surface": "internal",
+      "methods": [
+        { "method": "CreateRoom", "operationId": "internal.rooms.create", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "RetrieveRoom", "operationId": "internal.rooms.retrieve", "auth": "service-mtls", "idempotency": "none", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "EnterRoom", "operationId": "internal.rooms.enter", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" },
+        { "method": "LeaveRoom", "operationId": "internal.rooms.leave", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
+      ]
+    },
+    {
+      "package": "sdkwork.communication.internal.v1",
+      "service": "MessageDispatchService",
+      "surface": "internal",
+      "methods": [
+        { "method": "DispatchConversationMessage", "operationId": "internal.messages.dispatch", "auth": "service-mtls", "idempotency": "required", "streaming": "unary", "owner": "communication-internal", "compatibility": "v1" }
+      ]
+    }
+  ]
+}

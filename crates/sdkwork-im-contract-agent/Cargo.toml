@@ -1,0 +1,11 @@
+[package]
+name = "sdkwork-im-contract-agent"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-contract-core = { path = "../sdkwork-im-contract-core" }
+im-domain-core = { path = "../im-domain-core" }
+im-time = { path = "../im-time" }
+serde.workspace = true

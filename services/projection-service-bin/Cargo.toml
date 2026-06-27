@@ -1,0 +1,18 @@
+﻿[package]
+name = "projection-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "projection-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+projection-service = { path = "../projection-service" }
+sdkwork-routes-im-projection-open-api = { path = "../../crates/sdkwork-routes-im-projection-open-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

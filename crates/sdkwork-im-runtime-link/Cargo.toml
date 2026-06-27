@@ -1,0 +1,18 @@
+[package]
+name = "sdkwork-im-runtime-link"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-ccp-binding-tcp = { path = "../sdkwork-im-ccp-binding-tcp" }
+sdkwork-im-ccp-binding-udp = { path = "../sdkwork-im-ccp-binding-udp" }
+sdkwork-im-ccp-binding-quic = { path = "../sdkwork-im-ccp-binding-quic" }
+sdkwork-im-ccp-binding-ws = { path = "../sdkwork-im-ccp-binding-ws" }
+sdkwork-im-ccp-registry = { path = "../sdkwork-im-ccp-registry" }
+sdkwork-im-ccp-control = { path = "../sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
+tracing = "0.1.41"
+
+[dev-dependencies]
+sdkwork-im-ccp-codec-json = { path = "../sdkwork-im-ccp-codec-json" }

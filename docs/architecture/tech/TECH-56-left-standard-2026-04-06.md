@@ -1,0 +1,175 @@
+> Migrated from `docs/架构/56-成员主动离开会话与left状态标准-2026-04-06.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 56-成员主动离开会话与 left 状态标准-2026-04-06
+
+## 1. 背景
+
+在 `55-成员治理与Direct会话成员边界标准-2026-04-06.md` 冻结之后，群治理矩阵已经明确，但成员生命周期仍然存在一个缺口：
+
+- 数据模型已经存在 `MembershipState::Left`
+- 系统却没有显式的 “主动离开会话” 命令、接口和事件
+
+这会导致主动退出和治理移除混用，破坏成员生命周期的可审计性和可扩展性。
+
+## 2. 目标
+
+本标准只解决一个问题：
+
+- 如何把 active member 以“主动离开”的方式迁移到 `left`
+
+本标准不承载以下能力：
+
+- owner transfer
+- 重新加入/重新邀请
+- member promote / demote
+- 其他特殊会话类型的成员生命周期
+
+## 3. 标准
+
+### 3.1 统一命令语义
+
+- 新增标准命令：`leave_conversation`
+- 新增标准事件：`conversation.member_left`
+- 新增标准接口：`POST /im/v3/api/chat/conversations/{conversationId}/members/leave`
+
+该接口的语义必须是：
+
+- 当前认证主体主动结束自己的 active member 资格
+- 不是治理别人
+- 不是删除历史成员记录
+
+### 3.2 请求约束
+
+- 请求体允许为空
+- 不允许客户端显式提交：
+  - `tenantId`
+  - `principalId`
+  - `memberId`
+- 当前操作者必须完全从认证上下文推导
+
+### 3.3 Group 会话规则
+
+对于 `conversation_type = group`：
+
+- `admin / member / guest`
+  - 允许主动离开
+- `owner`
+  - 禁止直接主动离开
+  - 必须先完成 owner transfer，再按非 owner 规则离开
+
+### 3.4 Direct 会话规则
+
+对于 `conversation_type = direct`：
+
+- 当前阶段统一拒绝 self leave
+
+原因：
+
+- direct 当前被冻结为双人边界
+- 一旦允许任意一方 leave，就会引出 direct 是“关闭会话”“解除关系”“保留单边历史”还是“退化为空会话”的新标准问题
+- 在这些问题没有冻结前，直接拒绝比隐式实现更安全
+
+### 3.5 其他会话类型规则
+
+对于尚未冻结成员生命周期标准的类型，例如：
+
+- `agent_dialog`
+- `agent_handoff`
+- `system_channel`
+
+当前阶段统一拒绝 generic leave。
+
+## 4. 状态与存储要求
+
+成员主动离开时必须满足：
+
+- `state = left`
+- `removed_at` 写入当前真实时间戳
+- 从 active member 索引中移除
+- 历史成员记录保留，不做物理删除
+
+这意味着：
+
+- 主动离开是一个终态变更
+- 不是把记录删掉
+- 后续 owner transfer、rejoin、审计都可以基于该历史记录继续演进
+
+## 5. 访问控制要求
+
+成员一旦 leave 成功，必须立即失去：
+
+- 会话摘要读取权限
+- 会话成员列表读取权限
+- 时间线读取权限
+- read cursor 更新权限
+- 绑定该会话的 stream / RTC / 其他成员前置资源访问权限
+
+统一原则：
+
+- active member 是所有会话绑定读写的唯一门槛
+- `left` 不再属于 active member
+
+## 6. 事件要求
+
+### 6.1 事件类型
+
+- `conversation.member_joined`
+- `conversation.member_removed`
+- `conversation.member_left`
+
+三者语义必须严格区分：
+
+- `joined`
+  - 成员进入 active member 集合
+- `removed`
+  - 成员被治理动作移出 active member 集合
+- `left`
+  - 成员主动退出 active member 集合
+
+### 6.2 投影要求
+
+- `member_left` 在 active member 投影上的效果，与 `member_removed` 一致：
+  - 立即从 active member 视图移除
+- 但事件类型本身必须保留，不能在事件层折叠成 `removed`
+
+## 7. 错误语义
+
+- 权限不满足时，统一返回：
+  - `403 conversation_permission_denied`
+- 当前阶段不额外引入新的 API 错误码族
+- 具体错误消息可说明：
+  - group owner 未支持 leave
+  - direct 不支持 leave
+  - 当前会话类型未支持 generic leave
+
+## 8. 一期落地要求
+
+一期必须具备：
+
+- runtime 层 `leave_conversation(...)`
+- gateway / app 层 `/members/leave`
+- `conversation.member_left` 事件追加
+- active member 投影移除
+- 覆盖以下回归场景：
+  - group 普通成员可以 leave
+  - leave 后立即丧失访问权
+  - group owner 不能 leave
+  - direct 不能 leave
+
+## 9. 后续演进
+
+后续标准按顺序推进：
+
+1. left 后重新加入
+2. 特殊会话类型成员生命周期
+3. 成员生命周期与通知、策略、工作流、审计的联动规则
+
+## 10. 后续状态更新（2026-04-06）
+
+- `left -> rejoin` 已在 `docs/架构/58-left-rejoin-membership-episode标准-2026-04-06.md` 中冻结。
+- 当前标准保持不变：
+  - `leave` 负责结束当前 active membership episode
+  - `rejoin` 不复活旧 episode，而是创建新的 episode
+- 因此 `left` 与 `rejoin` 在语义上是两个独立生命周期动作，不能把旧 `left` 记录直接改回 `joined`。
+

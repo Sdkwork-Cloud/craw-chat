@@ -1,0 +1,10 @@
+[package]
+name = "im-storage-runtime"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-contract-core = { path = "../sdkwork-im-contract-core" }
+im-storage-contracts = { path = "../im-storage-contracts" }
+serde_json.workspace = true

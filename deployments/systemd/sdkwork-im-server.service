@@ -1,0 +1,14 @@
+[Unit]
+Description=Sdkwork IM Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sdkwork/chat
+EnvironmentFile=/etc/sdkwork/chat/server.env
+ExecStart=/opt/sdkwork/chat/bin/sdkwork-im-server --config /etc/sdkwork/chat/chat.toml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

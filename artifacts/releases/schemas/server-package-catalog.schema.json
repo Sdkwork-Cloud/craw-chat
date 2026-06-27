@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifacts/releases/schemas/server-package-catalog.schema.json",
+  "title": "sdkwork-im server package catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "version",
+    "bundleId",
+    "wave",
+    "artifact",
+    "state",
+    "updatedAt",
+    "packageArtifacts"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../schemas/server-package-catalog.schema.json"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "bundleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wave": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact": {
+      "const": "server-package-catalog"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "template_only_pending_build",
+        "artifacts_staged_pending_validation",
+        "validated_ready_for_release",
+        "released"
+      ]
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date"
+    },
+    "packageArtifacts": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "platform",
+          "packageType",
+          "fileNameTemplate",
+          "artifactPath",
+          "installModel",
+          "defaultInstallRoot",
+          "configRoot",
+          "dataRoot",
+          "logRoot",
+          "runRoot",
+          "serviceManager",
+          "startupCommand",
+          "layoutTreePath",
+          "stagingReadmePath",
+          "releaseChecklistPath",
+          "checksumManifestPath",
+          "acceptanceManifestPath",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "linux",
+              "macos",
+              "windows"
+            ]
+          },
+          "packageType": {
+            "type": "string",
+            "enum": [
+              "tar.gz",
+              "deb",
+              "rpm",
+              "pkg",
+              "zip",
+              "msi"
+            ]
+          },
+          "fileNameTemplate": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "installModel": {
+            "type": "string",
+            "enum": [
+              "archive",
+              "native-installer"
+            ]
+          },
+          "defaultInstallRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dataRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "logRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "runRoot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "serviceManager": {
+            "type": "string",
+            "enum": [
+              "systemd",
+              "launchd",
+              "windows-service"
+            ]
+          },
+          "startupCommand": {
+            "type": "string",
+            "minLength": 1
+          },
+          "layoutTreePath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stagingReadmePath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "releaseChecklistPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checksumManifestPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "acceptanceManifestPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "template_only_pending_build",
+              "artifacts_staged_pending_validation",
+              "validated_ready_for_release",
+              "released"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

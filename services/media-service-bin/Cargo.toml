@@ -1,0 +1,18 @@
+﻿[package]
+name = "media-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "media-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+media-service = { path = "../media-service" }
+sdkwork-routes-im-media-app-api = { path = "../../crates/sdkwork-routes-im-media-app-api" }
+sdkwork_im_service_readiness = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true

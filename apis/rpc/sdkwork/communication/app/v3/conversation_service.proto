@@ -1,0 +1,434 @@
+syntax = "proto3";
+
+package sdkwork.communication.app.v3;
+
+import "sdkwork/common/v1/context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.sdkwork.communication.app.v3";
+option go_package = "github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/app/v3;communicationappv3";
+
+service ConversationService {
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  rpc CreateAgentDialog(CreateAgentDialogRequest) returns (CreateAgentDialogResponse);
+  rpc CreateAgentHandoff(CreateAgentHandoffRequest) returns (CreateAgentHandoffResponse);
+  rpc CreateSystemChannel(CreateSystemChannelRequest) returns (CreateSystemChannelResponse);
+  rpc CreateThread(CreateThreadRequest) returns (CreateThreadResponse);
+  rpc BindDirectChat(BindDirectChatRequest) returns (BindDirectChatResponse);
+  rpc RetrieveConversation(RetrieveConversationRequest) returns (RetrieveConversationResponse);
+  rpc RetrieveInbox(RetrieveInboxRequest) returns (RetrieveInboxResponse);
+  rpc ListConversationMembers(ListConversationMembersRequest) returns (ListConversationMembersResponse);
+  rpc AddConversationMember(AddConversationMemberRequest) returns (AddConversationMemberResponse);
+  rpc RemoveConversationMember(RemoveConversationMemberRequest) returns (RemoveConversationMemberResponse);
+  rpc TransferConversationOwner(TransferConversationOwnerRequest) returns (TransferConversationOwnerResponse);
+  rpc ChangeConversationMemberRole(ChangeConversationMemberRoleRequest) returns (ChangeConversationMemberRoleResponse);
+  rpc LeaveConversation(LeaveConversationRequest) returns (LeaveConversationResponse);
+  rpc RetrieveConversationPreferences(RetrieveConversationPreferencesRequest) returns (RetrieveConversationPreferencesResponse);
+  rpc UpdateConversationPreferences(UpdateConversationPreferencesRequest) returns (UpdateConversationPreferencesResponse);
+  rpc RetrieveConversationProfile(RetrieveConversationProfileRequest) returns (RetrieveConversationProfileResponse);
+  rpc UpdateConversationProfile(UpdateConversationProfileRequest) returns (UpdateConversationProfileResponse);
+  rpc RetrieveReadCursor(RetrieveReadCursorRequest) returns (RetrieveReadCursorResponse);
+  rpc UpdateReadCursor(UpdateReadCursorRequest) returns (UpdateReadCursorResponse);
+  rpc ListConversationMemberDirectory(ListConversationMemberDirectoryRequest) returns (ListConversationMemberDirectoryResponse);
+  rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
+}
+
+service ContactService {
+  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse);
+  rpc ListContactTags(ListContactTagsRequest) returns (ListContactTagsResponse);
+  rpc CreateContactTag(CreateContactTagRequest) returns (CreateContactTagResponse);
+  rpc UpdateContactTag(UpdateContactTagRequest) returns (UpdateContactTagResponse);
+  rpc DeleteContactTag(DeleteContactTagRequest) returns (DeleteContactTagResponse);
+  rpc CreateContactRecommendation(CreateContactRecommendationRequest) returns (CreateContactRecommendationResponse);
+  rpc RetrieveContactPreferences(RetrieveContactPreferencesRequest) returns (RetrieveContactPreferencesResponse);
+  rpc UpdateContactPreferences(UpdateContactPreferencesRequest) returns (UpdateContactPreferencesResponse);
+}
+
+message ConversationView {
+  string conversation_id = 1;
+  string conversation_type = 2;
+  string title = 3;
+  string owner_user_id = 4;
+  string state = 5;
+}
+
+message ConversationMemberView {
+  string conversation_id = 1;
+  string user_id = 2;
+  string role = 3;
+  string state = 4;
+}
+
+message ConversationPreferencesView {
+  string conversation_id = 1;
+  bool muted = 2;
+  bool pinned = 3;
+}
+
+message ConversationProfileView {
+  string conversation_id = 1;
+  string title = 2;
+  string avatar_uri = 3;
+  string description = 4;
+}
+
+message ReadCursorView {
+  string conversation_id = 1;
+  string user_id = 2;
+  string message_id = 3;
+  string event_cursor = 4;
+}
+
+message ContactView {
+  string contact_id = 1;
+  string user_id = 2;
+  string display_name = 3;
+  string relation_state = 4;
+}
+
+message ContactTagView {
+  string tag_id = 1;
+  string name = 2;
+  string color = 3;
+}
+
+message ContactPreferencesView {
+  bool allow_recommendations = 1;
+  bool allow_friend_requests = 2;
+}
+
+message CreateConversationRequest {
+  string conversation_type = 1;
+  string title = 2;
+  repeated string member_user_ids = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateConversationResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateAgentDialogRequest {
+  string agent_id = 1;
+  string title = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateAgentDialogResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateAgentHandoffRequest {
+  string source_conversation_id = 1;
+  string reason = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateAgentHandoffResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateSystemChannelRequest {
+  string channel_key = 1;
+  string title = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateSystemChannelResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateThreadRequest {
+  string parent_conversation_id = 1;
+  string root_message_id = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateThreadResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message BindDirectChatRequest {
+  string peer_user_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message BindDirectChatResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveConversationRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveConversationResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveInboxRequest {
+  sdkwork.common.v1.PageRequest page = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveInboxResponse {
+  repeated ConversationView conversations = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListConversationMembersRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.PageRequest page = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListConversationMembersResponse {
+  repeated ConversationMemberView members = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message AddConversationMemberRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  string role = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message AddConversationMemberResponse {
+  ConversationMemberView member = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RemoveConversationMemberRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RemoveConversationMemberResponse {
+  string conversation_id = 1;
+  string user_id = 2;
+  string status = 3;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message TransferConversationOwnerRequest {
+  string conversation_id = 1;
+  string new_owner_user_id = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message TransferConversationOwnerResponse {
+  ConversationView conversation = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ChangeConversationMemberRoleRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  string role = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ChangeConversationMemberRoleResponse {
+  ConversationMemberView member = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message LeaveConversationRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message LeaveConversationResponse {
+  string conversation_id = 1;
+  string status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveConversationPreferencesRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveConversationPreferencesResponse {
+  ConversationPreferencesView preferences = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateConversationPreferencesRequest {
+  string conversation_id = 1;
+  bool muted = 2;
+  bool pinned = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateConversationPreferencesResponse {
+  ConversationPreferencesView preferences = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveConversationProfileRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveConversationProfileResponse {
+  ConversationProfileView profile = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateConversationProfileRequest {
+  string conversation_id = 1;
+  string title = 2;
+  string avatar_uri = 3;
+  string description = 4;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateConversationProfileResponse {
+  ConversationProfileView profile = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveReadCursorRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveReadCursorResponse {
+  ReadCursorView cursor = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateReadCursorRequest {
+  string conversation_id = 1;
+  string message_id = 2;
+  string event_cursor = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateReadCursorResponse {
+  ReadCursorView cursor = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListConversationMemberDirectoryRequest {
+  string conversation_id = 1;
+  string query = 2;
+  sdkwork.common.v1.PageRequest page = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListConversationMemberDirectoryResponse {
+  repeated ConversationMemberView members = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListPinnedMessagesRequest {
+  string conversation_id = 1;
+  sdkwork.common.v1.PageRequest page = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListPinnedMessagesResponse {
+  repeated string message_ids = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListContactsRequest {
+  sdkwork.common.v1.PageRequest page = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListContactsResponse {
+  repeated ContactView contacts = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message ListContactTagsRequest {
+  sdkwork.common.v1.PageRequest page = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message ListContactTagsResponse {
+  repeated ContactTagView tags = 1;
+  sdkwork.common.v1.PageResponse page = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateContactTagRequest {
+  string name = 1;
+  string color = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateContactTagResponse {
+  ContactTagView tag = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateContactTagRequest {
+  string tag_id = 1;
+  string name = 2;
+  string color = 3;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateContactTagResponse {
+  ContactTagView tag = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message DeleteContactTagRequest {
+  string tag_id = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message DeleteContactTagResponse {
+  string tag_id = 1;
+  string status = 2;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message CreateContactRecommendationRequest {
+  string basis = 1;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message CreateContactRecommendationResponse {
+  repeated ContactView contacts = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message RetrieveContactPreferencesRequest {
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message RetrieveContactPreferencesResponse {
+  ContactPreferencesView preferences = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}
+
+message UpdateContactPreferencesRequest {
+  bool allow_recommendations = 1;
+  bool allow_friend_requests = 2;
+  sdkwork.common.v1.RequestMetadata metadata = 15;
+}
+
+message UpdateContactPreferencesResponse {
+  ContactPreferencesView preferences = 1;
+  sdkwork.common.v1.ResponseMetadata metadata = 15;
+}

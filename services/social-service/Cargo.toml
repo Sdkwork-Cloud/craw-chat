@@ -1,0 +1,38 @@
+[package]
+name = "social-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+chrono = "0.4"
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+fs4 = "0.13.1"
+getrandom = "0.3.4"
+im-adapters-local-disk = { path = "../../adapters/local-disk" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+sdkwork_database_config.workspace = true
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-domain-events = { path = "../../crates/im-domain-events" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-time = { path = "../../crates/im-time" }
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+im-app-context = { path = "../../crates/im-app-context" }
+sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
+sdkwork_utils_rust.workspace = true
+sha2 = "0.10"
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+hmac = "0.12"
+sdkwork_im_service_readiness = { workspace = true }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+
+[dev-dependencies]
+http-body-util.workspace = true
+tower.workspace = true

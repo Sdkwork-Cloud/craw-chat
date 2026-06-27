@@ -1,0 +1,913 @@
+{
+  "sidebar": {
+    "chat": "Chat",
+    "workspace": "Workspace",
+    "orders": "Orders",
+    "shop": "Shop",
+    "calendar": "Calendar",
+    "notary": "Notary",
+    "knowledge": "Knowledge Base",
+    "drive": "Cloud Drive",
+    "enterprise": "Enterprise",
+    "devices": "Devices",
+    "community": "Community",
+    "agent": "AI Agents",
+    "voice": "Voice Market",
+    "course": "Courses",
+    "contacts": "Contacts",
+    "favorites": "Favorites",
+    "mobile": "Mobile Desktop",
+    "settings": "Settings",
+    "settingsLocked": "Current app settings are locked"
+  },
+  "agent": {
+    "greeting": "Hello! I am {{name}}, how can I help you?"
+  },
+  "profile": {
+    "chatIdLabel": "Chat ID",
+    "copyChatId": "Copy Chat ID",
+    "actions": {
+      "favorites": "Favorites",
+      "logout": "Log out",
+      "settings": "Settings"
+    },
+    "status": {
+      "away": "Away",
+      "busy": "Busy",
+      "online": "Online"
+    },
+    "toast": {
+      "chatIdCopied": "Chat ID copied",
+      "chatIdNotReady": "Chat ID is not ready. Please try again.",
+      "copyChatIdFailed": "Copy Chat ID failed"
+    }
+  },
+  "contacts": {
+    "menu": {
+      "all": "All friends",
+      "new": "New friends",
+      "groups": "My groups",
+      "organization": "Organization",
+      "tags": "Tags"
+    },
+    "starred": {
+      "title": "Starred contacts",
+      "loading": "Loading...",
+      "emptyTitle": "Starred contacts",
+      "emptyDescription": "Select a starred contact on the left to view details",
+      "loadFailed": "Failed to load contacts"
+    },
+    "addFriend": {
+      "add": "Add",
+      "placeholder": "Email, Chat ID, or phone",
+      "searchAction": "Search",
+      "searchingAction": "Searching...",
+      "title": "Add Friend",
+      "notice": {
+        "noResults": "No contact found for {{query}}",
+        "searching": "Searching contacts..."
+      },
+      "toast": {
+        "requestFailed": "Friend request failed",
+        "requestSent": "Friend request sent to {{name}}",
+        "searchFailed": "Search failed",
+        "alreadyFriend": "This user is already your friend",
+        "requestPending": "Friend request is already pending"
+      }
+    },
+    "groups": {
+      "title": "My groups",
+      "description": "Manage all groups you have joined",
+      "promptName": "Enter a new group name:",
+      "startGroup": "Start group",
+      "loading": "Loading...",
+      "memberStats": "{{count}} members · {{activeCount}} active",
+      "toast": {
+        "loadFailed": "Failed to load groups",
+        "createSucceeded": "Group created",
+        "createFailed": "Failed to create group"
+      }
+    },
+    "newFriends": {
+      "title": "New friends",
+      "description": "Review and respond to friend requests",
+      "addFriend": "Add friend",
+      "loading": "Loading...",
+      "incomingDefaultMsg": "Sent you a friend request",
+      "outgoingDefaultMsg": "Waiting for verification",
+      "accept": "Accept",
+      "reject": "Reject",
+      "cancel": "Withdraw",
+      "statusAdded": "Added",
+      "statusCancelled": "Withdrawn",
+      "statusRejected": "Rejected",
+      "toast": {
+        "loadFailed": "Failed to load friend requests",
+        "acceptSucceeded": "Friend request accepted",
+        "rejectSucceeded": "Friend request rejected",
+        "cancelSucceeded": "Friend request withdrawn",
+        "handleFailed": "Failed to handle friend request",
+        "cancelFailed": "Failed to withdraw friend request",
+        "incomingSingle": "New friend request received",
+        "incomingMultiple": "{{count}} new friend requests received"
+      }
+    },
+    "allContacts": {
+      "title": "All contacts",
+      "count": "{{count}} contacts",
+      "addContact": "Add contact",
+      "loading": "Loading...",
+      "groupLabel": "All contacts",
+      "scrollTop": "Top",
+      "toast": {
+        "loadFailed": "Failed to load contacts"
+      }
+    },
+    "detail": {
+      "addToBlacklist": "Add to blacklist",
+      "basicInfo": "Basic Info",
+      "chatId": "Chat ID",
+      "company": "Company",
+      "copyChatId": "Copy Chat ID",
+      "delete": "Delete",
+      "department": "Department",
+      "email": "Email",
+      "location": "Location",
+      "message": "Message",
+      "more": "More",
+      "phone": "Phone",
+      "recommend": "Recommend",
+      "setRemark": "Set remark",
+      "signature": "Signature",
+      "starContact": "Star contact",
+      "unknownPosition": "Unknown position",
+      "unstarContact": "Unstar contact",
+      "videoCall": "Video call",
+      "voiceCall": "Voice call",
+      "toast": {
+        "blacklisted": "Added to blacklist",
+        "blacklistFailed": "Blacklist update failed",
+        "chatIdCopied": "Chat ID copied",
+        "chatIdNotReady": "Chat ID is not ready. Please try again.",
+        "deleted": "Contact deleted",
+        "deleteFailed": "Delete contact failed",
+        "mailSelected": "Mail app selected",
+        "messagingUnavailable": "Messaging is unavailable",
+        "recommendationFailed": "Recommendation failed",
+        "recommendationSent": "Recommendation sent",
+        "remarkUpdated": "Remark updated",
+        "remarkUpdateFailed": "Remark update failed",
+        "starred": "Contact starred",
+        "unstarred": "Contact unstarred",
+        "updateFailed": "Contact update failed",
+        "videoUnavailable": "Video calling is unavailable",
+        "voiceUnavailable": "Voice calling is unavailable"
+      }
+    },
+    "emptyDetail": "Select a contact to view details",
+    "unknownContent": "No content selected",
+    "missingView": "No view is available for this module",
+    "organizationDirectory": {
+      "treeTitle": "Organization",
+      "searchPlaceholder": "Search organizations, departments, members",
+      "loading": "Loading...",
+      "emptyTree": "No organization data",
+      "membersTitle": "Members",
+      "emptyMembers": "No members",
+      "loadingMembers": "Loading members...",
+      "addMember": "Add member",
+      "inviteMember": "Invite member",
+      "close": "Close",
+      "add": "Add",
+      "invite": "Invite",
+      "selectDepartment": "Select department",
+      "assignmentType": "Assignment type",
+      "userIdPlaceholder": "User ID",
+      "displayNamePlaceholder": "Name",
+      "emailPlaceholder": "Email",
+      "positionIdPlaceholder": "Position ID",
+      "roleCodesPlaceholder": "Role codes",
+      "submitting": "Submitting",
+      "submit": "Submit",
+      "managementUnavailable": "Organization member management is not connected",
+      "unknownOrganization": "Unknown organization",
+      "sendMessage": "Send message",
+      "positionCount": "{{count}} positions",
+      "assignment": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "acting": "Acting"
+      },
+      "boundary": {
+        "operatingSubject": "Independent entity",
+        "organizationIsolated": "Organization data domain",
+        "regulatedIsolated": "Regulated data domain",
+        "appBoundary": "App boundary"
+      },
+      "toast": {
+        "loadTreeFailed": "Failed to load organization directory",
+        "loadMembersFailed": "Failed to load department members",
+        "selectOrganization": "Select an organization",
+        "managementUnavailable": "Organization member management is not connected",
+        "noManagePermission": "No permission to manage organization members",
+        "inviteUnavailable": "Organization member invitation is not connected",
+        "selectDepartment": "Select a department",
+        "enterUserId": "Enter a user ID",
+        "memberSubmitted": "Member management submitted",
+        "memberSubmitFailed": "Member management submission failed",
+        "chatUnavailable": "Chat is not connected, so a conversation cannot be started"
+      }
+    }
+  },
+  "favorites": {
+    "filters": {
+      "all": "All favorites",
+      "links": "Links",
+      "images": "Images & video",
+      "files": "Files",
+      "chat": "Chat history"
+    },
+    "title": "All favorites",
+    "description": "Sync important links, images, and work files across devices",
+    "searchPlaceholder": "Search favorites...",
+    "loading": "Loading...",
+    "empty": "No favorites yet",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
+    "fromSource": "From {{source}}",
+    "remove": "Remove favorite",
+    "toast": {
+      "loadFailed": "Failed to load favorites",
+      "opening": "Opening: {{title}}",
+      "removeSucceeded": "Removed from favorites",
+      "removeFailed": "Failed to remove favorite"
+    }
+  },
+  "settingsModal": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "modules": "Modules",
+      "notifications": "Notifications",
+      "privacy": "Privacy",
+      "appearance": "Appearance",
+      "devices": "Devices"
+    },
+    "logout": "Log out",
+    "general": {
+      "language": "Language",
+      "languageZh": "Simplified Chinese",
+      "languageEn": "English",
+      "autoStartTitle": "Launch at startup",
+      "autoStartDescription": "Automatically start Sdkwork IM when the system boots"
+    },
+    "modules": {
+      "description": "Choose which modules appear in the sidebar:",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "privacy": {
+      "requireAuth": "Require verification for friend requests",
+      "showOnline": "Show online status to friends",
+      "clearCache": "Clear local data",
+      "cacheCleared": "Local cache cleared"
+    },
+    "appearance": {
+      "themeTitle": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "devices": {
+      "currentDevice": "Current device ({{name}})",
+      "online": "Online",
+      "signOut": "Sign out",
+      "signedOut": "Signed out {{name}}"
+    }
+  },
+  "chat": {
+    "historySearch": {
+      "title": "Search chat history",
+      "currentChat": "Current chat",
+      "resultCount": "{{count}} results",
+      "tabsAria": "Chat history search categories",
+      "dateAria": "Filter chat history by date",
+      "tabs": {
+        "all": "All",
+        "messages": "Messages",
+        "media": "Photos & videos",
+        "files": "Files",
+        "links": "Links",
+        "music": "Music",
+        "voice": "Voice",
+        "apps": "Mini apps & cards"
+      },
+      "placeholder": {
+        "all": "Search all chat content",
+        "messages": "Search message text",
+        "media": "Search photos and videos",
+        "files": "Search file names",
+        "links": "Search link title, summary, or URL",
+        "music": "Search music messages",
+        "voice": "Search voice messages",
+        "apps": "Search mini apps and cards"
+      },
+      "actions": {
+        "clearDate": "Clear date filter",
+        "clearSearch": "Clear search",
+        "close": "Close chat history search"
+      },
+      "sender": {
+        "me": "Me",
+        "other": "Member"
+      },
+      "state": {
+        "loading": "Loading chat history...",
+        "emptyTitle": "No matching records",
+        "emptyDescription": "Change the keyword, date, or content type to search this conversation again."
+      },
+      "type": {
+        "app": "App/Card",
+        "file": "File",
+        "link": "Link",
+        "media": "Media",
+        "message": "Message",
+        "music": "Music",
+        "voice": "Voice"
+      },
+      "preview": {
+        "applet": "Mini app",
+        "card": "Contact card",
+        "file": "File",
+        "image": "Image",
+        "message": "Message",
+        "music": "Music",
+        "video": "Video",
+        "voice": "Voice message"
+      },
+      "toast": {
+        "loadFailed": "Failed to load chat history"
+      }
+    },
+    "emptyHome": {
+      "eyebrow": "Inbox ready",
+      "title": "Start a conversation",
+      "description": "Use contacts, groups, or the assistant to begin. New conversations will appear in the list automatically.",
+      "chatIdLabel": "Your Chat ID",
+      "copyChatId": "Copy Chat ID",
+      "status": {
+        "preparing": "Preparing inbox...",
+        "fallbackLoadError": "Some conversations could not load.",
+        "retry": "Retry"
+      },
+      "actions": {
+        "addFriend": {
+          "title": "Add friend",
+          "description": "Find a teammate by Chat ID, email, or phone."
+        },
+        "createGroup": {
+          "title": "Create group",
+          "description": "Create a focused conversation for a team or project."
+        },
+        "openAssistant": {
+          "title": "Open assistant",
+          "description": "Open the built-in AI conversation for setup, search, and workspace help.",
+          "unavailableDescription": "Assistant conversation is not available yet."
+        },
+        "openContacts": {
+          "title": "Open contacts",
+          "description": "Browse contacts, organizations, and pending requests."
+        },
+        "createAgent": {
+          "title": "Create AI assistant",
+          "description": "Build a private AI assistant for repeated workflows."
+        }
+      }
+    },
+    "list": {
+      "empty": {
+        "noMatches": "No matching conversations",
+        "noConversations": "No conversations yet",
+        "searchHint": "Try another keyword",
+        "startHint": "Start from contacts or assistant"
+      },
+      "context": {
+        "pin": "Pin conversation",
+        "unpin": "Unpin conversation",
+        "markRead": "Mark as read",
+        "markUnread": "Mark as unread",
+        "mute": "Mute notifications",
+        "unmute": "Unmute notifications",
+        "delete": "Delete conversation"
+      },
+      "toast": {
+        "pinned": "Conversation pinned",
+        "unpinned": "Conversation unpinned",
+        "markedRead": "Marked as read",
+        "markedUnread": "Marked as unread",
+        "muted": "Notifications muted",
+        "unmuted": "Notifications unmuted",
+        "deleted": "Conversation deleted",
+        "operationFailed": "Conversation action failed",
+        "markReadFailed": "Mark as read failed"
+      },
+      "time": {
+        "yesterday": "Yesterday"
+      },
+      "item": {
+        "openConversation": "Open conversation with {{name}}",
+        "muted": "Notifications muted",
+        "unreadCount": "{{count}} unread messages"
+      },
+      "callPreview": {
+        "accepted": "{{mode}} connected",
+        "rejected": "{{mode}} rejected",
+        "ended": "{{mode}} ended",
+        "started": "{{name}} started {{mode}}"
+      }
+    },
+    "searchInput": {
+      "placeholder": "Search conversations",
+      "ariaLabel": "Search conversations",
+      "title": "Search conversations"
+    },
+    "forwardModal": {
+      "title": "Forward {{count}} messages",
+      "searchPlaceholder": "Search conversations",
+      "empty": "No conversations found",
+      "send": "Send ({{count}})",
+      "forwarding": "Forwarding...",
+      "toast": {
+        "loadFailed": "Failed to load conversations",
+        "success": "Forwarded to {{count}} conversations",
+        "failed": "Forward failed"
+      }
+    },
+    "messageList": {
+      "loading": "Loading...",
+      "unknownUser": "Unknown user",
+      "contextMenu": {
+        "copy": "Copy",
+        "reply": "Reply",
+        "edit": "Edit",
+        "recall": "Recall",
+        "reaction": "React",
+        "forward": "Forward",
+        "favorite": "Favorite",
+        "multiSelect": "Select",
+        "delete": "Delete"
+      },
+      "multiSelect": {
+        "selected": "{{count}} selected",
+        "forward": "Forward",
+        "delete": "Delete"
+      },
+      "media": {
+        "image": "Image",
+        "video": "Video"
+      },
+      "rtcCall": {
+        "videoMode": "Video call",
+        "voiceMode": "Voice call",
+        "initiatorFallback": "Caller",
+        "actorFallback": "Other party",
+        "subjectWithReceiver": "{{initiator}} started a {{mode}} with {{receiver}}",
+        "subjectWithoutReceiver": "{{initiator}} started a {{mode}}",
+        "accepted": "{{callSubject}}. {{actor}} answered",
+        "rejected": "{{callSubject}}. {{actor}} declined",
+        "ended": "{{callSubject}}. {{actor}} hung up",
+        "startedWithReceiver": "{{initiator}} started a {{mode}} with {{receiver}}",
+        "startedWithoutReceiver": "{{initiator}} started a {{mode}}",
+        "syncing": "{{callSubject}} is syncing"
+      },
+      "recalledPlaceholder": "This message was recalled",
+      "editedIndicator": "(edited)",
+      "toast": {
+        "loadFailed": "Failed to load messages",
+        "deleteSuccess": "Message deleted",
+        "deleteManySuccess": "Deleted {{count}} messages",
+        "deleteFailed": "Failed to delete message",
+        "openGroupFailed": "Failed to open group chat",
+        "copySuccess": "Copied",
+        "favoriteSuccess": "Added to favorites",
+        "favoriteFailed": "Failed to add favorite",
+        "reactionFailed": "Failed to update reaction",
+        "recallSuccess": "Message recalled",
+        "recallFailed": "Failed to recall message"
+      }
+    },
+    "messageItems": {
+      "voice": {
+        "playFailed": "Playback failed"
+      },
+      "videoCall": {
+        "endedFallback": "Call ended"
+      },
+      "applet": {
+        "label": "Mini app",
+        "loading": "Loading mini app environment: {{name}}"
+      },
+      "card": {
+        "personalLabel": "Contact card",
+        "groupInviteLabel": "Group invite",
+        "addedToContacts": "Added {{name}} to contacts",
+        "openGroupChat": "Open group chat"
+      },
+      "file": {
+        "downloadStarted": "Downloading file: {{name}}",
+        "resourceNotFound": "File resource not found: {{name}}"
+      }
+    },
+    "messageInput": {
+      "defaultPlaceholder": "Send a message...",
+      "agentTypingPlaceholder": "Assistant is replying...",
+      "replyPrefix": "Reply to {{name}}:",
+      "editingPrefix": "Editing message:",
+      "dropToSend": "Drop to send file",
+      "actions": {
+        "sendFile": "Send file",
+        "screenshot": "Screenshot (Alt+A)",
+        "emoji": "Emoji",
+        "history": "Chat history",
+        "stopRecording": "Stop recording and send",
+        "recordVoice": "Record voice message",
+        "stopGenerating": "Stop generating",
+        "send": "Send (Enter)",
+        "saveEdit": "Save edit (Enter)"
+      },
+      "toast": {
+        "stickerNeedsFile": "Sticker images require a local file or Drive asset before sending",
+        "voiceTooShort": "Recording is too short",
+        "voiceGenerationFailed": "Failed to generate voice message. Please retry.",
+        "microphoneDenied": "Microphone access denied. Check permissions and retry.",
+        "screenshotUnsupported": "Screenshot is not supported in this browser",
+        "screenshotDenied": "Screenshot permission denied. Open the app in a new tab and retry.",
+        "screenshotCancelled": "Screenshot cancelled"
+      }
+    },
+    "systemAssistant": {
+      "displayName": "System Assistant",
+      "welcomeMessage": "Hi, I am your system assistant. I can help you find conversations, set up contacts, create groups, and handle workspace questions. Tell me what you want to do first.",
+      "inputPlaceholder": "Ask the system assistant or describe what you want to do..."
+    },
+    "window": {
+      "inputPlaceholder": "Send a message...",
+      "typing": "The other side is typing...",
+      "toast": {
+        "sendFailed": "Send failed",
+        "editFailed": "Failed to edit message"
+      }
+    },
+    "startup": {
+      "assistantUnavailable": "Assistant is not available yet. You can keep using conversations and retry later.",
+      "assistantToastUnavailable": "Assistant is not available yet",
+      "syncWarning": "Startup sync did not finish. Conversations may still be available.",
+      "conversationsUnavailable": "Conversations could not load. Retry when the network is ready."
+    },
+    "toast": {
+      "chatIdCopied": "Chat ID copied",
+      "copyChatIdFailed": "Copy Chat ID failed",
+      "startAgentFailed": "Failed to start AI assistant chat",
+      "rtcCallWatchFailed": "RTC call watch failed",
+      "signedOut": "Signed out",
+      "localSessionCleared": "Local session cleared",
+      "voiceLoading": "Loading voice: {{name}}",
+      "voiceCloneSoon": "Voice cloning will be available soon",
+      "workspaceAppUnavailable": "App [{{appId}}] is not registered in this host environment.",
+      "enterpriseChatFailed": "Failed to start enterprise chat",
+      "enterpriseCalling": "Calling enterprise {{name}}...",
+      "directChatFailed": "Failed to start chat"
+    },
+    "call": {
+      "incoming": "Incoming call"
+    },
+    "callOverlay": {
+      "videoCall": "Video call",
+      "voiceCall": "Voice call",
+      "status": {
+        "connecting": "Connecting...",
+        "connectionFailed": "Call connection failed",
+        "rejected": "Declined",
+        "ended": "Call ended",
+        "waitingAnswer": "Waiting for answer...",
+        "inviting": "Inviting you to a call..."
+      },
+      "media": {
+        "micOff": "Microphone off",
+        "micOn": "Microphone on",
+        "cameraOff": "Camera off",
+        "cameraOn": "Camera on",
+        "remoteVideo": "Remote video",
+        "self": "Me"
+      },
+      "view": {
+        "switchToDesktop": "Switch to desktop layout",
+        "switchToMobile": "Switch to mobile layout",
+        "enterFullscreen": "Fullscreen",
+        "exitFullscreen": "Exit fullscreen"
+      },
+      "actions": {
+        "accept": "Accept",
+        "reject": "Decline",
+        "cancel": "Cancel",
+        "hangup": "Hang up",
+        "close": "Close",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "enableVideo": "Turn on video",
+        "disableVideo": "Turn off video",
+        "shareScreen": "Share screen"
+      },
+      "toast": {
+        "localVideoBindFailed": "Failed to bind local video preview",
+        "acceptFailed": "Failed to accept call",
+        "muteFailed": "Failed to update mute setting",
+        "videoFailed": "Failed to update video setting",
+        "screenShareStarted": "Screen sharing started",
+        "screenShareEnded": "Screen sharing ended",
+        "screenShareDenied": "Screen sharing permission denied. Open the app in a new tab and retry.",
+        "screenShareCancelled": "Screen sharing cancelled",
+        "screenShareUnsupported": "Screen sharing is not supported in this browser"
+      }
+    },
+    "notification": {
+      "call": {
+        "video": "Incoming video call",
+        "voice": "Incoming voice call"
+      },
+      "center": {
+        "dismiss": "Dismiss notification",
+        "now": "Now"
+      },
+      "message": {
+        "hiddenBody": "New message",
+        "titleFallback": "Sdkwork IM",
+        "type": {
+          "applet": "[Mini app]",
+          "card": "[Card]",
+          "file": "[File]",
+          "image": "[Image]",
+          "link": "[Link]",
+          "music": "[Music]",
+          "system": "[System message]",
+          "video": "[Video]",
+          "videoCall": "[Call]",
+          "voice": "[Voice message]"
+        }
+      },
+      "settings": {
+        "title": "Professional message alerts",
+        "description": "New messages appear in the bottom-right by default. Muted conversations, your own messages, and the focused conversation you are already viewing do not interrupt you again.",
+        "appPopup": {
+          "title": "In-app message popups",
+          "description": "Show instant message cards in the bottom-right on desktop and web. Click a card to open the conversation."
+        },
+        "sound": {
+          "title": "New message sound",
+          "description": "Play a subtle sound for messages that pass notification rules, without affecting muted conversations."
+        },
+        "system": {
+          "title": "System notifications",
+          "description": "Use browser or desktop system notifications after permission is granted. Current permission: {{permission}}"
+        },
+        "focused": {
+          "title": "Notify current conversation",
+          "description": "When enabled, message popups still appear while the window is focused and you are viewing the same conversation."
+        },
+        "preview": {
+          "title": "Notification content",
+          "senderAndPreview": {
+            "label": "Name and content",
+            "description": "Show conversation name and message preview"
+          },
+          "senderOnly": {
+            "label": "Name only",
+            "description": "Show conversation name without message content"
+          },
+          "hidden": {
+            "label": "Hide all",
+            "description": "Hide conversation and message content"
+          }
+        },
+        "permission": {
+          "default": "Not asked",
+          "denied": "Blocked",
+          "granted": "Allowed",
+          "unsupported": "Unsupported"
+        },
+        "reset": "Restore default notification settings",
+        "toast": {
+          "reset": "Notification settings restored",
+          "systemDenied": "System notification permission is blocked by the browser or operating system. Allow notifications in system settings.",
+          "systemEnabled": "System notifications enabled",
+          "systemUnsupported": "System notifications are not supported in this runtime"
+        }
+      }
+    },
+    "header": {
+      "search": "Search",
+      "voiceCall": "Voice call",
+      "videoCall": "Video call",
+      "more": "More"
+    },
+    "menu": {
+      "moreActions": "New conversation",
+      "startGroup": "Start group",
+      "addFriend": "Add friend",
+      "createAssistant": "Create assistant",
+      "scanQrCode": "Scan QR"
+    },
+    "fallback": {
+      "groupName": "Group chat",
+      "memberName": "Member",
+      "memberSubtitle": "Profile unavailable"
+    },
+    "rightPanel": {
+      "title": "Chat details",
+      "actions": {
+        "searchChat": "Search chat",
+        "addMember": "Add member",
+        "removeMember": "Remove member",
+        "leaveGroup": "Leave group",
+        "deleteChat": "Delete chat",
+        "close": "Close details panel"
+      },
+      "fields": {
+        "groupName": "Group name",
+        "remark": "Remark",
+        "groupNotice": "Group notice",
+        "members": "Members",
+        "mute": "Mute notifications",
+        "pin": "Pin chat"
+      },
+      "memberCount": "{{count}} members",
+      "emptyMembers": "No members",
+      "emptyNotice": "No notice",
+      "toast": {
+        "muted": "Notifications muted",
+        "unmuted": "Notifications unmuted",
+        "muteFailed": "Failed to update notification settings",
+        "pinned": "Chat pinned",
+        "unpinned": "Chat unpinned",
+        "pinFailed": "Failed to update pin setting",
+        "groupLeft": "Group left",
+        "chatDeleted": "Chat deleted",
+        "memberRemoved": "Member removed",
+        "removeMemberFailed": "Failed to remove member",
+        "deleteFailed": "Failed to delete chat"
+      }
+    },
+    "modal": {
+      "title": {
+        "searchMessages": "Search chat history",
+        "createGroup": "Start group",
+        "addMember": "Add group members",
+        "editGroupName": "Edit group name",
+        "editRemark": "Set remark",
+        "editNotice": "Edit group notice"
+      },
+      "placeholder": {
+        "searchMessages": "Search messages...",
+        "memberSearch": "Enter member account, phone, or email...",
+        "nonContactSearch": "Search by account, phone, or email...",
+        "groupName": "Group name",
+        "remarkName": "Remark name",
+        "groupNotice": "Write a group notice..."
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "search": "Search",
+        "createWithCount": "Create ({{count}})",
+        "creating": "Creating...",
+        "invite": "Invite",
+        "inviteWithCount": "Invite ({{count}})",
+        "inviting": "Inviting...",
+        "sendGroupInvite": "Send group invite message",
+        "save": "Save",
+        "publish": "Publish notice"
+      },
+      "label": {
+        "nonContactInvite": "Invite a non-contact user"
+      },
+      "tabs": {
+        "contacts": "Address book friends",
+        "strangers": "Strangers"
+      },
+      "selection": {
+        "selectedTitle": "Selected",
+        "selectedCount": "{{count}} selected",
+        "emptySelected": "Selected members will appear here",
+        "noSearchResults": "No matching contacts",
+        "alreadyInGroup": "Already in group",
+        "indexAria": "Jump to {{index}} contacts",
+        "removeSelected": "Remove {{name}}"
+      },
+      "state": {
+        "loadingContacts": "Loading contacts...",
+        "noContactsToCreate": "No contacts available to start a group",
+        "noContactsToInvite": "No contacts available to invite",
+        "noNonContactResults": "No matching users"
+      },
+      "toast": {
+        "searching": "Searching: {{query}}",
+        "groupCreated": "Group started with {{count}} contacts invited",
+        "createGroupFailed": "Failed to start group",
+        "invitedMembers": "Invited {{count}} members",
+        "contactsLoadFailed": "Failed to load contacts",
+        "inviteFailed": "Invite members failed",
+        "inviteMissing": "Enter member information to invite",
+        "groupNameUpdated": "Group name changed to: {{name}}",
+        "remarkUpdated": "Remark changed to: {{name}}",
+        "saveNameFailed": "Failed to save name",
+        "noticeUpdated": "Group notice updated",
+        "updateNoticeFailed": "Failed to update group notice"
+      }
+    }
+  },
+  "scanQr": {
+    "modal": {
+      "title": "Scan QR"
+    },
+    "tabs": {
+      "upload": "Upload QR",
+      "camera": "Camera"
+    },
+    "upload": {
+      "title": "Upload QR image",
+      "description": "PNG, JPG, and other image files are supported. The result opens the matching flow automatically."
+    },
+    "camera": {
+      "title": "Camera scanner",
+      "description": "Start the camera and place the QR code in the center of the frame.",
+      "state": {
+        "idle": "Camera is off",
+        "starting": "Starting camera",
+        "active": "Scanning QR code"
+      },
+      "device": "Camera",
+      "defaultDevice": "Default camera",
+      "deviceName": "Camera {{index}}",
+      "loadingDevices": "Loading cameras...",
+      "noDevices": "Default camera"
+    },
+    "browser": {
+      "title": "Built-in web browser"
+    },
+    "result": {
+      "user": "User QR code",
+      "group": "Group QR code",
+      "community": "Circle QR code",
+      "url": "Web link",
+      "unknown": "QR code content",
+      "source": "Source: {{source}}"
+    },
+    "group": {
+      "memberCount": "{{count}} members",
+      "unknownName": "Unknown group",
+      "unresolved": "Group details unavailable"
+    },
+    "community": {
+      "memberCount": "{{count}} members",
+      "unknownName": "Unknown circle",
+      "unresolved": "Circle details unavailable"
+    },
+    "actions": {
+      "chooseFile": "Choose file",
+      "decoding": "Decoding...",
+      "startCamera": "Start camera",
+      "stopCamera": "Stop scanning",
+      "viewUserProfile": "View profile",
+      "addFriend": "Add friend",
+      "openGroup": "Open group",
+      "joinGroup": "Join group",
+      "openCommunity": "View circle",
+      "joinCommunity": "Join circle",
+      "openLink": "Open link",
+      "viewContent": "View content",
+      "closeBrowser": "Close",
+      "copyContent": "Copy content"
+    },
+    "unknownContent": {
+      "modalTitle": "QR code content"
+    },
+    "userProfile": {
+      "modalTitle": "User profile"
+    },
+    "state": {
+      "resolving": "Reading QR code content...",
+      "resolveFailed": "Failed to read QR code content",
+      "invalidContent": "Invalid QR code content",
+      "decodeFailed": "Could not decode the QR code. Try a clearer image.",
+      "cameraUnavailable": "Camera is unavailable or permission was not granted.",
+      "joinCapabilityUnavailable": "Scan-to-join is not connected in this client. The standard QR scenario was recognized and displayed."
+    },
+    "toast": {
+      "copied": "QR code content copied",
+      "copyFailed": "Copy failed",
+      "friendRequestSent": "Friend request sent to {{name}}",
+      "friendRequestFailed": "Failed to send friend request",
+      "joinCapabilityUnavailable": "Scan-to-join is not connected yet",
+      "communityNotFound": "Circle not found"
+    }
+  }
+}

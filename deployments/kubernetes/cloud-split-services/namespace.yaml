@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sdkwork-im
+  labels:
+    app.kubernetes.io/part-of: sdkwork-im
+    sdkwork.io/deployment-profile: cloud
+    sdkwork.io/service-layout: split-services

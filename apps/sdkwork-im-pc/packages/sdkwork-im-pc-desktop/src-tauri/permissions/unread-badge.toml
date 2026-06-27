@@ -1,0 +1,6 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-sdkwork-chat-pc-unread-badge"
+description = "Allows the SDKWork Chat PC renderer to drive the tray unread badge, taskbar attention state, and dock badge label from the aggregated unread message count."
+commands.allow = ["sdkwork_chat_pc_set_unread_badge"]

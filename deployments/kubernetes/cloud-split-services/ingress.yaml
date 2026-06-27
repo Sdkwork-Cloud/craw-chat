@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: im-public-ingress
+  namespace: sdkwork-im
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+spec:
+  rules:
+    - host: im.sdkwork.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: im-gateway
+                port:
+                  number: 18079
+  tls:
+    - hosts:
+        - im.sdkwork.com
+      secretName: im-public-tls

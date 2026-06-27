@@ -1,0 +1,18 @@
+{
+  "profile": "standalone.split-services.development",
+  "tier": "CI Smoke Tier",
+  "drainRebalance": {
+    "expectedRouteCount": 1
+  },
+  "restoreRecovery": {
+    "expectedRestoredFileCount": 12
+  },
+  "failover": {
+    "expectedOwnerNodeId": "node_b"
+  },
+  "upgradeRollback": {
+    "expectedSafeClientCount": 4,
+    "expectedBlockedBinding": "ccp/mqtt/1",
+    "expectedDisabledCapability": "payload.cbor"
+  }
+}

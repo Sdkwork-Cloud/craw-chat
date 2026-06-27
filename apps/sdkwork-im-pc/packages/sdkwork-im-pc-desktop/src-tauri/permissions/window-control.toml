@@ -1,0 +1,6 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+identifier = "allow-sdkwork-im-pc-window-control"
+description = "Allows the Sdkwork IM PC auth AppHeader to minimize, maximize, hide to tray, and restore the main desktop window through the native shell."
+commands.allow = ["sdkwork_chat_pc_window_control"]

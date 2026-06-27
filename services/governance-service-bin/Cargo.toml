@@ -1,0 +1,19 @@
+﻿[package]
+name = "governance-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "governance-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+governance-service = { path = "../governance-service" }
+sdkwork-routes-im-governance-backend-api = { path = "../../crates/sdkwork-routes-im-governance-backend-api" }
+sdkwork_im_service_readiness = { workspace = true }
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true

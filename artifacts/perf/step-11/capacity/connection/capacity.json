@@ -1,0 +1,24 @@
+{
+  "step": "11",
+  "tierId": "capacity",
+  "tier": "Capacity Tier",
+  "profile": "capacity-dedicated",
+  "scenarioFamily": "connection",
+  "artifactKind": "capacity_json",
+  "runId": "step11-capacity-local-connection-2026-06-17-doc-capture",
+  "collectedAt": "2026-06-17",
+  "sourceProfile": "self-hosted.split-services.development",
+  "sourceTier": "CI Smoke Tier",
+  "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
+  "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
+  "sourceFieldMapping": {
+    "peakActiveConnections": "connectionCount",
+    "connectP95Ms": "connectP95Ms",
+    "connectP99Ms": "connectP99Ms"
+  },
+  "peakActiveConnections": 32,
+  "connectP95Ms": 15.108,
+  "connectP99Ms": 16.892,
+  "boundary": "This artifact backfills published local CP11-2 connection evidence into the Capacity Tier artifact root using capacity_json field names. It is doc-captured from CI Smoke Tier / self-hosted.split-services.development output rather than a dedicated capacity-dedicated topology run."
+}

@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projection-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: projection-service
+    app.kubernetes.io/component: projection
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: projection-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: projection-service
+        app.kubernetes.io/component: projection
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: projection-service
+          image: ghcr.io/sdkwork/projection-service:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 18083
+          envFrom:
+            - configMapRef:
+                name: projection-service-runtime
+            - secretRef:
+                name: projection-service-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-projection-service
+            - name: TMPDIR
+              value: /tmp
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: projection-service
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: projection-service
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: projection-service
+  ports:
+    - name: http
+      port: 18083
+      targetPort: http

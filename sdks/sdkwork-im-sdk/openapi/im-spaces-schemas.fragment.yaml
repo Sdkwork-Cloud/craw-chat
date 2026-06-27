@@ -1,0 +1,404 @@
+parameters:
+  SpaceIdPath:
+    name: spaceId
+    in: path
+    required: true
+    schema:
+      type: string
+      pattern: '^[0-9]+$'
+      x-sdkwork-int64-string: true
+  GroupIdPath:
+    name: groupId
+    in: path
+    required: true
+    schema:
+      type: string
+      pattern: '^[0-9]+$'
+      x-sdkwork-int64-string: true
+  ChannelIdPath:
+    name: channelId
+    in: path
+    required: true
+    schema:
+      type: string
+      pattern: '^[0-9]+$'
+      x-sdkwork-int64-string: true
+  UserIdPath:
+    name: userId
+    in: path
+    required: true
+    schema:
+      type: string
+  InviteCodePath:
+    name: inviteCode
+    in: path
+    required: true
+    schema:
+      type: string
+  RuleIdPath:
+    name: ruleId
+    in: path
+    required: true
+    schema:
+      type: string
+      pattern: '^[0-9]+$'
+      x-sdkwork-int64-string: true
+schemas:
+  SpaceCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      spaceName:
+        type: string
+      spaceType:
+        type: string
+      description:
+        type: string
+        nullable: true
+    required:
+      - spaceName
+      - spaceType
+  SpaceUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      spaceName:
+        type: string
+      description:
+        type: string
+        nullable: true
+  SpaceView:
+    type: object
+    additionalProperties: false
+    properties:
+      spaceId:
+        type: string
+        pattern: '^[0-9]+$'
+        x-sdkwork-int64-string: true
+      spaceName:
+        type: string
+      spaceType:
+        type: string
+      ownerUserId:
+        type: string
+      createdAt:
+        type: string
+        format: date-time
+    required:
+      - spaceId
+      - spaceName
+      - spaceType
+      - ownerUserId
+      - createdAt
+  SpaceListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceView'
+    required:
+      - items
+  SpaceMemberCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        type: string
+      role:
+        type: string
+    required:
+      - userId
+  SpaceMemberUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      role:
+        type: string
+  SpaceMemberView:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        type: string
+      role:
+        type: string
+    required:
+      - userId
+      - role
+  SpaceMemberListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceMemberView'
+    required:
+      - items
+  SpaceGroupCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      groupName:
+        type: string
+      description:
+        type: string
+        nullable: true
+    required:
+      - groupName
+  SpaceGroupUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      groupName:
+        type: string
+      description:
+        type: string
+        nullable: true
+  SpaceGroupView:
+    type: object
+    additionalProperties: false
+    properties:
+      groupId:
+        type: string
+        pattern: '^[0-9]+$'
+        x-sdkwork-int64-string: true
+      groupName:
+        type: string
+    required:
+      - groupId
+      - groupName
+  SpaceGroupListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceGroupView'
+    required:
+      - items
+  SpaceGroupMemberCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        type: string
+      role:
+        type: string
+        nullable: true
+      nickname:
+        type: string
+        nullable: true
+    required:
+      - userId
+  SpaceGroupMemberUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      role:
+        type: string
+        nullable: true
+      nickname:
+        type: string
+        nullable: true
+      muteUntil:
+        type: string
+        format: date-time
+        nullable: true
+  SpaceGroupMemberView:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        type: string
+      role:
+        type: string
+      nickname:
+        type: string
+        nullable: true
+      muteUntil:
+        type: string
+        format: date-time
+        nullable: true
+      joinedAt:
+        type: string
+        format: date-time
+    required:
+      - userId
+      - role
+      - joinedAt
+  SpaceGroupMemberListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceGroupMemberView'
+    required:
+      - items
+  SpaceChannelCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      channelName:
+        type: string
+      channelType:
+        type: string
+    required:
+      - channelName
+      - channelType
+  SpaceChannelUpdateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      channelName:
+        type: string
+  SpaceChannelView:
+    type: object
+    additionalProperties: false
+    properties:
+      channelId:
+        type: string
+        pattern: '^[0-9]+$'
+        x-sdkwork-int64-string: true
+      channelName:
+        type: string
+      channelType:
+        type: string
+    required:
+      - channelId
+      - channelName
+      - channelType
+  SpaceChannelListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceChannelView'
+    required:
+      - items
+  SpaceChannelAccessRuleCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      ruleType:
+        type: string
+      principalKind:
+        type: string
+        nullable: true
+      principalId:
+        type: string
+        nullable: true
+      permission:
+        type: string
+    required:
+      - ruleType
+      - permission
+  SpaceChannelAccessRuleView:
+    type: object
+    additionalProperties: false
+    properties:
+      ruleId:
+        type: string
+        pattern: '^[0-9]+$'
+        x-sdkwork-int64-string: true
+      channelId:
+        type: string
+        pattern: '^[0-9]+$'
+        x-sdkwork-int64-string: true
+      ruleType:
+        type: string
+      principalKind:
+        type: string
+        nullable: true
+      principalId:
+        type: string
+        nullable: true
+      permission:
+        type: string
+      createdAt:
+        type: string
+        format: date-time
+    required:
+      - ruleId
+      - channelId
+      - ruleType
+      - permission
+      - createdAt
+  SpaceChannelAccessRuleListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceChannelAccessRuleView'
+    required:
+      - items
+  SpaceInviteCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      maxUses:
+        type: integer
+        format: int32
+        nullable: true
+  SpaceInviteView:
+    type: object
+    additionalProperties: false
+    properties:
+      inviteCode:
+        type: string
+      spaceId:
+        type: string
+    required:
+      - inviteCode
+      - spaceId
+  SpaceInviteListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceInviteView'
+    required:
+      - items
+  SpaceBanCreateRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        type: string
+      reason:
+        type: string
+        nullable: true
+    required:
+      - userId
+  SpaceBanView:
+    type: object
+    additionalProperties: false
+    properties:
+      userId:
+        type: string
+      reason:
+        type: string
+        nullable: true
+    required:
+      - userId
+  SpaceBanListResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/components/schemas/SpaceBanView'
+    required:
+      - items

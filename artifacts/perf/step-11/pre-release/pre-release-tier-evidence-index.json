@@ -1,0 +1,274 @@
+{
+  "$schema": "../schemas/step-11-tier-evidence-index.schema.json",
+  "step": "11",
+  "tierId": "pre-release",
+  "tier": "Pre-Release Tier",
+  "profile": "self-hosted.split-services.development",
+  "artifact": "step-11-tier-evidence-index",
+  "state": "evidence_collected_gate_blocked",
+  "gateTemplate": "tools/perf/step-11-pre-release-tier-gate.json",
+  "operatorDocPath": "docs/\u90e8\u7f72/\u6027\u80fd\u4e0e\u707e\u5907\u6f14\u7ec3\u573a\u666f.md",
+  "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",
+  "artifactRoot": "artifacts/perf/step-11/pre-release",
+  "checksumManifestPath": "artifacts/perf/step-11/pre-release/checksum-manifest.txt",
+  "artifactFileListPath": "artifacts/perf/step-11/pre-release/artifact-file-list.txt",
+  "goal": "Freeze a repeatable release-gate template for medium-scale quantitative validation and operator drills.",
+  "requiredScenarioFamilies": [
+    "connection",
+    "message",
+    "stream",
+    "drain-rebalance",
+    "restore-recovery",
+    "failover",
+    "upgrade-rollback"
+  ],
+  "requiredOutputs": [
+    {
+      "scenarioFamily": "connection",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "connectionCount",
+        "successCount",
+        "connectP95Ms",
+        "connectionsPerSecond"
+      ]
+    },
+    {
+      "scenarioFamily": "message",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "messageCount",
+        "successCount",
+        "messageP95Ms",
+        "messagesPerSecond"
+      ]
+    },
+    {
+      "scenarioFamily": "stream",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "frameCount",
+        "successCount",
+        "frameP95Ms",
+        "framesPerSecond"
+      ]
+    },
+    {
+      "scenarioFamily": "drain-rebalance",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "drainCompletionSeconds",
+        "routeMigrationSuccessRate",
+        "rebalanceP95Ms"
+      ]
+    },
+    {
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "restoreSuccessRate",
+        "restoreRtoSeconds",
+        "previewDiffAccuracy"
+      ]
+    },
+    {
+      "scenarioFamily": "failover",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "resumeTakeoverSuccessRate"
+      ]
+    },
+    {
+      "scenarioFamily": "upgrade-rollback",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "compatibilityMatrixPassRate",
+        "rollbackActivationSeconds",
+        "postRollbackProtocolErrorRate"
+      ]
+    }
+  ],
+  "collectionSummary": {
+    "totalSlots": 7,
+    "requiredSlots": 7,
+    "optionalSlots": 0,
+    "collectedSlots": 7,
+    "pendingSlots": 0,
+    "skippedOptionalSlots": 0
+  },
+  "evidenceSlots": [
+    {
+      "id": "connection_metrics",
+      "scenarioFamily": "connection",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "connectionCount",
+        "successCount",
+        "connectP95Ms",
+        "connectionsPerSecond"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/connection/metrics.json",
+      "suggestedRelativePath": "connection/metrics.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 1025,
+      "checksumSha256": "sha256:e8cb11b09bd9a1fed6384cf741885be403e192d9e7d088f9bbb721fff840e52f"
+    },
+    {
+      "id": "message_metrics",
+      "scenarioFamily": "message",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "messageCount",
+        "successCount",
+        "messageP95Ms",
+        "messagesPerSecond"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/message/metrics.json",
+      "suggestedRelativePath": "message/metrics.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 1158,
+      "checksumSha256": "sha256:6ea42e4f749644131e19430017a41f207d63809168686bc00e9c841c06f96751"
+    },
+    {
+      "id": "stream_metrics",
+      "scenarioFamily": "stream",
+      "artifactKind": "metrics_json",
+      "requiredFields": [
+        "runId",
+        "frameCount",
+        "successCount",
+        "frameP95Ms",
+        "framesPerSecond"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/stream/metrics.json",
+      "suggestedRelativePath": "stream/metrics.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 1158,
+      "checksumSha256": "sha256:998dd4967d208b95a510976f539532fda4750ebd9fad6d0a8486f5aecc067a4c"
+    },
+    {
+      "id": "drain_rebalance_drill",
+      "scenarioFamily": "drain-rebalance",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "drainCompletionSeconds",
+        "routeMigrationSuccessRate",
+        "rebalanceP95Ms"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/drain-rebalance/drill.json",
+      "suggestedRelativePath": "drain-rebalance/drill.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 1204,
+      "checksumSha256": "sha256:6e332b95bfc2f4bcc1964bbf5999ee7f2f8f353fe2213a1a7568e9bee6644692"
+    },
+    {
+      "id": "restore_recovery_drill",
+      "scenarioFamily": "restore-recovery",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "restoreSuccessRate",
+        "restoreRtoSeconds",
+        "previewDiffAccuracy"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/restore-recovery/drill.json",
+      "suggestedRelativePath": "restore-recovery/drill.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 1156,
+      "checksumSha256": "sha256:a4365426fefa96c83ea01de396f8d47b9ef898f1e320223e466e0e63e6557e51"
+    },
+    {
+      "id": "failover_drill",
+      "scenarioFamily": "failover",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "takeoverDurationMs",
+        "ownerSwitchAccuracy",
+        "resumeTakeoverSuccessRate"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/failover/drill.json",
+      "suggestedRelativePath": "failover/drill.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 997,
+      "checksumSha256": "sha256:82c217bb21d7dac3e1a54713eec8dfc047bd782468fae6541c11b3212b35a0f9"
+    },
+    {
+      "id": "upgrade_rollback_drill",
+      "scenarioFamily": "upgrade-rollback",
+      "artifactKind": "drill_json",
+      "requiredFields": [
+        "runId",
+        "compatibilityMatrixPassRate",
+        "rollbackActivationSeconds",
+        "postRollbackProtocolErrorRate"
+      ],
+      "required": true,
+      "status": "collected",
+      "artifactPath": "artifacts/perf/step-11/pre-release/upgrade-rollback/drill.json",
+      "suggestedRelativePath": "upgrade-rollback/drill.json",
+      "collectedAt": "2026-04-08",
+      "sizeBytes": 1291,
+      "checksumSha256": "sha256:0e0edd888d63d85ef652cb986ad6a68f0367122ecfd0b28f72b079131a30b218"
+    }
+  ],
+  "reviewBackwrite": [
+    "docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md",
+    "docs/\u67b6\u6784/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-failover-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-failover-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BQ-step11-pre-release-failover-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BQ-step11-pre-release-failover-collected-evidence-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-restore-recovery-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-restore-recovery-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BR-step11-pre-release-restore-recovery-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BR-step11-pre-release-restore-recovery-collected-evidence-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-drain-rebalance-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-drain-rebalance-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BS-step11-pre-release-drain-rebalance-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BS-step11-pre-release-drain-rebalance-collected-evidence-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-upgrade-rollback-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-upgrade-rollback-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BT-step11-pre-release-upgrade-rollback-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BT-step11-pre-release-upgrade-rollback-collected-evidence-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-connection-metrics-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-connection-metrics-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BU-step11-pre-release-connection-metrics-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BU-step11-pre-release-connection-metrics-collected-evidence-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-message-metrics-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-message-metrics-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BW-step11-pre-release-message-metrics-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BW-step11-pre-release-message-metrics-collected-evidence-design-2026-04-09.md",
+    "docs/step/continuous-optimization-step11-pre-release-stream-metrics-collected-evidence-2026-04-09.md",
+    "docs/review/continuous-optimization-step11-pre-release-stream-metrics-collected-evidence-2026-04-09.md",
+    "docs/\u67b6\u6784/09BX-step11-pre-release-stream-metrics-collected-evidence-implementation-plan-2026-04-09.md",
+    "docs/\u67b6\u6784/150BX-step11-pre-release-stream-metrics-collected-evidence-design-2026-04-09.md"
+  ],
+  "boundary": "This index now materializes all seven truthful Pre-Release Tier artifacts from published local CP11-2 and CP11-3 evidence. messageP95Ms and messagesPerSecond are doc-captured from published postP95Ms and messageTps, frameP95Ms is doc-captured from published appendP95Ms, drainCompletionSeconds, routeMigrationSuccessRate, restoreRtoSeconds, and rollbackActivationSeconds are derived from published local drill evidence, and this remains evidence_collected_gate_blocked because it is not full gate sign-off."
+}

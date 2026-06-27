@@ -1,0 +1,241 @@
+> Migrated from `docs/架构/14-实时订阅与断线补偿标准.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 实时订阅与断线补偿标准
+
+## 1. 目标
+
+当前平台已经具备：
+
+- 会话消息写入与时间线投影
+- client-route 补偿窗口 `client-route event window`
+- `session.resume / heartbeat / disconnect`
+- 通用 `stream frame`
+- RTC 自定义信令
+
+但仍缺少一层“实时下行内核”，导致客户端只能靠轮询查询或补偿流恢复，缺少统一的订阅态和增量事件窗口。这个标准用于补齐该缺口。
+
+本标准的目标：
+
+- 先定义稳定的实时下行内核，再把 WebSocket、SSE、MQ 等传输面接到同一个内核之上。
+- 保证断线后不会把“实时推送”和“持久补偿”混成一条链。
+- 统一设备级订阅、事件顺序、恢复窗口和补偿边界。
+
+## 2. 设计原则
+
+### 2.1 实时下行不等于 durable truth
+
+实时事件窗口是接入层能力，用于低延迟下发，不承担最终真相存储。
+
+最终真相仍来自：
+
+- 消息时间线
+- client-route 补偿窗口 `client-route event window`
+- 流帧窗口 `stream frames`
+
+### 2.2 断线恢复分两段
+
+客户端断线恢复时，必须分两段处理：
+
+1. `presence.heartbeat`
+   - 刷新当前 client route 的 presence 与 realtime 边界
+   - 返回当前 presence 视图与可用于补偿判断的同步水位
+2. realtime event window
+   - 拉取 durable realtime 补偿事件，保证不会漏消息
+
+实时事件窗口负责在线期间的低延迟增量下行，也承担 client-route 补偿读取边界；设备目录、设备孪生、命令和遥测由 `sdkwork-aiot` 接管。
+
+### 2.3 先做设备级内核，再扩到群体 fanout
+
+当前最小落地版本先聚焦“同一主体多客户端路由”的实时同步，这和现有 `client-route event window`、`session.resume`、client-route 注册机制天然对齐。
+
+跨成员、跨群组的大规模实时 fanout 仍属于下一阶段数据面能力，需要叠加：
+
+- 会话成员解析
+- 路由分片
+- 跨节点广播
+- 在线会话索引
+
+## 3. 标准边界
+
+### 3.1 内核职责
+
+实时下行内核负责：
+
+- 设备订阅同步
+- 设备级实时事件排队
+- 有序事件窗口查询
+- 与 `session.resume`、`client-route event window` 的边界协同
+
+### 3.2 传输面职责
+
+传输面只负责搬运实时事件，不负责定义业务模型：
+
+- HTTP 负责最小可运行闭环和调试验证
+- WebSocket 负责生产实时下行
+- SSE / MQ / gRPC 流可按同一内核扩展
+
+## 4. 领域模型
+
+建议固定三类模型：
+
+### 4.1 RealtimeSubscription
+
+```json
+{
+  "scopeType": "conversation",
+  "scopeId": "c_xxx",
+  "eventTypes": ["message.posted"],
+  "subscribedAt": "2026-04-05T10:10:00Z"
+}
+```
+
+### 4.2 RealtimeEvent
+
+```json
+{
+  "tenantId": "t_xxx",
+  "principalId": "u_xxx",
+  "clientRouteId": "d_xxx",
+  "realtimeSeq": 12,
+  "scopeType": "conversation",
+  "scopeId": "c_xxx",
+  "eventType": "message.posted",
+  "deliveryClass": "ephemeral",
+  "payload": "{\"messageId\":\"msg_xxx\"}",
+  "occurredAt": "2026-04-05T10:10:01Z"
+}
+```
+
+### 4.3 RealtimeEventWindow
+
+```json
+{
+  "clientRouteId": "d_xxx",
+  "items": [],
+  "nextAfterSeq": 12,
+  "hasMore": false
+}
+```
+
+## 5. 标准 API
+
+### 5.1 订阅同步
+
+`POST /im/v3/api/realtime/subscriptions/sync`
+
+请求示例：
+
+```json
+{
+  "clientRouteId": "d_pad",
+  "items": [
+    {
+      "scopeType": "conversation",
+      "scopeId": "c_demo",
+      "eventTypes": ["message.posted"]
+    },
+    {
+      "scopeType": "stream",
+      "scopeId": "st_demo",
+      "eventTypes": ["stream.frame.appended"]
+    }
+  ]
+}
+```
+
+语义：
+
+- 这是一次“全量同步”而不是增量 patch
+- 服务端以当前请求体替换该设备的订阅集
+- `clientRouteId` 默认从鉴权上下文解析，只有未绑定设备时才允许请求体传入
+
+### 5.2 查询实时事件窗口
+
+`GET /im/v3/api/realtime/events?afterSeq=0&limit=100`
+
+语义：
+
+- 返回当前设备的实时事件窗口
+- `afterSeq` 是设备级实时序号
+- `limit` 用于分页或断线后补拉短窗口
+
+## 6. 与 session.resume / client-route event window 的协同
+
+标准恢复顺序：
+
+1. 连接建立或应用恢复
+2. 调用 `POST /im/v3/api/presence/heartbeat`
+3. 如需补偿，拉取 `GET /im/v3/api/realtime/events`
+4. 再开始消费实时事件窗口或实时推送通道
+
+原因很明确：
+
+- `client-route event window` 覆盖 durable 补偿
+- `realtime events` 覆盖在线期低延迟事件
+
+两者不能互相替代。
+
+## 7. 与消息、流帧、RTC 信令的关系
+
+### 7.1 Conversation scope
+
+当订阅 `scopeType = conversation` 时，可以接收：
+
+- `message.posted`
+- 后续可扩展 `message.edited`
+- 后续可扩展 `message.recalled`
+
+### 7.2 Stream scope
+
+当订阅 `scopeType = stream` 时，可以接收：
+
+- `stream.frame.appended`
+- 后续可扩展 `stream.completed`
+- 后续可扩展 `stream.aborted`
+
+### 7.3 RTC
+
+RTC 下行事件在最小版本不直接做独立 scope，而是复用：
+
+- 会话内信令投影为 `conversation` scope 中的 `message.posted`
+- 未来若需要纯 RTC 下行，可新增 `scopeType = rtc_session`
+
+## 8. 安全与隔离
+
+最小版本必须遵守：
+
+- 租户只能从鉴权上下文解析
+- 设备只能操作自身订阅
+- 事件窗口按 `tenant + principal + device` 隔离
+- 本地最小版本只保证“当前主体多客户端路由”的实时一致性，不承担跨主体会话 ACL 扩散
+
+这条限制是刻意保留的架构边界，不是缺陷隐藏。跨主体实时 fanout 必须建立在成员路由和数据面广播之上。
+
+## 9. 本地最小落地策略
+
+由于当前工作区离线，不适合在本轮强行引入新的 WebSocket 依赖链，因此先落地：
+
+- 订阅同步 API
+- 实时事件窗口 API
+- 多客户端路由本地主体实时下行
+- 与 `client-route event window` 的恢复协同
+
+后续 WebSocket 只需把下行事件窗口映射为：
+
+- `subscriptions.sync`
+- `event.push`
+- `session.resume`
+
+即可复用相同领域模型和运行时。
+
+## 10. 下一步
+
+本标准落地后，后续应继续推进：
+
+- WebSocket 连接态与订阅态绑定
+- 事件窗口保留策略、裁剪和过期
+- 多主体会话成员 fanout
+- 节点间广播与 shard 路由
+- 断线后事件窗口与 `client-route event window` 的自动切换策略
+

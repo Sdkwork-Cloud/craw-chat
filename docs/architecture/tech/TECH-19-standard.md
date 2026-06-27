@@ -1,0 +1,176 @@
+> Migrated from `docs/架构/19-实时事件窗口确认与裁剪标准.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 19-实时事件窗口确认与裁剪标准
+
+## 1. 目标
+
+本标准定义 realtime event window 的确认、裁剪与可观测元数据，解决以下商用问题：
+
+- 在线设备消费完 realtime 事件后，服务端如何释放窗口内存
+- 客户端如何知道哪些实时事件已经被确认
+- 客户端如何知道窗口是否已经被裁剪
+- WebSocket、长轮询、HTTP 拉取如何共享同一套确认语义
+
+本标准不改变 `client-route event window` 的 durable 补偿职责。它只约束在线实时窗口。
+
+## 2. 设计原则
+
+### 2.1 显式确认，不做隐式推断
+
+`afterSeq` 只是拉取位置，不等同于“我已经处理完成”。客户端必须显式调用 ack 接口，才能让服务端推进窗口确认点。
+
+### 2.2 ack 是在线窗口确认，不是业务确认
+
+`ack` 仅表示某设备已经处理完某个 realtime 序号之前的在线事件，不表示消息、流、RTC 等业务对象已经 durable 提交。业务真相仍由 commit log、projection、`client-route event window` 等机制负责。
+
+### 2.3 裁剪必须可观测
+
+服务端可以裁剪已确认事件，但不能静默吞掉历史。窗口查询结果必须显式返回：
+
+- `ackedThroughSeq`
+- `trimmedThroughSeq`
+
+让客户端知道自己当前窗口状态与可恢复边界。
+
+## 3. 数据模型
+
+### 3.1 RealtimeEventWindow
+
+在原有字段基础上补充：
+
+- `ackedThroughSeq`
+- `trimmedThroughSeq`
+
+示例：
+
+```json
+{
+  "clientRouteId": "d_pad",
+  "items": [],
+  "nextAfterSeq": null,
+  "hasMore": false,
+  "ackedThroughSeq": 12,
+  "trimmedThroughSeq": 12
+}
+```
+
+### 3.2 RealtimeAckState
+
+新增确认结果模型：
+
+```json
+{
+  "tenantId": "100001",
+  "principalId": "1",
+  "clientRouteId": "d_pad",
+  "ackedThroughSeq": 12,
+  "trimmedThroughSeq": 12,
+  "retainedEventCount": 3,
+  "ackedAt": "2026-04-05T10:10:00Z"
+}
+```
+
+字段语义：
+
+- `ackedThroughSeq`: 当前设备已确认处理完成的最大 realtime 序号
+- `trimmedThroughSeq`: 当前窗口已实际裁剪掉的最大序号
+- `retainedEventCount`: 当前窗口内仍保留的事件数
+
+## 4. API 标准
+
+### 4.1 拉取窗口
+
+`GET /im/v3/api/realtime/events?afterSeq=0&limit=100`
+
+返回在线实时事件以及当前 ack/trim 元数据。
+
+### 4.2 确认窗口
+
+`POST /im/v3/api/realtime/events/ack`
+
+请求：
+
+```json
+{
+  "ackedSeq": 12
+}
+```
+
+如果设备标识已经绑定在鉴权上下文中，则无需在 body 中重复传 `clientRouteId`。如果采用可信头或其他弱绑定模式，也可显式传入 `clientRouteId`，服务端必须校验与鉴权上下文一致。
+
+响应：
+
+```json
+{
+  "tenantId": "100001",
+  "principalId": "1",
+  "clientRouteId": "d_pad",
+  "ackedThroughSeq": 12,
+  "trimmedThroughSeq": 12,
+  "retainedEventCount": 0,
+  "ackedAt": "2026-04-05T10:10:00Z"
+}
+```
+
+## 5. 语义规则
+
+### 5.1 单调递增
+
+`ackedThroughSeq` 必须单调不回退。
+
+如果客户端提交更小的 `ackedSeq`，服务端必须保留当前更大的确认点，不允许回滚。
+
+### 5.2 上界钳制
+
+如果客户端提交的 `ackedSeq` 超过该设备当前已分配的最大 realtime 序号，服务端必须钳制到 `latestRealtimeSeq`，不能制造不存在的确认点。
+
+### 5.3 裁剪规则
+
+本阶段的本地实现采用最小策略：
+
+- 设备提交 ack 后
+- 服务端将 `realtimeSeq <= ackedThroughSeq` 的窗口事件裁剪掉
+- `trimmedThroughSeq` 推进到当前裁剪边界
+
+### 5.4 空窗口确认
+
+即使当前窗口为空，ack 接口也应可调用，并返回稳定结果。这样客户端在不同传输通道下可以统一走一个确认流程。
+
+## 6. 与断线恢复的关系
+
+realtime window 被裁剪后，如果客户端还需要历史补偿，必须走 durable 通路：
+
+1. `session.resume`
+2. `client-route event window`
+3. 必要时补拉 projection / timeline / stream frame
+
+本标准明确禁止把 realtime window 当作历史事件仓库。
+
+## 7. 本地最小实现映射
+
+当前 `sdkwork-im-server` 与 `session-gateway` 的落地边界如下：
+
+- 订阅仍通过 `POST /im/v3/api/realtime/subscriptions/sync`
+- 拉取仍通过 `GET /im/v3/api/realtime/events`
+- 新增 `POST /im/v3/api/realtime/events/ack`
+- ack 后由 `RealtimeDeliveryRuntime` 负责推进 `ackedThroughSeq`
+- 已确认事件在设备窗口内被裁剪
+- 窗口查询统一返回 `ackedThroughSeq` 与 `trimmedThroughSeq`
+
+## 8. 后续扩展
+
+本标准是后续以下能力的基础：
+
+- WebSocket 消费后按批 ack
+- 长连接断开前批量 flush ack
+- 多节点下把 ack checkpoint 持久化到共享状态存储
+- 引入窗口大小上限和后台裁剪策略
+
+后续可以继续增强，但不能破坏四条稳定边界：
+
+- ack 是显式接口，不靠 `afterSeq` 隐式推断
+- ack 只代表在线窗口消费完成
+- `ackedThroughSeq` 单调递增
+- 窗口裁剪后历史补偿仍然回到 durable `client-route event window`
+
