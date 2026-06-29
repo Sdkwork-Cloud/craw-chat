@@ -129,6 +129,45 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
     }
 }
 
+impl ClusterMemoryDisconnectFenceStore {
+    /// P1-7 fix: Expire disconnect fences older than the cutoff timestamp.
+    ///
+    /// This prevents storage膨胀 from long-term offline devices that accumulate
+    /// stale fence records. The cleanup job should be run periodically (e.g., daily)
+    /// to remove fences for devices that have been offline for more than N days.
+    ///
+    /// # Arguments
+    ///
+    /// * `cutoff_timestamp` - ISO 8601 timestamp; fences with `disconnected_at`
+    ///   older than this will be removed
+    ///
+    /// # Returns
+    ///
+    /// Number of expired fences removed
+    pub fn expire_fences_older_than(&self, cutoff_timestamp: &str) -> Result<usize, ContractError> {
+        let mut fences = self.fences.lock_cluster_disconnect_fences();
+        let mut expired_keys = Vec::new();
+        
+        for (key, record) in fences.iter() {
+            if rfc3339_le(record.disconnected_at.as_str(), cutoff_timestamp) {
+                expired_keys.push(key.clone());
+            }
+        }
+        
+        let removed_count = expired_keys.len();
+        for key in expired_keys {
+            fences.remove(key.as_str());
+        }
+        
+        Ok(removed_count)
+    }
+    
+    /// Get the count of stored disconnect fences.
+    pub fn fence_count(&self) -> usize {
+        self.fences.lock_cluster_disconnect_fences().len()
+    }
+}
+
 impl RealtimeClusterBridge {
     pub fn mark_client_route_disconnected_for_principal_kind(
         &self,

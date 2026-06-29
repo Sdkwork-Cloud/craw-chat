@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsResponse, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, DeleteMessageFavoriteResponse, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, FavoriteMessagesResponse, InboxResponse, ListMembersResponse, MemberDirectoryResponse, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, MessageVisibilityMutationResult, PinnedMessagesResponse, PostedMessageResponse, PostMessageRequest, ReadCursorView, RemoveConversationMemberRequest, RoomView, TimelineResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
+import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationInboxEntry, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostedMessageResponse, PostMessageRequest, ReadCursorView, RemoveConversationMemberRequest, RoomView, SdkWorkCommandData, TimelineViewEntry, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
 
 
 export class ChatRoomsApi {
@@ -47,8 +47,8 @@ export class ChatMessagesPinApi {
   }
 
 /** Unpin a message */
-  async delete(messageId: string): Promise<MessagePinMutationResult> {
-    return this.client.post<MessagePinMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/unpin`));
+  async delete(messageId: string): Promise<SdkWorkCommandData> {
+    return this.client.post<SdkWorkCommandData>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/unpin`));
   }
 }
 
@@ -66,8 +66,8 @@ export class ChatMessagesReactionsApi {
   }
 
 /** Remove a message reaction */
-  async delete(messageId: string, body: MessageReactionRequest): Promise<MessageReactionMutationResult> {
-    return this.client.post<MessageReactionMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/reactions/remove`), body, undefined, undefined, 'application/json');
+  async delete(messageId: string, body: MessageReactionRequest): Promise<SdkWorkCommandData> {
+    return this.client.post<SdkWorkCommandData>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/reactions/remove`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -80,8 +80,8 @@ export class ChatMessagesVisibilityApi {
 
 
 /** Delete message visibility for the current principal */
-  async delete(messageId: string): Promise<MessageVisibilityMutationResult> {
-    return this.client.delete<MessageVisibilityMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/visibility`));
+  async delete(messageId: string): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/visibility`));
   }
 }
 
@@ -101,14 +101,14 @@ export class ChatMessagesFavoritesApi {
 
 
 /** List message favorites */
-  async list(params?: ChatMessagesFavoritesListParams): Promise<FavoriteMessagesResponse> {
+  async list(params?: ChatMessagesFavoritesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'favoriteType', value: params?.favoriteType, style: 'form', explode: true, allowReserved: false },
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<FavoriteMessagesResponse>(appendQueryString(imApiPath(`/chat/messages/favorites`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/messages/favorites`), query));
   }
 
 /** Favorite a message */
@@ -117,8 +117,8 @@ export class ChatMessagesFavoritesApi {
   }
 
 /** Delete a message favorite */
-  async delete(favoriteId: string): Promise<DeleteMessageFavoriteResponse> {
-    return this.client.delete<DeleteMessageFavoriteResponse>(imApiPath(`/chat/messages/favorites/${serializePathParameter(favoriteId, { name: 'favoriteId', style: 'simple', explode: false })}`));
+  async delete(favoriteId: string): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(imApiPath(`/chat/messages/favorites/${serializePathParameter(favoriteId, { name: 'favoriteId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -158,8 +158,8 @@ export class ChatConversationsPinsApi {
 
 
 /** List pinned messages */
-  async list(conversationId: string): Promise<PinnedMessagesResponse> {
-    return this.client.get<PinnedMessagesResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`));
+  async list(conversationId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`));
   }
 }
 
@@ -193,12 +193,12 @@ export class ChatConversationsMessagesApi {
 
 
 /** List conversation message timeline */
-  async list(conversationId: string, params?: ChatConversationsMessagesListParams): Promise<TimelineResponse> {
+  async list(conversationId: string, params?: ChatConversationsMessagesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'afterSeq', value: params?.afterSeq, style: 'form', explode: true, allowReserved: false },
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<TimelineResponse>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), query));
   }
 
 /** Post a conversation message */
@@ -216,8 +216,8 @@ export class ChatConversationsMemberDirectoryApi {
 
 
 /** List member directory */
-  async list(conversationId: string): Promise<MemberDirectoryResponse> {
-    return this.client.get<MemberDirectoryResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`));
+  async list(conversationId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`));
   }
 }
 
@@ -292,12 +292,12 @@ export class ChatConversationsMembersApi {
 
 
 /** List conversation members */
-  async list(conversationId: string, params?: ChatConversationsMembersListParams): Promise<ListMembersResponse> {
+  async list(conversationId: string, params?: ChatConversationsMembersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ListMembersResponse>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members`), query));
   }
 
 /** Add a conversation member */
@@ -478,12 +478,12 @@ export class ChatInboxApi {
 
 
 /** Retrieve current inbox window */
-  async retrieve(params?: ChatInboxRetrieveParams): Promise<InboxResponse> {
+  async retrieve(params?: ChatInboxRetrieveParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<InboxResponse>(appendQueryString(imApiPath(`/chat/inbox`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/inbox`), query));
   }
 }
 
@@ -501,12 +501,12 @@ export class ChatContactsApi {
 
 
 /** List IM contacts */
-  async list(params?: ChatContactsListParams): Promise<ContactsResponse> {
+  async list(params?: ChatContactsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ContactsResponse>(appendQueryString(imApiPath(`/chat/contacts`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/contacts`), query));
   }
 }
 

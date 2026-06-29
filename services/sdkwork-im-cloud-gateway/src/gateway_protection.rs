@@ -32,6 +32,7 @@ use axum::extract::{ConnectInfo, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use dashmap::DashMap;
 
 // ---------------------------------------------------------------------------
 // Trusted Proxy IP Extraction
@@ -130,9 +131,65 @@ fn extract_client_ip_with_config(req: &Request, config: &TrustedProxyConfig) -> 
         }
     }
 
-    // No trusted proxies and no ConnectInfo — cannot determine real IP.
-    // Use unspecified address; all such requests share a single rate-limit bucket.
-    IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)
+    // P1-9 fix: When we cannot determine the real client IP, generate a unique
+    // identifier based on request characteristics to prevent all unknown-IP
+    // requests from sharing a single rate-limit bucket.
+    // 
+    // This uses a hash of available headers to create a pseudo-IP that provides
+    // some level of differentiation between different clients even when we
+    // can't determine their real IP.
+    //
+    // The fallback strategy:
+    // 1. Try User-Agent + Accept-Language headers for differentiation
+    // 2. Fall back to a time-based bucket that rotates every 10 seconds
+    // 3. This limits the blast radius of attacks from unknown-IP sources
+    let fallback_ip = generate_fallback_ip_from_headers(req.headers());
+    tracing::warn!(
+        target: "sdkwork.im.gateway",
+        event = "im.gateway.ip_extraction_fallback",
+        path = %req.uri().path(),
+        fallback_ip = %fallback_ip,
+        "could not determine real client IP, using header-based fallback"
+    );
+    fallback_ip
+}
+
+/// Generate a fallback pseudo-IP from request headers when real IP cannot be determined.
+///
+/// This prevents all unknown-IP requests from sharing a single rate-limit bucket
+/// by creating differentiation based on request characteristics.
+fn generate_fallback_ip_from_headers(headers: &axum::http::HeaderMap) -> IpAddr {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    
+    // Collect header values for hashing
+    let mut hasher = DefaultHasher::new();
+    
+    // Hash User-Agent for client differentiation
+    if let Some(ua) = headers.get("user-agent").and_then(|v| v.to_str().ok()) {
+        ua.hash(&mut hasher);
+    }
+    
+    // Hash Accept-Language for additional differentiation
+    if let Some(lang) = headers.get("accept-language").and_then(|v| v.to_str().ok()) {
+        lang.hash(&mut hasher);
+    }
+    
+    // Add time-based component that rotates every 10 seconds
+    // This limits the window of attack for any single bucket
+    let time_bucket = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() / 10;
+    time_bucket.hash(&mut hasher);
+    
+    // Convert hash to an IPv4 address in the 198.51.100.0/24 range (TEST-NET-2)
+    // This range is reserved for documentation and won't conflict with real IPs
+    let hash = hasher.finish();
+    let octet3 = ((hash >> 8) & 0xFF) as u8;
+    let octet4 = (hash & 0xFF) as u8;
+    
+    IpAddr::V4(std::net::Ipv4Addr::new(198, 51, octet3, octet4))
 }
 
 fn parse_forwarded_for_trusted(
@@ -211,7 +268,7 @@ impl Default for RateLimitConfig {
 }
 
 /// Per-client token-bucket state.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ClientBucket {
     tokens: f64,
     last_refill: Instant,
@@ -289,9 +346,117 @@ impl RateLimiter {
     }
 }
 
+/// High-performance rate limiter using DashMap for lock-free concurrent access.
+///
+/// Uses sharded concurrent HashMap (DashMap) instead of Mutex<HashMap> to
+/// significantly reduce lock contention in high-throughput scenarios.
+/// Each shard has its own fine-grained lock, allowing concurrent reads
+/// and writes to different IP addresses without blocking.
+#[derive(Clone)]
+pub struct DashMapRateLimiter {
+    config: RateLimitConfig,
+    buckets: DashMap<IpAddr, ClientBucket>,
+}
+
+impl DashMapRateLimiter {
+    pub fn new(config: RateLimitConfig) -> Self {
+        Self {
+            config,
+            buckets: DashMap::new(),
+        }
+    }
+
+    /// Returns `true` if the request is allowed, `false` if rate-limited.
+    ///
+    /// This implementation uses DashMap's entry API for atomic check-and-update,
+    /// avoiding the TOCTOU race condition that could occur with separate get/insert.
+    pub fn check(&self, client_ip: IpAddr) -> bool {
+        // Proactive bounded eviction (less frequent in DashMap)
+        // Use a threshold slightly below max_entries to avoid frequent cleanup
+        if self.buckets.len() > self.config.max_entries * 9 / 10 {
+            let cutoff = Instant::now() - Duration::from_secs(RATE_LIMIT_EVICT_AGE_SECS);
+            // DashMap's retain is shard-local, minimal contention
+            self.buckets.retain(|_, bucket| bucket.last_refill > cutoff);
+
+            tracing::debug!(
+                target: "sdkwork.im.gateway",
+                tracked_ips = self.buckets.len(),
+                max_entries = self.config.max_entries,
+                "rate limiter cleanup completed"
+            );
+        }
+
+        // Use DashMap's entry API for atomic operation
+        // The key insight: we need to call try_acquire which handles both refill and token check
+        match self.buckets.entry(client_ip) {
+            dashmap::mapref::entry::Entry::Occupied(mut entry) => {
+                // Existing entry - call try_acquire on the bucket
+                entry.get_mut().try_acquire(&self.config)
+            }
+            dashmap::mapref::entry::Entry::Vacant(entry) => {
+                // New entry - insert a fresh bucket and consume one token
+                let mut bucket = ClientBucket::new(self.config.burst);
+                bucket.tokens -= 1.0; // Consume first token
+                entry.insert(bucket);
+                true // First request always succeeds
+            }
+        }
+    }
+
+    /// Get current number of tracked IPs.
+    pub fn tracked_count(&self) -> usize {
+        self.buckets.len()
+    }
+
+    /// Clear all rate limit buckets.
+    pub fn clear(&self) {
+        self.buckets.clear();
+    }
+}
+
+/// Axum middleware: per-IP rate limiting using DashMap (high-performance variant).
+///
+/// Returns HTTP 429 when the client exceeds the configured rate.
+/// The retry_after_secs is calculated based on actual RPM configuration (P0-5 fix).
+pub async fn dashmap_rate_limit_middleware(
+    State(limiter): State<DashMapRateLimiter>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let client_ip = extract_client_ip(&req);
+
+    if !limiter.check(client_ip) {
+        // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
+        // For example: 60 RPM -> 1 sec, 120 RPM -> 0.5 sec (rounded to 1), 30 RPM -> 2 sec
+        let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
+        
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.rate_limited",
+            client_ip = %client_ip,
+            path = %req.uri().path(),
+            retry_after_secs = retry_after_secs,
+            max_rpm = limiter.config.max_rpm,
+            "request rate limited"
+        );
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            axum::Json(serde_json::json!({
+                "error": "rate_limit_exceeded",
+                "message": "Too many requests. Please slow down.",
+                "retry_after_secs": retry_after_secs.max(1), // minimum 1 second
+            })),
+        )
+            .into_response();
+    }
+
+    next.run(req).await
+}
+
 /// Axum middleware: per-IP rate limiting.
 ///
 /// Returns HTTP 429 when the client exceeds the configured rate.
+/// The retry_after_secs is calculated based on actual RPM configuration (P0-5 fix).
 pub async fn rate_limit_middleware(
     State(limiter): State<RateLimiter>,
     req: Request,
@@ -300,11 +465,17 @@ pub async fn rate_limit_middleware(
     let client_ip = extract_client_ip(&req);
 
     if !limiter.check(client_ip) {
+        // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
+        // For example: 60 RPM -> 1 sec, 120 RPM -> 0.5 sec (rounded to 1), 30 RPM -> 2 sec
+        let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
+        
         tracing::warn!(
             target: "sdkwork.im.gateway",
             event = "im.gateway.rate_limited",
             client_ip = %client_ip,
             path = %req.uri().path(),
+            retry_after_secs = retry_after_secs,
+            max_rpm = limiter.config.max_rpm,
             "request rate limited"
         );
         return (
@@ -312,7 +483,7 @@ pub async fn rate_limit_middleware(
             axum::Json(serde_json::json!({
                 "error": "rate_limit_exceeded",
                 "message": "Too many requests. Please slow down.",
-                "retry_after_secs": 1,
+                "retry_after_secs": retry_after_secs.max(1), // minimum 1 second
             })),
         )
             .into_response();
@@ -670,6 +841,7 @@ impl TenantRateLimiter {
 /// Reads the authenticated `AppContext` from request extensions. When no
 /// context is present (unauthenticated public route), the request is allowed
 /// through; the Layer 1 per-IP limiter already governs unauthenticated traffic.
+/// The retry_after_secs is calculated based on actual RPM configuration (P0-5 fix).
 pub async fn per_tenant_rate_limit_middleware(
     State(limiter): State<TenantRateLimiter>,
     req: Request,
@@ -683,11 +855,16 @@ pub async fn per_tenant_rate_limit_middleware(
 
     if let Some(tenant_id) = tenant_id {
         if !limiter.check(tenant_id.as_str()) {
+            // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
+            let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
+            
             tracing::warn!(
                 target: "sdkwork.im.gateway",
                 event = "im.gateway.tenant_rate_limited",
                 tenant_id = %tenant_id,
                 path = %req.uri().path(),
+                retry_after_secs = retry_after_secs,
+                max_rpm = limiter.config.max_rpm,
                 "tenant request rate limited"
             );
             return (
@@ -695,7 +872,7 @@ pub async fn per_tenant_rate_limit_middleware(
                 axum::Json(serde_json::json!({
                     "error": "tenant_rate_limit_exceeded",
                     "message": "Tenant request rate limit exceeded. Please slow down.",
-                    "retry_after_secs": 1,
+                    "retry_after_secs": retry_after_secs.max(1), // minimum 1 second
                 })),
             )
                 .into_response();

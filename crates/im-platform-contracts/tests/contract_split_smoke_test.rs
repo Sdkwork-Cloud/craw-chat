@@ -1,6 +1,6 @@
 use std::any::type_name;
 
-use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
+use im_domain_core::rtc::{StateRecord, StateStore};
 use sdkwork_communication_rtc_service::RtcContractError;
 use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
 use sdkwork_im_contract_agent::AutomationExecutionStore;
@@ -272,16 +272,16 @@ impl StreamStateStore for NullStreamStore {
     }
 }
 
-impl RtcStateStore for NullRtcStore {
+impl StateStore for NullRtcStore {
     fn load_state(
         &self,
         _tenant_id: &str,
         _rtc_session_id: &str,
-    ) -> Result<Option<RtcStateRecord>, RtcContractError> {
+    ) -> Result<Option<StateRecord>, RtcContractError> {
         Ok(None)
     }
 
-    fn save_state(&self, _record: RtcStateRecord) -> Result<(), RtcContractError> {
+    fn save_state(&self, _record: StateRecord) -> Result<(), RtcContractError> {
         Ok(())
     }
 
@@ -422,11 +422,11 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         type_name::<StreamStateRecord>(),
         type_name::<im_platform_contracts::StreamStateRecord>()
     );
-    // RtcStateRecord lives in im-domain-core::rtc; im-platform-contracts no
+    // StateRecord lives in im-domain-core::rtc; im-platform-contracts no
     // longer re-exports it to keep the contract layer independent of domain.
     assert_eq!(
-        type_name::<RtcStateRecord>(),
-        type_name::<im_domain_core::rtc::RtcStateRecord>()
+        type_name::<StateRecord>(),
+        type_name::<im_domain_core::rtc::StateRecord>()
     );
     assert_eq!(
         type_name::<NotificationTaskRecord>(),

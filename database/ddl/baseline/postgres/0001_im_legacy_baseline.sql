@@ -1499,13 +1499,33 @@ CREATE TABLE im_rtc_sessions (
     artifact_message_id TEXT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ended_at TIMESTAMPTZ,
+    -- Lifecycle timestamps for SLA / quality analytics (migration 0008)
+    initiating_at       TIMESTAMPTZ,
+    ringing_at          TIMESTAMPTZ,
+    connecting_at       TIMESTAMPTZ,
+    connected_at        TIMESTAMPTZ,
+    on_hold_since       TIMESTAMPTZ,
+    reconnecting_since  TIMESTAMPTZ,
+    canceled_at         TIMESTAMPTZ,
+    failed_at           TIMESTAMPTZ,
+    timeout_at          TIMESTAMPTZ,
+    ended_reason        TEXT,
+    failure_reason      TEXT,
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_rtc_sessions PRIMARY KEY (tenant_id, organization_id, rtc_session_id),
-    CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN ('started', 'accepted', 'rejected', 'ended'))
+    CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN (
+        'started', 'accepted', 'rejected', 'ended',
+        'initiating', 'ringing', 'connecting', 'connected',
+        'on_hold', 'reconnecting', 'canceled', 'failed', 'timeout'
+    )),
+    CONSTRAINT chk_im_rtc_sessions_terminal_reason CHECK (
+        session_state NOT IN ('ended', 'canceled', 'rejected', 'failed', 'timeout')
+        OR ended_reason IS NOT NULL
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_conversation
@@ -1523,6 +1543,26 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_retention_until
     ON im_rtc_sessions (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_ringing_at
+    ON im_rtc_sessions (tenant_id, organization_id, ringing_at)
+    WHERE ringing_at IS NOT NULL AND session_state = 'ringing';
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_active_lifecycle
+    ON im_rtc_sessions (tenant_id, organization_id, session_state, updated_at)
+    WHERE session_state IN (
+        'initiating', 'ringing', 'connecting', 'connected',
+        'on_hold', 'reconnecting', 'started', 'accepted'
+    );
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_stale_cleanup
+    ON im_rtc_sessions (tenant_id, organization_id, updated_at, rtc_session_id)
+    WHERE session_state NOT IN ('ended', 'canceled', 'rejected', 'failed', 'timeout');
+
+COMMENT ON TABLE im_rtc_sessions IS
+    'RTC call session lifecycle. State machine: initiating -> ringing -> connecting -> connected -> (on_hold|reconnecting)* -> ended|canceled|rejected|failed|timeout. Legacy states started/accepted retained as aliases.';
+COMMENT ON COLUMN im_rtc_sessions.ended_reason IS
+    'Required for terminal states. Values: normal|rejected|canceled|timeout|failed|media_drop|signaling_error|participant_left';
+
 -- ============================================================
 -- 16. RTC 信令
 -- ============================================================
@@ -1538,12 +1578,20 @@ CREATE TABLE im_rtc_signals (
     receiver_principal_kind TEXT,
     receiver_principal_id TEXT,
     signal_type TEXT NOT NULL,
+    client_signal_id TEXT,
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_rtc_signals PRIMARY KEY (tenant_id, organization_id, rtc_session_id, signal_seq)
+    CONSTRAINT pk_im_rtc_signals PRIMARY KEY (tenant_id, organization_id, rtc_session_id, signal_seq),
+    CONSTRAINT chk_im_rtc_signals_signal_type CHECK (signal_type IN (
+        'offer', 'answer', 'ice_candidate', 'renegotiate',
+        'add_participant', 'remove_participant', 'kick_participant',
+        'mute', 'unmute', 'screen_share_start', 'screen_share_stop',
+        'hold', 'resume', 'reconnect', 'quality_report',
+        'recording_start', 'recording_stop', 'recording_status'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_session_seq
@@ -1552,6 +1600,10 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_session_seq
 CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_retention_until
     ON im_rtc_signals (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_im_rtc_signals_client_signal_id
+    ON im_rtc_signals (tenant_id, organization_id, rtc_session_id, sender_principal_kind, sender_principal_id, client_signal_id)
+    WHERE client_signal_id IS NOT NULL;
 
 -- ============================================================
 -- 17. 审计记录
@@ -1571,12 +1623,21 @@ CREATE TABLE im_audit_records (
     actor_session_id TEXT,
     payload TEXT,
     recorded_at TEXT NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    target_type TEXT,
+    target_id TEXT,
+    retention_class TEXT NOT NULL DEFAULT 'access',
+    integrity_anchor TEXT,
+    integrity_anchored_at TIMESTAMPTZ,
     chain_prev_hash TEXT,
     chain_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_audit_records PRIMARY KEY (tenant_id, organization_id, audit_seq),
-    CONSTRAINT uk_im_audit_records_record_id UNIQUE (tenant_id, organization_id, record_id)
+    CONSTRAINT uk_im_audit_records_record_id UNIQUE (tenant_id, organization_id, record_id),
+    CONSTRAINT chk_im_audit_records_retention_class CHECK (retention_class IN (
+        'security', 'access', 'admin', 'data_lifecycle'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_seq
@@ -1585,9 +1646,29 @@ CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_seq
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_aggregate
     ON im_audit_records (tenant_id, organization_id, aggregate_type, aggregate_id, audit_seq);
 
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_occurred
+    ON im_audit_records (tenant_id, organization_id, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_target
+    ON im_audit_records (tenant_id, organization_id, target_type, target_id, occurred_at DESC)
+    WHERE target_type IS NOT NULL AND target_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_actor
+    ON im_audit_records (tenant_id, organization_id, actor_id, actor_kind, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_retention_class
+    ON im_audit_records (tenant_id, organization_id, retention_class, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_integrity_anchor_pending
+    ON im_audit_records (tenant_id, organization_id, audit_seq)
+    WHERE integrity_anchor IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_retention_until
     ON im_audit_records (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
+
+COMMENT ON TABLE im_audit_records IS
+    'L3 compliance audit log. occurred_at is authoritative timestamp. integrity_anchor links to external notary for WORM-like tamper evidence. retention_class drives differentiated retention (security=2y, access=180d, admin=1y, data_lifecycle=3y).';
 
 -- ============================================================
 -- 18. 通知任务
@@ -2734,4 +2815,157 @@ CREATE TABLE IF NOT EXISTS im_projection_metadata_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_metadata_snapshots_key
     ON im_projection_metadata_snapshots (snapshot_key);
+
+-- ============================================================
+-- RTC Lifecycle Tables (migrations 0008-0010 consolidated)
+-- ============================================================
+
+-- RTC Outbox Events
+CREATE TABLE IF NOT EXISTS im_rtc_outbox_events (
+    tenant_id           TEXT NOT NULL,
+    organization_id     TEXT NOT NULL DEFAULT '0',
+    outbox_id           TEXT NOT NULL,
+    rtc_session_id      TEXT NOT NULL,
+    event_id            TEXT NOT NULL,
+    event_type          TEXT NOT NULL,
+    actor_principal_kind TEXT NOT NULL,
+    actor_principal_id  TEXT NOT NULL,
+    payload_json        JSONB NOT NULL,
+    payload_hash        TEXT NOT NULL,
+    publish_status      TEXT NOT NULL DEFAULT 'pending',
+    attempt_count       INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    available_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at        TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retention_until     TIMESTAMPTZ,
+    CONSTRAINT pk_im_rtc_outbox_events PRIMARY KEY (tenant_id, organization_id, outbox_id),
+    CONSTRAINT uk_im_rtc_outbox_events_event UNIQUE (tenant_id, organization_id, event_id),
+    CONSTRAINT chk_im_rtc_outbox_events_status CHECK (publish_status IN ('pending', 'published', 'failed')),
+    CONSTRAINT chk_im_rtc_outbox_events_type CHECK (event_type IN (
+        'session.created', 'session.ringing', 'session.connected',
+        'session.ended', 'session.canceled', 'session.rejected',
+        'session.failed', 'session.timeout', 'session.hold', 'session.resumed',
+        'participant.invited', 'participant.joined', 'participant.left',
+        'participant.kicked', 'participant.credential_issued',
+        'participant.credential_revoked',
+        'recording.started', 'recording.stopped', 'recording.failed'
+    ))
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_outbox_events_status_available
+    ON im_rtc_outbox_events (tenant_id, organization_id, publish_status, available_at, outbox_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_outbox_events_session
+    ON im_rtc_outbox_events (tenant_id, organization_id, rtc_session_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_outbox_events_retention_until
+    ON im_rtc_outbox_events (tenant_id, organization_id, retention_until)
+    WHERE retention_until IS NOT NULL;
+
+-- RTC Quality Reports
+CREATE TABLE IF NOT EXISTS im_rtc_quality_reports (
+    tenant_id               TEXT NOT NULL,
+    organization_id         TEXT NOT NULL DEFAULT '0',
+    report_id               TEXT NOT NULL,
+    rtc_session_id          TEXT NOT NULL,
+    participant_principal_kind TEXT NOT NULL,
+    participant_principal_id   TEXT NOT NULL,
+    participant_device_id     TEXT NOT NULL,
+    reported_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    mos_score               DOUBLE PRECISION CHECK (mos_score IS NULL OR (mos_score >= 1.0 AND mos_score <= 4.5)),
+    rtt_ms                  DOUBLE PRECISION CHECK (rtt_ms IS NULL OR rtt_ms >= 0),
+    jitter_ms               DOUBLE PRECISION CHECK (jitter_ms IS NULL OR jitter_ms >= 0),
+    packet_loss_rate        DOUBLE PRECISION CHECK (packet_loss_rate IS NULL OR (packet_loss_rate >= 0 AND packet_loss_rate <= 1.0)),
+    packets_sent            BIGINT CHECK (packets_sent IS NULL OR packets_sent >= 0),
+    packets_received        BIGINT CHECK (packets_received IS NULL OR packets_received >= 0),
+    packets_lost            BIGINT CHECK (packets_lost IS NULL OR packets_lost >= 0),
+    bytes_sent              BIGINT CHECK (bytes_sent IS NULL OR bytes_sent >= 0),
+    bytes_received          BIGINT CHECK (bytes_received IS NULL OR bytes_received >= 0),
+    audio_bitrate_kbps      INTEGER CHECK (audio_bitrate_kbps IS NULL OR audio_bitrate_kbps >= 0),
+    video_bitrate_kbps      INTEGER CHECK (video_bitrate_kbps IS NULL OR video_bitrate_kbps >= 0),
+    audio_codec             TEXT,
+    video_codec             TEXT,
+    resolution_width        INTEGER CHECK (resolution_width IS NULL OR resolution_width >= 0),
+    resolution_height       INTEGER CHECK (resolution_height IS NULL OR resolution_height >= 0),
+    frame_rate_fps          DOUBLE PRECISION CHECK (frame_rate_fps IS NULL OR frame_rate_fps >= 0),
+    quality_grade           TEXT CHECK (quality_grade IN ('excellent', 'good', 'fair', 'poor', 'bad')),
+    payload_json            JSONB,
+    payload_hash            TEXT,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retention_until         TIMESTAMPTZ,
+    CONSTRAINT pk_im_rtc_quality_reports PRIMARY KEY (tenant_id, organization_id, report_id),
+    CONSTRAINT uk_im_rtc_quality_reports_session_report UNIQUE (tenant_id, organization_id, rtc_session_id, participant_principal_kind, participant_principal_id, participant_device_id, reported_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_quality_reports_session_time
+    ON im_rtc_quality_reports (tenant_id, organization_id, rtc_session_id, reported_at);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_quality_reports_participant
+    ON im_rtc_quality_reports (tenant_id, organization_id, participant_principal_kind, participant_principal_id, reported_at);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_quality_reports_grade
+    ON im_rtc_quality_reports (tenant_id, organization_id, quality_grade, reported_at)
+    WHERE quality_grade IN ('poor', 'bad');
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_quality_reports_retention_until
+    ON im_rtc_quality_reports (tenant_id, organization_id, retention_until)
+    WHERE retention_until IS NOT NULL;
+
+-- RTC Participant Credentials
+CREATE TABLE IF NOT EXISTS im_rtc_participant_credentials (
+    tenant_id                   TEXT NOT NULL,
+    organization_id             TEXT NOT NULL DEFAULT '0',
+    credential_id               TEXT NOT NULL,
+    rtc_session_id              TEXT NOT NULL,
+    participant_principal_kind  TEXT NOT NULL,
+    participant_principal_id    TEXT NOT NULL,
+    participant_device_id       TEXT,
+    provider_plugin_id          TEXT NOT NULL,
+    provider_token_id           TEXT,
+    credential_state            TEXT NOT NULL DEFAULT 'active',
+    issued_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at                  TIMESTAMPTZ NOT NULL,
+    rotated_from_credential_id  TEXT,
+    rotated_at                  TIMESTAMPTZ,
+    revoked_at                  TIMESTAMPTZ,
+    revoked_reason              TEXT,
+    revoked_by_principal_kind   TEXT,
+    revoked_by_principal_id     TEXT,
+    credential_payload_json     JSONB NOT NULL,
+    credential_payload_hash     TEXT NOT NULL,
+    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retention_until             TIMESTAMPTZ,
+    CONSTRAINT pk_im_rtc_participant_credentials PRIMARY KEY (tenant_id, organization_id, credential_id),
+    CONSTRAINT uk_im_rtc_participant_credentials_session_part UNIQUE (
+        tenant_id, organization_id, rtc_session_id,
+        participant_principal_kind, participant_principal_id, participant_device_id,
+        credential_state
+    ),
+    CONSTRAINT chk_im_rtc_participant_credentials_state CHECK (credential_state IN (
+        'active', 'expired', 'revoked', 'rotated'
+    )),
+    CONSTRAINT chk_im_rtc_participant_credentials_revocation CHECK (
+        (credential_state = 'revoked') = (revoked_at IS NOT NULL)
+    ),
+    CONSTRAINT chk_im_rtc_participant_credentials_rotation CHECK (
+        (credential_state = 'rotated') = (rotated_at IS NOT NULL AND rotated_from_credential_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_session
+    ON im_rtc_participant_credentials (tenant_id, organization_id, rtc_session_id, participant_principal_kind, participant_principal_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_active
+    ON im_rtc_participant_credentials (tenant_id, organization_id, rtc_session_id, credential_state, expires_at)
+    WHERE credential_state = 'active';
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_expiry
+    ON im_rtc_participant_credentials (tenant_id, organization_id, expires_at)
+    WHERE credential_state = 'active';
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_retention_until
+    ON im_rtc_participant_credentials (tenant_id, organization_id, retention_until)
+    WHERE retention_until IS NOT NULL;
 

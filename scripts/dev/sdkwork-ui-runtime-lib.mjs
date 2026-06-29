@@ -14,6 +14,12 @@ const REQUIRED_SDKWORK_UI_DIST_FILES = [
   'sdkwork-ui.css',
 ];
 
+const REQUIRED_SDKWORK_UI_BUILD_SOURCE_FILES = [
+  'package-contract.ts',
+  'docs-governance-contract.ts',
+  'generated-reference-contract.json',
+];
+
 const REQUIRED_SDKWORK_UI_TYPE_PACKAGES = [
   '@types/react',
   '@types/react-dom',
@@ -133,6 +139,45 @@ export function hasSdkworkUiDist(uiPackageRoot, {
   ));
 }
 
+function hasSdkworkUiBuildSources(uiPackageRoot, {
+  fileExists = defaultFileExists,
+} = {}) {
+  return REQUIRED_SDKWORK_UI_BUILD_SOURCE_FILES.every((entryPath) => (
+    fileExists(path.join(uiPackageRoot, 'build', entryPath))
+  ));
+}
+
+function restoreSdkworkUiBuildSources(uiPackageRoot, {
+  runProcess = defaultRunProcess,
+} = {}) {
+  const result = runProcess('git', ['checkout', 'HEAD', '--', 'build/'], {
+    cwd: uiPackageRoot,
+    env: process.env,
+    stdio: 'pipe',
+  });
+
+  return result.status === 0;
+}
+
+function ensureSdkworkUiBuildSources(uiPackageRoot, {
+  fileExists = defaultFileExists,
+  runProcess = defaultRunProcess,
+} = {}) {
+  if (hasSdkworkUiBuildSources(uiPackageRoot, { fileExists })) {
+    return;
+  }
+
+  const restored = restoreSdkworkUiBuildSources(uiPackageRoot, { runProcess });
+
+  if (!restored || !hasSdkworkUiBuildSources(uiPackageRoot, { fileExists })) {
+    throw new Error(
+      `sdkwork-ui build source files are missing in ${uiPackageRoot}/build/ and could not be restored from git. `
+      + `Required files: ${REQUIRED_SDKWORK_UI_BUILD_SOURCE_FILES.join(', ')}. `
+      + `Please run "git checkout HEAD -- build/" manually in ${uiPackageRoot}.`,
+    );
+  }
+}
+
 function runPnpmStep(stepArgs, {
   cwd,
   runProcess = defaultRunProcess,
@@ -189,6 +234,8 @@ export function ensureSdkworkUiDist({
   if (hasSdkworkUiDist(uiPackageRoot, { fileExists })) {
     return uiPackageRoot;
   }
+
+  ensureSdkworkUiBuildSources(uiPackageRoot, { fileExists, runProcess });
 
   if (!hasSdkworkUiBuildTooling(uiPackageRoot, fileExists)) {
     installSdkworkUiWorkspaceDependencies({

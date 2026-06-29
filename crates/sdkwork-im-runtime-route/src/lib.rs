@@ -309,6 +309,7 @@ impl RouteDirectory {
         target_node_id: &str,
         migrated_at: &str,
     ) -> Result<RouteMigrationResult, RouteRuntimeError> {
+        // Phase 1: Validation
         if source_node_id == target_node_id {
             return Err(RouteRuntimeError {
                 code: "same_node_migration",
@@ -334,26 +335,73 @@ impl RouteDirectory {
             });
         }
 
-        let mut migrated = 0;
-        let mut routes = lock_route_mutex(&self.routes, "routes");
+        // Phase 2: Snapshot for rollback
+        let routes = lock_route_mutex(&self.routes, "routes");
         let route_keys = routes.route_keys_for_node(source_node_id);
-        let mut migrated_route_keys = Vec::new();
-        for route_key in route_keys {
-            if let Some(route) = routes.routes_by_key.get_mut(route_key.as_str())
-                && route.owner_node_id == source_node_id
-            {
-                route.owner_node_id = target_node_id.into();
-                route.route_epoch += 1;
-                if !migrated_at.is_empty() {
-                    route.bound_at = migrated_at.into();
-                }
-                migrated += 1;
-                migrated_route_keys.push(route_key);
-            }
-        }
-        routes.move_route_keys_between_nodes(source_node_id, target_node_id, migrated_route_keys);
+        let original_routes: Vec<(String, RouteBinding)> = route_keys
+            .iter()
+            .filter_map(|key| {
+                routes.routes_by_key.get(key).map(|route| {
+                    (key.clone(), route.clone())
+                })
+            })
+            .collect();
         drop(routes);
 
+        // Phase 3: Perform migration with atomic batch updates
+        let mut migrated = 0;
+        let mut routes = lock_route_mutex(&self.routes, "routes");
+        let mut migrated_route_keys = Vec::new();
+        let mut failed_routes = Vec::new();
+
+        for route_key in &route_keys {
+            if let Some(route) = routes.routes_by_key.get_mut(route_key.as_str()) {
+                if route.owner_node_id == source_node_id {
+                    // Validate route is still owned by source (concurrent modification check)
+                    route.owner_node_id = target_node_id.into();
+                    route.route_epoch += 1;
+                    if !migrated_at.is_empty() {
+                        route.bound_at = migrated_at.into();
+                    }
+                    migrated += 1;
+                    migrated_route_keys.push(route_key.clone());
+                } else {
+                    // Route was concurrently modified, skip it
+                    failed_routes.push(route_key.clone());
+                }
+            }
+        }
+
+        // Only update node indices if all migrations succeeded
+        if failed_routes.is_empty() {
+            routes.move_route_keys_between_nodes(source_node_id, target_node_id, migrated_route_keys);
+        } else {
+            // Rollback partial migration
+            tracing::warn!(
+                target: "sdkwork.im.route",
+                source_node = %source_node_id,
+                target_node = %target_node_id,
+                failed_count = failed_routes.len(),
+                "rolling back migration due to concurrent modifications"
+            );
+
+            for (key, original_route) in original_routes {
+                routes.upsert_route(key, original_route);
+            }
+
+            return Err(RouteRuntimeError {
+                code: "migration_concurrent_modification",
+                message: format!(
+                    "migration rolled back due to {} concurrent route modifications",
+                    failed_routes.len()
+                ),
+                node_id: source_node_id.into(),
+            });
+        }
+
+        drop(routes);
+
+        // Phase 4: Update node states atomically
         self.set_node_state(target_node_id, "active", "stable")?;
         let source_status = if self.owned_route_count(source_node_id) == 0 {
             self.set_node_state(source_node_id, "drained", "stable")?;
@@ -363,6 +411,15 @@ impl RouteDirectory {
             self.node_state(source_node_id)?
         };
         let target_status = self.node_state(target_node_id)?;
+
+        tracing::info!(
+            target: "sdkwork.im.route",
+            source_node = %source_node_id,
+            target_node = %target_node_id,
+            migrated_count = migrated,
+            "route migration completed successfully"
+        );
+
         Ok(RouteMigrationResult {
             source_node_id: source_node_id.into(),
             target_node_id: target_node_id.into(),

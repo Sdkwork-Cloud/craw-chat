@@ -7,9 +7,8 @@ use im_domain_core::social::{
 };
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{NoTls, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 /// External connection record for database storage.
 #[derive(Clone, Debug)]
@@ -229,11 +228,11 @@ fn row_to_eml_record(row: &postgres::Row) -> ExternalMemberLinkRecord {
 /// PostgreSQL-backed external connection store.
 #[derive(Clone)]
 pub struct PostgresExternalConnectionStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresExternalConnectionStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }
@@ -305,11 +304,11 @@ impl ExternalConnectionStore for PostgresExternalConnectionStore {
 /// PostgreSQL-backed external member link store.
 #[derive(Clone)]
 pub struct PostgresExternalMemberLinkStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresExternalMemberLinkStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }

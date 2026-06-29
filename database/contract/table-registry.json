@@ -83,19 +83,37 @@
     {
       "table_name": "im_rtc_sessions",
       "owner": "im-platform",
-      "compliance_level": "L2",
+      "compliance_level": "L3",
       "lifecycle_status": "active"
     },
     {
       "table_name": "im_rtc_signals",
       "owner": "im-platform",
-      "compliance_level": "L2",
+      "compliance_level": "L3",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_rtc_outbox_events",
+      "owner": "im-platform",
+      "compliance_level": "L3",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_rtc_quality_reports",
+      "owner": "im-platform",
+      "compliance_level": "L3",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_rtc_participant_credentials",
+      "owner": "im-platform",
+      "compliance_level": "L3",
       "lifecycle_status": "active"
     },
     {
       "table_name": "im_audit_records",
       "owner": "im-platform",
-      "compliance_level": "L2",
+      "compliance_level": "L3",
       "lifecycle_status": "active"
     },
     {

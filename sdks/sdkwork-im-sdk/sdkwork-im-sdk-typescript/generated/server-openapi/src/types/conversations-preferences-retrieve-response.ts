@@ -1,0 +1,8 @@
+import type { ConversationPreferencesView } from './conversation-preferences-view';
+
+export interface ConversationsPreferencesRetrieveResponse {
+  code: 0;
+  data: unknown & Record<string, unknown>;
+  /** Server-owned request correlation id. */
+  traceId: string;
+}

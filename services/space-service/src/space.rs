@@ -154,7 +154,21 @@ pub async fn get_space(
         scope.organization_id.as_str(),
         sid,
     ) {
-        Ok(Some(record)) => Ok(Json(SpaceResponse::from(record))),
+        Ok(Some(record)) => {
+            // IDOR fix (SECURITY_SPEC §4.2): only the space owner may read
+            // space metadata. Without this check, any authenticated tenant
+            // member could enumerate spaces by ID.
+            if record.owner_user_id != scope.user_id {
+                tracing::warn!(
+                    user_id = %scope.user_id,
+                    owner_user_id = %record.owner_user_id,
+                    space_id = sid,
+                    "space ownership check failed for get_space"
+                );
+                return Err(StatusCode::FORBIDDEN);
+            }
+            Ok(Json(SpaceResponse::from(record)))
+        }
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(error) => {
             tracing::error!(error = ?error, "failed to get space {sid}");
@@ -192,6 +206,18 @@ pub async fn update_space(
         sid,
     ) {
         Ok(Some(mut record)) => {
+            // IDOR fix (SECURITY_SPEC §4.2): only the space owner may mutate
+            // space settings. Without this check, any authenticated tenant
+            // member could rename or reconfigure any space by ID.
+            if record.owner_user_id != scope.user_id {
+                tracing::warn!(
+                    user_id = %scope.user_id,
+                    owner_user_id = %record.owner_user_id,
+                    space_id = sid,
+                    "space ownership check failed for update_space"
+                );
+                return Err(StatusCode::FORBIDDEN);
+            }
             if let Some(name) = request.space_name {
                 record.space_name = name;
             }
@@ -234,14 +260,39 @@ pub async fn delete_space(
         StatusCode::BAD_REQUEST
     })?;
 
-    match state.space_store.delete(
+    // IDOR fix (SECURITY_SPEC §4.2): fetch the record first to verify
+    // ownership before deleting. Without this check, any authenticated
+    // tenant member could delete any space by ID.
+    match state.space_store.get_by_id(
         scope.tenant_id.as_str(),
         scope.organization_id.as_str(),
         sid,
     ) {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Ok(Some(record)) => {
+            if record.owner_user_id != scope.user_id {
+                tracing::warn!(
+                    user_id = %scope.user_id,
+                    owner_user_id = %record.owner_user_id,
+                    space_id = sid,
+                    "space ownership check failed for delete_space"
+                );
+                return Err(StatusCode::FORBIDDEN);
+            }
+            match state.space_store.delete(
+                scope.tenant_id.as_str(),
+                scope.organization_id.as_str(),
+                sid,
+            ) {
+                Ok(()) => Ok(StatusCode::NO_CONTENT),
+                Err(error) => {
+                    tracing::error!(error = ?error, "failed to delete space {sid}");
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(error) => {
-            tracing::error!(error = ?error, "failed to delete space {sid}");
+            tracing::error!(error = ?error, "failed to get space {sid} for delete");
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }

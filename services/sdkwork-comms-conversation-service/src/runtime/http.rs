@@ -742,6 +742,11 @@ impl From<RuntimeError> for ApiError {
                     code: "journal_capability_unsupported",
                     message,
                 },
+                sdkwork_im_contract_core::ContractError::Invalid(message) => Self {
+                    status: axum::http::StatusCode::BAD_REQUEST,
+                    code: "journal_invalid",
+                    message,
+                },
             },
         }
     }

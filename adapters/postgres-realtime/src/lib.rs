@@ -12,7 +12,6 @@ use im_platform_contracts::{
 };
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-pub use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::postgres::{Row, Transaction};
 use sdkwork_utils_rust::sha256_hash;
 use tokio::runtime::Handle;
@@ -181,7 +180,15 @@ use im_postgres_realtime_contracts::{
     UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
     UPSERT_REALTIME_DISCONNECT_FENCE_SQL, UPSERT_REALTIME_SUBSCRIPTION_SQL,
 };
-pub type PostgresRealtimeConnectionManager = PostgresConnectionManager<NoTls>;
+/// TLS connector type for r2d2-backed PostgreSQL pools.
+///
+/// P0-12 (SECURITY_SPEC): uses `postgres-native-tls` so the `sslmode` URL
+/// parameter is honored. With `sslmode=disable` the connector is never
+/// invoked (plaintext TCP); with `sslmode=require` or `verify-full` a real
+/// TLS handshake is performed. This allows dev/test to keep using plaintext
+/// while production enforces TLS via the DSN.
+pub type PostgresRealtimeTlsConnector = postgres_native_tls::MakeTlsConnector;
+pub type PostgresRealtimeConnectionManager = PostgresConnectionManager<PostgresRealtimeTlsConnector>;
 pub type PostgresRealtimePool = Pool<PostgresRealtimeConnectionManager>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -257,16 +264,57 @@ impl PostgresRealtimeConfig {
 }
 
 fn build_realtime_pool(config: &PostgresRealtimeConfig) -> Result<PostgresRealtimePool, ContractError> {
+    verify_production_sslmode(config.database_url.as_str());
     let pg_config = config
         .database_url
         .parse()
         .map_err(|error| postgres_config_error(config.database_url.as_str(), error))?;
-    let manager = PostgresConnectionManager::new(pg_config, NoTls);
+    let tls = make_tls_connector().map_err(|error| {
+        ContractError::Unavailable(format!(
+            "postgres realtime TLS connector build failed: {error}"
+        ))
+    })?;
+    let manager = PostgresConnectionManager::new(pg_config, tls);
     Pool::builder()
         .max_size(config.pool_max_size)
         .min_idle(config.pool_min_idle)
         .build(manager)
         .map_err(|error| postgres_unavailable("create realtime pool", error))
+}
+
+/// Build a `native-tls` connector for PostgreSQL.
+///
+/// Uses the system trust store for certificate verification. The actual TLS
+/// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
+/// the `postgres` crate never invokes this connector.
+fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
+    let connector = native_tls::TlsConnector::builder().build()?;
+    Ok(postgres_native_tls::MakeTlsConnector::new(connector))
+}
+
+/// P0-12 fail-closed: in production, the database URL MUST contain
+/// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
+/// connections to production databases (SECURITY_SPEC §4.3).
+fn verify_production_sslmode(database_url: &str) {
+    let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    if !is_production {
+        return;
+    }
+    let lowered = database_url.to_ascii_lowercase();
+    let requires_tls = lowered.contains("sslmode=require")
+        || lowered.contains("sslmode=verify-ca")
+        || lowered.contains("sslmode=verify-full")
+        || lowered.contains("sslmode=verifyca")
+        || lowered.contains("sslmode=verifyfull");
+    if !requires_tls {
+        panic!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
+        );
+    }
 }
 
 #[derive(Clone)]

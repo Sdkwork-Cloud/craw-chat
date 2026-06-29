@@ -1,7 +1,6 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { GovernanceRetrieveResponse } from '../types';
 
 
 export class AutomationGovernanceApi {
@@ -13,8 +12,8 @@ export class AutomationGovernanceApi {
 
 
 /** Retrieve automation governance */
-  async retrieve(): Promise<GovernanceRetrieveResponse> {
-    return this.client.get<GovernanceRetrieveResponse>(backendApiPath(`/automation/governance`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/automation/governance`));
   }
 }
 

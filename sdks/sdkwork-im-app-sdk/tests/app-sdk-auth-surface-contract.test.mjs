@@ -9,7 +9,7 @@ import { sdkFamilyConfig } from '../bin/sdk-family-config.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sdkRoot = path.resolve(__dirname, '..');
 const sdkworkImRoot = path.resolve(sdkRoot, '..', '..');
-const appbaseRoot = path.resolve(sdkworkImRoot, '..', 'sdkwork-appbase');
+const iamRoot = path.resolve(sdkworkImRoot, '..', 'sdkwork-iam');
 
 const appPrefix = '/app/v3/api';
 
@@ -162,7 +162,7 @@ function dependencyByWorkspace(dependencies, workspace) {
 }
 
 const appbaseAuthority = readExternalYaml(path.join(
-  appbaseRoot,
+  iamRoot,
   'sdks',
   'sdkwork-iam-app-sdk',
   'openapi',

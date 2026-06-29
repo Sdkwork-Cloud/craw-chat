@@ -74,6 +74,8 @@ Historical `sdkwork-clawchat-*` names were retired and must not be reintroduced.
 
 Read `../../../sdkwork-specs/CODE_STYLE_SPEC.md` and `../../../sdkwork-specs/NAMING_SPEC.md` before code changes. Root `src/` must stay thin; business pages, services, i18n, state, and route contributions belong in packages. Feature packages use generated SDK clients or approved composed wrappers, not raw HTTP or manual credential headers.
 
+Dev-server startup scripts in this app root invoke cross-repository builds of sibling `sdkwork-ui/sdkwork-ui-pc-react`. Those scripts must verify build-critical source files in the sibling workspace before invoking `pnpm build`, and self-heal missing git-tracked source files from git per `CODE_STYLE_SPEC.md` §7.
+
 ## Build, Test, and Verification
 
 Run commands from this application root unless a command explicitly targets the repository root:
@@ -93,6 +95,36 @@ From the repository root, run `pnpm test:sdkwork-workspace-structure-standard`, 
 ## Agent Execution Rules
 
 Use dynamic progressive loading and the convention dictionary before broad source loading. Do not hand-edit generated SDK output. Do not replace generated SDK integration with raw HTTP. Keep changes scoped to the owning package, surface, or app root. Record exact verification commands and important outputs before reporting completion.
+
+## HTTP API Response Envelope
+
+All L2+ `app-api`, `backend-api`, and SDKWork-owned business `open-api` HTTP contracts `MUST` follow `API_SPEC.md` section 4.5, section 14, and section 15:
+
+- **Input:** typed request bodies, section 14.1 list/search/command input, `SdkWorkListQuery`, and `q` for free-text search.
+- **Success output:** `SdkWorkApiResponse` with `{ "code": 0, "data": <payload>, "traceId": "<server-uuid>" }`.
+- **Error output:** HTTP 4xx/5xx `application/problem+json` (`ProblemDetail`) with numeric `code` and `traceId`.
+- Success `code` is numeric `int32`; HTTP 2xx JSON bodies `MUST` use `0` only. REST semantics remain on HTTP status (`201`, `202`, etc.).
+- Platform error codes are numeric non-zero values per section 15.3 (`40001`, `40101`, `40401`, …).
+- Single resource: `data.item`
+- Lists: `data.items` + `data.pageInfo` (`PageInfo.mode` is `offset` or `cursor`)
+- Commands: `data.accepted` plus optional `resourceId` / `status`
+- Async accept (`202`): `data.operationId`, `data.status`, optional `pollUrl`
+
+Vendor compatibility `open-api` routes that mirror upstream tool or provider wire (for example OpenAI `/v1/*`, Claude Code, Codex) `MAY` opt out only when every exempt operation declares `x-sdkwork-wire-protocol: external` and `x-sdkwork-external-protocol-id` per `API_SPEC.md` section 4.5.2. SDKWork-owned business `open-api` operations `MUST NOT` opt out.
+
+Errors `MUST` use HTTP 4xx/5xx with `application/problem+json` (`ProblemDetail`) including required numeric `code` and `traceId`. Business failures `MUST NOT` use HTTP 2xx with non-zero `code`, string wire codes, `success`, or human `message`.
+
+Forbidden legacy envelopes and fields: `PlusApiResult`, `AppbaseApiResult`, `StoreApiResult`, `SdkWorkResponse`, per-domain `*ApiResult`, wire field `requestId`, bare domain DTOs at the HTTP root, and top-level `{ items, pageInfo, traceId }` without `data`.
+
+Handlers `MUST` serialize success and map errors through `sdkwork-web-framework` response mapping. Generated HTTP SDKs (`--standard-profile sdkwork-v3`) unwrap `data` by default and expose typed numeric `ProblemDetail.code` / `traceId` on errors; use `.raw` when the full envelope is required.
+
+Before completing API contract, SDK generation, or frontend service work, run:
+
+```bash
+node <sdkwork-specs>/tools/check-api-response-envelope.mjs --workspace <workspace-root>
+```
+
+Authority: `sdkwork-specs/API_SPEC.md` section 4.5 and sections 14–16, `SDK_SPEC.md` section 4.2, `FRONTEND_SPEC.md`, `MIGRATION_SPEC.md` section 4.2.
 
 ## Human Review Rules
 

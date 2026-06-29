@@ -29,7 +29,7 @@ packages:
   - ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-file
   - ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-transfer
   - ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-types
-  - ../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi
+  - ../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
   - ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge
   - ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core
   - ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons

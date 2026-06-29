@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 axum.workspace = true
+dashmap.workspace = true
 sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 sdkwork-im-cloud-gateway-config = { path = "../../crates/sdkwork-im-cloud-gateway-config" }

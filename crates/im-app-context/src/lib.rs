@@ -1,4 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use axum::{
     body::Body,
@@ -10,10 +12,10 @@ use axum::{
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use sdkwork_utils_rust::{base64url_decode, base64url_encode, hmac_sha256_base64url};
 use sdkwork_web_core::{
-    EnvBootstrapTenantSigningKeyLookup, JwtVerifier, ServerRequestId, TenantBoundJwtVerifier,
-    WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment, WebLoginScope, WebRequestContext,
-    WebRequestContextProfile, WebRequestPrincipal, WebSubjectType, WebTransportFacts,
-    classify_api_surface, new_request_id,
+    EnvBootstrapTenantSigningKeyLookup, JwtProductionClaimPolicy, JwtVerifier, ServerRequestId,
+    TenantBoundJwtVerifier, WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment,
+    WebLoginScope, WebRequestContext, WebRequestContextProfile, WebRequestPrincipal,
+    WebSubjectType, WebTransportFacts, classify_api_surface, new_request_id,
 };
 use serde_json::{Value, json};
 
@@ -25,6 +27,14 @@ const APP_CONTEXT_JWT_KEY_ID_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID";
 const APP_CONTEXT_JWT_SIGNING_SECRET_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET";
 const APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV: &str =
     "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE";
+// P0-10 (SECURITY_SPEC §1 / IAM_SPEC): production JWT iss/aud allow-lists and
+// jti replay protection. In production, iss/aud MUST be configured; otherwise
+// verification fails closed to prevent cross-service token confusion and
+// audience-substitution attacks. jti replay protection is opt-in via TTL > 0.
+const APP_CONTEXT_JWT_EXPECTED_ISSUERS_ENV: &str = "SDKWORK_IM_JWT_EXPECTED_ISSUERS";
+const APP_CONTEXT_JWT_EXPECTED_AUDIENCES_ENV: &str = "SDKWORK_IM_JWT_EXPECTED_AUDIENCES";
+const APP_CONTEXT_JWT_REQUIRE_JTI_ENV: &str = "SDKWORK_IM_JWT_REQUIRE_JTI";
+const APP_CONTEXT_JWT_REPLAY_CACHE_TTL_SECS_ENV: &str = "SDKWORK_IM_JWT_REPLAY_CACHE_TTL_SECS";
 const APP_CONTEXT_JWT_KEY_ID_DEFAULT: &str = "bootstrap";
 const SDKWORK_CONTEXT_SIGNATURE_HEADER: &str = "x-sdkwork-context-signature";
 const SIGNED_APP_CONTEXT_HEADER_NAMES: &[&str] = &[
@@ -1112,11 +1122,72 @@ fn verify_tenant_bound_jwt(
     raw: &str,
     lookup: EnvBootstrapTenantSigningKeyLookup,
 ) -> Result<(), AppContextError> {
-    let verifier = TenantBoundJwtVerifier::new(lookup);
+    let mut verifier = TenantBoundJwtVerifier::new(lookup);
+    if let Some(policy) = resolve_jwt_claim_policy()? {
+        verifier = verifier.with_claim_policy(policy);
+    }
     verifier
         .verify_and_decode_claims(raw)
         .map_err(|error| AppContextError::invalid(error.message))?;
     Ok(())
+}
+
+/// Resolve the JWT production claim policy from env vars.
+///
+/// - In production: `SDKWORK_IM_JWT_EXPECTED_ISSUERS` and
+///   `SDKWORK_IM_JWT_EXPECTED_AUDIENCES` MUST both be configured (fail-closed).
+///   Both are comma-separated allow-lists.
+/// - In dev/test: returns `None` when env vars are absent so local development
+///   keeps working without an IAM issuer. When set, they are still applied
+///   so dev/test can exercise the production policy path.
+fn resolve_jwt_claim_policy() -> Result<Option<JwtProductionClaimPolicy>, AppContextError> {
+    let issuers = read_comma_separated_env(APP_CONTEXT_JWT_EXPECTED_ISSUERS_ENV);
+    let audiences = read_comma_separated_env(APP_CONTEXT_JWT_EXPECTED_AUDIENCES_ENV);
+    let environment = resolve_web_environment_from_process_env();
+    let dev_or_test = matches!(environment, WebEnvironment::Dev | WebEnvironment::Test);
+
+    if issuers.is_empty() && audiences.is_empty() {
+        if !dev_or_test {
+            // P0-10 fail-closed: production MUST pin iss/aud to prevent token
+            // confusion and audience-substitution attacks (SECURITY_SPEC §1,
+            // IAM_SPEC). Returning an error here causes verification to fail
+            // closed instead of silently accepting any issuer/audience.
+            return Err(AppContextError::invalid(format!(
+                "production JWT verification requires {APP_CONTEXT_JWT_EXPECTED_ISSUERS_ENV} and {APP_CONTEXT_JWT_EXPECTED_AUDIENCES_ENV} to be configured (comma-separated allow-lists)"
+            )));
+        }
+        return Ok(None);
+    }
+
+    if issuers.is_empty() || audiences.is_empty() {
+        // Partial configuration is rejected in every environment to avoid a
+        // false sense of security where only one of iss/aud is enforced.
+        return Err(AppContextError::invalid(format!(
+            "{} and {} must be configured together; received issuers={} audiences={}",
+            APP_CONTEXT_JWT_EXPECTED_ISSUERS_ENV,
+            APP_CONTEXT_JWT_EXPECTED_AUDIENCES_ENV,
+            issuers.len(),
+            audiences.len(),
+        )));
+    }
+
+    Ok(Some(JwtProductionClaimPolicy::saas_production(
+        issuers,
+        audiences,
+    )))
+}
+
+fn read_comma_separated_env(name: &str) -> Vec<String> {
+    std::env::var(name)
+        .ok()
+        .map(|raw| {
+            raw.split([',', ' '])
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
@@ -1140,6 +1211,7 @@ fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
         let payload = decode_jwt_payload(raw)?
             .ok_or_else(|| AppContextError::invalid("token payload must be present"))?;
         validate_jwt_time_claims(&payload)?;
+        enforce_jti_replay_protection(&payload)?;
         return Ok(());
     }
 
@@ -1151,6 +1223,13 @@ fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
 
     if let Some(lookup) = tenant_signing_lookup_from_env() {
         verify_tenant_bound_jwt(raw, lookup)?;
+        // Defense in depth: apply jti replay protection after signature
+        // verification. The verifier already validates iss/aud/exp/nbf via
+        // the configured claim policy; jti is enforced here so the same
+        // code path covers both tenant-bound and dev/test signatures.
+        let payload = decode_jwt_payload(raw)?
+            .ok_or_else(|| AppContextError::invalid("token payload must be present"))?;
+        enforce_jti_replay_protection(&payload)?;
         return Ok(());
     }
 
@@ -1163,6 +1242,103 @@ fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
     let payload = decode_jwt_payload(raw)?
         .ok_or_else(|| AppContextError::invalid("token payload must be present"))?;
     validate_jwt_time_claims(&payload)?;
+    enforce_jti_replay_protection(&payload)?;
+    Ok(())
+}
+
+/// Process-local jti replay cache.
+///
+/// P0-10 (SECURITY_SPEC §1): defends against JWT replay attacks within a
+/// single process. Entries expire after the configured TTL to bound memory
+/// growth and align with short-lived token lifetimes. Multi-instance
+/// deployments SHOULD additionally back this with a shared store (Redis) in
+/// a follow-up; the in-process cache is the minimum viable baseline.
+fn jti_replay_cache() -> &'static Mutex<BTreeMap<String, Instant>> {
+    static CACHE: OnceLock<Mutex<BTreeMap<String, Instant>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn resolve_jti_replay_ttl() -> Option<Duration> {
+    let raw = std::env::var(APP_CONTEXT_JWT_REPLAY_CACHE_TTL_SECS_ENV).ok()?;
+    let secs: u64 = raw.trim().parse().ok()?;
+    if secs == 0 {
+        None
+    } else {
+        Some(Duration::from_secs(secs))
+    }
+}
+
+fn require_jti_claim() -> bool {
+    std::env::var(APP_CONTEXT_JWT_REQUIRE_JTI_ENV)
+        .ok()
+        .map(|raw| matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(false)
+}
+
+/// Enforce jti replay protection on a verified JWT payload.
+///
+/// - When `SDKWORK_IM_JWT_REQUIRE_JTI=true`, tokens without a `jti` claim
+///   are rejected (production hardening for token families that always
+///   carry jti).
+/// - When `SDKWORK_IM_JWT_REPLAY_CACHE_TTL_SECS > 0`, a seen `jti` is
+///   rejected as a replay for the duration of its TTL.
+/// - When neither is configured, this function is a no-op so existing
+///   dev/test deployments keep working unchanged.
+fn enforce_jti_replay_protection(payload: &Value) -> Result<(), AppContextError> {
+    let require_jti = require_jti_claim();
+    let ttl = resolve_jti_replay_ttl();
+    if !require_jti && ttl.is_none() {
+        return Ok(());
+    }
+
+    let jti = payload
+        .get("jti")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+
+    let Some(jti) = jti else {
+        if require_jti {
+            return Err(AppContextError::invalid(
+                "JWT jti claim is required by SDKWORK_IM_JWT_REQUIRE_JTI but was not present",
+            ));
+        }
+        return Ok(());
+    };
+
+    let Some(ttl) = ttl else {
+        // require_jti is true but replay cache disabled: only ensure presence.
+        return Ok(());
+    };
+
+    let now = Instant::now();
+    let cache = jti_replay_cache();
+    let mut guard = cache.lock().map_err(|error| {
+        AppContextError::invalid(format!("jti replay cache poisoned: {error}"))
+    })?;
+
+    // Lazy cleanup of expired entries to bound memory growth.
+    let expired_keys: Vec<String> = guard
+        .iter()
+        .filter_map(|(key, expiry)| {
+            if *expiry <= now {
+                Some(key.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    for key in expired_keys {
+        guard.remove(&key);
+    }
+
+    if guard.contains_key(&jti) {
+        return Err(AppContextError::invalid(format!(
+            "JWT jti `{jti}` has been replayed within the replay cache TTL"
+        )));
+    }
+    guard.insert(jti, now + ttl);
     Ok(())
 }
 

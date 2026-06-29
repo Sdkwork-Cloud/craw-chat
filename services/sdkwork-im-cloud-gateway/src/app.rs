@@ -4,8 +4,8 @@
 
 use axum::{Router, middleware::from_fn_with_state, routing::get};
 use crate::gateway_protection::{
-    CircuitBreakerConfig, CircuitBreakerRegistry, RateLimitConfig, RateLimiter,
-    rate_limit_middleware,
+    CircuitBreakerConfig, CircuitBreakerRegistry, RateLimitConfig, DashMapRateLimiter,
+    dashmap_rate_limit_middleware,
 };
 use sdkwork_im_api_registry::RouteRegistry;
 use session_gateway::{AppState, RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env};
@@ -121,11 +121,12 @@ async fn finish_gateway_app_from_env(
     let wrapped_business = crate::web_framework::wrap_gateway_router_from_env(business_router)
         .await
         .layer(build_browser_cors_layer())
+        // P1-8 fix: Use DashMapRateLimiter for better concurrent performance
         .layer(from_fn_with_state(
-            RateLimiter::new(
+            DashMapRateLimiter::new(
                 RateLimitConfig::from_env(),
             ),
-            rate_limit_middleware,
+            dashmap_rate_limit_middleware,
         ));
     mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
 }
@@ -167,11 +168,12 @@ fn finish_gateway_app_sync(
 
     let wrapped_business =
         crate::web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer())
+        // P1-8 fix: Use DashMapRateLimiter for better concurrent performance
         .layer(from_fn_with_state(
-            RateLimiter::new(
+            DashMapRateLimiter::new(
                 RateLimitConfig::from_env(),
             ),
-            rate_limit_middleware,
+            dashmap_rate_limit_middleware,
         ));
     mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
 }

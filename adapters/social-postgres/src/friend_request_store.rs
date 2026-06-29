@@ -5,9 +5,8 @@ use std::sync::Arc;
 use im_domain_core::social::{FriendRequest, FriendRequestStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{NoTls, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 /// Friend request record for database storage.
 #[derive(Clone, Debug)]
@@ -159,11 +158,11 @@ fn row_to_record(row: &postgres::Row) -> FriendRequestRecord {
 /// PostgreSQL-backed friend request store.
 #[derive(Clone)]
 pub struct PostgresFriendRequestStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresFriendRequestStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }

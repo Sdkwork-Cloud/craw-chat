@@ -5,9 +5,8 @@ use std::sync::Arc;
 use im_domain_core::space::*;
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{NoTls, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 // ---------------------------------------------------------------------------
 // Space Record
@@ -206,11 +205,11 @@ fn row_to_space_record(row: &postgres::Row) -> SpaceRecord {
 /// PostgreSQL-backed space store.
 #[derive(Clone)]
 pub struct PostgresSpaceStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresSpaceStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }
@@ -404,11 +403,11 @@ fn row_to_group_record(row: &postgres::Row) -> GroupRecord {
 /// PostgreSQL-backed group store.
 #[derive(Clone)]
 pub struct PostgresGroupStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresGroupStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }
@@ -613,11 +612,11 @@ fn row_to_channel_record(row: &postgres::Row) -> ChannelRecord {
 /// PostgreSQL-backed channel store.
 #[derive(Clone)]
 pub struct PostgresChannelStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresChannelStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }

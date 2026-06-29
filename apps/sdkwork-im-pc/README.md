@@ -69,7 +69,8 @@ apps/sdkwork-im-pc/
 ## SDK integration
 
 - IM HTTP/WebSocket: generated `@sdkwork/im-sdk` and app/backend SDK families under repository `sdks/`
-- Platform IAM/Drive/Agent: `@sdkwork/iam-app-sdk` via `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
+- Platform IAM/Drive/Knowledgebase/Agent: sibling app SDK families via `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
+  - Knowledgebase: `@sdkwork/knowledgebase-app-sdk` through composed `createKnowledgebaseAppClient` (not raw generated transport)
 - RTC media: `@sdkwork/rtc-sdk` from sibling `../sdkwork-rtc` (not checked into this repository's `sdks/`)
 
 Do not add raw HTTP wrappers or manual auth headers in feature packages; bootstrap owns SDK construction.

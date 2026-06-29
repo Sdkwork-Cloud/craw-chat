@@ -159,6 +159,9 @@ catalogs:
     vite:
       specifier: ^6.2.0
       version: 6.4.3
+    vite-plugin-dts:
+      specifier: ^4.5.4
+      version: 4.5.4
 
 overrides:
   '@sdkwork-internal/im-app-api-generated': workspace:*
@@ -208,7 +211,7 @@ importers:
         version: link:../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
       '@sdkwork/knowledgebase-app-sdk':
         specifier: workspace:*
-        version: link:../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi
+        version: link:../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
     devDependencies:
       pg:
         specifier: ^8.16.3
@@ -831,7 +834,7 @@ importers:
         version: link:../../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
       '@sdkwork/knowledgebase-app-sdk':
         specifier: workspace:*
-        version: link:../../../../sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi
+        version: link:../../../../sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
       '@sdkwork/sdkwork-knowledgebase-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-knowledgebase-pc-commons
@@ -857,20 +860,17 @@ importers:
         specifier: ^3.2.4
         version: 3.2.6(@types/debug@4.1.13)(@types/node@25.9.3)(jiti@2.7.0)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.4)
 
-  ../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi:
+  ../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript:
     dependencies:
+      '@sdkwork/iam-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi
       '@sdkwork/sdk-common':
         specifier: ^1.0.2
         version: 1.0.3
     devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.43
-      rollup:
-        specifier: ^4.0.0
-        version: 4.62.0
       typescript:
-        specifier: ^5.3.0
+        specifier: ^5.8.2
         version: 5.9.3
 
   ../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/generated/server-openapi:
@@ -1320,7 +1320,7 @@ importers:
         version: link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
       '@sdkwork/knowledgebase-app-sdk':
         specifier: workspace:*
-        version: link:../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi
+        version: link:../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
       '@sdkwork/knowledgebase-pc-knowledge':
         specifier: workspace:*
         version: link:../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge
@@ -1608,7 +1608,7 @@ importers:
         version: link:../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
       '@sdkwork/knowledgebase-app-sdk':
         specifier: workspace:*
-        version: link:../../../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi
+        version: link:../../../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript
       '@sdkwork/knowledgebase-pc-knowledge':
         specifier: workspace:*
         version: link:../../../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge

@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use std::time::Duration;
 
+use axum::body::Bytes;
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
 use futures_util::StreamExt;
 use im_app_context::AppContext;
@@ -7,14 +9,14 @@ use im_domain_core::realtime::RealtimeEventWindow;
 use sdkwork_im_ccp_binding_ws::{WsBinding, WsBindingMessage, WsOpcode};
 use sdkwork_im_ccp_codec::CcpCodec;
 use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
-use sdkwork_im_ccp_control::{AuthOkFrame, ControlFrame, ErrorFrame};
+use sdkwork_im_ccp_control::{AuthOkFrame, ControlFrame, ErrorFrame, HeartbeatFrame};
 use sdkwork_im_ccp_core::{CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
 use sdkwork_im_runtime_link::{
     LINK_WEBSOCKET_SUBPROTOCOL, LinkBufferedPushDrainDriver, LinkBufferedPushDrainStatus,
     LinkBufferedPushFetchedWindow, LinkBufferedPushPlan, LinkGoAwayDirective,
-    LinkOutboundQueueState, LinkSession, OutboundQueuePolicy,
+    LinkOutboundQueueState, LinkSession, OutboundQueuePolicy, ResumeWindow,
     REALTIME_OVERLOAD_CLOSE_CODE as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_CODE,
-    REALTIME_OVERLOAD_CLOSE_REASON as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON, ResumeWindow,
+    REALTIME_OVERLOAD_CLOSE_REASON as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON,
     SESSION_DISCONNECT_CLOSE_CODE as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_CODE,
     SESSION_DISCONNECT_CLOSE_REASON as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON,
     session_disconnect_goaway,
@@ -22,7 +24,7 @@ use sdkwork_im_runtime_link::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::watch;
-use tokio::time::{Duration, timeout};
+use tokio::time::{timeout, interval};
 
 use crate::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
@@ -39,7 +41,32 @@ pub const REALTIME_OVERLOAD_CLOSE_REASON: &str = RUNTIME_LINK_REALTIME_OVERLOAD_
 const CCP_PROTOCOL_ERROR_CLOSE_REASON: &str = "ccp.protocol_error";
 const REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES: usize = 64;
 const REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES: usize = 256;
-const ROUTE_CHANGE_CLOSE_GRACE_MS: u64 = 25;
+const ROUTE_CHANGE_CLOSE_GRACE_MS: u64 = 250; // Increased from 25ms to give clients more time (P2-3 fix)
+
+// Heartbeat configuration constants for WebSocket connections
+// These mirror the TCP/QUIC link heartbeat settings in link_realtime.rs
+const WEBSOCKET_HEARTBEAT_INTERVAL_SECS_ENV: &str = "SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS";
+const WEBSOCKET_HEARTBEAT_INTERVAL_DEFAULT_SECS: u64 = 30;
+const WEBSOCKET_IDLE_TIMEOUT_SECS_ENV: &str = "SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS";
+const WEBSOCKET_IDLE_TIMEOUT_DEFAULT_SECS: u64 = 90; // 3x heartbeat interval for fault tolerance
+
+fn resolve_websocket_heartbeat_interval() -> Duration {
+    let secs = std::env::var(WEBSOCKET_HEARTBEAT_INTERVAL_SECS_ENV)
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .unwrap_or(WEBSOCKET_HEARTBEAT_INTERVAL_DEFAULT_SECS)
+        .max(1);
+    Duration::from_secs(secs)
+}
+
+fn resolve_websocket_idle_timeout() -> Duration {
+    let secs = std::env::var(WEBSOCKET_IDLE_TIMEOUT_SECS_ENV)
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .unwrap_or(WEBSOCKET_IDLE_TIMEOUT_DEFAULT_SECS)
+        .max(1);
+    Duration::from_secs(secs)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RealtimeWebsocketMode {
@@ -555,9 +582,73 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
         }
     }
 
+    // Initialize heartbeat timer and idle timeout tracking for WebSocket connections
+    // This mirrors the TCP/QUIC implementation in link_realtime.rs (P0-2 fix)
+    let heartbeat_interval = resolve_websocket_heartbeat_interval();
+    let idle_timeout = resolve_websocket_idle_timeout();
+    let mut heartbeat_timer = interval(heartbeat_interval);
+    heartbeat_timer.tick().await; // Skip the initial immediate tick
+    let mut heartbeat_seq: u64 = 0;
+    let mut last_activity = tokio::time::Instant::now();
+
     loop {
         tokio::select! {
+            // Server-initiated heartbeat: periodically send a heartbeat frame to keep
+            // the connection alive through proxies/LBs and to detect silent peer disconnects.
+            // Also enforces idle timeout so sessions that stop making progress are reclaimed.
+            _ = heartbeat_timer.tick() => {
+                heartbeat_seq = heartbeat_seq.saturating_add(1);
+                // In CCP mode, send a proper CCP Heartbeat control frame
+                if wire_mode == RealtimeWebsocketMode::CcpJson {
+                    let heartbeat_frame = ControlFrame::Heartbeat(HeartbeatFrame {
+                        sequence: Some(heartbeat_seq),
+                    });
+                    if ccp_runtime
+                        .send_control_frame(&mut socket, &route, &heartbeat_frame)
+                        .await
+                        .is_err()
+                    {
+                        tracing::debug!(
+                            tenant_id = %tenant_id,
+                            principal_id = %principal_id,
+                            device_id = %device_id,
+                            "WebSocket heartbeat send failed, closing connection"
+                        );
+                        break;
+                    }
+                } else {
+                    // In Legacy JSON mode, use WebSocket Ping/Pong for heartbeat
+                    if socket.send(Message::Ping(Bytes::new())).await.is_err() {
+                        tracing::debug!(
+                            tenant_id = %tenant_id,
+                            principal_id = %principal_id,
+                            device_id = %device_id,
+                            "WebSocket ping send failed, closing connection"
+                        );
+                        break;
+                    }
+                }
+                // Check idle timeout - if no activity for the timeout period, close connection
+                if last_activity.elapsed() >= idle_timeout {
+                    tracing::warn!(
+                        tenant_id = %tenant_id,
+                        principal_id = %principal_id,
+                        device_id = %device_id,
+                        idle_timeout_secs = idle_timeout.as_secs(),
+                        "WebSocket connection idle timeout, closing"
+                    );
+                    let _ = socket
+                        .send(Message::Close(Some(CloseFrame {
+                            code: close_code::NORMAL,
+                            reason: Utf8Bytes::from_static("idle_timeout"),
+                        })))
+                        .await;
+                    break;
+                }
+            }
             route_epoch_changed = route_epoch_receiver.changed() => {
+                // Reset activity timer on any route epoch change
+                last_activity = tokio::time::Instant::now();
                 if route_epoch_changed.is_err() {
                     break;
                 }
@@ -582,6 +673,8 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 }
             }
             changed = receiver.changed() => {
+                // Reset activity timer on any realtime event
+                last_activity = tokio::time::Instant::now();
                 if changed.is_err() {
                     break;
                 }
@@ -610,6 +703,8 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 }
             }
             disconnect_changed = disconnect_receiver.changed() => {
+                // Reset activity timer on disconnect signal
+                last_activity = tokio::time::Instant::now();
                 if disconnect_changed.is_err() {
                     break;
                 }
@@ -657,6 +752,8 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 }
             }
             message = socket.next() => {
+                // Reset activity timer on any client message
+                last_activity = tokio::time::Instant::now();
                 let Some(message) = message else {
                     break;
                 };

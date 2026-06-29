@@ -3003,7 +3003,8 @@ fn contract_error_message(error: ContractError) -> String {
     match error {
         ContractError::UnsupportedCapability(message)
         | ContractError::Conflict(message)
-        | ContractError::Unavailable(message) => message,
+        | ContractError::Unavailable(message)
+        | ContractError::Invalid(message) => message,
     }
 }
 

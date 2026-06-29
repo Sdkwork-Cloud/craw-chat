@@ -109,7 +109,7 @@ const generatedAgentsAppSdkEntry = path.resolve(
 );
 const generatedKnowledgebaseAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-knowledgebase'),
-  'sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/src/index.ts',
 );
 const generatedImSdkEntry = path.resolve(
   __dirname,
@@ -179,6 +179,11 @@ const sdkCommonEntry = path.resolve(
   sdkCommonSourceRoot,
   'index.ts',
 );
+const sdkworkUtilsSourceRoot = path.resolve(
+  dependencyRoot('sdkwork-utils'),
+  'packages/sdkwork-utils-typescript/src',
+);
+const sdkworkUtilsEntry = path.resolve(sdkworkUtilsSourceRoot, 'index.ts');
 const adminCoreSourceRoot = path.resolve(__dirname, './packages/sdkwork-im-admin-core/src');
 const reactEntry = path.resolve(__dirname, 'node_modules/react/index.js');
 const reactJsxRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-runtime.js');
@@ -270,6 +275,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/sdk-common/errors', replacement: path.resolve(sdkCommonSourceRoot, 'errors/index.ts') },
         { find: '@sdkwork/sdk-common/utils', replacement: path.resolve(sdkCommonSourceRoot, 'utils/index.ts') },
         { find: '@sdkwork/sdk-common', replacement: sdkCommonEntry },
+        { find: '@sdkwork/utils', replacement: sdkworkUtilsEntry },
         { find: '@sdkwork/im-pc-types', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-types/src') },
         { find: '@sdkwork/im-pc-commons', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-commons/src') },
         { find: '@sdkwork/im-pc-shell', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shell/src') },
@@ -375,6 +381,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork/iam-sdk-ports',
         '@sdkwork/i18n-pc-react',
         '@sdkwork/sdk-common',
+        '@sdkwork/utils',
         '@sdkwork/core-pc-react',
         '@sdkwork/ui-pc-react',
       ],

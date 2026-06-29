@@ -36,7 +36,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StreamSession'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/StreamSession'
         '400':
           description: Problem detail response
           content:
@@ -106,7 +118,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StreamSession'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/StreamSession'
         '400':
           description: Problem detail response
           content:
@@ -176,7 +200,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StreamFrame'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/StreamFrame'
         '400':
           description: Problem detail response
           content:
@@ -244,7 +280,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentToolCall'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/AgentToolCall'
         '400':
           description: Problem detail response
           content:
@@ -312,7 +360,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AutomationExecutionRequestResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/AutomationExecutionRequestResponse'
         '400':
           description: Problem detail response
           content:
@@ -370,7 +430,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AutomationExecution'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/AutomationExecution'
         '401':
           description: Problem detail response
           content:
@@ -423,7 +495,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentToolCall'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/AgentToolCall'
         '400':
           description: Problem detail response
           content:
@@ -485,7 +569,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationListResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - items
+                          - pageInfo
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/NotificationTask'
+                          pageInfo:
+                            $ref: '#/components/schemas/PageInfo'
         '401':
           description: Problem detail response
           content:
@@ -529,7 +631,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationRequestResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/NotificationRequestResponse'
         '400':
           description: Problem detail response
           content:
@@ -587,7 +701,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationTask'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/NotificationTask'
         '401':
           description: Problem detail response
           content:
@@ -632,7 +758,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -649,7 +787,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -681,7 +831,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -713,7 +875,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -745,7 +919,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -778,7 +964,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
       x-sdkwork-request-context: WebRequestContext
@@ -795,7 +993,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -827,7 +1037,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalSnapshot'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalSnapshot'
         '401':
           description: Problem detail response
           content:
@@ -859,7 +1081,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PortalWorkspaceView'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/PortalWorkspaceView'
         '401':
           description: Problem detail response
           content:
@@ -891,8 +1125,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -930,8 +1176,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -1211,25 +1469,32 @@ components:
         - type
         - title
         - status
-        - detail
+        - code
+        - traceId
       properties:
         type:
           type: string
+          format: uri-reference
         title:
           type: string
         status:
           type: integer
-          format: int32
+          minimum: 100
+          maximum: 599
         detail:
           type: string
+        instance:
+          type: string
         code:
-          type: string
-        message:
-          type: string
+          $ref: '#/components/schemas/SdkWorkPlatformErrorCode'
         traceId:
           type: string
-        retryable:
-          type: boolean
+          format: uuid
+          description: Server-owned request correlation id.
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
     AgentSubject:
       type: object
       required:
@@ -1498,15 +1763,6 @@ components:
           format: date-time
         failureReason:
           type: string
-    NotificationListResponse:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/NotificationTask'
     NotificationRequestResponse:
       type: object
       required:
@@ -1650,5 +1906,143 @@ components:
           type: string
         agent:
           $ref: '#/components/schemas/AgentSubject'
+    SdkWorkApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+        - traceId
+      properties:
+        code:
+          type: integer
+          format: int32
+          enum:
+            - 0
+          default: 0
+          minimum: 0
+          maximum: 0
+        data:
+          description: Operation-specific payload typed per response schema.
+        traceId:
+          type: string
+          format: uuid
+          description: Server-owned request correlation id.
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - offset
+            - cursor
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+        totalItems:
+          type: string
+          pattern: ^[0-9]+$
+        totalPages:
+          type: integer
+          minimum: 0
+        nextCursor:
+          type:
+            - string
+            - 'null'
+        hasMore:
+          type: boolean
+    SdkWorkPlatformErrorCode:
+      type: integer
+      format: int32
+      minimum: 40001
+      maximum: 79999
+      description: Platform or domain error code per API_SPEC.md §15.3.
+    FieldError:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+          format: int32
+          minimum: 40011
+          maximum: 40099
+    SdkWorkResourceData:
+      type: object
+      additionalProperties: false
+      required:
+        - item
+      properties:
+        item:
+          type: object
+          additionalProperties: true
+          description: Typed domain resource for the operation.
+    SdkWorkPageData:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+    SdkWorkCommandData:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+      properties:
+        accepted:
+          type: boolean
+          const: true
+        resourceId:
+          type: string
+        status:
+          type: string
+    SdkWorkResourceResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkResourceData'
+    SdkWorkListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkPageData'
+    SdkWorkCommandResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkCommandData'
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.app

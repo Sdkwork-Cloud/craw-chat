@@ -18,20 +18,30 @@ pub use config::SocialPostgresConfig;
 
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-pub use r2d2_postgres::postgres::NoTls;
+
+/// TLS connector type for r2d2-backed PostgreSQL pools.
+///
+/// P0-12 (SECURITY_SPEC): uses `postgres-native-tls` so the `sslmode` URL
+/// parameter is honored. With `sslmode=disable` the connector is never
+/// invoked (plaintext TCP); with `sslmode=require` or `verify-full` a real
+/// TLS handshake is performed. This allows dev/test to keep using plaintext
+/// while production enforces TLS via the DSN.
+pub type SocialPostgresTlsConnector = postgres_native_tls::MakeTlsConnector;
+/// Connection manager type alias shared by all social stores.
+pub type SocialPostgresConnectionManager = PostgresConnectionManager<SocialPostgresTlsConnector>;
 
 /// Shared connection pool wrapper for all social stores.
 #[derive(Clone)]
 pub struct SocialPostgresPool {
-    pool: Pool<PostgresConnectionManager<NoTls>>,
+    pool: Pool<SocialPostgresConnectionManager>,
 }
 
 impl SocialPostgresPool {
-    pub fn new(pool: Pool<PostgresConnectionManager<NoTls>>) -> Self {
+    pub fn new(pool: Pool<SocialPostgresConnectionManager>) -> Self {
         Self { pool }
     }
 
-    pub fn inner(&self) -> &Pool<PostgresConnectionManager<NoTls>> {
+    pub fn inner(&self) -> &Pool<SocialPostgresConnectionManager> {
         &self.pool
     }
 }
@@ -59,12 +69,19 @@ fn postgres_io_thread_panic() -> im_platform_contracts::ContractError {
 pub(crate) fn build_social_pool(
     config: &config::SocialPostgresConfig,
 ) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
-    let pg_config = config.database_url().parse().map_err(|error| {
+    let database_url = config.database_url();
+    verify_production_sslmode(database_url);
+    let pg_config = database_url.parse().map_err(|error| {
         im_platform_contracts::ContractError::Unavailable(format!(
             "invalid postgres url: {error}"
         ))
     })?;
-    let manager = PostgresConnectionManager::new(pg_config, NoTls);
+    let tls = make_tls_connector().map_err(|error| {
+        im_platform_contracts::ContractError::Unavailable(format!(
+            "postgres TLS connector build failed: {error}"
+        ))
+    })?;
+    let manager = PostgresConnectionManager::new(pg_config, tls);
     let pool = Pool::builder()
         .max_size(config.pool_max_size())
         .min_idle(config.pool_min_idle())
@@ -75,6 +92,41 @@ pub(crate) fn build_social_pool(
             ))
         })?;
     Ok(SocialPostgresPool::new(pool))
+}
+
+/// Build a `native-tls` connector for PostgreSQL.
+///
+/// Uses the system trust store for certificate verification. The actual TLS
+/// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
+/// the `postgres` crate never invokes this connector.
+fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
+    let connector = native_tls::TlsConnector::builder().build()?;
+    Ok(postgres_native_tls::MakeTlsConnector::new(connector))
+}
+
+/// P0-12 fail-closed: in production, the database URL MUST contain
+/// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
+/// connections to production databases (SECURITY_SPEC §4.3).
+fn verify_production_sslmode(database_url: &str) {
+    let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    if !is_production {
+        return;
+    }
+    let lowered = database_url.to_ascii_lowercase();
+    let requires_tls = lowered.contains("sslmode=require")
+        || lowered.contains("sslmode=verify-ca")
+        || lowered.contains("sslmode=verify-full")
+        || lowered.contains("sslmode=verifyca")
+        || lowered.contains("sslmode=verifyfull");
+    if !requires_tls {
+        panic!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
+        );
+    }
 }
 
 /// Map a postgres error to ContractError, redacting the connection URL.
@@ -93,7 +145,7 @@ fn resolve_im_postgres_search_path_schema() -> Option<String> {
 }
 
 fn apply_postgres_search_path(
-    client: &mut r2d2::PooledConnection<PostgresConnectionManager<NoTls>>,
+    client: &mut r2d2::PooledConnection<SocialPostgresConnectionManager>,
     schema: &str,
 ) -> Result<(), im_platform_contracts::ContractError> {
     if !schema
@@ -115,10 +167,10 @@ fn apply_postgres_search_path(
 
 /// Get a client from the pool with unified IM schema search_path applied.
 pub fn postgres_pool_client(
-    pool: &Pool<PostgresConnectionManager<NoTls>>,
+    pool: &Pool<SocialPostgresConnectionManager>,
     operation: &str,
 ) -> Result<
-    r2d2::PooledConnection<PostgresConnectionManager<NoTls>>,
+    r2d2::PooledConnection<SocialPostgresConnectionManager>,
     im_platform_contracts::ContractError,
 > {
     let mut client = pool.get().map_err(|error| {

@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { ClusterRetrieveResponse, CommercialReadinessRetrieveResponse, DiagnosticsRetrieveResponse, HealthRetrieveResponse, LagRetrieveResponse, OpsProviderBindingsDriftRetrieveResponse, OpsProviderBindingsListResponse, ReplayStatusRetrieveResponse, RuntimeDirRetrieveResponse } from '../types';
+import type { SdkWorkPageData } from '../types';
 
 
 export class OpsDiagnosticsApi {
@@ -13,8 +13,8 @@ export class OpsDiagnosticsApi {
 
 
 /** Retrieve diagnostics */
-  async retrieve(): Promise<DiagnosticsRetrieveResponse> {
-    return this.client.get<DiagnosticsRetrieveResponse>(backendApiPath(`/ops/diagnostics`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/diagnostics`));
   }
 }
 
@@ -27,8 +27,8 @@ export class OpsProviderBindingsDriftApi {
 
 
 /** Retrieve provider binding drift */
-  async retrieve(): Promise<OpsProviderBindingsDriftRetrieveResponse> {
-    return this.client.get<OpsProviderBindingsDriftRetrieveResponse>(backendApiPath(`/ops/provider_bindings/drift`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/provider_bindings/drift`));
   }
 }
 
@@ -43,8 +43,8 @@ export class OpsProviderBindingsApi {
 
 
 /** List provider bindings */
-  async list(): Promise<OpsProviderBindingsListResponse> {
-    return this.client.get<OpsProviderBindingsListResponse>(backendApiPath(`/ops/provider_bindings`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/ops/provider_bindings`));
   }
 }
 
@@ -57,8 +57,8 @@ export class OpsRuntimeDirApi {
 
 
 /** Inspect runtime directory */
-  async retrieve(): Promise<RuntimeDirRetrieveResponse> {
-    return this.client.get<RuntimeDirRetrieveResponse>(backendApiPath(`/ops/runtime_dir`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/runtime_dir`));
   }
 }
 
@@ -71,8 +71,8 @@ export class OpsCommercialReadinessApi {
 
 
 /** Retrieve commercial readiness */
-  async retrieve(): Promise<CommercialReadinessRetrieveResponse> {
-    return this.client.get<CommercialReadinessRetrieveResponse>(backendApiPath(`/ops/commercial_readiness`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/commercial_readiness`));
   }
 }
 
@@ -85,8 +85,8 @@ export class OpsReplayStatusApi {
 
 
 /** Retrieve replay status */
-  async retrieve(): Promise<ReplayStatusRetrieveResponse> {
-    return this.client.get<ReplayStatusRetrieveResponse>(backendApiPath(`/ops/replay_status`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/replay_status`));
   }
 }
 
@@ -99,8 +99,8 @@ export class OpsLagApi {
 
 
 /** Retrieve projection lag */
-  async retrieve(): Promise<LagRetrieveResponse> {
-    return this.client.get<LagRetrieveResponse>(backendApiPath(`/ops/lag`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/lag`));
   }
 }
 
@@ -113,8 +113,8 @@ export class OpsClusterApi {
 
 
 /** Retrieve cluster state */
-  async retrieve(): Promise<ClusterRetrieveResponse> {
-    return this.client.get<ClusterRetrieveResponse>(backendApiPath(`/ops/cluster`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/cluster`));
   }
 }
 
@@ -127,8 +127,8 @@ export class OpsHealthApi {
 
 
 /** Retrieve ops health */
-  async retrieve(): Promise<HealthRetrieveResponse> {
-    return this.client.get<HealthRetrieveResponse>(backendApiPath(`/ops/health`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/ops/health`));
   }
 }
 

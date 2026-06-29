@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { SpaceBanCreateRequest, SpaceBanListResponse, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleListResponse, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelListResponse, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupListResponse, SpaceGroupMemberCreateRequest, SpaceGroupMemberListResponse, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteListResponse, SpaceInviteView, SpaceListResponse, SpaceMemberCreateRequest, SpaceMemberListResponse, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView } from '../types';
+import type { PageInfo, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView } from '../types';
 
 
 export class SpacesBansApi {
@@ -13,8 +13,8 @@ export class SpacesBansApi {
 
 
 /** List spaces bans */
-  async list(spaceId: string): Promise<SpaceBanListResponse> {
-    return this.client.get<SpaceBanListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`));
+  async list(spaceId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`));
   }
 
 /** Create spaces bans */
@@ -42,8 +42,8 @@ export class SpacesInvitesApi {
 
 
 /** List spaces invites */
-  async list(spaceId: string): Promise<SpaceInviteListResponse> {
-    return this.client.get<SpaceInviteListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`));
+  async list(spaceId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`));
   }
 
 /** Create spaces invites */
@@ -76,8 +76,8 @@ export class SpacesChannelsAccessRulesApi {
 
 
 /** List spaces channels access Rules */
-  async list(spaceId: string, channelId: string): Promise<SpaceChannelAccessRuleListResponse> {
-    return this.client.get<SpaceChannelAccessRuleListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`));
+  async list(spaceId: string, channelId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`));
   }
 
 /** Create spaces channels access Rules */
@@ -102,8 +102,8 @@ export class SpacesChannelsApi {
 
 
 /** List spaces channels */
-  async list(spaceId: string): Promise<SpaceChannelListResponse> {
-    return this.client.get<SpaceChannelListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`));
+  async list(spaceId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`));
   }
 
 /** Create spaces channels */
@@ -136,8 +136,8 @@ export class SpacesGroupsMembersApi {
 
 
 /** List spaces groups members */
-  async list(spaceId: string, groupId: string): Promise<SpaceGroupMemberListResponse> {
-    return this.client.get<SpaceGroupMemberListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`));
+  async list(spaceId: string, groupId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`));
   }
 
 /** Create spaces groups members */
@@ -172,8 +172,8 @@ export class SpacesGroupsApi {
 
 
 /** List spaces groups */
-  async list(spaceId: string): Promise<SpaceGroupListResponse> {
-    return this.client.get<SpaceGroupListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`));
+  async list(spaceId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`));
   }
 
 /** Create spaces groups */
@@ -206,8 +206,8 @@ export class SpacesMembersApi {
 
 
 /** List spaces members */
-  async list(spaceId: string): Promise<SpaceMemberListResponse> {
-    return this.client.get<SpaceMemberListResponse>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`));
+  async list(spaceId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`));
   }
 
 /** Create spaces members */
@@ -255,8 +255,8 @@ export class SpacesApi {
   }
 
 /** List spaces */
-  async list(): Promise<SpaceListResponse> {
-    return this.client.get<SpaceListResponse>(imApiPath(`/spaces`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces`));
   }
 
 /** Get a space */

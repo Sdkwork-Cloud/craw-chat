@@ -1,17 +1,1 @@
--- IM common bootstrap seed.
--- Locale-agnostic, environment-neutral seed for the IM schema.
---
--- The IM schema (database/ddl/baseline/*/0001_im_legacy_baseline.sql) contains
--- only runtime business tables (commit journal, inbox, messages, route
--- bindings, projections, audit records, streams, etc.). These tables are
--- populated by service runtime, not by seed data.
---
--- Configuration/dictionary entities that other products seed here — roles,
--- permissions, organizations, tenants, users — are owned by the IAM workspace
--- (../sdkwork-iam) and seeded through its own seed manifests. IM consumes them
--- at runtime via AppContext projection and the IAM SDK.
---
--- This file is intentionally a no-op so `pnpm db:seed` succeeds cleanly without
--- polluting runtime tables. Locale-specific demo data for development lives
--- under seeds/locales/<locale>/ and is referenced by seed.manifest.json.
 SELECT 1;

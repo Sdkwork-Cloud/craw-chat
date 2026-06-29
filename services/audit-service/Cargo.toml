@@ -21,6 +21,8 @@ sdkwork_im_service_readiness = { workspace = true }
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 # PostgreSQL durable audit ledger (production backend). Versions kept aligned
 # with `adapters/postgres-journal` so a single database is not over-subscribed.
+native-tls = "0.2"
+postgres-native-tls = "0.5"
 r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"
 

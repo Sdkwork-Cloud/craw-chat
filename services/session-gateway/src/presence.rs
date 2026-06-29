@@ -227,6 +227,10 @@ impl PresenceRuntimeError {
                 code: "presence_store_unsupported",
                 message,
             },
+            ContractError::Invalid(message) => Self {
+                code: "presence_store_invalid",
+                message,
+            },
         }
     }
 }

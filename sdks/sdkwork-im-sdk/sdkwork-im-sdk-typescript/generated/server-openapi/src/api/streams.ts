@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AppendStreamFrameRequest, OpenStreamRequest, StreamFramesResponse, StreamFrameView, StreamView } from '../types';
+import type { AppendStreamFrameRequest, OpenStreamRequest, StreamFrameView, StreamView } from '../types';
 
 
 export class StreamsCheckpointApi {
@@ -32,12 +32,12 @@ export class StreamsFramesApi {
 
 
 /** List stream frames */
-  async list(streamId: string, params?: StreamsFramesListParams): Promise<StreamFramesResponse> {
+  async list(streamId: string, params?: StreamsFramesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<StreamFramesResponse>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query));
   }
 
 /** Append a stream frame */

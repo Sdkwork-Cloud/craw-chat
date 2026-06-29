@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { ExportRetrieveResponse, RecordsCreateResponse, RecordsListResponse } from '../types';
+import type { SdkWorkPageData } from '../types';
 
 
 export class AuditExportApi {
@@ -13,8 +13,8 @@ export class AuditExportApi {
 
 
 /** Export audit bundle */
-  async retrieve(): Promise<ExportRetrieveResponse> {
-    return this.client.get<ExportRetrieveResponse>(backendApiPath(`/audit/export`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/audit/export`));
   }
 }
 
@@ -27,13 +27,13 @@ export class AuditRecordsApi {
 
 
 /** List audit records */
-  async list(): Promise<RecordsListResponse> {
-    return this.client.get<RecordsListResponse>(backendApiPath(`/audit/records`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/audit/records`));
   }
 
 /** Record audit anchor */
-  async create(): Promise<RecordsCreateResponse> {
-    return this.client.post<RecordsCreateResponse>(backendApiPath(`/audit/records`));
+  async create(): Promise<Record<string, unknown>> {
+    return this.client.post<Record<string, unknown>>(backendApiPath(`/audit/records`));
   }
 }
 

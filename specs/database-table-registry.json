@@ -154,6 +154,33 @@
       "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
     },
     {
+      "tableName": "im_rtc_outbox_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "outbox_event",
+      "systemOfRecord": true,
+      "writeOwner": "im-call-runtime",
+      "migration": "database/migrations/postgres/0009_im_rtc_lifecycle_tables.up.sql"
+    },
+    {
+      "tableName": "im_rtc_quality_reports",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "telemetry_log",
+      "systemOfRecord": true,
+      "writeOwner": "im-call-runtime",
+      "migration": "database/migrations/postgres/0009_im_rtc_lifecycle_tables.up.sql"
+    },
+    {
+      "tableName": "im_rtc_participant_credentials",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "credential_lifecycle",
+      "systemOfRecord": true,
+      "writeOwner": "im-call-runtime",
+      "migration": "database/migrations/postgres/0009_im_rtc_lifecycle_tables.up.sql"
+    },
+    {
       "tableName": "im_audit_records",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",

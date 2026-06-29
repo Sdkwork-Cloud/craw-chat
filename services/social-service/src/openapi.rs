@@ -66,7 +66,7 @@ fn id_generator() -> &'static RuntimeSnowflakeIdGenerator {
     })
 }
 
-fn next_open_api_id() -> Result<String, SocialServiceError> {
+pub(crate) fn next_open_api_id() -> Result<String, SocialServiceError> {
     id_generator()
         .next_id()
         .map(|value| value.to_string())

@@ -2,8 +2,8 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-06-26
-Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
+Updated: 2026-06-29
+Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, SECURITY_SPEC.md, OPERATIONS_SPEC.md
 
 ## 1. System Overview
 
@@ -16,6 +16,7 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
 - **Contract-First**: OpenAPI authorities under `apis/` drive SDK generation for 9 languages; no hand-written HTTP clients in consumers.
 - **High Availability**: Gateway and session services support horizontal scaling; disconnect fence and presence state use Redis-backed storage in HA topologies.
 - **Defense in Depth**: Trusted-proxy IP validation, per-service circuit breakers, bounded rate limiter memory, two-layer rate limiting (per-IP pre-auth + per-tenant post-auth), and Docker/Kubernetes `_FILE` secret injection.
+- **Production Readiness**: Graceful shutdown with connection draining, Kubernetes health probes (liveness/readiness/startup), capacity management with multi-dimensional resource tracking.
 
 ### Topology
 
@@ -57,7 +58,7 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
 1. **Trusted-Proxy IP Extraction** (`SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`): Only honours `X-Forwarded-For` / `X-Real-IP` when the direct TCP peer (via `ConnectInfo<SocketAddr>`) is in the configured trusted-proxy list. Prevents IP-spoofing bypass of rate limits. When no trusted proxies are configured, the direct peer IP is used exclusively.
 
 2. **Rate Limiting (two layers)**:
-   - **Layer 1 — per-IP token bucket** (default 600 RPM / 50 burst): Runs pre-auth, before IAM context resolution. Uses `std::sync::Mutex` for minimal lock contention. Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs.
+   - **Layer 1 — per-IP token bucket** (default 600 RPM / 50 burst): Runs pre-auth, before IAM context resolution. Uses `DashMap` for lock-free concurrent access (P1-8 fix). Retry-after is dynamically calculated based on actual RPM: `ceil(60 / max_rpm)` seconds (P0-5 fix). Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs. When real client IP cannot be determined (no trusted proxies, no ConnectInfo), a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket (P1-9 fix).
    - **Layer 2 — per-tenant token bucket** (default 60 000 RPM / 2 000 burst): Runs post-auth, after `AppContext` is resolved by the IAM interceptor chain. Each authenticated tenant has an independent bucket so that a noisy tenant on a shared NAT egress IP cannot exhaust the IP-level budget for other tenants. Configurable via `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_RPM`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_BURST`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_MAX_ENTRIES` (default 10 000). Unauthenticated public routes are governed solely by Layer 1.
 
 3. **Per-Service Circuit Breaker** (`CircuitBreakerRegistry`): Each upstream service has an independent circuit breaker. Failures in one service do not trip the breaker for others. HalfOpen state allows only a single probe request at a time. Configurable via `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` (default 10) and `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` (default 30).
@@ -73,7 +74,9 @@ Manages WebSocket lifecycle, presence, and cluster routing:
 - **CCP Protocol**: Dual-protocol WebSocket with `auth.init` frame authentication. Tokens are passed via `Authorization` and `Access-Token` headers in the auth frame, never in query parameters. Query-token mode is rejected in production.
 - **Connection Limiting**: Semaphore-based concurrent WebSocket connection cap (`SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS`). Max message size 512 KB, max frame size 256 KB.
 - **Cluster Bus**: Inter-node presence sync via `SDKWORK_IM_REALTIME_CLUSTER_BUS_*` env vars. Redis-backed in HA; in-memory fallback for single-node dev.
-- **Disconnect Fence**: Prevents stale session takeover during network partitions. Storage backend is configurable — Redis for HA, in-memory for dev.
+- **Disconnect Fence**: Prevents stale session takeover during network partitions. Storage backend is configurable — Redis for HA, in-memory for dev. **P1-7 fix**: Added `expire_fences_older_than()` method to clean up fences older than N days, preventing storage膨胀 from long-term offline devices.
+- **Heartbeat Mechanism**: Server-initiated heartbeat at configurable interval (default 30s) detects silent disconnects and enforces idle timeout (default 90s). This prevents zombie connections that would otherwise occupy route slots indefinitely (P0-2 fix). Configurable via `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` and `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS`.
+- **Route Epoch Change Grace**: Increased from 25ms to 250ms to give clients more time to handle route migrations without missing state changes (P2-3 fix).
 
 ### 2.3 Comms Conversation Service
 
@@ -96,7 +99,7 @@ Contact directory and friend request management with `organization_id`-scoped qu
 | `automation-service` | Agent/automation response lifecycle. |
 | `audit-service` | Compliance audit trail. |
 | `governance-service` | Policy enforcement loop. |
-| `im-calls-service` | RTC call signaling lifecycle (`create`/`retrieve`/`invite`/`accept`/`reject`/`end`/`signals`/`credentials`), credential issuance, provider handoff to `../sdkwork-rtc`. |
+| `im-calls-service` | RTC call signaling lifecycle (`create`/`retrieve`/`invite`/`accept`/`reject`/`end`/`signals`/`credentials`), credential issuance, provider handoff to `../sdkwork-rtc`. **Architecture**: Uses `DashMap` for lock-free concurrent session storage with epoch-based fencing (`RtcSession.epoch: u64`) to reject stale concurrent writes. Each state transition increments epoch atomically via `AtomicU64::fetch_add`. Persistence layer (`RtcStateStore.save_state`) compares epoch before merging: higher epoch wins, equal epochs merge monotonically. Participant authorization enforced per SECURITY_SPEC §4.2. |
 | `streaming-service` | Media streaming. |
 | `space-service` | Workspace/space management. |
 
@@ -146,6 +149,7 @@ All organization-scoped tables enforce:
 3. Server validates token via IAM auth pool, resolves tenant + organization
 4. Server sends `auth.ok` confirmation
 5. Bidirectional message stream begins (CCP protocol)
+6. Server-initiated heartbeat maintains connection liveness (P0-2 fix)
 
 ### 4.2 Token Handling
 
@@ -153,7 +157,21 @@ All organization-scoped tables enforce:
 - Query-parameter token mode is **rejected in production** (`SDKWORK_IM_ENVIRONMENT=production`) with HTTP 401. It is permitted only in non-production environments for browser WebSocket compatibility.
 - Token normalization accepts `Bearer <token>`, bare `<token>`, and URL-encoded forms.
 
-### 4.3 Cluster Routing
+### 4.3 Heartbeat and Keep-Alive
+
+**Server-Initiated Heartbeat**: The gateway sends periodic heartbeat frames to maintain connection liveness and detect silent disconnects:
+
+- **Heartbeat Interval**: Default 30 seconds, configurable via `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS`
+- **Idle Timeout**: Default 90 seconds (3x heartbeat), configurable via `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS`
+- **Protocol**: 
+  - CCP mode: `HeartbeatFrame` with sequence number
+  - Legacy mode: WebSocket Ping/Pong
+- **Idle Detection**: If no activity for `idle_timeout` duration, connection is closed with `idle_timeout` close frame
+- **Activity Tracking**: Any message (incoming or outgoing) resets the activity timer
+
+This prevents zombie connections that would otherwise occupy route slots and cause resource leaks.
+
+### 4.4 Cluster Routing
 
 In HA deployments, session gateway nodes share presence state via Redis cluster bus. The disconnect fence ensures that when a client reconnects to a different node, the old connection is properly closed before the new one is established.
 
@@ -182,11 +200,13 @@ In HA deployments, session gateway nodes share presence state via Redis cluster 
 
 ### 5.4 Network Security
 
-- **Trusted-Proxy IP Extraction**: `X-Forwarded-For` only honoured from trusted proxy IPs (configurable via `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`)
-- **Rate limiting**: per-IP token bucket at gateway layer with bounded memory
-- **Circuit breaker**: per-upstream-service consecutive failure detection prevents cascade failures
-- **CORS**: explicit origin allowlist in production; `allow_any_origin` rejected in production
+- **Trusted-Proxy IP Extraction**: `X-Forwarded-For` only honoured from trusted proxy IPs (configurable via `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`). When no trusted proxies are configured and no `ConnectInfo` is available, a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket (P1-9 fix).
+- **Rate limiting**: Per-IP token bucket at gateway layer with bounded memory. Uses `DashMap` for lock-free concurrent access (P1-8 fix). Dynamic retry-after calculation based on actual RPM (P0-5 fix).
+- **Circuit breaker**: Per-upstream-service consecutive failure detection prevents cascade failures
+- **CORS**: Explicit origin allowlist in production; `allow_any_origin` rejected in production
 - **WebSocket auth**: `auth.init` frame-based authentication; query-token auth rejected in production
+- **Anomaly Detection**: Configuration errors are handled gracefully with safe defaults rather than panics (P0-4 fix). Invalid `message_rate_threshold`, `failed_auth_threshold`, or `max_log_entries` values are logged as warnings and replaced with sensible defaults, ensuring service availability even with misconfiguration.
+- **Idempotency**: Lock timeout enforcement ensures stale reservations are cleared after configured timeout (default 30s), preventing indefinite lockouts on retry failures.
 
 ## 6. Deployment Architecture
 
@@ -248,3 +268,114 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 | `SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS` | `false` | Allow WebSocket query-token auth (non-production only) |
 | `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET_FILE` | _(empty)_ | Path to file containing HMAC signing secret |
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE` | _(empty)_ | Path to file containing JWT signing secret |
+| `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` | `30` | WebSocket heartbeat interval (P0-2 fix) |
+| `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS` | `90` | WebSocket idle timeout before disconnect (P0-2 fix) |
+| `SDKWORK_IM_GATEWAY_POOL_MAX_IDLE_PER_HOST` | `50` | HTTP connection pool max idle per host (P1-10 fix) |
+| `SDKWORK_IM_GATEWAY_POOL_IDLE_TIMEOUT_SECS` | `90` | HTTP connection pool idle timeout (P1-10 fix) |
+
+## 11. Domain Core Modules (v0.3+)
+
+The `im-domain-core` crate provides foundational domain logic with full test coverage (73 tests passing).
+
+### 11.1 Security Layer
+
+| Module | Purpose | Key Types |
+|--------|---------|-----------|
+| `security` | Tenant isolation, permission validation, signal replay protection | `TenantIsolationValidator`, `SecurityContext`, `SignalReplayProtector` |
+| `audit` | Security event logging | `AuditEvent`, `AuditEventBuilder` |
+| `rate_limiter` | Token bucket rate limiting with tenant isolation | `DomainRateLimiter`, `TokenBucket`, `RateLimitError` |
+| `idempotency` | Exactly-once processing semantics | `IdempotencyGuard`, `IdempotencyKey`, `IdempotencyState` |
+
+### 11.2 Observability & Operations
+
+| Module | Purpose | Key Types |
+|--------|---------|-----------|
+| `logging/redactor` | Log sanitization (JWT, Bearer, Email, IP, Access Token) | `LogRedactor`, `RedactionPattern` |
+| `lifecycle` | Graceful shutdown and health probes | `GracefulShutdown`, `HealthCheckProbes`, `ServiceState` |
+| `capacity` | Multi-dimensional resource tracking | `CapacityManager`, `ResourceQuota`, `ResourceUsage` |
+
+### 11.3 Data Management
+
+| Module | Purpose | Key Types |
+|--------|---------|-----------|
+| `retention` | Data retention policies | `RetentionClass`, `RetentionPolicy` |
+
+### 11.4 Connection Quality (v0.4+)
+
+| Module | Purpose | Key Types |
+|--------|---------|-----------|
+| `connection_quality` | Adaptive heartbeat, network metrics, reconnect backoff with jitter | `NetworkMetrics`, `ConnectionQuality`, `AdaptiveHeartbeatPolicy`, `AtomicNetworkMetrics` |
+
+**Key Features**:
+- **Jitter-based Reconnect Backoff**: Decorrelated jitter algorithm prevents thundering herd effect when multiple clients disconnect simultaneously (P1-1 fix). Formula: `delay = base * random(1, 2^attempt)` with 60s cap.
+- **Adaptive Heartbeat**: Dynamically adjusts interval based on network quality (RTT, loss rate, jitter)
+- **Quality Score Calculation**: Composite score from RTT (40%), loss rate (40%), jitter (20%)
+- **Connection Quality Levels**: Excellent (>0.9), Good (0.7-0.9), Poor (0.5-0.7), Critical (<0.5)
+
+### 11.5 Presence System (v0.4+)
+
+Extended presence status beyond simple Online/Offline:
+
+| Status | Description | Push QoS |
+|--------|-------------|----------|
+| `Online` | User actively available | 3 (immediate push) |
+| `Away` | User idle or stepped away | 2 (normal push) |
+| `Busy` | Do-not-disturb mode | 1 (high-priority only) |
+| `Invisible` | Appears offline but connected | 2 (normal push) |
+| `Offline` | Disconnected | 0 (queue for later) |
+
+### 11.6 RTC Signaling (v0.4+)
+
+| Module | Purpose | Key Types |
+|--------|---------|-----------|
+| `rtc` | RTC session lifecycle, signal rate tracking | `RtcSessionState`, `SignalRateTracker`, `RtcSession` |
+
+**Signal Rate Tracker**: Implements sliding window algorithm to prevent signal flooding:
+- Window size: 60 seconds default
+- Max signals: 100 per window default
+- Two-bucket sliding window for accurate rate calculation
+- Prevents "boundary problem" of fixed window rate limiters
+| `rtc` | RTC session state management | `RtcSessionState`, `StateRecord` |
+
+### 11.4 Test Coverage Summary
+
+```
+test result: ok. 73 passed; 0 failed; 0 ignored
+├── audit: 3 tests
+├── logging/redactor: 15 tests
+├── retention: 8 tests
+├── room: 2 tests
+├── rtc: 2 tests
+├── security: 8 tests
+├── rate_limiter: 6 tests
+├── idempotency: 7 tests
+├── lifecycle: 13 tests
+└── capacity: 9 tests
+```
+
+## 12. Database Migrations
+
+| Migration | Purpose | Status |
+|-----------|---------|--------|
+| 0001-0005 | Baseline schema | Applied |
+| 0006_index_optimization | Composite indexes for query performance | Pending |
+
+### 12.1 Index Optimization (Migration 0006)
+
+Optimizes frequently queried columns with composite indexes:
+- `im_commit_journal_tenant_org_idx`: `(tenant_id, organization_id)`
+- `im_commit_journal_sequence_idx`: `(sequence_number DESC)`
+- `im_outbox_events_created_idx`: `(created_at DESC)`
+- `im_conversation_messages_conversation_idx`: `(conversation_id, sequence_number DESC)`
+- See full DDL in `database/migrations/postgres/0006_index_optimization.up.sql`
+
+## 13. Production Deployment Checklist
+
+- [ ] Configure `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` for your load balancer IPs
+- [ ] Set up Kubernetes health probes using `/healthz`, `/readyz`, `/startupz`
+- [ ] Configure `ResourceQuota` limits per tenant based on subscription tier
+- [ ] Enable audit logging to external SIEM
+- [ ] Set up capacity monitoring dashboards
+- [ ] Configure graceful shutdown timeout (default: 30s)
+- [ ] Review rate limit configuration for expected traffic patterns
+

@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AckResponse, RealtimeEventAckRequest, RealtimeEventsResponse, RealtimeSubscriptionSyncRequest, RealtimeSubscriptionSyncResponse } from '../types';
+import type { AckResponse, RealtimeEventAckRequest, RealtimeEventView, RealtimeSubscriptionSyncRequest, RealtimeSubscriptionSyncResponse } from '../types';
 
 
 export interface RealtimeEventsListParams {
@@ -23,12 +23,12 @@ export class RealtimeEventsApi {
   }
 
 /** List pending realtime events */
-  async list(params?: RealtimeEventsListParams): Promise<RealtimeEventsResponse> {
+  async list(params?: RealtimeEventsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<RealtimeEventsResponse>(appendQueryString(imApiPath(`/realtime/events`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/realtime/events`), query));
   }
 }
 

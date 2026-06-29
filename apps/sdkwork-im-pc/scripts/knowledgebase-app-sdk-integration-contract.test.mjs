@@ -155,7 +155,7 @@ assert.equal(
 
 assert.match(
   sharedSdkGitSource,
-  /id:\s*['"]sdkwork-knowledgebase['"][\s\S]*sdkwork-knowledgebase-app-sdk[\\/]sdkwork-knowledgebase-app-sdk-typescript[\\/]generated[\\/]server-openapi[\\/]package\.json/u,
+  /id:\s*['"]sdkwork-knowledgebase['"][\s\S]*sdkwork-knowledgebase-app-sdk[\\/]sdkwork-knowledgebase-app-sdk-typescript[\\/]package\.json/u,
   'Shared SDK git materializer must know how to prepare the sdkwork-knowledgebase app SDK source.',
 );
 
@@ -229,6 +229,33 @@ assert.deepEqual(
   'component.spec.json must document knowledgebase split upstream override env keys.',
 );
 
+assert.ok(
+  componentSpec.integration?.foundationApiGateway?.standaloneUnifiedEmbeddedAuthorities?.includes(
+    'sdkwork-knowledgebase-app-api',
+  ),
+  'component.spec.json must embed sdkwork-knowledgebase-app-api in standalone unified-process mode.',
+);
+
+assert.equal(
+  componentSpec.integration?.foundationApiGateway?.standaloneUnifiedDeferredAuthorities?.includes(
+    'sdkwork-knowledgebase-app-api',
+  ),
+  false,
+  'component.spec.json must not defer sdkwork-knowledgebase-app-api after embedded bootstrap wiring.',
+);
+
+const embeddedRoutesSource = readRepoText(
+  'services',
+  'sdkwork-im-standalone-gateway',
+  'src',
+  'embedded_dependency_routes.rs',
+);
+assert.match(
+  embeddedRoutesSource,
+  /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_knowledgebase_gateway_assembly::assemble_application_business_router/u,
+  'IM standalone gateway must embed sdkwork-knowledgebase routes in unified-process mode.',
+);
+
 assert.match(
   moduleRegistrySource,
   /COMMERCIAL_RUNTIME_MODULES[\s\S]*"knowledge"/u,
@@ -239,6 +266,12 @@ assert.match(
   knowledgebaseClientSource,
   /@sdkwork\/knowledgebase-app-sdk/u,
   'Knowledgebase app SDK client wrapper must import the composed knowledgebase app SDK package.',
+);
+
+assert.match(
+  knowledgebaseClientSource,
+  /createKnowledgebaseAppClient/u,
+  'Core knowledgebase client must use the sdkwork-knowledgebase composed app SDK factory.',
 );
 
 assert.match(
@@ -303,8 +336,32 @@ assert.match(
 
 assert.match(
   knowledgeViewSource,
+  /<I18nextProvider i18n=\{i18n(?:\s+as\s+[^}]+)?\}>/u,
+  'Knowledgebase embed package must isolate its i18next instance from the IM host provider.',
+);
+
+assert.match(
+  knowledgeViewSource,
   /index\.css/u,
   'Knowledgebase embed package must import the knowledgebase application stylesheet for host-managed UI fidelity.',
+);
+
+assert.match(
+  viteConfigSource,
+  /sdkwork-knowledgebase-app-sdk\/sdkwork-knowledgebase-app-sdk-typescript\/src\/index\.ts/u,
+  'Vite must alias @sdkwork/knowledgebase-app-sdk to the composed knowledgebase app SDK entry.',
+);
+
+assert.match(
+  tsconfig.compilerOptions?.paths?.['@sdkwork/knowledgebase-app-sdk']?.join('/') ?? '',
+  /sdkwork-knowledgebase-app-sdk-typescript\/src\/index\.ts/u,
+  'tsconfig must map @sdkwork/knowledgebase-app-sdk to the composed knowledgebase app SDK entry.',
+);
+
+assert.match(
+  pnpmWorkspaceSource,
+  /sdkwork-knowledgebase-app-sdk\/sdkwork-knowledgebase-app-sdk-typescript/u,
+  'pnpm-workspace.yaml must include the composed sdkwork-knowledgebase-app-sdk-typescript package.',
 );
 
 assert.match(

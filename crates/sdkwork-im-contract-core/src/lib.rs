@@ -3,6 +3,7 @@ pub enum ContractError {
     UnsupportedCapability(String),
     Conflict(String),
     Unavailable(String),
+    Invalid(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

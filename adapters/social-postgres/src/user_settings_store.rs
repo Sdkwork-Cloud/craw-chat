@@ -5,10 +5,9 @@ use std::sync::Arc;
 
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 use serde_json::Value;
 
-use crate::{NoTls, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 /// Trait for user settings persistence.
 pub trait UserSettingsStore: Send + Sync {
@@ -46,11 +45,11 @@ ON CONFLICT (tenant_id, organization_id, user_id, setting_key) DO UPDATE SET
 /// PostgreSQL-backed user settings store.
 #[derive(Clone)]
 pub struct PostgresUserSettingsStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresUserSettingsStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }

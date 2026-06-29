@@ -27,6 +27,28 @@ tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 sdkwork-communication-rtc-service.workspace = true
+# RTC provider integration. IM owns call signaling; media session creation
+# and participant credential issuance delegate to the RTC provider plugin
+# via `RtcProviderPort` from `sdkwork-communication-rtc-service`. This is
+# the IM → RTC boundary defined in `../sdkwork-rtc/docs/rtc-im-boundary.md`.
+# IM uses the provider port directly (not the higher-level `RtcAppApiService`
+# trait) because IM only needs session creation and credential issuance.
+sdkwork-rtc-adapter-volcengine.workspace = true
+# Concurrent data structures for high-performance call signaling runtime
+dashmap.workspace = true
+# Durable RTC state persistence (PostgreSQL source of truth) and hot cache
+# (Redis). When neither URL is configured, the runtime falls back to an
+# in-memory store for development only. Production deployments MUST set
+# SDKWORK_RTC_STATE_DATABASE_URL (and optionally SDKWORK_RTC_STATE_REDIS_URL)
+# and SDKWORK_RTC_STATE_REQUIRE_DURABLE=true to fail-closed on data loss.
+im-adapters-postgres-rtc-state = { path = "../../adapters/postgres-rtc-state" }
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+# Transactional outbox for durable RTC lifecycle event publishing
+# (FOR UPDATE SKIP LOCKED pattern). When SDKWORK_RTC_OUTBOX_DATABASE_URL is
+# unset, the runtime skips outbox emission (development only). Production
+# deployments SHOULD set SDKWORK_RTC_OUTBOX_DATABASE_URL and
+# SDKWORK_RTC_REQUIRE_OUTBOX=true to fail-closed on missing outbox.
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 
 [dev-dependencies]
 http-body-util.workspace = true

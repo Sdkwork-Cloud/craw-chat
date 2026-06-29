@@ -78,6 +78,12 @@ impl From<ContractError> for ControlPlaneError {
                 message,
                 details: None,
             },
+            ContractError::Invalid(message) => Self {
+                status: StatusCode::BAD_REQUEST,
+                code: "provider_policy_invalid",
+                message,
+                details: None,
+            },
         }
     }
 }

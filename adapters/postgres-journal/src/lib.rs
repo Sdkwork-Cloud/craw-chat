@@ -34,10 +34,8 @@ use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use r2d2_postgres::postgres::NoTls;
 use sdkwork_utils_rust::sha256_hash;
 use tokio::runtime::Handle;
-pub use r2d2_postgres::postgres::NoTls as PostgresJournalNoTls;
 
 mod aggregate_store;
 mod message_store;
@@ -69,15 +67,24 @@ pub use search_store::PostgresSearchProvider;
 const DEFAULT_POOL_MAX_SIZE: u32 = 16;
 const DEFAULT_POOL_MIN_IDLE: u32 = 0;
 
+/// TLS connector type for r2d2-backed PostgreSQL pools.
+///
+/// P0-12 (SECURITY_SPEC): uses `postgres-native-tls` so the `sslmode` URL
+/// parameter is honored. With `sslmode=disable` the connector is never
+/// invoked (plaintext TCP); with `sslmode=require` or `verify-full` a real
+/// TLS handshake is performed. This allows dev/test to keep using plaintext
+/// while production enforces TLS via the DSN.
+pub type PostgresJournalTlsConnector = postgres_native_tls::MakeTlsConnector;
 /// Connection manager / pool type aliases mirroring the realtime adapter.
-pub type PostgresJournalConnectionManager = PostgresConnectionManager<NoTls>;
+pub type PostgresJournalConnectionManager = PostgresConnectionManager<PostgresJournalTlsConnector>;
 pub type PostgresJournalPool = Pool<PostgresJournalConnectionManager>;
 
 /// Resolved connection configuration for the journal store.
 ///
 /// `database_url` follows the standard PostgreSQL URI form. Production
-/// deployments SHOULD set `sslmode=require` (or `verify-full`) on the URL;
-/// see `docs/部署/postgresql-database-configuration.md`.
+/// deployments MUST set `sslmode=require` (or `verify-full`) on the URL;
+/// [`verify_production_sslmode`] enforces this fail-closed at pool build
+/// time. See `docs/部署/postgresql-database-configuration.md`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PostgresJournalConfig {
     database_url: String,
@@ -156,16 +163,57 @@ impl PostgresJournalConfig {
 }
 
 fn build_journal_pool(config: &PostgresJournalConfig) -> Result<PostgresJournalPool, ContractError> {
+    verify_production_sslmode(config.database_url.as_str());
     let pg_config = config
         .database_url
         .parse()
         .map_err(|error| postgres_config_error(config.database_url.as_str(), error))?;
-    let manager = PostgresConnectionManager::new(pg_config, NoTls);
+    let tls = make_tls_connector().map_err(|error| {
+        ContractError::Unavailable(format!(
+            "postgres journal TLS connector build failed: {error}"
+        ))
+    })?;
+    let manager = PostgresConnectionManager::new(pg_config, tls);
     Pool::builder()
         .max_size(config.pool_max_size)
         .min_idle(config.pool_min_idle)
         .build(manager)
         .map_err(|error| postgres_unavailable("create journal pool", error))
+}
+
+/// Build a `native-tls` connector for PostgreSQL.
+///
+/// Uses the system trust store for certificate verification. The actual TLS
+/// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
+/// the `postgres` crate never invokes this connector.
+fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
+    let connector = native_tls::TlsConnector::builder().build()?;
+    Ok(postgres_native_tls::MakeTlsConnector::new(connector))
+}
+
+/// P0-12 fail-closed: in production, the database URL MUST contain
+/// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
+/// connections to production databases (SECURITY_SPEC §4.3).
+fn verify_production_sslmode(database_url: &str) {
+    let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    if !is_production {
+        return;
+    }
+    let lowered = database_url.to_ascii_lowercase();
+    let requires_tls = lowered.contains("sslmode=require")
+        || lowered.contains("sslmode=verify-ca")
+        || lowered.contains("sslmode=verify-full")
+        || lowered.contains("sslmode=verifyca")
+        || lowered.contains("sslmode=verifyfull");
+    if !requires_tls {
+        panic!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
+        );
+    }
 }
 
 /// PostgreSQL implementation of [`CommitJournal`].

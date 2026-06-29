@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { NotificationListResponse, NotificationRequestResponse, NotificationTask, RequestNotification } from '../types';
+import type { NotificationRequestResponse, NotificationTask, PageInfo, RequestNotification } from '../types';
 
 
 export class NotificationsRequestsApi {
@@ -29,8 +29,8 @@ export class NotificationsApi {
 
 
 /** List notifications for the current principal */
-  async list(): Promise<NotificationListResponse> {
-    return this.client.get<NotificationListResponse>(appApiPath(`/notifications`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/notifications`));
   }
 
 /** Get a notification task */

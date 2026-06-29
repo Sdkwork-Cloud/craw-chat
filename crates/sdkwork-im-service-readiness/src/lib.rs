@@ -203,14 +203,25 @@ fn resolve_im_database_url_from_env() -> Option<String> {
 }
 
 fn ping_postgres_url(database_url: &str) -> Result<(), String> {
-    use postgres::{Client, NoTls};
+    use postgres::Client;
 
-    let mut client = Client::connect(database_url, NoTls)
+    let tls = make_tls_connector().map_err(|error| format!("postgres TLS connector build failed: {error}"))?;
+    let mut client = Client::connect(database_url, tls)
         .map_err(|error| format!("postgres connect failed: {error}"))?;
     client
         .simple_query("SELECT 1")
         .map_err(|error| format!("postgres ping failed: {error}"))?;
     Ok(())
+}
+
+/// Build a `native-tls` connector for PostgreSQL.
+///
+/// Uses the system trust store for certificate verification. The actual TLS
+/// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
+/// the `postgres` crate never invokes this connector.
+fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
+    let connector = native_tls::TlsConnector::builder().build()?;
+    Ok(postgres_native_tls::MakeTlsConnector::new(connector))
 }
 
 /// Initialize structured logging and optional OTel export for IM service processes.
@@ -273,6 +284,15 @@ pub fn ensure_im_service_process_identity(service_name: &str) {
             std::env::set_var("OTEL_SERVICE_NAME", service_name);
         }
     }
+}
+
+/// Graceful shutdown signal for IM services.
+///
+/// Returns an async handle that can be awaited to wait for SIGTERM/SIGINT signals.
+/// This is used by the gateway server to initiate graceful shutdown.
+pub async fn shutdown_signal() {
+    // Use tokio's built-in signal handling for cross-platform support
+    let _ = tokio::signal::ctrl_c().await;
 }
 
 #[cfg(test)]

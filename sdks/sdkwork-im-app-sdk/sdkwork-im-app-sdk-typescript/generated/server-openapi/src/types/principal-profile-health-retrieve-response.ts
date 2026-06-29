@@ -1,1 +1,6 @@
-export type PrincipalProfileHealthRetrieveResponse = Record<string, unknown>;
+export interface PrincipalProfileHealthRetrieveResponse {
+  code: 0;
+  data: unknown & Record<string, unknown>;
+  /** Server-owned request correlation id. */
+  traceId: string;
+}

@@ -128,7 +128,7 @@ const SOURCE_SPECS = Object.freeze([
     repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-knowledgebase'),
     requiredPaths: [
       'package.json',
-      'sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi/package.json',
+      'sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/package.json',
       'apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge/package.json',
     ],
     repoUrlEnvVar: 'SDKWORK_SHARED_KNOWLEDGEBASE_REPO_URL',

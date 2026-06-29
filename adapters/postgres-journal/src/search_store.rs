@@ -8,11 +8,10 @@
 use im_platform_contracts::{ContractError, SearchProvider, SearchResult, SearchableMessage};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use r2d2_postgres::postgres::NoTls;
 
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalTlsConnector};
 
-type PgPool = Pool<PostgresConnectionManager<NoTls>>;
+type PgPool = Pool<PostgresConnectionManager<PostgresJournalTlsConnector>>;
 
 /// PostgreSQL-backed search provider.
 ///

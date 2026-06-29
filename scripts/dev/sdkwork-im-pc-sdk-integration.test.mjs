@@ -3097,7 +3097,12 @@ assert.match(
 assert.match(
   knowledgebaseAppSdkClientSource,
   /from ['"]@sdkwork\/knowledgebase-app-sdk['"]/u,
-  'IM must consume knowledgebase capabilities through the generated knowledgebase app SDK.',
+  'IM must consume knowledgebase capabilities through the composed knowledgebase app SDK.',
+);
+assert.match(
+  knowledgebaseAppSdkClientSource,
+  /createKnowledgebaseAppClient/u,
+  'IM must initialize knowledgebase SDK through createKnowledgebaseAppClient.',
 );
 assert.match(
   knowledgebasePcBootstrapSource,

@@ -22,7 +22,7 @@ use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
     RealtimeSubscriptionSnapshot,
 };
-use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent, RtcSignalSender};
+use im_domain_core::rtc::{Session, SessionParticipants, SessionState, SignalEvent, SignalSender, SignalRateTracker};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
@@ -395,7 +395,7 @@ fn test_stream_frame_serializes_transport_shape() {
 
 #[test]
 fn test_rtc_session_serializes_signal_binding_fields() {
-    let session = RtcSession {
+    let session = Session {
         tenant_id: "100001".into(),
         rtc_session_id: "rtc_demo".into(),
         conversation_id: Some("c_demo".into()),
@@ -406,11 +406,27 @@ fn test_rtc_session_serializes_signal_binding_fields() {
         provider_session_id: Some("volcengine:rtc_demo".into()),
         access_endpoint: Some("wss://rtc.volcengine.local/session".into()),
         provider_region: Some("cn-beijing".into()),
-        state: RtcSessionState::Started,
+        state: SessionState::Started,
         signaling_stream_id: Some("st_demo".into()),
         artifact_message_id: None,
         started_at: "2026-04-05T10:00:00Z".into(),
         ended_at: None,
+        initiating_at: None,
+        ringing_at: None,
+        connecting_at: None,
+        connected_at: None,
+        on_hold_since: None,
+        reconnecting_since: None,
+        canceled_at: None,
+        failed_at: None,
+        timeout_at: None,
+        ended_reason: None,
+        failure_reason: None,
+        epoch: 1,
+        version: 1,
+        participants: SessionParticipants::default(),
+        last_activity_at: Some("2026-04-05T10:00:00Z".into()),
+        signal_rate_tracker: SignalRateTracker::default(),
     };
 
     let value = serde_json::to_value(session).expect("rtc session should serialize");
@@ -418,6 +434,9 @@ fn test_rtc_session_serializes_signal_binding_fields() {
     assert_eq!(value["rtcMode"], Value::String("voice".into()));
     assert_eq!(value["initiatorKind"], Value::String("user".into()));
     assert_eq!(value["state"], Value::String("started".into()));
+    // Epoch and version are serialized for fencing transparency
+    assert_eq!(value["epoch"], Value::Number(serde_json::Number::from(1)));
+    assert_eq!(value["version"], Value::Number(serde_json::Number::from(1)));
 }
 
 #[test]
@@ -450,7 +469,7 @@ fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
 
 #[test]
 fn test_rtc_signal_event_serializes_signal_transport_shape() {
-    let signal = RtcSignalEvent {
+    let signal = SignalEvent {
         tenant_id: "100001".into(),
         rtc_session_id: "rtc_demo".into(),
         signal_seq: 1,
@@ -459,7 +478,7 @@ fn test_rtc_signal_event_serializes_signal_transport_shape() {
         signal_type: "rtc.offer".into(),
         schema_ref: Some("webrtc.offer.v1".into()),
         payload: r#"{"sdp":"demo"}"#.into(),
-        sender: RtcSignalSender {
+        sender: SignalSender {
             id: "1".into(),
             kind: "user".into(),
             member_id: Some("cm_demo".into()),

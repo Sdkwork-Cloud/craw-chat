@@ -316,9 +316,13 @@ Scenario families: `connection`, `message`, `stream`, `im-realtime-core` (commer
 Key reliability mechanisms:
 
 - Route and session ownership use `epoch + fencing` to reject stale writes.
+  - **Implementation**: Each `RtcSession` has an `epoch: u64` fencing token that increments on every state transition (create → invite → accept/reject → end).
+  - **Persistence**: The `RtcStateStore.save_state()` method implements epoch comparison: writes with lower epoch are rejected (stale), writes with equal epoch are merged monotonically.
+  - **Concurrency**: `CallingRuntime` uses `DashMap` for lock-free concurrent access, eliminating `std::sync::Mutex` blocking in async context.
 - Node shutdown uses `graceful drain`; no forceful removal.
 - Single-writer per session; multi-node handoff via explicit ownership transfer.
 - Backup recovery order: metadata → message log/stream checkpoint → projection rebuild → route/presence hot state → object storage reference consistency.
+- **Authorization**: Session mutations (accept/reject/end) require initiator or invited participant authorization per SECURITY_SPEC §4.2.
 
 Full scenarios: [docs/部署/性能与灾备演练场景.md](./docs/部署/性能与灾备演练场景.md).
 

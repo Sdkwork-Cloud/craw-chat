@@ -1,1 +1,6 @@
-export type ExportRetrieveResponse = Record<string, unknown>;
+export interface ExportRetrieveResponse {
+  code: 0;
+  data: unknown & Record<string, unknown>;
+  /** Server-owned request correlation id. */
+  traceId: string;
+}

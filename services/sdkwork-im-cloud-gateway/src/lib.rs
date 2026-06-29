@@ -5,6 +5,30 @@
 //! aggregation, CORS, rate limiting, and circuit breaking. Public entrypoints
 //! are the [`build_app`] family for router construction and
 //! [`build_gateway_registry`] for the route registry.
+//!
+//! # IM-owned Call Signaling Boundary
+//!
+//! Per `../sdkwork-rtc/docs/rtc-im-boundary.md`, IM owns the call signaling
+//! surface `/im/v3/api/calls/*`. The gateway routes these paths to the
+//! IM-owned upstream `im-calls-service`, which orchestrates call state
+//! machines, signal delivery, and provider media session creation through
+//! the `RtcProviderPort` contract from `sdkwork-rtc`. RTC media runtime
+//! paths (the RTC app-api surface) and the retired RTC-owned signaling
+//! service are out of scope for this gateway; call signaling is owned by
+//! `im-calls-service` and media runtime is owned by the RTC product.
+//!
+//! # Dependency App-API Assembly
+//!
+//! Sibling product app-api surfaces are registered in [`registry`] and proxied
+//! through the shared platform gateway root unless a split upstream override is
+//! configured in `sdkwork-im-cloud-gateway-config`.
+//!
+//! - `"sdkwork-drive-app-api"` -> `/app/v3/api/drive/{*path}` -> `SdkworkDriveAppSdk`
+//! - `"sdkwork-notary-app-api"` -> `/app/v3/api/notary/{*path}` -> `SdkworkNotaryAppSdk`
+//! - `"sdkwork-course-app-api"` -> `COURSE_APP_API_SEGMENTS` (`courses`, `course_applications`) ->
+//!   `SdkworkCourseAppSdk`
+//! - `"sdkwork-knowledgebase-app-api"` -> `/app/v3/api/knowledge/{*path}` ->
+//!   `SdkworkKnowledgebaseAppSdk`
 
 pub mod gateway_protection;
 

@@ -8,11 +8,10 @@ use im_platform_contracts::{
 };
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use r2d2_postgres::postgres::NoTls;
 
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalTlsConnector};
 
-pub type PostgresJournalPool = Pool<PostgresConnectionManager<NoTls>>;
+pub type PostgresJournalPool = Pool<PostgresConnectionManager<PostgresJournalTlsConnector>>;
 
 /// PostgreSQL implementation of [`ConversationAggregateStore`].
 #[derive(Clone)]

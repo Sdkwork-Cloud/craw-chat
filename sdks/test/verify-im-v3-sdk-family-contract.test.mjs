@@ -284,7 +284,7 @@ const appbaseBackendAuthority = loadOpenApiDocument({
     sdkRoot,
     '..',
     '..',
-    'sdkwork-appbase',
+    'sdkwork-iam',
     'sdks',
     'sdkwork-iam-backend-sdk',
     'openapi',

@@ -1,1 +1,6 @@
-export type MediaHealthRetrieveResponse = Record<string, unknown>;
+export interface MediaHealthRetrieveResponse {
+  code: 0;
+  data: unknown & Record<string, unknown>;
+  /** Server-owned request correlation id. */
+  traceId: string;
+}

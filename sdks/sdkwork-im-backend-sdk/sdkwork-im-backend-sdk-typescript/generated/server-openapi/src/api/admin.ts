@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { LooseJsonObject, LooseJsonValue } from '../types';
+import type { LooseJsonObject, LooseJsonValue, SdkWorkCommandData, SdkWorkPageData } from '../types';
 
 
 export class AdminUsageSummaryApi {
@@ -27,8 +27,8 @@ export class AdminUsageRecordsApi {
 
 
 /** listUsageRecords */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/usage/records`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/usage/records`));
   }
 }
 
@@ -84,8 +84,8 @@ export class AdminStorageProvidersApi {
 
 
 /** listStorageProviders */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/storage/providers`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/storage/providers`));
   }
 }
 
@@ -133,8 +133,8 @@ export class AdminStorageConfigTenantsApi {
   }
 
 /** deleteTenantStorageConfig */
-  async delete(tenantId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
+  async delete(tenantId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/storage/config/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -168,8 +168,8 @@ export class AdminStorageAuditApi {
 
 
 /** listStorageAuditTrail */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/storage/audit`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/storage/audit`));
   }
 }
 
@@ -201,8 +201,8 @@ export class AdminRoutingSnapshotsApi {
 
 
 /** listCompiledRoutingSnapshots */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/routing/snapshots`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/routing/snapshots`));
   }
 }
 
@@ -215,8 +215,8 @@ export class AdminRoutingProfilesApi {
 
 
 /** listRoutingProfiles */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/routing/profiles`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/routing/profiles`));
   }
 
 /** createRoutingProfile */
@@ -248,8 +248,8 @@ export class AdminRoutingDecisionLogsApi {
 
 
 /** listRoutingDecisionLogs */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/routing/decision_logs`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/routing/decision_logs`));
   }
 }
 
@@ -279,8 +279,8 @@ export class AdminProvidersApi {
 
 
 /** listProviders */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/providers`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/providers`));
   }
 
 /** saveProvider */
@@ -289,8 +289,8 @@ export class AdminProvidersApi {
   }
 
 /** deleteProvider */
-  async delete(providerId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
+  async delete(providerId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -303,8 +303,8 @@ export class AdminModelsProvidersApi {
 
 
 /** deleteModel */
-  async delete(externalName: string | number, providerId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/models/${serializePathParameter(externalName, { name: 'externalName', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
+  async delete(externalName: string | number, providerId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/models/${serializePathParameter(externalName, { name: 'externalName', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -319,8 +319,8 @@ export class AdminModelsApi {
 
 
 /** listModels */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/models`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/models`));
   }
 
 /** saveModel */
@@ -338,8 +338,8 @@ export class AdminModelPricesModelsProvidersApi {
 
 
 /** deleteModelPrice */
-  async delete(channelId: string | number, modelId: string | number, proxyProviderId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/model_prices/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}/providers/${serializePathParameter(proxyProviderId, { name: 'proxyProviderId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, modelId: string | number, proxyProviderId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/model_prices/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}/providers/${serializePathParameter(proxyProviderId, { name: 'proxyProviderId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -365,8 +365,8 @@ export class AdminModelPricesApi {
 
 
 /** listModelPrices */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/model_prices`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/model_prices`));
   }
 
 /** saveModelPrice */
@@ -384,8 +384,8 @@ export class AdminMarketingCampaignsApi {
 
 
 /** listMarketingCampaigns */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/marketing/campaigns`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/marketing/campaigns`));
   }
 
 /** saveMarketingCampaign */
@@ -419,8 +419,8 @@ export class AdminGatewayRateLimitWindowsApi {
 
 
 /** listRateLimitWindows */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/gateway/rate_limit_windows`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/gateway/rate_limit_windows`));
   }
 }
 
@@ -433,8 +433,8 @@ export class AdminGatewayRateLimitPoliciesApi {
 
 
 /** listRateLimitPolicies */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/gateway/rate_limit_policies`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/gateway/rate_limit_policies`));
   }
 
 /** createRateLimitPolicy */
@@ -465,8 +465,8 @@ export class AdminExtensionsRuntimeStatusesApi {
 
 
 /** listRuntimeStatuses */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/extensions/runtime_statuses`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/extensions/runtime_statuses`));
   }
 }
 
@@ -506,8 +506,8 @@ export class AdminCredentialsProvidersKeysApi {
 
 
 /** deleteCredential */
-  async delete(tenantId: string | number, providerId: string | number, keyReference: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/credentials/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}/keys/${serializePathParameter(keyReference, { name: 'keyReference', style: 'simple', explode: false })}`));
+  async delete(tenantId: string | number, providerId: string | number, keyReference: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/credentials/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/providers/${serializePathParameter(providerId, { name: 'providerId', style: 'simple', explode: false })}/keys/${serializePathParameter(keyReference, { name: 'keyReference', style: 'simple', explode: false })}`));
   }
 }
 
@@ -533,8 +533,8 @@ export class AdminCredentialsApi {
 
 
 /** listCredentials */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/credentials`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/credentials`));
   }
 
 /** saveCredential */
@@ -552,8 +552,8 @@ export class AdminChannelsApi {
 
 
 /** listChannels */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/channels`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/channels`));
   }
 
 /** saveChannel */
@@ -562,8 +562,8 @@ export class AdminChannelsApi {
   }
 
 /** deleteChannel */
-  async delete(channelId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -576,8 +576,8 @@ export class AdminChannelModelsModelsApi {
 
 
 /** deleteChannelModel */
-  async delete(channelId: string | number, modelId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/channel_models/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}`));
+  async delete(channelId: string | number, modelId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/channel_models/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/models/${serializePathParameter(modelId, { name: 'modelId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -592,8 +592,8 @@ export class AdminChannelModelsApi {
 
 
 /** listChannelModels */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/channel_models`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/channel_models`));
   }
 
 /** saveChannelModel */
@@ -641,8 +641,8 @@ export class AdminBillingEventsApi {
 
 
 /** listBillingEvents */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/billing/events`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/billing/events`));
   }
 }
 
@@ -668,8 +668,8 @@ export class AdminApiKeysApi {
 
 
 /** listApiKeys */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/api_keys`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/api_keys`));
   }
 
 /** createApiKey */
@@ -683,8 +683,8 @@ export class AdminApiKeysApi {
   }
 
 /** deleteApiKey */
-  async delete(hashedKey: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`));
+  async delete(hashedKey: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/api_keys/${serializePathParameter(hashedKey, { name: 'hashedKey', style: 'simple', explode: false })}`));
   }
 
 /** updateApiKeyStatus */
@@ -702,8 +702,8 @@ export class AdminApiKeyGroupsApi {
 
 
 /** listApiKeyGroups */
-  async list(): Promise<LooseJsonValue> {
-    return this.client.get<LooseJsonValue>(backendApiPath(`/admin/api_key_groups`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/admin/api_key_groups`));
   }
 
 /** createApiKeyGroup */
@@ -717,8 +717,8 @@ export class AdminApiKeyGroupsApi {
   }
 
 /** deleteApiKeyGroup */
-  async delete(groupId: string | number): Promise<LooseJsonValue> {
-    return this.client.delete<LooseJsonValue>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
+  async delete(groupId: string | number): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(backendApiPath(`/admin/api_key_groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
   }
 
 /** updateApiKeyGroupStatus */

@@ -10,7 +10,9 @@ im-domain-core = { path = "../../crates/im-domain-core" }
 sdkwork-im-runtime-route = { path = "../../crates/sdkwork-im-runtime-route" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-postgres-realtime-contracts = { path = "../../crates/im-postgres-realtime-contracts" }
+native-tls = "0.2"
 postgres = { version = "0.19.13", features = ["with-chrono-0_4", "with-serde_json-1"] }
+postgres-native-tls = "0.5"
 r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"
 sdkwork_database_config.workspace = true

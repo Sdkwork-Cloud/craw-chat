@@ -262,7 +262,7 @@ const embeddedRoutesSource = readRepoText(
 );
 assert.match(
   embeddedRoutesSource,
-  /bootstrap_embedded_course_routes[\s\S]*sdkwork_course_gateway_assembly::assemble_application_router/u,
+  /bootstrap_embedded_course_routes[\s\S]*sdkwork_course_gateway_assembly::assemble_application_business_router/u,
   'IM standalone gateway must embed sdkwork-course routes in unified-process mode.',
 );
 

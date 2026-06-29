@@ -10,6 +10,7 @@ import {
   writeOpenApiYamlDocument,
 } from './workspace-openapi-source-shared.mjs';
 import { applySdkworkV3OpenApiStandard } from './workspace-openapi-v3-standard.mjs';
+import { bootstrapOpenApiEnvelope } from '../../sdkwork-specs/tools/lib/migrate-openapi-legacy-envelope.mjs';
 import { mergeImSpacesOpenApiFragments } from './merge-im-spaces-openapi-fragments.mjs';
 import { applyWebFrameworkOpenApiExtensions } from '../scripts/sdkwork-im-web-framework-openapi-extensions.mjs';
 
@@ -30,7 +31,7 @@ const appbaseAppAuthorityPath = path.resolve(
   sdkRoot,
   '..',
   '..',
-  'sdkwork-appbase',
+  'sdkwork-iam',
   'sdks',
   'sdkwork-iam-app-sdk',
   'openapi',
@@ -40,7 +41,7 @@ const appbaseBackendAuthorityPath = path.resolve(
   sdkRoot,
   '..',
   '..',
-  'sdkwork-appbase',
+  'sdkwork-iam',
   'sdks',
   'sdkwork-iam-backend-sdk',
   'openapi',
@@ -646,8 +647,9 @@ const appbaseBackendRouteSet = collectRouteSet(appbaseBackend, backendPrefix);
 const dependencyAppRouteSet = appbaseAppRouteSet;
 const dependencyBackendRouteSet = appbaseBackendRouteSet;
 
-const consolidatedIm = normalizeImAuthority(im);
-applySdkworkV3OpenApiStandard(consolidatedIm);
+const consolidatedIm = bootstrapOpenApiEnvelope(
+  applySdkworkV3OpenApiStandard(normalizeImAuthority(im)),
+);
 applyWebFrameworkOpenApiExtensions(consolidatedIm, 'open-api');
 annotateOwnerMetadata(consolidatedIm, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.im' });
 const consolidatedImSdkgen = sdkgenDerivedDocument(consolidatedIm, {
@@ -659,13 +661,15 @@ const consolidatedImFlutter = sdkgenDerivedDocument(consolidatedIm, {
   describeFlutterCompatibility: true,
 });
 
-const consolidatedBackend = normalizeBackendAuthority(backend, dependencyBackendRouteSet);
-applySdkworkV3OpenApiStandard(consolidatedBackend);
+const consolidatedBackend = bootstrapOpenApiEnvelope(
+  applySdkworkV3OpenApiStandard(normalizeBackendAuthority(backend, dependencyBackendRouteSet)),
+);
 applyWebFrameworkOpenApiExtensions(consolidatedBackend, 'backend-api');
 annotateOwnerMetadata(consolidatedBackend, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.backend' });
 
-const consolidatedApp = normalizeAppAuthority(app, im, dependencyAppRouteSet);
-applySdkworkV3OpenApiStandard(consolidatedApp);
+const consolidatedApp = bootstrapOpenApiEnvelope(
+  applySdkworkV3OpenApiStandard(normalizeAppAuthority(app, im, dependencyAppRouteSet)),
+);
 applyWebFrameworkOpenApiExtensions(consolidatedApp, 'app-api');
 annotateOwnerMetadata(consolidatedApp, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.app' });
 const consolidatedAppSdkgen = sdkgenDerivedDocument(consolidatedApp);

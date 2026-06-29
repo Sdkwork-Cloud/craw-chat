@@ -1,5 +1,5 @@
 import {
-  createClient,
+  createKnowledgebaseAppClient,
   type SdkworkAppClient,
   type SdkworkAppConfig,
 } from '@sdkwork/knowledgebase-app-sdk';
@@ -38,7 +38,7 @@ export function createKnowledgebaseAppSdkClientConfig(
 export function initKnowledgebaseAppSdkClient(
   config: KnowledgebaseAppSdkClientConfig = createKnowledgebaseAppSdkClientConfig(),
 ): KnowledgebaseAppSdkClient {
-  knowledgebaseAppSdkClient = createClient(config);
+  knowledgebaseAppSdkClient = createKnowledgebaseAppClient(config);
   return knowledgebaseAppSdkClient;
 }
 

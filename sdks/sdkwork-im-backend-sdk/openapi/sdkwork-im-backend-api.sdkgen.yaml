@@ -29,8 +29,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -68,8 +80,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -107,8 +131,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -146,8 +182,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -185,8 +233,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -224,8 +284,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -263,8 +335,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Problem detail response
           content:
@@ -302,8 +373,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -341,8 +424,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -380,8 +475,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Problem detail response
           content:
@@ -418,8 +512,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -457,8 +563,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -496,8 +614,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            type: object
+                            additionalProperties: true
         '401':
           description: Problem detail response
           content:
@@ -538,7 +668,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RouteNodeLifecycle'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/RouteNodeLifecycle'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -601,7 +743,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RouteNodeLifecycle'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/RouteNodeLifecycle'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -671,7 +825,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RouteMigrationResult'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/RouteMigrationResult'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -727,7 +893,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProtocolGovernanceResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ProtocolGovernanceResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -783,7 +961,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProtocolRegistryResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ProtocolRegistryResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -839,7 +1029,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderPolicyHistoryResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -916,7 +1106,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderPolicyDiffResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -979,7 +1169,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderBindingCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ProviderBindingCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1042,7 +1244,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderBindingCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ProviderBindingCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1098,7 +1312,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderRegistrySnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ProviderRegistrySnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1161,7 +1387,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderBindingsResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1223,7 +1449,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProviderBindingCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/ProviderBindingCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1286,7 +1524,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialDirectChatCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialDirectChatCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1349,7 +1599,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialDirectChatSnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialDirectChatSnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1412,7 +1674,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialExternalConnectionCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialExternalConnectionCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1475,7 +1749,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialExternalConnectionSnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialExternalConnectionSnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1538,7 +1824,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialExternalMemberLinkCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialExternalMemberLinkCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1601,7 +1899,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialExternalMemberLinkSnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialExternalMemberLinkSnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1664,7 +1974,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1727,7 +2049,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendRequestSnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendRequestSnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1797,7 +2131,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1867,7 +2213,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -1937,7 +2295,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendRequestCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2000,7 +2370,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendshipCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendshipCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2063,7 +2445,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendshipSnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendshipSnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2133,7 +2527,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialFriendshipCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialFriendshipCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2196,7 +2602,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncPendingClaimResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncPendingClaimResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2252,7 +2670,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterInventoryResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2308,7 +2726,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncDeliveredInventoryResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2364,7 +2782,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncDeliveryStateInventoryResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2420,7 +2838,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncPendingInventoryResponse'
+                $ref: '#/components/schemas/SdkWorkListResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2476,7 +2894,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncPendingStaleReclaimResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncPendingStaleReclaimResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2539,7 +2969,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncPendingReleaseResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncPendingReleaseResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2595,7 +3037,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialRuntimeRepairResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialRuntimeRepairResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2651,7 +3105,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncRepairResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncRepairResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2714,7 +3180,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncTargetedRepublishResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncTargetedRepublishResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2770,7 +3248,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterRequeueResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterRequeueResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2833,7 +3323,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2896,7 +3398,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelSyncPendingTakeoverResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelSyncPendingTakeoverResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -2959,7 +3473,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelPolicyCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelPolicyCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -3022,7 +3548,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialSharedChannelPolicySnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialSharedChannelPolicySnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -3085,7 +3623,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialUserBlockCommitResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialUserBlockCommitResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -3148,7 +3698,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SocialUserBlockSnapshotResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SocialUserBlockSnapshotResponse'
           description: Successful response.
         '400':
           description: Invalid request.
@@ -3208,7 +3770,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3233,7 +3795,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3265,7 +3839,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3296,7 +3882,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -3324,7 +3910,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3356,7 +3954,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3381,7 +3979,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3413,7 +4023,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3444,7 +4066,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -3472,7 +4094,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3504,7 +4138,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3530,7 +4164,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3556,7 +4202,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3582,7 +4240,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3607,7 +4265,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3639,7 +4309,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -3667,7 +4337,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3692,7 +4362,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3724,7 +4406,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -3752,7 +4434,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3777,7 +4459,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3809,7 +4503,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -3837,7 +4531,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3869,7 +4575,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3895,7 +4601,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3920,7 +4626,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3952,7 +4670,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3978,7 +4696,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4003,7 +4721,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4035,7 +4765,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4067,7 +4809,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4092,7 +4834,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4124,7 +4878,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4152,7 +4906,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4177,7 +4931,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4209,7 +4975,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4237,7 +5003,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4262,7 +5028,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4294,7 +5072,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4322,7 +5100,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4348,7 +5126,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4374,7 +5164,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4399,7 +5189,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4431,7 +5233,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4457,7 +5259,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4483,7 +5285,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4508,7 +5322,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4540,7 +5366,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4565,7 +5403,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4596,7 +5446,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4624,7 +5474,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4650,7 +5512,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4676,7 +5538,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4708,7 +5582,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4740,7 +5626,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4766,7 +5652,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LooseJsonValue'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/LooseJsonValue'
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4835,25 +5733,32 @@ components:
         - type
         - title
         - status
-        - detail
+        - code
+        - traceId
       properties:
         type:
           type: string
+          format: uri-reference
         title:
           type: string
         status:
           type: integer
-          format: int32
+          minimum: 100
+          maximum: 599
         detail:
           type: string
+        instance:
+          type: string
         code:
-          type: string
-        message:
-          type: string
+          $ref: '#/components/schemas/SdkWorkPlatformErrorCode'
         traceId:
           type: string
-        retryable:
-          type: boolean
+          format: uuid
+          description: Server-owned request correlation id.
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
     ActivateFriendshipRequest:
       additionalProperties: false
       properties:
@@ -5255,21 +6160,6 @@ components:
       description: Provider binding mutation result after applying a control-plane policy change.
       properties: {}
       type: object
-    ProviderBindingsResponse:
-      additionalProperties: true
-      description: Effective provider bindings resolved for the current tenant scope.
-      properties: {}
-      type: object
-    ProviderPolicyDiffResponse:
-      additionalProperties: true
-      description: Provider policy diff between two committed versions.
-      properties: {}
-      type: object
-    ProviderPolicyHistoryResponse:
-      additionalProperties: true
-      description: Provider policy history snapshot for the current tenant scope.
-      properties: {}
-      type: object
     ProviderPolicyRollbackRequest:
       additionalProperties: false
       properties:
@@ -5555,11 +6445,6 @@ components:
       description: Shared-channel policy snapshot plus commit history.
       properties: {}
       type: object
-    SocialSharedChannelSyncDeadLetterInventoryResponse:
-      additionalProperties: true
-      description: Dead-letter shared-channel sync queue snapshot.
-      properties: {}
-      type: object
     SocialSharedChannelSyncDeadLetterRequeueResponse:
       additionalProperties: true
       description: Bulk requeue result for dead-letter shared-channel sync entries.
@@ -5580,24 +6465,9 @@ components:
       description: Targeted requeue result for selected dead-letter shared-channel sync entries.
       properties: {}
       type: object
-    SocialSharedChannelSyncDeliveredInventoryResponse:
-      additionalProperties: true
-      description: Delivered shared-channel sync ledger snapshot.
-      properties: {}
-      type: object
-    SocialSharedChannelSyncDeliveryStateInventoryResponse:
-      additionalProperties: true
-      description: Merged shared-channel sync delivery-state inventory snapshot.
-      properties: {}
-      type: object
     SocialSharedChannelSyncPendingClaimResponse:
       additionalProperties: true
       description: Targeted claim result for pending shared-channel sync entries.
-      properties: {}
-      type: object
-    SocialSharedChannelSyncPendingInventoryResponse:
-      additionalProperties: true
-      description: Pending shared-channel sync queue snapshot.
       properties: {}
       type: object
     SocialSharedChannelSyncPendingReleaseResponse:
@@ -5682,8 +6552,6 @@ components:
       properties:
         eventId:
           type: string
-        requestId:
-          type: string
         requestMessage:
           nullable: true
           type: string
@@ -5694,7 +6562,6 @@ components:
         targetUserId:
           type: string
       required:
-        - requestId
         - eventId
         - requesterUserId
         - targetUserId
@@ -5725,5 +6592,143 @@ components:
     LooseJsonObject:
       type: object
       additionalProperties: true
+    SdkWorkApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+        - traceId
+      properties:
+        code:
+          type: integer
+          format: int32
+          enum:
+            - 0
+          default: 0
+          minimum: 0
+          maximum: 0
+        data:
+          description: Operation-specific payload typed per response schema.
+        traceId:
+          type: string
+          format: uuid
+          description: Server-owned request correlation id.
+    SdkWorkPageData:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+    SdkWorkCommandData:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+      properties:
+        accepted:
+          type: boolean
+          const: true
+        resourceId:
+          type: string
+        status:
+          type: string
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - offset
+            - cursor
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+        totalItems:
+          type: string
+          pattern: ^[0-9]+$
+        totalPages:
+          type: integer
+          minimum: 0
+        nextCursor:
+          type:
+            - string
+            - 'null'
+        hasMore:
+          type: boolean
+    SdkWorkPlatformErrorCode:
+      type: integer
+      format: int32
+      minimum: 40001
+      maximum: 79999
+      description: Platform or domain error code per API_SPEC.md §15.3.
+    FieldError:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+          format: int32
+          minimum: 40011
+          maximum: 40099
+    SdkWorkListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkPageData'
+    SdkWorkCommandResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkCommandData'
+    SdkWorkResourceData:
+      type: object
+      additionalProperties: false
+      required:
+        - item
+      properties:
+        item:
+          type: object
+          additionalProperties: true
+          description: Typed domain resource for the operation.
+    SdkWorkResourceResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkResourceData'
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.backend

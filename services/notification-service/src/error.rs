@@ -76,6 +76,11 @@ impl NotificationError {
                 code: "notification_store_unsupported",
                 message,
             },
+            ContractError::Invalid(message) => Self {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "notification_store_invalid",
+                message,
+            },
         }
     }
 

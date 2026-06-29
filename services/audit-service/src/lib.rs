@@ -14,7 +14,6 @@ use im_app_context::{AppContext, AppContextError, resolve_app_context, resolve_w
 use im_time::utc_now_rfc3339_millis;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use r2d2_postgres::postgres::NoTls;
 use sdkwork_web_core::WebEnvironment;
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
@@ -546,8 +545,16 @@ fn record_anchor_in_memory(
 // `audit_record_matches_request` predicate still holds, or surfaces
 // `audit_record_conflict` otherwise.
 
+/// TLS connector type for r2d2-backed PostgreSQL pools.
+///
+/// P0-12 (SECURITY_SPEC): uses `postgres-native-tls` so the `sslmode` URL
+/// parameter is honored. With `sslmode=disable` the connector is never
+/// invoked (plaintext TCP); with `sslmode=require` or `verify-full` a real
+/// TLS handshake is performed. This allows dev/test to keep using plaintext
+/// while production enforces TLS via the DSN.
+type AuditPostgresTlsConnector = postgres_native_tls::MakeTlsConnector;
 /// r2d2 connection manager / pool type aliases for the audit store.
-type AuditPostgresConnectionManager = PostgresConnectionManager<NoTls>;
+type AuditPostgresConnectionManager = PostgresConnectionManager<AuditPostgresTlsConnector>;
 type AuditPostgresPool = Pool<AuditPostgresConnectionManager>;
 
 /// PostgreSQL-backed audit ledger.
@@ -895,6 +902,7 @@ fn row_to_audit_record(row: &r2d2_postgres::postgres::Row) -> Result<AuditRecord
 }
 
 fn build_audit_pool(database_url: &str) -> Result<AuditPostgresPool, AuditError> {
+    verify_production_sslmode(database_url);
     let pg_config = database_url.parse().map_err(|error| {
         AuditError::internal(
             "audit_persistence_failed",
@@ -904,7 +912,15 @@ fn build_audit_pool(database_url: &str) -> Result<AuditPostgresPool, AuditError>
             ),
         )
     })?;
-    let manager = PostgresConnectionManager::new(pg_config, NoTls);
+    let tls = make_tls_connector().map_err(|error| {
+        AuditError::internal(
+            "audit_persistence_failed",
+            format!(
+                "postgres audit TLS connector build failed: {error}"
+            ),
+        )
+    })?;
+    let manager = PostgresConnectionManager::new(pg_config, tls);
     Pool::builder()
         .max_size(AUDIT_POSTGRES_POOL_MAX_SIZE)
         .build(manager)
@@ -917,6 +933,41 @@ fn build_audit_pool(database_url: &str) -> Result<AuditPostgresPool, AuditError>
                 ),
             )
         })
+}
+
+/// Build a `native-tls` connector for PostgreSQL.
+///
+/// Uses the system trust store for certificate verification. The actual TLS
+/// negotiation is gated by the `sslmode` URL parameter: when `sslmode=disable`
+/// the `postgres` crate never invokes this connector.
+fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_tls::Error> {
+    let connector = native_tls::TlsConnector::builder().build()?;
+    Ok(postgres_native_tls::MakeTlsConnector::new(connector))
+}
+
+/// P0-12 fail-closed: in production, the database URL MUST contain
+/// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
+/// connections to production databases (SECURITY_SPEC §4.3).
+fn verify_production_sslmode(database_url: &str) {
+    let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    if !is_production {
+        return;
+    }
+    let lowered = database_url.to_ascii_lowercase();
+    let requires_tls = lowered.contains("sslmode=require")
+        || lowered.contains("sslmode=verify-ca")
+        || lowered.contains("sslmode=verify-full")
+        || lowered.contains("sslmode=verifyca")
+        || lowered.contains("sslmode=verifyfull");
+    if !requires_tls {
+        panic!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
+        );
+    }
 }
 
 fn audit_pool_client(

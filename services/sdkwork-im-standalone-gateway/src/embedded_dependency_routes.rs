@@ -9,12 +9,12 @@ use std::sync::Arc;
 
 use axum::Router;
 use sdkwork_drive_workspace_service::application::download_service::ensure_production_download_token_signing_configured;
+use sdkwork_drive_workspace_service::bootstrap::bootstrap_drive_database_from_env;
 use sdkwork_drive_workspace_service::infrastructure::outbox_dispatch::ensure_domain_outbox_dispatcher;
 use sdkwork_drive_workspace_service::infrastructure::sql::connect_any_database_and_install_schema;
 use sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback;
 use sdkwork_knowledgebase_gateway_assembly::{
-    assemble_application_business_router, resolve_database_url, resolve_deployment_tenant_id,
-    validate_process_config, KnowledgebaseRuntime,
+    resolve_database_url, validate_process_config, KnowledgebaseRuntime,
 };
 
 pub struct EmbeddedDependencyRoutes {
@@ -100,7 +100,10 @@ pub fn apply_embedded_dependency_env() {
     let _ = apply_notary_database_env_from_im_shared_profile();
     apply_course_runtime_env_from_im_shared_profile();
     apply_iam_database_env_from_im_shared_profile();
+    apply_web_store_database_env_from_im_shared_profile();
     apply_commerce_t1_app_roots_from_im_shared_profile();
+    apply_embedded_dependency_app_roots();
+    normalize_embedded_dependency_database_urls();
     set_env_var(
         "SDKWORK_NOTARY_APP_ROOT",
         resolve_notary_app_root().to_string_lossy().as_ref(),
@@ -109,6 +112,366 @@ pub fn apply_embedded_dependency_env() {
         "SDKWORK_COURSE_APP_ROOT",
         resolve_course_app_root().to_string_lossy().as_ref(),
     );
+}
+
+/// Run sdkwork-database lifecycle init/migrate for every embedded dependency that owns a database module.
+///
+/// This mirrors IM/IAM startup in `main.rs` and satisfies `DATABASE_FRAMEWORK_SPEC.md` §4.3 for
+/// unified-process standalone gateways that mount sibling platform APIs in-process.
+pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
+    sync_embedded_dependency_database("drive", sync_drive_embedded_database).await?;
+    sync_embedded_dependency_database("knowledgebase", sync_knowledgebase_embedded_database).await?;
+    sync_optional_embedded_dependency_database("web_store", sync_webstore_embedded_database).await;
+    sync_embedded_dependency_database("mail", sync_mail_embedded_database).await?;
+    sync_embedded_dependency_database("notary", sync_notary_embedded_database).await?;
+    sync_embedded_dependency_database("course", sync_course_embedded_database).await?;
+    bootstrap_embedded_commerce_databases().await?;
+    sync_optional_embedded_dependency_database("agents", sync_agents_embedded_database).await;
+    Ok(())
+}
+
+async fn sync_optional_embedded_dependency_database<F, Fut>(
+    dependency: &'static str,
+    bootstrap: F,
+) where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<(), String>>,
+{
+    match bootstrap().await {
+        Ok(()) => {
+            tracing::info!(
+                target: "sdkwork.im",
+                event = "im.standalone_gateway.dependency_database_synced",
+                dependency,
+                "embedded dependency database lifecycle synchronized"
+            );
+        }
+        Err(error) => {
+            tracing::warn!(
+                target: "sdkwork.im",
+                event = "im.standalone_gateway.dependency_database_skipped",
+                dependency,
+                error = %error,
+                "optional embedded dependency database lifecycle sync skipped"
+            );
+        }
+    }
+}
+
+async fn sync_embedded_dependency_database<F, Fut>(
+    dependency: &'static str,
+    bootstrap: F,
+) -> Result<(), String>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<(), String>>,
+{
+    match bootstrap().await {
+        Ok(()) => {
+            tracing::info!(
+                target: "sdkwork.im",
+                event = "im.standalone_gateway.dependency_database_synced",
+                dependency,
+                "embedded dependency database lifecycle synchronized"
+            );
+            Ok(())
+        }
+        Err(error) => {
+            if embedded_dependency_database_env_is_configured(dependency) {
+                Err(format!("{dependency} database lifecycle sync failed: {error}"))
+            } else {
+                tracing::info!(
+                    target: "sdkwork.im",
+                    event = "im.standalone_gateway.dependency_database_skipped",
+                    dependency,
+                    error = %error,
+                    "embedded dependency database sync skipped"
+                );
+                Ok(())
+            }
+        }
+    }
+}
+
+async fn sync_drive_embedded_database() -> Result<(), String> {
+    if !database_env_is_configured("SDKWORK_DRIVE") {
+        return Ok(());
+    }
+    ensure_embedded_database_module_ready("drive", "sdkwork-drive")?;
+    ensure_embedded_dependency_app_root("SDKWORK_DRIVE", "sdkwork-drive");
+    bootstrap_drive_database_from_env().await?;
+    Ok(())
+}
+
+async fn sync_knowledgebase_embedded_database() -> Result<(), String> {
+    if !database_env_is_configured("SDKWORK_KNOWLEDGEBASE") {
+        return Ok(());
+    }
+    ensure_embedded_database_module_ready("knowledgebase", "sdkwork-knowledgebase")?;
+    ensure_embedded_dependency_app_root("SDKWORK_KNOWLEDGEBASE", "sdkwork-knowledgebase");
+    sdkwork_knowledgebase_database_host::bootstrap_knowledgebase_database_from_env().await?;
+    Ok(())
+}
+
+async fn sync_webstore_embedded_database() -> Result<(), String> {
+    if !database_env_is_configured("SDKWORK_WEB_STORE") {
+        return Ok(());
+    }
+    ensure_embedded_database_module_ready("web_store", "sdkwork-web-framework")?;
+    set_env_var(
+        "SDKWORK_WEB_STORE_APP_ROOT",
+        resolve_sibling_app_root("sdkwork-web-framework")
+            .to_string_lossy()
+            .as_ref(),
+    );
+    sdkwork_webstore_database_host::bootstrap_webstore_database_from_env().await?;
+    Ok(())
+}
+
+async fn sync_mail_embedded_database() -> Result<(), String> {
+    if !database_env_is_configured("SDKWORK_MAIL") {
+        return Ok(());
+    }
+    ensure_embedded_database_module_ready("mail", "sdkwork-mail")?;
+    ensure_embedded_dependency_app_root("SDKWORK_MAIL", "sdkwork-mail");
+    sdkwork_mail_database_host::bootstrap_mail_database_from_env().await?;
+    Ok(())
+}
+
+async fn sync_notary_embedded_database() -> Result<(), String> {
+    if !database_env_is_configured("SDKWORK_NOTARY") {
+        return Ok(());
+    }
+    ensure_embedded_database_module_ready("notary", "sdkwork-notary")?;
+    ensure_embedded_dependency_app_root("SDKWORK_NOTARY", "sdkwork-notary");
+    sdkwork_notary_database_host::bootstrap_notary_database_from_env().await?;
+    Ok(())
+}
+
+async fn sync_course_embedded_database() -> Result<(), String> {
+    if !database_env_is_configured("SDKWORK_COURSE") {
+        return Ok(());
+    }
+    ensure_embedded_database_module_ready("course", "sdkwork-course")?;
+    ensure_embedded_dependency_app_root("SDKWORK_COURSE", "sdkwork-course");
+    sdkwork_course_database_host::bootstrap_course_database_from_env().await?;
+    Ok(())
+}
+
+async fn bootstrap_embedded_commerce_databases() -> Result<(), String> {
+    for module in COMMERCE_T1_MODULES {
+        sync_optional_embedded_dependency_database(commerce_t1_dependency_id(module), || {
+            sync_commerce_t1_module_database(module)
+        })
+        .await;
+    }
+    Ok(())
+}
+
+fn commerce_t1_dependency_id(module: &CommerceT1Module) -> &'static str {
+    match module.env_prefix {
+        "SDKWORK_ACCOUNT" => "account",
+        "SDKWORK_CATALOG" => "catalog",
+        "SDKWORK_INVENTORY" => "inventory",
+        "SDKWORK_INVOICE" => "invoice",
+        "SDKWORK_MEMBERSHIP" => "membership",
+        "SDKWORK_MERCHANDISE" => "merchandise",
+        "SDKWORK_ORDER" => "order",
+        "SDKWORK_PAYMENT" => "payment",
+        "SDKWORK_PROMOTION" => "promotion",
+        "SDKWORK_SHOP" => "shop",
+        other => other,
+    }
+}
+
+async fn sync_commerce_t1_module_database(module: &CommerceT1Module) -> Result<(), String> {
+    if !database_env_is_configured(module.env_prefix) {
+        return Ok(());
+    }
+    if !embedded_database_manifest_available(module.repo_dir) {
+        tracing::info!(
+            target: "sdkwork.im",
+            event = "im.standalone_gateway.dependency_database_module_unavailable",
+            dependency = commerce_t1_dependency_id(module),
+            repo_dir = module.repo_dir,
+            "embedded commerce database module unavailable; skipping lifecycle sync"
+        );
+        return Ok(());
+    }
+    ensure_embedded_dependency_app_root(module.env_prefix, module.repo_dir);
+    match module.env_prefix {
+        "SDKWORK_ACCOUNT" => {
+            sdkwork_account_service_host::AccountServiceHost::from_env().await?;
+        }
+        "SDKWORK_CATALOG" => {
+            sdkwork_catalog_service_host::CatalogServiceHost::from_env().await?;
+        }
+        "SDKWORK_INVENTORY" => {
+            sdkwork_inventory_service_host::InventoryServiceHost::from_env().await?;
+        }
+        "SDKWORK_INVOICE" => {
+            sdkwork_invoice_service_host::InvoiceServiceHost::from_env().await?;
+        }
+        "SDKWORK_MEMBERSHIP" => {
+            sdkwork_membership_service_host::MembershipServiceHost::from_env().await?;
+        }
+        "SDKWORK_MERCHANDISE" => {
+            sdkwork_merchandise_service_host::ShopServiceHost::from_env().await?;
+        }
+        "SDKWORK_ORDER" => {
+            sdkwork_order_service_host::OrderServiceHost::from_env().await?;
+        }
+        "SDKWORK_PAYMENT" => {
+            sdkwork_payment_service_host::PaymentServiceHost::from_env().await?;
+        }
+        "SDKWORK_PROMOTION" => {
+            sdkwork_promotion_service_host::PromotionServiceHost::from_env().await?;
+        }
+        "SDKWORK_SHOP" => {
+            sdkwork_shop_service_host::ShopServiceHost::from_env().await?;
+        }
+        other => {
+            return Err(format!(
+                "unsupported commerce database env prefix for embedded sync: {other}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+async fn sync_agents_embedded_database() -> Result<(), String> {
+    if !agents_database_env_is_configured("SDKWORK_AGENTS")
+        && !agents_database_env_is_configured("SDKWORK_AGENTS_STORE")
+        && !agents_database_env_is_configured("SDKWORK_AGENT_SERVER")
+    {
+        return Ok(());
+    }
+    if !embedded_database_manifest_available("sdkwork-agents") {
+        tracing::info!(
+            target: "sdkwork.im",
+            event = "im.standalone_gateway.dependency_database_module_unavailable",
+            dependency = "agents",
+            repo_dir = "sdkwork-agents",
+            "embedded agents database module unavailable; skipping lifecycle sync"
+        );
+        return Ok(());
+    }
+    ensure_embedded_dependency_app_root("SDKWORK_AGENTS", "sdkwork-agents");
+    tokio::task::spawn_blocking(|| {
+        use sdkwork_intelligence_agents_service::SyncPostgresAdapter;
+        let adapter = SyncPostgresAdapter::connect_from_agents_managed_store_env()
+            .map_err(|error| format!("connect agents managed store postgres adapter failed: {error}"))?;
+        adapter
+            .apply_managed_store_schema()
+            .map_err(|error| format!("apply agents managed store postgres schema failed: {error}"))
+    })
+    .await
+    .map_err(|error| format!("agents database bootstrap worker failed: {error}"))??;
+    Ok(())
+}
+
+fn embedded_dependency_database_env_is_configured(dependency: &str) -> bool {
+    match dependency {
+        "drive" => database_env_is_configured("SDKWORK_DRIVE"),
+        "knowledgebase" => database_env_is_configured("SDKWORK_KNOWLEDGEBASE"),
+        "mail" => database_env_is_configured("SDKWORK_MAIL"),
+        "notary" => database_env_is_configured("SDKWORK_NOTARY"),
+        "course" => database_env_is_configured("SDKWORK_COURSE"),
+        "account" => database_env_is_configured("SDKWORK_ACCOUNT"),
+        "catalog" => database_env_is_configured("SDKWORK_CATALOG"),
+        "inventory" => database_env_is_configured("SDKWORK_INVENTORY"),
+        "invoice" => database_env_is_configured("SDKWORK_INVOICE"),
+        "membership" => database_env_is_configured("SDKWORK_MEMBERSHIP"),
+        "merchandise" => database_env_is_configured("SDKWORK_MERCHANDISE"),
+        "order" => database_env_is_configured("SDKWORK_ORDER"),
+        "payment" => database_env_is_configured("SDKWORK_PAYMENT"),
+        "promotion" => database_env_is_configured("SDKWORK_PROMOTION"),
+        "shop" => database_env_is_configured("SDKWORK_SHOP"),
+        "agents" => agents_database_env_is_configured("SDKWORK_AGENTS")
+            || agents_database_env_is_configured("SDKWORK_AGENTS_STORE")
+            || agents_database_env_is_configured("SDKWORK_AGENT_SERVER"),
+        _ => false,
+    }
+}
+
+fn apply_embedded_dependency_app_roots() {
+    for (prefix, repo_dir) in [
+        ("SDKWORK_DRIVE", "sdkwork-drive"),
+        ("SDKWORK_KNOWLEDGEBASE", "sdkwork-knowledgebase"),
+        ("SDKWORK_MAIL", "sdkwork-mail"),
+    ] {
+        if !embedded_database_manifest_available(repo_dir) {
+            continue;
+        }
+        ensure_embedded_dependency_app_root(prefix, repo_dir);
+    }
+}
+
+fn embedded_database_manifest_available(repo_dir: &str) -> bool {
+    resolve_sibling_app_root(repo_dir)
+        .join("database/database.manifest.json")
+        .is_file()
+}
+
+fn ensure_embedded_database_module_ready(dependency: &str, repo_dir: &str) -> Result<(), String> {
+    if embedded_database_manifest_available(repo_dir) {
+        return Ok(());
+    }
+    Err(format!(
+        "{dependency} database module not found at sibling repo `{repo_dir}`; ensure the repository is checked out next to sdkwork-im"
+    ))
+}
+
+fn ensure_embedded_dependency_app_root(env_prefix: &str, repo_dir: &str) {
+    let app_root_key = format!("{env_prefix}_APP_ROOT");
+    if std::env::var(&app_root_key)
+        .ok()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
+    {
+        set_env_var(
+            app_root_key.as_str(),
+            resolve_sibling_app_root(repo_dir)
+                .to_string_lossy()
+                .as_ref(),
+        );
+    }
+}
+
+fn normalize_embedded_dependency_database_urls() {
+    normalize_postgres_database_env("SDKWORK_DRIVE");
+    normalize_postgres_database_env("SDKWORK_KNOWLEDGEBASE");
+    normalize_postgres_database_env("SDKWORK_WEB_STORE");
+    normalize_postgres_database_env("SDKWORK_MAIL");
+    normalize_postgres_database_env("SDKWORK_NOTARY");
+    normalize_postgres_database_env("SDKWORK_COURSE");
+    for module in COMMERCE_T1_MODULES {
+        normalize_postgres_database_env(module.env_prefix);
+    }
+    for prefix in ["SDKWORK_AGENTS", "SDKWORK_AGENTS_STORE", "SDKWORK_AGENT_SERVER"] {
+        normalize_postgres_database_env(prefix);
+    }
+}
+
+fn normalize_postgres_database_env(prefix: &str) {
+    let url_key = format!("{prefix}_DATABASE_URL");
+    let Ok(url) = std::env::var(&url_key) else {
+        return;
+    };
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let normalized_scheme = trimmed.to_ascii_lowercase();
+    if !normalized_scheme.starts_with("postgres://") && !normalized_scheme.starts_with("postgresql://")
+    {
+        return;
+    }
+    let normalized =
+        sdkwork_database_config::claw_database::postgres_url_with_search_path(trimmed, prefix);
+    if normalized != trimmed {
+        set_env_var(url_key.as_str(), normalized.as_str());
+    }
 }
 
 pub async fn bootstrap_embedded_dependency_routes() -> EmbeddedDependencyRoutes {
@@ -170,7 +533,7 @@ async fn bootstrap_embedded_knowledgebase_routes() -> Result<Router, String> {
     validate_process_config();
 
     let database_url = resolve_database_url();
-    let tenant_id = resolve_deployment_tenant_id();
+    let tenant_id = resolve_embedded_knowledgebase_tenant_id();
 
     let runtime = Arc::new(
         KnowledgebaseRuntime::connect(database_url.as_str(), tenant_id)
@@ -182,7 +545,11 @@ async fn bootstrap_embedded_knowledgebase_routes() -> Result<Router, String> {
         .await
         .map_err(|error| format!("knowledgebase database readiness check failed: {error}"))?;
 
-    Ok(assemble_application_business_router(runtime).await.router)
+    Ok(
+        sdkwork_knowledgebase_gateway_assembly::assemble_application_business_router(runtime)
+            .await
+            .router,
+    )
 }
 
 async fn bootstrap_embedded_mail_routes() -> Result<Router, String> {
@@ -193,7 +560,9 @@ async fn bootstrap_embedded_mail_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_agents_routes() -> Result<Router, String> {
-    let state = build_embedded_agents_http_state()?;
+    let state = tokio::task::spawn_blocking(build_embedded_agents_http_state)
+        .await
+        .map_err(|error| format!("agents bootstrap worker failed: {error}"))??;
     Ok(sdkwork_routes_agents_app_api::build_served_router(state).await)
 }
 
@@ -414,6 +783,36 @@ fn apply_iam_database_env_from_im_shared_profile() {
     }
 }
 
+fn apply_web_store_database_env_from_im_shared_profile() {
+    set_env_var(
+        "SDKWORK_WEB_STORE_APP_ROOT",
+        resolve_sibling_app_root("sdkwork-web-framework")
+            .to_string_lossy()
+            .as_ref(),
+    );
+    if database_env_is_configured("SDKWORK_WEB_STORE") {
+        return;
+    }
+    if let Ok(url) =
+        sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_WEB_STORE")
+    {
+        let normalized = url.to_ascii_lowercase();
+        let resolved = if normalized.starts_with("postgres://")
+            || normalized.starts_with("postgresql://")
+        {
+            sdkwork_database_config::claw_database::postgres_url_with_search_path(
+                url.as_str(),
+                "SDKWORK_WEB_STORE",
+            )
+        } else if normalized.starts_with("sqlite:") {
+            sibling_sqlite_database_url(url.as_str(), "web-store.sqlite").unwrap_or(url)
+        } else {
+            url
+        };
+        set_env_var("SDKWORK_WEB_STORE_DATABASE_URL", resolved.as_str());
+    }
+}
+
 fn notary_database_env_is_configured() -> bool {
     std::env::var("SDKWORK_NOTARY_DATABASE_URL")
         .ok()
@@ -458,12 +857,10 @@ fn apply_commerce_t1_database_env_from_im_shared_profile() {
 
 fn apply_commerce_t1_app_roots_from_im_shared_profile() {
     for module in COMMERCE_T1_MODULES {
-        set_env_var(
-            &format!("{}_APP_ROOT", module.env_prefix),
-            resolve_sibling_app_root(module.repo_dir)
-                .to_string_lossy()
-                .as_ref(),
-        );
+        if !embedded_database_manifest_available(module.repo_dir) {
+            continue;
+        }
+        ensure_embedded_dependency_app_root(module.env_prefix, module.repo_dir);
     }
 }
 
@@ -825,6 +1222,14 @@ fn set_env_var(key: &str, value: &str) {
 
 fn normalize_course_environment(raw: &str) -> &'static str {
     normalize_knowledgebase_environment(raw)
+}
+
+fn resolve_embedded_knowledgebase_tenant_id() -> u64 {
+    std::env::var("SDKWORK_KNOWLEDGEBASE_TENANT_ID")
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(100_001)
 }
 
 fn normalize_knowledgebase_environment(raw: &str) -> &'static str {

@@ -1,28 +1,63 @@
 //! PostgreSQL implementation of [`MessageStore`] trait.
 //!
 //! Writes message truth to `im_conversation_messages` table with Snowflake IDs.
+//!
+//! ## Message Sequence Allocation
+//!
+//! Message sequences (`message_seq`) are allocated using Snowflake IDs generated
+//! locally by the [`RuntimeSnowflakeIdGenerator`], eliminating the database
+//! round-trip hotspot that would occur with row-level sequence counters.
+//!
+//! The Snowflake ID provides:
+//! - **Uniqueness**: Globally unique across all nodes
+//! - **Monotonicity**: Roughly ordered by timestamp (within same node)
+//! - **Performance**: No database round-trip required
+//!
+//! For ordering within a conversation, clients use `message_seq` which is
+//! stored in the database but generated locally.
 
-use im_platform_contracts::{ContractError, MessageStore, MessageWindow, StoredMessageRecord};
+use im_platform_contracts::{ContractError, IdGenerator, MessageStore, MessageWindow, StoredMessageRecord};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use r2d2_postgres::postgres::NoTls;
+use std::sync::Arc;
 
 use crate::{
     now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_unavailable, run_postgres_io,
+    PostgresJournalTlsConnector,
 };
 
-pub type PostgresJournalConnectionManager = PostgresConnectionManager<NoTls>;
+pub type PostgresJournalConnectionManager = PostgresConnectionManager<PostgresJournalTlsConnector>;
 pub type PostgresJournalPool = Pool<PostgresJournalConnectionManager>;
 
 /// PostgreSQL implementation of [`MessageStore`].
+///
+/// Uses Snowflake ID generator for message sequence allocation,
+/// avoiding database round-trip hotspots in high-throughput scenarios.
 #[derive(Clone)]
 pub struct PostgresMessageStore {
     pool: PostgresJournalPool,
+    /// Snowflake ID generator for message sequence allocation.
+    /// When `None`, falls back to database sequence (legacy mode).
+    id_generator: Option<Arc<dyn IdGenerator>>,
 }
 
 impl PostgresMessageStore {
     pub fn from_pool(pool: PostgresJournalPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            id_generator: None,
+        }
+    }
+
+    /// Create a message store with Snowflake ID generation for sequences.
+    ///
+    /// This is the recommended constructor for production deployments,
+    /// eliminating the database round-trip hotspot for sequence allocation.
+    pub fn with_id_generator(pool: PostgresJournalPool, id_generator: Arc<dyn IdGenerator>) -> Self {
+        Self {
+            pool,
+            id_generator: Some(id_generator),
+        }
     }
 }
 
@@ -84,16 +119,35 @@ where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 "#;
 
 impl MessageStore for PostgresMessageStore {
+    /// Allocate a message sequence number.
+    ///
+    /// Uses Snowflake ID generator when available (production mode),
+    /// falling back to database sequence counter (legacy mode).
+    ///
+    /// # Performance
+    ///
+    /// With Snowflake ID generation, this is a local operation with no
+    /// database round-trip, enabling high-throughput message sending.
     fn allocate_message_seq(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
     ) -> Result<u64, ContractError> {
+        // Use Snowflake ID generator when available (eliminates DB hotspot)
+        if let Some(generator) = &self.id_generator {
+            let id = generator.next_id()?;
+            // Snowflake IDs are i64, convert to u64 for message_seq
+            // The ID is positive and fits within u64 range
+            return Ok(id as u64);
+        }
+
+        // Legacy fallback: database sequence counter
+        // WARNING: This creates a row-level lock hotspot in high-throughput scenarios
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let organization_id = organization_id.to_owned();
-        let conversation_id = conversation_id.to_owned();
+        let tenant_id = _tenant_id.to_owned();
+        let organization_id = _organization_id.to_owned();
+        let conversation_id = _conversation_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "allocate_seq")?;
             let now = now_rfc3339();

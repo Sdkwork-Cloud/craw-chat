@@ -72,6 +72,11 @@ impl CallingError {
                 code: "call_state_store_unsupported",
                 message,
             },
+            ContractError::Invalid(message) => Self {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "call_state_store_invalid",
+                message,
+            },
         }
     }
 }

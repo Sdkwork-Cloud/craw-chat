@@ -10,6 +10,7 @@ pub mod inbox_cache;
 pub mod presence_cache;
 pub mod realtime_checkpoint_store;
 pub mod realtime_event_store;
+pub mod rtc_state_store;
 pub mod seq_allocator;
 pub mod session_cache;
 pub mod timeline_cache;
@@ -21,6 +22,7 @@ pub use cluster_bus::{ClusterRouteEvent, RedisClusterBus};
 pub use config::RedisCacheConfig;
 pub use realtime_checkpoint_store::RedisRealtimeCheckpointStore;
 pub use realtime_event_store::RedisRealtimeEventWindowStore;
+pub use rtc_state_store::{RedisRtcStateConfig, RedisRtcStateStore};
 pub use seq_allocator::RedisSeqAllocator;
 
 use redis::RedisResult;

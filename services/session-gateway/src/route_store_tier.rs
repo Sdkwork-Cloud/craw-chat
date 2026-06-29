@@ -11,6 +11,9 @@ use sdkwork_im_runtime_route::{
 use tracing::warn;
 
 const POSTGRES_MIRROR_MAX_ATTEMPTS: u32 = 3;
+// P1-6 fix: Increased base backoff from 1ms to 10ms for better fault tolerance
+// New backoff sequence: 10ms, 20ms, 40ms (was 1ms, 2ms, 4ms)
+const POSTGRES_MIRROR_BASE_BACKOFF_MS: u64 = 10;
 
 #[derive(Clone)]
 pub struct RedisPostgresTieredRouteStore {
@@ -52,14 +55,11 @@ impl RedisPostgresTieredRouteStore {
                             message = %error.message,
                             attempt,
                         );
-                        // Exponential backoff between mirror retries (1ms, 2ms).
-                        // Short sleeps yield the CPU scheduler — unlike spin_loop
-                        // which burns 100% CPU — and the total worst-case delay
-                        // (3ms over 3 attempts) is acceptable for a best-effort
-                        // durability mirror where Redis holds the authoritative
-                        // binding. The RouteStore trait is sync; callers must
-                        // wrap this in spawn_blocking from async contexts.
-                        let backoff_ms = 1u64 << (attempt - 1);
+                        // P1-6 fix: Exponential backoff with increased base (10ms, 20ms, 40ms)
+                        // This provides better tolerance for transient database failures
+                        // compared to the previous 1ms/2ms/4ms sequence.
+                        // Total worst-case delay: 70ms over 3 attempts (was 7ms).
+                        let backoff_ms = POSTGRES_MIRROR_BASE_BACKOFF_MS << (attempt - 1);
                         std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
                     }
                 }
@@ -90,8 +90,8 @@ impl RedisPostgresTieredRouteStore {
                             message = %error.message,
                             attempt,
                         );
-                        // Exponential backoff between mirror retries (1ms, 2ms).
-                        let backoff_ms = 1u64 << (attempt - 1);
+                        // P1-6 fix: Exponential backoff with increased base (10ms, 20ms, 40ms)
+                        let backoff_ms = POSTGRES_MIRROR_BASE_BACKOFF_MS << (attempt - 1);
                         std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
                     }
                 }

@@ -8,13 +8,16 @@ pub mod error;
 pub mod handlers;
 pub mod helpers;
 pub mod openapi;
+pub mod priority_queue;
+pub mod quality_monitor;
 pub mod state;
 
 #[cfg(test)]
 mod tests;
 
 pub use crate::app::{
-    apply_public_http_guardrails, build_app, build_default_app, build_domain_api_router,
+    apply_public_http_guardrails, build_app, build_app_with_rtc_provider, build_default_app,
+    build_default_calling_runtime, build_default_rtc_provider, build_domain_api_router,
     build_public_app,
 };
 pub use crate::dto::{

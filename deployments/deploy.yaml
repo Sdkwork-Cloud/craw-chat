@@ -15,8 +15,9 @@ profiles:
       - flutter-mobile
       - harmony-mobile
       - mini-program-weixin
-      - pc-browser
-      - pc-desktop
+      - desktop-windows
+      - desktop-macos
+      - desktop-linux
     overrides:
       topology:
         spec: specs/topology.spec.json
@@ -34,9 +35,7 @@ profiles:
         mode: web+api
         web: adaptive
         apiPathStyle: full-prefix
-    packages:
-      - pc-browser
-      - pc-desktop
+    packages: []
     overrides:
       topology:
         spec: specs/topology.spec.json

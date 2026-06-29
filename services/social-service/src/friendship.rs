@@ -155,6 +155,15 @@ fn social_event_id_conflict_string(
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct SubmitFriendRequestWireRequest {
+    pub(crate) event_id: String,
+    pub(crate) requester_user_id: String,
+    pub(crate) target_user_id: String,
+    pub(crate) request_message: Option<String>,
+    pub(crate) requested_at: String,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct SubmitFriendRequestRequest {
     pub(crate) request_id: String,
     pub(crate) event_id: String,
@@ -162,6 +171,22 @@ pub(crate) struct SubmitFriendRequestRequest {
     pub(crate) target_user_id: String,
     pub(crate) request_message: Option<String>,
     pub(crate) requested_at: String,
+}
+
+impl SubmitFriendRequestRequest {
+    pub(crate) fn from_wire(
+        request_id: String,
+        wire: SubmitFriendRequestWireRequest,
+    ) -> Self {
+        Self {
+            request_id,
+            event_id: wire.event_id,
+            requester_user_id: wire.requester_user_id,
+            target_user_id: wire.target_user_id,
+            request_message: wire.request_message,
+            requested_at: wire.requested_at,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -2113,10 +2138,14 @@ pub(crate) async fn list_friend_requests(
 pub(crate) async fn submit_friend_request(
     headers: HeaderMap,
     State(state): State<AppState>,
-    Json(request): Json<SubmitFriendRequestRequest>,
+    Json(wire): Json<SubmitFriendRequestWireRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, SocialServiceError> {
     let auth = resolve_auth_from_headers(&headers)?;
     let tenant_id = auth.tenant_id.as_str();
+    let request = SubmitFriendRequestRequest::from_wire(
+        crate::openapi::next_open_api_id()?,
+        wire,
+    );
 
     let submitted = state
         .social_runtime

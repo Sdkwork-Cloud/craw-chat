@@ -1,3 +1,5 @@
+import { sdkWorkEnvelopeComponentSchemas } from '../../sdkwork-specs/tools/lib/openapi-envelope-schemas.mjs';
+
 const dualTokenSecurity = Object.freeze({
   AuthToken: [],
   AccessToken: [],
@@ -27,38 +29,16 @@ function isExplicitAnonymousSecurity(security) {
 }
 
 function problemDetailSchema() {
-  return {
-    type: 'object',
-    additionalProperties: true,
-    required: ['type', 'title', 'status', 'detail'],
-    properties: {
-      type: {
-        type: 'string',
-      },
-      title: {
-        type: 'string',
-      },
-      status: {
-        type: 'integer',
-        format: 'int32',
-      },
-      detail: {
-        type: 'string',
-      },
-      code: {
-        type: 'string',
-      },
-      message: {
-        type: 'string',
-      },
-      traceId: {
-        type: 'string',
-      },
-      retryable: {
-        type: 'boolean',
-      },
-    },
-  };
+  return structuredClone(sdkWorkEnvelopeComponentSchemas.ProblemDetail);
+}
+
+function ensureEnvelopeComponentSchemas(schemas) {
+  for (const [name, schema] of Object.entries(sdkWorkEnvelopeComponentSchemas)) {
+    if (!schemas[name]) {
+      schemas[name] = structuredClone(schema);
+    }
+  }
+  schemas.ProblemDetail = problemDetailSchema();
 }
 
 function problemJsonContent() {
@@ -106,7 +86,7 @@ export function applySdkworkV3OpenApiStandard(document) {
   document.components.schemas = document.components.schemas && typeof document.components.schemas === 'object'
     ? document.components.schemas
     : {};
-  document.components.schemas.ProblemDetail = problemDetailSchema();
+  ensureEnvelopeComponentSchemas(document.components.schemas);
 
   document.security = [cloneJson(dualTokenSecurity)];
 

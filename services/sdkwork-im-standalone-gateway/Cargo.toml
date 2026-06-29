@@ -31,8 +31,13 @@ sdkwork-course-gateway-assembly = { path = "../../../sdkwork-course/crates/sdkwo
 sdkwork-drive-config = { path = "../../../sdkwork-drive/crates/sdkwork-drive-config" }
 sdkwork-drive-security = { path = "../../../sdkwork-drive/crates/sdkwork-drive-security" }
 sdkwork-drive-workspace-service = { path = "../../../sdkwork-drive/crates/sdkwork-drive-workspace-service" }
+sdkwork-knowledgebase-database-host = { path = "../../../sdkwork-knowledgebase/crates/sdkwork-knowledgebase-database-host" }
 sdkwork-knowledgebase-gateway-assembly = { path = "../../../sdkwork-knowledgebase/crates/sdkwork-knowledgebase-gateway-assembly" }
+sdkwork-webstore-database-host = { path = "../../../sdkwork-web-framework/crates/sdkwork-webstore-database-host" }
+sdkwork-mail-database-host = { path = "../../../sdkwork-mail/crates/sdkwork-mail-database-host" }
 sdkwork-mail-gateway-assembly = { path = "../../../sdkwork-mail/crates/sdkwork-mail-gateway-assembly" }
+sdkwork-notary-database-host = { path = "../../../sdkwork-notary/crates/sdkwork-notary-database-host" }
+sdkwork-course-database-host = { path = "../../../sdkwork-course/crates/sdkwork-course-database-host" }
 sdkwork-routes-agents-app-api = { path = "../../../sdkwork-agents/crates/sdkwork-routes-agents-app-api" }
 sdkwork-intelligence-agents-service = { path = "../../../sdkwork-agents/crates/sdkwork-intelligence-agents-service", features = ["http-axum", "postgres-sync"] }
 sdkwork-account-gateway-assembly = { path = "../../../sdkwork-account/crates/sdkwork-account-gateway-assembly" }

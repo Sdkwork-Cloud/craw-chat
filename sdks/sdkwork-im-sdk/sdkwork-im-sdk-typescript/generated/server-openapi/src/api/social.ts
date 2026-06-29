@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { ContactPreferencesView, ContactRecommendationView, ContactTagsResponse, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, DeleteContactTagResponse, SocialFriendRequestAcceptanceResponse, SocialFriendRequestListResponse, SocialFriendRequestMutationResponse, SocialFriendshipMutationResponse, SocialUserSearchResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
+import type { ContactPreferencesView, ContactRecommendationView, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, FriendRequest, SdkWorkCommandData, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendshipMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
 
 
 export class SocialContactsPreferencesApi {
@@ -51,12 +51,12 @@ export class SocialContactsTagsApi {
 
 
 /** List contact tags */
-  async list(params?: SocialContactsTagsListParams): Promise<ContactTagsResponse> {
+  async list(params?: SocialContactsTagsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ContactTagsResponse>(appendQueryString(imApiPath(`/social/contacts/tags`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/contacts/tags`), query));
   }
 
 /** Create a contact tag */
@@ -70,8 +70,8 @@ export class SocialContactsTagsApi {
   }
 
 /** Delete a contact tag */
-  async delete(tagId: string): Promise<DeleteContactTagResponse> {
-    return this.client.delete<DeleteContactTagResponse>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
+  async delete(tagId: string): Promise<SdkWorkCommandData> {
+    return this.client.delete<SdkWorkCommandData>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -120,14 +120,14 @@ export class SocialFriendRequestsApi {
 
 
 /** List friend requests */
-  async list(params?: SocialFriendRequestsListParams): Promise<SocialFriendRequestListResponse> {
+  async list(params?: SocialFriendRequestsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'direction', value: params?.direction, style: 'form', explode: true, allowReserved: false },
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SocialFriendRequestListResponse>(appendQueryString(imApiPath(`/social/friend_requests`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/friend_requests`), query));
   }
 
 /** Create a friend request */
@@ -166,13 +166,13 @@ export class SocialUsersApi {
 
 
 /** Search social users */
-  async list(params?: SocialUsersListParams): Promise<SocialUserSearchResponse> {
+  async list(params?: SocialUsersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<SocialUserSearchResponse>(appendQueryString(imApiPath(`/social/users`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/users`), query));
   }
 }
 

@@ -1,7 +1,6 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { MediaHealthRetrieveResponse, PrincipalProfileHealthRetrieveResponse } from '../types';
 
 
 export class ProviderPrincipalProfileHealthApi {
@@ -13,8 +12,8 @@ export class ProviderPrincipalProfileHealthApi {
 
 
 /** Retrieve principal-profile provider health */
-  async retrieve(): Promise<PrincipalProfileHealthRetrieveResponse> {
-    return this.client.get<PrincipalProfileHealthRetrieveResponse>(appApiPath(`/principal/profiles/provider_health`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/principal/profiles/provider_health`));
   }
 }
 
@@ -27,8 +26,8 @@ export class ProviderMediaHealthApi {
 
 
 /** Retrieve media provider health */
-  async retrieve(): Promise<MediaHealthRetrieveResponse> {
-    return this.client.get<MediaHealthRetrieveResponse>(appApiPath(`/media/provider_health`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/media/provider_health`));
   }
 }
 

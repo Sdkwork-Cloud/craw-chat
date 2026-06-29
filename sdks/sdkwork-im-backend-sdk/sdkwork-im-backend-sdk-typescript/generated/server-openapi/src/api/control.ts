@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse, ProviderBindingCommitResponse, ProviderBindingsResponse, ProviderPolicyDiffResponse, ProviderPolicyHistoryResponse, ProviderPolicyRollbackRequest, ProviderRegistrySnapshotResponse, RemoveFriendshipRequest, RouteMigrationResult, RouteNodeLifecycle, SocialDirectChatCommitResponse, SocialDirectChatSnapshotResponse, SocialExternalConnectionCommitResponse, SocialExternalConnectionSnapshotResponse, SocialExternalMemberLinkCommitResponse, SocialExternalMemberLinkSnapshotResponse, SocialFriendRequestCommitResponse, SocialFriendRequestSnapshotResponse, SocialFriendshipCommitResponse, SocialFriendshipSnapshotResponse, SocialRuntimeRepairResponse, SocialSharedChannelPolicyCommitResponse, SocialSharedChannelPolicySnapshotResponse, SocialSharedChannelSyncDeadLetterInventoryResponse, SocialSharedChannelSyncDeadLetterRequeueResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, SocialSharedChannelSyncDeliveredInventoryResponse, SocialSharedChannelSyncDeliveryStateInventoryResponse, SocialSharedChannelSyncPendingClaimResponse, SocialSharedChannelSyncPendingInventoryResponse, SocialSharedChannelSyncPendingReleaseResponse, SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncPendingTakeoverResponse, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncRepairResponse, SocialSharedChannelSyncTargetedRepublishRequest, SocialSharedChannelSyncTargetedRepublishResponse, SocialUserBlockCommitResponse, SocialUserBlockSnapshotResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest } from '../types';
+import type { AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplySharedChannelPolicyRequest, BindDirectChatRequest, BindExternalMemberLinkRequest, BlockUserRequest, CancelFriendRequestRequest, DeclineFriendRequestRequest, EstablishExternalConnectionRequest, MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse, ProviderBindingCommitResponse, ProviderPolicyRollbackRequest, ProviderRegistrySnapshotResponse, RemoveFriendshipRequest, RouteMigrationResult, RouteNodeLifecycle, SdkWorkPageData, SocialDirectChatCommitResponse, SocialDirectChatSnapshotResponse, SocialExternalConnectionCommitResponse, SocialExternalConnectionSnapshotResponse, SocialExternalMemberLinkCommitResponse, SocialExternalMemberLinkSnapshotResponse, SocialFriendRequestCommitResponse, SocialFriendRequestSnapshotResponse, SocialFriendshipCommitResponse, SocialFriendshipSnapshotResponse, SocialRuntimeRepairResponse, SocialSharedChannelPolicyCommitResponse, SocialSharedChannelPolicySnapshotResponse, SocialSharedChannelSyncDeadLetterRequeueResponse, SocialSharedChannelSyncDeadLetterTargetedRequeueRequest, SocialSharedChannelSyncDeadLetterTargetedRequeueResponse, SocialSharedChannelSyncPendingClaimResponse, SocialSharedChannelSyncPendingReleaseResponse, SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncPendingTakeoverResponse, SocialSharedChannelSyncPendingTargetedClaimRequest, SocialSharedChannelSyncPendingTargetedReleaseRequest, SocialSharedChannelSyncPendingTargetedTakeoverRequest, SocialSharedChannelSyncRepairResponse, SocialSharedChannelSyncTargetedRepublishRequest, SocialSharedChannelSyncTargetedRepublishResponse, SocialUserBlockCommitResponse, SocialUserBlockSnapshotResponse, SubmitFriendRequestRequest, UpsertProviderBindingPolicyRequest } from '../types';
 
 
 export class ControlSocialUserBlocksApi {
@@ -163,8 +163,8 @@ export class ControlSocialRuntimePendingSharedChannelSyncApi {
 
 
 /** Read the pending shared-channel sync queue. */
-  async list(): Promise<SocialSharedChannelSyncPendingInventoryResponse> {
-    return this.client.get<SocialSharedChannelSyncPendingInventoryResponse>(backendApiPath(`/control/social/runtime/pending_shared_channel_sync`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/pending_shared_channel_sync`));
   }
 }
 
@@ -177,8 +177,8 @@ export class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi {
 
 
 /** Read merged shared-channel sync delivery state. */
-  async list(): Promise<SocialSharedChannelSyncDeliveryStateInventoryResponse> {
-    return this.client.get<SocialSharedChannelSyncDeliveryStateInventoryResponse>(backendApiPath(`/control/social/runtime/delivery_state_shared_channel_sync`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/delivery_state_shared_channel_sync`));
   }
 }
 
@@ -191,8 +191,8 @@ export class ControlSocialRuntimeDeliveredSharedChannelSyncApi {
 
 
 /** Read the delivered shared-channel sync ledger. */
-  async list(): Promise<SocialSharedChannelSyncDeliveredInventoryResponse> {
-    return this.client.get<SocialSharedChannelSyncDeliveredInventoryResponse>(backendApiPath(`/control/social/runtime/delivered_shared_channel_sync`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/delivered_shared_channel_sync`));
   }
 }
 
@@ -205,8 +205,8 @@ export class ControlSocialRuntimeDeadLetterSharedChannelSyncApi {
 
 
 /** Read the dead-letter shared-channel sync queue. */
-  async list(): Promise<SocialSharedChannelSyncDeadLetterInventoryResponse> {
-    return this.client.get<SocialSharedChannelSyncDeadLetterInventoryResponse>(backendApiPath(`/control/social/runtime/dead_letter_shared_channel_sync`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/social/runtime/dead_letter_shared_channel_sync`));
   }
 }
 
@@ -423,11 +423,11 @@ export class ControlProviderBindingsApi {
 
 
 /** Read effective provider bindings. */
-  async list(params?: ControlProviderBindingsListParams): Promise<ProviderBindingsResponse> {
+  async list(params?: ControlProviderBindingsListParams): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'tenantId', value: params?.tenantId, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ProviderBindingsResponse>(appendQueryString(backendApiPath(`/control/provider_bindings`), query));
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_bindings`), query));
   }
 
 /** Upsert a provider binding policy. */
@@ -464,12 +464,12 @@ export class ControlProviderPoliciesDiffApi {
 
 
 /** Read provider policy diff between two versions. */
-  async list(params: ControlProviderPoliciesDiffListParams): Promise<ProviderPolicyDiffResponse> {
+  async list(params: ControlProviderPoliciesDiffListParams): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'fromVersion', value: params.fromVersion, style: 'form', explode: true, allowReserved: false },
       { name: 'toVersion', value: params.toVersion, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<ProviderPolicyDiffResponse>(appendQueryString(backendApiPath(`/control/provider_policies/diff`), query));
+    return this.client.get<SdkWorkPageData>(appendQueryString(backendApiPath(`/control/provider_policies/diff`), query));
   }
 }
 
@@ -484,8 +484,8 @@ export class ControlProviderPoliciesApi {
 
 
 /** Read provider policy history. */
-  async list(): Promise<ProviderPolicyHistoryResponse> {
-    return this.client.get<ProviderPolicyHistoryResponse>(backendApiPath(`/control/provider_policies`));
+  async list(): Promise<SdkWorkPageData> {
+    return this.client.get<SdkWorkPageData>(backendApiPath(`/control/provider_policies`));
   }
 
 /** Preview the effective provider policy result before commit. */

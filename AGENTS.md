@@ -78,6 +78,7 @@ Do not load all specs, generated SDKs, or source trees before the task surface i
 - Agent/workflow changes: `../sdkwork-specs/SOUL.md`, `../sdkwork-specs/AGENTS_SPEC.md`, `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`, `../sdkwork-specs/GITHUB_WORKFLOW_SPEC.md`, and `../sdkwork-specs/TEST_SPEC.md`.
 - Package script changes: `../sdkwork-specs/PNPM_SCRIPT_SPEC.md`, `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md`, `../sdkwork-specs/CONFIG_SPEC.md`, and `../sdkwork-specs/TEST_SPEC.md`.
 - Any code change: `../sdkwork-specs/CODE_STYLE_SPEC.md`, `../sdkwork-specs/NAMING_SPEC.md`, plus only the touched language/framework spec.
+- Build scripts / dev runners / dependency preparation: `../sdkwork-specs/CODE_STYLE_SPEC.md` §7 (Build Source Integrity), `../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md` §5 (Node Script Resilience), `../sdkwork-specs/PNPM_SCRIPT_SPEC.md` §11 (Clean Command Boundary).
 - Rust code: `../sdkwork-specs/RUST_CODE_SPEC.md`; add `../sdkwork-specs/RUST_RPC_SPEC.md` when RPC is touched.
 - TypeScript/Node code: `../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md`.
 - Frontend/UI code: `../sdkwork-specs/FRONTEND_CODE_SPEC.md`, `../sdkwork-specs/FRONTEND_SPEC.md`, `../sdkwork-specs/UI_ARCHITECTURE_SPEC.md`, and exactly one detailed UI architecture spec.
@@ -90,6 +91,8 @@ Language-specific specs are on-demand; do not load Rust, Java, TypeScript, and f
 ## Code Style Rules
 
 Read `../sdkwork-specs/CODE_STYLE_SPEC.md` and `../sdkwork-specs/NAMING_SPEC.md` before code changes. Keep contracts, services, adapters, SDKs, UI packages, and release tooling inside their owning boundaries. Generated SDK output is changed only through source contracts, generator inputs, or approved composed facades.
+
+Build scripts, dev runners, and cross-repository dependency preparation tooling under `scripts/dev/` must follow `CODE_STYLE_SPEC.md` §7 (Build Source Integrity And Self-Healing). Build-critical source files (e.g., sibling `sdkwork-ui/sdkwork-ui-pc-react/build/` contract files) must be verified before invoking builds and self-healed from git when missing. `pnpm clean` must not delete git-tracked build-critical source files.
 
 ## Build, Test, and Verification
 
@@ -108,6 +111,36 @@ Run the narrowest relevant check first, then broader verification when API contr
 ## Agent Execution Rules
 
 Use dynamic progressive loading and the convention dictionary instead of broad context loading. Do not hand-edit generated SDK output unless the source contract is verified. Do not replace generated SDK integration with raw HTTP. Do not preserve retired commands, copied workflow bodies, or legacy local guidance blocks. Record exact verification commands and important outputs before reporting completion.
+
+## HTTP API Response Envelope
+
+All L2+ `app-api`, `backend-api`, and SDKWork-owned business `open-api` HTTP contracts `MUST` follow `API_SPEC.md` section 4.5, section 14, and section 15:
+
+- **Input:** typed request bodies, section 14.1 list/search/command input, `SdkWorkListQuery`, and `q` for free-text search.
+- **Success output:** `SdkWorkApiResponse` with `{ "code": 0, "data": <payload>, "traceId": "<server-uuid>" }`.
+- **Error output:** HTTP 4xx/5xx `application/problem+json` (`ProblemDetail`) with numeric `code` and `traceId`.
+- Success `code` is numeric `int32`; HTTP 2xx JSON bodies `MUST` use `0` only. REST semantics remain on HTTP status (`201`, `202`, etc.).
+- Platform error codes are numeric non-zero values per section 15.3 (`40001`, `40101`, `40401`, …).
+- Single resource: `data.item`
+- Lists: `data.items` + `data.pageInfo` (`PageInfo.mode` is `offset` or `cursor`)
+- Commands: `data.accepted` plus optional `resourceId` / `status`
+- Async accept (`202`): `data.operationId`, `data.status`, optional `pollUrl`
+
+Vendor compatibility `open-api` routes that mirror upstream tool or provider wire (for example OpenAI `/v1/*`, Claude Code, Codex) `MAY` opt out only when every exempt operation declares `x-sdkwork-wire-protocol: external` and `x-sdkwork-external-protocol-id` per `API_SPEC.md` section 4.5.2. SDKWork-owned business `open-api` operations `MUST NOT` opt out.
+
+Errors `MUST` use HTTP 4xx/5xx with `application/problem+json` (`ProblemDetail`) including required numeric `code` and `traceId`. Business failures `MUST NOT` use HTTP 2xx with non-zero `code`, string wire codes, `success`, or human `message`.
+
+Forbidden legacy envelopes and fields: `PlusApiResult`, `AppbaseApiResult`, `StoreApiResult`, `SdkWorkResponse`, per-domain `*ApiResult`, wire field `requestId`, bare domain DTOs at the HTTP root, and top-level `{ items, pageInfo, traceId }` without `data`.
+
+Handlers `MUST` serialize success and map errors through `sdkwork-web-framework` response mapping. Generated HTTP SDKs (`--standard-profile sdkwork-v3`) unwrap `data` by default and expose typed numeric `ProblemDetail.code` / `traceId` on errors; use `.raw` when the full envelope is required.
+
+Before completing API contract, SDK generation, or frontend service work, run:
+
+```bash
+node <sdkwork-specs>/tools/check-api-response-envelope.mjs --workspace <workspace-root>
+```
+
+Authority: `sdkwork-specs/API_SPEC.md` section 4.5 and sections 14–16, `SDK_SPEC.md` section 4.2, `FRONTEND_SPEC.md`, `MIGRATION_SPEC.md` section 4.2.
 
 ## Human Review Rules
 

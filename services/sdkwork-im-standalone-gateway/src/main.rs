@@ -6,7 +6,6 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 
 use axum::Router;
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use axum::middleware::from_fn_with_state;
 use config::{load_gateway_config, resolve_config_path, resolve_gateway_config, ResolvedGatewayConfig};
 use sdkwork_api_config::StandaloneConfigLoader;
@@ -68,6 +67,11 @@ async fn async_main(
     sdkwork_iam_database_host::bootstrap_iam_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
+
+    embedded_dependency_routes::bootstrap_embedded_dependency_databases()
+        .await
+        .map_err(|error| format!("failed to bootstrap embedded dependency databases: {error}"))?;
+
     sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env()
         .await;
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
@@ -115,10 +119,10 @@ async fn async_main(
         .router
         .merge(embedded_application.router)
         .merge(im_router);
-    let app = mount_im_infra_routes(
-        iam_router.merge(application_router),
-        im_service_router_config(),
-    )
+    // The IM cloud-gateway router already mounts /healthz, /livez, /readyz, and /metrics
+    // through sdkwork-web-bootstrap. Do not mount infra routes again on the merged router.
+    let app = iam_router
+        .merge(application_router)
         .layer(build_cors_layer(&gateway_config))
         .layer(from_fn_with_state(
             RateLimiter::new(RateLimitConfig::from_env()),

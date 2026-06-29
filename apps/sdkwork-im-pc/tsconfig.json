@@ -68,7 +68,7 @@
         "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/knowledgebase-app-sdk": [
-        "../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/drive-pc-drive": [
         "../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-drive/src/index.ts"

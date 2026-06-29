@@ -143,6 +143,10 @@ impl RealtimeRuntimeError {
                 code: "checkpoint_store_unsupported",
                 message,
             },
+            ContractError::Invalid(message) => Self {
+                code: "checkpoint_store_invalid",
+                message,
+            },
         }
     }
 
@@ -160,6 +164,10 @@ impl RealtimeRuntimeError {
                 code: "subscription_store_unsupported",
                 message,
             },
+            ContractError::Invalid(message) => Self {
+                code: "subscription_store_invalid",
+                message,
+            },
         }
     }
 
@@ -175,6 +183,10 @@ impl RealtimeRuntimeError {
             },
             ContractError::UnsupportedCapability(message) => Self {
                 code: "event_window_store_unsupported",
+                message,
+            },
+            ContractError::Invalid(message) => Self {
+                code: "event_window_store_invalid",
                 message,
             },
         }

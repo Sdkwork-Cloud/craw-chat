@@ -5,6 +5,9 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+hmac = "0.12"
 sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
+sha2 = "0.10"
+tracing.workspace = true

@@ -5,9 +5,8 @@ use std::sync::Arc;
 use im_domain_core::social::{DirectChat, DirectChatStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{NoTls, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 /// Direct chat record for database storage.
 #[derive(Clone, Debug)]
@@ -164,11 +163,11 @@ fn row_to_record(row: &postgres::Row) -> DirectChatRecord {
 /// PostgreSQL-backed direct chat store.
 #[derive(Clone)]
 pub struct PostgresDirectChatStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresDirectChatStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }

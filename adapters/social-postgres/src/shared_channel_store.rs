@@ -5,9 +5,8 @@ use std::sync::Arc;
 use im_domain_core::social::{SharedChannelPolicy, SharedChannelPolicyStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{NoTls, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 /// Shared channel policy record for database storage.
 #[derive(Clone, Debug)]
@@ -159,11 +158,11 @@ fn row_to_record(row: &postgres::Row) -> SharedChannelPolicyRecord {
 /// PostgreSQL-backed shared channel policy store.
 #[derive(Clone)]
 pub struct PostgresSharedChannelPolicyStore {
-    pool: Arc<Pool<PostgresConnectionManager<NoTls>>>,
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
 }
 
 impl PostgresSharedChannelPolicyStore {
-    pub fn new(pool: Arc<Pool<PostgresConnectionManager<NoTls>>>) -> Self {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
         Self { pool }
     }
 }

@@ -73,6 +73,11 @@ impl AutomationError {
                 code: "automation_store_unsupported",
                 message,
             },
+            ContractError::Invalid(message) => Self {
+                status: StatusCode::BAD_REQUEST,
+                code: "automation_store_invalid",
+                message,
+            },
         }
     }
 
