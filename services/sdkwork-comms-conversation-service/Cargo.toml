@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "sdkwork-comms-conversation-service"
 edition.workspace = true
 license.workspace = true
@@ -19,6 +19,7 @@ im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-adapters-postgres-journal.workspace = true
 sdkwork_database_config.workspace = true
+sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
@@ -29,8 +30,10 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 sdkwork_web_core.workspace = true
+sdkwork_routes_web_framework_backend_api.workspace = true
 sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
 sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
+projection-service = { path = "../../services/projection-service" }
 prost = "0.14"
 
 [dev-dependencies]

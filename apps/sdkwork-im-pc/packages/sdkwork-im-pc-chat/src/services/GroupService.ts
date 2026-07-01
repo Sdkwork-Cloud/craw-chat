@@ -283,7 +283,7 @@ class SdkworkGroupService implements GroupService {
         break;
       }
       items.push(...response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'));
-      cursor = response.hasMore ? response.nextCursor : undefined;
+      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
     } while (cursor);
 
     return items;
@@ -299,7 +299,7 @@ class SdkworkGroupService implements GroupService {
         ...(cursor ? { cursor } : {}),
       });
       items.push(...response.items);
-      cursor = response.hasMore ? response.nextCursor : undefined;
+      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
     } while (cursor);
 
     return items;

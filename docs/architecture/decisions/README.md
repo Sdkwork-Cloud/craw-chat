@@ -60,4 +60,7 @@ Specs: <the SDKWork specs that own the technical rules cited>
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| [ADR-20260615-crate-naming-alignment](./ADR-20260615-crate-naming-alignment.md) | Crate naming alignment (`sdkwork-im-*`/`im-*` →`sdkwork-im-*`), batched migration | proposed |
+| [ADR-20260615-crate-naming-alignment](./ADR-20260615-crate-naming-alignment.md) | Crate naming alignment (`sdkwork-im-*`/`im-*` → `sdkwork-im-*`), batched migration | superseded |
+| [ADR-20260615-craw-chat-to-sdkwork-im-rebrand](./ADR-20260615-craw-chat-to-sdkwork-im-rebrand.md) | Craw Chat to SDKWork IM rebrand, product token `im`, naming authority | accepted |
+| [ADR-20260617-comms-service-naming-boundaries](./ADR-20260617-comms-service-naming-boundaries.md) | Communication service naming boundaries (`sdkwork-comms-*`) | accepted |
+| [ADR-20260619-im-rpc-discovery-integration-deferred](./ADR-20260619-im-rpc-discovery-integration-deferred.md) | IM RPC discovery integration deferred to Phase 2 | accepted |

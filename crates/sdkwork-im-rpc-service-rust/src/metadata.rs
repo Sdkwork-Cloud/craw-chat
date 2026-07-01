@@ -40,46 +40,27 @@ impl RpcMetadata {
 
     pub fn to_header_map(&self) -> MetadataMap {
         let mut headers = MetadataMap::new();
-        if let Some(value) = &self.authorization {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_AUTHORIZATION, parsed);
-            }
+        
+        // Helper macro to insert optional metadata values
+        macro_rules! insert_if_valid {
+            ($field:expr, $key:expr) => {
+                if let Some(value) = $field {
+                    if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
+                        headers.insert($key, parsed);
+                    }
+                }
+            };
         }
-        if let Some(value) = &self.access_token {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_ACCESS_TOKEN, parsed);
-            }
-        }
-        if let Some(value) = &self.request_id {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_REQUEST_ID, parsed);
-            }
-        }
-        if let Some(value) = &self.traceparent {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_TRACEPARENT, parsed);
-            }
-        }
-        if let Some(value) = &self.idempotency_key {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_IDEMPOTENCY_KEY, parsed);
-            }
-        }
-        if let Some(value) = &self.request_hash {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_REQUEST_HASH, parsed);
-            }
-        }
-        if let Some(value) = &self.client_version {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_CLIENT_VERSION, parsed);
-            }
-        }
-        if let Some(value) = &self.service_identity {
-            if let Ok(parsed) = MetadataValue::try_from(value.as_str()) {
-                headers.insert(METADATA_SERVICE_IDENTITY, parsed);
-            }
-        }
+        
+        insert_if_valid!(&self.authorization, METADATA_AUTHORIZATION);
+        insert_if_valid!(&self.access_token, METADATA_ACCESS_TOKEN);
+        insert_if_valid!(&self.request_id, METADATA_REQUEST_ID);
+        insert_if_valid!(&self.traceparent, METADATA_TRACEPARENT);
+        insert_if_valid!(&self.idempotency_key, METADATA_IDEMPOTENCY_KEY);
+        insert_if_valid!(&self.request_hash, METADATA_REQUEST_HASH);
+        insert_if_valid!(&self.client_version, METADATA_CLIENT_VERSION);
+        insert_if_valid!(&self.service_identity, METADATA_SERVICE_IDENTITY);
+        
         headers
     }
 }

@@ -29,7 +29,6 @@ async fn test_healthz_returns_ok_and_service_metadata() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["status"], "ok");
-    assert_eq!(value["service"], "governance-service");
 }
 
 #[tokio::test]

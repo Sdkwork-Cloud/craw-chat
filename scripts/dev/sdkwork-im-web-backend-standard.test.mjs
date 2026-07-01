@@ -87,6 +87,7 @@ for (const relativePath of [
   'services/ops-service/src/lib.rs',
   'services/governance-service/src/lib.rs',
   'services/projection-service/src/http.rs',
+  'services/im-calls-service/src/app.rs',
 ]) {
   const source = read(relativePath);
   assert.doesNotMatch(

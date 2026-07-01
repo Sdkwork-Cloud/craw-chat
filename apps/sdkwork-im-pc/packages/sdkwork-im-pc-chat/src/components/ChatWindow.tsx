@@ -33,7 +33,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
             status: 'online',
           },
         }
-      : {}
+      : ({} as Record<string, User>)
   ), [isSystemAssistantChat, t]);
   const assistantWelcomeMessages = useMemo<Message[]>(() => (
     isSystemAssistantChat

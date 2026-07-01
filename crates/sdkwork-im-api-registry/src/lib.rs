@@ -42,6 +42,7 @@ pub enum SdkTarget {
     SdkworkCommunityAppSdk,
     SdkworkCourseAppSdk,
     SdkworkKnowledgebaseAppSdk,
+    SdkworkVoiceAppSdk,
     None,
 }
 

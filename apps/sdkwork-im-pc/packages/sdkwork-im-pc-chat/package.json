@@ -3,5 +3,34 @@
   "version": "1.0.0",
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
-  "dependencies": {}
+  "dependencies": {
+    "@sdkwork/agents-pc-agents": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/im-pc-shell": "workspace:*",
+    "@sdkwork/im-sdk": "workspace:*",
+    "@sdkwork/rtc-sdk": "workspace:*",
+    "@sdkwork/ui-pc-react": "workspace:*",
+    "lucide-react": "catalog:",
+    "motion": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-i18next": "catalog:",
+    "@sdkwork/im-pc-types": "workspace:*",
+    "@tiptap/react": "catalog:",
+    "@tiptap/starter-kit": "catalog:",
+    "@tiptap/extension-placeholder": "catalog:",
+    "react-markdown": "catalog:",
+    "@tanstack/react-virtual": "catalog:",
+    "@sdkwork/im-pc-community": "workspace:*",
+    "i18next": "catalog:",
+    "react-router-dom": "catalog:",
+    "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/notary-pc-core": "workspace:*",
+    "@sdkwork/im-pc-workspace": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

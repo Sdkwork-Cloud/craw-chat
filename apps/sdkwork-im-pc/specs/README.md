@@ -12,10 +12,11 @@ Do not copy root standards into this directory. Link to files under `../../../sd
 
 ## Workspace Authority
 
-The PC app root is registered in the repository root `pnpm-workspace.yaml`
-(`apps/sdkwork-im-pc` and `apps/sdkwork-im-pc/packages/*`). The app-local
-`pnpm-workspace.yaml` only carries relative capability-package and sibling-SDK
-entries; it must not duplicate or override the root workspace authority.
+The PC app root and every `sdkwork-im-pc-*` package are registered in the
+repository root `pnpm-workspace.yaml` (`apps/sdkwork-im-pc` and
+`apps/sdkwork-im-pc/packages/*`). Sibling SDK and capability-package source paths
+are declared once at the repository root; application roots must not add nested
+`pnpm-workspace.yaml` files or npm `"workspaces"` fields.
 
 ## PC Client Package Naming
 

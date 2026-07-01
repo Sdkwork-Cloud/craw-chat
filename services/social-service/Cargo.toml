@@ -32,6 +32,8 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 hmac = "0.12"
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_web_core.workspace = true
+sdkwork_routes_web_framework_backend_api.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true

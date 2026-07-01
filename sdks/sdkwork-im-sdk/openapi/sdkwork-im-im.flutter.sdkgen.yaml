@@ -5,6 +5,11 @@ info:
   description: >-
     IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, social IM flows,
     and communication spaces.
+
+    Derived sdkgen input excludes the realtime websocket upgrade route. Websocket transport stays manual-owned.
+
+    Flutter-compatible derived sdkgen input expands primitive component refs so the generated Dart models stay strongly
+    typed.
 tags:
   - name: presence
   - name: realtime
@@ -6574,14 +6579,6 @@ components:
         signalingStreamId:
           type: string
           nullable: true
-        participantIds:
-          type: array
-          description: >-
-            Principal IDs invited to the call session. Recorded in the session's invited_ids list so subsequent
-            accept/reject/end authorization checks can admit them.
-          items:
-            type: string
-          default: []
     UpdateRtcSessionRequest:
       type: object
       additionalProperties: false
@@ -8149,6 +8146,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+          format: int32
+          minimum: 40011
+          maximum: 40099
     SpaceCreateRequest:
       type: object
       additionalProperties: false
@@ -8590,22 +8603,6 @@ components:
             - 'null'
         hasMore:
           type: boolean
-    FieldError:
-      type: object
-      additionalProperties: false
-      required:
-        - field
-        - message
-      properties:
-        field:
-          type: string
-        message:
-          type: string
-        code:
-          type: integer
-          format: int32
-          minimum: 40011
-          maximum: 40099
     SdkWorkCommandResponse:
       allOf:
         - $ref: '#/components/schemas/SdkWorkApiResponse'

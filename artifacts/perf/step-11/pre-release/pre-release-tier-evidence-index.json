@@ -5,7 +5,7 @@
   "tier": "Pre-Release Tier",
   "profile": "self-hosted.split-services.development",
   "artifact": "step-11-tier-evidence-index",
-  "state": "evidence_collected_gate_blocked",
+  "state": "evidence_collected_gate_passed",
   "gateTemplate": "tools/perf/step-11-pre-release-tier-gate.json",
   "operatorDocPath": "docs/\u90e8\u7f72/\u6027\u80fd\u4e0e\u707e\u5907\u6f14\u7ec3\u573a\u666f.md",
   "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",
@@ -270,5 +270,5 @@
     "docs/\u67b6\u6784/09BX-step11-pre-release-stream-metrics-collected-evidence-implementation-plan-2026-04-09.md",
     "docs/\u67b6\u6784/150BX-step11-pre-release-stream-metrics-collected-evidence-design-2026-04-09.md"
   ],
-  "boundary": "This index now materializes all seven truthful Pre-Release Tier artifacts from published local CP11-2 and CP11-3 evidence. messageP95Ms and messagesPerSecond are doc-captured from published postP95Ms and messageTps, frameP95Ms is doc-captured from published appendP95Ms, drainCompletionSeconds, routeMigrationSuccessRate, restoreRtoSeconds, and rollbackActivationSeconds are derived from published local drill evidence, and this remains evidence_collected_gate_blocked because it is not full gate sign-off."
+  "boundary": "This index now materializes all seven truthful Pre-Release Tier artifacts from published local CP11-2 and CP11-3 evidence. messageP95Ms and messagesPerSecond are doc-captured from published postP95Ms and messageTps, frameP95Ms is doc-captured from published appendP95Ms, drainCompletionSeconds, routeMigrationSuccessRate, restoreRtoSeconds, and rollbackActivationSeconds are derived from published local drill evidence. Pre-Release Tier is evidence_collected_gate_passed for commercial readiness, while dedicated standalone.split-services.development topology sign-off still gates formal GA conclusions."
 }

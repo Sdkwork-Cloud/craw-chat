@@ -633,7 +633,7 @@ export function subscribePcRealtimeScope(
     scopeRegistrations.set(scopeKey, registration);
   }
   const listenerRegistration: ScopeListenerRegistration = {
-    eventTypes: scope.eventTypes,
+    eventTypes: scope.eventTypes ?? [],
     handler,
   };
   registration.listeners.add(listenerRegistration);

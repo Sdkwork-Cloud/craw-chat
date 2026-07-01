@@ -1,20 +1,50 @@
-use axum::Json;
-use im_app_context::AppContextError;
+use axum::response::{IntoResponse, Response};
+use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
+use sdkwork_web_core::{
+    WebFrameworkError, WebFrameworkErrorKind, problem_response, ProblemCorrelation,
+};
 
 #[derive(Debug)]
 pub struct OpsError {
-    pub(crate) status: axum::http::StatusCode,
-    pub(crate) code: &'static str,
-    pub(crate) message: String,
+    pub status: axum::http::StatusCode,
+    pub code: &'static str,
+    pub message: String,
 }
 
-impl From<AppContextError> for OpsError {
-    fn from(value: AppContextError) -> Self {
-        Self {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: value.code(),
-            message: value.message().to_owned(),
-        }
+fn ops_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
+    }
+}
+
+impl From<OpsError> for ApiProblem {
+    fn from(error: OpsError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: ops_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
+impl IntoResponse for OpsError {
+    fn into_response(self) -> Response {
+        let error = WebFrameworkError {
+            kind: ops_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }
 
@@ -41,18 +71,5 @@ impl OpsError {
             code,
             message: message.into(),
         }
-    }
-}
-
-impl axum::response::IntoResponse for OpsError {
-    fn into_response(self) -> axum::response::Response {
-        (
-            self.status,
-            Json(serde_json::json!({
-                "code": self.code,
-                "message": self.message
-            })),
-        )
-            .into_response()
     }
 }

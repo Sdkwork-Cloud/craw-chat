@@ -28,6 +28,7 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
     let bind_addr = resolve_bind_addr()?;
     let config = ImRpcServerConfig {
         bind_addr: bind_addr.to_string(),

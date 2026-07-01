@@ -1,24 +1,30 @@
 use std::sync::{Arc, OnceLock};
 
 use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
-use axum::http::{HeaderMap, Request, header::CONTENT_TYPE};
+use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
-use axum::{Json, Router, routing::get};
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use axum::{Json, Router, routing::{delete, get, post}};
+use im_app_context::AppContext;
 use im_domain_core::conversation::ConversationReadCursorView;
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_web_core::{
+    WebFrameworkError, WebFrameworkErrorKind, WebRequestContext, problem_response, ProblemCorrelation,
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
 use super::{
-    ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,
-    MessageInteractionSummaryView, ProjectionAccessError, ProjectionRuntime, TimelineProjectionService,
-    TimelineWindowView,
+    ContactWindowView, ConversationMemberDirectoryEntry, ConversationPreferencesView,
+    ConversationProfileView, ConversationSummaryView, DeleteMessageFavoriteResponse,
+    FavoriteMessageRequest, FavoriteMessagesWindowView, InboxWindowView,
+    MessageFavoriteView, MessageInteractionSummaryView, ProjectionAccessError, ProjectionRuntime, TimelineProjectionService,
+    TimelineWindowView, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -35,6 +41,15 @@ struct ListQuery {
     cursor: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteMessagesQuery {
+    limit: Option<usize>,
+    cursor: Option<String>,
+    favorite_type: Option<String>,
+    q: Option<String>,
+}
+
 type TimelineResponse = TimelineWindowView;
 type InboxResponse = InboxWindowView;
 type ContactsResponse = ContactWindowView;
@@ -49,6 +64,24 @@ struct MemberDirectoryResponse {
 #[serde(rename_all = "camelCase")]
 struct PinnedMessagesResponse {
     items: Vec<MessageInteractionSummaryView>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationProfileItemResponse {
+    item: ConversationProfileView,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationPreferencesItemResponse {
+    item: ConversationPreferencesView,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MessageFavoriteItemResponse {
+    item: MessageFavoriteView,
 }
 
 const PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_PROJECTION_MAX_IN_FLIGHT_REQUESTS";
@@ -80,16 +113,6 @@ impl ProjectionApiError {
     }
 }
 
-impl From<AppContextError> for ProjectionApiError {
-    fn from(value: AppContextError) -> Self {
-        Self {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: value.code(),
-            message: value.message().to_owned(),
-        }
-    }
-}
-
 impl From<ProjectionAccessError> for ProjectionApiError {
     fn from(value: ProjectionAccessError) -> Self {
         Self {
@@ -100,25 +123,47 @@ impl From<ProjectionAccessError> for ProjectionApiError {
     }
 }
 
+/// Map [`ProjectionApiError::status`] to the canonical [`WebFrameworkErrorKind`].
+fn projection_api_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
+    }
+}
+
+impl From<ProjectionApiError> for ApiProblem {
+    fn from(error: ProjectionApiError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: projection_api_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
+impl From<ProjectionAccessError> for ApiProblem {
+    fn from(value: ProjectionAccessError) -> Self {
+        ProjectionApiError::from(value).into()
+    }
+}
+
 impl IntoResponse for ProjectionApiError {
-    fn into_response(self) -> axum::response::Response {
-        let status = self.status;
-        let detail = self.message;
-        let message = detail.clone();
-        let title = status.canonical_reason().unwrap_or("Unknown Error");
-        (
-            status,
-            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
-            Json(serde_json::json!({
-                "type": "about:blank",
-                "title": title,
-                "status": status.as_u16(),
-                "detail": detail,
-                "code": self.code,
-                "message": message
-            })),
-        )
-            .into_response()
+    fn into_response(self) -> Response {
+        let error = WebFrameworkError {
+            kind: projection_api_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }
 
@@ -169,6 +214,26 @@ pub fn build_supplemental_domain_api_router(service: Arc<TimelineProjectionServi
             "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
             get(get_message_interaction_summary),
         )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/profile",
+            get(get_conversation_profile).patch(patch_conversation_profile),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/preferences",
+            get(get_conversation_preferences).patch(patch_conversation_preferences),
+        )
+        .route(
+            "/im/v3/api/chat/messages/favorites",
+            get(list_message_favorites),
+        )
+        .route(
+            "/im/v3/api/chat/messages/favorites/{favorite_id}",
+            delete(delete_message_favorite),
+        )
+        .route(
+            "/im/v3/api/chat/messages/{message_id}/favorites",
+            post(create_message_favorite),
+        )
         .with_state(service)
 }
 
@@ -199,6 +264,26 @@ pub fn build_domain_api_router(service: Arc<TimelineProjectionService>) -> Route
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/messages",
             get(get_timeline),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/profile",
+            get(get_conversation_profile).patch(patch_conversation_profile),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/preferences",
+            get(get_conversation_preferences).patch(patch_conversation_preferences),
+        )
+        .route(
+            "/im/v3/api/chat/messages/favorites",
+            get(list_message_favorites),
+        )
+        .route(
+            "/im/v3/api/chat/messages/favorites/{favorite_id}",
+            delete(delete_message_favorite),
+        )
+        .route(
+            "/im/v3/api/chat/messages/{message_id}/favorites",
+            post(create_message_favorite),
         )
         .with_state(service)
 }
@@ -232,10 +317,7 @@ pub fn build_public_app_with_service(service: Arc<TimelineProjectionService>) ->
 }
 
 pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
-    mount_im_infra_routes(
-        build_business_router(service),
-        im_service_router_config(),
-    )
+    mount_im_infra_routes(build_business_router(service), im_service_router_config())
 }
 
 fn build_business_router(service: Arc<TimelineProjectionService>) -> Router {
@@ -259,11 +341,16 @@ async fn enforce_in_flight_gate(
     let permit = match guardrails.request_gate.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
+            let problem = ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
             return ProjectionApiError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later".to_owned(),
             }
             .into_response();
         }
@@ -355,138 +442,263 @@ fn projection_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn get_timeline(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
     Query(query): Query<TimelineQuery>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<TimelineResponse>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(service.timeline_window_from_auth_context(
-        &auth,
-        conversation_id.as_str(),
-        query.after_seq,
-        query.limit,
-    )?))
+) -> Response {
+    let result: ApiResult<TimelineResponse> = (|| {
+        Ok(service.timeline_window_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            query.after_seq,
+            query.limit,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_inbox(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Query(query): Query<ListQuery>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<InboxResponse>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(service.inbox_window_from_auth_context(
-        &auth,
-        query.limit,
-        query.cursor.as_deref(),
-    )?))
+) -> Response {
+    let result: ApiResult<InboxResponse> = (|| {
+        Ok(service.inbox_window_from_auth_context(
+            &auth,
+            query.limit,
+            query.cursor.as_deref(),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_contacts(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Query(query): Query<ListQuery>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<ContactsResponse>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(service.contact_window_from_auth_context(
-        &auth,
-        query.limit,
-        query.cursor.as_deref(),
-    )?))
+) -> Response {
+    let result: ApiResult<ContactsResponse> = (|| {
+        Ok(service.contact_window_from_auth_context(
+            &auth,
+            query.limit,
+            query.cursor.as_deref(),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_conversation_summary(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<ConversationSummaryView>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    let summary = service
-        .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
-        .ok_or_else(|| ProjectionApiError {
-            status: axum::http::StatusCode::NOT_FOUND,
-            code: "conversation_summary_not_found",
-            message: format!("conversation summary not found: {conversation_id}"),
-        })?;
-    Ok(Json(summary))
+) -> Response {
+    let result: ApiResult<ConversationSummaryView> = (|| {
+        let summary = service
+            .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
+            .ok_or_else(|| ProjectionApiError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "conversation_summary_not_found",
+                message: format!("conversation summary not found: {conversation_id}"),
+            })?;
+        Ok(summary)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_read_cursor(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<ConversationReadCursorView>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    let cursor = service
-        .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
-        .ok_or_else(|| ProjectionApiError {
-            status: axum::http::StatusCode::NOT_FOUND,
-            code: "conversation_read_cursor_not_found",
-            message: format!("conversation read cursor not found: {conversation_id}"),
-        })?;
-    Ok(Json(cursor))
+) -> Response {
+    let result: ApiResult<ConversationReadCursorView> = (|| {
+        let cursor = service
+            .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
+            .ok_or_else(|| ProjectionApiError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "conversation_read_cursor_not_found",
+                message: format!("conversation read cursor not found: {conversation_id}"),
+            })?;
+        Ok(cursor)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_member_directory(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<MemberDirectoryResponse>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(MemberDirectoryResponse {
-        items: service.member_directory_from_auth_context(&auth, conversation_id.as_str())?,
-    }))
+) -> Response {
+    let result: ApiResult<MemberDirectoryResponse> = (|| {
+        Ok(MemberDirectoryResponse {
+            items: service.member_directory_from_auth_context(&auth, conversation_id.as_str())?,
+        })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_pinned_messages(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<PinnedMessagesResponse>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(PinnedMessagesResponse {
-        items: service.pinned_messages_from_auth_context(&auth, conversation_id.as_str())?,
-    }))
+) -> Response {
+    let result: ApiResult<PinnedMessagesResponse> = (|| {
+        Ok(PinnedMessagesResponse {
+            items: service.pinned_messages_from_auth_context(&auth, conversation_id.as_str())?,
+        })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_message_interaction_summary(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Path((conversation_id, message_id)): Path<(String, String)>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<MessageInteractionSummaryView>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    let summary = service
-        .message_interaction_summary_from_auth_context(
-            &auth,
-            conversation_id.as_str(),
-            message_id.as_str(),
-        )?
-        .ok_or_else(|| ProjectionApiError {
-            status: axum::http::StatusCode::NOT_FOUND,
-            code: "message_interaction_summary_not_found",
-            message: format!(
-                "message interaction summary not found: {conversation_id}/{message_id}"
-            ),
-        })?;
-    Ok(Json(summary))
+) -> Response {
+    let result: ApiResult<MessageInteractionSummaryView> = (|| {
+        let summary = service
+            .message_interaction_summary_from_auth_context(
+                &auth,
+                conversation_id.as_str(),
+                message_id.as_str(),
+            )?
+            .ok_or_else(|| ProjectionApiError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "message_interaction_summary_not_found",
+                message: format!(
+                    "message interaction summary not found: {conversation_id}/{message_id}"
+                ),
+            })?;
+        Ok(summary)
+    })();
+    finish_api_json(&ctx, result)
 }
 
-fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, ProjectionApiError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(ProjectionApiError::from),
-    }
+async fn get_conversation_profile(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(conversation_id): Path<String>,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Response {
+    let result: ApiResult<ConversationProfileItemResponse> = (|| {
+        Ok(ConversationProfileItemResponse {
+            item: service.conversation_profile_from_auth_context(&auth, conversation_id.as_str())?,
+        })
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn patch_conversation_profile(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(conversation_id): Path<String>,
+    State(service): State<Arc<TimelineProjectionService>>,
+    Json(body): Json<UpdateConversationProfileRequest>,
+) -> Response {
+    let result: ApiResult<ConversationProfileItemResponse> = (|| {
+        Ok(ConversationProfileItemResponse {
+            item: service.update_conversation_profile_from_auth_context(
+                &auth,
+                conversation_id.as_str(),
+                body,
+            )?,
+        })
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn get_conversation_preferences(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(conversation_id): Path<String>,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Response {
+    let result: ApiResult<ConversationPreferencesItemResponse> = (|| {
+        Ok(ConversationPreferencesItemResponse {
+            item: service
+                .conversation_preferences_from_auth_context(&auth, conversation_id.as_str())?,
+        })
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn patch_conversation_preferences(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(conversation_id): Path<String>,
+    State(service): State<Arc<TimelineProjectionService>>,
+    Json(body): Json<UpdateConversationPreferencesRequest>,
+) -> Response {
+    let result: ApiResult<ConversationPreferencesItemResponse> = (|| {
+        Ok(ConversationPreferencesItemResponse {
+            item: service.update_conversation_preferences_from_auth_context(
+                &auth,
+                conversation_id.as_str(),
+                body,
+            )?,
+        })
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn list_message_favorites(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Query(query): Query<FavoriteMessagesQuery>,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Response {
+    let result: ApiResult<FavoriteMessagesWindowView> = (|| {
+        Ok(service.message_favorites_window_from_auth_context(
+            &auth,
+            query.limit,
+            query.cursor.as_deref(),
+            query.favorite_type.as_deref(),
+            query.q.as_deref(),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn create_message_favorite(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(message_id): Path<String>,
+    State(service): State<Arc<TimelineProjectionService>>,
+    Json(body): Json<FavoriteMessageRequest>,
+) -> Response {
+    let result: ApiResult<MessageFavoriteItemResponse> = (|| {
+        Ok(MessageFavoriteItemResponse {
+            item: service.create_message_favorite_from_auth_context(
+                &auth,
+                message_id.as_str(),
+                body,
+            )?,
+        })
+    })();
+    finish_api_json(&ctx, result)
+}
+
+async fn delete_message_favorite(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(favorite_id): Path<String>,
+    State(service): State<Arc<TimelineProjectionService>>,
+) -> Response {
+    let result: ApiResult<DeleteMessageFavoriteResponse> = (|| {
+        Ok(service.delete_message_favorite_from_auth_context(
+            &auth,
+            favorite_id.as_str(),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 fn resolve_max_in_flight_requests() -> usize {

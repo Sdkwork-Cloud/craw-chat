@@ -11,7 +11,7 @@ use im_adapters_social_postgres::user_settings_store::PostgresUserSettingsStore;
 use im_adapters_social_postgres::{SocialPostgresConfig, SocialPostgresPool};
 
 use super::http::PostgresAppState;
-use super::id::build_runtime_id_generator;
+use super::id::build_runtime_id_generator_for_social;
 
 pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 
@@ -27,7 +27,7 @@ pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> PostgresA
         direct_chat_store: Arc::new(PostgresDirectChatStore::new(pool_arc)),
         presence_cache: None,
         session_cache: None,
-        id_generator: build_runtime_id_generator().await,
+        id_generator: build_runtime_id_generator_for_social().await,
     }
 }
 

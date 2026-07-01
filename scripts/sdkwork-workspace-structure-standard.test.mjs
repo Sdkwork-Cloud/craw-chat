@@ -52,7 +52,6 @@ const pcAppDictionaryFiles = [
   'specs/README.md',
   'specs/component.spec.json',
   'package.json',
-  'pnpm-workspace.yaml',
 ];
 
 function absolutePath(relativePath) {
@@ -320,25 +319,17 @@ function assertAppManifestWorkspaceRoots() {
 function assertPnpmWorkspaceAuthority() {
   assertFile('pnpm-workspace.yaml');
   const rootPackages = parsePnpmWorkspacePackages('pnpm-workspace.yaml');
-  const appPackages = parsePnpmWorkspacePackages(`${pcAppRoot}/pnpm-workspace.yaml`);
+  const nestedWorkspacePath = `${pcAppRoot}/pnpm-workspace.yaml`;
 
+  assert(
+    !fs.existsSync(absolutePath(nestedWorkspacePath)),
+    `${nestedWorkspacePath} must not exist; repository root pnpm-workspace.yaml is the only workspace authority`,
+  );
   assert(rootPackages.includes(pcAppRoot), 'root pnpm-workspace.yaml must include apps/sdkwork-im-pc');
   assert(
     rootPackages.includes(`${pcAppRoot}/packages/*`),
     'root pnpm-workspace.yaml must include apps/sdkwork-im-pc/packages/*',
   );
-  for (const packagePath of appPackages) {
-    if (packagePath === 'packages/*') {
-      continue;
-    }
-    const expectedRootPath = packagePath.startsWith('../../')
-      ? packagePath.replace(/^\.\.\/\.\.\//u, '')
-      : packagePath.replace(/^\.\.\/\.\.\/\.\.\//u, '../');
-    assert(
-      rootPackages.includes(expectedRootPath),
-      `root pnpm-workspace.yaml must carry app workspace package path ${packagePath} as ${expectedRootPath}`,
-    );
-  }
 
   const packageJson = readJson('package.json');
   assert(

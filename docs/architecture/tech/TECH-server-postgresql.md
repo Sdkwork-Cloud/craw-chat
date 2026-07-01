@@ -87,5 +87,5 @@ SDKWORK_IM_DATABASE_SSL_MODE=require
 
 ## 数据库迁移
 
-Server 发布环境通过 `database/` 生命周期模块与 `sdkwork-database-cli` 执行 schema bootstrap，不再直接引用 `deployments/database/` 遗留目录。规范 DDL 基线为 `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql`。
+Server 发布环境通过 `database/` 生命周期模块与 `sdkwork-database-cli` 执行 schema bootstrap，不再直接引用 `deployments/database/` 遗留目录。规范 DDL 基线为 `database/ddl/baseline/postgres/0001_im_baseline.sql`。
 

@@ -13,10 +13,10 @@ const hostLanguageBridge = createImPcHostLanguageBridge();
 
 function createImNotaryPcHostAdapter(): NotaryPcHostAdapter {
   return {
-    toast(message, variant = 'info') {
-      imToast(message, variant);
+    toast(message: string, variant = 'info') {
+      imToast(message, variant as 'info');
     },
-    openExternalUrl(url) {
+    openExternalUrl(url: string) {
       const safeUrl = sanitizeMessageLinkHref(url);
       if (safeUrl) {
         window.open(safeUrl, '_blank', 'noopener,noreferrer');
@@ -25,17 +25,17 @@ function createImNotaryPcHostAdapter(): NotaryPcHostAdapter {
     createDefaultAvatar(seed: string) {
       return createDefaultAvatar(seed === 'user' ? 'user' : 'user');
     },
-    CallOverlay: CallOverlay as ComponentType<NotaryCallOverlayProps>,
-    MediaViewer: MediaViewer as ComponentType<NotaryMediaPreviewProps>,
-    sanitizeLinkHref(url) {
+    CallOverlay: CallOverlay as unknown as ComponentType<NotaryCallOverlayProps>,
+    MediaViewer: MediaViewer as unknown as ComponentType<NotaryMediaPreviewProps>,
+    sanitizeLinkHref(url: string) {
       return sanitizeMessageLinkHref(url) ?? '';
     },
-    cn,
+    cn: (...values: unknown[]) => cn(...(values as Parameters<typeof cn>)),
     resolveInitialLanguage: hostLanguageBridge.resolveInitialLanguage,
     onLanguageChange: hostLanguageBridge.onLanguageChange,
   };
 }
 
-export function bootstrapImNotaryPcIntegration(): void {
-  bootstrapNotaryPcForIm(createImNotaryPcHostAdapter());
+export function bootstrapImNotaryPcIntegration(): Promise<void> {
+  return bootstrapNotaryPcForIm(createImNotaryPcHostAdapter());
 }

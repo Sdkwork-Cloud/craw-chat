@@ -14,6 +14,7 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
                 .method("GET")
                 .uri("/backend/v3/api/control/protocol_governance")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -35,19 +36,19 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         serde_json::from_slice(&body).expect("protocol governance body should be valid json");
 
     assert_eq!(
-        json["capabilityProfile"]["profileId"],
+        json["data"]["capabilityProfile"]["profileId"],
         "control-plane-stable"
     );
     assert_eq!(
-        json["quotaProfile"]["maxConcurrentSessionsPerTenant"],
+        json["data"]["quotaProfile"]["maxConcurrentSessionsPerTenant"],
         20_000
     );
-    assert_eq!(json["rolloutPolicy"]["releaseChannel"], "stable");
-    assert_eq!(json["rolloutPolicy"]["trafficPercent"], 100);
-    assert_eq!(json["killSwitch"]["active"], true);
-    assert_eq!(json["effectiveSnapshot"]["killSwitchActive"], true);
+    assert_eq!(json["data"]["rolloutPolicy"]["releaseChannel"], "stable");
+    assert_eq!(json["data"]["rolloutPolicy"]["trafficPercent"], 100);
+    assert_eq!(json["data"]["killSwitch"]["active"], true);
+    assert_eq!(json["data"]["effectiveSnapshot"]["killSwitchActive"], true);
 
-    let enabled_capabilities = json["effectiveSnapshot"]["enabledCapabilities"]
+    let enabled_capabilities = json["data"]["effectiveSnapshot"]["enabledCapabilities"]
         .as_array()
         .expect("effective snapshot should return enabled capabilities");
     assert!(
@@ -57,7 +58,7 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         "effective snapshot should remove kill-switched capabilities"
     );
 
-    let precedence = json["effectiveSnapshot"]["precedence"]
+    let precedence = json["data"]["effectiveSnapshot"]["precedence"]
         .as_array()
         .expect("effective snapshot should expose precedence order");
     assert_eq!(
@@ -65,7 +66,7 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         Some(&serde_json::json!("emergency_kill_switch"))
     );
 
-    let sdk_compatibility_baseline = json["sdkCompatibilityBaseline"]
+    let sdk_compatibility_baseline = json["data"]["sdkCompatibilityBaseline"]
         .as_object()
         .expect("protocol governance should expose sdk compatibility baseline");
     assert_eq!(
@@ -97,7 +98,7 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         serde_json::json!(["backend", "desktop", "iot-edge", "mobile", "web"])
     );
 
-    let business_policy_vocabulary = json["businessPolicyVocabulary"]
+    let business_policy_vocabulary = json["data"]["businessPolicyVocabulary"]
         .as_object()
         .expect("protocol governance should expose business policy vocabulary");
     assert_eq!(

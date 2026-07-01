@@ -6,12 +6,8 @@
 //! is a no-op for the PostgreSQL backend.
 
 use im_platform_contracts::{ContractError, SearchProvider, SearchResult, SearchableMessage};
-use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalTlsConnector};
-
-type PgPool = Pool<PostgresConnectionManager<PostgresJournalTlsConnector>>;
+use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool};
 
 /// PostgreSQL-backed search provider.
 ///
@@ -24,12 +20,12 @@ type PgPool = Pool<PostgresConnectionManager<PostgresJournalTlsConnector>>;
 ///   falls back to `simple` config.
 #[derive(Clone)]
 pub struct PostgresSearchProvider {
-    pool: PgPool,
+    pool: PostgresJournalPool,
     plugin_id: &'static str,
 }
 
 impl PostgresSearchProvider {
-    pub fn from_pool(pool: PgPool) -> Self {
+    pub fn from_pool(pool: PostgresJournalPool) -> Self {
         Self {
             pool,
             plugin_id: "search-postgres",

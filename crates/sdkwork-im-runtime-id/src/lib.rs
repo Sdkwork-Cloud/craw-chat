@@ -1,9 +1,59 @@
+use std::sync::Arc;
+
 use sdkwork_id::{
     NodeAllocatorConfig, NodeAllocatorError, NodeLease, SnowflakeIdError, SnowflakeIdGenerator,
     SnowflakeNodeAllocator,
 };
 
 pub const SDKWORK_IM_ID_NODE_ID_ENV: &str = "SDKWORK_IM_ID_NODE_ID";
+
+/// Build a runtime ID generator, preferring database-backed node_id allocation.
+///
+/// Falls back to `SDKWORK_IM_ID_NODE_ID` env var, then to node 0 for
+/// dev/test environments without a database. The `service_name` parameter
+/// identifies the logical service for the node registry (e.g. `"social-service"`,
+/// `"space-service"`).
+pub async fn build_runtime_id_generator(
+    service_name: &str,
+) -> Arc<dyn im_platform_contracts::IdGenerator> {
+    match RuntimeSnowflakeIdGenerator::from_database_env(service_name).await {
+        Ok(generator) => Arc::new(generator),
+        Err(error) => {
+            tracing::warn!(
+                ?error,
+                "database node_id allocation failed; falling back to env for {service_name}"
+            );
+            build_runtime_id_generator_blocking(service_name)
+        }
+    }
+}
+
+/// Synchronous variant of [`build_runtime_id_generator`] for call sites that
+/// cannot await an async runtime (e.g. synchronous `build_runtime_for_app_state`
+/// used by `build_default_app` in tests).
+///
+/// Skips database-backed node_id allocation and resolves the generator from
+/// `SDKWORK_IM_ID_NODE_ID` env var, falling back to snowflake node 0. This is
+/// safe for dev/test bootstrap; production services should prefer the async
+/// [`build_runtime_id_generator`] to allocate a stable node_id from the
+/// database.
+pub fn build_runtime_id_generator_blocking(
+    service_name: &str,
+) -> Arc<dyn im_platform_contracts::IdGenerator> {
+    match RuntimeSnowflakeIdGenerator::from_env() {
+        Ok(generator) => Arc::new(generator),
+        Err(error) => {
+            tracing::warn!(
+                ?error,
+                "SDKWORK_IM_ID_NODE_ID missing; using snowflake node 0 for {service_name} bootstrap"
+            );
+            Arc::new(
+                RuntimeSnowflakeIdGenerator::with_node_id(0)
+                    .expect("snowflake node 0 must initialize"),
+            )
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuntimeIdStrategy {

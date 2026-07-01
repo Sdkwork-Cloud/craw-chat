@@ -86,6 +86,41 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         "conversations",
     ));
     entries.extend(prefix_routes(
+        "projection-service",
+        vec![HttpMethod::Get, HttpMethod::Patch],
+        &[
+            "/im/v3/api/chat/conversations/{conversationId}/profile",
+            "/im/v3/api/chat/conversations/{conversationId}/preferences",
+        ],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(exact_routes(
+        "projection-service",
+        vec![HttpMethod::Get],
+        &["/im/v3/api/chat/messages/favorites"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(prefix_routes(
+        "projection-service",
+        vec![HttpMethod::Delete],
+        &["/im/v3/api/chat/messages/favorites/{*path}"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(prefix_routes(
+        "projection-service",
+        vec![HttpMethod::Post],
+        &["/im/v3/api/chat/messages/{messageId}/favorites"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(prefix_routes(
         "comms-conversation-service",
         vec![HttpMethod::Get],
         &["/im/v3/api/chat/rooms/{*path}"],
@@ -190,6 +225,14 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkKnowledgebaseAppSdk],
         "knowledge",
+    ));
+    entries.extend(prefix_routes(
+        "sdkwork-voice-app-api",
+        all_http_methods(),
+        &["/app/v3/api/voice/{*path}"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkVoiceAppSdk],
+        "voice",
     ));
     entries.extend(prefix_routes(
         "media-service",

@@ -47,8 +47,9 @@ function functionBody(source, functionName) {
 }
 
 const packageJson = readJson('package.json');
+const corePackageJson = readJson('packages', 'sdkwork-im-pc-core', 'package.json');
 const tsconfig = readJson('tsconfig.json');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const viteConfigSource = readText('vite.config.ts');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
@@ -118,9 +119,9 @@ const notaryPackageSources = fs
   .join('\n');
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/notary-app-sdk'],
+  corePackageJson.dependencies?.['@sdkwork/notary-app-sdk'],
   'workspace:*',
-  'Chat PC must consume sdkwork-notary through the workspace app SDK package.',
+  '@sdkwork/im-pc-core must consume sdkwork-notary through the workspace app SDK package.',
 );
 
 assert.equal(
@@ -287,7 +288,7 @@ assert.match(
 
 assert.match(
   notaryClientSource,
-  /createNotaryAppClient/u,
+  /from\s+['"]@sdkwork\/notary-app-sdk['"][\s\S]*createClient/u,
   'Core notary client must use the sdkwork-notary generated app SDK factory.',
 );
 
@@ -329,7 +330,7 @@ assert.match(
 
 assert.match(
   functionBody(appAuthRuntimeSource, 'resetSdkworkChatAuthenticatedSdkClients'),
-  /resetNotaryService\(\)/u,
+  /resetNotaryPcRuntime\(\)/u,
   'Session reset must reset the notary PC service delegate.',
 );
 

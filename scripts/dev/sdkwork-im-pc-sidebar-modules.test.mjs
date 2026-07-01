@@ -17,6 +17,7 @@ function readJson(relativePath) {
 const rootPackage = readJson('package.json');
 const sidebarSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/Sidebar.tsx');
 const settingsServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/SettingsService.ts');
+const hostAppearanceBridgeSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-commons/src/hostAppearanceBridge.ts');
 const moduleRegistrySource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/moduleRegistry.ts');
 const settingsModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/SettingsModal.tsx');
 const chatLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/ChatLayout.tsx');
@@ -97,9 +98,14 @@ assert.match(
   'Sidebar must listen for settings changes instead of relying on polling',
 );
 assert.match(
-  settingsServiceSource,
+  hostAppearanceBridgeSource,
   /sdkwork-im-pc:settings-changed/u,
-  'SettingsService must notify same-window consumers after settings updates',
+  'hostAppearanceBridge must own the canonical settings changed event name',
+);
+assert.match(
+  settingsServiceSource,
+  /SDKWORK_IM_PC_SETTINGS_CHANGED_EVENT/u,
+  'SettingsService must notify same-window consumers via the shared settings changed event',
 );
 assert.match(
   settingsServiceSource,

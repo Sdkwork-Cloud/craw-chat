@@ -1,5 +1,3 @@
-import type { SdkworkAppClient } from '@sdkwork/course-app-sdk';
-import { configureCoursePcRuntime, type CoursePcSdkPorts } from '@sdkwork/course-pc-course';
 import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 
 import { getCourseAppSdkClient } from './courseAppSdkClient';
@@ -9,8 +7,16 @@ import {
   type SdkworkChatSession,
 } from './session';
 
+interface CourseCapabilitySdkPorts {
+  getCourseClient: () => unknown;
+  readHostSession: () => unknown;
+  subscribeHostSession?: (listener: () => void) => () => void;
+  resolveHostLanguage?: () => string;
+  subscribeHostLanguage?: (listener: (language: string) => void) => () => void;
+}
+
 let coursePcRuntimeBootstrapped = false;
-let imCoursePcPorts: CoursePcSdkPorts | null = null;
+let imCoursePcPorts: CourseCapabilitySdkPorts | null = null;
 
 function mapImSessionToCourseSnapshot(session: SdkworkChatSession | null) {
   if (!session?.user) {
@@ -27,12 +33,12 @@ function mapImSessionToCourseSnapshot(session: SdkworkChatSession | null) {
   };
 }
 
-function createImCoursePcSdkPorts(): CoursePcSdkPorts {
+function createImCoursePcSdkPorts(): CourseCapabilitySdkPorts {
   const hostLanguageBridge = createImPcHostLanguageBridge();
   return {
-    getCourseClient: getCourseAppSdkClient as () => SdkworkAppClient,
+    getCourseClient: getCourseAppSdkClient,
     readHostSession: () => mapImSessionToCourseSnapshot(readAppSdkSessionTokens()),
-    subscribeHostSession(listener) {
+    subscribeHostSession(listener: () => void) {
       const handler = () => listener();
       window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handler);
       return () => window.removeEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handler);
@@ -42,20 +48,36 @@ function createImCoursePcSdkPorts(): CoursePcSdkPorts {
   };
 }
 
-export function bootstrapCoursePcForIm(): void {
-  imCoursePcPorts = createImCoursePcSdkPorts();
-  configureCoursePcRuntime({
-    sdkPorts: imCoursePcPorts,
+export type CoursePcRuntimeConfigurator = (options: {
+  sdkPorts: CourseCapabilitySdkPorts;
+}) => void;
+
+function resolveImCoursePcSdkPorts(): CourseCapabilitySdkPorts {
+  imCoursePcPorts ??= createImCoursePcSdkPorts();
+  return imCoursePcPorts;
+}
+
+export function ensureCoursePcRuntimeOnModule(
+  configureRuntime: CoursePcRuntimeConfigurator,
+): void {
+  configureRuntime({
+    sdkPorts: resolveImCoursePcSdkPorts() as never,
   });
   coursePcRuntimeBootstrapped = true;
 }
 
-export function rebootstrapCoursePcRuntimeForIm(): void {
+export async function bootstrapCoursePcForIm(): Promise<void> {
+  const { configureCoursePcRuntime } = await import('@sdkwork/course-pc-course');
+  ensureCoursePcRuntimeOnModule(configureCoursePcRuntime as CoursePcRuntimeConfigurator);
+}
+
+export async function rebootstrapCoursePcRuntimeForIm(): Promise<void> {
   if (!imCoursePcPorts) {
     return;
   }
+  const { configureCoursePcRuntime } = await import('@sdkwork/course-pc-course');
   configureCoursePcRuntime({
-    sdkPorts: imCoursePcPorts,
+    sdkPorts: imCoursePcPorts as never,
   });
 }
 
@@ -65,4 +87,5 @@ export function isCoursePcRuntimeBootstrapped(): boolean {
 
 export function resetCoursePcRuntime(): void {
   coursePcRuntimeBootstrapped = false;
+  imCoursePcPorts = null;
 }

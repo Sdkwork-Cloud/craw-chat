@@ -1,9 +1,7 @@
-import type { SessionSnapshot } from 'sdkwork-drive-pc-core';
-import { configureDrivePcRuntime } from '@sdkwork/drive-pc-drive';
-import type { DrivePcSdkPorts } from '@sdkwork/drive-pc-drive';
 import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 
 import { getDriveAppSdkClient } from './driveAppSdkClient';
+import type { DriveCapabilitySdkPorts, HostCapabilitySessionSnapshot } from './hostCapabilitySession';
 import {
   readAppSdkSessionTokens,
   SDKWORK_IM_SESSION_CHANGED_EVENT,
@@ -11,9 +9,9 @@ import {
 } from './session';
 
 let drivePcRuntimeBootstrapped = false;
-let imDrivePcPorts: DrivePcSdkPorts | null = null;
+let imDrivePcPorts: DriveCapabilitySdkPorts | null = null;
 
-function mapImSessionToDriveSnapshot(session: SdkworkChatSession | null): SessionSnapshot | null {
+function mapImSessionToDriveSnapshot(session: SdkworkChatSession | null): HostCapabilitySessionSnapshot | null {
   if (!session?.authToken || !session.accessToken || !session.context?.tenantId || !session.context?.userId) {
     return null;
   }
@@ -49,7 +47,7 @@ function mapImSessionToDriveSnapshot(session: SdkworkChatSession | null): Sessio
   };
 }
 
-function createImDrivePcSdkPorts(): DrivePcSdkPorts {
+function createImDrivePcSdkPorts(): DriveCapabilitySdkPorts {
   const hostLanguageBridge = createImPcHostLanguageBridge();
   return {
     getDriveClient: getDriveAppSdkClient,
@@ -64,20 +62,36 @@ function createImDrivePcSdkPorts(): DrivePcSdkPorts {
   };
 }
 
-export function bootstrapDrivePcForIm(): void {
-  imDrivePcPorts = createImDrivePcSdkPorts();
-  configureDrivePcRuntime({
-    sdkPorts: imDrivePcPorts,
+export type DrivePcRuntimeConfigurator = (options: {
+  sdkPorts: DriveCapabilitySdkPorts;
+}) => void;
+
+function resolveImDrivePcSdkPorts(): DriveCapabilitySdkPorts {
+  imDrivePcPorts ??= createImDrivePcSdkPorts();
+  return imDrivePcPorts;
+}
+
+export function ensureDrivePcRuntimeOnModule(
+  configureRuntime: DrivePcRuntimeConfigurator,
+): void {
+  configureRuntime({
+    sdkPorts: resolveImDrivePcSdkPorts() as never,
   });
   drivePcRuntimeBootstrapped = true;
 }
 
-export function rebootstrapDrivePcRuntimeForIm(): void {
+export async function bootstrapDrivePcForIm(): Promise<void> {
+  const { configureDrivePcRuntime } = await import('@sdkwork/drive-pc-drive');
+  ensureDrivePcRuntimeOnModule(configureDrivePcRuntime as DrivePcRuntimeConfigurator);
+}
+
+export async function rebootstrapDrivePcRuntimeForIm(): Promise<void> {
   if (!imDrivePcPorts) {
     return;
   }
+  const { configureDrivePcRuntime } = await import('@sdkwork/drive-pc-drive');
   configureDrivePcRuntime({
-    sdkPorts: imDrivePcPorts,
+    sdkPorts: imDrivePcPorts as never,
   });
 }
 
@@ -87,4 +101,5 @@ export function isDrivePcRuntimeBootstrapped(): boolean {
 
 export function resetDrivePcRuntime(): void {
   drivePcRuntimeBootstrapped = false;
+  imDrivePcPorts = null;
 }

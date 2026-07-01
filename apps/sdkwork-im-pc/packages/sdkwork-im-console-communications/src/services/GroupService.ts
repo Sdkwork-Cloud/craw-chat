@@ -71,7 +71,7 @@ async function listAllInboxGroups(): Promise<ConversationListEntry[]> {
     items.push(
       ...response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'),
     );
-    cursor = response.hasMore ? response.nextCursor : undefined;
+    cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
   } while (cursor);
 
   return items;

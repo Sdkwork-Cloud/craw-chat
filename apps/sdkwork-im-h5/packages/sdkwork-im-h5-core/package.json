@@ -5,9 +5,11 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/iam-contracts": "workspace:*",
     "@sdkwork/im-sdk": "workspace:*",
-    "@sdkwork/sdk-common": "catalog:"
+    "@sdkwork/sdk-common": "catalog:",
+    "@sdkwork/utils": "workspace:*"
   },
   "exports": {
     ".": {

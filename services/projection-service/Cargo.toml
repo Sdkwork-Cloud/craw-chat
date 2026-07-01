@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "projection-service"
 edition.workspace = true
 license.workspace = true
@@ -14,6 +14,9 @@ im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-projection.workspace = true
+im-adapters-postgres-journal.workspace = true
+sdkwork-im-contract-message = { path = "../../crates/sdkwork-im-contract-message" }
+sdkwork_database_config.workspace = true
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
@@ -21,8 +24,10 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
-sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
+sdkwork_routes_web_framework_backend_api.workspace = true
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 
 [dev-dependencies]
 http-body-util.workspace = true

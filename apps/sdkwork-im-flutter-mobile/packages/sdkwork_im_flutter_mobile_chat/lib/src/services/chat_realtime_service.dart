@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.dart';
 
 typedef RealtimeRefreshHandler = Future<void> Function();
+typedef RealtimeMessageHandler = Future<void> Function();
 
 final _liveHubs = <int, _ChatLiveHub>{};
 
@@ -16,6 +17,7 @@ class _ChatLiveHub {
 
   final Map<String, Set<RealtimeRefreshHandler>> _inboxHandlers = {};
   final Map<String, Set<RealtimeRefreshHandler>> _conversationHandlers = {};
+  final Map<String, Set<RealtimeMessageHandler>> _conversationMessageHandlers = {};
   final Map<String, ImSubscription> _inboxUnsubs = {};
   final Map<String, ImSubscription> _conversationUnsubs = {};
 
@@ -62,12 +64,17 @@ class _ChatLiveHub {
     if (!_liveConnected) {
       return;
     }
-    connection.subscriptions.syncConversations(_conversationHandlers.keys.toList());
+    connection.subscriptions.syncConversations([
+      ..._conversationHandlers.keys,
+      ..._conversationMessageHandlers.keys,
+    ]);
     connection.subscriptions.syncScopes(_buildScopeSubscriptions());
   }
 
   void _teardownIfIdle() {
-    if (_inboxHandlers.isNotEmpty || _conversationHandlers.isNotEmpty) {
+    if (_inboxHandlers.isNotEmpty
+        || _conversationHandlers.isNotEmpty
+        || _conversationMessageHandlers.isNotEmpty) {
       return;
     }
     _stateSubscription?.call();

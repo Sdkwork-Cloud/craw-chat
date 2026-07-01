@@ -3,10 +3,11 @@ use im_adapters_postgres_journal::{
     PostgresOutboxStore, PostgresRetentionScopeStore,
 };
 use im_app_context::resolve_web_environment_from_process_env;
-use im_platform_contracts::{ConversationAggregateStore, MessageStore, OutboxStore, RetentionScopeStore};
+use im_platform_contracts::{ConversationAggregateStore, IdGenerator, MessageStore, OutboxStore, RetentionScopeStore};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
+use sdkwork_im_runtime_id::build_runtime_id_generator_blocking;
 use sdkwork_web_core::WebEnvironment;
 use std::sync::Arc;
 use tracing::info;
@@ -24,10 +25,26 @@ pub enum ConversationCommitJournal {
 
 impl CommitJournal for ConversationCommitJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
-        match self {
-            Self::Memory(journal) => CommitJournal::append(journal, envelope),
-            Self::Postgres(journal) => CommitJournal::append(journal, envelope),
+        let position = match self {
+            Self::Memory(journal) => CommitJournal::append(journal, envelope.clone()),
+            Self::Postgres(journal) => CommitJournal::append(journal, envelope.clone()),
+        }?;
+        projection_service::try_apply_commit_envelope(&envelope);
+        Ok(position)
+    }
+
+    fn append_batch(
+        &self,
+        envelopes: Vec<CommitEnvelope>,
+    ) -> Result<Vec<CommitPosition>, ContractError> {
+        let positions = match self {
+            Self::Memory(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
+            Self::Postgres(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
+        }?;
+        for envelope in &envelopes {
+            projection_service::try_apply_commit_envelope(envelope);
         }
+        Ok(positions)
     }
 
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
@@ -87,9 +104,18 @@ pub fn build_conversation_runtime_from_env() -> Result<ConversationRuntime<Conve
 
     if let ConversationCommitJournal::Postgres(postgres_journal) = journal {
         let pool = postgres_journal.pool().clone();
+
+        // Build Snowflake ID generator for message sequence allocation (eliminates DB hotspot).
+        // Uses the synchronous variant so this function stays callable from
+        // synchronous bootstrap paths (e.g. `build_default_app` in tests and
+        // the `bootstrap_conversation_app_state_from_env` entrypoint). Production
+        // deployments that need database-backed node_id allocation should set
+        // `SDKWORK_IM_ID_NODE_ID` explicitly or run the async
+        // `build_runtime_id_generator` from an async bootstrap path.
+        let id_generator = build_runtime_id_generator_blocking("conversation-service");
+
         runtime = runtime
-            .with_message_store(Arc::new(PostgresMessageStore::from_pool(pool.clone()))
-                as Arc<dyn MessageStore>)
+            .with_message_store(Arc::new(PostgresMessageStore::with_id_generator(pool.clone(), id_generator.clone())) as Arc<dyn MessageStore>)
             .with_outbox_store(
                 Arc::new(PostgresOutboxStore::from_pool(pool.clone())) as Arc<dyn OutboxStore>
             )
@@ -98,8 +124,9 @@ pub fn build_conversation_runtime_from_env() -> Result<ConversationRuntime<Conve
                     as Arc<dyn ConversationAggregateStore>,
             )
             .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(pool))
-                as Arc<dyn RetentionScopeStore>);
-        info!("conversation-runtime wired postgres message/outbox/aggregate stores");
+                as Arc<dyn RetentionScopeStore>)
+            .with_id_generator(id_generator);
+        info!("conversation-runtime wired postgres stores with Snowflake ID generation");
     }
 
     Ok(runtime)
@@ -117,8 +144,8 @@ mod tests {
     use super::*;
     use im_domain_events::CommitEnvelope;
 
-    #[test]
-    fn memory_journal_variant_delegates_append() {
+    #[tokio::test]
+    async fn memory_journal_variant_delegates_append() {
         let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
         let envelope = CommitEnvelope::minimal(
             "evt-1",

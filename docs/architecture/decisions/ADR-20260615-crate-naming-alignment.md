@@ -58,7 +58,7 @@ This is a public-naming change. Per `ARCHITECTURE_DECISION_SPEC.md` §5 it requi
 review, and per `MIGRATION_SPEC.md` it needs a compatibility window because the crate names
 are referenced by: workspace `Cargo.toml` members and `[workspace.dependencies]`, every
 dependent crate's `Cargo.toml`, every `use <crate>::` / `extern crate` in Rust source,
-`sdks/sdkwork-im-rpc-sdk` family inputs, `apps/sdkwork-chat-pc` build wiring, release
+`sdks/sdkwork-im-rpc-sdk` family inputs, `apps/sdkwork-im-pc` build wiring, release
 planning scripts under `scripts/release/`, and the RPC SDK family manifest.
 
 ## Decision
@@ -100,7 +100,7 @@ Each batch is independently shippable and verified before the next starts.
 
 During the migration window a renamed crate MAY keep a one-release `[package] name =` alias
 plus a `pub use` re-export shim under the old name, so downstream consumers (the RPC SDK
-family, `apps/sdkwork-chat-pc`, sibling repositories) upgrade without a flag day. The alias
+family, `apps/sdkwork-im-pc`, sibling repositories) upgrade without a flag day. The alias
 is removed once all consumers are updated, tracked as a follow-up under this ADR.
 
 ## Alternatives
@@ -123,7 +123,7 @@ is removed once all consumers are updated, tracked as a follow-up under this ADR
   the `sdkwork-` vocabulary start matching.
 - **Costs:** a multi-batch migration with a compatibility window; every batch must re-run
   `cargo check --workspace`, the affected crate tests, the RPC SDK family verifier
-  (`sdks/sdkwork-im-rpc-sdk`), and `apps/sdkwork-chat-pc` build; release scripts and
+  (`sdks/sdkwork-im-rpc-sdk`), and `apps/sdkwork-im-pc` build; release scripts and
   deployment templates that hard-code crate names need updating in the relevant batch.
 - **Risk:** a stale reference (a missed `use`, a release planner, an SDK family manifest)
   breaks the build or a release artifact. Mitigated by per-batch verification and the

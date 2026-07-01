@@ -5,7 +5,6 @@ use std::io::Write;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use getrandom::fill as fill_random;
 use im_adapters_local_disk::{FileCommitJournal, read_commit_journal_file};
@@ -3816,18 +3815,6 @@ pub(crate) fn archive_active_direct_chats_for_pair(
 pub(crate) fn deterministic_social_id(prefix: &str, seed: &str) -> String {
     let digest = sha256_hash(seed.as_bytes());
     format!("{prefix}{}", &digest[..24])
-}
-
-// ---------------------------------------------------------------------------
-// Timestamp helpers
-// ---------------------------------------------------------------------------
-
-#[allow(dead_code)]
-fn current_unix_epoch_millis() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
 }
 
 fn is_canonical_rfc3339_millis_utc(timestamp: &str) -> bool {

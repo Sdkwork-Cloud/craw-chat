@@ -1,16 +1,17 @@
 //! Friendship API handlers.
 
-use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use im_app_context::AppContext;
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::friendship_store::FriendshipRecord;
 
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Serialize)]
 pub struct FriendshipResponse {
@@ -39,68 +40,66 @@ pub struct ListQuery {
 }
 
 pub async fn list_friends(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Query(query): Query<ListQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let limit = query.limit.unwrap_or(20);
-
-    match state.friendship_store.list_by_user(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        scope.user_id.as_str(),
-        "active",
-        limit,
-    ) {
-        Ok(records) => {
-            let response: Vec<FriendshipResponse> =
-                records.into_iter().map(FriendshipResponse::from).collect();
-            Ok(Json(response))
-        }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: ApiResult<Vec<FriendshipResponse>> = (|| {
+        let limit = query.limit.unwrap_or(20);
+        let records = state
+            .friendship_store
+            .list_by_user(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                auth.actor_id.as_str(),
+                "active",
+                limit,
+            )
+            .map_err(|_| ApiProblem::internal_server_error("failed to list friendships"))?;
+        Ok(records.into_iter().map(FriendshipResponse::from).collect())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn get_friendship(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(friendship_id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let fid: i64 = friendship_id.parse().unwrap_or(0);
-
-    match state.friendship_store.get_by_id(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        fid,
-    ) {
-        Ok(Some(record)) => Ok(Json(FriendshipResponse::from(record))),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: ApiResult<FriendshipResponse> = (|| {
+        let fid: i64 = friendship_id.parse().unwrap_or(0);
+        let record = state
+            .friendship_store
+            .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), fid)
+            .map_err(|_| ApiProblem::internal_server_error("failed to read friendship"))?
+            .ok_or_else(|| ApiProblem::not_found("friendship not found"))?;
+        Ok(FriendshipResponse::from(record))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn remove_friendship(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(friendship_id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let fid: i64 = friendship_id.parse().unwrap_or(0);
-    let now = chrono::Utc::now().to_rfc3339();
-
-    match state.friendship_store.update_status(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        fid,
-        "removed",
-        &now,
-    ) {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: Result<Response, ApiProblem> = (|| {
+        let fid: i64 = friendship_id.parse().unwrap_or(0);
+        let now = chrono::Utc::now().to_rfc3339();
+        state
+            .friendship_store
+            .update_status(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                fid,
+                "removed",
+                &now,
+            )
+            .map_err(|_| ApiProblem::internal_server_error("failed to remove friendship"))?;
+        no_content(&ctx)
+    })();
+    finish_api_response(&ctx, result)
 }

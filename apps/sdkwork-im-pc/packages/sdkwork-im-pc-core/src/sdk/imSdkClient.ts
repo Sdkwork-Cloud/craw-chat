@@ -1,4 +1,4 @@
-import { ImSdkClient, ImWebSocketAuthOptions, type ImSdkClientOptions } from '@sdkwork/im-sdk';
+import { ImSdkClient, ImWebSocketAuthOptions, IM_REALTIME_WS, type ImSdkClientOptions } from '@sdkwork/im-sdk';
 import {
   DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
   DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
@@ -84,4 +84,5 @@ export function resetImSdkClient(): void {
 export {
   DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
   DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  IM_REALTIME_WS,
 };

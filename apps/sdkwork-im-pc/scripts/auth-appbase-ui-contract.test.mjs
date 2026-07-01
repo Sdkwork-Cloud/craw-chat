@@ -6,6 +6,7 @@ import path from 'node:path';
 import { iamSourcePathRegex } from '../../../../sdkwork-specs/tools/iam-legacy-path-fragments.mjs';
 
 const appRoot = path.resolve(import.meta.dirname, '..');
+const repoRoot = path.resolve(appRoot, '..', '..');
 
 function readText(...segments) {
   return fs.readFileSync(path.join(appRoot, ...segments), 'utf8');
@@ -13,6 +14,10 @@ function readText(...segments) {
 
 function readJson(...segments) {
   return JSON.parse(readText(...segments));
+}
+
+function readRepoText(...segments) {
+  return fs.readFileSync(path.join(repoRoot, ...segments), 'utf8');
 }
 
 function extractObjectPropertyBlock(source, propertyName) {
@@ -63,7 +68,7 @@ const tauriWindowControlPermissionSource = readText('packages', 'sdkwork-im-pc-d
 const tauriConfig = readJson('packages', 'sdkwork-im-pc-desktop', 'src-tauri', 'tauri.conf.json');
 const tauriDefaultCapability = readJson('packages', 'sdkwork-im-pc-desktop', 'src-tauri', 'capabilities', 'default.json');
 const viteConfigSource = readText('vite.config.ts');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const tsconfig = readJson('tsconfig.json');
 const packageJson = readJson('package.json');
 
@@ -532,8 +537,8 @@ assert.match(
 
 assert.match(
   chatServiceSource,
-  /connection\?\.disconnect\(\s*1000,\s*reason\s*\)/u,
-  'ChatService must disconnect live IM websocket connections with the auth-session change reason.',
+  /closeAllLiveSubscriptions[\s\S]*releaseConversationWireSubscription[\s\S]*releaseInboxWireSubscription/u,
+  'ChatService must tear down live IM wire subscriptions when auth session changes.',
 );
 
 assert.match(

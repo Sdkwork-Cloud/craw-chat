@@ -48,6 +48,7 @@ rustls-pemfile = "2.2.0"
 sdkwork-im-ccp-binding-quic = { version = "0.1.0", path = "../../crates/sdkwork-im-ccp-binding-quic" }
 sdkwork_im_realtime_api_paths.workspace = true
 sdkwork_im_websocket_auth_gate.workspace = true
+sdkwork_web_core.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true

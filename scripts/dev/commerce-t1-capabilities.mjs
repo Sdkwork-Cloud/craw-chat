@@ -30,6 +30,7 @@ export const COMMERCE_T1_APP_SDK_PACKAGES = Object.freeze({
   catalog: '@sdkwork/catalog-app-sdk',
   shop: '@sdkwork/shop-app-sdk',
   order: '@sdkwork/order-app-sdk',
+  membership: '@sdkwork/membership-app-sdk',
 });
 
 export const COMMERCE_T1_APP_SDK_WORKSPACE_PATHS = Object.freeze({
@@ -39,6 +40,7 @@ export const COMMERCE_T1_APP_SDK_WORKSPACE_PATHS = Object.freeze({
     '../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi',
   order:
     '../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi',
+  membership: 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-membership-transport',
 });
 
 export const COMMERCE_T1_DATABASE_URL_ENV_KEYS = Object.freeze(

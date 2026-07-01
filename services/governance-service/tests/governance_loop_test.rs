@@ -87,6 +87,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_a/drain")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -109,6 +110,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_a/routes/migrate")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -128,7 +130,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
         .to_bytes();
     let migrate_json: serde_json::Value =
         serde_json::from_slice(&migrate_body).expect("migrate body should be valid json");
-    assert_eq!(migrate_json["migratedRouteCount"], 1);
+    assert_eq!(migrate_json["data"]["migratedRouteCount"], 1);
 
     let migrated_cluster = ops_runtime.cluster_view();
     assert_eq!(migrated_cluster.nodes[0].drain_status, "drained");
@@ -191,6 +193,7 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.read")
@@ -207,6 +210,7 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.read")
@@ -283,6 +287,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -302,6 +307,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -389,6 +395,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -409,6 +416,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -428,6 +436,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/rollback")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -446,7 +455,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         .to_bytes();
     let rollback_json: serde_json::Value =
         serde_json::from_slice(&rollback_body).expect("rollback body should be valid json");
-    assert_eq!(rollback_json["status"], "rolled_back");
+    assert_eq!(rollback_json["data"]["status"], "rolled_back");
 
     let provider_bindings = ops_runtime.provider_bindings_view();
     assert_eq!(provider_bindings.items.len(), 1);
@@ -508,6 +517,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -527,6 +537,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -606,6 +617,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -625,6 +637,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -645,8 +658,8 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         .to_bytes();
     let noop_json: serde_json::Value =
         serde_json::from_slice(&noop_body).expect("noop body should be valid json");
-    assert_eq!(noop_json["status"], "noop");
-    assert_eq!(noop_json["applied"], false);
+    assert_eq!(noop_json["data"]["status"], "noop");
+    assert_eq!(noop_json["data"]["applied"], false);
 
     let provider_bindings = ops_runtime.provider_bindings_view();
     assert_eq!(provider_bindings.items.len(), 1);
@@ -695,6 +708,7 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/preview")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -715,7 +729,7 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
         .to_bytes();
     let preview_json: serde_json::Value =
         serde_json::from_slice(&preview_body).expect("preview body should be valid json");
-    assert_eq!(preview_json["status"], "preview");
+    assert_eq!(preview_json["data"]["status"], "preview");
 
     assert!(
         ops_runtime.provider_bindings_view().items.is_empty(),
@@ -759,6 +773,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/preview")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -779,7 +794,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         .to_bytes();
     let preview_json: serde_json::Value =
         serde_json::from_slice(&preview_body).expect("preview body should be valid json");
-    assert_eq!(preview_json["status"], "preview");
+    assert_eq!(preview_json["data"]["status"], "preview");
 
     let concurrent_write = app
         .clone()
@@ -788,6 +803,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -807,6 +823,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -876,6 +893,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.read")
@@ -892,6 +910,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings?tenantId=")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.read")
@@ -910,11 +929,9 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("empty tenant provider bindings body should be json");
-    assert_eq!(json["status"], 400);
-    assert_eq!(json["errorStatus"], "invalid");
-    assert_eq!(json["code"], "invalid_provider_policy");
+    assert_eq!(json["code"].as_i64(), Some(40001));
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
             .expect("empty tenant query error message should be present")
             .contains("tenantId cannot be empty"),
@@ -954,6 +971,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -975,11 +993,9 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("empty tenant provider policy body should be json");
-    assert_eq!(json["status"], 400);
-    assert_eq!(json["errorStatus"], "invalid");
-    assert_eq!(json["code"], "invalid_provider_policy");
+    assert_eq!(json["code"].as_i64(), Some(40001));
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
             .expect("empty tenant write error message should be present")
             .contains("tenantId cannot be empty"),
@@ -1028,6 +1044,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.read")
@@ -1046,6 +1063,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
                     "/backend/v3/api/control/provider_bindings?tenantId={tenant_id}"
                 ))
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.read")
@@ -1064,11 +1082,9 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body)
         .expect("oversized tenant provider bindings body should be json");
-    assert_eq!(json["status"], 413);
-    assert_eq!(json["errorStatus"], "invalid");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"].as_i64(), Some(41301));
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
             .expect("oversized tenant query error message should be present")
             .contains("tenantId"),
@@ -1109,6 +1125,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("admin")
                 .with_dual_token_permission_scope("control.write")
@@ -1130,11 +1147,9 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body)
         .expect("oversized tenant provider policy body should be json");
-    assert_eq!(json["status"], 413);
-    assert_eq!(json["errorStatus"], "invalid");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"].as_i64(), Some(41301));
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
             .expect("oversized tenant write error message should be present")
             .contains("tenantId"),

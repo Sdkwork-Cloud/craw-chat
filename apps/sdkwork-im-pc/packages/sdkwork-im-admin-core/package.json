@@ -3,7 +3,20 @@
   "version": "1.0.0",
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
-  "dependencies": {},
+  "dependencies": {
+    "@sdkwork-internal/im-backend-api-generated": "workspace:*",
+    "@sdkwork/iam-backend-sdk": "workspace:*",
+    "@sdkwork/im-admin-dashboard": "workspace:*",
+    "@sdkwork/im-admin-infrastructure": "workspace:*",
+    "@sdkwork/im-admin-operations": "workspace:*",
+    "@sdkwork/im-admin-tenants": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/sdk-common": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-router-dom": "catalog:"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -35,5 +48,9 @@
       "import": "./src/composition/index.ts",
       "default": "./src/composition/index.ts"
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

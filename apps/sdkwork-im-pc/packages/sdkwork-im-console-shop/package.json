@@ -2,5 +2,14 @@
   "name": "@sdkwork/im-console-shop",
   "version": "1.0.0",
   "main": "./src/index.tsx",
-  "types": "./src/index.tsx"
+  "types": "./src/index.tsx",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:"
+  }
 }

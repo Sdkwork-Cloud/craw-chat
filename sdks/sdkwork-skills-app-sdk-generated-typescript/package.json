@@ -1,0 +1,26 @@
+{
+  "name": "sdkwork-skills-app-sdk-generated-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Workspace-provided TypeScript transport SDK facade for skills app API. Current integration re-exports @sdkwork/agents-app-sdk for skills surfaces so workspace consumers resolve a stable transport client contract.",
+  "author": "SDKWork Team",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "dependencies": {
+    "@sdkwork/agents-app-sdk": "workspace:*"
+  }
+}
+

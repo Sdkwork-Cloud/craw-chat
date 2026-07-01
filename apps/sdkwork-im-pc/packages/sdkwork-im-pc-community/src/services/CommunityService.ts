@@ -1,4 +1,5 @@
-import type { CommunityAppSdkClient, CommunityCategory, CommunityEntry } from '@sdkwork/community-app-sdk';
+import type { CommunityAppSdkClient } from '@sdkwork/im-pc-core/sdk/communityAppSdkClient';
+import type { CommunityCategory, CommunityEntry } from '@sdkwork/im-pc-core/sdk/communityApiHelpers';
 import {
   communityCategoryRecord,
   communityEntryRecord,
@@ -9,6 +10,11 @@ import {
   readString,
 } from '@sdkwork/im-pc-core/sdk/communityApiHelpers';
 import { getCommunityAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/communityAppSdkClient';
+import { getDriveAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/driveAppSdkClient';
+import {
+  readAppSdkSessionTokens,
+  resolveAppSdkUserId,
+} from '@sdkwork/im-pc-core/sdk/session';
 
 export interface Community {
   id: string;
@@ -134,7 +140,7 @@ export interface CommunityService {
   deletePost(communityId: string, postId: string): Promise<void>;
   uploadResource(
     communityId: string,
-    resource: Omit<ResourceItem, "id" | "uploadTime">,
+    resource: Omit<ResourceItem, "id" | "uploadTime"> & { file?: Blob },
   ): Promise<ResourceItem>;
   deleteResource(communityId: string, resourceId: string): Promise<void>;
 }
@@ -245,7 +251,8 @@ class SdkworkCommunityService implements CommunityService {
 
   async getCommunity(id: string): Promise<Community | undefined> {
     try {
-      const entry = await this.client().community.entries.retrieve(id);
+      const response = await this.client().community.entries.retrieve(id);
+      const entry = extractCommunityEntity<CommunityEntry>(response);
       if (entry?.id) {
         return mapEntryToCommunity(entry);
       }
@@ -305,7 +312,7 @@ class SdkworkCommunityService implements CommunityService {
       body: trimmed,
       excerpt: trimmed.slice(0, 240),
     });
-    const entry = extractCommunityEntity<CommunityEntry>(created) ?? created;
+    const entry = extractCommunityEntity<CommunityEntry>(created);
     if (!entry?.id) {
       failClosed(PC_COMMUNITY_DELETE_UNAVAILABLE);
     }
@@ -345,10 +352,43 @@ class SdkworkCommunityService implements CommunityService {
   }
 
   async uploadResource(
-    _communityId: string,
-    _resource: Omit<ResourceItem, "id" | "uploadTime">,
+    communityId: string,
+    resource: Omit<ResourceItem, "id" | "uploadTime"> & { file?: Blob },
   ): Promise<ResourceItem> {
-    failClosed(PC_COMMUNITY_RESOURCES_UNAVAILABLE);
+    if (!resource.file) {
+      failClosed(PC_COMMUNITY_RESOURCES_UNAVAILABLE);
+    }
+
+    const session = readAppSdkSessionTokens();
+    const userId = resolveAppSdkUserId(session);
+    if (!userId) {
+      throw new Error('Community resource upload requires user_id in the authenticated session.');
+    }
+
+    const uploadResult = await getDriveAppSdkClientWithSession(session).uploader.uploadAttachment({
+      file: resource.file,
+      userId,
+      appResourceType: 'im.community.resource',
+      appResourceId: communityId,
+      scene: 'im.community.resource',
+      source: 'sdkwork-im-pc-community',
+      originalFileName: resource.name,
+    });
+
+    const spaceId = uploadResult.uploadItem.spaceId || uploadResult.uploadSession.spaceId;
+    const nodeId = uploadResult.uploadItem.nodeId || uploadResult.uploadSession.nodeId;
+    if (!spaceId || !nodeId) {
+      throw new Error('Drive uploader result is missing spaceId or nodeId.');
+    }
+
+    return {
+      id: nodeId,
+      name: resource.name,
+      size: resource.size,
+      type: resource.type,
+      uploader: userId,
+      uploadTime: new Date().toISOString(),
+    };
   }
 
   async deleteResource(_communityId: string, _resourceId: string): Promise<void> {

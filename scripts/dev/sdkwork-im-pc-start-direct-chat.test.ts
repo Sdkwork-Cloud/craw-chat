@@ -16,13 +16,15 @@ type StartDirectChatCall =
 
 const calls: StartDirectChatCall[] = [];
 
+const CANONICAL_DIRECT_CHAT_ID = 'c_direct_0123456789abcdef01234567';
+
 const fakeClient = {
   conversations: {
     async bindDirectChat(body: Record<string, unknown>) {
       calls.push({ method: 'conversations.bindDirectChat', body });
       return {
-        conversationId: body.conversationId,
-        directChatId: body.directChatId,
+        conversationId: CANONICAL_DIRECT_CHAT_ID,
+        directChatId: '8#4#user#8#u_alice#4#user#6#u_alice',
       };
     },
     async updateProfile(conversationId: string, body: Record<string, unknown>) {
@@ -66,8 +68,6 @@ async function main(): Promise<void> {
     {
       method: 'conversations.bindDirectChat',
       body: {
-        conversationId: 'pc-direct-current-user-u_alice',
-        directChatId: 'pc-dc-current-user-u_alice',
         leftActorId: 'current-user',
         leftActorKind: 'user',
         rightActorId: 'u_alice',
@@ -81,7 +81,7 @@ async function main(): Promise<void> {
     [
       {
         method: 'conversations.updateProfile',
-        conversationId: 'pc-direct-current-user-u_alice',
+        conversationId: CANONICAL_DIRECT_CHAT_ID,
         body: {
           avatarUrl: 'https://example.com/alice.png',
           displayName: 'Alice Chen',
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
       },
       {
         method: 'conversations.updatePreferences',
-        conversationId: 'pc-direct-current-user-u_alice',
+        conversationId: CANONICAL_DIRECT_CHAT_ID,
         body: {
           isHidden: false,
         },
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   );
   assert.deepEqual(
     [chat.id, chat.name, chat.avatar, chat.type, chat.unreadCount],
-    ['pc-direct-current-user-u_alice', 'Alice Chen', 'https://example.com/alice.png', 'single', 0],
+    [CANONICAL_DIRECT_CHAT_ID, 'Alice Chen', 'https://example.com/alice.png', 'single', 0],
   );
 
   calls.length = 0;

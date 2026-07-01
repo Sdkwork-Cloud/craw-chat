@@ -32,18 +32,34 @@ pub type SocialPostgresConnectionManager = PostgresConnectionManager<SocialPostg
 
 /// Shared connection pool wrapper for all social stores.
 #[derive(Clone)]
-pub struct SocialPostgresPool {
-    pool: Pool<SocialPostgresConnectionManager>,
-}
+pub struct SocialPostgresPool(Option<Pool<SocialPostgresConnectionManager>>);
 
 impl SocialPostgresPool {
     pub fn new(pool: Pool<SocialPostgresConnectionManager>) -> Self {
-        Self { pool }
+        Self(Some(pool))
     }
 
     pub fn inner(&self) -> &Pool<SocialPostgresConnectionManager> {
-        &self.pool
+        self.0
+            .as_ref()
+            .expect("social postgres pool should remain initialized")
     }
+}
+
+impl Drop for SocialPostgresPool {
+    fn drop(&mut self) {
+        if let Some(pool) = self.0.take() {
+            drop_social_postgres_pool_off_runtime(pool);
+        }
+    }
+}
+
+fn drop_social_postgres_pool_off_runtime(pool: Pool<SocialPostgresConnectionManager>) {
+    if tokio::runtime::Handle::try_current().is_err() {
+        drop(pool);
+        return;
+    }
+    std::thread::spawn(move || drop(pool));
 }
 
 /// Run a blocking PostgreSQL operation off the async runtime.
@@ -67,6 +83,22 @@ fn postgres_io_thread_panic() -> im_platform_contracts::ContractError {
 }
 
 pub(crate) fn build_social_pool(
+    config: &config::SocialPostgresConfig,
+) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
+    if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
+        return Ok(SocialPostgresPool::new(pool));
+    }
+    if cfg!(test) {
+        return build_social_pool_local(config);
+    }
+    Err(im_platform_contracts::ContractError::Unavailable(
+        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+            .err()
+            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+    ))
+}
+
+fn build_social_pool_local(
     config: &config::SocialPostgresConfig,
 ) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
     let database_url = config.database_url();

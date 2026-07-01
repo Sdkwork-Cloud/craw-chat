@@ -44,6 +44,14 @@
       "types": "./src/sdk/orderAppSdkClient.ts",
       "default": "./src/sdk/orderAppSdkClient.ts"
     },
+    "./sdk/membershipAppSdkClient": {
+      "types": "./src/sdk/membershipAppSdkClient.ts",
+      "default": "./src/sdk/membershipAppSdkClient.ts"
+    },
+    "./sdk/membershipPcIntegration": {
+      "types": "./src/sdk/membershipPcIntegration.ts",
+      "default": "./src/sdk/membershipPcIntegration.ts"
+    },
     "./sdk/appSdkResponseHelpers": {
       "types": "./src/sdk/appSdkResponseHelpers.ts",
       "default": "./src/sdk/appSdkResponseHelpers.ts"
@@ -107,13 +115,19 @@
     }
   },
   "dependencies": {
+    "@sdkwork-internal/im-app-api-generated": "workspace:*",
+    "@sdkwork/agents-app-sdk": "workspace:*",
+    "@sdkwork/agents-pc-agents": "workspace:*",
     "@sdkwork/aiot-app-sdk": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/catalog-app-sdk": "workspace:*",
     "@sdkwork/shop-app-sdk": "workspace:*",
     "@sdkwork/order-app-sdk": "workspace:*",
-    "@sdkwork/mail-app-sdk": "workspace:*",
-    "@sdkwork/community-app-sdk": "workspace:*",
+    "@sdkwork/membership-app-sdk": "workspace:*",
+    "@sdkwork/membership-service": "workspace:*",
+    "@sdkwork/membership-sdk-ports": "workspace:*",
+    "sdkwork-mail-app-sdk-generated-typescript": "workspace:*",
+    "sdkwork-community-app-sdk-generated-typescript": "workspace:*",
     "@sdkwork/course-app-sdk": "workspace:*",
     "@sdkwork/course-backend-sdk": "workspace:*",
     "@sdkwork/course-pc-course": "workspace:*",
@@ -121,12 +135,25 @@
     "@sdkwork/drive-pc-drive": "workspace:*",
     "@sdkwork/knowledgebase-app-sdk": "workspace:*",
     "@sdkwork/knowledgebase-pc-knowledge": "workspace:*",
+    "@sdkwork/voice-app-sdk": "workspace:*",
+    "@sdkwork/voice-pc-market": "workspace:*",
+    "@sdkwork/voice-pc-speech": "workspace:*",
+    "sdkwork-voice-pc-core": "workspace:*",
     "@sdkwork/notary-app-sdk": "workspace:*",
     "@sdkwork/notary-pc-commons": "workspace:*",
     "@sdkwork/notary-pc-notary": "workspace:*",
     "sdkwork-drive-pc-core": "workspace:*",
     "sdkwork-knowledgebase-pc-core": "workspace:*",
     "@sdkwork/utils": "workspace:*",
-    "@sdkwork/im-sdk": "workspace:*"
+    "@sdkwork/im-sdk": "workspace:*",
+    "@sdkwork/sdk-common": "catalog:",
+    "@sdkwork/auth-pc-react": "workspace:*",
+    "@sdkwork/iam-app-sdk": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/iam-contracts": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

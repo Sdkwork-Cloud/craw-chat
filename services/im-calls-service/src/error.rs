@@ -1,7 +1,9 @@
-use axum::Json;
-use axum::response::IntoResponse;
-use im_app_context::AppContextError;
+use axum::response::{IntoResponse, Response};
 use sdkwork_im_contract_core::ContractError;
+use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
+use sdkwork_web_core::{
+    problem_response, ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind,
+};
 
 #[derive(Debug)]
 pub struct CallingError {
@@ -81,25 +83,43 @@ impl CallingError {
     }
 }
 
-impl IntoResponse for CallingError {
-    fn into_response(self) -> axum::response::Response {
-        (
-            self.status,
-            Json(serde_json::json!({
-                "code": self.code,
-                "message": self.message
-            })),
-        )
-            .into_response()
+/// Map [`CallingError::status`] to the canonical [`WebFrameworkErrorKind`].
+fn calling_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
     }
 }
 
-impl From<AppContextError> for CallingError {
-    fn from(value: AppContextError) -> Self {
-        Self {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: value.code(),
-            message: value.message().to_owned(),
-        }
+impl From<CallingError> for ApiProblem {
+    fn from(error: CallingError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: calling_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
+/// Fallback `IntoResponse` for contexts where [`WebRequestContext`] is not
+/// available (e.g. middleware without context injection). Produces a
+/// Problem+json response without `traceId`.
+impl IntoResponse for CallingError {
+    fn into_response(self) -> Response {
+        let error = WebFrameworkError {
+            kind: calling_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }

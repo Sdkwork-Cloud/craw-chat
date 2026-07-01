@@ -22,6 +22,7 @@ const sessionGatewayBin = read('services/session-gateway-bin/src/main.rs');
 const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
 const gatewayConfigLib = read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs');
 const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
+const gatewayProxy = read('services/sdkwork-im-cloud-gateway/src/proxy.rs');
 const openApiRouter = read('crates/sdkwork-routes-im-realtime-open-api/src/lib.rs');
 const topologySpec = readJson('specs/topology.spec.json');
 
@@ -222,12 +223,12 @@ assert.match(
   'gateway must support embedded session-gateway router injection',
 );
 assert.match(
-  gatewayLib,
+  gatewayProxy,
   /dispatch_embedded_session_gateway_if_configured/u,
   'gateway must dispatch embedded session-gateway when router is configured',
 );
 assert.doesNotMatch(
-  gatewayLib,
+  gatewayProxy,
   /runtime_mode != GatewayRuntimeMode::Unified/u,
   'embedded session-gateway dispatch must not be gated on unified-only runtime mode',
 );

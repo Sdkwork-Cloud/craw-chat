@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.im.member-capability",
+  "description": "Sdkwork IM member (app_user) capability alignment contract for embedded standalone gateway and client surfaces.",
+  "memberRoleCode": "app_user",
+  "capabilityModel": {
+    "self": "Profile and session operations use iam:self / iam.profile.* — never iam.users.* admin codes.",
+    "directoryBrowse": "Organization directory read uses iam.organizations.read and related directory reads; UI may fall back to membership-first when browse scope is absent.",
+    "manage": "Admin directory mutation remains on org_admin and backend-api surfaces."
+  },
+  "bootstrapAccessTokenScope": {
+    "source": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
+    "allowedCodes": ["iam:self"],
+    "forbiddenCodes": [
+      "iam.users.read",
+      "iam.roles.read",
+      "iam.permissions.read"
+    ]
+  },
+  "requiredAppUserPermissionPatterns": [
+    "iam:self",
+    "iam.profile.read",
+    "iam.profile.update",
+    "iam.sessions.read",
+    "iam.organizations.read",
+    "iam.memberships.read",
+    "iam.departments.read",
+    "iam.assignments.read",
+    "drive.spaces.read",
+    "drive.nodes.read",
+    "courses.catalog.read",
+    "courses.content.read",
+    "commerce.catalog.read",
+    "commerce.orders.read",
+    "commerce.memberships.read",
+    "ai.agents.read",
+    "ai.skills.read",
+    "apps.app_center.read",
+    "messaging.requests.read",
+    "knowledge.spaces.read",
+    "knowledge.spaces.write",
+    "knowledge.documents.read",
+    "knowledge.documents.write",
+    "knowledge.ingests.read",
+    "knowledge.ingests.write",
+    "knowledge.imports.write",
+    "knowledge.okf.read",
+    "knowledge.okf.write",
+    "mail.accounts.read",
+    "mail.folders.read",
+    "mail.threads.read",
+    "mail.messages.read",
+    "mail.messages.write",
+    "mail.verification.write",
+    "mail.transactional.write"
+  ],
+  "embeddedModuleManifests": [
+    {
+      "moduleId": "knowledge",
+      "manifestRef": "../sdkwork-knowledgebase/specs/iam.module.manifest.json"
+    },
+    {
+      "moduleId": "mail",
+      "manifestRef": "../sdkwork-mail/specs/iam.module.manifest.json"
+    }
+  ],
+  "openapiSelfServiceRoutes": [
+    {
+      "operationId": "users.current.retrieve",
+      "requiredPermission": "iam:self"
+    },
+    {
+      "operationId": "users.current.update",
+      "requiredPermission": "iam.profile.update"
+    },
+    {
+      "operationId": "users.current.password.update",
+      "requiredPermission": "iam.profile.update"
+    },
+    {
+      "operationId": "users.current.emailBindings.create",
+      "requiredPermission": "iam.profile.update"
+    },
+    {
+      "operationId": "users.current.emailBindings.delete",
+      "requiredPermission": "iam.profile.update"
+    },
+    {
+      "operationId": "users.current.phoneBindings.create",
+      "requiredPermission": "iam.profile.update"
+    },
+    {
+      "operationId": "users.current.phoneBindings.delete",
+      "requiredPermission": "iam.profile.update"
+    }
+  ],
+  "embeddedRuntimeDefaults": {
+    "knowledgebaseTenantId": "100001",
+    "knowledgebaseOrganizationId": "0",
+    "notes": "Knowledgebase 403 tenant_id_mismatch indicates JWT tenant_id differs from SDKWORK_KNOWLEDGEBASE_TENANT_ID — not missing RBAC when app-api routes omit x-sdkwork-permission."
+  },
+  "gatewayAssembly": {
+    "embeddedIamMustWinOverRegistryProxy": true,
+    "mergeOrderComment": "application_router.merge(iam_router) so embedded IAM handlers win over cloud-gateway IAM proxy catch-alls."
+  },
+  "authority": [
+    "../sdkwork-specs/APP_PERMISSION_COMPOSITION_SPEC.md",
+    "../sdkwork-specs/PERMISSION_STANDARD_SPEC.md",
+    "../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md"
+  ]
+}

@@ -3,7 +3,7 @@
 ## Context
 
 `sdkwork-im` is a mixed SDKWork application repository with Rust services, generated SDK families,
-release tooling, and the PC React/Tauri application root at `apps/sdkwork-chat-pc`. The repository
+release tooling, and the PC React/Tauri application root at `apps/sdkwork-im-pc`. The repository
 now follows the canonical sibling standards under `../sdkwork-specs`, especially
 `SDKWORK_WORKSPACE_SPEC.md`, `APPLICATION_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`,
 `DEPENDENCY_MANAGEMENT_SPEC.md`, and `TEST_SPEC.md`.
@@ -15,7 +15,7 @@ structure exposes gaps:
   `configs/`, and `tests/` are missing.
 - The repository root has `package.json` with `workspace:*` dependencies but no root
   `pnpm-workspace.yaml`.
-- `apps/sdkwork-chat-pc` is an independent application root with `sdkwork.app.config.json`, but it
+- `apps/sdkwork-im-pc` is an independent application root with `sdkwork.app.config.json`, but it
   does not yet have its own `AGENTS.md` or source-controlled `.sdkwork/` dictionary.
 - PC console and admin package names still use historical `sdkwork-clawchat-console-*` and
   `sdkwork-clawchat-admin-*` names rather than the target `sdkwork-clawchat-pc-console-*` and
@@ -38,10 +38,10 @@ root pnpm workspace authority, migration documentation, and a static verificatio
 In scope:
 
 - Add missing standard top-level directory placeholders and README files.
-- Add `apps/sdkwork-chat-pc` application-root `AGENTS.md`, compatibility shims, and `.sdkwork/`
+- Add `apps/sdkwork-im-pc` application-root `AGENTS.md`, compatibility shims, and `.sdkwork/`
   metadata files.
 - Add root `pnpm-workspace.yaml` as the central pnpm source dependency authority.
-- Keep the app-local `apps/sdkwork-chat-pc/pnpm-workspace.yaml` as compatibility during migration.
+- Keep the app-local `apps/sdkwork-im-pc/pnpm-workspace.yaml` as compatibility during migration.
 - Add a static SDKWORK workspace structure test.
 - Wire the new test into `package.json` and the commercial governance node test catalog.
 - Document the historical PC console/admin package naming exception.
@@ -62,7 +62,7 @@ Out of scope:
 The repository root remains the primary SDKWork repository/application root. It owns canonical
 project-root capability directories and native build-tool workspace declarations.
 
-`apps/sdkwork-chat-pc` remains an independent PC application root. It owns PC-specific bootstrap,
+`apps/sdkwork-im-pc` remains an independent PC application root. It owns PC-specific bootstrap,
 packages, scripts, specs, app manifest, and local `.sdkwork/` metadata. Its package names are
 validated in compatibility mode: normalized `sdkwork-clawchat-pc-*` packages are accepted, and
 legacy console/admin package names must be explicitly listed as a migration exception.

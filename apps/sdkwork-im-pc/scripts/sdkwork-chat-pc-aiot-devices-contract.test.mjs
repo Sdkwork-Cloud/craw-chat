@@ -125,8 +125,8 @@ assert.match(
 );
 assert.match(
   aiotDeviceServiceSource,
-  /\.iot\.devicesList\s*\(/u,
-  'Canonical device service must list devices through client.iot.devicesList.',
+  /\.iot\.devices\.list\s*\(/u,
+  'Canonical device service must list devices through client.iot.devices.list.',
 );
 assert.doesNotMatch(
   aiotDeviceServiceSource,
@@ -156,8 +156,8 @@ assert.match(
 );
 assert.match(
   aiotIotServiceSource,
-  /\.iot\.devicesList\s*\(/u,
-  'Canonical IoT service must load fleet nodes through client.iot.devicesList.',
+  /\.iot\.devices\.list\s*\(/u,
+  'Canonical IoT service must load fleet nodes through client.iot.devices.list.',
 );
 assert.doesNotMatch(
   aiotIotServiceSource,
@@ -203,9 +203,9 @@ for (const forbiddenUserFacingBackendCall of [
   );
 }
 for (const requiredAppSdkCall of [
-  /\.iot\.devicesList\s*\(/u,
-  /\.iot\.devicesRetrieve\s*\(/u,
-  /\.iot\.devicesCommandsCreate\s*\(/u,
+  /\.iot\.devices\.list\s*\(/u,
+  /\.iot\.devices\.retrieve\s*\(/u,
+  /\.iot\.devices\.commands\.create\s*\(/u,
 ]) {
   assert.match(
     sdkworkImDeviceServiceSource,

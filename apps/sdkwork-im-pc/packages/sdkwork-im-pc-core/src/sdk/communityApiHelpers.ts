@@ -1,4 +1,6 @@
-import type { CommunityCategory, CommunityEntry } from '@sdkwork/community-app-sdk';
+import type { CommunityCategory, CommunityEntry } from 'sdkwork-community-app-sdk-generated-typescript';
+
+export type { CommunityCategory, CommunityEntry };
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (value == null || typeof value !== 'object' || Array.isArray(value)) {

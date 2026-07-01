@@ -1,8 +1,6 @@
 //! gRPC runtime dispatch for conversation and message RPC services.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
-
 use axum::http::{HeaderMap, HeaderValue, header};
 use im_app_context::AppContext;
 use im_domain_core::conversation::{member_id, ConversationMember, MembershipRole};
@@ -61,8 +59,6 @@ pub const CONVERSATION_RPC_SERVICE_KEYS: &[&str] = &[
     "sdkwork.communication.app.v3.RoomService",
 ];
 
-const PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV: &str = "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH";
-const ALLOW_ALL_PRINCIPALS_ENV: &str = "SDKWORK_IM_ALLOW_ALL_PRINCIPALS";
 const DEFAULT_PAGE_SIZE: usize = 50;
 const MAX_PAGE_SIZE: usize = 200;
 
@@ -400,11 +396,17 @@ async fn dispatch_create_conversation(
 async fn dispatch_create_agent_dialog(
     state: &AppState,
     auth: &AppContext,
-    metadata: &RpcMetadata,
+    _metadata: &RpcMetadata,
     request: CreateAgentDialogRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
-    let conversation_id = derive_idempotent_resource_id(metadata, "agent-dialog")?;
     let agent_id = required_field(request.agent_id, "agent_id")?;
+    let conversation_id = super::support::canonical_agent_dialog_conversation_id(
+        auth.tenant_id.as_str(),
+        super::organization_id_from_auth_context(auth).as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        agent_id.as_str(),
+    );
     let result = state
         .rpc_runtime()
         .create_agent_dialog_from_auth_context(auth, conversation_id, agent_id)
@@ -544,8 +546,17 @@ async fn dispatch_bind_direct_chat(
         "user",
     )
     .map_err(map_api_error)?;
-    let conversation_id = derive_idempotent_resource_id(metadata, "direct-chat")?;
-    let direct_chat_id = canonical_direct_chat_id(auth.actor_id.as_str(), peer_user_id.as_str());
+    let (conversation_id, direct_chat_id) = super::support::resolve_direct_chat_binding_ids(
+        auth.tenant_id.as_str(),
+        super::organization_id_from_auth_context(auth).as_str(),
+        auth.actor_kind.as_str(),
+        auth.actor_id.as_str(),
+        "user",
+        peer_user_id.as_str(),
+        "",
+        "",
+    )
+    .map_err(map_runtime_error)?;
     let result = state
         .rpc_runtime()
         .bind_direct_chat_conversation_from_auth_context(
@@ -1270,38 +1281,7 @@ async fn dispatch_leave_room(
 }
 
 pub(crate) fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
-    if let Some(catalog_path) = std::env::var(PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-    {
-        let directory = crate::http::StaticPrincipalDirectory::from_json_file(std::path::Path::new(
-            catalog_path.as_str(),
-        ))?;
-        return Ok(crate::http::app_state_with_principal_directory(Arc::new(directory)));
-    }
-
-    let allow_all = std::env::var(ALLOW_ALL_PRINCIPALS_ENV)
-        .ok()
-        .is_some_and(|value| {
-            matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        });
-    if allow_all {
-        tracing::warn!(
-            "{} is enabled - all principals are allowed without verification; \
-             this must never be used in production",
-            ALLOW_ALL_PRINCIPALS_ENV
-        );
-        return Ok(crate::http::default_app_state());
-    }
-
-    Err(format!(
-        "principal directory is required: set {PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV} to a JSON catalog file path, \
-         or set {ALLOW_ALL_PRINCIPALS_ENV}=true for development-only mode"
-    ))
+    crate::http::bootstrap_conversation_app_state_from_env()
 }
 
 fn resolve_handoff_target_from_source(

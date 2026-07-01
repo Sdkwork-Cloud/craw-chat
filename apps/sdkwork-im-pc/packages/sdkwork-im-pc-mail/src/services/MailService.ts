@@ -1,4 +1,5 @@
-import type { MailAppSdkClient, MailFolder, MailMessage } from '@sdkwork/mail-app-sdk';
+import type { MailAppSdkClient } from '@sdkwork/im-pc-core/sdk/mailAppSdkClient';
+import type { MailFolder, MailMessage } from '@sdkwork/im-pc-core/sdk/mailApiHelpers';
 import {
   extractMailEntity,
   extractMailItems,
@@ -54,6 +55,9 @@ interface MailRuntimeContext {
 }
 
 function normalizeFolderKind(value: string | undefined): UiFolder | undefined {
+  if (!value) {
+    return undefined;
+  }
   const normalized = value.trim().toLowerCase();
   return UI_FOLDER_KINDS[normalized];
 }

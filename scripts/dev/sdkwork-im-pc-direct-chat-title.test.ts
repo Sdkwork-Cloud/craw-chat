@@ -181,7 +181,7 @@ const fakeClient = {
             items: [
               {
                 tenantId: '100001',
-                conversationId: 'pc-agent-current-user-agent.code',
+                conversationId: 'c_agent_0123456789abcdef01234567',
                 conversationType: 'single',
                 preferences: {
                   isPinned: false,
@@ -251,7 +251,7 @@ const fakeClient = {
       if (conversationId === 'c_group_missing_profile') {
         throw new Error('profile unavailable');
       }
-      if (conversationId === 'pc-agent-current-user-agent.code') {
+      if (conversationId === 'c_agent_0123456789abcdef01234567') {
         throw new Error('agent dialog profile unavailable');
       }
       return {

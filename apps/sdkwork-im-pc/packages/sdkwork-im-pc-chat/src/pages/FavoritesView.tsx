@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Star, Image as ImageIcon, Link2, FileText, MessageSquare, LayoutGrid, List } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@sdkwork/im-pc-commons';
+import { cn, formatShortDateTime } from '@sdkwork/im-pc-commons';
 import { toast } from '../components/Toast';
 import { favoriteService } from '../services/FavoriteService';
 import type { FavoriteItem } from '../services/FavoriteService';
@@ -50,11 +50,6 @@ export const FavoritesView: React.FC<{ searchQuery?: string }> = ({ searchQuery 
       case 'chat': return <MessageSquare size={12} />;
       default: return <Star size={12} />;
     }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
   return (
@@ -162,7 +157,7 @@ export const FavoritesView: React.FC<{ searchQuery?: string }> = ({ searchQuery 
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-[12px] text-gray-400 truncate">{t('favorites.fromSource', { source: item.source })}</div>
-                          <div className="text-[11px] text-gray-500">{formatTime(item.timestamp)}</div>
+                          <div className="text-[11px] text-gray-500">{formatShortDateTime(item.timestamp)}</div>
                         </div>
                       </div>
                       <div className="text-[15px] font-medium text-gray-200 mb-3 truncate shrink-0 group-hover:text-blue-400 transition-colors">
@@ -187,7 +182,7 @@ export const FavoritesView: React.FC<{ searchQuery?: string }> = ({ searchQuery 
                       </div>
                       <div className="shrink-0 flex flex-col items-end justify-center min-w-[120px]">
                         <div className="text-[12px] text-gray-400">{t('favorites.fromSource', { source: item.source })}</div>
-                        <div className="text-[11px] text-gray-500 mt-1">{formatTime(item.timestamp)}</div>
+                        <div className="text-[11px] text-gray-500 mt-1">{formatShortDateTime(item.timestamp)}</div>
                       </div>
                     </>
                   )}

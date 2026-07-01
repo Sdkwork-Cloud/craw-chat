@@ -2,16 +2,18 @@
 
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use im_app_context::AppContext;
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::user_block_store::UserBlockRecord;
 
 use crate::postgres::http::PostgresAppState;
 use crate::postgres::id::next_entity_id;
-use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
 pub struct BlockUserRequest {
@@ -47,99 +49,98 @@ pub struct ListQuery {
 }
 
 pub async fn block_user(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Json(request): Json<BlockUserRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let block_id = next_entity_id(&state.id_generator)?;
-    let now = chrono::Utc::now().to_rfc3339();
+) -> Response {
+    let result: ApiResult<BlockResponse> = (|| {
+        let block_id = next_entity_id(&state.id_generator)?;
+        let now = chrono::Utc::now().to_rfc3339();
 
-    let record = UserBlockRecord {
-        tenant_id: scope.tenant_id,
-        organization_id: scope.organization_id,
-        block_id,
-        blocker_user_id: scope.user_id,
-        blocked_user_id: request.blocked_user_id,
-        scope: request.scope.unwrap_or_else(|| "all".to_string()),
-        direct_chat_id: None,
-        reason: request.reason,
-        expires_at: None,
-        created_at: now.clone(),
-        updated_at: now,
-    };
+        let record = UserBlockRecord {
+            tenant_id: auth.tenant_id,
+            organization_id: auth.organization_id,
+            block_id,
+            blocker_user_id: auth.actor_id,
+            blocked_user_id: request.blocked_user_id,
+            scope: request.scope.unwrap_or_else(|| "all".to_string()),
+            direct_chat_id: None,
+            reason: request.reason,
+            expires_at: None,
+            created_at: now.clone(),
+            updated_at: now,
+        };
 
-    match state.user_block_store.insert(&record) {
-        Ok(()) => {
-            let response = BlockResponse::from(record);
-            Ok((StatusCode::CREATED, Json(response)))
-        }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+        state
+            .user_block_store
+            .insert(&record)
+            .map_err(|_| ApiProblem::internal_server_error("failed to insert block record"))?;
+        Ok(BlockResponse::from(record))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn list_blocks(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Query(query): Query<ListQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let limit = query.limit.unwrap_or(20);
-
-    match state.user_block_store.list_by_blocker(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        scope.user_id.as_str(),
-        limit,
-    ) {
-        Ok(records) => {
-            let response: Vec<BlockResponse> =
-                records.into_iter().map(BlockResponse::from).collect();
-            Ok(Json(response))
-        }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: ApiResult<Vec<BlockResponse>> = (|| {
+        let limit = query.limit.unwrap_or(20);
+        let records = state
+            .user_block_store
+            .list_by_blocker(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                auth.actor_id.as_str(),
+                limit,
+            )
+            .map_err(|_| ApiProblem::internal_server_error("failed to list block records"))?;
+        Ok(records.into_iter().map(BlockResponse::from).collect())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn get_block(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(block_id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let bid: i64 = block_id.parse().unwrap_or(0);
-
-    match state.user_block_store.get_by_id(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        bid,
-    ) {
-        Ok(Some(record)) => Ok(Json(BlockResponse::from(record))),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: ApiResult<BlockResponse> = (|| {
+        let bid: i64 = block_id.parse().unwrap_or(0);
+        let record = state
+            .user_block_store
+            .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), bid)
+            .map_err(|_| ApiProblem::internal_server_error("failed to read block record"))?
+            .ok_or_else(|| ApiProblem::not_found("block record not found"))?;
+        Ok(BlockResponse::from(record))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn unblock_user(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(block_id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let bid: i64 = block_id.parse().map_err(|_| StatusCode::BAD_REQUEST)?;
-
-    match state.user_block_store.delete_by_blocker(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        bid,
-        scope.user_id.as_str(),
-    ) {
-        Ok(true) => Ok(StatusCode::NO_CONTENT),
-        Ok(false) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: Result<Response, ApiProblem> = (|| {
+        let bid: i64 = block_id
+            .parse()
+            .map_err(|_| ApiProblem::bad_request("invalid block id"))?;
+        match state.user_block_store.delete_by_blocker(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            bid,
+            auth.actor_id.as_str(),
+        ) {
+            Ok(true) => no_content(&ctx),
+            Ok(false) => Err(ApiProblem::not_found("block record not found")),
+            Err(_) => Err(ApiProblem::internal_server_error("failed to delete block record")),
+        }
+    })();
+    finish_api_response(&ctx, result)
 }

@@ -1,8 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 
-use axum::extract::Extension;
-use axum::http::HeaderMap;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use sdkwork_im_contract_notification::NotificationTaskRecord;
 
@@ -124,16 +122,6 @@ pub(crate) fn ensure_notification_request_access(
         "permission_denied",
         "missing required permission to request notifications for other recipients: notification.write",
     ))
-}
-
-pub(crate) fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, NotificationError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(NotificationError::from),
-    }
 }
 
 pub(crate) fn notification_visible_to_actor(task: &NotificationTask, auth: &AppContext) -> bool {

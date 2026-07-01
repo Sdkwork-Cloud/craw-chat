@@ -2,7 +2,7 @@
 //! gating, dual-token header resolution, and path/query sanitization.
 
 use axum::http::{HeaderMap, HeaderValue, header};
-use im_app_context::build_dual_token_headers_for_context;
+use im_app_context::{build_dual_token_headers_for_context, parse_truthy_env_flag};
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
 use sdkwork_im_websocket_auth_gate::{
     normalize_websocket_auth_token, sanitized_realtime_websocket_path_and_query,
@@ -11,15 +11,6 @@ use sdkwork_im_websocket_auth_gate::{
 use session_gateway::RealtimeAuthContextResolver;
 
 use crate::constants::GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV;
-
-fn parse_truthy_env_flag(raw: Option<String>) -> bool {
-    raw.is_some_and(|value| {
-        matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
-}
 
 fn gateway_allows_websocket_query_tokens() -> bool {
     let env = std::env::var(GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV).ok();

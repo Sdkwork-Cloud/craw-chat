@@ -5,6 +5,13 @@
   "types": "./src/index.tsx",
   "dependencies": {
     "@sdkwork/im-pc-core": "workspace:*",
-    "@sdkwork/im-sdk": "workspace:*"
+    "@sdkwork/im-sdk": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

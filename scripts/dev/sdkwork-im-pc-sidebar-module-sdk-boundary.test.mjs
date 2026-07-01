@@ -56,7 +56,7 @@ const imageGenServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-image-gen/src/services/ImageGenService.ts',
 );
 const voiceGenServiceSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-voice-gen/src/services/VoiceGenService.ts',
+  '../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-speech/src/services/voiceSpeechService.ts',
 );
 const musicGenServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-music-gen/src/services/MusicGenService.ts',
@@ -204,7 +204,7 @@ assert.match(
 );
 assert.match(videoGenServiceSource, /pc videogen contract is not available/u, 'pc videogen mutations must fail closed until the videogen SDK contract exists.');
 assert.match(imageGenServiceSource, /pc imagegen contract is not available/u, 'pc imagegen mutations must fail closed until the imagegen SDK contract exists.');
-assert.match(voiceGenServiceSource, /pc voicegen contract is not available/u, 'pc voicegen mutations must fail closed until the voicegen SDK contract exists.');
+assert.match(voiceGenServiceSource, /getConfiguredVoiceAppSdkClient|voice\.speech\.create|listVoiceAudioAssetOptions/u, 'pc voice speech must consume the generated voice app SDK contract.');
 assert.match(musicGenServiceSource, /pc musicgen contract is not available/u, 'pc musicgen mutations must fail closed until the musicgen SDK contract exists.');
 assert.match(writingServiceSource, /pc writing contract is not available/u, 'pc writing mutations must fail closed until the writing SDK contract exists.');
 const emojiPickerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/EmojiPicker.tsx');

@@ -32,7 +32,7 @@ for (const required of [
   'CREATE DATABASE sdkwork_ai_dev OWNER sdkwork_ai_dev',
   'CREATE SCHEMA IF NOT EXISTS sdkwork_ai_dev AUTHORIZATION sdkwork_ai_dev',
   'ALTER DEFAULT PRIVILEGES',
-  'database/ddl/baseline/postgres/0001_im_legacy_baseline.sql',
+  'database/ddl/baseline/postgres/0001_im_baseline.sql',
   'psql -h 127.0.0.1 -p 5432 -U sdkwork_ai_dev -d sdkwork_ai_dev',
   'listen_addresses',
   'pg_hba.conf',

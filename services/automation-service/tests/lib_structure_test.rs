@@ -1,14 +1,19 @@
-use std::fs;
-use std::path::PathBuf;
-
-fn service_source() -> String {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    fs::read_to_string(manifest_dir.join("src/lib.rs")).expect("automation source should be read")
-}
-
 #[test]
 fn test_automation_runtime_keys_use_segment_safe_encoding() {
-    let source = service_source();
+    let source = format!(
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        include_str!("../src/lib.rs"),
+        include_str!("../src/app.rs"),
+        include_str!("../src/dto.rs"),
+        include_str!("../src/error.rs"),
+        include_str!("../src/runtime.rs"),
+        include_str!("../src/state.rs"),
+        include_str!("../src/constants.rs"),
+        include_str!("../src/handlers.rs"),
+        include_str!("../src/helpers.rs"),
+        include_str!("../src/openapi.rs"),
+    )
+    .replace("\r\n", "\n");
 
     assert!(
         source.contains("fn encode_automation_key_segments"),

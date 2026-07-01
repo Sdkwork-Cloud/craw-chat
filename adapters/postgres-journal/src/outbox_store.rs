@@ -3,15 +3,11 @@
 //! Implements distributed outbox pattern with FOR UPDATE SKIP LOCKED.
 
 use im_platform_contracts::{ContractError, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
-use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
 use crate::{
     now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_unavailable, run_postgres_io,
-    PostgresJournalTlsConnector,
+    PostgresJournalPool,
 };
-
-pub type PostgresJournalPool = Pool<PostgresConnectionManager<PostgresJournalTlsConnector>>;
 
 /// PostgreSQL implementation of [`OutboxStore`].
 #[derive(Clone)]

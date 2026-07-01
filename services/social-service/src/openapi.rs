@@ -2,14 +2,16 @@
 
 use std::sync::OnceLock;
 
-use axum::Json;
-use axum::extract::{Path, Query, State};
-use axum::http::HeaderMap;
+use axum::extract::{Extension, Path, Query, State};
+use axum::response::Response;
 use axum::routing::{get, post};
-use axum::Router;
+use axum::{Json, Router};
+use im_app_context::AppContext;
 use im_domain_core::social::FriendRequest;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator;
+use sdkwork_routes_web_framework_backend_api::response::{finish_api_json, ApiResult};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::friendship::{
@@ -54,7 +56,6 @@ pub async fn init_open_api_id_generator() {
 
 fn id_generator() -> &'static RuntimeSnowflakeIdGenerator {
     OPEN_API_ID_GENERATOR.get_or_init(|| {
-        // Fallback for lazy init (e.g., in tests without database)
         RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|error| {
             tracing::warn!(
                 ?error,
@@ -80,6 +81,14 @@ pub(crate) fn next_open_api_id() -> Result<String, SocialServiceError> {
 
 fn next_open_api_event_id() -> Result<String, SocialServiceError> {
     Ok(format!("evt_{}", next_open_api_id()?))
+}
+
+fn finish_open_api_json<T: Serialize>(
+    ctx: &WebRequestContext,
+    result: Result<T, SocialServiceError>,
+) -> Response {
+    let mapped: ApiResult<T> = result.map_err(Into::into);
+    finish_api_json(ctx, mapped)
 }
 
 #[derive(Debug, Deserialize)]
@@ -164,186 +173,212 @@ pub fn build_open_api_router(state: AppState) -> Router {
 }
 
 async fn list_friend_requests(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Query(query): Query<OpenApiFriendRequestListQuery>,
     State(state): State<AppState>,
-) -> Result<Json<OpenApiFriendRequestListResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let direction = query.direction.unwrap_or(FriendRequestInventoryDirectionQuery::Incoming);
-    let limit = query.limit.unwrap_or(FRIEND_REQUEST_LIST_DEFAULT_LIMIT);
-    if limit == 0 || limit > FRIEND_REQUEST_LIST_MAX_LIMIT {
-        return Err(SocialServiceError::invalid(
-            "limit_invalid",
-            format!("limit must be between 1 and {FRIEND_REQUEST_LIST_MAX_LIMIT}"),
-        ));
-    }
+) -> Response {
+    let result = (|| {
+        let direction = query
+            .direction
+            .unwrap_or(FriendRequestInventoryDirectionQuery::Incoming);
+        let limit = query.limit.unwrap_or(FRIEND_REQUEST_LIST_DEFAULT_LIMIT);
+        if limit == 0 || limit > FRIEND_REQUEST_LIST_MAX_LIMIT {
+            return Err(SocialServiceError::invalid(
+                "limit_invalid",
+                format!("limit must be between 1 and {FRIEND_REQUEST_LIST_MAX_LIMIT}"),
+            ));
+        }
 
-    let cursor = if let Some(cursor) = query.cursor.as_deref() {
-        Some(friendship::parse_friend_request_inventory_cursor(cursor)?)
-    } else {
-        None
-    };
+        let cursor = if let Some(cursor) = query.cursor.as_deref() {
+            Some(friendship::parse_friend_request_inventory_cursor(cursor)?)
+        } else {
+            None
+        };
 
-    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
-    state
-        .social_runtime
-        .refresh_state_from_authority_for_write()?;
-    let page = state.social_runtime.list_friend_requests(
-        auth.tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        auth.user_id.as_str(),
-        direction,
-        query.status,
-        limit,
-        cursor.as_ref(),
-    )?;
+        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state
+            .social_runtime
+            .refresh_state_from_authority_for_write()?;
+        let page = state.social_runtime.list_friend_requests(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            auth.user_id.as_str(),
+            direction,
+            query.status,
+            limit,
+            cursor.as_ref(),
+        )?;
 
-    Ok(Json(OpenApiFriendRequestListResponse {
-        items: page.items,
-        next_cursor: page.next_cursor,
-    }))
+        Ok(OpenApiFriendRequestListResponse {
+            items: page.items,
+            next_cursor: page.next_cursor,
+        })
+    })();
+
+    finish_open_api_json(&ctx, result)
 }
 
 async fn create_friend_request(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(request): Json<OpenApiSubmitFriendRequestRequest>,
-) -> Result<Json<OpenApiFriendRequestMutationResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let requested_at = utc_now_rfc3339_millis();
-    let submitted = state.social_runtime.submit_friend_request(
-        auth.tenant_id.as_str(),
-        &auth,
-        SubmitFriendRequestRequest {
-            request_id: next_open_api_id()?,
-            event_id: next_open_api_event_id()?,
-            requester_user_id: auth.user_id.clone(),
-            target_user_id: request.target_user_id,
-            request_message: request.request_message,
-            requested_at,
-        },
-    )?;
+) -> Response {
+    let result = (|| {
+        let requested_at = utc_now_rfc3339_millis();
+        let submitted = state.social_runtime.submit_friend_request(
+            auth.tenant_id.as_str(),
+            &auth,
+            SubmitFriendRequestRequest {
+                request_id: next_open_api_id()?,
+                event_id: next_open_api_event_id()?,
+                requester_user_id: auth.user_id.clone(),
+                target_user_id: request.target_user_id,
+                request_message: request.request_message,
+                requested_at,
+            },
+        )?;
 
-    Ok(Json(OpenApiFriendRequestMutationResponse {
-        friend_request: submitted.friend_request,
-    }))
+        Ok(OpenApiFriendRequestMutationResponse {
+            friend_request: submitted.friend_request,
+        })
+    })();
+
+    finish_open_api_json(&ctx, result)
 }
 
 async fn accept_friend_request(
     Path(request_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<OpenApiFriendRequestAcceptanceResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let accepted_at = utc_now_rfc3339_millis();
-    let accepted = state.social_runtime.accept_friend_request(
-        auth.tenant_id.as_str(),
-        &auth,
-        request_id.as_str(),
-        AcceptFriendRequestRequest {
-            event_id: next_open_api_event_id()?,
-            accepted_by_user_id: auth.user_id.clone(),
-            accepted_at: accepted_at.clone(),
-        },
-    )?;
+) -> Response {
+    let result = (|| {
+        let accepted_at = utc_now_rfc3339_millis();
+        let accepted = state.social_runtime.accept_friend_request(
+            auth.tenant_id.as_str(),
+            &auth,
+            request_id.as_str(),
+            AcceptFriendRequestRequest {
+                event_id: next_open_api_event_id()?,
+                accepted_by_user_id: auth.user_id.clone(),
+                accepted_at: accepted_at.clone(),
+            },
+        )?;
 
-    let friendship = accepted.friendship.ok_or_else(|| {
-        SocialServiceError::invalid(
-            "friendship_materialization_failed",
-            format!("friend request {request_id} was accepted without friendship materialization"),
-        )
-    })?;
-    let direct_chat = accepted.direct_chat.ok_or_else(|| {
-        SocialServiceError::invalid(
-            "direct_chat_materialization_failed",
-            format!("friend request {request_id} was accepted without direct chat materialization"),
-        )
-    })?;
-    let conversation_id = direct_chat
-        .conversation_id
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| deterministic_social_id("c_direct_", request_id.as_str()));
-    let tenant_id = accepted.friend_request.tenant_id.clone();
+        let friendship = accepted.friendship.ok_or_else(|| {
+            SocialServiceError::invalid(
+                "friendship_materialization_failed",
+                format!("friend request {request_id} was accepted without friendship materialization"),
+            )
+        })?;
+        let direct_chat = accepted.direct_chat.ok_or_else(|| {
+            SocialServiceError::invalid(
+                "direct_chat_materialization_failed",
+                format!("friend request {request_id} was accepted without direct chat materialization"),
+            )
+        })?;
+        let conversation_id = direct_chat
+            .conversation_id
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| deterministic_social_id("c_direct_", request_id.as_str()));
+        let tenant_id = accepted.friend_request.tenant_id.clone();
 
-    Ok(Json(OpenApiFriendRequestAcceptanceResponse {
-        friend_request: accepted.friend_request,
-        friendship,
-        direct_chat: direct_chat.clone(),
-        conversation: OpenApiCreateConversationResult {
-            tenant_id,
-            conversation_id,
-            kind: "direct".into(),
-            created_at: accepted_at,
-        },
-    }))
+        Ok(OpenApiFriendRequestAcceptanceResponse {
+            friend_request: accepted.friend_request,
+            friendship,
+            direct_chat: direct_chat.clone(),
+            conversation: OpenApiCreateConversationResult {
+                tenant_id,
+                conversation_id,
+                kind: "direct".into(),
+                created_at: accepted_at,
+            },
+        })
+    })();
+
+    finish_open_api_json(&ctx, result)
 }
 
 async fn decline_friend_request(
     Path(request_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<OpenApiFriendRequestMutationResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let declined_at = utc_now_rfc3339_millis();
-    let declined = state.social_runtime.decline_friend_request(
-        auth.tenant_id.as_str(),
-        &auth,
-        request_id.as_str(),
-        DeclineFriendRequestRequest {
-            event_id: next_open_api_event_id()?,
-            declined_by_user_id: auth.user_id.clone(),
-            declined_at,
-        },
-    )?;
+) -> Response {
+    let result = (|| {
+        let declined_at = utc_now_rfc3339_millis();
+        let declined = state.social_runtime.decline_friend_request(
+            auth.tenant_id.as_str(),
+            &auth,
+            request_id.as_str(),
+            DeclineFriendRequestRequest {
+                event_id: next_open_api_event_id()?,
+                declined_by_user_id: auth.user_id.clone(),
+                declined_at,
+            },
+        )?;
 
-    Ok(Json(OpenApiFriendRequestMutationResponse {
-        friend_request: declined.friend_request,
-    }))
+        Ok(OpenApiFriendRequestMutationResponse {
+            friend_request: declined.friend_request,
+        })
+    })();
+
+    finish_open_api_json(&ctx, result)
 }
 
 async fn cancel_friend_request(
     Path(request_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<OpenApiFriendRequestMutationResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let canceled_at = utc_now_rfc3339_millis();
-    let canceled = state.social_runtime.cancel_friend_request(
-        auth.tenant_id.as_str(),
-        &auth,
-        request_id.as_str(),
-        CancelFriendRequestRequest {
-            event_id: next_open_api_event_id()?,
-            canceled_by_user_id: auth.user_id.clone(),
-            canceled_at,
-        },
-    )?;
+) -> Response {
+    let result = (|| {
+        let canceled_at = utc_now_rfc3339_millis();
+        let canceled = state.social_runtime.cancel_friend_request(
+            auth.tenant_id.as_str(),
+            &auth,
+            request_id.as_str(),
+            CancelFriendRequestRequest {
+                event_id: next_open_api_event_id()?,
+                canceled_by_user_id: auth.user_id.clone(),
+                canceled_at,
+            },
+        )?;
 
-    Ok(Json(OpenApiFriendRequestMutationResponse {
-        friend_request: canceled.friend_request,
-    }))
+        Ok(OpenApiFriendRequestMutationResponse {
+            friend_request: canceled.friend_request,
+        })
+    })();
+
+    finish_open_api_json(&ctx, result)
 }
 
 async fn remove_friendship(
     Path(friendship_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<OpenApiFriendshipMutationResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let removed_at = utc_now_rfc3339_millis();
-    let removed = state.social_runtime.remove_friendship(
-        auth.tenant_id.as_str(),
-        &auth,
-        friendship_id.as_str(),
-        RemoveFriendshipRequest {
-            event_id: next_open_api_event_id()?,
-            removed_by_user_id: auth.user_id.clone(),
-            removed_at,
-        },
-    )?;
+) -> Response {
+    let result = (|| {
+        let removed_at = utc_now_rfc3339_millis();
+        let removed = state.social_runtime.remove_friendship(
+            auth.tenant_id.as_str(),
+            &auth,
+            friendship_id.as_str(),
+            RemoveFriendshipRequest {
+                event_id: next_open_api_event_id()?,
+                removed_by_user_id: auth.user_id.clone(),
+                removed_at,
+            },
+        )?;
 
-    Ok(Json(OpenApiFriendshipMutationResponse {
-        friendship: removed.friendship,
-    }))
+        Ok(OpenApiFriendshipMutationResponse {
+            friendship: removed.friendship,
+        })
+    })();
+
+    finish_open_api_json(&ctx, result)
 }

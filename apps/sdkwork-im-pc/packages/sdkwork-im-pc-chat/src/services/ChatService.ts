@@ -747,7 +747,9 @@ function resolveDecodedMessageContent(message: ImDecodedMessage, type: Message['
   }
 }
 
-function mapReplyReferenceToMessageReply(replyTo: MessageReplyReference | undefined): Message['replyTo'] | undefined {
+function mapReplyReferenceToMessageReply(
+  replyTo: MessageReplyReference | null | undefined,
+): Message['replyTo'] | undefined {
   if (!replyTo) {
     return undefined;
   }
@@ -780,15 +782,6 @@ function normalizeResourceNodeSegment(value: string): string {
   return normalized || 'resource';
 }
 
-function normalizeDirectChatIdSegment(value: string): string {
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return normalized || 'user';
-}
-
 const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
 
 function requireStandardAgentChatId(value: string): string {
@@ -802,39 +795,10 @@ function requireStandardAgentChatId(value: string): string {
   return agentId;
 }
 
-function buildDirectChatStableIds(currentUserId: string, targetUserId: string): {
-  conversationId: string;
-  directChatId: string;
-} {
-  const pair = [
-    normalizeDirectChatIdSegment(currentUserId),
-    normalizeDirectChatIdSegment(targetUserId),
-  ].sort();
-  const pairKey = pair.join('-');
-  return {
-    conversationId: `pc-direct-${pairKey}`,
-    directChatId: `pc-dc-${pairKey}`,
-  };
-}
-
-function buildAgentDialogStableId(currentUserId: string, agentId: string): string {
-  return `pc-agent-${normalizeDirectChatIdSegment(currentUserId)}-${normalizeDirectChatIdSegment(agentId)}`;
-}
-
 function isAgentDialogConversationId(conversationId: string): boolean {
-  return /^pc-agent-[a-z0-9._-]+-agent[._-][a-z0-9._-]+$/iu.test(conversationId.trim());
-}
-
-function buildEnterpriseDialogStableIds(currentUserId: string, enterpriseId: string): {
-  conversationId: string;
-  directChatId: string;
-} {
-  const userSegment = normalizeDirectChatIdSegment(currentUserId);
-  const enterpriseSegment = normalizeDirectChatIdSegment(enterpriseId);
-  return {
-    conversationId: `pc-enterprise-${userSegment}-${enterpriseSegment}`,
-    directChatId: `pc-enterprise-dc-${userSegment}-${enterpriseSegment}`,
-  };
+  const value = conversationId.trim();
+  return /^c_agent_[a-f0-9]{24}$/u.test(value)
+    || /^pc-agent-[a-z0-9._-]+-agent[._-][a-z0-9._-]+$/iu.test(value);
 }
 
 function resolveMediaKind(type: Message['type']): MediaKind {
@@ -1207,7 +1171,7 @@ function buildLegacyDirectConversationName(conversationId: string): string {
 }
 
 function isInternalConversationIdentifier(value: string): boolean {
-  return /^(?:c_direct|pc-direct|direct[-_:]|conversation[-_:])[a-z0-9._:-]*/iu.test(value.trim());
+  return /^(?:c_direct|c_agent|pc-direct|pc-agent|direct[-_:]|conversation[-_:])[a-z0-9._:-]*/iu.test(value.trim());
 }
 
 function isGeneratedDirectConversationName(name: string | undefined, conversationId: string): boolean {
@@ -1673,7 +1637,7 @@ class SdkworkChatService implements ChatService {
         ...(cursor ? { cursor } : {}),
       });
       items.push(...response.items);
-      cursor = response.hasMore ? response.nextCursor : undefined;
+      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
     } while (cursor);
 
     return items;
@@ -1694,7 +1658,7 @@ class SdkworkChatService implements ChatService {
         break;
       }
 
-      cursor = response.nextCursor;
+      cursor = response.nextCursor ?? undefined;
     }
 
     return items;
@@ -1720,7 +1684,7 @@ class SdkworkChatService implements ChatService {
       q: peerUserId,
       limit: 20,
     });
-    return response.items.find((item) => {
+    return response.items.find((item: SocialUserSearchResult) => {
       const itemRecord = toRecord(item);
       const metadata = toRecord(itemRecord.metadata);
       const chatId = pickString(item.chatId, itemRecord.chat_id, metadata.chatId, metadata.chat_id);
@@ -1828,6 +1792,9 @@ class SdkworkChatService implements ChatService {
           entries.length,
           cachedMessages.get(entry.messageId),
         );
+        if (!entry.messageId?.trim()) {
+          return message;
+        }
         try {
           const summary = await this.client().conversations.getMessageInteractionSummary(
             chatId,
@@ -1947,12 +1914,7 @@ class SdkworkChatService implements ChatService {
       nextAfterSeq: typeof response.nextAfterSeq === 'number' ? response.nextAfterSeq : 0,
     });
 
-    let remoteMessages = firstPageMessages;
-
-    if (options?.limit === undefined && response.hasMore) {
-      const moreMessages = await this.loadMoreMessages(chatId);
-      remoteMessages = [...firstPageMessages, ...moreMessages];
-    }
+    const remoteMessages = firstPageMessages;
 
     const mergedMessages = mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
     this.localMessages.set(chatId, mergedMessages);
@@ -2285,10 +2247,7 @@ class SdkworkChatService implements ChatService {
     if (!currentUserId) {
       throw new Error('Current user id is required');
     }
-    const { conversationId, directChatId } = buildDirectChatStableIds(currentUserId, targetUserId);
     const result = await this.client().conversations.bindDirectChat({
-      conversationId,
-      directChatId,
       leftActorId: currentUserId,
       leftActorKind: 'user',
       rightActorId: targetUserId,
@@ -2328,20 +2287,10 @@ class SdkworkChatService implements ChatService {
       throw new Error('Current user id is required');
     }
 
-    const conversationId = buildAgentDialogStableId(currentUserId, agentId);
     const result = await this.client().conversations.createAgentDialog({
       agentId,
-      conversationId,
     });
     const boundConversationId = result.conversationId;
-    const profileUpdate = buildConversationProfileUpdate({
-      avatar: agent.avatar,
-      name: agent.name,
-    });
-    if (hasProfileUpdate(profileUpdate)) {
-      await this.client().conversations.updateProfile(boundConversationId, profileUpdate);
-    }
-    await this.client().conversations.updatePreferences(boundConversationId, { isHidden: false });
     this.conversationViewState.set(boundConversationId, {
       ...this.conversationViewState.get(boundConversationId),
       avatar: agent.avatar,
@@ -2350,6 +2299,18 @@ class SdkworkChatService implements ChatService {
       type: 'single',
       welcomeMessage: agent.welcomeMessage,
     });
+    const profileUpdate = buildConversationProfileUpdate({
+      avatar: agent.avatar,
+      name: agent.name,
+    });
+    try {
+      if (hasProfileUpdate(profileUpdate)) {
+        await this.client().conversations.updateProfile(boundConversationId, profileUpdate);
+      }
+      await this.client().conversations.updatePreferences(boundConversationId, { isHidden: false });
+    } catch {
+      // Keep local naming/avatar usable if profile sync is temporarily unavailable.
+    }
     return {
       id: boundConversationId,
       name: agent.name,
@@ -2372,13 +2333,10 @@ class SdkworkChatService implements ChatService {
       throw new Error('Current user id is required');
     }
 
-    const { conversationId, directChatId } = buildEnterpriseDialogStableIds(currentUserId, enterpriseId);
     const displayName = enterprise.name.endsWith(' (Official)')
       ? enterprise.name
       : `${enterprise.name} (Official)`;
     const result = await this.client().conversations.bindDirectChat({
-      conversationId,
-      directChatId,
       leftActorId: currentUserId,
       leftActorKind: 'user',
       rightActorId: enterpriseId,
@@ -2744,17 +2702,10 @@ export function createSdkworkChatService(dependencies?: ChatServiceDependencies 
   return new SdkworkChatService(dependencies);
 }
 
-export function projectDirectChatConversationId(
-  currentUserId: string,
-  targetUserId: string,
-): string {
-  return buildDirectChatStableIds(currentUserId, targetUserId).conversationId;
-}
-
 export function resolveIncomingCallWatchConversationIds(
   chats: Array<{ id: string; conversationId?: string }>,
   contacts: Array<{ conversationId?: string; id: string }>,
-  currentUserId: string,
+  _currentUserId: string,
 ): string[] {
   const conversationIds = new Set<string>();
   for (const chat of chats) {
@@ -2763,14 +2714,10 @@ export function resolveIncomingCallWatchConversationIds(
       conversationIds.add(conversationId);
     }
   }
-  const normalizedCurrentUserId = currentUserId.trim();
-  if (normalizedCurrentUserId) {
-    for (const contact of contacts) {
-      const conversationId = contact.conversationId?.trim()
-        || projectDirectChatConversationId(normalizedCurrentUserId, contact.id);
-      if (conversationId) {
-        conversationIds.add(conversationId);
-      }
+  for (const contact of contacts) {
+    const conversationId = contact.conversationId?.trim();
+    if (conversationId) {
+      conversationIds.add(conversationId);
     }
   }
   return [...conversationIds];

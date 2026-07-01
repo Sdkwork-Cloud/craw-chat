@@ -56,7 +56,7 @@ export function isSdkRuntimeDev(): boolean {
   return typeof window === 'undefined';
 }
 
-function stripSdkOwnedPathSuffix(pathname: string, suffixes: string[]): string {
+export function stripSdkOwnedPathSuffix(pathname: string, suffixes: string[]): string {
   const normalizedPathname = pathname.replace(/\/+$/u, '');
   if (!normalizedPathname || normalizedPathname === '/') {
     return '';

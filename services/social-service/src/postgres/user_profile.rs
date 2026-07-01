@@ -2,15 +2,17 @@
 
 use axum::Json;
 use axum::extract::{Extension, Path, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use im_app_context::AppContext;
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::user_profile_store::UserProfileRecord;
 
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Serialize)]
 pub struct UserProfileResponse {
@@ -43,52 +45,57 @@ pub struct UpdateUserProfileRequest {
 }
 
 pub async fn get_user_profile(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(user_id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-
-    match state.user_profile_store.get_by_user_id(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        user_id.as_str(),
-    ) {
-        Ok(Some(record)) => Ok(Json(UserProfileResponse::from(record))),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+) -> Response {
+    let result: ApiResult<UserProfileResponse> = (|| {
+        let record = state
+            .user_profile_store
+            .get_by_user_id(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                user_id.as_str(),
+            )
+            .map_err(|_| ApiProblem::internal_server_error("failed to read user profile"))?
+            .ok_or_else(|| ApiProblem::not_found("user profile not found"))?;
+        Ok(UserProfileResponse::from(record))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn update_user_profile(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(user_id): Path<String>,
     Json(request): Json<UpdateUserProfileRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    if scope.user_id != user_id {
-        return Err(StatusCode::FORBIDDEN);
-    }
+) -> Response {
+    let result: Result<Response, ApiProblem> = (|| {
+        if auth.actor_id != user_id {
+            return Err(ApiProblem::forbidden("user can only update own profile"));
+        }
 
-    let now = chrono::Utc::now().to_rfc3339();
-    let record = UserProfileRecord {
-        tenant_id: scope.tenant_id,
-        organization_id: scope.organization_id,
-        user_id,
-        im_nickname: request.im_nickname,
-        im_avatar_url: request.im_avatar_url,
-        im_status_message: request.im_status_message,
-        im_online_status: "online".to_string(),
-        last_active_at: Some(now.clone()),
-        created_at: now.clone(),
-        updated_at: now,
-    };
+        let now = chrono::Utc::now().to_rfc3339();
+        let record = UserProfileRecord {
+            tenant_id: auth.tenant_id,
+            organization_id: auth.organization_id,
+            user_id,
+            im_nickname: request.im_nickname,
+            im_avatar_url: request.im_avatar_url,
+            im_status_message: request.im_status_message,
+            im_online_status: "online".to_string(),
+            last_active_at: Some(now.clone()),
+            created_at: now.clone(),
+            updated_at: now,
+        };
 
-    match state.user_profile_store.upsert_profile(&record) {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+        state
+            .user_profile_store
+            .upsert_profile(&record)
+            .map_err(|_| ApiProblem::internal_server_error("failed to update user profile"))?;
+        no_content(&ctx)
+    })();
+    finish_api_response(&ctx, result)
 }

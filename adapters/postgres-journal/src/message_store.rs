@@ -17,17 +17,12 @@
 //! stored in the database but generated locally.
 
 use im_platform_contracts::{ContractError, IdGenerator, MessageStore, MessageWindow, StoredMessageRecord};
-use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 use std::sync::Arc;
 
 use crate::{
-    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_unavailable, run_postgres_io,
-    PostgresJournalTlsConnector,
+    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_timestamptz,
+    postgres_unavailable, run_postgres_io, PostgresJournalPool,
 };
-
-pub type PostgresJournalConnectionManager = PostgresConnectionManager<PostgresJournalTlsConnector>;
-pub type PostgresJournalPool = Pool<PostgresJournalConnectionManager>;
 
 /// PostgreSQL implementation of [`MessageStore`].
 ///
@@ -143,7 +138,13 @@ impl MessageStore for PostgresMessageStore {
         }
 
         // Legacy fallback: database sequence counter
-        // WARNING: This creates a row-level lock hotspot in high-throughput scenarios
+        // CRITICAL WARNING: This creates a row-level lock hotspot in high-throughput scenarios.
+        // Production deployments MUST use Snowflake ID generation via PostgresMessageStore::with_id_generator()
+        tracing::warn!(
+            "CRITICAL: Using legacy database sequence counter for message_seq allocation. \
+             This creates a performance hotspot. Configure Snowflake ID generator for production."
+        );
+
         let pool = self.pool.clone();
         let tenant_id = _tenant_id.to_owned();
         let organization_id = _organization_id.to_owned();
@@ -168,6 +169,17 @@ impl MessageStore for PostgresMessageStore {
             let mut client = postgres_pool_client(&pool, "insert_message")?;
             let message_seq_i64 = message.message_seq as i64;
             let payload_json = postgres_jsonb_payload(message.payload_json.as_str())?;
+            // Convert RFC3339 timestamp strings to `DateTime<Utc>` so they
+            // serialize as `TIMESTAMPTZ` (matching the column type). Passing
+            // raw `String`s produces `VARCHAR`-typed parameters that fail
+            // serialization against `TIMESTAMPTZ` columns.
+            let created_at = postgres_timestamptz(message.created_at.as_str(), "created_at")?;
+            let updated_at = postgres_timestamptz(message.updated_at.as_str(), "updated_at")?;
+            let retention_until = message
+                .retention_until
+                .as_deref()
+                .map(|value| postgres_timestamptz(value, "retention_until"))
+                .transpose()?;
             let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
                 &message.tenant_id,
                 &message.organization_id,
@@ -181,9 +193,9 @@ impl MessageStore for PostgresMessageStore {
                 &message.message_type,
                 &payload_json,
                 &message.payload_hash,
-                &message.created_at,
-                &message.updated_at,
-                &message.retention_until,
+                &created_at,
+                &updated_at,
+                &retention_until,
             ];
             let result = client.execute(INSERT_MESSAGE_SQL, params);
             match result {

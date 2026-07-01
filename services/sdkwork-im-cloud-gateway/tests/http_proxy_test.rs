@@ -564,6 +564,12 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
             "/app/v3/api/knowledge/spaces",
             "/app/v3/api/knowledge/{*path}",
         ),
+        (
+            "sdkwork-voice-app-api",
+            Method::GET,
+            "/app/v3/api/voice/audio_assets",
+            "/app/v3/api/voice/{*path}",
+        ),
     ] {
         assert_gateway_derives_context_for_configured_upstream(
             service_id,
@@ -686,6 +692,12 @@ async fn gateway_derives_context_for_protected_routes_without_appbase_session_lo
             "/app/v3/api/knowledge/spaces",
             "/app/v3/api/knowledge/{*path}",
         ),
+        (
+            "sdkwork-voice-app-api",
+            Method::GET,
+            "/app/v3/api/voice/audio_assets",
+            "/app/v3/api/voice/{*path}",
+        ),
     ] {
         assert_gateway_derives_context_without_appbase_session_lookup(
             service_id,
@@ -708,6 +720,35 @@ fn gateway_registry_resolves_course_collection_paths() {
         "courses route should resolve for collection list paths"
     );
     assert_eq!(courses.expect("courses route").service_id, "sdkwork-course-app-api");
+}
+
+#[test]
+fn gateway_registry_routes_message_favorites_to_projection_service() {
+    let registry = web_gateway::build_gateway_registry().expect("registry should build");
+
+    let list_route = registry
+        .resolve(
+            HttpMethod::Get,
+            "/im/v3/api/chat/messages/favorites",
+        )
+        .expect("favorites list route should resolve");
+    assert_eq!(list_route.service_id, "projection-service");
+
+    let create_route = registry
+        .resolve(
+            HttpMethod::Post,
+            "/im/v3/api/chat/messages/msg_1/favorites",
+        )
+        .expect("favorite create route should resolve");
+    assert_eq!(create_route.service_id, "projection-service");
+
+    let delete_route = registry
+        .resolve(
+            HttpMethod::Delete,
+            "/im/v3/api/chat/messages/favorites/fav_1",
+        )
+        .expect("favorite delete route should resolve");
+    assert_eq!(delete_route.service_id, "projection-service");
 }
 
 #[tokio::test]

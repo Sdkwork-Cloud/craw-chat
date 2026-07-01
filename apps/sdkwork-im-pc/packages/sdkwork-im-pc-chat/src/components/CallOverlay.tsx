@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Phone, Video, Mic, MicOff, VideoOff, MonitorUp, PhoneOff, Maximize, Minimize, Smartphone, Monitor } from 'lucide-react';
-import { Avatar } from '@sdkwork/im-pc-commons';
+import { Avatar, formatDuration } from '@sdkwork/im-pc-commons';
 import { toast } from './Toast';
 import { callService, type SdkworkCallSnapshot } from '../services/CallService';
 
@@ -177,12 +177,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
     return () => clearInterval(interval);
   }, [callState]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const getContainerClasses = () => {
     switch (viewMode) {
       case 'fullscreen':
@@ -325,7 +319,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 {callerName}
               </h2>
               <p className={`mt-2 text-gray-400 ${isMobile ? 'text-base' : 'text-lg'}`}>
-                {callState === 'ringing' ? statusText : formatTime(callDuration)}
+                {callState === 'ringing' ? statusText : formatDuration(callDuration)}
               </p>
               {shouldShowLocalMediaStatus && (
                 <p

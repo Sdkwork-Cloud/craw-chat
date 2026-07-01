@@ -43,10 +43,19 @@ pnpm test:database-naming-standard
 pnpm test:contract:database
 ```
 
+## Initialization state
+
+This module is in **initialization state** for greenfield deployments:
+
+1. **Baseline** — `database/ddl/baseline/{engine}/0001_im_baseline.sql` contains the full DDL snapshot.
+2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
+3. **Drift** — run `pnpm db:drift:check` before release.
+
 ## Commands
 
 ```bash
 pnpm run db:validate
+pnpm run db:materialize:contract
 pnpm run db:plan
 pnpm run db:init
 pnpm run db:migrate
@@ -54,26 +63,3 @@ pnpm run db:seed
 pnpm run db:status
 pnpm run db:drift:check
 ```
-
-## Migration status
-
-Legacy SQL was consolidated into `ddl/baseline/postgres/0001_im_legacy_baseline.sql` for bootstrap review.
-Author contract-first tables in `contract/schema.yaml`, then split baseline into versioned `migrations/` pairs.
-
-Provenance markers inside the baseline file reference the original migration filenames from the retired
-pre-framework migration tree (removed in favor of `database/` lifecycle assets).
-
-Runtime tests and bootstrap MUST use `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql`.
-
-Runtime services MUST create pools through `sdkwork-database-sqlx` and register `DefaultDatabaseModule` at bootstrap.
-
-## Runtime integration
-
-- Bootstrap crate: `crates/sdkwork-im-database-host`
-- Pool facade: `crates/sdkwork-im-database-pool`
-- Entrypoints: `bootstrap_im_database_from_env()` / `bootstrap_im_database(pool)`
-- Wired from: `services/sdkwork-im-standalone-gateway`
-- IAM tenant application provisioning: `crates/sdkwork-im-iam-application-bootstrap` (standalone gateway startup)
-- Dev migrate: `pnpm db:postgres:migrate` delegates to `sdkwork-database-cli bootstrap`
-- Contract materialization: `pnpm run db:materialize:contract`
-- IAM schema is owned by `sdkwork-appbase/database/` and bootstrapped by embedded IAM routes

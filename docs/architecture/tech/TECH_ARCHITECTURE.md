@@ -335,9 +335,8 @@ Extended presence status beyond simple Online/Offline:
 - Max signals: 100 per window default
 - Two-bucket sliding window for accurate rate calculation
 - Prevents "boundary problem" of fixed window rate limiters
-| `rtc` | RTC session state management | `RtcSessionState`, `StateRecord` |
 
-### 11.4 Test Coverage Summary
+### 11.7 Test Coverage Summary
 
 ```
 test result: ok. 73 passed; 0 failed; 0 ignored
@@ -357,17 +356,9 @@ test result: ok. 73 passed; 0 failed; 0 ignored
 
 | Migration | Purpose | Status |
 |-----------|---------|--------|
-| 0001-0005 | Baseline schema | Applied |
-| 0006_index_optimization | Composite indexes for query performance | Pending |
+| 0001-0005 | Baseline schema (DDL in `database/ddl/baseline/postgres/0001_im_baseline.sql`) | Applied |
 
-### 12.1 Index Optimization (Migration 0006)
-
-Optimizes frequently queried columns with composite indexes:
-- `im_commit_journal_tenant_org_idx`: `(tenant_id, organization_id)`
-- `im_commit_journal_sequence_idx`: `(sequence_number DESC)`
-- `im_outbox_events_created_idx`: `(created_at DESC)`
-- `im_conversation_messages_conversation_idx`: `(conversation_id, sequence_number DESC)`
-- See full DDL in `database/migrations/postgres/0006_index_optimization.up.sql`
+Index optimization is performed inline during baseline schema creation. Run `pnpm db:postgres:plan` and `pnpm db:postgres:migrate` to apply pending migrations from `database/` lifecycle.
 
 ## 13. Production Deployment Checklist
 

@@ -50,6 +50,6 @@
 - 该命令按固定顺序运行 PC install/lint/build、Playwright production shell + authenticated chat e2e（默认端口 `4173`）、SDK 契约、Step 11 HA/DR drill、commercial deployment contract、Rust gateway/session gates，以及 Step 11 tier evidence 评估
 - 共享 SDK 依赖默认通过 sibling git materialization 提供；见 `sdks/README.md` 的 Shared SDK Materialization Modes
 - 若任一验证命令执行失败、依赖缺失、或 Step 11 tier evidence index 无法读取 / 解析，则命令必须以 `exit code 1` 失败退出，并视为验证链路异常
-- 若代码验证全部通过，但 `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json` 仍处于模板或待采集状态，或 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` 未完成真实采集，则命令必须以 `exit code 2` 阻断发布结论
-- Pre-Release Tier 允许 `evidence_collected_gate_blocked`（七槽位已回填、专用预发布拓扑 sign-off 仍待补采）；Capacity Tier 必须达到 `evidence_collected_gate_passed`
+- 若代码验证全部通过，但 `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json` 或 `artifacts/perf/step-11/capacity/capacity-tier-evidence-index.json` 未完成真实采集，则命令必须以 `exit code 2` 阻断发布结论
+- Pre-Release Tier 与 Capacity Tier 均须达到 `evidence_collected_gate_passed`；doc-captured 回填指标须在 index `boundary` 字段中如实声明
 - 只有当统一验证命令返回 `0`，且两级 evidence index 均通过上述诚实状态检查，才允许在 release / commercial readiness 文档中声明“可商用交付”

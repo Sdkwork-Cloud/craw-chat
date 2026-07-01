@@ -19,6 +19,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -45,6 +46,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_lifecycle/checkpoint")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -66,8 +68,8 @@ async fn test_stream_checkpoint_and_complete_over_http() {
         .to_bytes();
     let checkpoint_json: serde_json::Value =
         serde_json::from_slice(&checkpoint_body).expect("checkpoint should be valid json");
-    assert_eq!(checkpoint_json["state"], "checkpointed");
-    assert_eq!(checkpoint_json["lastCheckpointSeq"], 3);
+    assert_eq!(checkpoint_json["data"]["state"], "checkpointed");
+    assert_eq!(checkpoint_json["data"]["lastCheckpointSeq"], 3);
 
     let complete_response = app
         .oneshot(
@@ -75,6 +77,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_lifecycle/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -97,9 +100,9 @@ async fn test_stream_checkpoint_and_complete_over_http() {
         .to_bytes();
     let complete_json: serde_json::Value =
         serde_json::from_slice(&complete_body).expect("complete should be valid json");
-    assert_eq!(complete_json["state"], "completed");
-    assert_eq!(complete_json["lastFrameSeq"], 5);
-    assert_eq!(complete_json["resultMessageId"], "msg_demo_5");
+    assert_eq!(complete_json["data"]["state"], "completed");
+    assert_eq!(complete_json["data"]["lastFrameSeq"], 5);
+    assert_eq!(complete_json["data"]["resultMessageId"], "msg_demo_5");
 }
 
 #[tokio::test]
@@ -113,6 +116,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -139,6 +143,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -161,10 +166,10 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
         .to_bytes();
     let abort_json: serde_json::Value =
         serde_json::from_slice(&abort_body).expect("abort should be valid json");
-    assert_eq!(abort_json["state"], "aborted");
-    assert_eq!(abort_json["lastFrameSeq"], 2);
-    assert_eq!(abort_json["resultMessageId"], serde_json::Value::Null);
-    assert!(abort_json["closedAt"].is_string());
+    assert_eq!(abort_json["data"]["state"], "aborted");
+    assert_eq!(abort_json["data"]["lastFrameSeq"], 2);
+    assert_eq!(abort_json["data"]["resultMessageId"], serde_json::Value::Null);
+    assert!(abort_json["data"]["closedAt"].is_string());
 
     let complete_after_abort = app
         .oneshot(
@@ -172,6 +177,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -199,6 +205,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -226,6 +233,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_frames/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -255,10 +263,10 @@ async fn test_stream_append_and_list_frames_over_http() {
         .to_bytes();
     let append_json: serde_json::Value =
         serde_json::from_slice(&append_body).expect("append response should be valid json");
-    assert_eq!(append_json["frameSeq"], 1);
-    assert_eq!(append_json["frameType"], "delta");
-    assert_eq!(append_json["sender"]["id"], "1");
-    assert_eq!(append_json["attributes"]["topic"], "llm");
+    assert_eq!(append_json["data"]["frameSeq"], 1);
+    assert_eq!(append_json["data"]["frameType"], "delta");
+    assert_eq!(append_json["data"]["sender"]["id"], "1");
+    assert_eq!(append_json["data"]["attributes"]["topic"], "llm");
 
     let second_append_response = app
         .clone()
@@ -267,6 +275,7 @@ async fn test_stream_append_and_list_frames_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_frames/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -291,6 +300,7 @@ async fn test_stream_append_and_list_frames_over_http() {
             Request::builder()
                 .uri("/im/v3/api/streams/st_frames/frames?afterFrameSeq=0&limit=10")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -307,11 +317,11 @@ async fn test_stream_append_and_list_frames_over_http() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list response should be valid json");
-    assert_eq!(list_json["items"].as_array().unwrap().len(), 2);
-    assert_eq!(list_json["items"][0]["frameSeq"], 1);
-    assert_eq!(list_json["items"][1]["frameSeq"], 2);
-    assert_eq!(list_json["nextAfterFrameSeq"], 2);
-    assert_eq!(list_json["hasMore"], false);
+    assert_eq!(list_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(list_json["data"]["items"][0]["frameSeq"], 1);
+    assert_eq!(list_json["data"]["items"][1]["frameSeq"], 2);
+    assert_eq!(list_json["data"]["nextAfterFrameSeq"], 2);
+    assert_eq!(list_json["data"]["hasMore"], false);
 }
 
 #[tokio::test]
@@ -325,6 +335,7 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -350,6 +361,7 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_request_scope_owner_only_append/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1101")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -375,7 +387,7 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
         .to_bytes();
     let append_json: serde_json::Value =
         serde_json::from_slice(&append_body).expect("different actor append should be valid json");
-    assert_eq!(append_json["code"], "stream_not_found");
+    assert_eq!(append_json["code"].as_i64(), Some(40401));
 }
 
 #[tokio::test]
@@ -389,6 +401,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -415,7 +428,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .to_bytes();
     let open_json: serde_json::Value =
         serde_json::from_slice(&open_body).expect("open response should be valid json");
-    let opened_at = open_json["openedAt"]
+    let opened_at = open_json["data"]["openedAt"]
         .as_str()
         .expect("openedAt should be present")
         .to_owned();
@@ -429,6 +442,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_timestamps/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -454,7 +468,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .to_bytes();
     let first_append_json: serde_json::Value =
         serde_json::from_slice(&first_append_body).expect("first append should be valid json");
-    let first_occurred_at = first_append_json["occurredAt"]
+    let first_occurred_at = first_append_json["data"]["occurredAt"]
         .as_str()
         .expect("occurredAt should be present")
         .to_owned();
@@ -468,6 +482,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_timestamps/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -493,7 +508,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .to_bytes();
     let second_append_json: serde_json::Value =
         serde_json::from_slice(&second_append_body).expect("second append should be valid json");
-    let second_occurred_at = second_append_json["occurredAt"]
+    let second_occurred_at = second_append_json["data"]["occurredAt"]
         .as_str()
         .expect("occurredAt should be present")
         .to_owned();
@@ -506,6 +521,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_timestamps/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -528,7 +544,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .to_bytes();
     let complete_json: serde_json::Value =
         serde_json::from_slice(&complete_body).expect("complete should be valid json");
-    let closed_at = complete_json["closedAt"]
+    let closed_at = complete_json["data"]["closedAt"]
         .as_str()
         .expect("closedAt should be present")
         .to_owned();
@@ -549,6 +565,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -575,6 +592,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_rules/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -600,10 +618,10 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .to_bytes();
     let append_first_json: serde_json::Value =
         serde_json::from_slice(&append_first_body).expect("append first should be valid json");
-    assert_eq!(append_first_json["frameSeq"], 1);
-    assert_eq!(append_first_json["deliveryStatus"], "applied");
+    assert_eq!(append_first_json["data"]["frameSeq"], 1);
+    assert_eq!(append_first_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        append_first_json["proofVersion"],
+        append_first_json["data"]["proofVersion"],
         "stream.frame.delivery-proof.v1"
     );
 
@@ -614,6 +632,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_rules/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -639,15 +658,15 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .to_bytes();
     let idempotent_retry_json: serde_json::Value = serde_json::from_slice(&idempotent_retry_body)
         .expect("idempotent retry should be valid json");
-    assert_eq!(idempotent_retry_json["frameSeq"], 1);
-    assert_eq!(idempotent_retry_json["deliveryStatus"], "replayed");
+    assert_eq!(idempotent_retry_json["data"]["frameSeq"], 1);
+    assert_eq!(idempotent_retry_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        idempotent_retry_json["requestKey"],
-        append_first_json["requestKey"]
+        idempotent_retry_json["data"]["requestKey"],
+        append_first_json["data"]["requestKey"]
     );
     assert_eq!(
-        idempotent_retry_json["proofVersion"],
-        append_first_json["proofVersion"]
+        idempotent_retry_json["data"]["proofVersion"],
+        append_first_json["data"]["proofVersion"]
     );
 
     let out_of_order = app
@@ -657,6 +676,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_rules/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -682,7 +702,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .to_bytes();
     let out_of_order_json: serde_json::Value =
         serde_json::from_slice(&out_of_order_body).expect("out of order should be valid json");
-    assert_eq!(out_of_order_json["code"], "stream_frame_out_of_order");
+    assert_eq!(out_of_order_json["code"].as_i64(), Some(40001));
 
     let conflicting_retry = app
         .clone()
@@ -691,6 +711,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_rules/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -716,7 +737,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting retry should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "stream_frame_conflict");
+    assert_eq!(conflicting_retry_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
@@ -730,6 +751,7 @@ async fn test_stream_append_rejects_closed_stream() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -756,6 +778,7 @@ async fn test_stream_append_rejects_closed_stream() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_closed/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -777,6 +800,7 @@ async fn test_stream_append_rejects_closed_stream() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_closed/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -803,7 +827,7 @@ async fn test_stream_append_rejects_closed_stream() {
     let append_after_complete_json: serde_json::Value =
         serde_json::from_slice(&append_after_complete_body)
             .expect("append after complete should be valid json");
-    assert_eq!(append_after_complete_json["code"], "stream_state_invalid");
+    assert_eq!(append_after_complete_json["code"].as_i64(), Some(40001));
 }
 
 #[tokio::test]
@@ -817,6 +841,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -844,9 +869,9 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .to_bytes();
     let first_open_json: serde_json::Value =
         serde_json::from_slice(&first_open_body).expect("first open should be valid json");
-    assert_eq!(first_open_json["deliveryStatus"], "applied");
+    assert_eq!(first_open_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_open_json["proofVersion"],
+        first_open_json["data"]["proofVersion"],
         "stream.session.delivery-proof.v1"
     );
 
@@ -857,6 +882,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .method("POST")
                 .uri("/im/v3/api/streams/st_open_idempotent/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -883,6 +909,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -910,16 +937,16 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .to_bytes();
     let idempotent_open_json: serde_json::Value = serde_json::from_slice(&idempotent_open_body)
         .expect("idempotent open should be valid json");
-    assert_eq!(idempotent_open_json["state"], "active");
-    assert_eq!(idempotent_open_json["lastFrameSeq"], 1);
-    assert_eq!(idempotent_open_json["deliveryStatus"], "replayed");
+    assert_eq!(idempotent_open_json["data"]["state"], "active");
+    assert_eq!(idempotent_open_json["data"]["lastFrameSeq"], 1);
+    assert_eq!(idempotent_open_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        idempotent_open_json["requestKey"],
-        first_open_json["requestKey"]
+        idempotent_open_json["data"]["requestKey"],
+        first_open_json["data"]["requestKey"]
     );
     assert_eq!(
-        idempotent_open_json["proofVersion"],
-        first_open_json["proofVersion"]
+        idempotent_open_json["data"]["proofVersion"],
+        first_open_json["data"]["proofVersion"]
     );
 
     let list_response = app
@@ -928,6 +955,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
             Request::builder()
                 .uri("/im/v3/api/streams/st_open_idempotent/frames?afterFrameSeq=0&limit=10")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -944,8 +972,8 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list response should be valid json");
-    assert_eq!(list_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(list_json["items"][0]["frameSeq"], 1);
+    assert_eq!(list_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_json["data"]["items"][0]["frameSeq"], 1);
 
     let conflicting_open = app
         .oneshot(
@@ -953,6 +981,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -979,7 +1008,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .to_bytes();
     let conflicting_open_json: serde_json::Value = serde_json::from_slice(&conflicting_open_body)
         .expect("conflicting open should be valid json");
-    assert_eq!(conflicting_open_json["code"], "stream_conflict");
+    assert_eq!(conflicting_open_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
@@ -993,6 +1022,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1019,9 +1049,9 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
         .to_bytes();
     let first_open_json: serde_json::Value =
         serde_json::from_slice(&first_open_body).expect("first open should be valid json");
-    assert_eq!(first_open_json["deliveryStatus"], "applied");
+    assert_eq!(first_open_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_open_json["requestKey"],
+        first_open_json["data"]["requestKey"],
         "6#1000014#user1#14#open19#st_actor_scope_open"
     );
 
@@ -1031,6 +1061,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1101")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1057,7 +1088,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
         .to_bytes();
     let conflicting_open_json: serde_json::Value = serde_json::from_slice(&conflicting_open_body)
         .expect("different actor open should be valid json");
-    assert_eq!(conflicting_open_json["code"], "stream_conflict");
+    assert_eq!(conflicting_open_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
@@ -1071,6 +1102,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1097,6 +1129,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_idempotent/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1122,6 +1155,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_idempotent/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1144,10 +1178,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
         .to_bytes();
     let first_complete_json: serde_json::Value =
         serde_json::from_slice(&first_complete_body).expect("first complete should be valid json");
-    assert_eq!(first_complete_json["state"], "completed");
-    assert_eq!(first_complete_json["deliveryStatus"], "applied");
+    assert_eq!(first_complete_json["data"]["state"], "completed");
+    assert_eq!(first_complete_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_complete_json["proofVersion"],
+        first_complete_json["data"]["proofVersion"],
         "stream.session.delivery-proof.v1"
     );
 
@@ -1158,6 +1192,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_idempotent/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1181,14 +1216,14 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
     let duplicate_complete_json: serde_json::Value =
         serde_json::from_slice(&duplicate_complete_body)
             .expect("duplicate complete should be valid json");
-    assert_eq!(duplicate_complete_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_complete_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_complete_json["requestKey"],
-        first_complete_json["requestKey"]
+        duplicate_complete_json["data"]["requestKey"],
+        first_complete_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_complete_json["proofVersion"],
-        first_complete_json["proofVersion"]
+        duplicate_complete_json["data"]["proofVersion"],
+        first_complete_json["data"]["proofVersion"]
     );
 
     let conflicting_complete = app
@@ -1197,6 +1232,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_idempotent/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1220,7 +1256,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
     let conflicting_complete_json: serde_json::Value =
         serde_json::from_slice(&conflicting_complete_body)
             .expect("conflicting complete should be valid json");
-    assert_eq!(conflicting_complete_json["code"], "stream_conflict");
+    assert_eq!(conflicting_complete_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
@@ -1234,6 +1270,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1260,6 +1297,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_complete/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1285,6 +1323,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_complete/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1307,9 +1346,9 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
         .to_bytes();
     let first_complete_json: serde_json::Value =
         serde_json::from_slice(&first_complete_body).expect("first complete should be valid json");
-    assert_eq!(first_complete_json["deliveryStatus"], "applied");
+    assert_eq!(first_complete_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_complete_json["requestKey"],
+        first_complete_json["data"]["requestKey"],
         "6#1000014#user1#18#complete23#st_actor_scope_complete"
     );
 
@@ -1319,6 +1358,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_complete/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1101")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1341,7 +1381,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
         .to_bytes();
     let hidden_complete_json: serde_json::Value = serde_json::from_slice(&hidden_complete_body)
         .expect("different actor complete should be valid json");
-    assert_eq!(hidden_complete_json["code"], "stream_not_found");
+    assert_eq!(hidden_complete_json["code"].as_i64(), Some(40401));
 }
 
 #[tokio::test]
@@ -1355,6 +1395,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1381,6 +1422,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_idempotent/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1406,6 +1448,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_idempotent/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1428,14 +1471,14 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let first_abort_json: serde_json::Value =
         serde_json::from_slice(&first_abort_body).expect("first abort should be valid json");
-    assert_eq!(first_abort_json["state"], "aborted");
-    assert_eq!(first_abort_json["deliveryStatus"], "applied");
+    assert_eq!(first_abort_json["data"]["state"], "aborted");
+    assert_eq!(first_abort_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_abort_json["proofVersion"],
+        first_abort_json["data"]["proofVersion"],
         "stream.session.delivery-proof.v1"
     );
-    assert_eq!(first_abort_json["abortFrameSeq"], 1);
-    assert_eq!(first_abort_json["abortReason"], "client_cancelled");
+    assert_eq!(first_abort_json["data"]["abortFrameSeq"], 1);
+    assert_eq!(first_abort_json["data"]["abortReason"], "client_cancelled");
 
     let duplicate_abort = app
         .clone()
@@ -1444,6 +1487,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_idempotent/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1466,18 +1510,18 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let duplicate_abort_json: serde_json::Value = serde_json::from_slice(&duplicate_abort_body)
         .expect("duplicate abort should be valid json");
-    assert_eq!(duplicate_abort_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_abort_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_abort_json["requestKey"],
-        first_abort_json["requestKey"]
+        duplicate_abort_json["data"]["requestKey"],
+        first_abort_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_abort_json["proofVersion"],
-        first_abort_json["proofVersion"]
+        duplicate_abort_json["data"]["proofVersion"],
+        first_abort_json["data"]["proofVersion"]
     );
     assert_eq!(
-        duplicate_abort_json["abortReason"],
-        first_abort_json["abortReason"]
+        duplicate_abort_json["data"]["abortReason"],
+        first_abort_json["data"]["abortReason"]
     );
 
     let conflicting_abort = app
@@ -1486,6 +1530,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_idempotent/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1508,7 +1553,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let conflicting_abort_json: serde_json::Value = serde_json::from_slice(&conflicting_abort_body)
         .expect("conflicting abort should be valid json");
-    assert_eq!(conflicting_abort_json["code"], "stream_conflict");
+    assert_eq!(conflicting_abort_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
@@ -1522,6 +1567,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1548,6 +1594,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_abort/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1573,6 +1620,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_abort/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1595,9 +1643,9 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
         .to_bytes();
     let first_abort_json: serde_json::Value =
         serde_json::from_slice(&first_abort_body).expect("first abort should be valid json");
-    assert_eq!(first_abort_json["deliveryStatus"], "applied");
+    assert_eq!(first_abort_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_abort_json["requestKey"],
+        first_abort_json["data"]["requestKey"],
         "6#1000014#user1#15#abort20#st_actor_scope_abort"
     );
 
@@ -1607,6 +1655,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_abort/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1101")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1629,7 +1678,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
         .to_bytes();
     let hidden_abort_json: serde_json::Value = serde_json::from_slice(&hidden_abort_body)
         .expect("different actor abort should be valid json");
-    assert_eq!(hidden_abort_json["code"], "stream_not_found");
+    assert_eq!(hidden_abort_json["code"].as_i64(), Some(40401));
 }
 
 #[tokio::test]
@@ -1643,6 +1692,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1669,6 +1719,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .method("POST")
                 .uri("/im/v3/api/streams/st_checkpoint_idempotent/checkpoint")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1690,10 +1741,10 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
         .to_bytes();
     let first_checkpoint_json: serde_json::Value = serde_json::from_slice(&first_checkpoint_body)
         .expect("first checkpoint should be valid json");
-    assert_eq!(first_checkpoint_json["state"], "checkpointed");
-    assert_eq!(first_checkpoint_json["deliveryStatus"], "applied");
+    assert_eq!(first_checkpoint_json["data"]["state"], "checkpointed");
+    assert_eq!(first_checkpoint_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_checkpoint_json["proofVersion"],
+        first_checkpoint_json["data"]["proofVersion"],
         "stream.session.delivery-proof.v1"
     );
 
@@ -1704,6 +1755,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .method("POST")
                 .uri("/im/v3/api/streams/st_checkpoint_idempotent/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1726,6 +1778,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
                 .method("POST")
                 .uri("/im/v3/api/streams/st_checkpoint_idempotent/checkpoint")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1748,15 +1801,15 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
     let duplicate_checkpoint_json: serde_json::Value =
         serde_json::from_slice(&duplicate_checkpoint_body)
             .expect("duplicate checkpoint should be valid json");
-    assert_eq!(duplicate_checkpoint_json["state"], "completed");
-    assert_eq!(duplicate_checkpoint_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_checkpoint_json["data"]["state"], "completed");
+    assert_eq!(duplicate_checkpoint_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_checkpoint_json["requestKey"],
-        first_checkpoint_json["requestKey"]
+        duplicate_checkpoint_json["data"]["requestKey"],
+        first_checkpoint_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_checkpoint_json["proofVersion"],
-        first_checkpoint_json["proofVersion"]
+        duplicate_checkpoint_json["data"]["proofVersion"],
+        first_checkpoint_json["data"]["proofVersion"]
     );
 }
 
@@ -1771,6 +1824,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1797,6 +1851,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_checkpoint/checkpoint")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1818,9 +1873,9 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
         .to_bytes();
     let first_checkpoint_json: serde_json::Value = serde_json::from_slice(&first_checkpoint_body)
         .expect("first checkpoint should be valid json");
-    assert_eq!(first_checkpoint_json["deliveryStatus"], "applied");
+    assert_eq!(first_checkpoint_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_checkpoint_json["requestKey"],
+        first_checkpoint_json["data"]["requestKey"],
         "6#1000014#user1#110#checkpoint25#st_actor_scope_checkpoint1#3"
     );
 
@@ -1830,6 +1885,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
                 .method("POST")
                 .uri("/im/v3/api/streams/st_actor_scope_checkpoint/checkpoint")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1101")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1851,7 +1907,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
         .to_bytes();
     let hidden_checkpoint_json: serde_json::Value = serde_json::from_slice(&hidden_checkpoint_body)
         .expect("different actor checkpoint should be valid json");
-    assert_eq!(hidden_checkpoint_json["code"], "stream_not_found");
+    assert_eq!(hidden_checkpoint_json["code"].as_i64(), Some(40401));
 }
 
 #[tokio::test]
@@ -1868,6 +1924,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -1895,6 +1952,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_rebuild/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -1924,6 +1982,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
             Request::builder()
                 .uri("/im/v3/api/streams/st_rebuild/frames?afterFrameSeq=0&limit=10")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -1940,7 +1999,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list response should be valid json");
-    let items = list_json["items"]
+    let items = list_json["data"]["items"]
         .as_array()
         .expect("items should be an array");
     assert_eq!(items.len(), 1);
@@ -1952,6 +2011,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_rebuild/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -1978,6 +2038,7 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -2013,6 +2074,7 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_oversized_payload/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -2035,6 +2097,7 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -2072,6 +2135,7 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_oversized_attributes/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo")
@@ -2094,6 +2158,7 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -2124,6 +2189,7 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_oversized_result_message_id/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -2141,11 +2207,11 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
         .to_bytes();
     let complete_json: serde_json::Value =
         serde_json::from_slice(&complete_body).expect("complete rejection should be valid json");
-    assert_eq!(complete_json["code"], "payload_too_large");
+    assert_eq!(complete_json["code"].as_i64(), Some(41301));
     assert!(
-        complete_json["message"]
+        complete_json["detail"]
             .as_str()
-            .expect("complete rejection message should be a string")
+            .expect("complete rejection detail should be a string")
             .contains("resultMessageId"),
         "error should point to resultMessageId guard, got: {complete_json:?}"
     );
@@ -2161,6 +2227,7 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -2191,6 +2258,7 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams/st_oversized_abort_reason/abort")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -2208,11 +2276,11 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
         .to_bytes();
     let abort_json: serde_json::Value =
         serde_json::from_slice(&abort_body).expect("abort rejection should be valid json");
-    assert_eq!(abort_json["code"], "payload_too_large");
+    assert_eq!(abort_json["code"].as_i64(), Some(41301));
     assert!(
-        abort_json["message"]
+        abort_json["detail"]
             .as_str()
-            .expect("abort rejection message should be a string")
+            .expect("abort rejection detail should be a string")
             .contains("reason"),
         "error should point to reason guard, got: {abort_json:?}"
     );
@@ -2228,6 +2296,7 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -2252,6 +2321,7 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
             Request::builder()
                 .uri("/im/v3/api/streams/st_limit_guardrail/frames?afterFrameSeq=0&limit=1001")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -2268,7 +2338,7 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("list rejection body should be valid json");
-    assert_eq!(json["code"], "invalid_limit");
+    assert_eq!(json["code"].as_i64(), Some(40001));
 }
 
 #[tokio::test]
@@ -2283,6 +2353,7 @@ async fn test_stream_list_rejects_oversized_stream_id_over_http() {
                     "/im/v3/api/streams/{oversized_stream_id}/frames?afterFrameSeq=0&limit=10"
                 ))
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -2300,11 +2371,11 @@ async fn test_stream_list_rejects_oversized_stream_id_over_http() {
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("oversized list rejection body should be valid json");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"].as_i64(), Some(41301));
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
-            .expect("oversized list rejection message should be a string")
+            .expect("oversized list rejection detail should be a string")
             .contains("streamId"),
         "error should point to streamId guard, got: {json:?}"
     );

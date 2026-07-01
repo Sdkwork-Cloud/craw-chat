@@ -48,7 +48,6 @@ for (const required of [
   'AGENTS.md',
   'sdkwork.app.config.json',
   'specs/component.spec.json',
-  'specs/dependency.composition.json',
   'src/ImApp.tsx',
   'src/bootstrap/runtime.ts',
   'packages/sdkwork-im-h5-chat/src/pages/ChatInboxPage.tsx',
@@ -69,6 +68,14 @@ assert.match(imApp, /parseConversationRoute/u);
 assert.match(imApp, /ChatConversationPage/u);
 assert.match(chatConversationService, /listMessages/u);
 assert.match(chatConversationService, /postText/u);
+assert.match(
+  read('packages/sdkwork-im-h5-core/src/sdk/driveAppSdkClient.ts'),
+  /createDriveAppClient/u,
+);
+assert.match(
+  read('packages/sdkwork-im-h5-chat/src/services/chatMediaUploadService.ts'),
+  /getDriveAppSdkClientWithSession/u,
+);
 assert.match(chatConversation, /fetchConversationTimeline/u);
 assert.match(chatConversation, /sendConversationText/u);
 assert.match(chatConversation, /subscribeConversationLiveMessages/u);

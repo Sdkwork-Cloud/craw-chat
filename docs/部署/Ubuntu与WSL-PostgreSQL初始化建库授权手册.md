@@ -156,7 +156,7 @@ pnpm db:postgres:migrate
 规范 DDL 基线：
 
 ```text
-database/ddl/baseline/postgres/0001_im_legacy_baseline.sql
+database/ddl/baseline/postgres/0001_im_baseline.sql
 ```
 
 ## 6. 开发启动入口

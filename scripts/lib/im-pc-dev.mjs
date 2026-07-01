@@ -8,6 +8,10 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
+import {
+  COMMERCE_T1_APP_API_AUTHORITIES,
+  COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS,
+} from '../dev/commerce-t1-capabilities.mjs';
 import { ensurePostgresDevDatabaseReady } from '../dev/ensure-postgres-dev-database.mjs';
 import { resolvePostgresDevProfile } from '../dev/sdkwork-im-postgres-dev-profile.mjs';
 import { mergeSdkworkImBootstrapAccessTokenEnv } from '../dev/sdkwork-im-bootstrap-access-token.mjs';
@@ -23,10 +27,7 @@ import {
 } from './im-topology.mjs';
 import { resolveImProductSiteDirEnv } from './im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './im-realtime-cluster-dev.mjs';
-import {
-  COMMERCE_T1_APP_API_AUTHORITIES,
-  COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS,
-} from '../dev/commerce-t1-capabilities.mjs';
+import { resolveImApiCloudGatewayConfigPath } from '../dev/im-api-cloud-gateway-config.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..');
@@ -78,6 +79,11 @@ const KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS = [
   'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
   'SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM',
   'SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL',
+];
+const VOICE_APP_API_UPSTREAM_ENV_KEYS = [
+  'SDKWORK_IM_VOICE_APP_API_UPSTREAM',
+  'SDKWORK_VOICE_APP_API_UPSTREAM',
+  'SDKWORK_VOICE_APP_API_BASE_URL',
 ];
 const SDKWORK_API_CLOUD_GATEWAY_AUTOSTART_ENV_KEYS = [
   'SDKWORK_IM_PLATFORM_API_GATEWAY_AUTOSTART',
@@ -376,6 +382,7 @@ export function createManagedSdkworkApiGatewayProcess({
   }
 
   const apiGatewayWorkspaceRoot = path.resolve(resolvedRepoRoot, '..', 'sdkwork-api-cloud-gateway');
+  const imApiCloudGatewayConfigPath = resolveImApiCloudGatewayConfigPath(env, resolvedRepoRoot);
   const iamDevEnv = resolveIamDevEnv(env, resolvedRepoRoot);
   const gatewayEnv = {
     ...iamDevEnv,
@@ -399,7 +406,7 @@ export function createManagedSdkworkApiGatewayProcess({
       'sdkwork-api-cloud-gateway',
       '--',
       '--config',
-      'configs/sdkwork-api-cloud-gateway.development.toml.example',
+      imApiCloudGatewayConfigPath,
     ],
     command: cargoCommand(),
     cwd: apiGatewayWorkspaceRoot,
@@ -622,17 +629,23 @@ export function createSdkworkChatPcDevPlan({
   const defaultEnvFile = databaseProfile === 'postgres'
     ? resolveDefaultPostgresEnvFile(resolvedRepoRoot)
     : undefined;
+  const customDevEnvFile = options.envFile
+    ? loadSdkworkChatPcDevEnvFile(options.envFile, {
+      repoRoot: resolvedRepoRoot,
+    })
+    : undefined;
   const postgresDevProfile = databaseProfile === 'postgres'
     ? resolvePostgresDevProfile({
       env: {
         ...env,
         ...serverEnv,
       },
+      extraEnv: customDevEnvFile ?? {},
       repoRoot: resolvedRepoRoot,
     })
     : undefined;
   const devEnvFile = databaseProfile === 'postgres'
-    ? postgresDevProfile.fileEnv
+    ? (customDevEnvFile ?? postgresDevProfile.fileEnv)
     : loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
       repoRoot: resolvedRepoRoot,
     });
@@ -747,6 +760,9 @@ export function createSdkworkChatPcDevPlan({
   const explicitKnowledgebaseAppApiUpstream = standaloneUnified
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitVoiceAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, VOICE_APP_API_UPSTREAM_ENV_KEYS);
   const sharedDatabaseEnv = resolveSdkworkImSharedDatabaseConfig({
     env: mergedEnv,
     repoRoot: resolvedRepoRoot,
@@ -754,8 +770,8 @@ export function createSdkworkChatPcDevPlan({
   const iamDevEnv = resolveIamDevEnv({ ...mergedEnv, ...sharedDatabaseEnv }, resolvedRepoRoot);
   const gatewayServerEnv = {
     ...mergedEnv,
-    ...sharedDatabaseEnv,
     ...iamDevEnv,
+    ...sharedDatabaseEnv,
     SDKWORK_IM_BROWSER_ORIGINS: mergedEnv.SDKWORK_IM_BROWSER_ORIGINS
       ?? createSdkworkChatBrowserOrigins(devServer),
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
@@ -789,6 +805,9 @@ export function createSdkworkChatPcDevPlan({
     ...(explicitKnowledgebaseAppApiUpstream
       ? { SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM: explicitKnowledgebaseAppApiUpstream }
       : {}),
+    ...(explicitVoiceAppApiUpstream
+      ? { SDKWORK_IM_VOICE_APP_API_UPSTREAM: explicitVoiceAppApiUpstream }
+      : {}),
   };
   if (standaloneUnified) {
     for (const authority of COMMERCE_T1_APP_API_AUTHORITIES) {
@@ -805,6 +824,7 @@ export function createSdkworkChatPcDevPlan({
       'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
       'SDKWORK_IM_COURSE_APP_API_UPSTREAM',
       'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
+      'SDKWORK_IM_VOICE_APP_API_UPSTREAM',
     ]) {
       delete gatewayServerEnv[key];
     }

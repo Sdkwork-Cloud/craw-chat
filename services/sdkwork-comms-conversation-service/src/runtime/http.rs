@@ -13,7 +13,7 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_app_context::{AppContext, resolve_app_context};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
@@ -22,7 +22,14 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_im_web_bootstrap::{
+    im_service_router_config, mount_im_infra_routes,
+};
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_web_core::{
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
+    problem_response,
+};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -38,6 +45,8 @@ const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_ENV: &str =
     "SDKWORK_IM_CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES";
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+pub const PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV: &str = "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH";
+pub const ALLOW_ALL_PRINCIPALS_ENV: &str = "SDKWORK_IM_ALLOW_ALL_PRINCIPALS";
 
 #[derive(Clone)]
 pub struct AppState {
@@ -408,7 +417,8 @@ struct CreateConversationRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateAgentDialogRequest {
-    conversation_id: String,
+    #[serde(default)]
+    conversation_id: Option<String>,
     agent_id: String,
 }
 
@@ -454,8 +464,10 @@ struct CreateThreadConversationRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct BindDirectChatConversationRequest {
-    conversation_id: String,
-    direct_chat_id: String,
+    #[serde(default)]
+    conversation_id: Option<String>,
+    #[serde(default)]
+    direct_chat_id: Option<String>,
     left_actor_id: String,
     left_actor_kind: String,
     right_actor_id: String,
@@ -660,13 +672,36 @@ where
     }
 }
 
-impl From<AppContextError> for ApiError {
-    fn from(value: AppContextError) -> Self {
-        Self {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: value.code(),
-            message: value.message().to_owned(),
-        }
+/// Map [`ApiError::status`] to the canonical [`WebFrameworkErrorKind`].
+fn api_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
+    }
+}
+
+impl From<ApiError> for ApiProblem {
+    fn from(error: ApiError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: api_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
+impl From<RuntimeError> for ApiProblem {
+    fn from(error: RuntimeError) -> Self {
+        ApiProblem::from(ApiError::from(error))
     }
 }
 
@@ -754,14 +789,12 @@ impl From<RuntimeError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
-            self.status,
-            Json(json!({
-                "code": self.code,
-                "message": self.message
-            })),
-        )
-            .into_response()
+        let error = WebFrameworkError {
+            kind: api_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }
 
@@ -792,9 +825,9 @@ pub(crate) fn map_api_error_to_im_rpc(error: ApiError) -> sdkwork_im_rpc_service
     }
 }
 
-pub fn default_app_state() -> AppState {
-    let runtime = super::journal_bootstrap::build_conversation_runtime_from_env()
-        .unwrap_or_else(|error| {
+fn build_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJournal> {
+    super::journal_bootstrap::build_conversation_runtime_from_env().unwrap_or_else(|error| {
+        if im_app_context::allows_header_only_app_context_fallback() {
             tracing::warn!(
                 "conversation-runtime journal bootstrap failed ({error}); \
                  falling back to in-memory journal for local development"
@@ -802,9 +835,17 @@ pub fn default_app_state() -> AppState {
             ConversationRuntime::new(ConversationCommitJournal::Memory(
                 InMemoryJournal::default(),
             ))
-        });
+        } else {
+            panic!(
+                "conversation-runtime journal bootstrap failed in production: {error}"
+            );
+        }
+    })
+}
+
+pub fn default_app_state() -> AppState {
     AppState {
-        runtime: Arc::new(runtime),
+        runtime: Arc::new(build_runtime_for_app_state()),
         principal_directory: Arc::new(AllowAllPrincipalDirectory),
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
     }
@@ -813,21 +854,64 @@ pub fn default_app_state() -> AppState {
 pub fn app_state_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> AppState {
-    let runtime = super::journal_bootstrap::build_conversation_runtime_from_env()
-        .unwrap_or_else(|error| {
-            tracing::warn!(
-                "conversation-runtime journal bootstrap failed ({error}); \
-                 falling back to in-memory journal for local development"
-            );
-            ConversationRuntime::new(ConversationCommitJournal::Memory(
-                InMemoryJournal::default(),
-            ))
-        });
     AppState {
-        runtime: Arc::new(runtime),
+        runtime: Arc::new(build_runtime_for_app_state()),
         principal_directory,
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
     }
+}
+
+/// Resolve conversation HTTP [`AppState`] from process environment.
+///
+/// Production requires a principal directory catalog. Development and test
+/// environments may omit the catalog and fall back to allow-all principals.
+pub fn bootstrap_conversation_app_state_from_env() -> Result<AppState, String> {
+    if let Some(catalog_path) = std::env::var(PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+    {
+        let directory =
+            StaticPrincipalDirectory::from_json_file(FsPath::new(catalog_path.as_str()))?;
+        return Ok(app_state_with_principal_directory(Arc::new(directory)));
+    }
+
+    let allow_all_explicit = std::env::var(ALLOW_ALL_PRINCIPALS_ENV)
+        .ok()
+        .and_then(|value| sdkwork_utils_rust::parse_bool(value.as_str()));
+
+    let dev_or_test = im_app_context::allows_header_only_app_context_fallback();
+    let allow_all = match allow_all_explicit {
+        Some(true) => {
+            if !dev_or_test {
+                return Err(format!(
+                    "{ALLOW_ALL_PRINCIPALS_ENV}=true is forbidden in production"
+                ));
+            }
+            true
+        }
+        Some(false) => false,
+        None => dev_or_test,
+    };
+
+    if allow_all {
+        if !dev_or_test {
+            return Err(format!(
+                "principal directory is required in production: set {PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV} \
+                 to a JSON catalog file path"
+            ));
+        }
+        tracing::warn!(
+            env = %ALLOW_ALL_PRINCIPALS_ENV,
+            "conversation-runtime using allow-all principal directory (development/test only)"
+        );
+        return Ok(default_app_state());
+    }
+
+    Err(format!(
+        "principal directory is required: set {PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV} to a JSON catalog file path, \
+         or set {ALLOW_ALL_PRINCIPALS_ENV}=true for development-only mode"
+    ))
 }
 
 pub fn build_default_app() -> Router {
@@ -1016,11 +1100,17 @@ async fn enforce_in_flight_gate(
     let permit = match guardrails.request_gate.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
+            let problem = ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
             return ApiError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
             }
             .into_response();
         }
@@ -1134,238 +1224,248 @@ fn conversation_runtime_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn create_room(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateRoomRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.create_room_from_auth_context(
-        &auth,
-        request.conversation_id,
-        request.room_id,
-        request.room_kind,
-    )?))
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.create_room_from_auth_context(
+            &auth,
+            request.conversation_id,
+            request.room_id,
+            request.room_kind,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_room(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(room_id): Path<String>,
-) -> Result<Json<RoomView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.room_view_from_auth_context(&auth, room_id)?))
+) -> Response {
+    let result: ApiResult<RoomView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.room_view_from_auth_context(&auth, room_id)?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn enter_room(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(room_id): Path<String>,
-) -> Result<Json<EnterRoomResponse>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let member = state
-        .runtime
-        .enter_room_from_auth_context(&auth, room_id)?;
-    Ok(Json(EnterRoomResponse { member }))
+) -> Response {
+    let result: ApiResult<EnterRoomResponse> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let member = state
+            .runtime
+            .enter_room_from_auth_context(&auth, room_id)?;
+        Ok(EnterRoomResponse { member })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn leave_room(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(room_id): Path<String>,
-) -> Result<Json<EnterRoomResponse>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let member = state
-        .runtime
-        .leave_room_from_auth_context(&auth, room_id)?;
-    Ok(Json(EnterRoomResponse { member }))
+) -> Response {
+    let result: ApiResult<EnterRoomResponse> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let member = state
+            .runtime
+            .leave_room_from_auth_context(&auth, room_id)?;
+        Ok(EnterRoomResponse { member })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn create_conversation(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateConversationRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let organization_id = organization_id_from_auth_context(&auth);
-    let policy = request.conversation_policy()?;
-    let result = state.runtime.create_conversation_from_auth_context(
-        &auth,
-        request.conversation_id,
-        request.conversation_type,
-    )?;
-    if let Some(policy) = policy {
-        if result.is_applied() {
-            state.runtime.apply_conversation_policy_from_auth_context(
-                &auth,
-                result.conversation_id.clone(),
-                policy,
-            )?;
-        } else {
-            match state.runtime.conversation_policy_snapshot(
-                auth.tenant_id.as_str(),
-                organization_id.as_str(),
-                result.conversation_id.as_str(),
-            )? {
-                Some(existing) if existing == policy => {}
-                Some(_) => {
-                    return Err(ApiError::from(RuntimeError::Conflict(format!(
-                        "conversation create request conflicts with existing policy for conversation {}",
-                        result.conversation_id
-                    ))));
-                }
-                None => {
-                    state.runtime.apply_conversation_policy_from_auth_context(
-                        &auth,
-                        result.conversation_id.clone(),
-                        policy,
-                    )?;
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let organization_id = organization_id_from_auth_context(&auth);
+        let policy = request.conversation_policy()?;
+        let result = state.runtime.create_conversation_from_auth_context(
+            &auth,
+            request.conversation_id,
+            request.conversation_type,
+        )?;
+        if let Some(policy) = policy {
+            if result.is_applied() {
+                state.runtime.apply_conversation_policy_from_auth_context(
+                    &auth,
+                    result.conversation_id.clone(),
+                    policy,
+                )?;
+            } else {
+                match state.runtime.conversation_policy_snapshot(
+                    auth.tenant_id.as_str(),
+                    organization_id.as_str(),
+                    result.conversation_id.as_str(),
+                )? {
+                    Some(existing) if existing == policy => {}
+                    Some(_) => {
+                        return Err(RuntimeError::Conflict(format!(
+                            "conversation create request conflicts with existing policy for conversation {}",
+                            result.conversation_id
+                        )).into());
+                    }
+                    None => {
+                        state.runtime.apply_conversation_policy_from_auth_context(
+                            &auth,
+                            result.conversation_id.clone(),
+                            policy,
+                        )?;
+                    }
                 }
             }
         }
-    }
-    Ok(Json(result))
+        Ok(result)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn create_agent_dialog(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateAgentDialogRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.create_agent_dialog_from_auth_context(
-        &auth,
-        request.conversation_id,
-        request.agent_id,
-    )?))
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.create_agent_dialog_from_auth_context(
+            &auth,
+            request.conversation_id.unwrap_or_default(),
+            request.agent_id,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn create_agent_handoff(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateAgentHandoffRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    ensure_active_http_principal(
-        &state,
-        auth.tenant_id.as_str(),
-        request.target_id.as_str(),
-        request.target_kind.as_str(),
-    )?;
-    Ok(Json(state.runtime.create_agent_handoff_from_auth_context(
-        &auth,
-        request.conversation_id,
-        request.target_id,
-        request.target_kind,
-        request.handoff_session_id,
-        request.handoff_reason,
-    )?))
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        ensure_active_http_principal(
+            &state,
+            auth.tenant_id.as_str(),
+            request.target_id.as_str(),
+            request.target_kind.as_str(),
+        )?;
+        Ok(state.runtime.create_agent_handoff_from_auth_context(
+            &auth,
+            request.conversation_id,
+            request.target_id,
+            request.target_kind,
+            request.handoff_session_id,
+            request.handoff_reason,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn create_system_channel(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateSystemChannelRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    ensure_active_http_principal(
-        &state,
-        auth.tenant_id.as_str(),
-        request.subscriber_id.as_str(),
-        "user",
-    )?;
-    Ok(Json(
-        state.runtime.create_system_channel_from_auth_context(
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        ensure_active_http_principal(
+            &state,
+            auth.tenant_id.as_str(),
+            request.subscriber_id.as_str(),
+            "user",
+        )?;
+        Ok(state.runtime.create_system_channel_from_auth_context(
             &auth,
             request.conversation_id,
             request.subscriber_id,
-        )?,
-    ))
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn create_thread_conversation(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<CreateThreadConversationRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(
-        state.runtime.create_thread_conversation_from_auth_context(
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.create_thread_conversation_from_auth_context(
             &auth,
             request.conversation_id,
             request.parent_conversation_id,
             request.root_message_id,
-        )?,
-    ))
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn bind_direct_chat_conversation(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<BindDirectChatConversationRequest>,
-) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    ensure_active_http_principal(
-        &state,
-        auth.tenant_id.as_str(),
-        request.left_actor_id.as_str(),
-        request.left_actor_kind.as_str(),
-    )?;
-    ensure_active_http_principal(
-        &state,
-        auth.tenant_id.as_str(),
-        request.right_actor_id.as_str(),
-        request.right_actor_kind.as_str(),
-    )?;
-    Ok(Json(
-        state
+) -> Response {
+    let result: ApiResult<CreateConversationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        ensure_active_http_principal(
+            &state,
+            auth.tenant_id.as_str(),
+            request.left_actor_id.as_str(),
+            request.left_actor_kind.as_str(),
+        )?;
+        ensure_active_http_principal(
+            &state,
+            auth.tenant_id.as_str(),
+            request.right_actor_id.as_str(),
+            request.right_actor_kind.as_str(),
+        )?;
+        Ok(state
             .runtime
             .bind_direct_chat_conversation_from_auth_context(
                 &auth,
-                request.conversation_id,
-                request.direct_chat_id,
+                request.conversation_id.unwrap_or_default(),
+                request.direct_chat_id.unwrap_or_default(),
                 request.left_actor_id,
                 request.left_actor_kind,
                 request.right_actor_id,
                 request.right_actor_kind,
-            )?,
-    ))
-}
-
-fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, ApiError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(ApiError::from),
-    }
-}
-
-fn resolve_active_http_auth_context(
-    state: &AppState,
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, ApiError> {
-    let auth = resolve_request_app_context(auth, headers)?;
-    ensure_active_http_auth_principal(state, &auth)?;
-    Ok(auth)
+            )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) fn resolve_active_rpc_auth_context(
     state: &AppState,
     headers: &HeaderMap,
 ) -> Result<AppContext, ApiError> {
-    resolve_active_http_auth_context(state, None, headers)
+    let auth = resolve_app_context(headers).map_err(|value| ApiError {
+        status: axum::http::StatusCode::UNAUTHORIZED,
+        code: value.code(),
+        message: value.message().to_owned(),
+    })?;
+    ensure_active_http_auth_principal(state, &auth)?;
+    Ok(auth)
 }
 
 pub(crate) fn ensure_active_rpc_principal(
@@ -1441,485 +1541,550 @@ fn validate_message_history_limit(limit: Option<usize>) -> Result<usize, ApiErro
 }
 
 async fn sync_shared_channel_linked_member(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     AppJson(request): AppJson<SyncSharedChannelLinkedMemberRequest>,
-) -> Result<Json<SyncSharedChannelLinkedMemberResponse>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    ensure_active_http_principal(
-        &state,
-        auth.tenant_id.as_str(),
-        request.local_actor_id.as_str(),
-        request.local_actor_kind.as_str(),
-    )?;
-    if !auth.has_permission(SHARED_CHANNEL_SYNC_PERMISSION) {
-        return Err(ApiError::forbidden(
-            "shared_channel_sync_permission_denied",
-            format!(
-                "shared channel linked-member sync requires permission {SHARED_CHANNEL_SYNC_PERMISSION}"
-            ),
-        ));
-    }
-    if auth.actor_id != SHARED_CHANNEL_SYNC_ACTOR_ID {
-        return Err(ApiError::forbidden(
-            "shared_channel_sync_actor_invalid",
-            format!(
-                "shared channel linked-member sync requires actor {}",
-                SHARED_CHANNEL_SYNC_ACTOR_ID
-            ),
-        ));
-    }
-    if !state
-        .shared_channel_sync_rate_limiter
-        .try_acquire(auth.tenant_id.as_str())
-    {
-        return Err(ApiError::too_many_requests(
-            "shared_channel_sync_rate_limited",
-            "shared channel linked-member sync exceeded per-tenant rate limit",
-        ));
-    }
-    let expected_request_key = shared_channel_sync_request_key(auth.tenant_id.as_str(), &request);
-    if let Some(request_key) = request.request_key.as_deref() {
-        validate_payload_size(
-            "requestKey",
-            request_key,
-            CONVERSATION_MAX_REQUEST_KEY_BYTES,
-        )
-        .map_err(ApiError::from)?;
-        if request_key.trim().is_empty() {
-            return Err(ApiError::bad_request(
-                "shared_channel_sync_request_key_invalid",
-                "shared channel linked-member sync requestKey cannot be empty when provided",
-            ));
-        }
-        if request_key != expected_request_key.as_str() {
-            return Err(ApiError::bad_request(
-                "shared_channel_sync_request_key_mismatch",
-                format!(
-                    "shared channel linked-member sync requestKey mismatch: expected {expected_request_key}, got {request_key}"
-                ),
-            ));
-        }
-    }
-    let request_key = request.request_key.clone().unwrap_or(expected_request_key);
-    let sync_result = state
-        .runtime
-        .sync_shared_channel_linked_member_from_auth_context_with_result(
-            &auth,
-            request.conversation_id,
-            request.shared_channel_policy_id,
-            request.external_connection_id,
-            request.local_actor_id,
-            request.local_actor_kind,
-            request.external_member_id,
+) -> Response {
+    let result: ApiResult<SyncSharedChannelLinkedMemberResponse> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        ensure_active_http_principal(
+            &state,
+            auth.tenant_id.as_str(),
+            request.local_actor_id.as_str(),
+            request.local_actor_kind.as_str(),
         )?;
-    Ok(Json(SyncSharedChannelLinkedMemberResponse {
-        proof_version: "shared_channel_sync_ack.v1",
-        request_key,
-        status: sync_result.status,
-        member: sync_result.member,
-    }))
+        if !auth.has_permission(SHARED_CHANNEL_SYNC_PERMISSION) {
+            return Err(ApiError::forbidden(
+                "shared_channel_sync_permission_denied",
+                format!(
+                    "shared channel linked-member sync requires permission {SHARED_CHANNEL_SYNC_PERMISSION}"
+                ),
+            )
+            .into());
+        }
+        if auth.actor_id != SHARED_CHANNEL_SYNC_ACTOR_ID {
+            return Err(ApiError::forbidden(
+                "shared_channel_sync_actor_invalid",
+                format!(
+                    "shared channel linked-member sync requires actor {}",
+                    SHARED_CHANNEL_SYNC_ACTOR_ID
+                ),
+            )
+            .into());
+        }
+        if !state
+            .shared_channel_sync_rate_limiter
+            .try_acquire(auth.tenant_id.as_str())
+        {
+            return Err(ApiError::too_many_requests(
+                "shared_channel_sync_rate_limited",
+                "shared channel linked-member sync exceeded per-tenant rate limit",
+            )
+            .into());
+        }
+        let expected_request_key = shared_channel_sync_request_key(auth.tenant_id.as_str(), &request);
+        if let Some(request_key) = request.request_key.as_deref() {
+            validate_payload_size(
+                "requestKey",
+                request_key,
+                CONVERSATION_MAX_REQUEST_KEY_BYTES,
+            )
+            .map_err(ApiError::from)?;
+            if request_key.trim().is_empty() {
+                return Err(ApiError::bad_request(
+                    "shared_channel_sync_request_key_invalid",
+                    "shared channel linked-member sync requestKey cannot be empty when provided",
+                )
+                .into());
+            }
+            if request_key != expected_request_key.as_str() {
+                return Err(ApiError::bad_request(
+                    "shared_channel_sync_request_key_mismatch",
+                    format!(
+                        "shared channel linked-member sync requestKey mismatch: expected {expected_request_key}, got {request_key}"
+                    ),
+                )
+                .into());
+            }
+        }
+        let request_key = request.request_key.clone().unwrap_or(expected_request_key);
+        let sync_result = state
+            .runtime
+            .sync_shared_channel_linked_member_from_auth_context_with_result(
+                &auth,
+                request.conversation_id,
+                request.shared_channel_policy_id,
+                request.external_connection_id,
+                request.local_actor_id,
+                request.local_actor_kind,
+                request.external_member_id,
+            )?;
+        Ok(SyncSharedChannelLinkedMemberResponse {
+            proof_version: "shared_channel_sync_ack.v1",
+            request_key,
+            status: sync_result.status,
+            member: sync_result.member,
+        })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_agent_handoff_state(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(
-        state
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<AgentHandoffStateView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
             .runtime
-            .get_agent_handoff_state_from_auth_context(&auth, conversation_id.as_str())?,
-    ))
+            .get_agent_handoff_state_from_auth_context(&auth, conversation_id.as_str())?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_conversation_binding(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ConversationBindingResponse>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let binding = state
-        .runtime
-        .conversation_business_binding_from_auth_context(&auth, conversation_id.as_str())?;
-    Ok(Json(ConversationBindingResponse {
-        conversation_id,
-        business_type: binding.business_type,
-        business_id: binding.business_id,
-    }))
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<ConversationBindingResponse> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let binding = state
+            .runtime
+            .conversation_business_binding_from_auth_context(&auth, conversation_id.as_str())?;
+        Ok(ConversationBindingResponse {
+            conversation_id,
+            business_type: binding.business_type,
+            business_id: binding.business_id,
+        })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn accept_agent_handoff(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.accept_agent_handoff_from_auth_context(
-        &auth,
-        conversation_id,
-    )?))
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<AgentHandoffStateView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.accept_agent_handoff_from_auth_context(
+            &auth,
+            conversation_id,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn resolve_agent_handoff(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(
-        state
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<AgentHandoffStateView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
             .runtime
-            .resolve_agent_handoff_from_auth_context(&auth, conversation_id)?,
-    ))
+            .resolve_agent_handoff_from_auth_context(&auth, conversation_id)?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn close_agent_handoff(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<AgentHandoffStateView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.close_agent_handoff_from_auth_context(
-        &auth,
-        conversation_id,
-    )?))
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<AgentHandoffStateView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.close_agent_handoff_from_auth_context(
+            &auth,
+            conversation_id,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn list_members(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
     Path(conversation_id): Path<String>,
     Query(query): Query<MemberListQuery>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
-    State(state): State<AppState>,
-) -> Result<Json<ListMembersResponse>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    state
-        .runtime
-        .list_members_window_from_auth_context(
-            &auth,
-            conversation_id.as_str(),
-            query.limit,
-            query.cursor.as_deref(),
-        )
-        .map(Json)
-        .map_err(|error| match error {
-            RuntimeError::InvalidInput(message)
-                if message.contains("member list limit")
-                    || message.contains("member list cursor") =>
-            {
-                ApiError::bad_request(
-                    if message.contains("cursor") {
-                        "cursor_invalid"
-                    } else {
-                        "limit_invalid"
-                    },
-                    message,
-                )
-            }
-            other => ApiError::from(other),
-        })
+) -> Response {
+    let result: ApiResult<ListMembersResponse> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        state
+            .runtime
+            .list_members_window_from_auth_context(
+                &auth,
+                conversation_id.as_str(),
+                query.limit,
+                query.cursor.as_deref(),
+            )
+            .map_err(|error| match error {
+                RuntimeError::InvalidInput(message)
+                    if message.contains("member list limit")
+                        || message.contains("member list cursor") =>
+                {
+                    ApiError::bad_request(
+                        if message.contains("cursor") {
+                            "cursor_invalid"
+                        } else {
+                            "limit_invalid"
+                        },
+                        message,
+                    )
+                    .into()
+                }
+                other => ApiError::from(other).into(),
+            })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn add_member(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<AddConversationMemberRequest>,
-) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    ensure_active_http_principal(
-        &state,
-        auth.tenant_id.as_str(),
-        request.principal_id.as_str(),
-        request.principal_kind.as_str(),
-    )?;
-    Ok(Json(state.runtime.add_member_from_auth_context(
-        &auth,
-        conversation_id,
-        request.principal_id,
-        request.principal_kind,
-        request.role,
-        request.attributes,
-    )?))
+) -> Response {
+    let result: ApiResult<ConversationMember> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        ensure_active_http_principal(
+            &state,
+            auth.tenant_id.as_str(),
+            request.principal_id.as_str(),
+            request.principal_kind.as_str(),
+        )?;
+        Ok(state.runtime.add_member_from_auth_context(
+            &auth,
+            conversation_id,
+            request.principal_id,
+            request.principal_kind,
+            request.role,
+            request.attributes,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn remove_member(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<RemoveConversationMemberRequest>,
-) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.remove_member_from_auth_context(
-        &auth,
-        conversation_id,
-        request.member_id,
-    )?))
+) -> Response {
+    let result: ApiResult<ConversationMember> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.remove_member_from_auth_context(
+            &auth,
+            conversation_id,
+            request.member_id,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn transfer_conversation_owner(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<TransferConversationOwnerRequest>,
-) -> Result<Json<TransferConversationOwnerResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(
-        state
+) -> Response {
+    let result: ApiResult<TransferConversationOwnerResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
             .runtime
             .transfer_conversation_owner_from_auth_context(
                 &auth,
                 conversation_id,
                 request.member_id,
-            )?,
-    ))
+            )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn change_conversation_member_role(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<ChangeConversationMemberRoleRequest>,
-) -> Result<Json<ChangeConversationMemberRoleResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(
-        state
+) -> Response {
+    let result: ApiResult<ChangeConversationMemberRoleResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
             .runtime
             .change_conversation_member_role_from_auth_context(
                 &auth,
                 conversation_id,
                 request.member_id,
                 request.role,
-            )?,
-    ))
+            )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn leave_conversation(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.leave_conversation_from_auth_context(
-        &auth,
-        conversation_id,
-    )?))
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<ConversationMember> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.leave_conversation_from_auth_context(
+            &auth,
+            conversation_id,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn get_read_cursor(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ConversationReadCursorView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.read_cursor_view_from_auth_context(
-        &auth,
-        conversation_id.as_str(),
-    )?))
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<ConversationReadCursorView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.read_cursor_view_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn list_messages(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
     Path(conversation_id): Path<String>,
     Query(query): Query<MessageHistoryQuery>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
-    State(state): State<AppState>,
-) -> Result<Json<MessageHistoryResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let limit = validate_message_history_limit(query.limit)?;
-    Ok(Json(state.runtime.list_messages_window_from_auth_context(
-        &auth,
-        conversation_id.as_str(),
-        query.after_seq,
-        limit,
-    )?))
+) -> Response {
+    let result: ApiResult<MessageHistoryResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let limit = validate_message_history_limit(query.limit)?;
+        Ok(state.runtime.list_messages_window_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            query.after_seq,
+            limit,
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn update_read_cursor(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<UpdateReadCursorRequest>,
-) -> Result<Json<ConversationReadCursorView>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    state.runtime.update_read_cursor_from_auth_context(
-        &auth,
-        conversation_id.clone(),
-        request.read_seq,
-        request.last_read_message_id,
-    )?;
+) -> Response {
+    let result: ApiResult<ConversationReadCursorView> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        state.runtime.update_read_cursor_from_auth_context(
+            &auth,
+            conversation_id.clone(),
+            request.read_seq,
+            request.last_read_message_id,
+        )?;
 
-    Ok(Json(state.runtime.read_cursor_view_from_auth_context(
-        &auth,
-        conversation_id.as_str(),
-    )?))
+        Ok(state.runtime.read_cursor_view_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn post_message(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<PostMessageRequest>,
-) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let body = build_message_body(
-        request.summary,
-        request.text,
-        request.reply_to,
-        request.parts,
-        request.render_hints,
-    )?;
+) -> Response {
+    let result: ApiResult<PostMessageResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let body = build_message_body(
+            request.summary,
+            request.text,
+            request.reply_to,
+            request.parts,
+            request.render_hints,
+        )?;
 
-    let result = state
-        .runtime
-        .post_message(PostMessageCommand::from_auth_context(
-            &auth,
-            conversation_id,
-            request.client_msg_id,
-            MessageType::Standard,
-            body,
-        ))?;
-    Ok(Json(result))
+        Ok(state
+            .runtime
+            .post_message(PostMessageCommand::from_auth_context(
+                &auth,
+                conversation_id,
+                request.client_msg_id,
+                MessageType::Standard,
+                body,
+            ))?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn publish_system_channel_message(
-    Path(conversation_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
     AppJson(request): AppJson<PostMessageRequest>,
-) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let body = build_message_body(
-        request.summary,
-        request.text,
-        request.reply_to,
-        request.parts,
-        request.render_hints,
-    )?;
+) -> Response {
+    let result: ApiResult<PostMessageResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let body = build_message_body(
+            request.summary,
+            request.text,
+            request.reply_to,
+            request.parts,
+            request.render_hints,
+        )?;
 
-    let result = state.runtime.publish_system_channel_message(
-        PublishSystemChannelMessageCommand::from_auth_context(
-            &auth,
-            conversation_id,
-            request.client_msg_id,
-            body,
-        ),
-    )?;
-
-    Ok(Json(result))
+        Ok(state.runtime.publish_system_channel_message(
+            PublishSystemChannelMessageCommand::from_auth_context(
+                &auth,
+                conversation_id,
+                request.client_msg_id,
+                body,
+            ),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn edit_message(
-    Path(message_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(message_id): Path<String>,
     AppJson(request): AppJson<EditMessageRequest>,
-) -> Result<Json<MessageMutationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    let body = build_message_body(
-        request.summary,
-        request.text,
-        request.reply_to,
-        request.parts,
-        request.render_hints,
-    )?;
-    Ok(Json(state.runtime.edit_message(
-        EditMessageCommand::from_auth_context(&auth, message_id, body),
-    )?))
+) -> Response {
+    let result: ApiResult<MessageMutationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        let body = build_message_body(
+            request.summary,
+            request.text,
+            request.reply_to,
+            request.parts,
+            request.render_hints,
+        )?;
+        Ok(state.runtime.edit_message(
+            EditMessageCommand::from_auth_context(&auth, message_id, body),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn recall_message(
-    Path(message_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<MessageMutationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.recall_message(
-        RecallMessageCommand::from_auth_context(&auth, message_id),
-    )?))
+    Path(message_id): Path<String>,
+) -> Response {
+    let result: ApiResult<MessageMutationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.recall_message(
+            RecallMessageCommand::from_auth_context(&auth, message_id),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn add_message_reaction(
-    Path(message_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(message_id): Path<String>,
     AppJson(request): AppJson<MessageReactionRequest>,
-) -> Result<Json<MessageReactionMutationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    if request.reaction_key.trim().is_empty() {
-        return Err(ApiError::bad_request(
-            "reaction_key_invalid",
-            "reaction key must not be empty",
-        ));
-    }
+) -> Response {
+    let result: ApiResult<MessageReactionMutationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        if request.reaction_key.trim().is_empty() {
+            return Err(ApiError::bad_request(
+                "reaction_key_invalid",
+                "reaction key must not be empty",
+            )
+            .into());
+        }
 
-    Ok(Json(state.runtime.add_message_reaction(
-        AddMessageReactionCommand::from_auth_context(&auth, message_id, request.reaction_key),
-    )?))
+        Ok(state.runtime.add_message_reaction(
+            AddMessageReactionCommand::from_auth_context(&auth, message_id, request.reaction_key),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn remove_message_reaction(
-    Path(message_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
+    Path(message_id): Path<String>,
     AppJson(request): AppJson<MessageReactionRequest>,
-) -> Result<Json<MessageReactionMutationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    if request.reaction_key.trim().is_empty() {
-        return Err(ApiError::bad_request(
-            "reaction_key_invalid",
-            "reaction key must not be empty",
-        ));
-    }
+) -> Response {
+    let result: ApiResult<MessageReactionMutationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        if request.reaction_key.trim().is_empty() {
+            return Err(ApiError::bad_request(
+                "reaction_key_invalid",
+                "reaction key must not be empty",
+            )
+            .into());
+        }
 
-    Ok(Json(state.runtime.remove_message_reaction(
-        RemoveMessageReactionCommand::from_auth_context(&auth, message_id, request.reaction_key),
-    )?))
+        Ok(state.runtime.remove_message_reaction(
+            RemoveMessageReactionCommand::from_auth_context(&auth, message_id, request.reaction_key),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn pin_message(
-    Path(message_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<MessagePinMutationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.pin_message(
-        PinMessageCommand::from_auth_context(&auth, message_id),
-    )?))
+    Path(message_id): Path<String>,
+) -> Response {
+    let result: ApiResult<MessagePinMutationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.pin_message(
+            PinMessageCommand::from_auth_context(&auth, message_id),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn unpin_message(
-    Path(message_id): Path<String>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<MessagePinMutationResult>, ApiError> {
-    let auth = resolve_active_http_auth_context(&state, auth, &headers)?;
-    Ok(Json(state.runtime.unpin_message(
-        UnpinMessageCommand::from_auth_context(&auth, message_id),
-    )?))
+    Path(message_id): Path<String>,
+) -> Response {
+    let result: ApiResult<MessagePinMutationResult> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state.runtime.unpin_message(
+            UnpinMessageCommand::from_auth_context(&auth, message_id),
+        )?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 fn build_message_body(
@@ -2295,7 +2460,11 @@ mod tests {
             .to_bytes();
         let value: serde_json::Value =
             serde_json::from_slice(&body).expect("response should be valid json");
-        assert_eq!(value["code"], "conversation_principal_not_found");
+        assert_eq!(value["code"], 40001);
+        assert!(value["detail"]
+            .as_str()
+            .expect("detail should be string")
+            .contains("principal not found in directory"));
     }
 
     #[tokio::test]
@@ -2330,6 +2499,10 @@ mod tests {
             .to_bytes();
         let value: serde_json::Value =
             serde_json::from_slice(&body).expect("response should be valid json");
-        assert_eq!(value["code"], "conversation_principal_not_found");
+        assert_eq!(value["code"], 40001);
+        assert!(value["detail"]
+            .as_str()
+            .expect("detail should be string")
+            .contains("principal not found in directory"));
     }
 }

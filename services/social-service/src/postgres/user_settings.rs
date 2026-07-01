@@ -2,14 +2,16 @@
 
 use axum::Json;
 use axum::extract::{Extension, Path, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use im_app_context::AppContext;
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Serialize)]
 pub struct UserSettingsResponse {
@@ -22,47 +24,53 @@ pub struct UpdateUserSettingsRequest {
 }
 
 pub async fn get_user_settings(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(user_id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    if scope.user_id != user_id {
-        return Err(StatusCode::FORBIDDEN);
-    }
+) -> Response {
+    let result: ApiResult<UserSettingsResponse> = (|| {
+        if auth.actor_id != user_id {
+            return Err(ApiProblem::forbidden("user can only read own settings"));
+        }
 
-    match state.user_settings_store.list_by_user(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        user_id.as_str(),
-    ) {
-        Ok(settings) => Ok(Json(UserSettingsResponse { settings })),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+        let settings = state
+            .user_settings_store
+            .list_by_user(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                user_id.as_str(),
+            )
+            .map_err(|_| ApiProblem::internal_server_error("failed to read user settings"))?;
+        Ok(UserSettingsResponse { settings })
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn update_user_settings(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(user_id): Path<String>,
     Json(request): Json<UpdateUserSettingsRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    if scope.user_id != user_id {
-        return Err(StatusCode::FORBIDDEN);
-    }
+) -> Response {
+    let result: Result<Response, ApiProblem> = (|| {
+        if auth.actor_id != user_id {
+            return Err(ApiProblem::forbidden("user can only update own settings"));
+        }
 
-    let now = chrono::Utc::now().to_rfc3339();
-    match state.user_settings_store.upsert_settings(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        user_id.as_str(),
-        &request.settings,
-        now.as_str(),
-    ) {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+        let now = chrono::Utc::now().to_rfc3339();
+        state
+            .user_settings_store
+            .upsert_settings(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                user_id.as_str(),
+                &request.settings,
+                now.as_str(),
+            )
+            .map_err(|_| ApiProblem::internal_server_error("failed to update user settings"))?;
+        no_content(&ctx)
+    })();
+    finish_api_response(&ctx, result)
 }

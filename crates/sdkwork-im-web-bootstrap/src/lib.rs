@@ -20,7 +20,7 @@ pub fn im_service_router_config() -> ServiceRouterConfig {
         .with_readiness_check(sdkwork_im_service_readiness::im_env_readiness_check())
         .with_metrics(im_service_http_metrics())
 }
-use im_app_context::{app_context_from_web_request, resolve_web_environment_from_process_env};
+use im_app_context::{app_context_from_web_request, resolve_app_context, resolve_web_environment_from_process_env};
 use sdkwork_iam_web_adapter::{
     iam_web_request_context_resolver_from_env, IamAuthorizationPolicy, IamWebRequestContextResolver,
 };
@@ -66,6 +66,10 @@ pub fn im_service_http_metrics() -> Arc<HttpMetricsRegistry> {
 impl DomainContextInjector for ImAppContextInjector {
     fn inject(&self, request: &mut axum::extract::Request, context: &WebRequestContext) {
         request.extensions_mut().insert(context.clone());
+        if let Ok(app_context) = resolve_app_context(request.headers()) {
+            request.extensions_mut().insert(app_context);
+            return;
+        }
         if let Some(app_context) = app_context_from_web_request(context) {
             request.extensions_mut().insert(app_context);
         }
@@ -151,6 +155,11 @@ pub fn init_im_service_tracing_from_env() {
 }
 
 /// Wrap an IM HTTP service router with the canonical SDKWork interceptor pipeline.
+///
+/// Uses an empty [`HttpRouteManifest`], so route-level authorization and metrics
+/// dimensions are not enforced. Prefer [`wrap_im_service_router_with_manifest`]
+/// (or [`wrap_im_open_api_service_router_with_resolver`]) when the route crate
+/// owns a manifest.
 pub fn wrap_im_open_api_service_router(router: Router) -> Router {
     let resolver = cached_iam_web_request_context_resolver()
         .unwrap_or_else(|| IamWebRequestContextResolver::new(None));
@@ -162,8 +171,39 @@ pub fn wrap_im_open_api_service_router(router: Router) -> Router {
 }
 
 /// Alias for IM HTTP service processes (open-api and backend-api prefixes).
+///
+/// Equivalent to [`wrap_im_open_api_service_router`] and retained for
+/// backwards compatibility with route crates that have not yet migrated to
+/// passing their route manifest. New code should call
+/// [`wrap_im_service_router_with_manifest`] instead so that
+/// [`IamAuthorizationPolicy`] and route-level metrics dimensions are derived
+/// from the actual route table.
 pub fn wrap_im_service_router(router: Router) -> Router {
     wrap_im_open_api_service_router(router)
+}
+
+/// Wrap an IM HTTP service router with the canonical SDKWork interceptor
+/// pipeline and an explicit [`HttpRouteManifest`].
+///
+/// Route crates that own a manifest (see `manifest::route_manifest()`) should
+/// call this function instead of [`wrap_im_service_router`] so that the
+/// [`WebFrameworkLayer`] receives the real route table. This enables
+/// route-level authorization (`IamAuthorizationPolicy`), HTTP metrics
+/// dimensions keyed by `route_id`, and OpenAPI metadata consistency per
+/// `API_SPEC.md` §4.5, §14, and §15.
+///
+/// Uses the cached IAM resolver when [`shared_iam_web_request_context_resolver_from_env`]
+/// has been invoked (typical for unified-process gateways and bin services
+/// bootstrapped through `sdkwork_im_web_bootstrap`). Falls back to a default
+/// resolver with no IAM database when the cache has not been populated, which
+/// is the same behaviour as [`wrap_im_service_router`].
+pub fn wrap_im_service_router_with_manifest(
+    router: Router,
+    route_manifest: HttpRouteManifest,
+) -> Router {
+    let resolver = cached_iam_web_request_context_resolver()
+        .unwrap_or_else(|| IamWebRequestContextResolver::new(None));
+    wrap_im_open_api_service_router_with_resolver(resolver, route_manifest, router)
 }
 
 /// Wrap with an explicit resolver and route manifest (public routes from manifest + infra prefixes).

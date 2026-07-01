@@ -33,7 +33,7 @@ const appbaseIamBaselinePath = path.join(
   'ddl',
   'baseline',
   'postgres',
-  '0001_iam_legacy_baseline.sql',
+  '0001_iam_baseline.sql',
 );
 const appbaseIamCrateMigrationPath = path.join(
   workspaceRoot,

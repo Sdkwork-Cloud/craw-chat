@@ -6,14 +6,15 @@ use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
+use im_app_context::allows_header_only_app_context_fallback;
 use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
+use sdkwork_utils_rust::parse_bool;
 use im_adapters_postgres_rtc_state::build_postgres_rtc_state_store_optional;
 use im_adapters_redis_cache::rtc_state_store::build_redis_rtc_state_store_optional;
 use im_domain_core::audit::{AuditEmitter, LoggingAuditEmitter};
 use im_domain_core::rtc::StateStore;
 use im_platform_contracts::{IdGenerator, OutboxStore};
 use sdkwork_communication_rtc_service::RtcProviderPort;
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_rtc_adapter_volcengine::VolcengineRtcProvider;
 use tokio::sync::Semaphore;
 
@@ -147,8 +148,9 @@ pub fn build_default_rtc_provider() -> Option<Arc<dyn RtcProviderPort>> {
 /// - `SDKWORK_RTC_STATE_REQUIRE_DURABLE=true`
 fn build_default_state_store() -> Arc<dyn StateStore> {
     let require_durable = std::env::var(ENV_RTC_STATE_REQUIRE_DURABLE)
-        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
-        .unwrap_or(false);
+        .ok()
+        .and_then(|value| parse_bool(value.as_str()))
+        .unwrap_or(!allows_header_only_app_context_fallback());
 
     let pg_url = std::env::var(ENV_RTC_STATE_DATABASE_URL).ok();
     let redis_url = std::env::var(ENV_RTC_STATE_REDIS_URL).ok();
@@ -249,8 +251,9 @@ fn build_default_id_generator() -> Arc<dyn IdGenerator> {
 /// Fail-closed check for required outbox in production deployments.
 fn enforce_require_outbox(outbox: Option<Arc<dyn OutboxStore>>) -> Option<Arc<dyn OutboxStore>> {
     let require_outbox = std::env::var(ENV_RTC_REQUIRE_OUTBOX)
-        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
-        .unwrap_or(false);
+        .ok()
+        .and_then(|value| parse_bool(value.as_str()))
+        .unwrap_or(!allows_header_only_app_context_fallback());
     if outbox.is_none() && require_outbox {
         panic!(
             "{ENV_RTC_REQUIRE_OUTBOX}=true but RTC outbox store is unavailable. \
@@ -290,20 +293,6 @@ pub fn build_default_calling_runtime() -> CallingRuntime {
         Some(provider) => runtime.with_rtc_provider(provider),
         None => runtime,
     }
-}
-
-pub fn build_default_app() -> Router {
-    build_app(Arc::new(build_default_calling_runtime()))
-}
-
-/// Build the IM calls app wired with a specific RTC provider.
-///
-/// Use this entry point in production deployments that need to register
-/// custom provider plugins (e.g. agora/aliyun/livekit/tencent in addition
-/// to or instead of volcengine).
-pub fn build_app_with_rtc_provider(rtc_provider: Arc<dyn RtcProviderPort>) -> Router {
-    let runtime = CallingRuntime::default().with_rtc_provider(rtc_provider);
-    build_app(Arc::new(runtime))
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
@@ -356,23 +345,7 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
         ))
 }
 
-pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(Arc::new(
-            build_default_calling_runtime(),
-        ))),
-        im_service_router_config(),
-    )
-}
-
-pub fn build_app(runtime: Arc<CallingRuntime>) -> Router {
-    mount_im_infra_routes(
-        build_business_router(runtime),
-        im_service_router_config(),
-    )
-}
-
-fn build_business_router(runtime: Arc<CallingRuntime>) -> Router {
+pub fn build_business_router(runtime: Arc<CallingRuntime>) -> Router {
     let state = AppState { runtime };
     Router::new()
         .route("/openapi.json", get(openapi_json))
@@ -394,6 +367,12 @@ async fn enforce_in_flight_gate(
     let permit = match guardrails.request_gate.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
+            let problem = sdkwork_routes_web_framework_backend_api::response::ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<sdkwork_web_core::WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
             return CallingError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",

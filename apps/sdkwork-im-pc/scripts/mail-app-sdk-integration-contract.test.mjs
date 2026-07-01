@@ -27,7 +27,7 @@ const packageJson = readJson('package.json');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const workflow = readRepoJson('sdkwork.workflow.json');
 const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
+const gatewayRegistrySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'registry.rs');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc-release-build.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
@@ -45,9 +45,9 @@ assert.equal(
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/mail-app-sdk'] ?? readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['@sdkwork/mail-app-sdk'],
+  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['sdkwork-mail-app-sdk-generated-typescript'],
   'workspace:*',
-  'Chat PC must consume sdkwork-mail through the workspace app SDK package.',
+  'Chat PC core must consume sdkwork-mail through the sibling generated app SDK workspace package.',
 );
 
 assert.match(
@@ -99,7 +99,7 @@ assert.match(
 );
 
 assert.match(
-  gatewaySource,
+  gatewayRegistrySource,
   /"sdkwork-mail-app-api"[\s\S]*\/app\/v3\/api\/mail\/\{\*path\}[\s\S]*SdkworkMailAppSdk/u,
   'Web gateway must route sdkwork-mail app-api paths to the Mail app SDK upstream.',
 );
@@ -160,19 +160,19 @@ assert.doesNotMatch(
 
 assert.match(
   mailClientSource,
-  /@sdkwork\/mail-app-sdk/u,
-  'Mail app SDK client wrapper must import the composed mail app SDK package.',
+  /sdkwork-mail-app-sdk-generated-typescript/u,
+  'Mail app SDK client wrapper must import the sibling generated mail app SDK package.',
 );
 
 assert.match(
   viteConfigSource,
-  /@sdkwork\/mail-app-sdk/u,
-  'Vite config must alias @sdkwork/mail-app-sdk for PC mail integration.',
+  /sdkwork-mail-app-sdk-generated-typescript/u,
+  'Vite config must alias sdkwork-mail-app-sdk-generated-typescript for PC mail integration.',
 );
 
 assert.ok(
-  tsconfig.compilerOptions?.paths?.['@sdkwork/mail-app-sdk'],
-  'tsconfig must map @sdkwork/mail-app-sdk for PC mail integration.',
+  tsconfig.compilerOptions?.paths?.['sdkwork-mail-app-sdk-generated-typescript'],
+  'tsconfig must map sdkwork-mail-app-sdk-generated-typescript for PC mail integration.',
 );
 
 console.log('mail app SDK integration contract checks passed');

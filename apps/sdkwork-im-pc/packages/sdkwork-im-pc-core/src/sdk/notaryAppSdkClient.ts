@@ -1,7 +1,7 @@
 import {
-  createNotaryAppClient,
+  createClient,
+  type SdkworkAppClient,
   type SdkworkAppConfig,
-  type SdkworkNotaryAppClient as GeneratedSdkworkNotaryAppClient,
 } from '@sdkwork/notary-app-sdk';
 import type { Interceptors } from '@sdkwork/sdk-common';
 import { resolveAppSdkBaseUrl } from './appSdkClient';
@@ -14,7 +14,7 @@ import {
   type SdkworkChatSession,
 } from './session';
 
-export type SdkworkNotaryAppClient = GeneratedSdkworkNotaryAppClient;
+export type SdkworkNotaryAppClient = SdkworkAppClient;
 export type SdkworkNotaryAppClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;
 };
@@ -38,7 +38,7 @@ export function createNotaryAppSdkClientConfig(
 export function initNotaryAppSdkClient(
   config: SdkworkNotaryAppClientConfig = createNotaryAppSdkClientConfig(),
 ): SdkworkNotaryAppClient {
-  notaryAppSdkClient = createNotaryAppClient(config);
+  notaryAppSdkClient = createClient(config);
   return notaryAppSdkClient;
 }
 

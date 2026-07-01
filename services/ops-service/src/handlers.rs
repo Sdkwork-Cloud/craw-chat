@@ -1,12 +1,13 @@
-use axum::Json;
 use axum::extract::{Extension, State};
-use axum::http::HeaderMap;
+use axum::response::Response;
 use im_adapters_postgres_journal::{
     PostgresJournalConfig, RetentionCleanupReport, purge_expired_retention_batch,
 };
 use im_app_context::AppContext;
 use im_time::utc_now_rfc3339_millis;
 use serde::Deserialize;
+use sdkwork_routes_web_framework_backend_api::response::{ApiResult, finish_api_json};
+use sdkwork_web_core::WebRequestContext;
 
 use crate::dto::{
     ClusterView, DiagnosticBundle, LagView, OpsHealthResponse, ProjectionReplayStatusView,
@@ -14,9 +15,7 @@ use crate::dto::{
     RuntimeDirInspectionView,
 };
 use crate::error::OpsError;
-use crate::helpers::{
-    ensure_ops_read_access, ensure_ops_write_access, resolve_request_app_context,
-};
+use crate::helpers::{ensure_ops_read_access, ensure_ops_write_access};
 use crate::state::AppState;
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
@@ -24,83 +23,99 @@ const RETENTION_PURGE_DEFAULT_BATCH_SIZE: i64 = 500;
 const RETENTION_PURGE_MAX_BATCH_SIZE: i64 = 5_000;
 
 pub(crate) async fn get_ops_health(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<OpsHealthResponse>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.health_view()))
+) -> Response {
+    let result: ApiResult<OpsHealthResponse> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.health_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_cluster(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ClusterView>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.cluster_view()))
+) -> Response {
+    let result: ApiResult<ClusterView> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.cluster_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_lag(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<LagView>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.lag_view()))
+) -> Response {
+    let result: ApiResult<LagView> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.lag_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_runtime_dir(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<RuntimeDirInspectionView>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.runtime_dir_view()))
+) -> Response {
+    let result: ApiResult<RuntimeDirInspectionView> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.runtime_dir_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_provider_bindings(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ProviderBindingsView>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.provider_bindings_view()))
+) -> Response {
+    let result: ApiResult<ProviderBindingsView> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.provider_bindings_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_provider_binding_drift(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ProviderBindingDriftView>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.provider_binding_drift_view()))
+) -> Response {
+    let result: ApiResult<ProviderBindingDriftView> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.provider_binding_drift_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_replay_status(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ProjectionReplayStatusView>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.replay_status_view()))
+) -> Response {
+    let result: ApiResult<ProjectionReplayStatusView> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.replay_status_view())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub(crate) async fn get_diagnostics(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<DiagnosticBundle>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_read_access(&auth)?;
-    Ok(Json(state.runtime.diagnostic_bundle()))
+) -> Response {
+    let result: ApiResult<DiagnosticBundle> = (|| {
+        ensure_ops_read_access(&auth)?;
+        Ok(state.runtime.diagnostic_bundle())
+    })();
+    finish_api_json(&ctx, result)
 }
 
 #[derive(Debug, Deserialize)]
@@ -110,37 +125,37 @@ pub(crate) struct RetentionPurgeQuery {
 }
 
 pub(crate) async fn post_retention_purge(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     axum::extract::Query(query): axum::extract::Query<RetentionPurgeQuery>,
-) -> Result<Json<RetentionPurgeResponse>, OpsError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_ops_write_access(&auth)?;
-
-    let database_url = std::env::var(IM_DATABASE_URL_ENV).map_err(|_| {
-        OpsError::service_unavailable(
-            "database_unconfigured",
-            format!("{IM_DATABASE_URL_ENV} is required for retention purge"),
-        )
-    })?;
-    let batch_size = query
-        .batch_size
-        .unwrap_or(RETENTION_PURGE_DEFAULT_BATCH_SIZE)
-        .clamp(1, RETENTION_PURGE_MAX_BATCH_SIZE);
-    let config = PostgresJournalConfig::new(database_url);
-    let pool = config.connect_pool().map_err(|error| {
-        OpsError::service_unavailable("database_unavailable", format!("{error:?}"))
-    })?;
-
-    let report =
-        tokio::task::spawn_blocking(move || purge_expired_retention_batch(&pool, Some(batch_size)))
-            .await
-            .map_err(|_| {
-                OpsError::internal("retention_purge_failed", "retention purge worker panicked")
-            })?
-            .map_err(|error| OpsError::internal("retention_purge_failed", format!("{error:?}")))?;
-
-    Ok(Json(retention_purge_response(batch_size, report)))
+) -> Response {
+    let result: ApiResult<RetentionPurgeResponse> = async {
+        ensure_ops_write_access(&auth)?;
+        let database_url = std::env::var(IM_DATABASE_URL_ENV).map_err(|_| {
+            OpsError::service_unavailable(
+                "database_unconfigured",
+                format!("{IM_DATABASE_URL_ENV} is required for retention purge"),
+            )
+        })?;
+        let batch_size = query
+            .batch_size
+            .unwrap_or(RETENTION_PURGE_DEFAULT_BATCH_SIZE)
+            .clamp(1, RETENTION_PURGE_MAX_BATCH_SIZE);
+        let config = PostgresJournalConfig::new(database_url);
+        let pool = config.connect_pool().map_err(|error| {
+            OpsError::service_unavailable("database_unavailable", format!("{error:?}"))
+        })?;
+        let report =
+            tokio::task::spawn_blocking(move || purge_expired_retention_batch(&pool, Some(batch_size)))
+                .await
+                .map_err(|_| {
+                    OpsError::internal("retention_purge_failed", "retention purge worker panicked")
+                })?
+                .map_err(|error| OpsError::internal("retention_purge_failed", format!("{error:?}")))?;
+        Ok(retention_purge_response(batch_size, report))
+    }
+    .await;
+    finish_api_json(&ctx, result)
 }
 
 fn retention_purge_response(

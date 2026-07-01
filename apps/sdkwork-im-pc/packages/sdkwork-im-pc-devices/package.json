@@ -8,6 +8,14 @@
     "@sdkwork/im-pc-core": "workspace:*",
     "lucide-react": "catalog:",
     "motion": "catalog:",
-    "react-i18next": "catalog:"
+    "react-i18next": "catalog:",
+    "@sdkwork/im-pc-chat": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "i18next": "catalog:",
+    "react": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

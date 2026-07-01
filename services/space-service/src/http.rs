@@ -5,6 +5,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::{delete, get, post};
 use im_platform_contracts::IdGenerator;
+use im_adapters_social_postgres::SocialPostgresPool;
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 
 use crate::ban;
@@ -19,6 +20,8 @@ use crate::space_member;
 /// Shared state for space service handlers.
 #[derive(Clone)]
 pub struct AppState {
+    /// Retains the shared postgres pool for embedded standalone gateway merges.
+    pub postgres_pool: Option<SocialPostgresPool>,
     pub space_store: Arc<dyn im_adapters_social_postgres::organization_store::SpaceStore>,
     pub group_store: Arc<dyn im_adapters_social_postgres::organization_store::GroupStore>,
     pub channel_store: Arc<dyn im_adapters_social_postgres::organization_store::ChannelStore>,

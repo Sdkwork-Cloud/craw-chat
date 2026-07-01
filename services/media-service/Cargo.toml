@@ -1,4 +1,4 @@
-﻿[package]
+[package]
 name = "media-service"
 edition.workspace = true
 license.workspace = true
@@ -17,6 +17,9 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
+sdkwork_utils_rust.workspace = true
+sdkwork_web_core.workspace = true
+sdkwork_routes_web_framework_backend_api.workspace = true
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 
 [dev-dependencies]

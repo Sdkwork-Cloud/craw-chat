@@ -1,4 +1,11 @@
-import DOMPurify from 'dompurify';
+import createDOMPurify from 'dompurify';
+
+type DomPurify = ReturnType<typeof createDOMPurify>;
+
+interface SanitizeAttributeHookData {
+  attrName?: string;
+  keepAttr?: boolean;
+}
 
 // Whitelist of tags commonly used in IM / mail message bodies.
 const ALLOWED_TAGS = [
@@ -42,29 +49,37 @@ const SANITIZE_CONFIG = {
   ALLOW_DATA_ATTR: false,
 };
 
-let hooksConfigured = false;
+const configuredPurifiers = new WeakSet<DomPurify>();
 
-function ensureHooksConfigured(): void {
-  if (hooksConfigured) {
+function configurePurifierHooks(purifier: DomPurify): void {
+  if (configuredPurifiers.has(purifier)) {
     return;
   }
   // Force-remove any on* event handler attribute regardless of ALLOWED_ATTR.
-  DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+  purifier.addHook('uponSanitizeAttribute', (_node: Element, data: SanitizeAttributeHookData) => {
     const attrName = data.attrName;
     if (attrName && attrName.toLowerCase().startsWith('on')) {
       data.keepAttr = false;
     }
   });
-  hooksConfigured = true;
+  configuredPurifiers.add(purifier);
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function resolveDomPurify(): DomPurify {
+  if (typeof window === 'undefined' || !window.document) {
+    throw new Error('sanitizeHtmlForDisplay requires a browser DOM');
+  }
+
+  const purifier = createDOMPurify(window);
+  configurePurifierHooks(purifier);
+  return purifier;
+}
+
+let cachedDomPurify: DomPurify | undefined;
+
+function getDomPurify(): DomPurify {
+  cachedDomPurify ??= resolveDomPurify();
+  return cachedDomPurify;
 }
 
 export function sanitizeHtmlForDisplay(html: string): string {
@@ -73,12 +88,5 @@ export function sanitizeHtmlForDisplay(html: string): string {
     return '';
   }
 
-  if (typeof window === 'undefined' || !window.document) {
-    // SSR / DOM-less fallback: DOMPurify requires a DOM. Escape fully so no
-    // untrusted markup can execute when a DOM is unavailable.
-    return escapeHtml(trimmed);
-  }
-
-  ensureHooksConfigured();
-  return DOMPurify.sanitize(trimmed, SANITIZE_CONFIG) as string;
+  return getDomPurify().sanitize(trimmed, SANITIZE_CONFIG) as string;
 }

@@ -92,6 +92,10 @@ on:
         description: sdkwork-ui commit/ref.
         required: false
         default: 672b9a990cdd077422f60651fbc9413b44343ab2
+      sdkwork_voice_ref:
+        description: sdkwork-voice commit/ref.
+        required: false
+        default: main
       sdkwork_drive_ref:
         description: sdkwork-drive commit/ref.
         required: false
@@ -218,6 +222,7 @@ jobs:
           "SDKWORK_RPC_FRAMEWORK_REF": "${{ github.event.inputs.sdkwork_rpc_framework_ref || vars.SDKWORK_RPC_FRAMEWORK_REF }}",
           "SDKWORK_UTILS_REF": "${{ github.event.inputs.sdkwork_utils_ref || vars.SDKWORK_UTILS_REF }}",
           "SDKWORK_UI_REF": "${{ github.event.inputs.sdkwork_ui_ref || vars.SDKWORK_UI_REF }}",
+          "SDKWORK_VOICE_REF": "${{ github.event.inputs.sdkwork_voice_ref || vars.SDKWORK_VOICE_REF }}",
           "SDKWORK_DRIVE_REF": "${{ github.event.inputs.sdkwork_drive_ref || vars.SDKWORK_DRIVE_REF }}",
           "SDKWORK_IAM_REF": "${{ github.event.inputs.sdkwork_iam_ref || vars.SDKWORK_IAM_REF }}",
           "SDKWORK_ACCOUNT_REF": "${{ github.event.inputs.sdkwork_account_ref || vars.SDKWORK_ACCOUNT_REF }}",

@@ -133,6 +133,7 @@ impl ChannelStore for NoopChannelStore {
 
 fn test_app_state() -> AppState {
     AppState {
+        postgres_pool: None,
         space_store: Arc::new(NoopSpaceStore),
         group_store: Arc::new(NoopGroupStore),
         channel_store: Arc::new(NoopChannelStore),
@@ -163,7 +164,9 @@ async fn test_healthz_returns_ok() {
         .await
         .expect("healthz body should collect")
         .to_bytes();
-    assert_eq!(body.as_ref(), b"ok");
+    let value: serde_json::Value =
+        serde_json::from_slice(body.as_ref()).expect("healthz body should be valid json");
+    assert_eq!(value["status"], "ok");
 }
 
 #[tokio::test]

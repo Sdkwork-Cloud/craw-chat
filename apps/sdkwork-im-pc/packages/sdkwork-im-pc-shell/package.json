@@ -7,5 +7,33 @@
     ".": "./src/index.tsx",
     "./moduleRegistry": "./src/moduleRegistry.ts"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@sdkwork/course-pc-course": "workspace:*",
+    "@sdkwork/drive-pc-drive": "workspace:*",
+    "@sdkwork/im-pc-approvals": "workspace:*",
+    "@sdkwork/im-pc-attendance": "workspace:*",
+    "@sdkwork/im-pc-calendar": "workspace:*",
+    "@sdkwork/im-pc-community": "workspace:*",
+    "@sdkwork/im-pc-devices": "workspace:*",
+    "@sdkwork/im-pc-enterprise": "workspace:*",
+    "@sdkwork/im-pc-image-gen": "workspace:*",
+    "@sdkwork/im-pc-mail": "workspace:*",
+    "@sdkwork/im-pc-music-gen": "workspace:*",
+    "@sdkwork/im-pc-orders": "workspace:*",
+    "@sdkwork/im-pc-reports": "workspace:*",
+    "@sdkwork/im-pc-shop": "workspace:*",
+    "@sdkwork/im-pc-video-gen": "workspace:*",
+    "@sdkwork/voice-pc-market": "workspace:*",
+    "@sdkwork/voice-pc-speech": "workspace:*",
+    "@sdkwork/im-pc-writing": "workspace:*",
+    "@sdkwork/knowledgebase-pc-knowledge": "workspace:*",
+    "@sdkwork/notary-pc-notary": "workspace:*",
+    "react": "catalog:",
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

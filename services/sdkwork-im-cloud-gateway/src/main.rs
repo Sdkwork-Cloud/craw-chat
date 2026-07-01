@@ -48,10 +48,10 @@ async fn run() -> Result<(), String> {
     let base_url = format!("http://{}", display_listener_addr(local_addr));
     let registry = web_gateway::build_gateway_registry()?;
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
+        .await
+        .map_err(|error| format!("failed to bootstrap IM process database pools: {error}"))?;
     let mut embedded_runtime = if should_embed_session_gateway(&config) {
-        sdkwork_im_database_pool::bootstrap_im_database_from_env()
-            .await
-            .map_err(|error| format!("failed to bootstrap IM database lifecycle: {error}"))?;
         sdkwork_iam_database_host::bootstrap_iam_database_from_env()
             .await
             .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;

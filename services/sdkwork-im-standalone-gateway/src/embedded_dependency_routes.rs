@@ -5,11 +5,10 @@
 //! to split-service ports when IM standalone gateway collapses platform ingress.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use axum::Router;
 use sdkwork_drive_workspace_service::application::download_service::ensure_production_download_token_signing_configured;
-use sdkwork_drive_workspace_service::bootstrap::bootstrap_drive_database_from_env;
 use sdkwork_drive_workspace_service::infrastructure::outbox_dispatch::ensure_domain_outbox_dispatcher;
 use sdkwork_drive_workspace_service::infrastructure::sql::connect_any_database_and_install_schema;
 use sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback;
@@ -80,6 +79,163 @@ const COMMERCE_T1_MODULES: &[CommerceT1Module] = &[
     },
 ];
 
+static EMBEDDED_ACCOUNT_HOST: OnceLock<Arc<sdkwork_account_service_host::AccountServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_CATALOG_HOST: OnceLock<Arc<sdkwork_catalog_service_host::CatalogServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_INVENTORY_HOST: OnceLock<Arc<sdkwork_inventory_service_host::InventoryServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_INVOICE_HOST: OnceLock<Arc<sdkwork_invoice_service_host::InvoiceServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_MEMBERSHIP_HOST:
+    OnceLock<Arc<sdkwork_membership_service_host::MembershipServiceHost>> = OnceLock::new();
+static EMBEDDED_MERCHANDISE_HOST: OnceLock<Arc<sdkwork_merchandise_service_host::ShopServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_ORDER_HOST: OnceLock<Arc<sdkwork_order_service_host::OrderServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_PAYMENT_HOST: OnceLock<Arc<sdkwork_payment_service_host::PaymentServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_PROMOTION_HOST: OnceLock<Arc<sdkwork_promotion_service_host::PromotionServiceHost>> =
+    OnceLock::new();
+static EMBEDDED_SHOP_HOST: OnceLock<Arc<sdkwork_shop_service_host::ShopServiceHost>> =
+    OnceLock::new();
+
+async fn embedded_account_service_host() -> Result<Arc<sdkwork_account_service_host::AccountServiceHost>, String> {
+    if let Some(host) = EMBEDDED_ACCOUNT_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_account_service_host::AccountServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap account service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_ACCOUNT_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_catalog_service_host() -> Result<Arc<sdkwork_catalog_service_host::CatalogServiceHost>, String> {
+    if let Some(host) = EMBEDDED_CATALOG_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_catalog_service_host::CatalogServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap catalog service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_CATALOG_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_inventory_service_host(
+) -> Result<Arc<sdkwork_inventory_service_host::InventoryServiceHost>, String> {
+    if let Some(host) = EMBEDDED_INVENTORY_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_inventory_service_host::InventoryServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap inventory service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_INVENTORY_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_invoice_service_host() -> Result<Arc<sdkwork_invoice_service_host::InvoiceServiceHost>, String> {
+    if let Some(host) = EMBEDDED_INVOICE_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_invoice_service_host::InvoiceServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap invoice service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_INVOICE_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_membership_service_host(
+) -> Result<Arc<sdkwork_membership_service_host::MembershipServiceHost>, String> {
+    if let Some(host) = EMBEDDED_MEMBERSHIP_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_membership_service_host::MembershipServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap membership service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_MEMBERSHIP_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_merchandise_service_host(
+) -> Result<Arc<sdkwork_merchandise_service_host::ShopServiceHost>, String> {
+    if let Some(host) = EMBEDDED_MERCHANDISE_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_merchandise_service_host::ShopServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap merchandise service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_MERCHANDISE_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_order_service_host() -> Result<Arc<sdkwork_order_service_host::OrderServiceHost>, String> {
+    if let Some(host) = EMBEDDED_ORDER_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_order_service_host::OrderServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap order service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_ORDER_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_payment_service_host(
+) -> Result<Arc<sdkwork_payment_service_host::PaymentServiceHost>, String> {
+    if let Some(host) = EMBEDDED_PAYMENT_HOST.get() {
+        return Ok(host.clone());
+    }
+    set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
+    let host = Arc::new(
+        sdkwork_payment_service_host::PaymentServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap payment service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_PAYMENT_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_promotion_service_host(
+) -> Result<Arc<sdkwork_promotion_service_host::PromotionServiceHost>, String> {
+    if let Some(host) = EMBEDDED_PROMOTION_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_promotion_service_host::PromotionServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap promotion service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_PROMOTION_HOST.set(host.clone());
+    Ok(host)
+}
+
+async fn embedded_shop_service_host() -> Result<Arc<sdkwork_shop_service_host::ShopServiceHost>, String> {
+    if let Some(host) = EMBEDDED_SHOP_HOST.get() {
+        return Ok(host.clone());
+    }
+    let host = Arc::new(
+        sdkwork_shop_service_host::ShopServiceHost::from_env()
+            .await
+            .map_err(|error| format!("bootstrap shop service host failed: {error}"))?,
+    );
+    let _ = EMBEDDED_SHOP_HOST.set(host.clone());
+    Ok(host)
+}
+
 /// Apply all embedded dependency environment variables synchronously.
 ///
 /// This must be called from the main thread BEFORE the Tokio runtime is created
@@ -104,6 +260,9 @@ pub fn apply_embedded_dependency_env() {
     apply_commerce_t1_app_roots_from_im_shared_profile();
     apply_embedded_dependency_app_roots();
     normalize_embedded_dependency_database_urls();
+    // Avoid overlapping `/app/v3/api/recharges/*` routes: sdkwork-order owns the surface, while
+    // sdkwork-payment only provides a deprecated proxy implementation.
+    set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
     set_env_var(
         "SDKWORK_NOTARY_APP_ROOT",
         resolve_notary_app_root().to_string_lossy().as_ref(),
@@ -199,7 +358,11 @@ async fn sync_drive_embedded_database() -> Result<(), String> {
     }
     ensure_embedded_database_module_ready("drive", "sdkwork-drive")?;
     ensure_embedded_dependency_app_root("SDKWORK_DRIVE", "sdkwork-drive");
-    bootstrap_drive_database_from_env().await?;
+    let database_config = sdkwork_drive_config::DatabaseConfig::from_env()
+        .map_err(|error| format!("resolve drive database config failed: {error}"))?;
+    connect_any_database_and_install_schema(&database_config)
+        .await
+        .map_err(|error| format!("drive database lifecycle sync failed: {error}"))?;
     Ok(())
 }
 
@@ -301,34 +464,34 @@ async fn sync_commerce_t1_module_database(module: &CommerceT1Module) -> Result<(
     ensure_embedded_dependency_app_root(module.env_prefix, module.repo_dir);
     match module.env_prefix {
         "SDKWORK_ACCOUNT" => {
-            sdkwork_account_service_host::AccountServiceHost::from_env().await?;
+            embedded_account_service_host().await?;
         }
         "SDKWORK_CATALOG" => {
-            sdkwork_catalog_service_host::CatalogServiceHost::from_env().await?;
+            embedded_catalog_service_host().await?;
         }
         "SDKWORK_INVENTORY" => {
-            sdkwork_inventory_service_host::InventoryServiceHost::from_env().await?;
+            embedded_inventory_service_host().await?;
         }
         "SDKWORK_INVOICE" => {
-            sdkwork_invoice_service_host::InvoiceServiceHost::from_env().await?;
+            embedded_invoice_service_host().await?;
         }
         "SDKWORK_MEMBERSHIP" => {
-            sdkwork_membership_service_host::MembershipServiceHost::from_env().await?;
+            embedded_membership_service_host().await?;
         }
         "SDKWORK_MERCHANDISE" => {
-            sdkwork_merchandise_service_host::ShopServiceHost::from_env().await?;
+            embedded_merchandise_service_host().await?;
         }
         "SDKWORK_ORDER" => {
-            sdkwork_order_service_host::OrderServiceHost::from_env().await?;
+            embedded_order_service_host().await?;
         }
         "SDKWORK_PAYMENT" => {
-            sdkwork_payment_service_host::PaymentServiceHost::from_env().await?;
+            embedded_payment_service_host().await?;
         }
         "SDKWORK_PROMOTION" => {
-            sdkwork_promotion_service_host::PromotionServiceHost::from_env().await?;
+            embedded_promotion_service_host().await?;
         }
         "SDKWORK_SHOP" => {
-            sdkwork_shop_service_host::ShopServiceHost::from_env().await?;
+            embedded_shop_service_host().await?;
         }
         other => {
             return Err(format!(
@@ -617,11 +780,7 @@ async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_account_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_account_service_host::AccountServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap account service host failed: {error}"))?,
-    );
+    let host = embedded_account_service_host().await?;
     Ok(
         sdkwork_account_gateway_assembly::assemble_application_router(host)
             .await
@@ -630,11 +789,7 @@ async fn bootstrap_embedded_account_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_catalog_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_catalog_service_host::CatalogServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap catalog service host failed: {error}"))?,
-    );
+    let host = embedded_catalog_service_host().await?;
     Ok(
         sdkwork_catalog_gateway_assembly::assemble_application_router(host)
             .await
@@ -643,11 +798,7 @@ async fn bootstrap_embedded_catalog_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_inventory_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_inventory_service_host::InventoryServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap inventory service host failed: {error}"))?,
-    );
+    let host = embedded_inventory_service_host().await?;
     Ok(
         sdkwork_inventory_gateway_assembly::assemble_application_router(host)
             .await
@@ -656,11 +807,7 @@ async fn bootstrap_embedded_inventory_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_invoice_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_invoice_service_host::InvoiceServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap invoice service host failed: {error}"))?,
-    );
+    let host = embedded_invoice_service_host().await?;
     Ok(
         sdkwork_invoice_gateway_assembly::assemble_application_router(host)
             .await
@@ -669,11 +816,7 @@ async fn bootstrap_embedded_invoice_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_membership_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_membership_service_host::MembershipServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap membership service host failed: {error}"))?,
-    );
+    let host = embedded_membership_service_host().await?;
     Ok(
         sdkwork_membership_gateway_assembly::assemble_application_router(host)
             .await
@@ -682,11 +825,7 @@ async fn bootstrap_embedded_membership_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_merchandise_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_merchandise_service_host::ShopServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap merchandise service host failed: {error}"))?,
-    );
+    let host = embedded_merchandise_service_host().await?;
     Ok(
         sdkwork_merchandise_gateway_assembly::assemble_application_router(host)
             .await
@@ -695,11 +834,7 @@ async fn bootstrap_embedded_merchandise_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_order_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_order_service_host::OrderServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap order service host failed: {error}"))?,
-    );
+    let host = embedded_order_service_host().await?;
     Ok(
         sdkwork_order_gateway_assembly::assemble_application_router(host)
             .await
@@ -708,11 +843,8 @@ async fn bootstrap_embedded_order_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_payment_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_payment_service_host::PaymentServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap payment service host failed: {error}"))?,
-    );
+    set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
+    let host = embedded_payment_service_host().await?;
     Ok(
         sdkwork_payment_gateway_assembly::assemble_application_router(host)
             .await
@@ -721,11 +853,7 @@ async fn bootstrap_embedded_payment_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_promotion_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_promotion_service_host::PromotionServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap promotion service host failed: {error}"))?,
-    );
+    let host = embedded_promotion_service_host().await?;
     Ok(
         sdkwork_promotion_gateway_assembly::assemble_application_router(host)
             .await
@@ -734,11 +862,7 @@ async fn bootstrap_embedded_promotion_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_shop_routes() -> Result<Router, String> {
-    let host = Arc::new(
-        sdkwork_shop_service_host::ShopServiceHost::from_env()
-            .await
-            .map_err(|error| format!("bootstrap shop service host failed: {error}"))?,
-    );
+    let host = embedded_shop_service_host().await?;
     Ok(
         sdkwork_shop_gateway_assembly::assemble_application_router(host)
             .await

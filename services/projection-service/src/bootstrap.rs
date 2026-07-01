@@ -4,6 +4,7 @@ use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStor
 use im_adapters_postgres_projection::{PostgresProjectionConfig, PostgresProjectionStores};
 use im_app_context::resolve_web_environment_from_process_env;
 use im_platform_contracts::{MetadataStore, TimelineProjectionStore};
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
 
@@ -83,6 +84,16 @@ impl ProjectionRuntime {
 }
 
 pub fn resolve_projection_persistence_from_env() -> Result<ProjectionPersistenceBackend, String> {
+    if let Ok(config) = DatabaseConfig::from_env("IM") {
+        if config.engine == DatabaseEngine::Postgres {
+            let stores = PostgresProjectionConfig::from_database_config(&config)
+                .connect_stores()
+                .map_err(|error| format!("postgres projection store bootstrap failed: {error:?}"))?;
+            info!("projection-service using postgres durable projection stores");
+            return Ok(ProjectionPersistenceBackend::Postgres(stores));
+        }
+    }
+
     if let Some(database_url) = resolve_im_database_url_from_env() {
         let stores = PostgresProjectionConfig::new(database_url)
             .connect_stores()

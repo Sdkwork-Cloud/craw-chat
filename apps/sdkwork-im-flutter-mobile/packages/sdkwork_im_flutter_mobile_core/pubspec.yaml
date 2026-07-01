@@ -10,7 +10,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  crypto: ^3.0.6
+  http: ^1.5.0
   im_sdk_composed:
     path: ../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed/im_sdk_composed
   im_sdk_generated:
     path: ../../../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/generated/server-openapi
+  sdkwork_common_flutter:
+    path: ../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-flutter

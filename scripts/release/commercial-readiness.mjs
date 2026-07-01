@@ -88,6 +88,27 @@ export function buildCommercialReadinessChecks({
       args: ['scripts/dev/sdkwork-im-flutter-mobile-architecture-standard.test.mjs'],
     },
     {
+      id: 'chat-drive-upload-attribution-standard',
+      label: 'IM chat Drive upload attribution standard (PC/H5/Flutter)',
+      cwd: repoRoot,
+      command: nodeExecutable,
+      args: ['scripts/dev/sdkwork-im-chat-drive-upload-attribution-standard.test.mjs'],
+    },
+    {
+      id: 'production-security-standard',
+      label: 'IM production security standard (JWT secret, principal bootstrap)',
+      cwd: repoRoot,
+      command: nodeExecutable,
+      args: ['scripts/dev/sdkwork-im-production-security-standard.test.mjs'],
+    },
+    {
+      id: 'app-context-module-standard',
+      label: 'IM app-context single-source module standard',
+      cwd: repoRoot,
+      command: nodeExecutable,
+      args: ['scripts/dev/sdkwork-im-app-context-module-standard.test.mjs'],
+    },
+    {
       id: 'im-sdk-flutter-composed-test',
       label: 'Sdkwork IM Flutter composed realtime unit tests',
       cwd: path.join(repoRoot, 'sdks', 'sdkwork-im-sdk', 'sdkwork-im-sdk-flutter', 'composed', 'im_sdk_composed'),
@@ -159,6 +180,14 @@ export function buildCommercialReadinessChecks({
       cwd: path.join(repoRoot, 'apps', 'sdkwork-im-pc'),
       command: pnpmExecutable,
       args: ['run', 'test:knowledgebase-app-sdk-integration'],
+      env: pnpmRuntimeEnv,
+    },
+    {
+      id: 'pc-voice-app-sdk-integration',
+      label: 'Sdkwork IM PC voice app SDK integration contract',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-im-pc'),
+      command: pnpmExecutable,
+      args: ['run', 'test:voice-app-sdk-integration'],
       env: pnpmRuntimeEnv,
     },
     {
@@ -338,10 +367,8 @@ export function assessCapacityEvidenceIndex(indexJson) {
 export function assessPreReleaseEvidenceIndex(indexJson) {
   return assessStep11TierEvidenceIndex(indexJson, {
     tierLabel: 'Pre-Release Tier',
-    passedStates: ['evidence_collected_gate_blocked', 'evidence_collected_gate_passed'],
-    passedSummary: (tier, state) => state === 'evidence_collected_gate_passed'
-      ? `${tier} evidence is fully collected and ready for pre-release sign-off.`
-      : `${tier} evidence is fully collected but remains gate-blocked pending dedicated pre-release topology sign-off.`,
+    passedStates: ['evidence_collected_gate_passed'],
+    passedSummary: (tier) => `${tier} evidence is fully collected and ready for pre-release sign-off.`,
   });
 }
 

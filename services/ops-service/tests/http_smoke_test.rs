@@ -90,7 +90,7 @@ async fn test_public_app_exposes_retention_metrics() {
 
 #[tokio::test]
 async fn test_retention_purge_route_requires_ops_write_over_http() {
-    let app = ops_service::build_default_app();
+    let app = sdkwork_routes_im_ops_backend_api::build_public_app();
 
     let forbidden = app
         .clone()
@@ -99,6 +99,7 @@ async fn test_retention_purge_route_requires_ops_write_over_http() {
                 .method("POST")
                 .uri("/backend/v3/api/ops/retention/purge")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -115,6 +116,7 @@ async fn test_retention_purge_route_requires_ops_write_over_http() {
                 .method("POST")
                 .uri("/backend/v3/api/ops/retention/purge")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.write")
@@ -133,7 +135,7 @@ async fn test_retention_purge_route_requires_ops_write_over_http() {
 
 #[tokio::test]
 async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
-    let app = ops_service::build_default_app();
+    let app = sdkwork_routes_im_ops_backend_api::build_public_app();
 
     let health_response = app
         .clone()
@@ -141,6 +143,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/health")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -158,36 +161,36 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let health_json: serde_json::Value =
         serde_json::from_slice(&health_body).expect("health body should be valid json");
-    assert_eq!(health_json["status"], "ok");
-    assert_eq!(health_json["projectionPlane"]["status"], "idle");
+    assert_eq!(health_json["data"]["status"], "ok");
+    assert_eq!(health_json["data"]["projectionPlane"]["status"], "idle");
     assert_eq!(
-        health_json["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
+        health_json["data"]["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
         0
     );
-    assert_eq!(health_json["projectionPlane"]["replay"]["backlogSize"], 0);
+    assert_eq!(health_json["data"]["projectionPlane"]["replay"]["backlogSize"], 0);
     assert_eq!(
-        health_json["projectionPlane"]["replay"]["replayedEventCount"],
+        health_json["data"]["projectionPlane"]["replay"]["replayedEventCount"],
         0
     );
-    assert_eq!(health_json["projectionPlane"]["replay"]["durationMs"], 0);
-    assert_eq!(health_json["projectionPlane"]["rebuildDurationMs"], 0);
+    assert_eq!(health_json["data"]["projectionPlane"]["replay"]["durationMs"], 0);
+    assert_eq!(health_json["data"]["projectionPlane"]["rebuildDurationMs"], 0);
     assert_eq!(
-        health_json["projectionPlane"]["updateDelay"]["timelineMs"],
+        health_json["data"]["projectionPlane"]["updateDelay"]["timelineMs"],
         0
     );
-    assert_eq!(health_json["projectionPlane"]["updateDelay"]["inboxMs"], 0);
-    assert_eq!(health_json["realtimeInbox"]["status"], "ok");
-    assert_eq!(health_json["realtimeInbox"]["pendingEventCount"], 0);
+    assert_eq!(health_json["data"]["projectionPlane"]["updateDelay"]["inboxMs"], 0);
+    assert_eq!(health_json["data"]["realtimeInbox"]["status"], "ok");
+    assert_eq!(health_json["data"]["realtimeInbox"]["pendingEventCount"], 0);
     assert_eq!(
-        health_json["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
+        health_json["data"]["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
         0
     );
-    assert_eq!(health_json["realtimeInbox"]["capacityTrimmedEventCount"], 0);
+    assert_eq!(health_json["data"]["realtimeInbox"]["capacityTrimmedEventCount"], 0);
     assert_eq!(
-        health_json["realtimeInbox"]["maxCapacityTrimmedThroughSeq"],
+        health_json["data"]["realtimeInbox"]["maxCapacityTrimmedThroughSeq"],
         0
     );
-    assert!(health_json["realtimeInbox"]["lastCapacityTrimmedAt"].is_null());
+    assert!(health_json["data"]["realtimeInbox"]["lastCapacityTrimmedAt"].is_null());
 
     let cluster_response = app
         .clone()
@@ -195,6 +198,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/cluster")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -212,8 +216,8 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let cluster_json: serde_json::Value =
         serde_json::from_slice(&cluster_body).expect("cluster body should be valid json");
-    assert_eq!(cluster_json["nodes"][0]["profile"], "standalone");
-    assert_eq!(cluster_json["nodes"][0]["clientRouteCount"], 0);
+    assert_eq!(cluster_json["data"]["nodes"][0]["profile"], "standalone");
+    assert_eq!(cluster_json["data"]["nodes"][0]["clientRouteCount"], 0);
 
     let lag_response = app
         .clone()
@@ -221,6 +225,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/lag")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -239,7 +244,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let lag_json: serde_json::Value =
         serde_json::from_slice(&lag_body).expect("lag body should be valid json");
     assert!(
-        lag_json["items"]
+        lag_json["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
@@ -253,6 +258,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/replay_status")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -270,13 +276,13 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let replay_status_json: serde_json::Value = serde_json::from_slice(&replay_status_body)
         .expect("replay_status body should be valid json");
-    assert_eq!(replay_status_json["status"], "idle");
-    assert_eq!(replay_status_json["replay"]["backlogSize"], 0);
-    assert_eq!(replay_status_json["replay"]["replayedEventCount"], 0);
-    assert_eq!(replay_status_json["replay"]["durationMs"], 0);
-    assert_eq!(replay_status_json["replayThroughputPerSecond"], 0);
+    assert_eq!(replay_status_json["data"]["status"], "idle");
+    assert_eq!(replay_status_json["data"]["replay"]["backlogSize"], 0);
+    assert_eq!(replay_status_json["data"]["replay"]["replayedEventCount"], 0);
+    assert_eq!(replay_status_json["data"]["replay"]["durationMs"], 0);
+    assert_eq!(replay_status_json["data"]["replayThroughputPerSecond"], 0);
     assert!(
-        replay_status_json["lag"]
+        replay_status_json["data"]["lag"]
             .as_array()
             .unwrap()
             .iter()
@@ -290,6 +296,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/runtime_dir")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -307,8 +314,8 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let runtime_dir_json: serde_json::Value =
         serde_json::from_slice(&runtime_dir_body).expect("runtime_dir body should be valid json");
-    assert_eq!(runtime_dir_json["status"], "unmanaged");
-    assert_eq!(runtime_dir_json["files"].as_array().unwrap().len(), 0);
+    assert_eq!(runtime_dir_json["data"]["status"], "unmanaged");
+    assert_eq!(runtime_dir_json["data"]["files"].as_array().unwrap().len(), 0);
 
     let provider_bindings_response = app
         .clone()
@@ -316,6 +323,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -333,7 +341,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let provider_bindings_json: serde_json::Value = serde_json::from_slice(&provider_bindings_body)
         .expect("provider_bindings body should be valid json");
-    assert_eq!(provider_bindings_json["items"].as_array().unwrap().len(), 0);
+    assert_eq!(provider_bindings_json["data"]["items"].as_array().unwrap().len(), 0);
 
     let provider_binding_drift_response = app
         .clone()
@@ -341,6 +349,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/provider_bindings/drift")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -360,7 +369,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         serde_json::from_slice(&provider_binding_drift_body)
             .expect("provider_bindings drift body should be valid json");
     assert_eq!(
-        provider_binding_drift_json["items"]
+        provider_binding_drift_json["data"]["items"]
             .as_array()
             .unwrap()
             .len(),
@@ -372,6 +381,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/ops/diagnostics")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("ops.read")
@@ -389,56 +399,56 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let diagnostics_json: serde_json::Value =
         serde_json::from_slice(&diagnostics_body).expect("diagnostics body should be valid json");
-    assert_eq!(diagnostics_json["profile"], "standalone");
+    assert_eq!(diagnostics_json["data"]["profile"], "standalone");
     assert_eq!(
-        diagnostics_json["clientRoutes"].as_array().unwrap().len(),
+        diagnostics_json["data"]["clientRoutes"].as_array().unwrap().len(),
         0
     );
-    assert_eq!(diagnostics_json["projectionPlane"]["status"], "idle");
+    assert_eq!(diagnostics_json["data"]["projectionPlane"]["status"], "idle");
     assert_eq!(
-        diagnostics_json["projectionPlane"]["replay"]["backlogSize"],
-        0
-    );
-    assert_eq!(
-        diagnostics_json["projectionPlane"]["replay"]["replayedEventCount"],
+        diagnostics_json["data"]["projectionPlane"]["replay"]["backlogSize"],
         0
     );
     assert_eq!(
-        diagnostics_json["projectionPlane"]["replay"]["durationMs"],
-        0
-    );
-    assert_eq!(diagnostics_json["projectionPlane"]["rebuildDurationMs"], 0);
-    assert_eq!(
-        diagnostics_json["projectionPlane"]["updateDelay"]["timelineMs"],
+        diagnostics_json["data"]["projectionPlane"]["replay"]["replayedEventCount"],
         0
     );
     assert_eq!(
-        diagnostics_json["projectionPlane"]["updateDelay"]["inboxMs"],
+        diagnostics_json["data"]["projectionPlane"]["replay"]["durationMs"],
+        0
+    );
+    assert_eq!(diagnostics_json["data"]["projectionPlane"]["rebuildDurationMs"], 0);
+    assert_eq!(
+        diagnostics_json["data"]["projectionPlane"]["updateDelay"]["timelineMs"],
         0
     );
     assert_eq!(
-        diagnostics_json["projectionPlane"]["traces"]
+        diagnostics_json["data"]["projectionPlane"]["updateDelay"]["inboxMs"],
+        0
+    );
+    assert_eq!(
+        diagnostics_json["data"]["projectionPlane"]["traces"]
             .as_array()
             .unwrap()
             .len(),
         0
     );
     assert_eq!(
-        diagnostics_json["providerBindings"]
+        diagnostics_json["data"]["providerBindings"]
             .as_array()
             .unwrap()
             .len(),
         0
     );
     assert_eq!(
-        diagnostics_json["providerBindingDrift"]["items"]
+        diagnostics_json["data"]["providerBindingDrift"]["items"]
             .as_array()
             .unwrap()
             .len(),
         0
     );
     assert_eq!(
-        diagnostics_json["sideEffectOutboxes"]
+        diagnostics_json["data"]["sideEffectOutboxes"]
             .as_array()
             .unwrap()
             .len(),

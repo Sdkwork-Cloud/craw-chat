@@ -14,6 +14,7 @@ async fn test_control_plane_exposes_protocol_registry_snapshot_to_control_reader
                 .method("GET")
                 .uri("/backend/v3/api/control/protocol_registry")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -34,9 +35,9 @@ async fn test_control_plane_exposes_protocol_registry_snapshot_to_control_reader
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("protocol registry body should be valid json");
 
-    assert_eq!(json["protocolVersion"], "ccp/1.0");
+    assert_eq!(json["data"]["protocolVersion"], "ccp/1.0");
 
-    let schemas = json["schemas"]
+    let schemas = json["data"]["schemas"]
         .as_array()
         .expect("schemas should be returned as an array");
     let hello = schemas
@@ -45,7 +46,7 @@ async fn test_control_plane_exposes_protocol_registry_snapshot_to_control_reader
         .expect("hello schema should be present");
     assert_eq!(hello["stage"], "stable");
 
-    let matrix = json["compatibilityMatrix"]
+    let matrix = json["data"]["compatibilityMatrix"]
         .as_array()
         .expect("compatibility matrix should be returned as an array");
     let web = matrix

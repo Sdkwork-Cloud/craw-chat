@@ -7,6 +7,7 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_web_core::WebRequestContext;
 use tokio::sync::Semaphore;
 
 use crate::error::StreamingError;
@@ -68,10 +69,7 @@ pub fn build_public_app() -> Router {
 }
 
 pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
-    mount_im_infra_routes(
-        build_business_router(runtime),
-        im_service_router_config(),
-    )
+    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
 }
 
 fn build_business_router(runtime: Arc<StreamingRuntime>) -> Router {
@@ -96,11 +94,17 @@ async fn enforce_in_flight_gate(
     let permit = match guardrails.request_gate.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
+            let problem = sdkwork_routes_web_framework_backend_api::response::ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
             return StreamingError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
             }
             .into_response();
         }

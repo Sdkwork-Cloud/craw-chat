@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, ListMusic, Heart, Repeat, Shuffle, Minus, Maximize2, RotateCcw, MoreHorizontal } from 'lucide-react';
 import { musicService, PlayerState, MusicTrack } from '../services/MusicService';
 import { DEFAULT_MUSIC_COVER_URL } from '../services/DefaultAvatarService';
-import { cn } from '@sdkwork/im-pc-commons';
+import { cn, formatDuration } from '@sdkwork/im-pc-commons';
 import { toast } from './Toast';
 
 // Equalizer-style visualizer bar for the music player chrome.
@@ -28,13 +28,6 @@ export const MusicPlayer: React.FC = () => {
   useEffect(() => {
     return musicService.subscribe(setPlayerState);
   }, []);
-
-  const formatTime = (time: number) => {
-    if (isNaN(time)) return '0:00';
-    const mins = Math.floor(time / 60);
-    const secs = Math.floor(time % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current || !playerState.duration) return;
@@ -355,9 +348,9 @@ export const MusicPlayer: React.FC = () => {
                    </div>
                    
                    <div className="flex items-center justify-center gap-1.5 mt-2 transition-opacity duration-200">
-                     <span className="text-[11px] text-gray-400 font-mono font-medium">{formatTime(playerState.progress)}</span>
+                     <span className="text-[11px] text-gray-400 font-mono font-medium">{formatDuration(playerState.progress)}</span>
                      <span className="text-[11px] text-gray-600 font-mono font-medium">/</span>
-                     <span className="text-[11px] text-gray-500 font-mono font-medium">{formatTime(playerState.duration)}</span>
+                     <span className="text-[11px] text-gray-500 font-mono font-medium">{formatDuration(playerState.duration)}</span>
                    </div>
                 </div>
 

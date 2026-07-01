@@ -53,13 +53,15 @@ use self::support::{
     build_message_reaction_removed_envelope, build_message_recalled_envelope,
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
-    conversation_scope_key_for_envelope, conversation_timestamp, encode_conversation_key_segments, event_id_component,
-    next_member_episode, resolve_active_member, resolve_active_member_id,
-    resolve_active_member_id_with_kind, resolve_active_member_with_kind, upsert_member,
+    conversation_scope_key_for_envelope, conversation_timestamp, encode_conversation_key_segments,
+    event_id_component, next_member_episode, resolve_active_member, resolve_active_member_id,
+    resolve_active_member_id_with_kind, resolve_active_member_with_kind,
+    resolve_agent_dialog_conversation_id, resolve_direct_chat_binding_ids, upsert_member,
     upsert_read_cursor,
 };
 pub use http::{
-    PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory, build_default_app,
+    PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory,
+    bootstrap_conversation_app_state_from_env, build_default_app,
     build_default_app_with_principal_directory, build_public_app,
     build_public_app_with_allow_all_principals, build_public_app_with_principal_directory,
 };
@@ -1875,10 +1877,11 @@ fn direct_chat_binding_replay_matches(
     command: &BindDirectChatConversationCommand,
     binder_kind: &str,
     pair: &im_domain_core::social::NormalizedActorPair,
+    direct_chat_id: &str,
 ) -> bool {
     existing.bound_by == command.bound_by
         && existing.binder_kind == binder_kind
-        && existing.direct_chat_id == command.direct_chat_id
+        && existing.direct_chat_id == direct_chat_id
         && existing.anchor_actor_id == pair.left_actor_id
         && existing.anchor_actor_kind == command.left_actor_kind
         && existing.peer_actor_id == pair.right_actor_id
@@ -3491,6 +3494,7 @@ fn cursor_to_record(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use im_domain_core::retention::retention_until_from_envelope;
     use std::panic::{self, AssertUnwindSafe};
 

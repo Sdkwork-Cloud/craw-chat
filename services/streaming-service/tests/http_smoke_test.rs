@@ -68,6 +68,7 @@ async fn test_open_stream_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -96,8 +97,8 @@ async fn test_open_stream_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["streamId"], "st_demo");
-    assert_eq!(value["state"], "opened");
+    assert_eq!(value["data"]["streamId"], "st_demo");
+    assert_eq!(value["data"]["state"], "opened");
 }
 
 #[tokio::test]
@@ -110,6 +111,7 @@ async fn test_standalone_streaming_service_rejects_conversation_scope_over_http(
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -138,7 +140,7 @@ async fn test_standalone_streaming_service_rejects_conversation_scope_over_http(
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["code"], "conversation_gateway_required");
+    assert_eq!(value["code"].as_i64(), Some(40301));
 }
 
 #[tokio::test]
@@ -161,6 +163,7 @@ async fn test_open_stream_rejects_oversized_stream_id_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -193,6 +196,7 @@ async fn test_open_stream_rejects_oversized_durability_class_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/streams")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -211,11 +215,11 @@ async fn test_open_stream_rejects_oversized_durability_class_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"].as_i64(), Some(41301));
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
-            .expect("rejection message should be a string")
+            .expect("rejection detail should be a string")
             .contains("durabilityClass"),
         "error should point to durabilityClass guard, got: {value:?}"
     );

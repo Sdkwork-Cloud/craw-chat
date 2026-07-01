@@ -73,7 +73,7 @@ Desktop user data 与 server data 分离。Desktop 默认 SQLite 位于 `~/.sdkw
 
 ## Release payload contract
 
-Server archives must include `bin/sdkwork-im-server`、`config/*.example`、lifecycle scripts、service templates、`web/sdkwork-chat-pc/dist`、`INSTALL.md`、`install-manifest.json`。
+Server archives must include `bin/sdkwork-im-server`、`config/*.example`、lifecycle scripts、service templates、`web/sdkwork-im-pc/dist`、`INSTALL.md`、`install-manifest.json`。
 
 Packages must not include secrets、`.env*`、本地 SQLite、generated runtime state、`node_modules` 或 Git metadata。
 
@@ -81,7 +81,7 @@ Packages must not include secrets、`.env*`、本地 SQLite、generated runtime 
 
 Server release packages default to PostgreSQL。Desktop packages default to SQLite at `~/.sdkwork/chat/data/chat.sqlite`。
 
-数据库 schema 由 `database/` 生命周期模块管理，规范基线为 `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql`。
+数据库 schema 由 `database/` 生命周期模块管理，规范基线为 `database/ddl/baseline/postgres/0001_im_baseline.sql`。
 
 ## 相关文档
 

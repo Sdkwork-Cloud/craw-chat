@@ -67,7 +67,7 @@ const postgresMigration = readText(
   'ddl',
   'baseline',
   'postgres',
-  '0001_im_legacy_baseline.sql',
+  '0001_im_baseline.sql',
 );
 assert.doesNotMatch(
   postgresMigration,

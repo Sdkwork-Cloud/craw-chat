@@ -15,12 +15,14 @@ type StartAgentChatCall =
 
 const calls: StartAgentChatCall[] = [];
 
+const CANONICAL_AGENT_DIALOG_ID = 'c_agent_0123456789abcdef01234567';
+
 const fakeClient = {
   conversations: {
     async createAgentDialog(body: Record<string, unknown>) {
       calls.push({ method: 'conversations.createAgentDialog', body });
       return {
-        conversationId: body.conversationId,
+        conversationId: CANONICAL_AGENT_DIALOG_ID,
         eventId: 'evt-agent-dialog-created',
       };
     },
@@ -67,10 +69,19 @@ async function main(): Promise<void> {
       method: 'conversations.createAgentDialog',
       body: {
         agentId: 'agent.code',
-        conversationId: 'pc-agent-current-user-agent.code',
       },
     },
     'starting an agent chat must create a real backend agent dialog conversation through the IM SDK',
+  );
+  assert.equal(
+    chat.id,
+    CANONICAL_AGENT_DIALOG_ID,
+    'starting an agent chat must return the server-assigned canonical conversation id',
+  );
+  assert.match(
+    chat.id,
+    /^c_agent_[a-f0-9]{24}$/u,
+    'agent dialog conversation ids must use the canonical server format',
   );
   assert.deepEqual(
     calls.slice(1),
@@ -80,22 +91,22 @@ async function main(): Promise<void> {
           avatarUrl: 'https://cdn.example.test/agent.png',
           displayName: 'Code Assistant',
         },
-        conversationId: 'pc-agent-current-user-agent.code',
+        conversationId: CANONICAL_AGENT_DIALOG_ID,
         method: 'conversations.updateProfile',
       },
       {
         body: {
           isHidden: false,
         },
-        conversationId: 'pc-agent-current-user-agent.code',
+        conversationId: CANONICAL_AGENT_DIALOG_ID,
         method: 'conversations.updatePreferences',
       },
     ],
     'starting an agent chat must sync display profile and unhide the real agent dialog',
   );
   assert.deepEqual(
-    [chat.id, chat.name, chat.avatar, chat.type, chat.unreadCount],
-    ['pc-agent-current-user-agent.code', 'Code Assistant', 'https://cdn.example.test/agent.png', 'single', 0],
+    [chat.name, chat.avatar, chat.type, chat.unreadCount],
+    ['Code Assistant', 'https://cdn.example.test/agent.png', 'single', 0],
   );
 
   const callCountAfterStandardAgent = calls.length;

@@ -36,11 +36,14 @@ async fn request_status(
             None,
             expectation.permission.into_iter(),
         );
+        request = request.with_dual_token_organization("100001");
     } else if let Some(tenant_id) = expectation.tenant_id {
         request = request.with_dual_token_tenant(tenant_id);
+        request = request.with_dual_token_organization("100001");
     } else if let Some(user_id) = expectation.user_id {
         request = request.with_dual_token_user(user_id);
         request = request.with_dual_token_actor_kind("user");
+        request = request.with_dual_token_organization("100001");
     }
     if expectation.body.is_some() {
         request = request.header("content-type", "application/json");
@@ -69,11 +72,18 @@ async fn request_status(
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("provider control-plane body should be valid json");
     let status = if status_code.is_success() {
-        json["status"].as_str().map(str::to_owned)
+        json["data"]["status"].as_str().map(str::to_owned)
     } else {
         None
     };
-    let error_status = json["errorStatus"].as_str().map(str::to_owned);
+    let error_status = json["code"].as_i64().map(|code| match code {
+        40001 => "invalid",
+        40901 => "conflict",
+        50301 => "unavailable",
+        40301 => "forbidden",
+        40101 => "unauthorized",
+        _ => "unknown",
+    }.to_owned());
 
     (status_code, status, error_status)
 }

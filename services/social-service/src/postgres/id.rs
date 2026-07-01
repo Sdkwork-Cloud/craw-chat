@@ -2,42 +2,20 @@
 
 use std::sync::Arc;
 
-use axum::http::StatusCode;
 use im_platform_contracts::IdGenerator;
-use sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator;
+use sdkwork_im_runtime_id::build_runtime_id_generator;
+use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 
-/// Build a runtime ID generator, preferring database-backed node_id allocation.
-///
-/// Falls back to `SDKWORK_IM_ID_NODE_ID` env var, then to node 0 for
-/// dev/test environments without a database.
-pub async fn build_runtime_id_generator() -> Arc<dyn IdGenerator> {
-    match RuntimeSnowflakeIdGenerator::from_database_env("social-service").await {
-        Ok(generator) => Arc::new(generator),
-        Err(error) => {
-            tracing::warn!(
-                ?error,
-                "database node_id allocation failed; falling back to env for social-service postgres"
-            );
-            match RuntimeSnowflakeIdGenerator::from_env() {
-                Ok(generator) => Arc::new(generator),
-                Err(error) => {
-                    tracing::warn!(
-                        ?error,
-                        "SDKWORK_IM_ID_NODE_ID missing; using snowflake node 0 for social-service postgres bootstrap"
-                    );
-                    Arc::new(
-                        RuntimeSnowflakeIdGenerator::with_node_id(0)
-                            .expect("snowflake node 0 must initialize"),
-                    )
-                }
-            }
-        }
-    }
+/// Snowflake ids are allocated through [`sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator`].
+
+/// Build a runtime ID generator for social-service.
+pub async fn build_runtime_id_generator_for_social() -> Arc<dyn IdGenerator> {
+    build_runtime_id_generator("social-service").await
 }
 
-pub fn next_entity_id(id_generator: &Arc<dyn IdGenerator>) -> Result<i64, StatusCode> {
+pub fn next_entity_id(id_generator: &Arc<dyn IdGenerator>) -> Result<i64, ApiProblem> {
     id_generator.next_id().map_err(|error| {
         tracing::error!(?error, "social-service snowflake id generation failed");
-        StatusCode::SERVICE_UNAVAILABLE
+        ApiProblem::dependency_unavailable("social-service snowflake id generation failed")
     })
 }

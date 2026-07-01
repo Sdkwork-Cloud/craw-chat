@@ -3,5 +3,15 @@
   "version": "1.0.0",
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
-  "dependencies": {}
+  "dependencies": {
+    "@sdkwork/im-pc-chat": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "lucide-react": "catalog:",
+    "motion": "catalog:",
+    "react": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

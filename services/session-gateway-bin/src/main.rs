@@ -17,6 +17,7 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
     let bind_addr = resolve_bind_addr()?;
     let bootstrap = session_gateway::bootstrap_realtime_plane_from_env().await?;
     let cluster_subscriber = session_gateway::spawn_cluster_route_event_subscriber(&bootstrap);

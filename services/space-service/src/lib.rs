@@ -10,7 +10,6 @@ pub mod http;
 pub mod id;
 pub mod invitation;
 mod openapi;
-mod service_http;
 pub mod space;
 pub mod space_member;
 

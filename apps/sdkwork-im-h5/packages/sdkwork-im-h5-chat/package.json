@@ -5,8 +5,10 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
+    "@sdkwork/im-sdk": "workspace:*",
     "react": "catalog:"
   },
   "exports": {

@@ -1,17 +1,19 @@
 import type {
-  DeleteMessageFavoriteResponse,
   EditMessageRequest,
   FavoriteMessageRequest,
-  FavoriteMessagesResponse,
   MessageFavoriteType,
   MessageFavoriteView,
   MessagePinMutationResult,
   MessageReactionMutationResult,
   MessageReactionRequest,
-  MessageVisibilityMutationResult,
   PostedMessageResponse,
   QueryParams,
 } from '@sdkwork/im-sdk-generated';
+import type {
+  DeleteMessageFavoriteResponse,
+  FavoriteMessagesResponse,
+  MessageVisibilityMutationResult,
+} from './openapi-compat-types';
 import type { ImTransportClientLike } from './transport-client-like';
 
 export class ImMessagesModule {

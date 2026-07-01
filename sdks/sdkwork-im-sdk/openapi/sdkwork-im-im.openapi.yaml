@@ -1594,7 +1594,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '400':
           description: HTTP 400 problem
           content:
@@ -4104,7 +4122,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '400':
           description: HTTP 400 problem
           content:
@@ -4152,7 +4188,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/MessageVisibilityMutationResult'
         '400':
           description: HTTP 400 problem
           content:
@@ -4272,7 +4321,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '400':
           description: HTTP 400 problem
           content:
@@ -4380,7 +4447,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '400':
           description: HTTP 400 problem
           content:
@@ -6636,14 +6721,6 @@ components:
         signalingStreamId:
           type: string
           nullable: true
-        participantIds:
-          type: array
-          description: >-
-            Principal IDs invited to the call session. Recorded in the session's invited_ids list so subsequent
-            accept/reject/end authorization checks can admit them.
-          items:
-            type: string
-          default: []
     UpdateRtcSessionRequest:
       type: object
       additionalProperties: false
@@ -7228,6 +7305,38 @@ components:
         - conversationId
         - messageId
         - isPinned
+        - updatedAt
+    MessageVisibilityMutationResult:
+      type: object
+      additionalProperties: false
+      properties:
+        tenantId:
+          type: string
+        conversationId:
+          type: string
+        messageId:
+          type: string
+        messageSeq:
+          type: integer
+          format: int32
+          minimum: 0
+        principalKind:
+          type: string
+        principalId:
+          type: string
+        isDeleted:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - tenantId
+        - conversationId
+        - messageId
+        - messageSeq
+        - principalKind
+        - principalId
+        - isDeleted
         - updatedAt
     MessageFavoriteType:
       type: string
@@ -8171,6 +8280,12 @@ components:
           type: string
       required:
         - payload
+    SdkWorkPlatformErrorCode:
+      type: integer
+      format: int32
+      minimum: 40001
+      maximum: 79999
+      description: Platform or domain error code per API_SPEC.md §15.3.
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -8204,6 +8319,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      additionalProperties: false
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+          format: int32
+          minimum: 40011
+          maximum: 40099
     SpaceCreateRequest:
       type: object
       additionalProperties: false
@@ -8250,16 +8381,6 @@ components:
         - spaceType
         - ownerUserId
         - createdAt
-    SpaceListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceView'
-      required:
-        - items
     SpaceMemberCreateRequest:
       type: object
       additionalProperties: false
@@ -8287,16 +8408,6 @@ components:
       required:
         - userId
         - role
-    SpaceMemberListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceMemberView'
-      required:
-        - items
     SpaceGroupCreateRequest:
       type: object
       additionalProperties: false
@@ -8330,16 +8441,6 @@ components:
       required:
         - groupId
         - groupName
-    SpaceGroupListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceGroupView'
-      required:
-        - items
     SpaceGroupMemberCreateRequest:
       type: object
       additionalProperties: false
@@ -8390,16 +8491,6 @@ components:
         - userId
         - role
         - joinedAt
-    SpaceGroupMemberListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceGroupMemberView'
-      required:
-        - items
     SpaceChannelCreateRequest:
       type: object
       additionalProperties: false
@@ -8433,16 +8524,6 @@ components:
         - channelId
         - channelName
         - channelType
-    SpaceChannelListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceChannelView'
-      required:
-        - items
     SpaceChannelAccessRuleCreateRequest:
       type: object
       additionalProperties: false
@@ -8491,16 +8572,6 @@ components:
         - ruleType
         - permission
         - createdAt
-    SpaceChannelAccessRuleListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceChannelAccessRuleView'
-      required:
-        - items
     SpaceInviteCreateRequest:
       type: object
       additionalProperties: false
@@ -8520,16 +8591,6 @@ components:
       required:
         - inviteCode
         - spaceId
-    SpaceInviteListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceInviteView'
-      required:
-        - items
     SpaceBanCreateRequest:
       type: object
       additionalProperties: false
@@ -8552,16 +8613,6 @@ components:
           nullable: true
       required:
         - userId
-    SpaceBanListResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpaceBanView'
-      required:
-        - items
     TextContentPart:
       additionalProperties: false
       properties:
@@ -8682,19 +8733,6 @@ components:
           type: string
           format: uuid
           description: Server-owned request correlation id.
-    SdkWorkCommandData:
-      type: object
-      additionalProperties: false
-      required:
-        - accepted
-      properties:
-        accepted:
-          type: boolean
-          const: true
-        resourceId:
-          type: string
-        status:
-          type: string
     PageInfo:
       type: object
       additionalProperties: false
@@ -8725,79 +8763,6 @@ components:
             - 'null'
         hasMore:
           type: boolean
-    SdkWorkPlatformErrorCode:
-      type: integer
-      format: int32
-      minimum: 40001
-      maximum: 79999
-      description: Platform or domain error code per API_SPEC.md §15.3.
-    FieldError:
-      type: object
-      additionalProperties: false
-      required:
-        - field
-        - message
-      properties:
-        field:
-          type: string
-        message:
-          type: string
-        code:
-          type: integer
-          format: int32
-          minimum: 40011
-          maximum: 40099
-    SdkWorkCommandResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkCommandData'
-    SdkWorkResourceData:
-      type: object
-      additionalProperties: false
-      required:
-        - item
-      properties:
-        item:
-          type: object
-          additionalProperties: true
-          description: Typed domain resource for the operation.
-    SdkWorkPageData:
-      type: object
-      additionalProperties: false
-      required:
-        - items
-        - pageInfo
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        pageInfo:
-          $ref: '#/components/schemas/PageInfo'
-    SdkWorkResourceResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkResourceData'
-    SdkWorkListResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkPageData'
   securitySchemes:
     AuthToken:
       type: http

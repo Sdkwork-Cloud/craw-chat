@@ -121,11 +121,11 @@ fn test_request_execution_appends_requested_and_completed_events() {
     assert_eq!(events[0].actor.actor_id, "1");
     assert_eq!(
         events[0].idempotency_key.as_deref(),
-        Some("6#1000014#user1#37#ae_demo30#automation.execution_requested")
+        Some("6#1000014#user1#17#ae_demo30#automation.execution_requested")
     );
     assert_eq!(
         events[1].idempotency_key.as_deref(),
-        Some("6#1000014#user1#37#ae_demo30#automation.execution_completed")
+        Some("6#1000014#user1#17#ae_demo30#automation.execution_completed")
     );
 
     let payload: serde_json::Value =
@@ -394,7 +394,7 @@ fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_st
     assert_eq!(first.execution.state.as_str(), "succeeded");
     assert_eq!(
         first.request_key,
-        "6#1000014#user1#324#ae_outcome_state_machine"
+        "6#1000014#user1#124#ae_outcome_state_machine"
     );
 
     let replay = runtime
@@ -638,11 +638,11 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
 
     assert_eq!(
         user_request.request_key,
-        "6#1000014#user1#317#ae_kind_isolation"
+        "6#1000014#user1#117#ae_kind_isolation"
     );
     assert_eq!(
         system_request.request_key,
-        "6#1000016#system1#317#ae_kind_isolation"
+        "6#1000016#system1#117#ae_kind_isolation"
     );
     assert_eq!(user_request.execution.principal_kind, "user");
     assert_eq!(system_request.execution.principal_kind, "system");

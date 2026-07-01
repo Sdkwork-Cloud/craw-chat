@@ -1,5 +1,10 @@
 > Migrated from `docs/superpowers/plans/2026-06-12-sdkwork-specs-structure-alignment.md` on 2026-06-24.
 > Owner: SDKWork maintainers
+>
+> **Status (2026-06-30):** Structural alignment tasks 1–6 are implemented. Repository standards
+> verification passes via `node scripts/run-sdkwork-im-standards-verification.mjs`. Step-11
+> performance evidence collection remains a pre-launch operator action (`check:commercial-readiness`
+> exit code 2 until tier evidence artifacts are collected).
 
 # SDKWork Specs Structure Alignment Implementation Plan
 
@@ -22,14 +27,14 @@
 - Create: `examples/README.md`
 - Create: `configs/README.md`
 - Create: `tests/README.md`
-- Create: `apps/sdkwork-chat-pc/AGENTS.md`
-- Create: `apps/sdkwork-chat-pc/CODEX.md`
-- Create: `apps/sdkwork-chat-pc/CLAUDE.md`
-- Create: `apps/sdkwork-chat-pc/GEMINI.md`
-- Create: `apps/sdkwork-chat-pc/.sdkwork/README.md`
-- Create: `apps/sdkwork-chat-pc/.sdkwork/.gitignore`
-- Create: `apps/sdkwork-chat-pc/.sdkwork/skills/README.md`
-- Create: `apps/sdkwork-chat-pc/.sdkwork/plugins/README.md`
+- Create: `apps/sdkwork-im-pc/AGENTS.md`
+- Create: `apps/sdkwork-im-pc/CODEX.md`
+- Create: `apps/sdkwork-im-pc/CLAUDE.md`
+- Create: `apps/sdkwork-im-pc/GEMINI.md`
+- Create: `apps/sdkwork-im-pc/.sdkwork/README.md`
+- Create: `apps/sdkwork-im-pc/.sdkwork/.gitignore`
+- Create: `apps/sdkwork-im-pc/.sdkwork/skills/README.md`
+- Create: `apps/sdkwork-im-pc/.sdkwork/plugins/README.md`
 - Modify: `.sdkwork/.gitignore`
 - Modify: `.gitignore`
 
@@ -51,11 +56,11 @@ index with `git rm --cached` while preserving local files on disk.
 **Files:**
 - Create: `pnpm-workspace.yaml`
 - Modify: `specs/README.md`
-- Modify: `apps/sdkwork-chat-pc/specs/README.md`
+- Modify: `apps/sdkwork-im-pc/specs/README.md`
 
 - [x] **Step 1: Create root `pnpm-workspace.yaml`**
 
-Copy the app-local packages/catalog into a root workspace file and include `apps/sdkwork-chat-pc/packages/*`.
+Copy the app-local packages/catalog into a root workspace file and include `apps/sdkwork-im-pc/packages/*`.
 
 - [x] **Step 2: Document compatibility**
 
@@ -167,12 +172,12 @@ Additional verification note:
   blocker-path change. A later rerun became blocked after a local `pnpm install` verification attempt
   removed the app root `node_modules` links and the sandbox prevented a full reinstall of sibling
   workspace packages. The latest failure is dependency-state/environmental: missing `vite`, `tsx`,
-  and desktop Tauri CLI links under `apps/sdkwork-chat-pc/node_modules`, not a release gate logic
+  and desktop Tauri CLI links under `apps/sdkwork-im-pc/node_modules`, not a release gate logic
   assertion failure.
 
 ## Continuation Checkpoint 2026-06-12 - Dependency State Recovery
 
-Status: the local `apps/sdkwork-chat-pc/node_modules` state has been restored enough for the governed
+Status: the local `apps/sdkwork-im-pc/node_modules` state has been restored enough for the governed
 Node contract suite to pass again. Recovery used filtered pnpm install attempts limited to the PC app
 workspace plus current-repository Tauri package links for the desktop subpackage. The sandbox still
 does not allow the package manager to relink sibling workspace package internals under paths such as
@@ -181,7 +186,7 @@ workspace permission boundary.
 
 Verified commands:
 
-- `node --test --experimental-test-isolation=none scripts/dev/sdkwork-chat-pc-dev-command.test.mjs scripts/dev/sdkwork-chat-pc-sdk-integration.test.mjs scripts/dev/sdkwork-im-sdk-websocket-contract-node.test.mjs`
+- `node --test --experimental-test-isolation=none scripts/dev/sdkwork-im-pc-dev-command.test.mjs scripts/dev/sdkwork-im-pc-sdk-integration.test.mjs scripts/dev/sdkwork-im-sdk-websocket-contract-node.test.mjs`
   - Result: passed, 3/3 tests.
 - `pnpm.cmd run test:workflow-commercial-gates`
   - Result: passed, 42/42 tests.
@@ -190,7 +195,7 @@ Verified commands:
 
 Status: commercial readiness no longer runs a mutating full `pnpm install` as its first PC app gate.
 The first gate now runs `pnpm install --lockfile-only --frozen-lockfile --ignore-scripts` from
-`apps/sdkwork-chat-pc`, preserving root workspace and lockfile authority while avoiding sandboxed
+`apps/sdkwork-im-pc`, preserving root workspace and lockfile authority while avoiding sandboxed
 cross-repository `node_modules` relinks. The later `pc-lint`, `pc-build`, and contract tests remain
 the evidence that installed dependencies are usable. No UI layout, visual styling, runtime SDK
 output, or package names were changed.
@@ -199,30 +204,31 @@ Implementation notes:
 
 - `scripts/release/commercial-readiness.mjs` uses frozen lockfile verification for `pc-install` and
   keeps `CI=true` plus `npm_config_update_notifier=false` for package script checks.
-- The local generated `apps/sdkwork-chat-pc/node_modules/.pnpm-codex-new` store was found damaged
-  with missing package metadata. It was backed up as `.pnpm-codex-new.__broken_20260612051910` and
-  replaced by a junction to the complete `.pnpm-codex-repair2` local store.
-- `scripts/dev/run-esbuild-cli.mjs` and `scripts/dev/run-tsx-cli.mjs` were added so app scripts do
-  not depend on missing `.bin` shims in the repaired local dependency state.
-- `apps/sdkwork-chat-pc/package.json` now runs the production server bundle through
+- Tailwind CSS integration follows `sdkwork-specs/TAILWIND_CSS_INTEGRATION_SPEC.md`: the host shell
+  owns the single `@import "tailwindcss"` bootstrap, host-composed feature CSS must not re-bootstrap,
+  and Vite must not alias bare specifier `tailwindcss`.
+- PC app install/build steps run from `apps/sdkwork-im-pc` so the app-local `.npmrc` is applied during install and build.
+- `scripts/dev/run-esbuild-cli.mjs` and `scripts/dev/run-tsx-cli.mjs` route app scripts through
+  repository-managed CLI wrappers when local `.bin` shims are unavailable.
+- `apps/sdkwork-im-pc/package.json` runs the production server bundle through
   `run-esbuild-cli.mjs` and the QR scan standard contract through `run-tsx-cli.mjs`.
 
 Verified commands:
 
 - `pnpm.cmd install --lockfile-only --frozen-lockfile --ignore-scripts` from
-  `apps/sdkwork-chat-pc`
+  `apps/sdkwork-im-pc`
   - Result: passed, scoped all 68 workspace projects without rebuilding `node_modules`.
 - `node --test --experimental-test-isolation=none scripts/release/commercial-readiness.test.mjs`
   - Result after implementation: passed, 10/10 tests. The new lockfile-only expectation failed
     before the implementation change.
-- `pnpm.cmd run lint` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run lint` from `apps/sdkwork-im-pc`
   - Result: passed after local virtual store repair.
-- `node --test --experimental-test-isolation=none scripts/dev/sdkwork-chat-pc-sdk-integration.test.mjs`
+- `node --test --experimental-test-isolation=none scripts/dev/sdkwork-im-pc-sdk-integration.test.mjs`
   - Result after implementation: passed, 1/1 test. The esbuild wrapper expectation failed before the
     package script and wrapper change.
-- `pnpm.cmd run build` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run build` from `apps/sdkwork-im-pc`
   - Result: passed; Vite built the renderer and `run-esbuild-cli.mjs` emitted `dist/server.cjs`.
-- `pnpm.cmd run test:qr-scan-standard` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run test:qr-scan-standard` from `apps/sdkwork-im-pc`
   - Result: passed; the TS contract ran through `run-tsx-cli.mjs`.
 - `pnpm.cmd run test:workflow-commercial-gates`
   - Result: passed, 42/42 tests.
@@ -245,18 +251,18 @@ Remaining blocker:
 ## Continuation Checkpoint 2026-06-12 - Manifest Path And Notary Contract Alignment
 
 Status: root and PC application manifests now agree that the active PC app root is
-`apps/sdkwork-chat-pc`. The SDKWORK workspace structure and runtime standard checks assert that
+`apps/sdkwork-im-pc`. The SDKWORK workspace structure and runtime standard checks assert that
 `publish.config.workspaceRoot`, `artifacts.installConfig.metadata.workspaceRoot`, and
 `devApp.sourceRoot` all point to that existing path. The notary package type/import repairs keep
 the existing JSX classes, layout, and visual styling intact; no generated SDK output was hand-edited.
 
 Implementation notes:
 
-- `sdkwork.app.config.json` and `apps/sdkwork-chat-pc/sdkwork.app.config.json` now use
-  `apps/sdkwork-chat-pc` for the manifest path slots that describe the app workspace/source root.
+- `sdkwork.app.config.json` and `apps/sdkwork-im-pc/sdkwork.app.config.json` now use
+  `apps/sdkwork-im-pc` for the manifest path slots that describe the app workspace/source root.
 - `scripts/sdkwork-workspace-structure-standard.test.mjs` verifies both manifests and fails if the
   configured workspace/source roots do not resolve to an existing path.
-- `scripts/dev/sdkwork-chat-runtime-standard.test.mjs` verifies the same manifest path slots as part
+- `scripts/dev/sdkwork-im-runtime-standard.test.mjs` verifies the same manifest path slots as part
   of the runtime standard contract.
 - The notary package repairs add the attachment fields consumed by the current UI, read
   `task.createTime` from the declared task shape, keep `PartyDriveModal` imported from the shared
@@ -271,12 +277,12 @@ Verified commands:
 - `pnpm.cmd run test:sdkwork-workspace-structure-standard`
   - Result: passed with `SDKWork workspace structure standard passed`.
 - `pnpm.cmd run test:runtime-standard`
-  - Result: passed with `sdkwork-chat runtime standard contract passed`.
+  - Result: passed with `sdkwork-im runtime standard contract passed`.
 - `pnpm.cmd run test:workflow-commercial-gates`
   - Result: passed, 42/42 governed Node tests.
-- `pnpm.cmd run lint` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run lint` from `apps/sdkwork-im-pc`
   - Result: passed; `run-tsc-cli.mjs --noEmit` completed with exit code 0.
-- `pnpm.cmd run test:notary-app-sdk-integration` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run test:notary-app-sdk-integration` from `apps/sdkwork-im-pc`
   - Result: passed with `sdkwork chat notary app SDK integration contract passed`.
 - `pnpm.cmd run check:commercial-readiness`
   - Result: PC install, lint, build, appbase UI contract, notary integration, QR scan contract,
@@ -303,7 +309,7 @@ Status: local repository docs and component specs no longer point at the retired
 `apps/sdkwork-im/Cargo.toml` manifest. The workspace structure standard now fails when documented
 Cargo manifest paths do not exist, and the documented Rust verification command points to the real
 root workspace with `cargo test --workspace`. The desktop asset build entrypoint now targets the
-current `apps/sdkwork-chat-pc` app root instead of retired `apps/control-plane`,
+current `apps/sdkwork-im-pc` app root instead of retired `apps/control-plane`,
 `apps/sdkwork-im-admin`, or `apps/sdkwork-im-portal` roots.
 
 Implementation notes:
@@ -314,9 +320,9 @@ Implementation notes:
 - `README.md`, `specs/README.md`, and `specs/component.spec.json` now document
   `cargo test --workspace` for the repository Rust workspace.
 - `scripts/build-sdkwork-im-desktop-assets.mjs` is importable again without retired portal sources
-  and builds/checks `apps/sdkwork-chat-pc/dist/index.html`.
+  and builds/checks `apps/sdkwork-im-pc/dist/index.html`.
 - `scripts/build-sdkwork-im-desktop-assets.test.mjs` proves the desktop asset script is aligned to
-  `apps/sdkwork-chat-pc`, rejects retired app-root references in that script, and validates the
+  `apps/sdkwork-im-pc`, rejects retired app-root references in that script, and validates the
   expected PC dist readiness check.
 - `scripts/commercial-gates-governance-node-test-catalog.mjs` includes the new desktop asset
   contract test so the governed workflow suite keeps this entrypoint covered.
@@ -328,7 +334,7 @@ TDD evidence:
 - `node --test --experimental-test-isolation=none scripts\build-sdkwork-im-desktop-assets.test.mjs`
   failed first because `scripts/build-sdkwork-im-desktop-assets.mjs` referenced retired app roots and
   could not import `apps/sdkwork-im-portal/scripts/lib/build-dist.mjs`, then passed after the script
-  was realigned to `apps/sdkwork-chat-pc`.
+  was realigned to `apps/sdkwork-im-pc`.
 
 Verified commands:
 
@@ -356,7 +362,7 @@ Implementation notes:
   directory README for Purpose, Owner, Allowed Content, Forbidden Content, Related Specs, and
   Verification sections, and requires a link to `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`.
 - `apps/README.md` now documents app-root purpose, ownership, allowed content, forbidden content,
-  related specs, and verification for `apps/sdkwork-chat-pc` and future app surfaces.
+  related specs, and verification for `apps/sdkwork-im-pc` and future app surfaces.
 - `sdks/README.md` keeps the existing SDK workspace details and adds the standard directory README
   fields at the top.
 
@@ -375,13 +381,13 @@ Verified commands:
     source API pages, 118 operation pages, 118 sidebar entries, and SDK site docs.
 - `pnpm.cmd run test:workflow-commercial-gates`
   - Result: passed, 44/44 governed Node tests.
-- `pnpm.cmd run lint` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run lint` from `apps/sdkwork-im-pc`
   - Result: passed; TypeScript checking completed with exit code 0.
-- `pnpm.cmd run build` from `apps/sdkwork-chat-pc`
+- `pnpm.cmd run build` from `apps/sdkwork-im-pc`
   - Result: passed; Vite/esbuild emitted the PC dist and `dist/server.cjs`. Vite still reports the
     existing large chunk warning, but the command exits successfully.
 - `node scripts\build-sdkwork-im-desktop-assets.mjs`
-  - Result: passed; it built the PC app from `apps/sdkwork-chat-pc` and verified the desktop web
+  - Result: passed; it built the PC app from `apps/sdkwork-im-pc` and verified the desktop web
     asset output.
 
 ## Continuation Checkpoint 2026-06-12 - Docs RTC SDK Path Alignment

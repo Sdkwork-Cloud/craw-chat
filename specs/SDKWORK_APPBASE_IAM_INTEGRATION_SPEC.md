@@ -520,6 +520,31 @@ cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test
 
 Run narrower tests first, then broader workspace checks when the blast radius warrants it.
 
+## 12.1 Member Capability And Permission Composition
+
+Registered IM members use the IAM `app_user` role — not admin bootstrap scope. Capability layers:
+
+| Layer | Member expectation |
+| --- | --- |
+| Self profile | `GET /iam/users/current` requires `iam:self`; profile mutations require `iam.profile.update` |
+| Directory browse | `iam.organizations.read`, `iam.memberships.read`, `iam.departments.read`, `iam.assignments.read` on session RBAC |
+| Bootstrap token | `sdkwork.app.config.json` `backend.accessTokenPermissionScope` is credential-entry only; keep minimal (`iam:self`) |
+| Embedded knowledge | Tenant guard: JWT `tenant_id` must match `SDKWORK_KNOWLEDGEBASE_TENANT_ID` (default `100001`); app-api RBAC uses `knowledge.spaces.*` / `knowledge.documents.*` |
+| Embedded mail | App-api RBAC uses standard `mail.*` codes enforced from route manifest via web-framework |
+
+Client app roots declare `contracts.permissionComposition` per `APP_PERMISSION_COMPOSITION_SPEC.md`. Machine contract: `specs/im-member-capability.spec.json`.
+
+After IAM role or bootstrap changes: restart standalone gateway and re-login so JWT `permission_scope` refreshes.
+
+Reference commands:
+
+```text
+node scripts/check-im-member-capability-alignment.mjs
+node scripts/dev/check-im-member-capability-alignment.test.mjs
+cargo test -p sdkwork-iam-bootstrap app_user_receives_directory_browse_permissions
+cargo test -p sdkwork-routes-iam-app-api local_app_router_serves_directory_records_from_registered_local_store
+```
+
 ## 13. Current Sdkwork IM Reference Map
 
 | Responsibility | Reference file |

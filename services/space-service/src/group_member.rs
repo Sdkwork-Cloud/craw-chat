@@ -1,10 +1,14 @@
 //! Group member API handlers.
 
 use axum::Json;
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::extract::{Extension, Path, Query, State};
+use axum::response::Response;
+use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 
 use crate::http::AppState;
 
@@ -37,42 +41,53 @@ pub struct ListQuery {
 }
 
 pub async fn add_group_member(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _group_id)): Path<(String, String)>,
     Json(_request): Json<AddMemberRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok((
-        StatusCode::CREATED,
-        Json(serde_json::json!({"status": "added"})),
-    ))
+) -> Response {
+    let result: ApiResult<serde_json::Value> =
+        Ok(serde_json::json!({"status": "added"}));
+    finish_api_json(&ctx, result)
 }
 
 pub async fn list_group_members(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _group_id)): Path<(String, String)>,
     Query(_query): Query<ListQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(Json(Vec::<MemberResponse>::new()))
+) -> Response {
+    let result: ApiResult<Vec<MemberResponse>> = Ok(Vec::new());
+    finish_api_json(&ctx, result)
 }
 
 pub async fn get_group_member(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _group_id, _user_id)): Path<(String, String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Err::<(), StatusCode>(StatusCode::NOT_FOUND)
+) -> Response {
+    let result: ApiResult<MemberResponse> = Err(ApiProblem::not_found("group member not found"));
+    finish_api_json(&ctx, result)
 }
 
 pub async fn update_group_member(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _group_id, _user_id)): Path<(String, String, String)>,
     Json(_request): Json<UpdateMemberRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+) -> Response {
+    finish_api_response(&ctx, no_content(&ctx))
 }
 
 pub async fn remove_group_member(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _group_id, _user_id)): Path<(String, String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+) -> Response {
+    finish_api_response(&ctx, no_content(&ctx))
 }

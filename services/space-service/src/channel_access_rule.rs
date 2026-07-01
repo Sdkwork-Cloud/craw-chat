@@ -1,10 +1,14 @@
 //! Channel access rule API handlers.
 
 use axum::Json;
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::extract::{Extension, Path, Query, State};
+use axum::response::Response;
+use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 
 use crate::http::AppState;
 
@@ -33,27 +37,33 @@ pub struct ListQuery {
 }
 
 pub async fn create_access_rule(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _channel_id)): Path<(String, String)>,
     Json(_request): Json<CreateAccessRuleRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok((
-        StatusCode::CREATED,
-        Json(serde_json::json!({"status": "created"})),
-    ))
+) -> Response {
+    let result: ApiResult<serde_json::Value> =
+        Ok(serde_json::json!({"status": "created"}));
+    finish_api_json(&ctx, result)
 }
 
 pub async fn list_access_rules(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _channel_id)): Path<(String, String)>,
     Query(_query): Query<ListQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(Json(Vec::<AccessRuleResponse>::new()))
+) -> Response {
+    let result: ApiResult<Vec<AccessRuleResponse>> = Ok(Vec::new());
+    finish_api_json(&ctx, result)
 }
 
 pub async fn delete_access_rule(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _channel_id, _rule_id)): Path<(String, String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+) -> Response {
+    finish_api_response(&ctx, no_content(&ctx))
 }

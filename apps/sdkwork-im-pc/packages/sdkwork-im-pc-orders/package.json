@@ -6,6 +6,17 @@
   "dependencies": {
     "@sdkwork/order-app-sdk": "workspace:*",
     "@sdkwork/shop-app-sdk": "workspace:*",
-    "@sdkwork/im-pc-core": "workspace:*"
+    "@sdkwork/im-pc-chat": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*",
+    "framer-motion": "catalog:",
+    "i18next": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-i18next": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

@@ -31,6 +31,7 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
     let bind_addr = resolve_bind_addr()?;
     let config = ImRpcServerConfig {
         bind_addr: bind_addr.to_string(),
@@ -72,7 +73,9 @@ async fn run() -> Result<(), String> {
         "comms-conversation internal rpc listening"
     );
 
-    serve_im_rpc_with_discovery(router, &config, discovery, wait_for_ctrl_c())
+    serve_im_rpc_with_discovery(router, &config, discovery, async {
+        let _ = wait_for_ctrl_c().await;
+    })
         .await
         .map_err(|error| format!("comms-conversation-internal-rpc server should run: {error}"))
 }

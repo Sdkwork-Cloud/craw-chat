@@ -8,6 +8,10 @@ import {
   createSdkworkOrganizationDirectoryService,
   type OrganizationDirectoryClient,
 } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/OrganizationDirectoryService';
+import {
+  clearAppSdkSessionTokens,
+  persistAppSdkSessionTokens,
+} from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -71,7 +75,28 @@ function collectDirectoryNodeIds(nodes: Array<{ children: unknown[]; id: string 
   ]);
 }
 
+function seedDirectoryTestSession(permissionScope: string[]): void {
+  persistAppSdkSessionTokens({
+    authToken: 'directory-test-auth',
+    accessToken: 'directory-test-access',
+    context: {
+      appId: 'sdkwork-im',
+      tenantId: '100001',
+      userId: 'u_test',
+      sessionId: 'session-test',
+      permissionScope,
+    },
+  });
+}
+
 async function main(): Promise<void> {
+  seedDirectoryTestSession([
+    'iam.organizations.read',
+    'iam.departments.read',
+    'iam.memberships.read',
+    'iam.assignments.read',
+    'iam.role_bindings.read',
+  ]);
   const organizationCalls: string[] = [];
   const organizationClient = {
     iam: {
@@ -554,10 +579,10 @@ async function main(): Promise<void> {
     productDirectoryCalls,
     [
       'iam.organizations.tree.retrieve:',
-      'iam.departments.tree.retrieve:org-company',
+      'iam.departments.tree.retrieve:300001',
       'iam.organizations.tree.retrieve:',
       'iam.departments.tree.retrieve:',
-      'iam.departmentAssignments.list:org-company:dept-rd',
+      'iam.departmentAssignments.list:300001:dept-rd',
       'iam.positionAssignments.list:assign-alice-rd',
       'iam.roleBindings.list:department_assignment:assign-alice-rd:',
     ],
@@ -640,7 +665,7 @@ async function main(): Promise<void> {
   );
   assert.deepEqual(
     duplicateDepartmentIdCalls,
-    ['iam.departmentAssignments.list:org-a:dept-root'],
+    ['iam.departmentAssignments.list:300001:dept-root'],
     'department member lookup must pass the selected organization id instead of relying on a department-id-only cache',
   );
 
@@ -727,8 +752,8 @@ async function main(): Promise<void> {
     unscopedDepartmentCalls,
     [
       'iam.departments.tree.retrieve:',
-      'iam.departments.tree.retrieve:org-root',
-      'iam.departments.tree.retrieve:org-company',
+      'iam.departments.tree.retrieve:300003',
+      'iam.departments.tree.retrieve:300001',
     ],
     'organization directory must re-read department trees by organization when the global department tree has no organization scope',
   );
@@ -922,15 +947,15 @@ async function main(): Promise<void> {
   assert.deepEqual(
     memberManagementAdminCalls,
     [
-      'admin.organizationMemberships.create:org-company:u_charlie',
+      'admin.organizationMemberships.create:300001:u_charlie',
       'admin.departmentAssignments.create:dept-rd:membership-charlie-company',
       'admin.positionAssignments.create:assign-charlie-rd:pos-engineer',
-      'admin.roleBindings.create:organization:org-company:org.member',
+      'admin.roleBindings.create:organization:300001:org.member',
       'admin.roleBindings.create:department_assignment:assign-charlie-rd:department.engineer',
       'admin.users.create:invite@example.com',
-      'admin.organizationMemberships.create:org-company:u_invited',
+      'admin.organizationMemberships.create:300001:u_invited',
       'admin.departmentAssignments.create:dept-rd:membership-invited-company',
-      'admin.roleBindings.create:organization:org-company:org.member',
+      'admin.roleBindings.create:organization:300001:org.member',
     ],
     'organization member management must use injected IAM admin capabilities instead of handwritten backend HTTP',
   );
@@ -1155,6 +1180,74 @@ async function main(): Promise<void> {
     'OrgContainer must render one unified organization-directory tree instead of separate organization and department trees',
   );
 
+  const appUserPermissionCalls: string[] = [];
+  seedDirectoryTestSession([
+    'iam:self',
+    'iam.organizations.read',
+    'iam.memberships.read',
+    'iam.departments.read',
+    'iam.assignments.read',
+  ]);
+  const appUserDirectoryService = createSdkworkOrganizationDirectoryService(() => ({
+    iam: {
+      users: {
+        current: {
+          async retrieve() {
+            appUserPermissionCalls.push('iam.users.current.retrieve');
+            return {
+              userId: 'u_member',
+              displayName: 'Member User',
+              status: 'active',
+            };
+          },
+        },
+      },
+      organizationMemberships: {
+        async list(params) {
+          appUserPermissionCalls.push(`iam.organizationMemberships.list:${params?.organizationId ?? ''}`);
+          return [
+            {
+              membershipId: 'membership-member-company',
+              organizationId: '300001',
+              userId: 'u_member',
+              status: 'active',
+            },
+          ];
+        },
+      },
+      roleBindings: {
+        async list() {
+          appUserPermissionCalls.push('iam.roleBindings.list');
+          return [];
+        },
+      },
+    },
+  }) satisfies OrganizationDirectoryClient);
+  assert.deepEqual(
+    await appUserDirectoryService.getOrganizationPermissions('300001'),
+    {
+      adminCapabilityAvailable: false,
+      canAssignRoles: false,
+      canInviteMembers: false,
+      canManageMembers: false,
+      currentUserId: 'u_member',
+      organizationId: '300001',
+      organizationMembershipIds: ['membership-member-company'],
+      reason: 'role_denied',
+      roleCodes: [],
+    },
+    'app_user sessions without iam.role_bindings.read must not call roleBindings.list for organization permission checks',
+  );
+  assert.deepEqual(
+    appUserPermissionCalls,
+    [
+      'iam.users.current.retrieve',
+      'iam.organizationMemberships.list:300001',
+    ],
+    'app_user organization permission checks must stay on membership scope without role binding reads',
+  );
+
+  clearAppSdkSessionTokens();
   console.log('sdkwork-im-pc contact org directory real-logic contract passed');
 }
 

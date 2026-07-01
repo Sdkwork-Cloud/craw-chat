@@ -107,8 +107,12 @@ function formatRtcCallPreviewContent(
       });
     default:
       return [descriptor.actorId, descriptor.initiatorId, descriptor.receiverId]
-        .reduce(
-          (preview, participantId) => replaceRtcPreviewParticipantId(preview, participantId, chat.name),
+        .reduce<string>(
+          (preview, participantId) => (
+            participantId
+              ? replaceRtcPreviewParticipantId(preview, participantId, chat.name)
+              : preview
+          ),
           chat.lastMessage?.content ?? mode,
         );
   }

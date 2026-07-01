@@ -9,7 +9,8 @@ use im_platform_contracts::{
 };
 use im_time::{format_unix_timestamp_millis, utc_now_rfc3339_millis};
 use sdkwork_im_contract_core::ContractError;
-use sha2::{Digest, Sha256};
+use sdkwork_utils_rust::{hex_encode, sha256_hash};
+use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -477,7 +478,7 @@ fn build_signed_url(
 
     let string_to_sign = format!(
         "AWS4-HMAC-SHA256\n{timestamp}\n{scope}\n{}",
-        sha256_hex(canonical_request.as_bytes())
+        sha256_hash(canonical_request.as_bytes())
     );
 
     // Signing key chain: k_date -> k_region -> k_service -> k_signing.
@@ -574,24 +575,10 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
-fn sha256_hex(msg: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(msg);
-    hex_encode(hasher.finalize().as_slice())
-}
-
 fn hmac_sha256(key: &[u8], msg: &[u8]) -> Vec<u8> {
     let mut mac = HmacSha256::new_from_slice(key).expect("HMAC-SHA256 accepts any key length");
     mac.update(msg);
     mac.finalize().into_bytes().to_vec()
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        s.push_str(&format!("{b:02x}"));
-    }
-    s
 }
 
 /// Map a known file extension (lowercased, without the dot) to its canonical

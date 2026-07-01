@@ -61,14 +61,13 @@ pub fn resolve_service_identity(metadata: &RpcMetadata) -> Result<Option<String>
         return Ok(Some(identity.to_owned()));
     }
 
-    if let Some(authorization) = metadata.authorization.as_deref() {
-        if let Some(identity) = authorization
-            .strip_prefix("Service ")
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
-            return Ok(Some(identity.to_owned()));
-        }
+    // Collapsed nested if-let into a single chain
+    if let Some(identity) = metadata.authorization.as_deref()
+        .and_then(|auth| auth.strip_prefix("Service "))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(Some(identity.to_owned()));
     }
 
     Ok(None)

@@ -39,6 +39,14 @@ assert(
   '@sdkwork/im-pc-core must depend on @sdkwork/utils for shared utility standardization',
 );
 
+const h5CorePackage = JSON.parse(
+  read('apps/sdkwork-im-h5/packages/sdkwork-im-h5-core/package.json'),
+);
+assert(
+  h5CorePackage.dependencies?.['@sdkwork/utils'],
+  '@sdkwork/im-h5-core must depend on @sdkwork/utils for shared utility standardization',
+);
+
 for (const relativePath of [
   'services/sdkwork-comms-conversation-service/src/runtime.rs',
   'adapters/postgres-realtime/src/lib.rs',

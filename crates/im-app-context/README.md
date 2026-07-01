@@ -1,40 +1,30 @@
 # im-app-context
 
-Domain: communication
-Capability: im
-Package type: rust-crate
-Status: standardizing
+Domain: communication  
+Capability: im  
+Package type: rust-crate  
+Status: active
 
-This README is the SDKWork module entrypoint for `im-app-context`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+Single-source Rust crate for dual-token AppContext resolution, JWT validation, and Axum request middleware used across IM services and gateways.
 
-## Public API
+## Public API (`src/lib.rs`)
 
-- `.`
+- `resolve_app_context`, `resolve_app_context_for_request`, `resolve_handler_app_context`
+- `build_dual_token_headers_for_context`, `DualTokenRequestBuilderExt`
+- `inject_app_request_context_middleware`
+- `allows_header_only_app_context_fallback`, `resolve_web_environment_from_process_env`
+- `AppContext`, `AppContextError`, `ResolvedAppContext`, `AppContextSignatureConfig`
 
-## Required SDK Surface
-
-- None declared in `specs/component.spec.json`.
+Do not add parallel `src/*.rs` module files unless they are wired through `lib.rs` module declarations. The repository enforces this with `pnpm run test:app-context-module-standard`.
 
 ## Configuration
 
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
-
-## SaaS/Private/Local Behavior
-
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
-
-## Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
-
-## Extension Points
-
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
+See `specs/component.spec.json` and production topology profiles under `configs/topology/`. Production requires tenant-bound JWT signing secrets and forbids the public dev fallback secret.
 
 ## Verification
 
-- `cargo test --manifest-path apps/sdkwork-im/crates/im-app-context/Cargo.toml`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+```bash
+cargo test -p im-app-context
+pnpm run test:app-context-module-standard
+pnpm run test:production-security-standard
+```

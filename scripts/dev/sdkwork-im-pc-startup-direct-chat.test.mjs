@@ -16,8 +16,13 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
+  /bindDirectChat/u,
+  'startDirectChat must bind direct chats through the generated IM SDK without client-local ids',
+);
+assert.doesNotMatch(
+  chatServiceSource,
   /buildDirectChatStableIds/u,
-  'startDirectChat must derive stable direct-chat ids before binding conversations',
+  'startDirectChat must not derive pc-direct client-local conversation ids',
 );
 assert.match(
   chatServiceSource,

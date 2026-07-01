@@ -117,7 +117,7 @@ async function submitDeviceCommand(
   body: AiotCommandCreateRequest,
   idempotencyKey: string,
 ): Promise<void> {
-  await client.iot.devicesCommandsCreate(deviceId, body, idempotencyKey);
+  await client.iot.devices.commands.create(deviceId, body, { idempotencyKey });
 }
 
 function unsupportedAppDeviceManagementCapability(capability: string): Error {
@@ -130,14 +130,14 @@ class AiotDeviceService implements DeviceService {
   constructor(private readonly options: AiotDeviceServiceOptions = {}) {}
 
   async getDevices(): Promise<Device[]> {
-    const response = await getClient(this.options.client).iot.devicesList();
-    return Array.isArray(response.data) ? response.data.map(mapAiotDevice) : [];
+    const page = await getClient(this.options.client).iot.devices.list();
+    return page.items.map((item) => mapAiotDevice(item as unknown as AiotDevice));
   }
 
   async getDevice(id: string): Promise<Device | undefined> {
     try {
-      const response = await getClient(this.options.client).iot.devicesRetrieve(id);
-      return response.data ? mapAiotDevice(response.data) : undefined;
+      const device = await getClient(this.options.client).iot.devices.retrieve(id);
+      return mapAiotDevice(device);
     } catch {
       return undefined;
     }

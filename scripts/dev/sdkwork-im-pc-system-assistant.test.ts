@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   const calls: StartAgentChatInput[] = [];
   const createdAssistant = chat({
     avatar: SYSTEM_ASSISTANT_AGENT.avatar,
-    id: 'pc-agent-current-user-agent.sdkwork_assistant',
+    id: 'c_agent_0123456789abcdef01234567',
     name: SYSTEM_ASSISTANT_AGENT.name,
     updatedAt: 200,
   });
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 
   const existingAssistant = chat({
     avatar: SYSTEM_ASSISTANT_AGENT.avatar,
-    id: 'pc-agent-existing-user-agent.sdkwork_assistant',
+    id: 'c_agent_89abcdef0123456789abcdef01',
     name: SYSTEM_ASSISTANT_AGENT.name,
   });
   const existingResult = await service.ensureSystemAssistantChat([existingAssistant]);

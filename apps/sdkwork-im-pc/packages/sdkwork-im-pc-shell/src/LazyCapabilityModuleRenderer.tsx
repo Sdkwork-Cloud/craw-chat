@@ -14,7 +14,7 @@ export interface LazyCapabilityModuleRendererProps {
 export const LazyCapabilityModuleRenderer: React.FC<LazyCapabilityModuleRendererProps> = ({
   activeTab,
   fallback = (
-    <div className="flex-1 flex items-center justify-center bg-[#1e1e1e] text-gray-500">
+    <div className="sdkwork-capability-embed-host flex flex-1 min-h-0 h-full w-full items-center justify-center bg-[#1e1e1e] text-gray-500">
       Loading module...
     </div>
   ),

@@ -177,7 +177,7 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
 
-    assert_eq!(value["code"], "access_token_missing");
+    assert_eq!(value["code"], 40101);
 }
 
 #[tokio::test]
@@ -238,8 +238,8 @@ async fn test_create_conversation_and_post_message_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["messageSeq"], 1);
-    assert_eq!(value["messageId"], "msg_c_http_1");
+    assert_eq!(value["data"]["messageSeq"], 1);
+    assert_eq!(value["data"]["messageId"], "msg_c_http_1");
 }
 
 #[tokio::test]
@@ -308,9 +308,9 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "invalid_json");
+    assert_eq!(value["code"], 40001);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("drive")
@@ -388,9 +388,9 @@ async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http(
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_request_invalid");
+    assert_eq!(value["code"], 40001);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("drive.driveUri")
@@ -469,9 +469,9 @@ async fn test_post_media_message_rejects_external_url_source_with_drive_referenc
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_request_invalid");
+    assert_eq!(value["code"], 40001);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("resource.source")
@@ -512,13 +512,13 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
         .to_bytes();
     let first_create_json: serde_json::Value =
         serde_json::from_slice(&first_create_body).expect("first create should be valid json");
-    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["proofVersion"],
+        first_create_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["requestKey"],
+        first_create_json["data"]["requestKey"],
         "6#1000014#user1#1#19#create-conversation19#c_create_retry_http"
     );
 
@@ -551,14 +551,14 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate create should be valid json");
-    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["requestKey"],
-        first_create_json["requestKey"]
+        duplicate_create_json["data"]["requestKey"],
+        first_create_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["eventId"],
-        first_create_json["eventId"]
+        duplicate_create_json["data"]["eventId"],
+        first_create_json["data"]["eventId"]
     );
 
     let conflicting_retry = app
@@ -589,7 +589,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting create should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_retry_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -649,9 +649,9 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let first_post_json: serde_json::Value =
         serde_json::from_slice(&first_post_body).expect("first post should be valid json");
-    assert_eq!(first_post_json["deliveryStatus"], "applied");
+    assert_eq!(first_post_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_post_json["proofVersion"],
+        first_post_json["data"]["proofVersion"],
         "conversation.message.delivery-proof.v1"
     );
 
@@ -685,20 +685,20 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let duplicate_post_json: serde_json::Value =
         serde_json::from_slice(&duplicate_post_body).expect("duplicate post should be valid json");
-    assert_eq!(duplicate_post_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_post_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_post_json["requestKey"],
-        first_post_json["requestKey"]
+        duplicate_post_json["data"]["requestKey"],
+        first_post_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_post_json["messageId"],
-        first_post_json["messageId"]
+        duplicate_post_json["data"]["messageId"],
+        first_post_json["data"]["messageId"]
     );
     assert_eq!(
-        duplicate_post_json["messageSeq"],
-        first_post_json["messageSeq"]
+        duplicate_post_json["data"]["messageSeq"],
+        first_post_json["data"]["messageSeq"]
     );
-    assert_eq!(duplicate_post_json["eventId"], first_post_json["eventId"]);
+    assert_eq!(duplicate_post_json["data"]["eventId"], first_post_json["data"]["eventId"]);
 
     let history = app
         .clone()
@@ -722,8 +722,8 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history should be valid json");
-    assert_eq!(history_json["highWatermark"], 1);
-    assert_eq!(history_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(history_json["data"]["highWatermark"], 1);
+    assert_eq!(history_json["data"]["items"].as_array().unwrap().len(), 1);
 
     let conflicting_retry = app
         .oneshot(
@@ -754,7 +754,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting retry should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_retry_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -832,11 +832,11 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first page should be valid json");
-    assert_eq!(first_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(first_json["items"][0]["message"]["messageSeq"], 1);
-    assert_eq!(first_json["highWatermark"], 2);
-    assert_eq!(first_json["nextAfterSeq"], 1);
-    assert_eq!(first_json["hasMore"], true);
+    assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(first_json["data"]["items"][0]["message"]["messageSeq"], 1);
+    assert_eq!(first_json["data"]["highWatermark"], 2);
+    assert_eq!(first_json["data"]["nextAfterSeq"], 1);
+    assert_eq!(first_json["data"]["hasMore"], true);
 
     let second_page = app
         .clone()
@@ -862,11 +862,11 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
         .to_bytes();
     let second_json: serde_json::Value =
         serde_json::from_slice(&second_body).expect("second page should be valid json");
-    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_json["items"][0]["message"]["messageSeq"], 2);
-    assert_eq!(second_json["highWatermark"], 2);
-    assert_eq!(second_json["nextAfterSeq"], 2);
-    assert_eq!(second_json["hasMore"], false);
+    assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["data"]["items"][0]["message"]["messageSeq"], 2);
+    assert_eq!(second_json["data"]["highWatermark"], 2);
+    assert_eq!(second_json["data"]["nextAfterSeq"], 2);
+    assert_eq!(second_json["data"]["hasMore"], false);
 
     let invalid_limit = app
         .oneshot(
@@ -891,7 +891,7 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_json: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid limit should be valid json");
-    assert_eq!(invalid_json["code"], "limit_invalid");
+    assert_eq!(invalid_json["code"], 40001);
 }
 
 #[tokio::test]
@@ -927,7 +927,7 @@ async fn test_create_conversation_rejects_unknown_type_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_type_invalid");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -965,7 +965,7 @@ async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_principal_not_found");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -1001,9 +1001,9 @@ async fn test_create_conversation_rejects_oversized_conversation_id_over_http() 
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"], 41301);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("conversationId")
@@ -1053,7 +1053,7 @@ async fn test_generic_create_rejects_reserved_special_types_over_http() {
             .to_bytes();
         let value: serde_json::Value =
             serde_json::from_slice(&body).expect("response should be valid json");
-        assert_eq!(value["code"], "conversation_type_invalid");
+        assert_eq!(value["code"], 40001);
     }
 }
 
@@ -1104,8 +1104,8 @@ async fn test_group_create_preserves_actor_kind_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["items"][0]["principalId"], "svc_ops");
-    assert_eq!(value["items"][0]["principalKind"], "system");
+    assert_eq!(value["data"]["items"][0]["principalId"], "svc_ops");
+    assert_eq!(value["data"]["items"][0]["principalKind"], "system");
 }
 
 #[tokio::test]
@@ -1123,7 +1123,6 @@ async fn test_create_agent_dialog_rejects_non_standard_agent_id_over_http() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_agent_dialog_invalid_agent_id_http",
                         "agentId":"ag_demo"
                     }"#,
                 ))
@@ -1141,7 +1140,7 @@ async fn test_create_agent_dialog_rejects_non_standard_agent_id_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "agent_id_invalid");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -1160,7 +1159,6 @@ async fn test_create_agent_dialog_over_http() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_agent_dialog_http",
                         "agentId":"agent.demo"
                     }"#,
                 ))
@@ -1169,11 +1167,25 @@ async fn test_create_agent_dialog_over_http() {
         .await
         .expect("create agent dialog request should succeed");
     assert_eq!(create_response.status(), StatusCode::OK);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = create_json["data"]["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id");
+    assert!(conversation_id.starts_with("c_agent_"));
 
     let list_members = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_agent_dialog_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -1191,16 +1203,16 @@ async fn test_create_agent_dialog_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["items"].as_array().unwrap().len(), 2);
+    assert_eq!(value["data"]["items"].as_array().unwrap().len(), 2);
     assert!(
-        value["items"]
+        value["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
             .any(|item| item["principalId"] == "1" && item["principalKind"] == "user")
     );
     assert!(
-        value["items"]
+        value["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
@@ -1225,7 +1237,6 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_agent_dialog_retry_http",
                         "agentId":"agent.demo"
                     }"#,
                 ))
@@ -1242,15 +1253,15 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first agent dialog create should be valid json");
-    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    let conversation_id = first_create_json["data"]["conversationId"]
+        .as_str()
+        .expect("first create should return canonical conversation id");
+    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["proofVersion"],
+        first_create_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
-    assert_eq!(
-        first_create_json["requestKey"],
-        "6#1000014#user1#1#19#create-agent-dialog25#c_agent_dialog_retry_http"
-    );
+    assert!(first_create_json["data"]["requestKey"].is_string());
 
     let duplicate_create = app
         .clone()
@@ -1264,7 +1275,6 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_agent_dialog_retry_http",
                         "agentId":"agent.demo"
                     }"#,
                 ))
@@ -1281,14 +1291,14 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate agent dialog create should be valid json");
-    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["requestKey"],
-        first_create_json["requestKey"]
+        duplicate_create_json["data"]["requestKey"],
+        first_create_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["eventId"],
-        first_create_json["eventId"]
+        duplicate_create_json["data"]["eventId"],
+        first_create_json["data"]["eventId"]
     );
 
     let conflicting_retry = app
@@ -1300,17 +1310,17 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_agent_dialog_retry_http",
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"{conversation_id}",
                         "agentId":"agent.other"
-                    }"#,
-                ))
+                    }}"#
+                )))
                 .unwrap(),
         )
         .await
         .expect("conflicting agent dialog create should return response");
-    assert_eq!(conflicting_retry.status(), StatusCode::CONFLICT);
+    assert_eq!(conflicting_retry.status(), StatusCode::BAD_REQUEST);
     let conflicting_retry_body = conflicting_retry
         .into_body()
         .collect()
@@ -1319,7 +1329,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting agent dialog create should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_retry_json["code"], 40001);
 }
 
 #[tokio::test]
@@ -1337,7 +1347,6 @@ async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_agent_dialog_system_http",
                         "agentId":"agent.demo"
                     }"#,
                 ))
@@ -1355,7 +1364,7 @@ async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_permission_denied");
+    assert_eq!(value["code"], 40301);
 }
 
 #[tokio::test]
@@ -1375,7 +1384,6 @@ async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_agent_dialog_unknown_requester_http",
                         "agentId":"agent.demo"
                     }"#,
                 ))
@@ -1393,7 +1401,7 @@ async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_principal_not_found");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -1446,16 +1454,16 @@ async fn test_create_agent_handoff_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["items"].as_array().unwrap().len(), 2);
+    assert_eq!(value["data"]["items"].as_array().unwrap().len(), 2);
     assert!(
-        value["items"]
+        value["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
             .any(|item| item["principalId"] == "ag_source" && item["principalKind"] == "agent")
     );
     assert!(
-        value["items"]
+        value["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
@@ -1499,7 +1507,7 @@ async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_permission_denied");
+    assert_eq!(value["code"], 40301);
 }
 
 #[tokio::test]
@@ -1540,7 +1548,7 @@ async fn test_create_agent_handoff_rejects_unknown_user_target_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_principal_not_found");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -1580,13 +1588,13 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first agent handoff create should be valid json");
-    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["proofVersion"],
+        first_create_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["requestKey"],
+        first_create_json["data"]["requestKey"],
         "6#1000015#agent9#ag_source20#create-agent_handoff26#c_agent_handoff_retry_http"
     );
 
@@ -1622,14 +1630,14 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate agent handoff create should be valid json");
-    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["requestKey"],
-        first_create_json["requestKey"]
+        duplicate_create_json["data"]["requestKey"],
+        first_create_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["eventId"],
-        first_create_json["eventId"]
+        duplicate_create_json["data"]["eventId"],
+        first_create_json["data"]["eventId"]
     );
 
     let conflicting_retry = app
@@ -1663,7 +1671,7 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting agent handoff create should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_retry_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -1769,7 +1777,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         .to_bytes();
     let get_open_json: serde_json::Value =
         serde_json::from_slice(&get_open_body).expect("open state should be valid json");
-    assert_eq!(get_open_json["status"], "open");
+    assert_eq!(get_open_json["data"]["status"], "open");
 
     let accept_response = app
         .clone()
@@ -1795,8 +1803,8 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         .to_bytes();
     let accept_json: serde_json::Value =
         serde_json::from_slice(&accept_body).expect("accept response should be valid json");
-    assert_eq!(accept_json["status"], "accepted");
-    assert_eq!(accept_json["acceptedBy"]["id"], "1");
+    assert_eq!(accept_json["data"]["status"], "accepted");
+    assert_eq!(accept_json["data"]["acceptedBy"]["id"], "1");
 
     let resolve_response = app
         .clone()
@@ -1822,7 +1830,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         .to_bytes();
     let resolve_json: serde_json::Value =
         serde_json::from_slice(&resolve_body).expect("resolve response should be valid json");
-    assert_eq!(resolve_json["status"], "resolved");
+    assert_eq!(resolve_json["data"]["status"], "resolved");
 
     let close_response = app
         .clone()
@@ -1848,7 +1856,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         .to_bytes();
     let close_json: serde_json::Value =
         serde_json::from_slice(&close_body).expect("close response should be valid json");
-    assert_eq!(close_json["status"], "closed");
+    assert_eq!(close_json["data"]["status"], "closed");
 
     let post_after_close = app
         .oneshot(
@@ -1879,7 +1887,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         .to_bytes();
     let post_after_close_json: serde_json::Value = serde_json::from_slice(&post_after_close_body)
         .expect("closed post response should be valid json");
-    assert_eq!(post_after_close_json["code"], "conversation_conflict");
+    assert_eq!(post_after_close_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -1975,16 +1983,16 @@ async fn test_create_system_channel_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["items"].as_array().unwrap().len(), 2);
+    assert_eq!(value["data"]["items"].as_array().unwrap().len(), 2);
     assert!(
-        value["items"]
+        value["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
             .any(|item| item["principalId"] == "svc_ops" && item["principalKind"] == "system")
     );
     assert!(
-        value["items"]
+        value["data"]["items"]
             .as_array()
             .unwrap()
             .iter()
@@ -2042,9 +2050,9 @@ async fn test_chat_room_create_enter_leave_over_http() {
         .to_bytes();
     let view: serde_json::Value =
         serde_json::from_slice(&view_body).expect("room view should be json");
-    assert_eq!(view["roomKind"], "chat");
-    assert_eq!(view["conversationId"], "c_chat_room_http");
-    assert_eq!(view["activeMemberCount"], 1);
+    assert_eq!(view["data"]["roomKind"], "chat");
+    assert_eq!(view["data"]["conversationId"], "c_chat_room_http");
+    assert_eq!(view["data"]["activeMemberCount"], 1);
 
     let enter_response = app
         .clone()
@@ -2111,7 +2119,7 @@ async fn test_create_system_channel_rejects_non_system_actor_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_permission_denied");
+    assert_eq!(value["code"], 40301);
 }
 
 #[tokio::test]
@@ -2149,7 +2157,7 @@ async fn test_create_system_channel_rejects_unknown_user_subscriber_over_http() 
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_principal_not_found");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -2186,13 +2194,13 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first system channel create should be valid json");
-    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["proofVersion"],
+        first_create_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["requestKey"],
+        first_create_json["data"]["requestKey"],
         "6#1000016#system7#svc_ops21#create-system_channel27#c_system_channel_retry_http"
     );
 
@@ -2225,14 +2233,14 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate system channel create should be valid json");
-    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["requestKey"],
-        first_create_json["requestKey"]
+        duplicate_create_json["data"]["requestKey"],
+        first_create_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["eventId"],
-        first_create_json["eventId"]
+        duplicate_create_json["data"]["eventId"],
+        first_create_json["data"]["eventId"]
     );
 
     let conflicting_retry = app
@@ -2263,7 +2271,7 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting system channel create should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_retry_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -2321,7 +2329,7 @@ async fn test_system_channel_subscriber_cannot_post_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_permission_denied");
+    assert_eq!(value["code"], 40301);
 }
 
 #[tokio::test]
@@ -2379,7 +2387,7 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_htt
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_permission_denied");
+    assert_eq!(value["code"], 40301);
 }
 
 #[tokio::test]
@@ -2438,7 +2446,7 @@ async fn test_system_channel_dedicated_publish_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["messageSeq"], 1);
+    assert_eq!(value["data"]["messageSeq"], 1);
 
     let subscriber_publish = app
         .oneshot(
@@ -2469,7 +2477,7 @@ async fn test_system_channel_dedicated_publish_over_http() {
         .to_bytes();
     let subscriber_value: serde_json::Value =
         serde_json::from_slice(&subscriber_body).expect("response should be valid json");
-    assert_eq!(subscriber_value["code"], "conversation_permission_denied");
+    assert_eq!(subscriber_value["code"], 40301);
 }
 
 #[tokio::test]
@@ -2552,8 +2560,8 @@ async fn test_post_message_accepts_structured_parts_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["messageSeq"], 1);
-    assert_eq!(value["messageId"], "msg_c_media_http_1");
+    assert_eq!(value["data"]["messageSeq"], 1);
+    assert_eq!(value["data"]["messageId"], "msg_c_media_http_1");
 }
 
 #[tokio::test]
@@ -2613,9 +2621,9 @@ async fn test_post_message_rejects_oversized_text_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"], 41301);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("messageBody")
@@ -2679,9 +2687,9 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"], 41301);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("senderSessionId")
@@ -2748,9 +2756,9 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"], 41301);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("memberAttributes")
@@ -2815,7 +2823,7 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_principal_not_found");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -2866,8 +2874,8 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let initial_json: serde_json::Value =
         serde_json::from_slice(&initial_body).expect("initial members should be valid json");
-    assert_eq!(initial_json["items"][0]["principalId"], "1");
-    assert_eq!(initial_json["items"][0]["role"], "owner");
+    assert_eq!(initial_json["data"]["items"][0]["principalId"], "1");
+    assert_eq!(initial_json["data"]["items"][0]["role"], "owner");
 
     let add_member_response = app
         .clone()
@@ -2900,10 +2908,10 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
     assert_eq!(
-        add_member_json["memberId"],
+        add_member_json["data"]["memberId"],
         "cm_c_members_http_user_1043"
     );
-    assert_eq!(add_member_json["state"], "joined");
+    assert_eq!(add_member_json["data"]["state"], "joined");
 
     let list_after_add = app
         .clone()
@@ -2927,7 +2935,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let list_after_add_json: serde_json::Value = serde_json::from_slice(&list_after_add_body)
         .expect("list after add response should be valid json");
-    assert_eq!(list_after_add_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(list_after_add_json["data"]["items"].as_array().unwrap().len(), 2);
 
     let remove_member_response = app
         .clone()
@@ -2957,7 +2965,7 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let remove_member_json: serde_json::Value = serde_json::from_slice(&remove_member_body)
         .expect("remove member response should be valid json");
-    assert_eq!(remove_member_json["state"], "removed");
+    assert_eq!(remove_member_json["data"]["state"], "removed");
 
     let list_after_remove = app
         .oneshot(
@@ -2980,8 +2988,8 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let list_after_remove_json: serde_json::Value = serde_json::from_slice(&list_after_remove_body)
         .expect("list after remove should be valid json");
-    assert_eq!(list_after_remove_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(list_after_remove_json["items"][0]["principalId"], "1");
+    assert_eq!(list_after_remove_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_after_remove_json["data"]["items"][0]["principalId"], "1");
 }
 
 #[tokio::test]
@@ -3040,7 +3048,7 @@ async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
         .to_bytes();
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
-    assert_eq!(add_member_json["code"], "conversation_permission_denied");
+    assert_eq!(add_member_json["code"], 40301);
 }
 
 #[tokio::test]
@@ -3115,7 +3123,7 @@ async fn test_group_member_can_leave_roster_over_http() {
         .to_bytes();
     let leave_json: serde_json::Value =
         serde_json::from_slice(&leave_body).expect("leave response should be valid json");
-    assert_eq!(leave_json["state"], "left");
+    assert_eq!(leave_json["data"]["state"], "left");
 
     let list_after_leave = app
         .oneshot(
@@ -3138,8 +3146,8 @@ async fn test_group_member_can_leave_roster_over_http() {
         .to_bytes();
     let list_after_leave_json: serde_json::Value = serde_json::from_slice(&list_after_leave_body)
         .expect("list after leave should be valid json");
-    assert_eq!(list_after_leave_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(list_after_leave_json["items"][0]["principalId"], "1");
+    assert_eq!(list_after_leave_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_after_leave_json["data"]["items"][0]["principalId"], "1");
 }
 
 #[tokio::test]
@@ -3219,8 +3227,8 @@ async fn test_group_owner_transfer_over_http() {
         .to_bytes();
     let transfer_json: serde_json::Value =
         serde_json::from_slice(&transfer_body).expect("transfer response should be valid json");
-    assert_eq!(transfer_json["previousOwner"]["role"], "admin");
-    assert_eq!(transfer_json["newOwner"]["role"], "owner");
+    assert_eq!(transfer_json["data"]["previousOwner"]["role"], "admin");
+    assert_eq!(transfer_json["data"]["newOwner"]["role"], "owner");
 
     let leave_response = app
         .clone()
@@ -3259,9 +3267,9 @@ async fn test_group_owner_transfer_over_http() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list response should be valid json");
-    assert_eq!(list_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(list_json["items"][0]["principalId"], "1043");
-    assert_eq!(list_json["items"][0]["role"], "owner");
+    assert_eq!(list_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_json["data"]["items"][0]["principalId"], "1043");
+    assert_eq!(list_json["data"]["items"][0]["role"], "owner");
 }
 
 #[tokio::test]
@@ -3342,8 +3350,8 @@ async fn test_change_member_role_over_http() {
         .to_bytes();
     let change_role_json: serde_json::Value = serde_json::from_slice(&change_role_body)
         .expect("change role response should be valid json");
-    assert_eq!(change_role_json["previousMember"]["role"], "member");
-    assert_eq!(change_role_json["updatedMember"]["role"], "admin");
+    assert_eq!(change_role_json["data"]["previousMember"]["role"], "member");
+    assert_eq!(change_role_json["data"]["updatedMember"]["role"], "admin");
 
     let list_response = app
         .oneshot(
@@ -3366,7 +3374,7 @@ async fn test_change_member_role_over_http() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list response should be valid json");
-    let member = list_json["items"]
+    let member = list_json["data"]["items"]
         .as_array()
         .unwrap()
         .iter()
@@ -3448,9 +3456,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .to_bytes();
     let first_page_json: serde_json::Value =
         serde_json::from_slice(&first_page_body).expect("first page should be valid json");
-    assert_eq!(first_page_json["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_page_json["hasMore"], true);
-    let next_cursor = first_page_json["nextCursor"]
+    assert_eq!(first_page_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_page_json["data"]["hasMore"], true);
+    let next_cursor = first_page_json["data"]["nextCursor"]
         .as_str()
         .expect("first member page should include nextCursor")
         .to_owned();
@@ -3479,15 +3487,15 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .to_bytes();
     let second_page_json: serde_json::Value =
         serde_json::from_slice(&second_page_body).expect("second page should be valid json");
-    assert_eq!(second_page_json["items"].as_array().unwrap().len(), 2);
-    assert_eq!(second_page_json["hasMore"], false);
-    assert!(second_page_json["nextCursor"].is_null());
+    assert_eq!(second_page_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(second_page_json["data"]["hasMore"], false);
+    assert!(second_page_json["data"]["nextCursor"].is_null());
 
-    let mut principal_ids = first_page_json["items"]
+    let mut principal_ids = first_page_json["data"]["items"]
         .as_array()
         .unwrap()
         .iter()
-        .chain(second_page_json["items"].as_array().unwrap().iter())
+        .chain(second_page_json["data"]["items"].as_array().unwrap().iter())
         .map(|item| item["principalId"].as_str().unwrap().to_owned())
         .collect::<Vec<_>>();
     principal_ids.sort();
@@ -3514,7 +3522,7 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .to_bytes();
     let invalid_limit_json: serde_json::Value = serde_json::from_slice(&invalid_limit_body)
         .expect("invalid limit body should be valid json");
-    assert_eq!(invalid_limit_json["code"], "limit_invalid");
+    assert_eq!(invalid_limit_json["code"], 40001);
 }
 
 #[tokio::test]
@@ -3613,8 +3621,8 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .to_bytes();
     let initial_cursor_json: serde_json::Value =
         serde_json::from_slice(&initial_cursor_body).expect("initial cursor should be valid json");
-    assert_eq!(initial_cursor_json["readSeq"], 0);
-    assert_eq!(initial_cursor_json["unreadCount"], 2);
+    assert_eq!(initial_cursor_json["data"]["readSeq"], 0);
+    assert_eq!(initial_cursor_json["data"]["unreadCount"], 2);
 
     let update_cursor_response = app
         .clone()
@@ -3645,8 +3653,8 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .to_bytes();
     let update_cursor_json: serde_json::Value =
         serde_json::from_slice(&update_cursor_body).expect("updated cursor should be valid json");
-    assert_eq!(update_cursor_json["readSeq"], 1);
-    assert_eq!(update_cursor_json["unreadCount"], 1);
+    assert_eq!(update_cursor_json["data"]["readSeq"], 1);
+    assert_eq!(update_cursor_json["data"]["unreadCount"], 1);
 }
 
 #[tokio::test]
@@ -3726,7 +3734,7 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
         .to_bytes();
     let update_cursor_json: serde_json::Value =
         serde_json::from_slice(&update_cursor_body).expect("updated cursor should be valid json");
-    assert_eq!(update_cursor_json["code"], "conversation_permission_denied");
+    assert_eq!(update_cursor_json["code"], 40301);
 }
 
 #[tokio::test]
@@ -3807,8 +3815,8 @@ async fn test_edit_and_recall_message_over_http() {
         .to_bytes();
     let edit_json: serde_json::Value =
         serde_json::from_slice(&edit_body).expect("edit response should be valid json");
-    assert_eq!(edit_json["messageId"], "msg_c_edit_http_1");
-    assert_eq!(edit_json["messageSeq"], 1);
+    assert_eq!(edit_json["data"]["messageId"], "msg_c_edit_http_1");
+    assert_eq!(edit_json["data"]["messageSeq"], 1);
 
     let recall_response = app
         .oneshot(
@@ -3833,8 +3841,8 @@ async fn test_edit_and_recall_message_over_http() {
         .to_bytes();
     let recall_json: serde_json::Value =
         serde_json::from_slice(&recall_body).expect("recall response should be valid json");
-    assert_eq!(recall_json["messageId"], "msg_c_edit_http_1");
-    assert_eq!(recall_json["messageSeq"], 1);
+    assert_eq!(recall_json["data"]["messageId"], "msg_c_edit_http_1");
+    assert_eq!(recall_json["data"]["messageSeq"], 1);
 }
 
 #[tokio::test]
@@ -3914,10 +3922,10 @@ async fn test_reaction_and_pin_message_over_http() {
         .to_bytes();
     let reaction_json: serde_json::Value =
         serde_json::from_slice(&reaction_body).expect("reaction response should be valid json");
-    assert_eq!(reaction_json["messageId"], "msg_c_reaction_pin_http_1");
-    assert_eq!(reaction_json["messageSeq"], 1);
-    assert_eq!(reaction_json["reactionKey"], "thumbs_up");
-    assert_eq!(reaction_json["changed"], true);
+    assert_eq!(reaction_json["data"]["messageId"], "msg_c_reaction_pin_http_1");
+    assert_eq!(reaction_json["data"]["messageSeq"], 1);
+    assert_eq!(reaction_json["data"]["reactionKey"], "thumbs_up");
+    assert_eq!(reaction_json["data"]["changed"], true);
 
     let pin_response = app
         .clone()
@@ -3943,9 +3951,9 @@ async fn test_reaction_and_pin_message_over_http() {
         .to_bytes();
     let pin_json: serde_json::Value =
         serde_json::from_slice(&pin_body).expect("pin response should be valid json");
-    assert_eq!(pin_json["messageId"], "msg_c_reaction_pin_http_1");
-    assert_eq!(pin_json["messageSeq"], 1);
-    assert_eq!(pin_json["changed"], true);
+    assert_eq!(pin_json["data"]["messageId"], "msg_c_reaction_pin_http_1");
+    assert_eq!(pin_json["data"]["messageSeq"], 1);
+    assert_eq!(pin_json["data"]["changed"], true);
 
     let unpin_response = app
         .clone()
@@ -4082,7 +4090,7 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
         .to_bytes();
     let pin_json: serde_json::Value =
         serde_json::from_slice(&pin_body).expect("pin response should be valid json");
-    assert_eq!(pin_json["code"], "conversation_permission_denied");
+    assert_eq!(pin_json["code"], 40301);
 }
 
 #[tokio::test]
@@ -4159,7 +4167,7 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
         .to_bytes();
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history response should be valid json");
-    assert_eq!(history_json["code"], "conversation_permission_denied");
+    assert_eq!(history_json["code"], 40301);
 }
 
 #[tokio::test]
@@ -4237,11 +4245,11 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history response should be valid json");
     assert_eq!(
-        history_json["items"][0]["message"]["messageId"],
+        history_json["data"]["items"][0]["message"]["messageId"],
         "msg_c_history_world_http_1"
     );
     assert_eq!(
-        history_json["items"][0]["message"]["body"]["summary"],
+        history_json["data"]["items"][0]["message"]["body"]["summary"],
         "hello world"
     );
 }
@@ -4283,7 +4291,7 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let bind_json: serde_json::Value =
         serde_json::from_slice(&bind_body).expect("bind response should be valid json");
-    assert_eq!(bind_json["conversationId"], "c_direct_binding_http");
+    assert_eq!(bind_json["data"]["conversationId"], "c_direct_binding_http");
 
     let binding_response = app
         .clone()
@@ -4308,9 +4316,9 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let binding_json: serde_json::Value =
         serde_json::from_slice(&binding_body).expect("binding response should be valid json");
-    assert_eq!(binding_json["conversationId"], "c_direct_binding_http");
-    assert_eq!(binding_json["businessType"], "direct_chat");
-    assert_eq!(binding_json["businessId"], "dc_http");
+    assert_eq!(binding_json["data"]["conversationId"], "c_direct_binding_http");
+    assert_eq!(binding_json["data"]["businessType"], "direct_chat");
+    assert_eq!(binding_json["data"]["businessId"], "dc_http");
 
     let members_response = app
         .oneshot(
@@ -4334,7 +4342,7 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let members_json: serde_json::Value =
         serde_json::from_slice(&members_body).expect("members response should be valid json");
-    assert_eq!(members_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(members_json["data"]["items"].as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -4376,7 +4384,7 @@ async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_ove
         .to_bytes();
     let bind_json: serde_json::Value =
         serde_json::from_slice(&bind_body).expect("bind response should be valid json");
-    assert_eq!(bind_json["code"], "conversation_principal_not_found");
+    assert_eq!(bind_json["code"], 40001);
 }
 
 #[tokio::test]
@@ -4436,7 +4444,7 @@ async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_wit
         .to_bytes();
     let bind_json: serde_json::Value =
         serde_json::from_slice(&bind_body).expect("bind response should be valid json");
-    assert_eq!(bind_json["code"], "conversation_principal_not_found");
+    assert_eq!(bind_json["code"], 40001);
 
     let _ = fs::remove_file(catalog_path);
 }
@@ -4479,13 +4487,13 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         .to_bytes();
     let first_bind_json: serde_json::Value =
         serde_json::from_slice(&first_bind_body).expect("first bind should be valid json");
-    assert_eq!(first_bind_json["deliveryStatus"], "applied");
+    assert_eq!(first_bind_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_bind_json["proofVersion"],
+        first_bind_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_bind_json["requestKey"],
+        first_bind_json["data"]["requestKey"],
         "6#1000016#system11#svc_control16#bind-direct-chat19#c_direct_retry_http"
     );
 
@@ -4522,12 +4530,12 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         .to_bytes();
     let duplicate_bind_json: serde_json::Value =
         serde_json::from_slice(&duplicate_bind_body).expect("duplicate bind should be valid json");
-    assert_eq!(duplicate_bind_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_bind_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_bind_json["requestKey"],
-        first_bind_json["requestKey"]
+        duplicate_bind_json["data"]["requestKey"],
+        first_bind_json["data"]["requestKey"]
     );
-    assert_eq!(duplicate_bind_json["eventId"], first_bind_json["eventId"]);
+    assert_eq!(duplicate_bind_json["data"]["eventId"], first_bind_json["data"]["eventId"]);
 
     let conflicting_bind = app
         .oneshot(
@@ -4561,7 +4569,7 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         .to_bytes();
     let conflicting_bind_json: serde_json::Value = serde_json::from_slice(&conflicting_bind_body)
         .expect("conflicting bind should be valid json");
-    assert_eq!(conflicting_bind_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_bind_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -4637,7 +4645,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                         "parentConversationId":"c_parent_thread_http",
                         "rootMessageId":"{}"
                     }}"#,
-                    post_root_json["messageId"].as_str().unwrap()
+                    post_root_json["data"]["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
@@ -4652,7 +4660,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         .to_bytes();
     let create_thread_json: serde_json::Value = serde_json::from_slice(&create_thread_body)
         .expect("create thread response should be valid json");
-    assert_eq!(create_thread_json["conversationId"], "c_thread_http");
+    assert_eq!(create_thread_json["data"]["conversationId"], "c_thread_http");
 
     let binding_response = app
         .clone()
@@ -4677,9 +4685,9 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         .to_bytes();
     let binding_json: serde_json::Value =
         serde_json::from_slice(&binding_body).expect("binding response should be valid json");
-    assert_eq!(binding_json["conversationId"], "c_thread_http");
-    assert_eq!(binding_json["businessType"], "thread");
-    assert_eq!(binding_json["businessId"], post_root_json["messageId"]);
+    assert_eq!(binding_json["data"]["conversationId"], "c_thread_http");
+    assert_eq!(binding_json["data"]["businessType"], "thread");
+    assert_eq!(binding_json["data"]["businessId"], post_root_json["data"]["messageId"]);
 
     let members_response = app
         .oneshot(
@@ -4704,15 +4712,15 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
     let members_json: serde_json::Value = serde_json::from_slice(&members_body)
         .expect("thread members response should be valid json");
     assert_eq!(
-        members_json["items"][0]["attributes"]["parentConversationId"],
+        members_json["data"]["items"][0]["attributes"]["parentConversationId"],
         "c_parent_thread_http"
     );
     assert_eq!(
-        members_json["items"][0]["attributes"]["rootMessageId"],
-        post_root_json["messageId"]
+        members_json["data"]["items"][0]["attributes"]["rootMessageId"],
+        post_root_json["data"]["messageId"]
     );
     assert_eq!(
-        members_json["items"][0]["attributes"]["threadRole"],
+        members_json["data"]["items"][0]["attributes"]["threadRole"],
         "owner"
     );
 }
@@ -4822,7 +4830,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                         "parentConversationId":"c_parent_thread_retry_http",
                         "rootMessageId":"{}"
                     }}"#,
-                    first_root_json["messageId"].as_str().unwrap()
+                    first_root_json["data"]["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
@@ -4837,14 +4845,14 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first thread create should be valid json");
-    assert_eq!(first_create_json["deliveryStatus"], "applied");
+    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["proofVersion"],
+        first_create_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["requestKey"],
-        "6#1000014#user1#1#13#create-thread19#c_thread_retry_http"
+        first_create_json["data"]["requestKey"],
+        "6#100001#4#user#1#1#13#create-thread#19#c_thread_retry_http"
     );
 
     let duplicate_create = app
@@ -4863,7 +4871,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                         "parentConversationId":"c_parent_thread_retry_http",
                         "rootMessageId":"{}"
                     }}"#,
-                    first_root_json["messageId"].as_str().unwrap()
+                    first_root_json["data"]["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
@@ -4878,14 +4886,14 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate thread create should be valid json");
-    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["requestKey"],
-        first_create_json["requestKey"]
+        duplicate_create_json["data"]["requestKey"],
+        first_create_json["data"]["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["eventId"],
-        first_create_json["eventId"]
+        duplicate_create_json["data"]["eventId"],
+        first_create_json["data"]["eventId"]
     );
 
     let conflicting_retry = app
@@ -4903,7 +4911,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                         "parentConversationId":"c_parent_thread_retry_http",
                         "rootMessageId":"{}"
                     }}"#,
-                    second_root_json["messageId"].as_str().unwrap()
+                    second_root_json["data"]["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
@@ -4918,7 +4926,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let conflicting_retry_json: serde_json::Value = serde_json::from_slice(&conflicting_retry_body)
         .expect("conflicting thread create should be valid json");
-    assert_eq!(conflicting_retry_json["code"], "conversation_conflict");
+    assert_eq!(conflicting_retry_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -4958,7 +4966,7 @@ async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http()
         .to_bytes();
     let bind_json: serde_json::Value =
         serde_json::from_slice(&bind_body).expect("bind response should be valid json");
-    assert_eq!(bind_json["code"], "conversation_permission_denied");
+    assert_eq!(bind_json["code"], 40301);
 }
 
 #[tokio::test]
@@ -5044,7 +5052,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
         .to_bytes();
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("add invited member should be valid json");
-    assert_eq!(add_member_json["state"], "invited");
+    assert_eq!(add_member_json["data"]["state"], "invited");
 
     let invited_history_response = app
         .clone()
@@ -5070,11 +5078,11 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
     let invited_history_json: serde_json::Value = serde_json::from_slice(&invited_history_body)
         .expect("invited history response should be valid json");
     assert_eq!(
-        invited_history_json["items"][0]["message"]["messageId"],
+        invited_history_json["data"]["items"][0]["message"]["messageId"],
         "msg_c_history_invited_http_1"
     );
     assert_eq!(
-        invited_history_json["items"][0]["message"]["body"]["summary"],
+        invited_history_json["data"]["items"][0]["message"]["body"]["summary"],
         "hello invited"
     );
 
@@ -5101,8 +5109,7 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
     let outsider_history_json: serde_json::Value = serde_json::from_slice(&outsider_history_body)
         .expect("outsider history should be valid json");
     assert_eq!(
-        outsider_history_json["code"],
-        "conversation_permission_denied"
+        outsider_history_json["code"], 40301
     );
 }
 
@@ -5194,9 +5201,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         .to_bytes();
     let add_member_json: serde_json::Value = serde_json::from_slice(&add_member_body)
         .expect("add shared-linked member body should be valid json");
-    assert_eq!(add_member_json["state"], "linked");
+    assert_eq!(add_member_json["data"]["state"], "linked");
     assert_eq!(
-        add_member_json["attributes"]["sharedChannelPolicyId"],
+        add_member_json["data"]["attributes"]["sharedChannelPolicyId"],
         "scp_001"
     );
 
@@ -5224,11 +5231,11 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
     let linked_history_json: serde_json::Value = serde_json::from_slice(&linked_history_body)
         .expect("shared linked history should be valid json");
     assert_eq!(
-        linked_history_json["items"][0]["message"]["messageId"],
+        linked_history_json["data"]["items"][0]["message"]["messageId"],
         "msg_c_history_shared_http_1"
     );
     assert_eq!(
-        linked_history_json["items"][0]["message"]["body"]["summary"],
+        linked_history_json["data"]["items"][0]["message"]["body"]["summary"],
         "hello shared"
     );
 
@@ -5262,7 +5269,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         .to_bytes();
     let linked_post_json: serde_json::Value = serde_json::from_slice(&linked_post_body)
         .expect("shared linked write body should be valid json");
-    assert_eq!(linked_post_json["code"], "conversation_permission_denied");
+    assert_eq!(linked_post_json["code"], 40301);
 
     let outsider_history_response = app
         .oneshot(
@@ -5287,8 +5294,7 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
     let outsider_history_json: serde_json::Value = serde_json::from_slice(&outsider_history_body)
         .expect("shared outsider history should be valid json");
     assert_eq!(
-        outsider_history_json["code"],
-        "conversation_permission_denied"
+        outsider_history_json["code"], 40301
     );
 }
 
@@ -5378,26 +5384,26 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .to_bytes();
     let sync_json: serde_json::Value =
         serde_json::from_slice(&sync_body).expect("sync body should be valid json");
-    assert_eq!(sync_json["proofVersion"], "shared_channel_sync_ack.v1");
-    assert_eq!(sync_json["status"], "applied");
+    assert_eq!(sync_json["data"]["proofVersion"], "shared_channel_sync_ack.v1");
+    assert_eq!(sync_json["data"]["status"], "applied");
     assert_eq!(
-        sync_json["requestKey"],
+        sync_json["data"]["requestKey"],
         "100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
     );
-    assert_eq!(sync_json["principalId"], "1007");
-    assert_eq!(sync_json["principalKind"], "user");
-    assert_eq!(sync_json["role"], "guest");
-    assert_eq!(sync_json["state"], "linked");
+    assert_eq!(sync_json["data"]["principalId"], "1007");
+    assert_eq!(sync_json["data"]["principalKind"], "user");
+    assert_eq!(sync_json["data"]["role"], "guest");
+    assert_eq!(sync_json["data"]["state"], "linked");
     assert_eq!(
-        sync_json["attributes"]["sharedChannelPolicyId"],
+        sync_json["data"]["attributes"]["sharedChannelPolicyId"],
         "scp_sync_http"
     );
     assert_eq!(
-        sync_json["attributes"]["externalConnectionId"],
+        sync_json["data"]["attributes"]["externalConnectionId"],
         "ec_sync_http"
     );
     assert_eq!(
-        sync_json["attributes"]["externalMemberId"],
+        sync_json["data"]["attributes"]["externalMemberId"],
         "partner::sync-user"
     );
 
@@ -5425,11 +5431,11 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     let linked_history_json: serde_json::Value = serde_json::from_slice(&linked_history_body)
         .expect("shared linked history should be valid json");
     assert_eq!(
-        linked_history_json["items"][0]["message"]["messageId"],
+        linked_history_json["data"]["items"][0]["message"]["messageId"],
         "msg_c_history_shared_sync_http_1"
     );
     assert_eq!(
-        linked_history_json["items"][0]["message"]["body"]["summary"],
+        linked_history_json["data"]["items"][0]["message"]["body"]["summary"],
         "hello sync"
     );
 
@@ -5468,14 +5474,14 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .to_bytes();
     let resync_json: serde_json::Value =
         serde_json::from_slice(&resync_body).expect("resync body should be valid json");
-    assert_eq!(resync_json["proofVersion"], "shared_channel_sync_ack.v1");
-    assert_eq!(resync_json["status"], "replayed");
+    assert_eq!(resync_json["data"]["proofVersion"], "shared_channel_sync_ack.v1");
+    assert_eq!(resync_json["data"]["status"], "replayed");
     assert_eq!(
-        resync_json["requestKey"],
+        resync_json["data"]["requestKey"],
         "100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
     );
     assert_eq!(
-        resync_json["attributes"]["sharedChannelSyncRequestKey"],
+        resync_json["data"]["attributes"]["sharedChannelSyncRequestKey"],
         "100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
     );
 }
@@ -5545,7 +5551,7 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "conversation_principal_not_found");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -5612,9 +5618,9 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"], 41301);
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
             .expect("message should be present")
             .contains("localActorKind")

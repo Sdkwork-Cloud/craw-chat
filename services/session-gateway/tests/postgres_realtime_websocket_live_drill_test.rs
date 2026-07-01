@@ -17,7 +17,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
 const CORE_SCHEMA_SQL: &str = include_str!(
-    "../../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    "../../../database/ddl/baseline/postgres/0001_im_baseline.sql"
 );
 const TENANT_ID_PREFIX: &str = "t_ws_pg_drill";
 const PRINCIPAL_ID_PREFIX: &str = "1132";

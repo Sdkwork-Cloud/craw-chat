@@ -60,7 +60,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_record_list_and_export_audit_over_http() {
-    let app = audit_service::build_default_app();
+    let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     let record_response = app
         .clone()
@@ -69,6 +69,7 @@ async fn test_record_list_and_export_audit_over_http() {
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -94,6 +95,7 @@ async fn test_record_list_and_export_audit_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -111,10 +113,11 @@ async fn test_record_list_and_export_audit_over_http() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list body should be valid json");
-    assert_eq!(list_json["items"][0]["recordId"], "audit_http_demo");
-    assert_eq!(list_json["items"][0]["auditSeq"], 1);
-    assert_eq!(list_json["nextAfterAuditSeq"], 1);
-    assert_eq!(list_json["hasMore"], false);
+    assert_eq!(list_json["code"], 0);
+    assert_eq!(list_json["data"]["items"][0]["recordId"], "audit_http_demo");
+    assert_eq!(list_json["data"]["items"][0]["auditSeq"], 1);
+    assert_eq!(list_json["data"]["nextAfterAuditSeq"], 1);
+    assert_eq!(list_json["data"]["hasMore"], false);
 
     let export_response = app
         .clone()
@@ -122,6 +125,7 @@ async fn test_record_list_and_export_audit_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/audit/export")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -139,14 +143,19 @@ async fn test_record_list_and_export_audit_over_http() {
         .to_bytes();
     let export_json: serde_json::Value =
         serde_json::from_slice(&export_body).expect("export body should be valid json");
-    assert_eq!(export_json["total"], 1);
-    assert_eq!(export_json["items"][0]["action"], "notification.requested");
+    assert_eq!(export_json["code"], 0);
+    assert_eq!(export_json["data"]["total"], 1);
+    assert_eq!(
+        export_json["data"]["items"][0]["action"],
+        "notification.requested"
+    );
 
     let verify_response = app
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/verify")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -164,18 +173,21 @@ async fn test_record_list_and_export_audit_over_http() {
         .to_bytes();
     let verify_json: serde_json::Value =
         serde_json::from_slice(&verify_body).expect("verify body should be valid json");
-    assert_eq!(verify_json["tenantId"], "100001");
-    assert_eq!(verify_json["total"], 1);
-    assert_eq!(verify_json["chainValid"], true);
+    assert_eq!(verify_json["code"], 0);
+    assert_eq!(verify_json["data"]["tenantId"], "100001");
+    assert_eq!(verify_json["data"]["total"], 1);
+    assert_eq!(verify_json["data"]["chainValid"], true);
     assert!(
-        verify_json["chainHeadHash"].as_str().is_some(),
+        verify_json["data"]["chainHeadHash"]
+            .as_str()
+            .is_some(),
         "verify response should include chain head hash when records exist"
     );
 }
 
 #[tokio::test]
 async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
-    let app = audit_service::build_default_app();
+    let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     for (record_id, action) in [
         ("audit_http_window_first", "notification.requested"),
@@ -189,6 +201,7 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
                     .method("POST")
                     .uri("/backend/v3/api/audit/records")
                     .with_dual_token_tenant("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("audit.write,audit.read")
@@ -215,6 +228,7 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/audit/records?afterAuditSeq=0&limit=2")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.read")
@@ -232,17 +246,24 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         .to_bytes();
     let first_window_json: serde_json::Value =
         serde_json::from_slice(&first_window_body).expect("first audit window should be json");
-    assert_eq!(first_window_json["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_window_json["items"][0]["auditSeq"], 1);
-    assert_eq!(first_window_json["items"][1]["auditSeq"], 2);
-    assert_eq!(first_window_json["nextAfterAuditSeq"], 2);
-    assert_eq!(first_window_json["hasMore"], true);
+    assert_eq!(
+        first_window_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(first_window_json["data"]["items"][0]["auditSeq"], 1);
+    assert_eq!(first_window_json["data"]["items"][1]["auditSeq"], 2);
+    assert_eq!(first_window_json["data"]["nextAfterAuditSeq"], 2);
+    assert_eq!(first_window_json["data"]["hasMore"], true);
 
     let second_window_response = app
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records?afterAuditSeq=2&limit=2")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.read")
@@ -260,19 +281,25 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         .to_bytes();
     let second_window_json: serde_json::Value =
         serde_json::from_slice(&second_window_body).expect("second audit window should be json");
-    assert_eq!(second_window_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_window_json["items"][0]["auditSeq"], 3);
     assert_eq!(
-        second_window_json["items"][0]["action"],
+        second_window_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(second_window_json["data"]["items"][0]["auditSeq"], 3);
+    assert_eq!(
+        second_window_json["data"]["items"][0]["action"],
         "notification.delivered"
     );
-    assert_eq!(second_window_json["nextAfterAuditSeq"], 3);
-    assert_eq!(second_window_json["hasMore"], false);
+    assert_eq!(second_window_json["data"]["nextAfterAuditSeq"], 3);
+    assert_eq!(second_window_json["data"]["hasMore"], false);
 }
 
 #[tokio::test]
 async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected() {
-    let app = audit_service::build_default_app();
+    let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     let first_record = app
         .clone()
@@ -281,6 +308,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -307,9 +335,9 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .to_bytes();
     let first_record_json: serde_json::Value =
         serde_json::from_slice(&first_record_body).expect("first record should be valid json");
-    assert_eq!(first_record_json["deliveryStatus"], "applied");
+    assert_eq!(first_record_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_record_json["proofVersion"],
+        first_record_json["data"]["proofVersion"],
         "audit.record.delivery-proof.v1"
     );
 
@@ -320,6 +348,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -346,10 +375,10 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .to_bytes();
     let duplicate_record_json: serde_json::Value = serde_json::from_slice(&duplicate_record_body)
         .expect("duplicate record should be valid json");
-    assert_eq!(duplicate_record_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_record_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_record_json["requestKey"],
-        first_record_json["requestKey"]
+        duplicate_record_json["data"]["requestKey"],
+        first_record_json["data"]["requestKey"]
     );
 
     let list_records = app
@@ -358,6 +387,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -375,7 +405,13 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .to_bytes();
     let list_records_json: serde_json::Value =
         serde_json::from_slice(&list_records_body).expect("list records should be valid json");
-    assert_eq!(list_records_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        list_records_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 
     let conflicting_record = app
         .oneshot(
@@ -383,6 +419,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -410,12 +447,12 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
     let conflicting_record_json: serde_json::Value =
         serde_json::from_slice(&conflicting_record_body)
             .expect("conflicting record should be valid json");
-    assert_eq!(conflicting_record_json["code"], "audit_record_conflict");
+    assert_eq!(conflicting_record_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
 async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
-    let app = audit_service::build_default_app();
+    let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     let first_record = app
         .clone()
@@ -424,6 +461,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_session("s_before")
@@ -451,7 +489,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .to_bytes();
     let first_record_json: serde_json::Value =
         serde_json::from_slice(&first_record_body).expect("first record should be valid json");
-    assert_eq!(first_record_json["deliveryStatus"], "applied");
+    assert_eq!(first_record_json["data"]["deliveryStatus"], "applied");
 
     let duplicate_record = app
         .clone()
@@ -460,6 +498,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_session("s_after")
@@ -487,10 +526,10 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .to_bytes();
     let duplicate_record_json: serde_json::Value = serde_json::from_slice(&duplicate_record_body)
         .expect("duplicate record should be valid json");
-    assert_eq!(duplicate_record_json["deliveryStatus"], "replayed");
+    assert_eq!(duplicate_record_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_record_json["requestKey"],
-        first_record_json["requestKey"]
+        duplicate_record_json["data"]["requestKey"],
+        first_record_json["data"]["requestKey"]
     );
 
     let list_records = app
@@ -498,6 +537,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -515,12 +555,18 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .to_bytes();
     let list_records_json: serde_json::Value =
         serde_json::from_slice(&list_records_body).expect("list records should be valid json");
-    assert_eq!(list_records_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        list_records_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 }
 
 #[tokio::test]
 async fn test_record_audit_rejects_oversized_payload_over_http() {
-    let app = audit_service::build_default_app();
+    let app = sdkwork_routes_im_audit_backend_api::build_public_app();
     let request_body = serde_json::json!({
         "recordId": "audit_http_oversized_payload",
         "aggregateType": "notification",
@@ -536,6 +582,7 @@ async fn test_record_audit_rejects_oversized_payload_over_http() {
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("audit.write,audit.read")
@@ -555,11 +602,11 @@ async fn test_record_audit_rejects_oversized_payload_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"].as_i64(), Some(41301));
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("payload")
     );
 }

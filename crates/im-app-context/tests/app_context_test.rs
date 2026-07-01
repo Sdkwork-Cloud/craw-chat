@@ -10,10 +10,109 @@ use serde_json::{Value, json};
 
 static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+const TEST_JWT_ISSUER: &str = "https://iam.sdkwork.test";
+const TEST_JWT_AUDIENCE: &str = "sdkwork-im";
+
+fn lock_test_env() -> std::sync::MutexGuard<'static, ()> {
+    TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn ensure_test_dev_environment() {
     unsafe {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID");
+        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID");
+        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET");
+        std::env::remove_var("SDKWORK_IM_JWT_EXPECTED_ISSUERS");
+        std::env::remove_var("SDKWORK_IM_JWT_EXPECTED_AUDIENCES");
     }
+}
+
+fn configure_production_jwt_signing_env() {
+    unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID", "100001");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID", "bootstrap");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET", "prod-secret");
+        std::env::set_var("SDKWORK_IM_JWT_EXPECTED_ISSUERS", TEST_JWT_ISSUER);
+        std::env::set_var("SDKWORK_IM_JWT_EXPECTED_AUDIENCES", TEST_JWT_AUDIENCE);
+    }
+}
+
+fn configure_production_dev_jwt_secret_env() {
+    unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID", "100001");
+        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID", "bootstrap");
+        std::env::set_var(
+            "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET",
+            "sdkwork-im-dev-jwt-secret-not-for-production-use",
+        );
+        std::env::set_var("SDKWORK_IM_JWT_EXPECTED_ISSUERS", TEST_JWT_ISSUER);
+        std::env::set_var("SDKWORK_IM_JWT_EXPECTED_AUDIENCES", TEST_JWT_AUDIENCE);
+    }
+}
+
+struct TestDevEnvironment {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+fn test_dev_environment() -> TestDevEnvironment {
+    let guard = lock_test_env();
+    ensure_test_dev_environment();
+    TestDevEnvironment { _guard: guard }
+}
+
+struct TestProductionJwtEnvironment {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+impl Drop for TestProductionJwtEnvironment {
+    fn drop(&mut self) {
+        ensure_test_dev_environment();
+    }
+}
+
+fn test_production_jwt_environment() -> TestProductionJwtEnvironment {
+    let guard = lock_test_env();
+    configure_production_jwt_signing_env();
+    TestProductionJwtEnvironment { _guard: guard }
+}
+
+struct TestProductionDevJwtSecretEnvironment {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+impl Drop for TestProductionDevJwtSecretEnvironment {
+    fn drop(&mut self) {
+        ensure_test_dev_environment();
+    }
+}
+
+fn test_production_dev_jwt_secret_environment() -> TestProductionDevJwtSecretEnvironment {
+    let guard = lock_test_env();
+    configure_production_dev_jwt_secret_env();
+    TestProductionDevJwtSecretEnvironment { _guard: guard }
+}
+
+struct TestProductionEnvironment {
+    _guard: std::sync::MutexGuard<'static, ()>,
+}
+
+impl Drop for TestProductionEnvironment {
+    fn drop(&mut self) {
+        ensure_test_dev_environment();
+    }
+}
+
+fn test_production_environment() -> TestProductionEnvironment {
+    let guard = lock_test_env();
+    unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
+    }
+    TestProductionEnvironment { _guard: guard }
 }
 
 fn local_token(claims: Value) -> String {
@@ -26,16 +125,6 @@ fn local_token(claims: Value) -> String {
     let header = base64url_encode(r#"{"alg":"none","typ":"JWT"}"#.as_bytes());
     let payload = base64url_encode(claims.to_string().as_bytes());
     format!("{header}.{payload}.local")
-}
-
-struct TestDevEnvironment {
-    _guard: std::sync::MutexGuard<'static, ()>,
-}
-
-fn test_dev_environment() -> TestDevEnvironment {
-    let guard = TEST_ENV_LOCK.lock().expect("test env lock");
-    ensure_test_dev_environment();
-    TestDevEnvironment { _guard: guard }
 }
 
 fn build_token_headers() -> HeaderMap {
@@ -66,11 +155,6 @@ fn build_token_headers() -> HeaderMap {
         HeaderValue::from_str(token.as_str()).expect("access token header"),
     );
     headers
-}
-
-fn token_headers() -> HeaderMap {
-    let _env = test_dev_environment();
-    build_token_headers()
 }
 
 #[test]
@@ -387,16 +471,14 @@ fn test_resolve_app_context_rejects_expired_jwt() {
 
 #[test]
 fn test_resolve_app_context_rejects_unsigned_local_jwt_in_production() {
-    let _guard = TEST_ENV_LOCK.lock().expect("test env lock");
-    let headers = build_token_headers();
+    let _env = test_production_environment();
     unsafe {
-        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET");
     }
+    let headers = build_token_headers();
     let error = resolve_app_context(&headers).expect_err("unsigned local jwt must fail");
-    ensure_test_dev_environment();
     assert_eq!(error.code(), "app_context_invalid");
     assert!(error.message().contains("unsigned local JWT"));
 }
@@ -404,6 +486,10 @@ fn test_resolve_app_context_rejects_unsigned_local_jwt_in_production() {
 fn signed_dual_token_headers(tenant_id: &str, secret: &str, key_id: &str) -> HeaderMap {
     use sdkwork_web_core::encode_hs256_test_jwt_with_kid;
 
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .unwrap_or(0);
     let claims = json!({
         "tenant_id": tenant_id,
         "organization_id": "o_demo",
@@ -418,7 +504,10 @@ fn signed_dual_token_headers(tenant_id: &str, secret: &str, key_id: &str) -> Hea
         "actor_id": "1",
         "actor_kind": "user",
         "permission_scope": ["ops.read"],
-        "data_scope": ["tenant"]
+        "data_scope": ["tenant"],
+        "iss": TEST_JWT_ISSUER,
+        "aud": TEST_JWT_AUDIENCE,
+        "exp": now + 3600
     });
     let token = encode_hs256_test_jwt_with_kid(secret, key_id, claims);
     let mut headers = HeaderMap::new();
@@ -434,69 +523,54 @@ fn signed_dual_token_headers(tenant_id: &str, secret: &str, key_id: &str) -> Hea
 }
 
 #[test]
+fn test_resolve_app_context_rejects_dev_jwt_signing_secret_in_production() {
+    let _env = test_production_dev_jwt_secret_environment();
+    let headers = signed_dual_token_headers(
+        "100001",
+        "sdkwork-im-dev-jwt-secret-not-for-production-use",
+        "bootstrap",
+    );
+    let error = resolve_app_context(&headers)
+        .expect_err("production must reject the public dev JWT signing secret");
+    assert_eq!(error.code(), "app_context_invalid");
+    assert!(error.message().contains("dev/test JWT signing secret"));
+}
+
+#[test]
 fn test_resolve_app_context_accepts_signed_jwt_in_production() {
-    let _guard = TEST_ENV_LOCK.lock().expect("test env lock");
-    unsafe {
-        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
-        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID", "100001");
-        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID", "bootstrap");
-        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET", "prod-secret");
-    }
+    let _env = test_production_jwt_environment();
     let headers = signed_dual_token_headers("100001", "prod-secret", "bootstrap");
     let context = resolve_app_context(&headers).expect("signed jwt must resolve");
     assert_eq!(context.tenant_id, "100001");
     assert_eq!(context.user_id, "1");
-    ensure_test_dev_environment();
-    unsafe {
-        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID");
-        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID");
-        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET");
-    }
 }
 
 #[test]
 fn test_resolve_app_context_rejects_signed_jwt_without_signing_config_in_production() {
-    let _guard = TEST_ENV_LOCK.lock().expect("test env lock");
+    let _env = test_production_environment();
     unsafe {
-        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID");
         std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET");
     }
     let headers = signed_dual_token_headers("100001", "prod-secret", "bootstrap");
     let error = resolve_app_context(&headers).expect_err("signed jwt without config must fail");
-    ensure_test_dev_environment();
     assert_eq!(error.code(), "app_context_invalid");
     assert!(error.message().contains("signed JWT verification requires"));
 }
 
 #[test]
 fn test_resolve_app_context_rejects_tampered_signed_jwt_in_production() {
-    let _guard = TEST_ENV_LOCK.lock().expect("test env lock");
-    unsafe {
-        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
-        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID", "100001");
-        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID", "bootstrap");
-        std::env::set_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET", "prod-secret");
-    }
+    let _env = test_production_jwt_environment();
     let headers = signed_dual_token_headers("t_other", "prod-secret", "bootstrap");
     let error = resolve_app_context(&headers).expect_err("tenant mismatch must fail");
-    ensure_test_dev_environment();
-    unsafe {
-        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID");
-        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID");
-        std::env::remove_var("SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET");
-    }
     assert_eq!(error.code(), "app_context_invalid");
     assert!(error.message().contains("tenant_id"));
 }
 
 #[test]
 fn test_resolve_app_context_rejects_raw_json_bearer_outside_dev_test() {
-    let _env = TEST_ENV_LOCK.lock().expect("test env lock");
-    unsafe {
-        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
-    }
+    let _env = test_production_environment();
     let mut headers = HeaderMap::new();
     let json_token = r#"{"tenant_id":"t_evil","user_id":"u_evil","organization_id":"0","actor_id":"u_evil","actor_kind":"user","permission_scope":["*"],"data_scope":["tenant"]}"#;
     headers.insert(
@@ -510,7 +584,6 @@ fn test_resolve_app_context_rejects_raw_json_bearer_outside_dev_test() {
     let error = resolve_app_context(&headers).expect_err("raw JSON bearer must fail in production");
     assert_eq!(error.code(), "app_context_invalid");
     assert!(error.message().contains("JSON bearer"));
-    ensure_test_dev_environment();
 }
 
 #[test]

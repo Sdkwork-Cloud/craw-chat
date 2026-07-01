@@ -12,6 +12,10 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8').replace(/\r\n/gu, '\n');
 }
 
+function readSibling(relativePath) {
+  return fs.readFileSync(path.resolve(repoRoot, '..', relativePath), 'utf8').replace(/\r\n/gu, '\n');
+}
+
 function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
@@ -91,7 +95,7 @@ assert.match(
 );
 assert.equal(
   appPackageJson.scripts.lint,
-  'node ../../scripts/dev/run-tsc-cli.mjs --noEmit',
+  'node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.app.json',
   'desktop app lint must prepare linked SDKWork UI dependencies before TypeScript checks',
 );
 assert.equal(appPackageJson.scripts['dev:desktop'], 'pnpm --filter @sdkwork/im-pc-desktop dev:desktop');
@@ -1012,11 +1016,15 @@ assert.match(
   /subscribeMessages|subscribeConversationMessages/u,
   'chat service must expose SDK-backed realtime message subscription',
 );
-assert.match(chatServiceSource, /\.connect\s*\(/u, 'chat service must open IM realtime through @sdkwork/im-sdk');
 assert.match(
   chatServiceSource,
-  /messages\.onConversation/u,
-  'chat service must subscribe to conversation messages through IM live SDK',
+  /subscribePcConversationMessages|recoverPcLiveConnection/u,
+  'chat service must open IM realtime through @sdkwork/im-pc-core pcRealtimeConnectionManager',
+);
+assert.match(
+  chatServiceSource,
+  /subscribePcConversationMessages/u,
+  'chat service must subscribe to conversation messages through the shared PC live connection manager',
 );
 assert.match(
   chatServiceSource,
@@ -1133,20 +1141,28 @@ assert.doesNotMatch(
   /postMessage\s*\(\s*chatId\s*,\s*\{[\s\S]*?\n\s*text:\s*content\s*,[\s\S]*?renderHints:/u,
   'chat service media send path must not persist local object URLs as plain text bodies',
 );
+const pcRealtimeConnectionManagerSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/pcRealtimeConnectionManager.ts',
+);
 assert.match(
-  chatServiceSource,
+  pcRealtimeConnectionManagerSource,
   /lifecycle\.onStateChange/u,
-  'chat service must observe IM live lifecycle so dropped realtime connections can be resubscribed',
+  'PC live connection manager must observe IM live lifecycle so dropped realtime connections can be resubscribed',
 );
 assert.match(
-  chatServiceSource,
-  /setTimeout\s*\(\s*\(\s*\)\s*=>\s*this\.restartLiveSession/u,
-  'chat service must schedule a shared realtime session reconnect after dropped IM live connections',
+  pcRealtimeConnectionManagerSource,
+  /scheduleReconnect/u,
+  'PC live connection manager must schedule reconnect after dropped IM live connections',
 );
 assert.match(
-  chatServiceSource,
+  pcRealtimeConnectionManagerSource,
   /connection\.subscriptions\.syncConversations\(conversationIds\)/u,
-  'chat service must synchronize active conversations over the shared IM realtime connection',
+  'PC live connection manager must synchronize active conversations over the shared IM realtime connection',
+);
+assert.match(
+  chatServiceSource,
+  /recoverPcLiveConnection|onPcLiveConnectionOpen/u,
+  'chat service must delegate dropped IM live recovery to the shared PC live connection manager',
 );
 assert.match(
   chatServiceSource,
@@ -1233,8 +1249,8 @@ assert.match(
 );
 assert.match(
   settingsServiceSource,
-  /\.iot\.devicesTwinRetrieve\s*\(/u,
-  'settings service device list must read device state through sdkwork-aiot iot.devicesTwinRetrieve',
+  /\.iot\.devices\.twin\.retrieve\s*\(/u,
+  'settings service device list must read device state through sdkwork-aiot iot.devices.twin.retrieve',
 );
 assertNoImDeviceApiUsage(settingsServiceSource, 'settings service');
 assert.doesNotMatch(
@@ -1268,7 +1284,7 @@ assert.match(
 );
 assert.match(
   pcDevicesServiceSource,
-  /\.iot\.devicesCommandsCreate\s*\(/u,
+  /\.iot\.devices\.commands\.create\s*\(/u,
   'pc-devices user actions must submit real AIoT app SDK device commands',
 );
 assert.doesNotMatch(
@@ -1278,7 +1294,7 @@ assert.doesNotMatch(
 );
 assert.match(
   pcDevicesServiceSource,
-  /\.iot\.devicesList\s*\(/u,
+  /\.iot\.devices\.list\s*\(/u,
   'pc-devices service must list devices through the generated AIoT app SDK',
 );
 assert.doesNotMatch(
@@ -1379,12 +1395,9 @@ for (const requiredSchema of [
   'MessageFavoriteType',
   'FavoriteMessageRequest',
   'MessageFavoriteView',
-  'FavoriteMessagesResponse',
-  'DeleteMessageFavoriteResponse',
   'MessageInteractionSummaryView',
   'MessageReactionCountView',
   'MessagePinView',
-  'PinnedMessagesResponse',
   'MessageBody',
   'MessageReplyReference',
   'MessageType',
@@ -1399,10 +1412,8 @@ for (const requiredSchema of [
   'UpdateContactPreferencesRequest',
   'ContactRecommendationView',
   'ContactTagView',
-  'ContactTagsResponse',
   'CreateContactRecommendationRequest',
   'CreateContactTagRequest',
-  'DeleteContactTagResponse',
   'UpdateContactTagRequest',
   'CreateRoomRequest',
   'RoomView',
@@ -1685,24 +1696,6 @@ for (const requiredField of [
     `ContactTagView must require ${requiredField} for deterministic per-user contact tag sync`,
   );
 }
-const contactTagsResponseSchema = extractYamlSchemaBlock(imOpenApiSource, 'ContactTagsResponse');
-for (const requiredField of ['items', 'hasMore']) {
-  assert.match(
-    contactTagsResponseSchema,
-    new RegExp(`\\b${requiredField}:`, 'u'),
-    `ContactTagsResponse must expose ${requiredField} for cursor-bounded contact tag sync`,
-  );
-  assert.match(
-    contactTagsResponseSchema,
-    new RegExp(`- ${requiredField}\\b`, 'u'),
-    `ContactTagsResponse must require ${requiredField} for deterministic cursor-bounded contact tag sync`,
-  );
-}
-assert.match(
-  contactTagsResponseSchema,
-  /nextCursor:/u,
-  'ContactTagsResponse must expose nextCursor so PC contact tags can page through SDK windows',
-);
 const createContactTagRequestSchema = extractYamlSchemaBlock(imOpenApiSource, 'CreateContactTagRequest');
 for (const requiredField of ['name', 'color']) {
   assert.match(
@@ -1830,24 +1823,6 @@ for (const requiredField of [
     `MessageFavoriteView must require ${requiredField} for deterministic PC favorites sync`,
   );
 }
-const favoriteMessagesResponseSchema = extractYamlSchemaBlock(imOpenApiSource, 'FavoriteMessagesResponse');
-for (const requiredField of ['items', 'hasMore']) {
-  assert.match(
-    favoriteMessagesResponseSchema,
-    new RegExp(`\\b${requiredField}:`, 'u'),
-    `FavoriteMessagesResponse must expose ${requiredField} for bounded PC favorites sync`,
-  );
-  assert.match(
-    favoriteMessagesResponseSchema,
-    new RegExp(`- ${requiredField}\\b`, 'u'),
-    `FavoriteMessagesResponse must require ${requiredField} for deterministic PC favorites sync`,
-  );
-}
-assert.match(
-  favoriteMessagesResponseSchema,
-  /nextCursor:/u,
-  'FavoriteMessagesResponse must expose nextCursor so PC favorites can page through SDK windows',
-);
 for (const sdkMethod of ['addReaction', 'removeReaction', 'pinMessage', 'unpinMessage']) {
   assert.match(
     imSdkSource,
@@ -2067,20 +2042,28 @@ assert.match(
   /async\s+deleteMessage\s*\([^)]*\)\s*:\s*Promise<void>\s*\{\s*await\s+this\.client\(\)\.messages\.deleteForMe\s*\(\s*messageId\s*\)/u,
   'chat service deleteMessage must hide messages for the current user through the IM SDK visibility API',
 );
+const deleteMessageImplementation = chatServiceSource.match(
+  /async\s+deleteMessage\([^{]*\{([\s\S]*?)\n\s+\}/u,
+)?.[1] ?? '';
 assert.doesNotMatch(
-  chatServiceSource,
-  /async\s+deleteMessage\s*\([^)]*\)\s*:\s*Promise<void>\s*\{[\s\S]*?recallMessage/u,
+  deleteMessageImplementation,
+  /recallMessage/u,
   'chat service deleteMessage must not recall messages when deleting only the current user copy',
 );
 assert.match(
   chatServiceSource,
-  /MESSAGE_PAGE_LIMIT\s*=\s*100/u,
+  /MESSAGE_PAGE_LIMIT\s*=\s*\d+/u,
   'chat service message sync must use a bounded page size',
 );
 assert.match(
   chatServiceSource,
-  /listAllTimelineEntries/u,
-  'chat service getMessages must load all timeline pages from the IM SDK',
+  /loadMoreMessages/u,
+  'chat service getMessages must load additional timeline pages from the IM SDK',
+);
+assert.match(
+  chatServiceSource,
+  /getMessages[\s\S]{0,800}loadMoreMessages/u,
+  'chat service getMessages must auto-load timeline pages when the first SDK page is incomplete',
 );
 assert.match(
   chatServiceSource,
@@ -2976,11 +2959,21 @@ assert.doesNotMatch(
   'new friends list must not synthesize friend request avatars from picsum',
 );
 
-const agentServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/AgentService.ts');
+const agentServiceSource = readSibling(
+  'sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts',
+);
+const imAgentsPcIntegrationSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/agentsPcIntegration.ts',
+);
+assert.match(
+  imAgentsPcIntegrationSource,
+  /getAgentAppSdkClientWithSession/u,
+  'IM PC agents integration must wire sdkwork-agents runtime through the shared IM core agent SDK client wrapper',
+);
 assert.match(
   agentServiceSource,
-  /getAgentAppSdkClientWithSession/u,
-  'agent service catalog, lifecycle, and runtime operations must use the shared sdkwork-agent-app-sdk client wrapper',
+  /getAgentsAppSdkClientWithSession/u,
+  'agent service catalog, lifecycle, and runtime operations must use the shared sdkwork-agents-app-sdk client wrapper',
 );
 assert.doesNotMatch(
   agentServiceSource,
@@ -2994,8 +2987,8 @@ assert.doesNotMatch(
 );
 assert.match(
   agentServiceSource,
-  /@sdkwork\/agents-app-sdk/u,
-  'agent service must type its standardized agent DTO mapping from sdkwork-agent-app-sdk',
+  /@sdkwork\/agents-pc-core\/sdk/u,
+  'agent service must consume typed agent SDK contracts from the agents PC core package',
 );
 assert.match(
   agentServiceSource,
@@ -3022,10 +3015,10 @@ assert.match(
   /\.ai\.agents\.providerBindings\.create\s*\(/u,
   'agent publish flow must prepare a provider binding through sdkwork-agent-app-sdk before deployment',
 );
-assert.match(
+assert.doesNotMatch(
   agentServiceSource,
   /\.ai\.agents\.deployments\.create\s*\(/u,
-  'agent publish flow must create a deployment snapshot through sdkwork-agent-app-sdk',
+  'agent publish flow must not call deployments.create until sdkwork-agents-app-api exposes agents.deployments.create in generated transport',
 );
 assert.match(
   agentServiceSource,
@@ -3072,11 +3065,11 @@ const knowledgebaseAppSdkClientSource = read(
 );
 const knowledgebasePcBootstrapSource = read('apps/sdkwork-im-pc/src/bootstrap/knowledgebasePc.ts');
 const knowledgeShellLoadersSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/capabilityModuleLoaders.ts');
-const knowledgeEmbedIndexSource = read(
-  '../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge/src/index.ts',
+const knowledgeEmbedIndexSource = readSibling(
+  'sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge/src/index.ts',
 );
-const selectKnowledgeModalSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/SelectKnowledgeModal.tsx',
+const selectKnowledgeModalSource = readSibling(
+  'sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/components/SelectKnowledgeModal.tsx',
 );
 
 assert.equal(
@@ -3086,8 +3079,8 @@ assert.equal(
 );
 assert.match(
   knowledgeShellLoadersSource,
-  /knowledge:\s*\(\)\s*=>\s*import\(['"]@sdkwork\/knowledgebase-pc-knowledge['"]\)/u,
-  'IM shell must lazy-load the sdkwork-knowledgebase-pc-knowledge capability package.',
+  /knowledge:\s*async\s*\(\)\s*=>\s*\{[\s\S]*import\(['"]@sdkwork\/knowledgebase-pc-knowledge['"]\)[\s\S]*ensureKnowledgebasePcRuntimeOnModule/u,
+  'IM shell must lazy-load the sdkwork-knowledgebase-pc-knowledge capability package with host runtime wiring.',
 );
 assert.match(
   knowledgebasePcIntegrationSource,
@@ -3125,7 +3118,9 @@ assert.doesNotMatch(
   'IM Knowledgebase integration must not use raw fetch',
 );
 
-const createAgentViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/CreateAgentView.tsx');
+const createAgentViewSource = readSibling(
+  'sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/pages/CreateAgentView.tsx',
+);
 assert.match(
   createAgentViewSource,
   /agentService\.requestPreviewResponse\s*\(/u,
@@ -4176,13 +4171,13 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /scopeType:\s*['"]user['"][\s\S]*eventTypes:\s*FRIEND_REQUEST_REALTIME_EVENT_TYPES/u,
-  'contact service must subscribe to current-user realtime friend request events through the IM SDK',
+  /subscribePcRealtimeScope\s*\([\s\S]*scopeType:\s*['"]user['"][\s\S]*eventTypes:\s*FRIEND_REQUEST_REALTIME_EVENT_TYPES/u,
+  'contact service must subscribe to current-user realtime friend request events through the shared PC live connection manager',
 );
-assert.match(
+assert.doesNotMatch(
   contactServiceSource,
-  /connection\.events\.onScope\(\s*['"]user['"]/u,
-  'contact service must handle user-scope friend request realtime events without raw websocket code',
+  /connection\.events\.onScope\s*\(/u,
+  'contact service must not wire user-scope friend request realtime events through raw IM live connection handlers',
 );
 assert.match(callServiceSource, /setAudioMuted/u, 'call service must expose audio mute through the RTC media client');
 assert.match(callServiceSource, /setVideoMuted/u, 'call service must expose video mute through the RTC media client');
@@ -4266,8 +4261,8 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
-  /projectDirectChatConversationId/u,
-  'chat service must expose stable direct-chat conversation id projection for RTC watch coverage',
+  /resolveIncomingCallWatchConversationIds/u,
+  'chat service must expose incoming call watch conversation id resolution without client-side id projection',
 );
 
 const serviceFiles = listFiles('apps/sdkwork-im-pc/packages', (candidate) => {

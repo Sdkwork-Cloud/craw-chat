@@ -229,6 +229,16 @@ pub fn init_im_service_tracing_from_env() {
     sdkwork_web_bootstrap::init_tracing_from_env();
 }
 
+/// Install shared IM sqlx + r2d2 pools when PostgreSQL is configured.
+///
+/// Every IM HTTP/RPC process (standalone, cloud, unified-process, split-services)
+/// SHOULD call this before assembling routes or opening PostgreSQL adapters.
+pub async fn bootstrap_im_service_database_from_env() -> Result<(), String> {
+    sdkwork_im_database_pool::try_bootstrap_im_process_database_pools_from_env()
+        .await
+        .map(|_| ())
+}
+
 pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
     let environment = resolve_web_environment_from_process_env();
     let mut checks: Vec<Arc<dyn ReadinessCheck>> = Vec::new();
@@ -288,11 +298,28 @@ pub fn ensure_im_service_process_identity(service_name: &str) {
 
 /// Graceful shutdown signal for IM services.
 ///
-/// Returns an async handle that can be awaited to wait for SIGTERM/SIGINT signals.
-/// This is used by the gateway server to initiate graceful shutdown.
+/// Waits for SIGTERM or SIGINT (Ctrl+C). On Unix both signals initiate
+/// graceful drain; on Windows Ctrl+C is used.
 pub async fn shutdown_signal() {
-    // Use tokio's built-in signal handling for cross-platform support
-    let _ = tokio::signal::ctrl_c().await;
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        let mut sigterm = signal(SignalKind::terminate())
+            .expect("failed to install SIGTERM handler for graceful shutdown");
+        let mut sigint = signal(SignalKind::interrupt())
+            .expect("failed to install SIGINT handler for graceful shutdown");
+
+        tokio::select! {
+            _ = sigterm.recv() => {}
+            _ = sigint.recv() => {}
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 #[cfg(test)]

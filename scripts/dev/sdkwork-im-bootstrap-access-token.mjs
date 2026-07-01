@@ -19,9 +19,9 @@ export const SDKWORK_ACCESS_TOKEN_ENV_KEY = 'SDKWORK_ACCESS_TOKEN';
 // Previously this module imported a source file from the sibling sdkwork-iam
 // repository (`../../../sdkwork-iam/scripts/dev/create-dev-bootstrap-access-token-env.mjs`),
 // which in turn imported `@sdkwork/runtime-bootstrap`. That cross-repo source
-// import broke after pnpm cache/store cleanup because Node.js ESM resolution
+// import broke after package-manager cache/store cleanup because Node.js ESM resolution
 // walks `node_modules` starting from the physical file location inside
-// sdkwork-iam — a separate pnpm workspace whose `node_modules` may not contain
+// sdkwork-iam — a separate sibling workspace whose `node_modules` may not contain
 // `@sdkwork/runtime-bootstrap` after pruning.
 //
 // The `createTestJwt` function is a trivial unsigned-JWT factory used only for

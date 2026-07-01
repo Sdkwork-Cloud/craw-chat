@@ -57,16 +57,20 @@ impl ImRpcNameResolverBootstrap {
 }
 
 pub fn im_rpc_resolver_profile_from_env() -> ResolverProfile {
-    if let Ok(raw) = std::env::var(IM_RPC_RESOLVER_PROFILE_ENV) {
-        if let Some(profile) = ResolverProfile::parse(&raw) {
-            return profile;
-        }
+    // Collapsed nested if-let into a single chain
+    if let Some(profile) = std::env::var(IM_RPC_RESOLVER_PROFILE_ENV)
+        .ok()
+        .as_ref()
+        .and_then(|raw| ResolverProfile::parse(raw))
+    {
+        return profile;
     }
 
+    if discovery_endpoint_from_env().is_some() && static_endpoint_from_env().is_some() {
+        return ResolverProfile::Composite;
+    }
+    
     if discovery_endpoint_from_env().is_some() {
-        if static_endpoint_from_env().is_some() {
-            return ResolverProfile::Composite;
-        }
         return ResolverProfile::Discovery;
     }
 

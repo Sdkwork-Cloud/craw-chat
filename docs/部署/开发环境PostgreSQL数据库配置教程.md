@@ -105,7 +105,7 @@ pnpm db:postgres:migrate
 规范 DDL 基线位于：
 
 ```text
-database/ddl/baseline/postgres/0001_im_legacy_baseline.sql
+database/ddl/baseline/postgres/0001_im_baseline.sql
 ```
 
 `pnpm db:postgres:migrate` 委托 `database/` 生命周期模块与 `sdkwork-database-cli bootstrap` 执行迁移，不再直接引用 `deployments/database/` 遗留目录。

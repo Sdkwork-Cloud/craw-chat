@@ -14,10 +14,20 @@ const standardChecks = [
   'test:database-framework-standard',
   'test:rpc-framework-standard',
   'test:utils-standard',
+  'test:h5-utils-standard',
+  'test:h5-drive-app-sdk-integration',
+  'test:sdkwork-im-h5-architecture-standard',
+  'test:sdkwork-im-pc-architecture-standard',
+  'test:sdkwork-im-pc-sdk-integration',
+  'test:flutter-drive-standard',
+  'test:chat-drive-upload-attribution-standard',
+  'test:production-security-standard',
+  'test:app-context-module-standard',
   'test:runtime-standard',
   'test:retention-enforcement-standard',
   'test:observability-bootstrap-standard',
   'test:sdkwork-im-iam-application-bootstrap-standard',
+  'test:im-member-capability-alignment',
   'test:runtime-id-standard',
   'test:deprecated-service-boundary',
   'test:topology-baggage',
@@ -34,6 +44,8 @@ const standardChecks = [
   'test:docs-strip-damage',
   'test:component-spec-consistency',
   'test:apis-authority-standard',
+  'check:api-response-envelope',
+  'check:tailwind-integration',
   'check:agent-workflow-standard',
   'check:unified-postgres-profile',
   'check:pnpm-script-standard',
@@ -73,6 +85,19 @@ for (const scriptName of standardChecks) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
+}
+
+const compositionVerify = spawnSync(
+  process.execPath,
+  ['../sdkwork-specs/tools/verify-repo.mjs', '--root', repoRoot],
+  {
+    cwd: repoRoot,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  },
+);
+if (compositionVerify.status !== 0) {
+  process.exit(compositionVerify.status ?? 1);
 }
 
 const workspaceAudit = spawnSync(

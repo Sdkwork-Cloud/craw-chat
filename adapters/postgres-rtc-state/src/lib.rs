@@ -2,7 +2,7 @@
 //!
 //! This adapter implements [`StateStore`] from `im-domain-core::rtc` using
 //! the `im_rtc_sessions` table (defined in
-//! `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql` and extended
+//! `database/ddl/baseline/postgres/0001_im_baseline.sql` and extended
 //! by migration `0008_im_rtc_state_machine_expansion`).
 //!
 //! ## Storage model
@@ -86,6 +86,20 @@ impl PostgresRtcStateConfig {
 
     /// Build the r2d2 connection pool.
     pub fn connect_pool(&self) -> Result<PostgresRtcPool, RtcContractError> {
+        if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
+            return Ok(pool);
+        }
+        if cfg!(test) {
+            return self.connect_pool_local();
+        }
+        Err(RtcContractError::Unavailable(
+            sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+                .err()
+                .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+        ))
+    }
+
+    fn connect_pool_local(&self) -> Result<PostgresRtcPool, RtcContractError> {
         verify_production_sslmode(self.database_url.as_str());
         let pg_config = self
             .database_url

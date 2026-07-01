@@ -1,8 +1,9 @@
 # ADR-20260619-im-rpc-discovery-integration-deferred
 
-Status: accepted (deferred integration)  
+Status: accepted (Phase 1 complete, Phase 2 discovery deferred)  
 Owner: sdkwork-im  
 Date: 2026-06-19  
+Last Updated: 2026-06-29  
 Specs: RPC_SPEC.md, RUST_RPC_SPEC.md, RPC_SDK_WORKSPACE_SPEC.md, DEPLOYMENT_SPEC.md, ENVIRONMENT_SPEC.md, DATABASE_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, TEST_SPEC.md
 
 ## Context
@@ -13,25 +14,31 @@ Sdkwork IM already ships:
 - Persistence through `sdkwork-database` (`crates/sdkwork-im-database-pool`, postgres adapters).
 - RPC **contracts** under `apis/rpc/` and generated `sdkwork-im-rpc-sdk`.
 - Rust RPC **binding scaffold** in `crates/sdkwork-im-rpc-service-rust` (tonic adapters, manifests, health helpers).
+- **Three hosted gRPC service processes** (Phase 1 complete):
+  - `services/session-gateway-rpc-bin` (port 50051) — Realtime/Presence RPC
+  - `services/sdkwork-comms-conversation-rpc-bin` (port 50052) — Conversation/Message RPC
+  - `services/sdkwork-comms-conversation-internal-rpc-bin` (port 50053) — Internal room orchestration RPC
 
-There is **no hosted gRPC service process** in the IM workspace yet. Split-deploy routing still uses static topology env vars (`configs/topology/`, gateway upstream URLs). The sibling `sdkwork-discovery` product is available for service registration and config watch once RPC hosts exist.
+All three RPC hosts use `sdkwork-rpc-framework` (`sdkwork-rpc-server`, `sdkwork-rpc-discovery`, `sdkwork-rpc-client`, `sdkwork-rpc-core`) and support optional discovery registration via `SDKWORK_IM_DISCOVERY_ENDPOINT`. When the env var is unset, registration returns `Ok(None)` and the host runs in standalone mode.
 
-Integrating discovery before runnable RPC servers would add operational complexity without runtime benefit.
+Split-deploy routing still uses static topology env vars (`configs/topology/`) as the primary fallback until Phase 2 discovery ships. Gateway upstream URLs currently cover HTTP only; RPC upstream configuration is deferred until business services consume RPC clients.
+
+The sibling `sdkwork-discovery` product control plane remains available for Phase 2 integration.
 
 ## Decision
 
-**Defer `sdkwork-discovery` integration until the first IM RPC service host ships.**
+**Phase 1 (RPC hosts) is complete. Phase 2 (`sdkwork-discovery` product integration) remains deferred until business services consume RPC clients.**
 
-Until then:
+Phase 1 status (complete):
 
-1. Keep RPC proto authority in `apis/rpc/` and generated SDK in `sdks/sdkwork-im-rpc-sdk/`.
-2. Keep HTTP as the only production transport; gateway env upstreams remain the service location source of truth.
-3. Do **not** add `sdkwork-discovery` to `Cargo.toml` workspace dependencies or `sdkwork.workflow.json` release checkout until Phase 1 below starts.
-4. Document the phased adoption plan in this ADR and `specs/README.md`.
+1. RPC proto authority in `apis/rpc/` and generated SDK in `sdks/sdkwork-im-rpc-sdk/`.
+2. Three hosted gRPC service processes shipped (`session-gateway-rpc-bin`, `sdkwork-comms-conversation-rpc-bin`, `sdkwork-comms-conversation-internal-rpc-bin`).
+3. Optional discovery registration via `SDKWORK_IM_DISCOVERY_ENDPOINT` is supported through `sdkwork-rpc-discovery` framework crate.
+4. `sdkwork-discovery` product itself is NOT added to `Cargo.toml` workspace dependencies until Phase 2.
 
 ## Phased adoption plan
 
-### Phase 0 — Current (HTTP-only, contracts ready)
+### Phase 0 — Complete (HTTP-only, contracts ready)
 
 | Item | State |
 | --- | --- |
@@ -39,20 +46,23 @@ Until then:
 | RPC SDK | `sdks/sdkwork-im-rpc-sdk/` |
 | Rust scaffold | `crates/sdkwork-im-rpc-service-rust` |
 | Discovery | Not integrated |
-| Verification | `pnpm test:rpc-contract`, `cargo test -p sdkwork-im-rpc-service-rust` |
 
-### Phase 1 — First hosted RPC service (prerequisite for discovery)
+### Phase 1 — Complete (RPC hosts shipped)
 
-Ship one runnable gRPC host process (recommended first candidate: `comms-conversation-service` or `session-gateway` RPC surface mapped from `ConversationService` / `RealtimeService` in `sdkwork-im-rpc.manifest.json`).
+Three hosted gRPC service processes shipped:
 
-Requirements:
+| Service | Port | gRPC services |
+| --- | --- | --- |
+| `services/session-gateway-rpc-bin` | 50051 | RealtimeService, PresenceService |
+| `services/sdkwork-comms-conversation-rpc-bin` | 50052 | ConversationService, MessageService |
+| `services/sdkwork-comms-conversation-internal-rpc-bin` | 50053 | DistributedRuntime, MessageDispatch, RoomOrchestration |
 
-- Thin tonic server crate under `services/` or `bin/` using `sdkwork-im-rpc-service-rust` dispatchers.
-- Calls existing runtime/service ports; **no** direct SQLx or axum handler logic in RPC adapters (`RUST_RPC_SPEC.md`).
-- Health + optional reflection gated by env.
-- Topology profile documents bind address and gRPC URL (`SDKWORK_IM_*_GRPC_URL` or service-specific keys per `ENVIRONMENT_SPEC.md`).
+All hosts:
+- Use `sdkwork-im-rpc-service-rust` dispatchers via `sdkwork-rpc-server`.
+- Support optional discovery registration via `SDKWORK_IM_DISCOVERY_ENDPOINT` (returns `Ok(None)` when unset).
+- Topology profiles document bind addresses in `configs/topology/`.
 
-Gate: `cargo test -p <rpc-host-crate>` plus contract parity against HTTP operationIds.
+Gate: `cargo test -p sdkwork-im-rpc-service-rust`, `pnpm test:rpc-contract`.
 
 ### Phase 2 — Discovery registration
 
@@ -97,26 +107,31 @@ Legacy folder names (`social-service`, `space-service`) may appear as registrati
 
 ## Consequences
 
-- `specs/README.md` keeps discovery status **Deferred** until Phase 1 completes.
-- `AGENTS.md` platform framework note remains accurate.
-- RPC contract work can continue without discovery dependency.
-- Phase 2 introduces a new CI/dev dependency on `sdkwork-discovery` for integration tests only after RPC hosts exist.
+- `specs/README.md` records discovery status as **Phase 2 Deferred** (Phase 1 RPC hosts complete via `sdkwork-rpc-framework`).
+- `AGENTS.md` RPC and discovery boundary note remains accurate: three `*-rpc-bin` hosts ship; `sdkwork-discovery` product control plane is not yet integrated.
+- RPC contract work and RPC host operations can continue without the `sdkwork-discovery` product dependency.
+- Phase 2 will introduce a new CI/dev dependency on `sdkwork-discovery` for integration tests once business services consume RPC clients and the discovery product is checked out.
 
 ## Verification
 
-Current (Phase 0):
+Current (Phase 1 complete):
 
 ```bash
+# RPC contract and host verification
 pnpm test:rpc-contract
+cargo test -p sdkwork-im-rpc-service-rust
+pnpm test:sdkwork-im-session-gateway-rpc-bin
+pnpm test:session-gateway-rpc-bin-rust
+
+# Platform framework parity
 pnpm test:web-framework-standard
 pnpm test:database-framework-standard
-cargo test -p sdkwork-im-rpc-service-rust
 ```
 
-Future (Phase 2+):
+Future (Phase 2+ after `sdkwork-discovery` checkout):
 
 ```bash
-# After adding discovery integration test
+# Discovery integration smoke against local discovery dev stack
 node scripts/dev/sdkwork-im-discovery-integration.test.mjs
 pnpm --dir ../sdkwork-discovery dev
 ```

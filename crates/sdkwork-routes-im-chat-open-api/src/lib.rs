@@ -56,5 +56,10 @@ pub fn gateway_route_manifest() -> sdkwork_web_core::HttpRouteManifest {
 }
 
 pub async fn gateway_mount() -> axum::Router {
-    build_public_app_from_env().await
+    let state = conversation_runtime::http::bootstrap_conversation_app_state_from_env()
+        .expect("conversation chat open-api app state bootstrap failed");
+    web_bootstrap::wrap_router_from_env(apply_public_http_guardrails(
+        routes::build_api_router(state),
+    ))
+    .await
 }

@@ -17,12 +17,16 @@ class ChatInboxPage extends StatefulWidget {
     required this.imClients,
     required this.realtimeService,
     required this.userId,
+    required this.applicationPublicHttpUrl,
+    required this.session,
   });
 
   final ChatInboxService inboxService;
   final ImSdkClientBundle imClients;
   final ChatRealtimeService realtimeService;
   final String userId;
+  final String applicationPublicHttpUrl;
+  final ImAppSession session;
 
   @override
   State<ChatInboxPage> createState() => _ChatInboxPageState();
@@ -122,6 +126,8 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
                           conversationService: createChatConversationService(widget.imClients),
                           realtimeService: widget.realtimeService,
                           conversationId: entry.conversationId,
+                          applicationPublicHttpUrl: widget.applicationPublicHttpUrl,
+                          session: widget.session,
                           title: _entryTitle(entry),
                         ),
                       ),

@@ -6,7 +6,13 @@ version.workspace = true
 description = "Sdkwork IM sqlx pool bootstrap through sdkwork-database"
 
 [dependencies]
+native-tls = "0.2"
+postgres-native-tls = "0.5"
+r2d2 = "0.8.10"
+r2d2_postgres = "0.18.2"
 sdkwork_database_config.workspace = true
 sdkwork_database_sqlx.workspace = true
 sdkwork_im_database_host.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+url = "2.5"

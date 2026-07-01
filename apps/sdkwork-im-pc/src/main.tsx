@@ -7,22 +7,39 @@ import { bootstrapImKnowledgebasePcIntegration } from './bootstrap/knowledgebase
 import { bootstrapImCoursePcIntegration } from './bootstrap/coursePc';
 import { bootstrapImNotaryPcIntegration } from './bootstrap/notaryPc';
 import { bootstrapImAgentsPcIntegration } from './bootstrap/agentsPc';
+import { bootstrapImVoicePcIntegration } from './bootstrap/voicePc';
 import './index.css';
 
-bootstrapHostAppearanceBridge();
-bootstrapImNotaryPcIntegration();
-bootstrapImDrivePcIntegration();
-bootstrapImKnowledgebasePcIntegration();
-bootstrapImCoursePcIntegration();
-bootstrapImAgentsPcIntegration();
-
-const root = createRoot(document.getElementById('root')!);
-if (import.meta.env.DEV) {
-  root.render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-} else {
-  root.render(<App />);
+async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
+  bootstrapHostAppearanceBridge();
+  await Promise.all([
+    bootstrapImNotaryPcIntegration(),
+    bootstrapImDrivePcIntegration(),
+    bootstrapImCoursePcIntegration(),
+    bootstrapImAgentsPcIntegration(),
+    bootstrapImKnowledgebasePcIntegration(),
+    bootstrapImVoicePcIntegration(),
+  ]);
 }
+
+function renderImPcApp(): void {
+  const root = createRoot(document.getElementById('root')!);
+  if (import.meta.env.DEV) {
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+  } else {
+    root.render(<App />);
+  }
+}
+
+void bootstrapImPcCapabilityIntegrations()
+  .then(() => {
+    renderImPcApp();
+  })
+  .catch((error: unknown) => {
+    console.error('[sdkwork-im-pc] capability bootstrap failed', error);
+    renderImPcApp();
+  });

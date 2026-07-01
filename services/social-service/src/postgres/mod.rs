@@ -4,7 +4,6 @@ pub mod direct_chat;
 pub mod friendship;
 mod http;
 pub mod id;
-mod service_http;
 pub mod user_profile;
 pub mod user_search;
 pub mod user_settings;

@@ -1,15 +1,14 @@
 //! IAM-backed social user search for add-friend flows.
 
-use axum::Json;
 use axum::extract::{Extension, Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use im_app_context::AppContext;
 use im_adapters_social_postgres::{postgres_pool_client, SocialPostgresPool};
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
 pub struct SearchUsersQuery {
@@ -53,31 +52,31 @@ struct IamUserRow {
 }
 
 pub async fn search_users(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<PostgresAppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Query(query): Query<SearchUsersQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
+) -> Response {
     let keyword = query.q.unwrap_or_default().trim().to_owned();
     if keyword.is_empty() {
-        return Ok(Json(SocialUserSearchResponse {
+        let result: ApiResult<SocialUserSearchResponse> = Ok(SocialUserSearchResponse {
             items: Vec::new(),
             has_more: false,
             next_cursor: None,
-        }));
+        });
+        return finish_api_json(&ctx, result);
     }
 
     let limit = query.limit.unwrap_or(20).clamp(1, 50);
     let pool = state.postgres_pool.clone();
-    let tenant_id = scope.tenant_id.clone();
-    let organization_id = scope.organization_id.clone();
-    let current_user_id = scope.user_id.clone();
+    let tenant_id = auth.tenant_id.clone();
+    let organization_id = auth.organization_id.clone();
+    let current_user_id = auth.actor_id.clone();
     let friendship_store = state.friendship_store.clone();
     let profile_store = state.user_profile_store.clone();
     let search_tenant_id = tenant_id.clone();
 
-    let rows = tokio::task::spawn_blocking(move || {
+    let rows = match tokio::task::spawn_blocking(move || {
         search_iam_users(
             &pool,
             search_tenant_id.as_str(),
@@ -86,21 +85,66 @@ pub async fn search_users(
         )
     })
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    {
+        Ok(Ok(rows)) => rows,
+        Ok(Err(_)) => {
+            return finish_api_json::<SocialUserSearchResponse>(
+                &ctx,
+                Err(ApiProblem::dependency_unavailable("iam user search failed")),
+            );
+        }
+        Err(_) => {
+            return finish_api_json::<SocialUserSearchResponse>(
+                &ctx,
+                Err(ApiProblem::internal_server_error("iam user search worker panicked")),
+            );
+        }
+    };
+
+    let active_friend_ids = match tokio::task::spawn_blocking({
+        let friendship_store = friendship_store.clone();
+        let tenant_id = tenant_id.clone();
+        let organization_id = organization_id.clone();
+        let current_user_id = current_user_id.clone();
+        move || {
+            friendship_store
+                .list_by_user(
+                    tenant_id.as_str(),
+                    organization_id.as_str(),
+                    current_user_id.as_str(),
+                    "active",
+                    500,
+                )
+                .map(|records| {
+                    records
+                        .into_iter()
+                        .flat_map(|record| {
+                            if record.user_low_id == current_user_id {
+                                Some(record.user_high_id)
+                            } else if record.user_high_id == current_user_id {
+                                Some(record.user_low_id)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<std::collections::HashSet<String>>()
+                })
+        }
+    })
+    .await
+    {
+        Ok(Ok(ids)) => ids,
+        _ => std::collections::HashSet::new(),
+    };
 
     let mut items = Vec::with_capacity(rows.len());
     for row in rows {
         let relationship_state = if row.user_id == current_user_id {
             "self".to_owned()
+        } else if active_friend_ids.contains(row.user_id.as_str()) {
+            "active".to_owned()
         } else {
-            resolve_relationship_state(
-                friendship_store.as_ref(),
-                tenant_id.as_str(),
-                organization_id.as_str(),
-                current_user_id.as_str(),
-                row.user_id.as_str(),
-            )
+            "none".to_owned()
         };
 
         let display_name = row.display_name.trim();
@@ -132,11 +176,12 @@ pub async fn search_users(
         });
     }
 
-    Ok(Json(SocialUserSearchResponse {
+    let result: ApiResult<SocialUserSearchResponse> = Ok(SocialUserSearchResponse {
         items,
         has_more: false,
         next_cursor: None,
-    }))
+    });
+    finish_api_json(&ctx, result)
 }
 
 fn search_iam_users(
@@ -195,33 +240,6 @@ LIMIT $4
                 )
             })?
     })
-}
-
-fn resolve_relationship_state(
-    friendship_store: &dyn im_adapters_social_postgres::friendship_store::FriendshipStore,
-    tenant_id: &str,
-    organization_id: &str,
-    current_user_id: &str,
-    target_user_id: &str,
-) -> String {
-    let (user_low_id, user_high_id) = canonical_user_pair(current_user_id, target_user_id);
-    match friendship_store.find_by_pair(
-        tenant_id,
-        organization_id,
-        user_low_id.as_str(),
-        user_high_id.as_str(),
-    ) {
-        Ok(Some(record)) if record.status == "active" => "active".to_owned(),
-        _ => "none".to_owned(),
-    }
-}
-
-fn canonical_user_pair(left: &str, right: &str) -> (String, String) {
-    if left <= right {
-        (left.to_owned(), right.to_owned())
-    } else {
-        (right.to_owned(), left.to_owned())
-    }
 }
 
 fn resolve_chat_id(username: &str, user_id: &str) -> String {

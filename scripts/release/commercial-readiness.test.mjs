@@ -33,6 +33,9 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'h5-build',
       'h5-architecture-standard',
       'flutter-mobile-architecture-standard',
+      'chat-drive-upload-attribution-standard',
+      'production-security-standard',
+      'app-context-module-standard',
       'im-sdk-flutter-composed-test',
       'flutter-mobile-analyze',
       'flutter-mobile-test',
@@ -43,6 +46,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'pc-notary-app-sdk-integration',
       'pc-drive-app-sdk-integration',
       'pc-knowledgebase-app-sdk-integration',
+      'pc-voice-app-sdk-integration',
       'pc-commerce-app-sdk-integration',
       'pc-mail-app-sdk-integration',
       'pc-community-app-sdk-integration',
@@ -59,6 +63,10 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'observability-bootstrap-standard',
       'im-app-sdk-flutter-parity',
       'governance-service-tests',
+      'calls-service-tests',
+      'im-domain-core-tests',
+      'streaming-service-tests',
+      'social-service-tests',
       'gateway-integration-tests',
       'session-gateway-tests',
     ],
@@ -121,6 +129,10 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.deepEqual(
     checks.find((check) => check.id === 'pc-knowledgebase-app-sdk-integration')?.args,
     ['run', 'test:knowledgebase-app-sdk-integration'],
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'pc-voice-app-sdk-integration')?.args,
+    ['run', 'test:voice-app-sdk-integration'],
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'pc-commerce-app-sdk-integration')?.args,
@@ -209,7 +221,27 @@ test('capacity evidence assessment blocks template-only commercial readiness cla
   assert.match(assessment.blockers.join('\n'), /message_capacity/);
 });
 
-test('pre-release evidence assessment accepts fully collected gate-blocked evidence', () => {
+test('pre-release evidence assessment accepts fully collected pre-release evidence', () => {
+  const assessment = assessPreReleaseEvidenceIndex({
+    tier: 'Pre-Release Tier',
+    state: 'evidence_collected_gate_passed',
+    collectionSummary: {
+      pendingSlots: 0,
+      collectedSlots: 7,
+      requiredSlots: 7,
+    },
+    evidenceSlots: [
+      { id: 'connection_metrics', status: 'collected' },
+      { id: 'message_metrics', status: 'collected' },
+    ],
+  });
+
+  assert.equal(assessment.ok, true);
+  assert.match(assessment.summary, /fully collected/i);
+  assert.equal(assessment.blockers.length, 0);
+});
+
+test('pre-release evidence assessment blocks fully collected gate-blocked evidence', () => {
   const assessment = assessPreReleaseEvidenceIndex({
     tier: 'Pre-Release Tier',
     state: 'evidence_collected_gate_blocked',
@@ -224,9 +256,9 @@ test('pre-release evidence assessment accepts fully collected gate-blocked evide
     })),
   });
 
-  assert.equal(assessment.ok, true);
-  assert.match(assessment.summary, /gate-blocked pending dedicated pre-release topology sign-off/i);
-  assert.equal(assessment.blockers.length, 0);
+  assert.equal(assessment.ok, false);
+  assert.match(assessment.summary, /evidence_collected_gate_blocked/);
+  assert.ok(assessment.blockers.length > 0);
 });
 
 test('pre-release evidence assessment blocks template-only claims', () => {
@@ -355,7 +387,7 @@ test('commercial readiness converts malformed capacity evidence into a controlle
     path.join(preReleaseDir, 'pre-release-tier-evidence-index.json'),
     JSON.stringify({
       tier: 'Pre-Release Tier',
-      state: 'evidence_collected_gate_blocked',
+      state: 'evidence_collected_gate_passed',
       collectionSummary: { pendingSlots: 0, collectedSlots: 7, requiredSlots: 7 },
       evidenceSlots: [{ id: 'connection_metrics', status: 'collected' }],
     }),

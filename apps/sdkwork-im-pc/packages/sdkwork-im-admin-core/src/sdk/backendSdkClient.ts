@@ -23,28 +23,11 @@ const SDKWORK_BACKEND_API_PREFIX = '/backend/v3/api';
 const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_IM_API_PREFIX = '/im/v3/api';
 
+import { stripSdkOwnedPathSuffix } from '@sdkwork/im-pc-core/sdk/sdkBaseUrls';
+
 function readEnvValue(key: string): string | undefined {
   const value = import.meta.env?.[key];
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-function stripSdkOwnedPathSuffix(pathname: string, suffixes: string[]): string {
-  const normalizedPathname = pathname.replace(/\/+$/u, '');
-  if (!normalizedPathname || normalizedPathname === '/') {
-    return '';
-  }
-
-  for (const suffix of suffixes) {
-    const normalizedSuffix = `/${suffix.replace(/^\/+|\/+$/gu, '')}`;
-    if (normalizedPathname === normalizedSuffix) {
-      return '';
-    }
-    if (normalizedPathname.endsWith(normalizedSuffix)) {
-      return normalizedPathname.slice(0, -normalizedSuffix.length) || '';
-    }
-  }
-
-  return normalizedPathname;
 }
 
 function normalizeBackendSdkBaseUrl(value: string): string {

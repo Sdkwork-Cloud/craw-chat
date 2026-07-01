@@ -12,3 +12,7 @@ pub const MESSAGE_INTERACTION_SUMMARY: &str =
     "/im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary";
 pub const CONVERSATION_MESSAGES: &str =
     "/im/v3/api/chat/conversations/{conversationId}/messages";
+pub const MESSAGE_FAVORITES: &str = "/im/v3/api/chat/messages/favorites";
+pub const MESSAGE_FAVORITE: &str = "/im/v3/api/chat/messages/favorites/{favoriteId}";
+pub const MESSAGE_FAVORITE_CREATE: &str =
+    "/im/v3/api/chat/messages/{messageId}/favorites";

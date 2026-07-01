@@ -42,7 +42,7 @@ function extractRustRawStrings(source) {
 const prefixRegistry = readJson('specs/database-prefix-registry.json');
 const tableRegistry = readJson('specs/database-table-registry.json');
 const activeMigrationDir = 'database/ddl/baseline/postgres';
-const canonicalBaselineMigration = `${activeMigrationDir}/0001_im_legacy_baseline.sql`;
+const canonicalBaselineMigration = `${activeMigrationDir}/0001_im_baseline.sql`;
 const activeMigrationFiles = fs
   .readdirSync(path.join(repoRoot, ...activeMigrationDir.split('/')))
   .filter((entry) => entry.endsWith('.sql'))
@@ -56,7 +56,7 @@ const cargoManifest = read('Cargo.toml');
 const runtimeIdCrate = read('crates/sdkwork-im-runtime-id/src/lib.rs');
 const sdkworkWorkflow = readJson('sdkwork.workflow.json');
 const sharedSdkReleaseSources = readJson('config/shared-sdk-release-sources.json');
-const chatPcPnpmWorkspace = read('apps/sdkwork-im-pc/pnpm-workspace.yaml');
+const chatPcPnpmWorkspace = read('pnpm-workspace.yaml');
 const componentSpec = readJson('specs/component.spec.json');
 const localSpecReadme = read('specs/README.md');
 const namingDoc = readDeployment(DEPLOYMENT_DOC_FILES.databaseNaming);
@@ -167,7 +167,11 @@ for (const forbiddenPrefix of imPrefix.forbiddenAliases) {
   );
 }
 
-const constraintNames = extractAll(/\bconstraint\s+([a-z_][a-z0-9_]*)\b/giu, schema);
+const schemaWithoutComments = schema.replace(/^--[^\n]*$/gmu, '');
+const constraintNames = extractAll(
+  /\bconstraint\s+(?!if\b)([a-z_][a-z0-9_]*)\b/giu,
+  schemaWithoutComments,
+);
 for (const constraintName of constraintNames) {
   assert.match(
     constraintName,
@@ -322,24 +326,29 @@ assert.ok(appbaseReleaseSource, 'shared SDK release sources must include sdkwork
 assert.equal(appbaseReleaseSource.repoUrl, 'https://github.com/Sdkwork-Cloud/sdkwork-appbase.git');
 assert.ok(appbaseReleaseSource.ref, 'sdkwork-appbase shared SDK release source must declare a ref');
 
+function pnpmWorkspaceDeclaresPackage(workspaceSource, packagePath) {
+  const normalized = workspaceSource.replace(/["']/g, '');
+  return normalized.includes(`- ${packagePath}`);
+}
+
 for (const requiredWorkspacePackage of [
-  '../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi',
-  '../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi',
-  '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts',
-  '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports',
-  '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime',
-  '../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react',
-  '../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react',
+  '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi',
+  '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi',
+  '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts',
+  '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports',
+  '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime',
+  '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react',
+  '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react',
 ]) {
   assert.ok(
-    chatPcPnpmWorkspace.includes(`- ${requiredWorkspacePackage}`),
-    `sdkwork-im-pc pnpm workspace must declare appbase source package ${requiredWorkspacePackage}`,
+    pnpmWorkspaceDeclaresPackage(chatPcPnpmWorkspace, requiredWorkspacePackage),
+    `sdkwork-im repository pnpm workspace must declare appbase source package ${requiredWorkspacePackage}`,
   );
 }
 assert.doesNotMatch(
   chatPcPnpmWorkspace,
   /\blink:/u,
-  'sdkwork-im-pc must consume appbase source packages through pnpm workspace declarations, not link: aliases',
+  'sdkwork-im must consume appbase source packages through pnpm workspace declarations, not link: aliases',
 );
 
 const postgresSchemaTestFiles = [
@@ -361,7 +370,7 @@ for (const relativePath of postgresSchemaTestFiles) {
   );
   assert.match(
     source,
-    /database\/ddl\/baseline\/postgres\/0001_im_legacy_baseline\.sql/u,
+    /database\/ddl\/baseline\/postgres\/0001_im_baseline\.sql/u,
     `${relativePath} must load the canonical PostgreSQL baseline DDL`,
   );
 }
@@ -375,7 +384,7 @@ for (const relativePath of postgresSchemaScriptFiles) {
   );
   assert.match(
     source,
-    /0001_im_legacy_baseline\.sql/u,
+    /0001_im_baseline\.sql/u,
     `${relativePath} must validate the canonical PostgreSQL baseline DDL`,
   );
 }

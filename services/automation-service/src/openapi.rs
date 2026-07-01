@@ -8,7 +8,7 @@ use sdkwork_im_openapi::{
 pub(crate) fn build_automation_service_openapi_document() -> Result<serde_json::Value, String> {
     let routes = extract_routes_from_function(
         include_str!("app.rs"),
-        "build_business_router",
+        "build_domain_api_router",
         &[],
         &["/openapi.json", "/docs"],
     )?;

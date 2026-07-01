@@ -7,6 +7,7 @@ import {
   isPostgresDevProfile,
   resolvePostgresDevProfile,
 } from './sdkwork-im-postgres-dev-profile.mjs';
+import { terminateStaleDevGatewayProcesses } from './terminate-stale-dev-gateway-processes.mjs';
 
 export { isPostgresDevProfile, resolvePostgresDevProfile };
 
@@ -16,6 +17,10 @@ export async function ensurePostgresDevDatabaseReady({
   stdout = process.stdout,
   stderr = process.stderr,
 } = {}) {
+  if (isPostgresDevProfile(env)) {
+    terminateStaleDevGatewayProcesses({ stdout });
+  }
+
   return ensureSharedPostgresDevDatabaseReady({
     env,
     legacyDatabasePrefixes: ['SDKWORK_IM_DATABASE_'],

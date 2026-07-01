@@ -6,8 +6,12 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::{Json, response::Response};
+use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_utils_rust::{
     base64url_decode, base64url_encode, hmac_sha256_base64url, verify_hmac_sha256_base64url,
+};
+use sdkwork_web_core::{
+    problem_response, ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind,
 };
 use getrandom::fill as fill_random;
 use im_app_context::AppContext;
@@ -48,6 +52,7 @@ const SDKWORK_IM_ENVIRONMENT_ENV: &str = "SDKWORK_IM_ENVIRONMENT";
 // ---------------------------------------------------------------------------
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct SocialServiceError {
     status: StatusCode,
     code: &'static str,
@@ -117,16 +122,38 @@ impl SocialServiceError {
     }
 }
 
+fn social_service_error_kind(status: &StatusCode) -> WebFrameworkErrorKind {
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        _ => WebFrameworkErrorKind::InternalServerError,
+    }
+}
+
+impl From<SocialServiceError> for ApiProblem {
+    fn from(error: SocialServiceError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: social_service_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
 impl IntoResponse for SocialServiceError {
     fn into_response(self) -> Response {
-        let mut body = serde_json::json!({
-            "code": self.code,
-            "message": self.message,
-        });
-        if let Some(details) = self.details {
-            body["details"] = details;
-        }
-        (self.status, Json(body)).into_response()
+        let error = WebFrameworkError {
+            kind: social_service_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }
 

@@ -9,7 +9,7 @@ use im_adapters_social_postgres::organization_store::{
 use im_adapters_social_postgres::{SocialPostgresConfig, SocialPostgresPool};
 
 use crate::http::{AppState, build_embedded_app, build_public_app};
-use crate::id::build_runtime_id_generator;
+use crate::id::build_runtime_id_generator_for_space;
 
 /// Environment variable name for database connection URL.
 /// Referenced in doc comments but loaded via configuration system.
@@ -19,10 +19,11 @@ pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
     let pool_arc = Arc::new(pool.inner().clone());
     AppState {
+        postgres_pool: Some(pool),
         space_store: Arc::new(PostgresSpaceStore::new(pool_arc.clone())),
         group_store: Arc::new(PostgresGroupStore::new(pool_arc.clone())),
         channel_store: Arc::new(PostgresChannelStore::new(pool_arc)),
-        id_generator: build_runtime_id_generator().await,
+        id_generator: build_runtime_id_generator_for_space().await,
     }
 }
 

@@ -88,6 +88,7 @@ Run commands from this application root unless a command explicitly targets the 
 - `pnpm test:notary-app-sdk-integration`
 - `pnpm test:drive-app-sdk-integration`
 - `pnpm test:knowledgebase-app-sdk-integration`
+- `pnpm test:voice-app-sdk-integration`
 - `pnpm test:qr-scan-standard`
 
 From the repository root, run `pnpm test:sdkwork-workspace-structure-standard`, `pnpm check:pnpm-script-standard`, and `pnpm check:agent-workflow-standard` when changing application-root dictionary, package taxonomy, commands, AGENTS, packaging, or workflow metadata.

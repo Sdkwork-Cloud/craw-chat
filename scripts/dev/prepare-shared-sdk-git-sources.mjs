@@ -135,6 +135,17 @@ const SOURCE_SPECS = Object.freeze([
     refEnvVar: 'SDKWORK_SHARED_KNOWLEDGEBASE_GIT_REF',
   },
   {
+    id: 'sdkwork-voice',
+    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-voice'),
+    requiredPaths: [
+      'package.json',
+      'sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/generated/server-openapi/package.json',
+      'apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-market/package.json',
+    ],
+    repoUrlEnvVar: 'SDKWORK_SHARED_VOICE_REPO_URL',
+    refEnvVar: 'SDKWORK_SHARED_VOICE_GIT_REF',
+  },
+  {
     id: 'sdkwork-clawrouter',
     repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-clawrouter'),
     requiredPaths: ['package.json', 'apps/sdkwork-clawrouter-pc/package.json'],

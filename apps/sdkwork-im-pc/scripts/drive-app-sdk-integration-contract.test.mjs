@@ -47,8 +47,11 @@ function functionBody(source, functionName) {
 }
 
 const packageJson = readJson('package.json');
+const corePackageJson = readJson('packages', 'sdkwork-im-pc-core', 'package.json');
+const shellPackageJson = readJson('packages', 'sdkwork-im-pc-shell', 'package.json');
 const tsconfig = readJson('tsconfig.json');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const tsconfigApp = readJson('tsconfig.app.json');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const viteConfigSource = readText('vite.config.ts');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
@@ -98,15 +101,15 @@ assert.equal(
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/drive-app-sdk'],
+  corePackageJson.dependencies?.['@sdkwork/drive-app-sdk'],
   'workspace:*',
-  'Chat PC must consume sdkwork-drive through the workspace app SDK package.',
+  '@sdkwork/im-pc-core must consume sdkwork-drive through the workspace app SDK package.',
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/drive-pc-drive'],
+  shellPackageJson.dependencies?.['@sdkwork/drive-pc-drive'],
   'workspace:*',
-  'Chat PC must consume the sdkwork-drive-pc-drive embed package through workspace:*.',
+  '@sdkwork/im-pc-shell must consume the sdkwork-drive-pc-drive embed package through workspace:*.',
 );
 
 assert.equal(
@@ -245,13 +248,24 @@ assert.match(
   'Drive embed package must import the drive application stylesheet for host-managed UI fidelity.',
 );
 
+const driveSurfaceCssSource = fs.readFileSync(
+  path.join(drivePcRoot, 'packages', 'sdkwork-drive-pc-drive', 'src', 'driveSurface.css'),
+  'utf8',
+);
 assert.match(
-  fs.readFileSync(
-    path.join(drivePcRoot, 'packages', 'sdkwork-drive-pc-drive', 'src', 'driveSurface.css'),
-    'utf8',
-  ),
+  driveSurfaceCssSource,
   /driveWorkspaceChrome\.css/u,
   'Drive embed stylesheet must include workspace chrome layout rules for host embedding.',
+);
+assert.doesNotMatch(
+  driveSurfaceCssSource,
+  /@import\s+["']tailwindcss["']\s*;/u,
+  'Drive embed stylesheet must not bootstrap Tailwind; the host shell index.css owns the single bootstrap.',
+);
+assert.doesNotMatch(
+  viteConfigSource,
+  /find:\s*['"]tailwindcss['"]/u,
+  'Host Vite config must not alias bare specifier tailwindcss once shell bootstrap owns Tailwind resolution.',
 );
 
 assert.match(
@@ -275,6 +289,17 @@ assert.match(
 assert.ok(
   tsconfig.compilerOptions?.paths?.['@sdkwork/drive-pc-drive'],
   'tsconfig must map @sdkwork/drive-pc-drive for host-managed drive embedding.',
+);
+
+assert.ok(
+  tsconfigApp.compilerOptions?.paths?.['@sdkwork/utils'],
+  'tsconfig.app must map @sdkwork/utils so drive SDK composed clients typecheck.',
+);
+
+assert.match(
+  viteConfigSource,
+  /@sdkwork\/utils/u,
+  'Vite must alias @sdkwork/utils for shared utility standardization.',
 );
 
 console.log('sdkwork im drive app SDK integration contract passed.');

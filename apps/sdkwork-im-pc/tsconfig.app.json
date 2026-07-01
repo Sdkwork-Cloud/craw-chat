@@ -1,0 +1,170 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom": ["./node_modules/@types/react-dom/index.d.ts"],
+      "react-router-dom": ["./node_modules/react-router-dom/dist/index.d.ts"],
+      "@sdkwork-internal/im-app-api-generated": [
+        "../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork-internal/im-backend-api-generated": [
+        "../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/im-sdk": [
+        "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/im-sdk-generated": [
+        "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/iam-app-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/iam-backend-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/drive-app-sdk": [
+        "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/voice-app-sdk": [
+        "../../../sdkwork-voice/sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/rtc-sdk": [
+        "../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ],
+      "@sdkwork/utils": [
+        "../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/index.ts"
+      ],
+      "@sdkwork/agents-app-sdk": [
+        "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/aiot-app-sdk": [
+        "../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/auth-pc-react": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts"
+      ],
+      "@sdkwork/auth-runtime-pc-react": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts"
+      ],
+      "@sdkwork/iam-contracts": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/catalog-app-sdk": [
+        "../../../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/shop-app-sdk": [
+        "../../../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/order-app-sdk": [
+        "../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/membership-app-sdk": [
+        "./packages/sdkwork-im-pc-membership-transport/src/index.ts"
+      ],
+      "@sdkwork/course-app-sdk": [
+        "../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/course-backend-sdk": [
+        "../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/course-pc-course": ["./types/stubs/course-pc-course.d.ts"],
+      "@sdkwork/drive-pc-drive": ["./types/stubs/drive-pc-drive.d.ts"],
+      "@sdkwork/voice-pc-market": [
+        "../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-market/src/index.ts"
+      ],
+      "@sdkwork/voice-pc-speech": [
+        "../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-speech/src/index.ts"
+      ],
+      "@sdkwork/knowledgebase-pc-knowledge": ["./types/stubs/knowledgebase-pc-knowledge.d.ts"],
+      "@sdkwork/notary-pc-commons": ["./types/stubs/notary-pc-commons.d.ts"],
+      "@sdkwork/notary-pc-core": ["./types/stubs/notary-pc-core.d.ts"],
+      "@sdkwork/notary-pc-notary": ["./types/stubs/notary-pc-notary.d.ts"],
+      "@sdkwork/notary-app-sdk": [
+        "../../../sdkwork-notary/sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "sdkwork-community-app-sdk-generated-typescript": [
+        "../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "sdkwork-mail-app-sdk-generated-typescript": [
+        "../../../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/im-pc-types/*": ["./packages/sdkwork-im-pc-types/src/*"],
+      "@sdkwork/im-pc-types": ["./packages/sdkwork-im-pc-types/src/index.ts"],
+      "@sdkwork/im-pc-commons/*": ["./packages/sdkwork-im-pc-commons/src/*"],
+      "@sdkwork/im-pc-commons": ["./packages/sdkwork-im-pc-commons/src/index.ts"],
+      "@sdkwork/im-pc-core/*": ["./packages/sdkwork-im-pc-core/src/*"],
+      "@sdkwork/im-pc-core": ["./packages/sdkwork-im-pc-core/src/index.ts"],
+      "@sdkwork/im-pc-chat/*": ["./packages/sdkwork-im-pc-chat/src/*"],
+      "@sdkwork/im-pc-chat": ["./packages/sdkwork-im-pc-chat/src/index.ts"],
+      "@sdkwork/im-pc-shell/*": ["./packages/sdkwork-im-pc-shell/src/*"],
+      "@sdkwork/im-pc-shell": ["./packages/sdkwork-im-pc-shell/src/index.tsx"],
+      "@sdkwork/im-pc-agent/*": ["./packages/sdkwork-im-pc-agent/src/*"],
+      "@sdkwork/im-pc-agent": ["./packages/sdkwork-im-pc-agent/src/index.ts"],
+      "@sdkwork/im-pc-workspace/*": ["./packages/sdkwork-im-pc-workspace/src/*"],
+      "@sdkwork/im-pc-workspace": ["./packages/sdkwork-im-pc-workspace/src/index.ts"],
+      "@sdkwork/im-pc-orders/*": ["./packages/sdkwork-im-pc-orders/src/*"],
+      "@sdkwork/im-pc-orders": ["./packages/sdkwork-im-pc-orders/src/index.tsx"],
+      "@sdkwork/im-pc-mail/*": ["./packages/sdkwork-im-pc-mail/src/*"],
+      "@sdkwork/im-pc-mail": ["./packages/sdkwork-im-pc-mail/src/index.tsx"],
+      "@sdkwork/im-pc-contacts/*": ["./packages/sdkwork-im-pc-contacts/src/*"],
+      "@sdkwork/im-pc-contacts": ["./packages/sdkwork-im-pc-contacts/src/index.ts"],
+      "@sdkwork/im-pc-calendar/*": ["./packages/sdkwork-im-pc-calendar/src/*"],
+      "@sdkwork/im-pc-calendar": ["./packages/sdkwork-im-pc-calendar/src/index.tsx"],
+      "@sdkwork/im-pc-shop/*": ["./packages/sdkwork-im-pc-shop/src/*"],
+      "@sdkwork/im-pc-shop": ["./packages/sdkwork-im-pc-shop/src/index.tsx"],
+      "@sdkwork/im-pc-approvals/*": ["./packages/sdkwork-im-pc-approvals/src/*"],
+      "@sdkwork/im-pc-approvals": ["./packages/sdkwork-im-pc-approvals/src/index.tsx"],
+      "@sdkwork/im-pc-reports/*": ["./packages/sdkwork-im-pc-reports/src/*"],
+      "@sdkwork/im-pc-reports": ["./packages/sdkwork-im-pc-reports/src/index.tsx"],
+      "@sdkwork/im-pc-attendance/*": ["./packages/sdkwork-im-pc-attendance/src/*"],
+      "@sdkwork/im-pc-attendance": ["./packages/sdkwork-im-pc-attendance/src/index.tsx"],
+      "@sdkwork/im-pc-devices/*": ["./packages/sdkwork-im-pc-devices/src/*"],
+      "@sdkwork/im-pc-devices": ["./packages/sdkwork-im-pc-devices/src/index.tsx"],
+      "@sdkwork/im-pc-community/*": ["./packages/sdkwork-im-pc-community/src/*"],
+      "@sdkwork/im-pc-community": ["./packages/sdkwork-im-pc-community/src/index.tsx"],
+      "@sdkwork/im-pc-enterprise/*": ["./packages/sdkwork-im-pc-enterprise/src/*"],
+      "@sdkwork/im-pc-enterprise": ["./packages/sdkwork-im-pc-enterprise/src/index.tsx"],
+      "@sdkwork/im-console-core/*": ["./packages/sdkwork-im-console-core/src/*"],
+      "@sdkwork/im-console-core": ["./packages/sdkwork-im-console-core/src/index.tsx"],
+      "@sdkwork/im-admin-core/*": ["./packages/sdkwork-im-admin-core/src/*"],
+      "@sdkwork/im-admin-core": ["./packages/sdkwork-im-admin-core/src/index.tsx"],
+      "@sdkwork/im-pc-video-gen/*": ["./packages/sdkwork-im-pc-video-gen/src/*"],
+      "@sdkwork/im-pc-video-gen": ["./packages/sdkwork-im-pc-video-gen/src/index.tsx"],
+      "@sdkwork/im-pc-image-gen/*": ["./packages/sdkwork-im-pc-image-gen/src/*"],
+      "@sdkwork/im-pc-image-gen": ["./packages/sdkwork-im-pc-image-gen/src/index.tsx"],
+      "@sdkwork/im-pc-music-gen/*": ["./packages/sdkwork-im-pc-music-gen/src/*"],
+      "@sdkwork/im-pc-music-gen": ["./packages/sdkwork-im-pc-music-gen/src/index.tsx"],
+      "@sdkwork/im-pc-writing/*": ["./packages/sdkwork-im-pc-writing/src/*"],
+      "@sdkwork/im-pc-writing": ["./packages/sdkwork-im-pc-writing/src/index.tsx"],
+      "@sdkwork/im-console-users": ["./packages/sdkwork-im-console-users/src/index.tsx"],
+      "@sdkwork/im-console-roles": ["./packages/sdkwork-im-console-roles/src/index.tsx"],
+      "@sdkwork/im-console-communications": ["./packages/sdkwork-im-console-communications/src/index.tsx"],
+      "@sdkwork/im-console-integrations": ["./packages/sdkwork-im-console-integrations/src/index.tsx"],
+      "@sdkwork/im-console-security": ["./packages/sdkwork-im-console-security/src/index.tsx"],
+      "@sdkwork/im-console-settings": ["./packages/sdkwork-im-console-settings/src/index.tsx"],
+      "@sdkwork/im-console-shop": ["./packages/sdkwork-im-console-shop/src/index.tsx"],
+      "@sdkwork/im-console-product": ["./packages/sdkwork-im-console-product/src/index.tsx"],
+      "@sdkwork/im-admin-infrastructure": ["./packages/sdkwork-im-admin-infrastructure/src/index.tsx"],
+      "@sdkwork/im-admin-operations": ["./packages/sdkwork-im-admin-operations/src/index.tsx"],
+      "@sdkwork/im-console-dashboard/*": ["./packages/sdkwork-im-console-dashboard/src/*"],
+      "@sdkwork/im-console-dashboard": ["./packages/sdkwork-im-console-dashboard/src/index.tsx"],
+      "@sdkwork/im-admin-dashboard/*": ["./packages/sdkwork-im-admin-dashboard/src/*"],
+      "@sdkwork/im-admin-dashboard": ["./packages/sdkwork-im-admin-dashboard/src/index.tsx"],
+      "@sdkwork/im-admin-tenants/*": ["./packages/sdkwork-im-admin-tenants/src/*"],
+      "@sdkwork/im-admin-tenants": ["./packages/sdkwork-im-admin-tenants/src/index.tsx"]
+    }
+  },
+  "include": [
+    "src",
+    "server.ts",
+    "local-api.ts",
+    "packages/*/src",
+    "types/stubs/**/*.d.ts"
+  ]
+}

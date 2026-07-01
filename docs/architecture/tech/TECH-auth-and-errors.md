@@ -80,68 +80,107 @@ device, data scope, and permission scope.
 
 | HTTP | `code` | When it appears |
 | --- | --- | --- |
-| `401` | `app_context_missing` | Required AppContext projection headers are missing after SDKWork auth validation. |
-| `401` | `app_context_invalid` | AppContext projection is malformed or incomplete. |
-| `403` | `shared_channel_sync_permission_denied` | Missing permission `conversation.shared_channel.sync` for shared-channel sync endpoint. |
-| `403` | `shared_channel_sync_actor_invalid` | Caller actor is not the system actor `control-plane-sync`. |
-| `429` | `shared_channel_sync_rate_limited` | Shared-channel sync exceeded per-tenant rate limit window. |
+| `401` | `40101` | Required AppContext projection headers are missing after SDKWork auth validation. |
+| `401` | `40102` | AppContext projection is malformed or incomplete. |
+| `403` | `40301` | Missing permission `conversation.shared_channel.sync` for shared-channel sync endpoint. |
+| `403` | `40302` | Caller actor is not the system actor `control-plane-sync`. |
+| `429` | `42901` | Shared-channel sync exceeded per-tenant rate limit window. |
 
-## Error Envelope
+## Response Envelope
 
-### IM, App, and Backend APIs
+All IM, App, and Backend HTTP contracts follow the canonical `SdkWorkApiResponse` /
+`ProblemDetail` envelope defined in `sdkwork-specs/API_SPEC.md` §4.5, §14, and §15.
 
-The application-facing APIs return a compact error object:
+### Success Responses (`HTTP 2xx`)
 
-```json
-{
-  "code": "conversation_not_found",
-  "message": "conversation summary not found: conv_demo_001"
-}
-```
-
-<ApiSchemaTable schema="ApiError" />
-
-### Control Plane APIs
-
-The control plane adds a `status` discriminator that mirrors the control-plane error category:
+Success responses use `application/json` with the `SdkWorkApiResponse` envelope:
 
 ```json
 {
-  "status": "forbidden",
-  "code": "permission_denied",
-  "message": "missing required permission: control.write"
+  "code": 0,
+  "data": { },
+  "traceId": "01HXY..."
 }
 ```
 
-`status` can be one of:
+- `code` is numeric `int32` and **MUST** be `0` for all `HTTP 2xx` JSON bodies.
+- `data` carries the operation payload:
+  - Single resource: `data.item`
+  - Lists: `data.items` + `data.pageInfo` (`PageInfo.mode` is `offset` or `cursor`)
+  - Commands: `data.accepted` plus optional `resourceId` / `status`
+  - Async accept (`202`): `data.operationId`, `data.status`, optional `pollUrl`
+- `traceId` is a server-issued correlation identifier (UUID/ULID).
 
-- `unauthorized`
-- `forbidden`
-- `invalid`
-- `conflict`
-- `not_found`
-- `unavailable`
+### Error Responses (`HTTP 4xx` / `HTTP 5xx`)
+
+Error responses use `application/problem+json` (`ProblemDetail`, RFC 9457) with a
+numeric `code` and `traceId`:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Bad Request",
+  "status": 400,
+  "code": 40001,
+  "detail": "rtcSessionId must be a non-empty string",
+  "traceId": "01HXY..."
+}
+```
+
+- `code` is a numeric non-zero platform error code (see table below).
+- `traceId` correlates with the success envelope's `traceId`.
+- Business failures **MUST NOT** use `HTTP 2xx` with a non-zero `code`,
+  string wire codes, a `success` boolean, or a human `message` field.
+
+### Platform Error Code Registry
+
+| HTTP | `code` | Category |
+| --- | --- | --- |
+| `400` | `40001` | Bad request — malformed body, invalid query, or validation failure |
+| `401` | `40101` | Missing AppContext projection |
+| `401` | `40102` | Invalid AppContext projection |
+| `403` | `40301` | Permission denied (missing required permission) |
+| `403` | `40302` | Principal-to-resource binding violation |
+| `404` | `40401` | Referenced resource (conversation, message, media asset, node, policy) not found |
+| `409` | `40901` | Version conflict, membership conflict, or invalid lifecycle transition |
+| `413` | `41301` | Payload too large |
+| `429` | `42901` | Rate limited |
+| `501` | `50101` | Requested provider capability is not implemented |
+| `503` | `50301` | Provider, registry, or runtime dependency unavailable |
+
+### Generated SDK Consumption
+
+Generated HTTP SDKs (`--standard-profile sdkwork-v3`) unwrap `data` by default
+and expose typed numeric `ProblemDetail.code` / `traceId` on errors. Use `.raw`
+when the full envelope is required.
 
 ## Common HTTP Statuses
 
 | HTTP | Meaning |
 | --- | --- |
-| `200` | Success |
+| `200` | Success (single resource or list) |
+| `201` | Resource created |
+| `202` | Async command accepted |
+| `204` | No content |
 | `400` | Validation failure, malformed request body, or invalid query value |
 | `401` | Missing or invalid SDKWork auth context, or incomplete AppContext projection |
 | `403` | Permission denied or principal-to-resource binding violation |
 | `404` | Referenced conversation, message, media asset, node, or policy version does not exist |
 | `409` | Version conflict, membership conflict, route migration conflict, or invalid lifecycle transition |
+| `413` | Request payload exceeds the configured size limit |
+| `429` | Rate limit exceeded |
 | `501` | Requested provider capability is not implemented |
 | `503` | Provider, registry, or runtime dependency is unavailable |
 
 ## Client Guidance
 
-1. Branch on `code` for application handling. Do not depend on the exact wording of `message`.
-2. For control-plane clients, use both the HTTP status code and the response `status` field.
-3. Treat operation pages as the source for endpoint-specific conflicts and resource-not-found cases.
-4. Use the SDK pages as the source for language-surface questions, and this page as the source for
-   shared auth and error semantics.
+1. Branch on the numeric `code` for application handling. Do not depend on the
+   exact wording of `detail` or `title`.
+2. Correlate client-side telemetry with the server-issued `traceId`.
+3. Treat operation pages as the source for endpoint-specific conflicts and
+   resource-not-found cases.
+4. Use the SDK pages as the source for language-surface questions, and this
+   page as the source for shared auth and error semantics.
 
 ## What To Read Next
 

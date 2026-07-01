@@ -333,8 +333,9 @@ async fn test_timeline_query_returns_projected_messages() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["items"][0]["messageId"], "m_demo");
-    assert_eq!(value["items"][0]["summary"], "hello");
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["items"][0]["messageId"], "m_demo");
+    assert_eq!(value["data"]["items"][0]["summary"], "hello");
 
     let summary_response = app
         .clone()
@@ -360,9 +361,10 @@ async fn test_timeline_query_returns_projected_messages() {
     let summary_value: serde_json::Value =
         serde_json::from_slice(&summary_body).expect("summary should be valid json");
 
-    assert_eq!(summary_value["messageCount"], 1);
-    assert_eq!(summary_value["lastMessageId"], "m_demo");
-    assert_eq!(summary_value["lastSender"]["id"], "1");
+    assert_eq!(summary_value["code"], 0);
+    assert_eq!(summary_value["data"]["messageCount"], 1);
+    assert_eq!(summary_value["data"]["lastMessageId"], "m_demo");
+    assert_eq!(summary_value["data"]["lastSender"]["id"], "1");
 
     let forbidden_timeline_response = app
         .oneshot(
@@ -449,11 +451,12 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .to_bytes();
     let first_value: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first page should be valid json");
-    assert_eq!(first_value["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_value["items"][0]["messageSeq"], 1);
-    assert_eq!(first_value["items"][1]["messageSeq"], 2);
-    assert_eq!(first_value["nextAfterSeq"], 2);
-    assert_eq!(first_value["hasMore"], true);
+    assert_eq!(first_value["code"], 0);
+    assert_eq!(first_value["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_value["data"]["items"][0]["messageSeq"], 1);
+    assert_eq!(first_value["data"]["items"][1]["messageSeq"], 2);
+    assert_eq!(first_value["data"]["nextAfterSeq"], 2);
+    assert_eq!(first_value["data"]["hasMore"], true);
 
     let second_response = app
         .clone()
@@ -477,10 +480,11 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .to_bytes();
     let second_value: serde_json::Value =
         serde_json::from_slice(&second_body).expect("second page should be valid json");
-    assert_eq!(second_value["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_value["items"][0]["messageSeq"], 3);
-    assert_eq!(second_value["nextAfterSeq"], 3);
-    assert_eq!(second_value["hasMore"], false);
+    assert_eq!(second_value["code"], 0);
+    assert_eq!(second_value["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_value["data"]["items"][0]["messageSeq"], 3);
+    assert_eq!(second_value["data"]["nextAfterSeq"], 3);
+    assert_eq!(second_value["data"]["hasMore"], false);
 
     let invalid_limit_response = app
         .oneshot(
@@ -500,7 +504,7 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|value| value.to_str().ok()),
-        Some("application/problem+json; charset=utf-8")
+        Some("application/problem+json")
     );
     let invalid_body = invalid_limit_response
         .into_body()
@@ -510,7 +514,7 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_value: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid response should be valid json");
-    assert_eq!(invalid_value["type"], "about:blank");
+    assert_eq!(invalid_value["type"], "https://sdkwork.dev/problems/bad-request");
     assert_eq!(invalid_value["title"], "Bad Request");
     assert_eq!(invalid_value["status"], 400);
     assert!(
@@ -519,7 +523,7 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
             .expect("detail should be present")
             .contains("limit")
     );
-    assert_eq!(invalid_value["code"], "limit_invalid");
+    assert_eq!(invalid_value["code"].as_i64(), Some(40001));
 }
 
 #[tokio::test]
@@ -606,7 +610,7 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|header| header.to_str().ok()),
-        Some("application/problem+json; charset=utf-8")
+        Some("application/problem+json")
     );
     let body = response
         .into_body()
@@ -616,7 +620,7 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["type"], "about:blank");
+    assert_eq!(value["type"], "https://sdkwork.dev/problems/forbidden");
     assert_eq!(value["title"], "Forbidden");
     assert_eq!(value["status"], 403);
     assert!(
@@ -625,8 +629,7 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
             .expect("detail should be present")
             .is_empty()
     );
-    assert_eq!(value["detail"], value["message"]);
-    assert_eq!(value["code"], "conversation_permission_denied");
+    assert_eq!(value["code"].as_i64(), Some(40301));
 }
 
 #[tokio::test]
@@ -770,9 +773,10 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["readSeq"], 1);
-    assert_eq!(value["unreadCount"], 1);
-    assert_eq!(value["memberId"], "cm_demo");
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["readSeq"], 1);
+    assert_eq!(value["data"]["unreadCount"], 1);
+    assert_eq!(value["data"]["memberId"], "cm_demo");
 }
 
 #[tokio::test]
@@ -882,9 +886,10 @@ async fn test_inbox_query_returns_projected_entries() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["items"][0]["conversationId"], "c_inbox");
-    assert_eq!(value["items"][0]["conversationType"], "group");
-    assert_eq!(value["items"][0]["messageCount"], 2);
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["items"][0]["conversationId"], "c_inbox");
+    assert_eq!(value["data"]["items"][0]["conversationType"], "group");
+    assert_eq!(value["data"]["items"][0]["messageCount"], 2);
 }
 
 #[tokio::test]
@@ -978,11 +983,12 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first inbox page should be json");
-    assert_eq!(first_json["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_json["items"][0]["conversationId"], "c_inbox_page_3");
-    assert_eq!(first_json["items"][1]["conversationId"], "c_inbox_page_2");
-    assert_eq!(first_json["hasMore"], true);
-    let next_cursor = first_json["nextCursor"]
+    assert_eq!(first_json["code"], 0);
+    assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_json["data"]["items"][0]["conversationId"], "c_inbox_page_3");
+    assert_eq!(first_json["data"]["items"][1]["conversationId"], "c_inbox_page_2");
+    assert_eq!(first_json["data"]["hasMore"], true);
+    let next_cursor = first_json["data"]["nextCursor"]
         .as_str()
         .expect("first inbox page should include nextCursor");
 
@@ -1010,10 +1016,11 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .to_bytes();
     let second_json: serde_json::Value =
         serde_json::from_slice(&second_body).expect("second inbox page should be json");
-    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_json["items"][0]["conversationId"], "c_inbox_page_1");
-    assert_eq!(second_json["hasMore"], false);
-    assert_eq!(second_json["nextCursor"], serde_json::Value::Null);
+    assert_eq!(second_json["code"], 0);
+    assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["data"]["items"][0]["conversationId"], "c_inbox_page_1");
+    assert_eq!(second_json["data"]["hasMore"], false);
+    assert_eq!(second_json["data"]["nextCursor"], serde_json::Value::Null);
 
     let invalid = app
         .oneshot(
@@ -1036,7 +1043,7 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_json: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid inbox body should be json");
-    assert_eq!(invalid_json["code"], "limit_invalid");
+    assert_eq!(invalid_json["code"].as_i64(), Some(40001));
 }
 
 #[tokio::test]
@@ -1068,11 +1075,11 @@ async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"].as_i64(), Some(41301));
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("conversationId")
     );
 }
@@ -1135,11 +1142,11 @@ async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "payload_too_large");
+    assert_eq!(value["code"].as_i64(), Some(41301));
     assert!(
-        value["message"]
+        value["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("messageId")
     );
 }
@@ -1228,11 +1235,12 @@ async fn test_member_directory_query_returns_projected_members() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
 
-    assert_eq!(value["items"].as_array().unwrap().len(), 2);
-    assert_eq!(value["items"][0]["principalId"], "1");
-    assert_eq!(value["items"][0]["role"], "owner");
-    assert_eq!(value["items"][1]["principalId"], "1014");
-    assert_eq!(value["items"][1]["attributes"]["displayName"], "Member");
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(value["data"]["items"][0]["principalId"], "1");
+    assert_eq!(value["data"]["items"][0]["role"], "owner");
+    assert_eq!(value["data"]["items"][1]["principalId"], "1014");
+    assert_eq!(value["data"]["items"][1]["attributes"]["displayName"], "Member");
 }
 
 #[tokio::test]
@@ -1291,7 +1299,8 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("contacts body should be valid json");
 
-    let items = value["items"]
+    assert_eq!(value["code"], 0);
+    let items = value["data"]["items"]
         .as_array()
         .expect("contacts items should be array");
     assert_eq!(items.len(), 2);
@@ -1346,11 +1355,12 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first contacts page should be json");
-    assert_eq!(first_json["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_json["items"][0]["targetUserId"], "1037");
-    assert_eq!(first_json["items"][1]["targetUserId"], "1036");
-    assert_eq!(first_json["hasMore"], true);
-    let next_cursor = first_json["nextCursor"]
+    assert_eq!(first_json["code"], 0);
+    assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_json["data"]["items"][0]["targetUserId"], "1037");
+    assert_eq!(first_json["data"]["items"][1]["targetUserId"], "1036");
+    assert_eq!(first_json["data"]["hasMore"], true);
+    let next_cursor = first_json["data"]["nextCursor"]
         .as_str()
         .expect("first contacts page should include nextCursor");
 
@@ -1378,10 +1388,11 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .to_bytes();
     let second_json: serde_json::Value =
         serde_json::from_slice(&second_body).expect("second contacts page should be json");
-    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_json["items"][0]["targetUserId"], "1035");
-    assert_eq!(second_json["hasMore"], false);
-    assert_eq!(second_json["nextCursor"], serde_json::Value::Null);
+    assert_eq!(second_json["code"], 0);
+    assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["data"]["items"][0]["targetUserId"], "1035");
+    assert_eq!(second_json["data"]["hasMore"], false);
+    assert_eq!(second_json["data"]["nextCursor"], serde_json::Value::Null);
 
     let invalid = app
         .oneshot(
@@ -1404,7 +1415,7 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_json: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid contacts body should be json");
-    assert_eq!(invalid_json["code"], "limit_invalid");
+    assert_eq!(invalid_json["code"].as_i64(), Some(40001));
 }
 
 #[tokio::test]
@@ -1452,7 +1463,7 @@ async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_ove
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["code"], "contact_scope_forbidden");
+    assert_eq!(value["code"].as_i64(), Some(40301));
 }
 
 #[tokio::test]
@@ -1604,16 +1615,17 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
     let summary_value: serde_json::Value = serde_json::from_slice(&summary_body)
         .expect("interaction summary body should be valid json");
 
-    assert_eq!(summary_value["messageId"], "msg_c_interaction_http_1");
-    assert_eq!(summary_value["messageSeq"], 1);
-    assert_eq!(summary_value["totalReactionCount"], 2);
+    assert_eq!(summary_value["code"], 0);
+    assert_eq!(summary_value["data"]["messageId"], "msg_c_interaction_http_1");
+    assert_eq!(summary_value["data"]["messageSeq"], 1);
+    assert_eq!(summary_value["data"]["totalReactionCount"], 2);
     assert_eq!(
-        summary_value["reactionCounts"][0]["reactionKey"],
+        summary_value["data"]["reactionCounts"][0]["reactionKey"],
         "thumbs_up"
     );
-    assert_eq!(summary_value["reactionCounts"][0]["count"], 2);
-    assert_eq!(summary_value["pin"]["pinnedBy"]["id"], "1");
-    assert_eq!(summary_value["pin"]["pinnedAt"], "2026-04-10T12:00:20Z");
+    assert_eq!(summary_value["data"]["reactionCounts"][0]["count"], 2);
+    assert_eq!(summary_value["data"]["pin"]["pinnedBy"]["id"], "1");
+    assert_eq!(summary_value["data"]["pin"]["pinnedAt"], "2026-04-10T12:00:20Z");
 
     let pins_response = app
         .oneshot(
@@ -1638,10 +1650,292 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
     let pins_value: serde_json::Value =
         serde_json::from_slice(&pins_body).expect("pins response should be valid json");
 
-    let items = pins_value["items"]
+    assert_eq!(pins_value["code"], 0);
+    let items = pins_value["data"]["items"]
         .as_array()
         .expect("pins items should be array");
     assert_eq!(items.len(), 1);
     assert_eq!(items[0]["messageId"], "msg_c_interaction_http_1");
     assert_eq!(items[0]["pin"]["pinnedBy"]["id"], "1");
+}
+
+#[tokio::test]
+async fn test_conversation_profile_and_preferences_support_get_and_patch() {
+    let service = projection_service::TimelineProjectionService::default();
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_profile_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                "c_agent_e7f6182d320811b42f4484f9",
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_agent_e7f6182d320811b42f4484f9",
+                    "memberId":"cm_agent",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let conversation_id = "c_agent_e7f6182d320811b42f4484f9";
+
+    let patch_profile_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .header(CONTENT_TYPE, "application/json")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::from(
+                    serde_json::json!({
+                        "displayName": "SdkWork Assistant",
+                        "avatarUrl": "https://example.test/assistant.png"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("profile patch should succeed");
+
+    assert_eq!(patch_profile_response.status(), StatusCode::OK);
+    let patch_profile_body = patch_profile_response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile patch body should collect")
+        .to_bytes();
+    let patch_profile_value: serde_json::Value =
+        serde_json::from_slice(&patch_profile_body).expect("profile patch should be valid json");
+    assert_eq!(patch_profile_value["code"], 0);
+    assert_eq!(
+        patch_profile_value["data"]["item"]["displayName"],
+        "SdkWork Assistant"
+    );
+    assert_eq!(
+        patch_profile_value["data"]["item"]["avatarUrl"],
+        "https://example.test/assistant.png"
+    );
+
+    let get_profile_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(get_profile_response.status(), StatusCode::OK);
+    let get_profile_body = get_profile_response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile get body should collect")
+        .to_bytes();
+    let get_profile_value: serde_json::Value =
+        serde_json::from_slice(&get_profile_body).expect("profile get should be valid json");
+    assert_eq!(
+        get_profile_value["data"]["item"]["displayName"],
+        "SdkWork Assistant"
+    );
+
+    let patch_preferences_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/preferences"
+                ))
+                .header(CONTENT_TYPE, "application/json")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::from(
+                    serde_json::json!({ "isPinned": true, "isHidden": false }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("preferences patch should succeed");
+
+    assert_eq!(patch_preferences_response.status(), StatusCode::OK);
+    let patch_preferences_body = patch_preferences_response
+        .into_body()
+        .collect()
+        .await
+        .expect("preferences patch body should collect")
+        .to_bytes();
+    let patch_preferences_value: serde_json::Value = serde_json::from_slice(&patch_preferences_body)
+        .expect("preferences patch should be valid json");
+    assert_eq!(patch_preferences_value["code"], 0);
+    assert_eq!(patch_preferences_value["data"]["item"]["isPinned"], true);
+    assert_eq!(patch_preferences_value["data"]["item"]["isHidden"], false);
+}
+
+#[tokio::test]
+async fn test_message_favorites_support_list_create_and_delete() {
+    let service = projection_service::TimelineProjectionService::default();
+    let conversation_id = "c_favorites_http";
+    let message_id = "msg_favorite_http_1";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_favorites_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_favorites_http",
+                    "memberId":"cm_favorites",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+    service
+        .apply(&timeline_message_posted_event(
+            "100001",
+            conversation_id,
+            message_id,
+            1,
+            "1",
+            "cm_favorites",
+            "favorite me",
+        ))
+        .expect("timeline projection should succeed");
+
+    let app = sdkwork_routes_im_projection_open_api::build_public_app_with_service(std::sync::Arc::new(
+        service,
+    ));
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/favorites"))
+                .header(CONTENT_TYPE, "application/json")
+                .header("Idempotency-Key", "fav-create-http-1")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::from(
+                    serde_json::json!({
+                        "conversationId": conversation_id,
+                        "favoriteType": "chat",
+                        "title": "Pinned context",
+                        "contentPreview": "favorite me",
+                        "sourceDisplayName": "Sarah Connor"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("favorite create should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("favorite create body should collect")
+        .to_bytes();
+    let create_value: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("favorite create should be valid json");
+    assert_eq!(create_value["code"], 0);
+    let favorite_id = create_value["data"]["item"]["favoriteId"]
+        .as_str()
+        .expect("favorite create should return favoriteId")
+        .to_owned();
+    assert_eq!(create_value["data"]["item"]["messageSeq"], 1);
+
+    let list_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/messages/favorites?limit=100&favoriteType=chat")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("favorite list should succeed");
+    assert_eq!(list_response.status(), StatusCode::OK);
+    let list_body = list_response
+        .into_body()
+        .collect()
+        .await
+        .expect("favorite list body should collect")
+        .to_bytes();
+    let list_value: serde_json::Value =
+        serde_json::from_slice(&list_body).expect("favorite list should be valid json");
+    assert_eq!(list_value["code"], 0);
+    assert_eq!(list_value["data"]["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list_value["data"]["items"][0]["favoriteId"], favorite_id);
+
+    let delete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/im/v3/api/chat/messages/favorites/{favorite_id}"))
+                .header("Idempotency-Key", "fav-delete-http-1")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("favorite delete should succeed");
+    assert_eq!(delete_response.status(), StatusCode::OK);
+    let delete_body = delete_response
+        .into_body()
+        .collect()
+        .await
+        .expect("favorite delete body should collect")
+        .to_bytes();
+    let delete_value: serde_json::Value =
+        serde_json::from_slice(&delete_body).expect("favorite delete should be valid json");
+    assert_eq!(delete_value["code"], 0);
+    assert_eq!(delete_value["data"]["deleted"], true);
 }

@@ -13,13 +13,17 @@ use im_time::utc_now_rfc3339_millis;
 
 mod access;
 mod bootstrap;
+pub mod embedded_bridge;
 mod client_route_sync;
+mod journal_consumer;
 mod contacts;
+mod conversation_personalization;
 pub mod http;
 mod inbox;
 mod interactions;
 mod member_directory;
 mod member_store;
+mod message_favorites;
 mod model;
 mod observability;
 mod projection;
@@ -47,16 +51,23 @@ use scope::{
 
 pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
 pub use bootstrap::{build_projection_runtime_from_env, ProjectionRuntime};
+pub use embedded_bridge::try_apply_commit_envelope;
+pub use journal_consumer::{
+    spawn_projection_journal_consumer_from_env, ProjectionJournalConsumerHandle,
+};
 pub use http::{
     build_app, build_default_app, build_public_app, build_public_app_with_service,
     default_projection_runtime, default_projection_service,
 };
 pub use model::{
     ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
-    ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,
-    InteractionActorView, MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
+    ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
+    ConversationSummaryView, DeleteMessageFavoriteResponse, FavoriteMessageRequest,
+    FavoriteMessagesWindowView, InboxWindowView, InteractionActorView,
+    MessageFavoriteView, MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
     NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView,
-    TimelineViewEntry, TimelineWindowView,
+    TimelineViewEntry, TimelineWindowView, UpdateConversationPreferencesRequest,
+    UpdateConversationProfileRequest,
 };
 pub use observability::{
     ProjectionLagItemView, ProjectionLogView, ProjectionOperationMetricView,
@@ -91,6 +102,10 @@ pub struct TimelineProjectionService {
     client_route_sync_feeds:
         Mutex<HashMap<ClientRouteFeedScopeKey, BTreeMap<u64, ClientRouteSyncFeedEntry>>>,
     client_route_sync_sequences: Mutex<HashMap<ClientRouteFeedScopeKey, u64>>,
+    conversation_profiles: Mutex<HashMap<String, model::ConversationProfileView>>,
+    conversation_preferences: Mutex<HashMap<String, model::ConversationPreferencesView>>,
+    message_favorites:
+        Mutex<HashMap<String, HashMap<String, model::MessageFavoriteView>>>,
     observability: Mutex<ProjectionObservabilityState>,
 }
 
@@ -124,6 +139,13 @@ impl TimelineProjectionService {
             "client route sync sequence store",
         )
         .clear();
+        lock_projection_mutex(&self.conversation_profiles, "conversation profile store").clear();
+        lock_projection_mutex(
+            &self.conversation_preferences,
+            "conversation preferences store",
+        )
+        .clear();
+        lock_projection_mutex(&self.message_favorites, "message favorites store").clear();
         *lock_projection_mutex(&self.observability, "projection observability store") =
             ProjectionObservabilityState::default();
     }

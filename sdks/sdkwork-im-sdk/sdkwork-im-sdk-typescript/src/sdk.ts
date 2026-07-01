@@ -1,19 +1,21 @@
 import { SdkworkImClient as GeneratedSdkworkImClient } from '@sdkwork/im-sdk-generated';
 import type {
-  DeleteMessageFavoriteResponse,
   EditMessageRequest,
   FavoriteMessageRequest,
-  FavoriteMessagesResponse,
   MessageFavoriteType,
   MessageFavoriteView,
   MessagePinMutationResult,
   MessageReactionMutationResult,
   MessageReactionRequest,
-  MessageVisibilityMutationResult,
   PostedMessageResponse,
   QueryParams,
   SdkworkImConfig,
 } from '@sdkwork/im-sdk-generated';
+import type {
+  DeleteMessageFavoriteResponse,
+  FavoriteMessagesResponse,
+  MessageVisibilityMutationResult,
+} from './openapi-compat-types';
 import { ImConversationsModule } from './conversations-module';
 import { ImMessagesModule } from './messages-module';
 import { ImRoomsModule } from './rooms-module';
@@ -47,6 +49,9 @@ function resolveApiBaseUrl(options: ImSdkClientOptions): string {
   const fromOptions = options.apiBaseUrl ?? options.baseUrl;
   if (fromOptions) {
     return fromOptions;
+  }
+  if (options.websocketBaseUrl) {
+    return options.websocketBaseUrl.replace(/^ws/u, 'http');
   }
   // Fall back to SDKWORK_IM_API_BASE_URL env var (browser/Vite) or throw.
   const fromEnv =

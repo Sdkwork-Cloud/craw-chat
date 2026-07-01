@@ -2,9 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use axum::http::HeaderMap;
-use axum::extract::Extension;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 use im_domain_core::automation::AutomationExecution;
 
 use crate::constants::*;
@@ -396,16 +394,6 @@ pub(crate) fn ensure_automation_read_access(auth: &AppContext) -> Result<(), Aut
     }
 
     Err(AutomationError::forbidden("automation.read"))
-}
-
-pub(crate) fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, AutomationError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(AutomationError::from),
-    }
 }
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,8 @@
-import { configureKnowledgebasePcRuntime } from '@sdkwork/knowledgebase-pc-knowledge';
-import type { KnowledgebasePcSdkPorts } from '@sdkwork/knowledgebase-pc-knowledge';
-import type { SessionSnapshot } from 'sdkwork-knowledgebase-pc-core';
 import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 
 import { getDriveAppSdkClient } from './driveAppSdkClient';
 import { getKnowledgebaseAppSdkClient } from './knowledgebaseAppSdkClient';
+import type { HostCapabilitySessionSnapshot, KnowledgebaseCapabilitySdkPorts } from './hostCapabilitySession';
 import {
   readAppSdkSessionTokens,
   SDKWORK_IM_SESSION_CHANGED_EVENT,
@@ -12,11 +10,11 @@ import {
 } from './session';
 
 let knowledgebasePcRuntimeBootstrapped = false;
-let imKnowledgebasePcPorts: KnowledgebasePcSdkPorts | null = null;
+let imKnowledgebasePcPorts: KnowledgebaseCapabilitySdkPorts | null = null;
 
 function mapImSessionToKnowledgebaseSnapshot(
   session: SdkworkChatSession | null,
-): SessionSnapshot | null {
+): HostCapabilitySessionSnapshot | null {
   if (!session?.authToken || !session.accessToken || !session.context?.tenantId || !session.context?.userId) {
     return null;
   }
@@ -52,7 +50,7 @@ function mapImSessionToKnowledgebaseSnapshot(
   };
 }
 
-function createImKnowledgebasePcSdkPorts(): KnowledgebasePcSdkPorts {
+function createImKnowledgebasePcSdkPorts(): KnowledgebaseCapabilitySdkPorts {
   const hostLanguageBridge = createImPcHostLanguageBridge();
   return {
     getKnowledgebaseClient: getKnowledgebaseAppSdkClient,
@@ -68,20 +66,44 @@ function createImKnowledgebasePcSdkPorts(): KnowledgebasePcSdkPorts {
   };
 }
 
-export function bootstrapKnowledgebasePcForIm(): void {
-  imKnowledgebasePcPorts = createImKnowledgebasePcSdkPorts();
-  configureKnowledgebasePcRuntime({
-    sdkPorts: imKnowledgebasePcPorts,
+export type KnowledgebasePcRuntimeConfigurator = (options: {
+  sdkPorts: KnowledgebaseCapabilitySdkPorts;
+}) => void;
+
+function resolveImKnowledgebasePcSdkPorts(): KnowledgebaseCapabilitySdkPorts {
+  imKnowledgebasePcPorts ??= createImKnowledgebasePcSdkPorts();
+  return imKnowledgebasePcPorts;
+}
+
+export function ensureKnowledgebasePcRuntimeOnModule(
+  configureRuntime: KnowledgebasePcRuntimeConfigurator,
+): void {
+  configureRuntime({
+    sdkPorts: resolveImKnowledgebasePcSdkPorts() as never,
   });
   knowledgebasePcRuntimeBootstrapped = true;
 }
 
-export function rebootstrapKnowledgebasePcRuntimeForIm(): void {
+export async function bootstrapKnowledgebasePcForIm(): Promise<void> {
+  const { configureKnowledgebasePcRuntime } = await import('@sdkwork/knowledgebase-pc-knowledge');
+  ensureKnowledgebasePcRuntimeOnModule(configureKnowledgebasePcRuntime as KnowledgebasePcRuntimeConfigurator);
+}
+
+export async function rebootstrapKnowledgebasePcRuntimeForIm(
+  configureRuntime?: KnowledgebasePcRuntimeConfigurator,
+): Promise<void> {
   if (!imKnowledgebasePcPorts) {
     return;
   }
+  if (configureRuntime) {
+    configureRuntime({
+      sdkPorts: imKnowledgebasePcPorts as never,
+    });
+    return;
+  }
+  const { configureKnowledgebasePcRuntime } = await import('@sdkwork/knowledgebase-pc-knowledge');
   configureKnowledgebasePcRuntime({
-    sdkPorts: imKnowledgebasePcPorts,
+    sdkPorts: imKnowledgebasePcPorts as never,
   });
 }
 
@@ -91,4 +113,5 @@ export function isKnowledgebasePcRuntimeBootstrapped(): boolean {
 
 export function resetKnowledgebasePcRuntime(): void {
   knowledgebasePcRuntimeBootstrapped = false;
+  imKnowledgebasePcPorts = null;
 }

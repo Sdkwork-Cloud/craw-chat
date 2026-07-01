@@ -33,13 +33,15 @@ function readRepoJson(...segments) {
 const packageJson = readJson('package.json');
 const tsconfigSource = readText('tsconfig.json');
 const viteConfigSource = readText('vite.config.ts');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const shopServiceSource = readText('packages', 'sdkwork-im-pc-shop', 'src', 'services', 'ShopService.ts');
 const ordersServiceSource = readText('packages', 'sdkwork-im-pc-orders', 'src', 'services', 'OrdersService.ts');
 const appAuthRuntimeSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
+const membershipAppSdkClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipAppSdkClient.ts');
+const apiCloudGatewayConfigSource = readRepoText('configs', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
 
 assert.equal(
   packageJson.scripts?.['test:commerce-app-sdk-integration'],
@@ -67,11 +69,19 @@ for (const [capability, packageName] of Object.entries(COMMERCE_T1_APP_SDK_PACKA
     new RegExp(`find:\\s*'${packageName.replaceAll('/', '\\/')}'`, 'u'),
     `Vite must alias ${packageName} to sibling generated transport`,
   );
-  assert.match(
-    pnpmWorkspaceSource,
-    new RegExp(workspaceRelativeFromApp.replaceAll('\\', '[\\\\/]'), 'u'),
-    `pnpm workspace must include ${packageName} generated transport`,
-  );
+  if (capability === 'membership') {
+    assert.match(
+      pnpmWorkspaceSource,
+      /apps\/sdkwork-im-pc\/packages\/\*/u,
+      'repository root pnpm-workspace.yaml must include IM PC packages for membership transport',
+    );
+  } else {
+    assert.match(
+      pnpmWorkspaceSource,
+      new RegExp(workspaceRelative.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
+      `repository root pnpm-workspace.yaml must include ${packageName} generated transport`,
+    );
+  }
 }
 
 assert.doesNotMatch(
@@ -99,12 +109,36 @@ assert.match(
 );
 
 assert.match(
+  appAuthRuntimeSource,
+  /bootstrapMembershipPcIntegrationForIm[\s\S]*rebootstrapMembershipPcIntegrationForIm/u,
+  'Auth runtime must bootstrap and rebootstrap membership PC integration on session changes.',
+);
+
+assert.match(
+  membershipAppSdkClientSource,
+  /@sdkwork\/membership-app-sdk[\s\S]*createMembershipsApi/u,
+  'Membership app SDK client must consume the membership transport surface.',
+);
+
+assert.match(
+  apiCloudGatewayConfigSource,
+  /serviceId = "sdkwork-membership-app-api"[\s\S]*apiPrefix = "\/app\/v3\/api\/memberships"/u,
+  'IM api-cloud-gateway development config must route memberships before IAM catch-all.',
+);
+
+assert.match(
+  devRunnerSource,
+  /resolveImApiCloudGatewayConfigPath[\s\S]*imApiCloudGatewayConfigPath/u,
+  'PC dev runner must launch api-cloud-gateway with IM-owned development config.',
+);
+
+assert.match(
   devRunnerSource,
   /COMMERCE_T1_APP_API_AUTHORITIES|SDKWORK_CATALOG_APP_API|SDKWORK_ORDER_APP_API|SDKWORK_SHOP_APP_API/u,
   'PC dev runner must bridge T1 commerce app-api upstream overrides.',
 );
 
-for (const authority of ['sdkwork-catalog-app-api', 'sdkwork-order-app-api', 'sdkwork-shop-app-api']) {
+for (const authority of ['sdkwork-catalog-app-api', 'sdkwork-order-app-api', 'sdkwork-shop-app-api', 'sdkwork-membership-app-api']) {
   assert.match(
     gatewayConfigSource,
     new RegExp(authority.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),

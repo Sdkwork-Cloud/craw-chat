@@ -200,6 +200,13 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
+      "id": "sdkwork-voice",
+      "repository": "Sdkwork-Cloud/sdkwork-voice",
+      "ref": "main",
+      "refInput": "SDKWORK_VOICE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
       "id": "sdkwork-rtc",
       "repository": "Sdkwork-Cloud/sdkwork-rtc",
       "ref": "1c1ff3b753a2e856faeef58f3a62a9bd153041e1",

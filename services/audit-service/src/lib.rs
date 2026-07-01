@@ -3,18 +3,22 @@ use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use axum::extract::{DefaultBodyLimit, Extension, Query, State};
-use axum::http::{HeaderMap, Request};
+use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_app_context::{AppContext, AppContextError, resolve_app_context, resolve_web_environment_from_process_env};
+use im_app_context::{AppContext, resolve_web_environment_from_process_env};
 use im_time::utc_now_rfc3339_millis;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use sdkwork_web_core::WebEnvironment;
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_web_core::{
+    WebEnvironment, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
+    problem_response, ProblemCorrelation,
+};
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
@@ -260,16 +264,6 @@ pub struct AuditError {
     message: String,
 }
 
-impl From<AppContextError> for AuditError {
-    fn from(value: AppContextError) -> Self {
-        Self {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: value.code(),
-            message: value.message().to_owned(),
-        }
-    }
-}
-
 impl AuditError {
     fn internal(code: &'static str, message: impl Into<String>) -> Self {
         Self {
@@ -308,16 +302,44 @@ impl AuditError {
     }
 }
 
-impl axum::response::IntoResponse for AuditError {
-    fn into_response(self) -> axum::response::Response {
-        (
-            self.status,
-            Json(serde_json::json!({
-                "code": self.code,
-                "message": self.message
-            })),
-        )
-            .into_response()
+/// Map [`AuditError::status`] to the canonical [`WebFrameworkErrorKind`].
+fn audit_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
+    }
+}
+
+impl From<AuditError> for ApiProblem {
+    fn from(error: AuditError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: audit_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
+/// Fallback `IntoResponse` for contexts where [`WebRequestContext`] is not
+/// available (e.g. middleware without context injection). Produces a
+/// `application/problem+json` response without `traceId`.
+impl IntoResponse for AuditError {
+    fn into_response(self) -> Response {
+        let error = WebFrameworkError {
+            kind: audit_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }
 
@@ -902,6 +924,21 @@ fn row_to_audit_record(row: &r2d2_postgres::postgres::Row) -> Result<AuditRecord
 }
 
 fn build_audit_pool(database_url: &str) -> Result<AuditPostgresPool, AuditError> {
+    if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
+        return Ok(pool);
+    }
+    if cfg!(test) {
+        return build_audit_pool_local(database_url);
+    }
+    Err(AuditError::internal(
+        "audit_persistence_failed",
+        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+            .err()
+            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+    ))
+}
+
+fn build_audit_pool_local(database_url: &str) -> Result<AuditPostgresPool, AuditError> {
     verify_production_sslmode(database_url);
     let pg_config = database_url.parse().map_err(|error| {
         AuditError::internal(
@@ -1179,8 +1216,7 @@ const AUDIT_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 /// Selection rules:
 /// - `SDKWORK_IM_ENVIRONMENT=dev|test` → in-memory backend (info! log).
 /// - `SDKWORK_IM_ENVIRONMENT=prod` (the default) without
-///   `SDKWORK_IM_DATABASE_URL` → in-memory backend with an `error!` log
-///   warning that audit records will not survive restart.
+///   `SDKWORK_IM_DATABASE_URL` → fail-closed startup panic.
 /// - `SDKWORK_IM_ENVIRONMENT=prod` with `SDKWORK_IM_DATABASE_URL` →
 ///   PostgreSQL backend. Initialization failure is fail-closed: the process
 ///   panics rather than silently degrading to in-memory storage.
@@ -1202,11 +1238,11 @@ fn resolve_audit_backend_from_env() -> AuditBackend {
             error!(
                 env = "SDKWORK_IM_ENVIRONMENT=prod",
                 hint = "set SDKWORK_IM_DATABASE_URL to enable durable audit storage",
-                "audit-service running in PRODUCTION with in-memory audit ledger; all audit records will be lost on restart"
+                "audit-service fail-closed: production requires durable audit storage"
             );
-            AuditBackend::InMemory {
-                records: RwLock::new(HashMap::new()),
-            }
+            panic!(
+                "audit-service fail-closed: set {AUDIT_DATABASE_URL_ENV} for durable audit storage in production"
+            );
         }
         (WebEnvironment::Prod, Some(database_url)) => {
             match PostgresAuditStore::from_database_url(database_url.as_str()) {
@@ -1270,13 +1306,10 @@ pub fn build_public_app() -> Router {
 }
 
 pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
-    mount_im_infra_routes(
-        build_business_router(runtime),
-        im_service_router_config(),
-    )
+    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
 }
 
-fn build_business_router(runtime: Arc<AuditRuntime>) -> Router {
+pub fn build_business_router(runtime: Arc<AuditRuntime>) -> Router {
     let state = AppState { runtime };
     Router::new()
         .route("/openapi.json", get(openapi_json))
@@ -1298,6 +1331,12 @@ async fn enforce_in_flight_gate(
     let permit = match guardrails.request_gate.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
+            let problem = ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
             return AuditError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
@@ -1389,50 +1428,58 @@ fn audit_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn record_anchor(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
-) -> Result<Json<AuditRecordMutationResponse>, AuditError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_audit_write_access(&auth)?;
-    validate_record_audit_anchor_request(&request)?;
-    let request_key = audit_record_request_key(&auth, request.record_id.as_str());
-    Ok(Json(AuditRecordMutationResponse::from_outcome(
-        state.runtime.record_anchor_with_outcome(&auth, request)?,
-        request_key,
-    )))
+) -> Response {
+    let result: ApiResult<AuditRecordMutationResponse> = (|| {
+        ensure_audit_write_access(&auth)?;
+        validate_record_audit_anchor_request(&request)?;
+        let request_key = audit_record_request_key(&auth, request.record_id.as_str());
+        Ok(AuditRecordMutationResponse::from_outcome(
+            state.runtime.record_anchor_with_outcome(&auth, request)?,
+            request_key,
+        ))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn list_records(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Query(query): Query<ListAuditRecordsQuery>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
     State(state): State<AppState>,
-) -> Result<Json<AuditRecordListResponse>, AuditError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_audit_read_access(&auth)?;
-    Ok(Json(state.runtime.list_records_window(&auth, query)?))
+) -> Response {
+    let result: ApiResult<AuditRecordListResponse> = (|| {
+        ensure_audit_read_access(&auth)?;
+        Ok(state.runtime.list_records_window(&auth, query)?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn export_bundle(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<AuditExportBundle>, AuditError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_audit_read_access(&auth)?;
-    Ok(Json(state.runtime.export_bundle(&auth)))
+) -> Response {
+    let result: ApiResult<AuditExportBundle> = (|| {
+        ensure_audit_read_access(&auth)?;
+        Ok(state.runtime.export_bundle(&auth))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn verify_chain(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<AuditChainVerification>, AuditError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    ensure_audit_read_access(&auth)?;
-    Ok(Json(state.runtime.verify_chain(&auth)))
+) -> Response {
+    let result: ApiResult<AuditChainVerification> = (|| {
+        ensure_audit_read_access(&auth)?;
+        Ok(state.runtime.verify_chain(&auth))
+    })();
+    finish_api_json(&ctx, result)
 }
 
 fn ensure_audit_read_access(auth: &AppContext) -> Result<(), AuditError> {
@@ -1449,16 +1496,6 @@ fn ensure_audit_write_access(auth: &AppContext) -> Result<(), AuditError> {
     }
 
     Err(AuditError::forbidden("audit.write"))
-}
-
-fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, AuditError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(AuditError::from),
-    }
 }
 
 fn resolve_max_in_flight_requests() -> usize {

@@ -11,6 +11,8 @@ use im_platform_contracts::{ProviderRegistry, RuntimeProviderRegistry};
 use ops_service::OpsRuntime;
 use sdkwork_im_ccp_registry::CcpRegistry;
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
+use sdkwork_web_core::WebRequestContext;
 use session_gateway::RealtimeClusterBridge;
 use tokio::sync::Semaphore;
 
@@ -200,10 +202,7 @@ fn build_business_router_with_cluster(realtime_cluster: Arc<RealtimeClusterBridg
 }
 
 fn build_app_with_state(state: AppState) -> Router {
-    mount_im_infra_routes(
-        build_business_router_with_state(state),
-        im_service_router_config(),
-    )
+    mount_im_infra_routes(build_business_router_with_state(state), im_service_router_config())
 }
 
 fn build_control_surface_with_state(state: AppState) -> Router {
@@ -260,27 +259,32 @@ async fn enforce_in_flight_gate(
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
-    match request.uri().path() {
+    if matches!(
+        request.uri().path(),
         "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json"
-            | "/backend/v3/api/control/openapi.json" | "/docs" => {
-            next.run(request).await
-        }
-        _ => {
-            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
-                Ok(permit) => permit,
-                Err(_) => {
-                    return ControlPlaneError::service_unavailable(
-                        "http_overloaded",
-                        "server is at maximum in-flight request capacity, please retry later",
-                    )
-                    .into_response();
-                }
-            };
-            let response = next.run(request).await;
-            drop(permit);
-            response
-        }
+            | "/backend/v3/api/control/openapi.json" | "/docs"
+    ) {
+        return next.run(request).await;
     }
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            let problem = ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
+            return ControlPlaneError::service_unavailable(
+                "http_overloaded",
+                "server is at maximum in-flight request capacity, please retry later",
+            )
+            .into_response();
+        }
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
 }
 
 fn resolve_max_in_flight_requests() -> usize {

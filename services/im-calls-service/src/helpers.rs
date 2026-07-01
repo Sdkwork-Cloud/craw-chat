@@ -1,8 +1,6 @@
 use std::sync::OnceLock;
 
-use axum::extract::Extension;
-use axum::http::HeaderMap;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 use im_domain_core::rtc::SignalSender;
 
 use crate::dto::{
@@ -30,16 +28,6 @@ const CALLING_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
 const CALLING_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_CALLING_MAX_REQUEST_BODY_BYTES";
 const CALLING_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 1024 * 1024;
 const CALLING_MAX_REQUEST_BODY_BYTES_MAX: usize = 10 * 1024 * 1024;
-
-pub(crate) fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, CallingError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(CallingError::from),
-    }
-}
 
 /// Cached max in-flight requests. Reading `std::env::var` on every request
 /// is unnecessary filesystem work under load; the value is process-static

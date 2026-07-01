@@ -11,12 +11,20 @@
 - `object-storage-google`
 - `object-storage-microsoft`
 
-## 设计约束
+## Design constraints
 
-- 业务层只依赖 `ObjectStorageProvider`。
-- provider 选择由 `ProviderRegistry` 决定。
-- URL 签发统一走 `signed_download_url(...)`。
-- Google / Microsoft 使用 `s3-gateway` 能力标识。
+- Business layer only depends on `ObjectStorageProvider` contract interfaces.
+- Provider selection is decided by `ProviderRegistry`.
+- URL signing uses `signed_download_url(...)`.
+- Google / Microsoft use the `s3-gateway` capability identifier.
+
+## Production upload boundary
+
+This crate is **not** a production file-upload path for Sdkwork IM applications.
+
+- All user-facing and app-surface uploads **must** go through `sdkwork-drive` (`/app/v3/api/drive/*`) via `@sdkwork/drive-app-sdk` or approved server-side Drive Uploader facades per `DRIVE_SPEC.md`.
+- `media-service` and chat/community clients **must not** call this adapter for upload lifecycle.
+- Allowed uses here: contract tests, provider registry conformance checks, and platform storage plugin conformance under `adapters/object-storage-s3/tests/`.
 
 ## SDKWork Documentation Contract
 

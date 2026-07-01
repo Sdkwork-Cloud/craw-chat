@@ -16,9 +16,8 @@ pub mod state;
 mod tests;
 
 pub use crate::app::{
-    apply_public_http_guardrails, build_app, build_app_with_rtc_provider, build_default_app,
-    build_default_calling_runtime, build_default_rtc_provider, build_domain_api_router,
-    build_public_app,
+    apply_public_http_guardrails, build_business_router, build_default_calling_runtime,
+    build_default_rtc_provider, build_domain_api_router,
 };
 pub use crate::dto::{
     CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest,

@@ -1,4 +1,5 @@
 export * from './utils';
+export * from './formatTime';
 export * from './api';
 export * from './i18n';
 export * from './settingsStorage';

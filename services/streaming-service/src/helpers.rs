@@ -1,9 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::{Mutex, MutexGuard};
 
-use axum::extract::Extension;
-use axum::http::HeaderMap;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 use im_domain_core::message::Sender;
 use im_domain_core::stream::{StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState};
 
@@ -32,16 +30,6 @@ const STREAMING_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
 const STREAMING_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_STREAMING_MAX_REQUEST_BODY_BYTES";
 const STREAMING_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const STREAMING_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
-
-pub(crate) fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, StreamingError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(StreamingError::from),
-    }
-}
 
 pub(crate) fn resolve_max_in_flight_requests() -> usize {
     std::env::var(STREAMING_MAX_IN_FLIGHT_REQUESTS_ENV)

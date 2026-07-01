@@ -74,13 +74,14 @@ assert.match(
   'conversation journal bootstrap must wire PostgresRetentionScopeStore for legal_hold reconcile',
 );
 
-const opsService = readExists('services/ops-service/src/lib.rs');
+const opsApp = readExists('services/ops-service/src/app.rs');
 assert.match(
-  opsService,
+  opsApp,
   /\/backend\/v3\/api\/ops\/retention\/purge/,
   'ops-service must expose manual retention purge route',
 );
-assert.match(opsService, /retention_purge_metrics/, 'ops metrics must merge retention purge metrics');
+const postgresJournal = readExists('adapters/postgres-journal/src/lib.rs');
+assert.match(postgresJournal, /retention_purge_metrics/, 'ops metrics must merge retention purge metrics');
 
 const retentionCleanup = readExists('adapters/postgres-journal/src/retention_cleanup.rs');
 assert.match(

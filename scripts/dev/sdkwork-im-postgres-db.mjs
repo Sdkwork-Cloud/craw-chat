@@ -789,13 +789,24 @@ async function executePostgresDbStep(step) {
     env: step.env,
     input: step.input,
     shell: step.shell ?? process.platform === 'win32',
-    stdio: ['pipe', 'inherit', 'inherit'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
+  if (spawned.stdout) {
+    process.stdout.write(spawned.stdout);
+  }
+  if (spawned.stderr) {
+    process.stderr.write(spawned.stderr);
+  }
   if (spawned.error) {
     throw spawned.error;
   }
   if (spawned.status !== 0) {
-    throw new Error(`PostgreSQL step failed with exit code ${spawned.status}: ${step.label}`);
+    const detail = String(spawned.stderr ?? spawned.stdout ?? '').trim();
+    throw new Error(
+      detail
+        ? `PostgreSQL step failed (${step.label}): ${detail}`
+        : `PostgreSQL step failed with exit code ${spawned.status}: ${step.label}`,
+    );
   }
 }
 

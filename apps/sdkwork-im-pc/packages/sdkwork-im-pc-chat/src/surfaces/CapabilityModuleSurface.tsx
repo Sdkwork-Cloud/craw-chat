@@ -5,7 +5,6 @@ import {
   LazyCapabilityModuleRenderer,
   resolveWorkspaceAppTab,
 } from "@sdkwork/im-pc-shell";
-import { VoiceMarketView } from "@sdkwork/im-pc-voice";
 import { WorkspaceView } from "@sdkwork/im-pc-workspace";
 import type { Chat, User } from "@sdkwork/im-pc-types";
 
@@ -78,6 +77,17 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
       case "musicgen":
       case "writing":
         return <ModuleComponent />;
+      case "voice":
+        return (
+          <ModuleComponent
+            onSelectVoice={(voice: { name: string }) => {
+              showToast(t("chat.toast.voiceLoading", { name: voice.name }), "success");
+            }}
+            onCreateVoice={() => {
+              showToast(t("chat.toast.voiceCloneSoon"), "success");
+            }}
+          />
+        );
       case "enterprise":
         return <ModuleComponent onStartChat={onEnterpriseStartChat} onCall={onEnterpriseCall} />;
       case "devices":
@@ -139,17 +149,6 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
             onEditAgentIdChange(undefined);
           }}
           initialAgentId={editAgentId}
-        />
-      );
-    case "voice":
-      return (
-        <VoiceMarketView
-          onSelectVoice={(voice) => {
-            showToast(t("chat.toast.voiceLoading", { name: voice.name }), "success");
-          }}
-          onCreateVoice={() => {
-            showToast(t("chat.toast.voiceCloneSoon"), "success");
-          }}
         />
       );
     case "workspace":

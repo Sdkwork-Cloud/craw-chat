@@ -14,7 +14,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
-| Status | `standardizing` |
+| Status | `active` |
 
 ## Contract Manifest
 

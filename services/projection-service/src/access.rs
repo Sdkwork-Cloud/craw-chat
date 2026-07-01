@@ -8,12 +8,16 @@ use im_platform_contracts::normalize_realtime_organization_id;
 
 use super::{
     ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
-    ConversationMemberDirectoryEntry, ConversationSummaryView, MessageInteractionSummaryView,
+    ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
+    ConversationSummaryView, DeleteMessageFavoriteResponse, FavoriteMessageRequest,
+    FavoriteMessagesWindowView, MessageFavoriteView, MessageInteractionSummaryView,
     NotificationRecipientView, PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT,
     PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT, PROJECTION_LIST_DEFAULT_LIMIT,
     PROJECTION_LIST_MAX_LIMIT, PROJECTION_TIMELINE_DEFAULT_LIMIT, PROJECTION_TIMELINE_MAX_LIMIT,
     RealtimeFanoutTarget, RegisteredClientRouteView, TimelineProjectionService, TimelineWindowView,
+    UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
+use super::message_favorites::filter_message_favorites;
 
 const PROJECTION_MAX_DEVICE_ID_BYTES: usize = 256;
 const PROJECTION_MAX_CONVERSATION_ID_BYTES: usize = 256;
@@ -171,6 +175,68 @@ impl TimelineProjectionService {
                 "principal is not active conversation member: {}",
                 auth.actor_id
             ),
+        ))
+    }
+
+    pub fn conversation_profile_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+    ) -> Result<ConversationProfileView, ProjectionAccessError> {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        Ok(self.conversation_profile(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            conversation_id,
+        ))
+    }
+
+    pub fn update_conversation_profile_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+        update: UpdateConversationProfileRequest,
+    ) -> Result<ConversationProfileView, ProjectionAccessError> {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        Ok(self.update_conversation_profile(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            conversation_id,
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            update,
+        ))
+    }
+
+    pub fn conversation_preferences_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+    ) -> Result<ConversationPreferencesView, ProjectionAccessError> {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        Ok(self.conversation_preferences(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            conversation_id,
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+        ))
+    }
+
+    pub fn update_conversation_preferences_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+        update: UpdateConversationPreferencesRequest,
+    ) -> Result<ConversationPreferencesView, ProjectionAccessError> {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        Ok(self.update_conversation_preferences(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            conversation_id,
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            update,
         ))
     }
 
@@ -503,8 +569,9 @@ impl TimelineProjectionService {
         conversation_id: &str,
         message_id: &str,
     ) -> Result<Option<MessageInteractionSummaryView>, ProjectionAccessError> {
-        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        validate_conversation_id(conversation_id)?;
         validate_message_id(message_id)?;
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
         Ok(self.message_interaction_summary(
             auth.tenant_id.as_str(),
             Self::auth_organization_id(auth).as_str(),
@@ -552,6 +619,82 @@ impl TimelineProjectionService {
             Self::auth_organization_id(auth).as_str(),
             conversation_id,
         ))
+    }
+
+    pub fn message_favorites_window_from_auth_context(
+        &self,
+        auth: &AppContext,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+        favorite_type: Option<&str>,
+        query: Option<&str>,
+    ) -> Result<FavoriteMessagesWindowView, ProjectionAccessError> {
+        let limit = validate_list_limit(limit)?;
+        let favorites = filter_message_favorites(
+            self.message_favorites_for_principal(
+                auth.tenant_id.as_str(),
+                Self::auth_organization_id(auth).as_str(),
+                auth.actor_kind.as_str(),
+                auth.actor_id.as_str(),
+            ),
+            favorite_type,
+            query,
+        );
+        list_window(favorites, limit, cursor).map(|window| FavoriteMessagesWindowView {
+            items: window.items,
+            next_cursor: window.next_cursor,
+            has_more: window.has_more,
+        })
+    }
+
+    pub fn create_message_favorite_from_auth_context(
+        &self,
+        auth: &AppContext,
+        message_id: &str,
+        request: FavoriteMessageRequest,
+    ) -> Result<MessageFavoriteView, ProjectionAccessError> {
+        validate_message_id(message_id)?;
+        validate_conversation_id(request.conversation_id.as_str())?;
+        self.ensure_active_member_from_auth_context(auth, request.conversation_id.as_str())?;
+        Ok(self.create_message_favorite(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            message_id,
+            request,
+        ))
+    }
+
+    pub fn delete_message_favorite_from_auth_context(
+        &self,
+        auth: &AppContext,
+        favorite_id: &str,
+    ) -> Result<DeleteMessageFavoriteResponse, ProjectionAccessError> {
+        if favorite_id.trim().is_empty() {
+            return Err(ProjectionAccessError::bad_request(
+                "favorite_id_invalid",
+                "favorite id must not be empty",
+            ));
+        }
+        let deleted = self.delete_message_favorite(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            favorite_id,
+        );
+        if !deleted {
+            return Err(ProjectionAccessError {
+                status: StatusCode::NOT_FOUND,
+                code: "message_favorite_not_found",
+                message: format!("message favorite not found: {favorite_id}"),
+            });
+        }
+        Ok(DeleteMessageFavoriteResponse {
+            favorite_id: favorite_id.to_owned(),
+            deleted: true,
+        })
     }
 }
 
@@ -704,6 +847,12 @@ fn validate_conversation_id(conversation_id: &str) -> Result<(), ProjectionAcces
 }
 
 fn validate_message_id(message_id: &str) -> Result<(), ProjectionAccessError> {
+    if message_id.trim().is_empty() {
+        return Err(ProjectionAccessError::bad_request(
+            "invalid_message_id",
+            "messageId is required",
+        ));
+    }
     let actual_bytes = message_id.len();
     if actual_bytes > PROJECTION_MAX_MESSAGE_ID_BYTES {
         return Err(ProjectionAccessError::payload_too_large(

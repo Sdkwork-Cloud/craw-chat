@@ -1,5 +1,5 @@
 import { bootstrapCoursePcForIm } from '@sdkwork/im-pc-core';
 
-export function bootstrapImCoursePcIntegration(): void {
-  bootstrapCoursePcForIm();
+export function bootstrapImCoursePcIntegration(): Promise<void> {
+  return bootstrapCoursePcForIm();
 }

@@ -1,7 +1,5 @@
 use std::process::ExitCode;
 
-use im_adapters_social_postgres::SocialPostgresConfig;
-
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_COMMS_SPACE_SERVICE_BIND_ADDR";
 const LEGACY_BIND_ADDR_ENV: &str = "SDKWORK_IM_SPACE_SERVICE_BIND_ADDR";
 const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
@@ -22,15 +20,13 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
     let bind_addr = std::env::var(BIND_ADDR_ENV)
         .or_else(|_| std::env::var(LEGACY_BIND_ADDR_ENV))
         .unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
-    let database_url = std::env::var(DATABASE_URL_ENV)
-        .map_err(|_| format!("{DATABASE_URL_ENV} is required for comms-space-service"))?;
-    let pool = SocialPostgresConfig::new(database_url)
-        .connect_pool()
-        .map_err(|error| format!("postgres pool for comms-space-service: {error:?}"))?;
-    let state = space_service::app_state_from_postgres_pool(pool).await;
+    let state = space_service::try_app_state_from_database_url_env()
+        .await
+        .ok_or_else(|| format!("{DATABASE_URL_ENV} is required for comms-space-service"))?;
     let app = sdkwork_routes_im_space_open_api::build_public_app(state);
 
     let listener = tokio::net::TcpListener::bind(bind_addr.as_str())

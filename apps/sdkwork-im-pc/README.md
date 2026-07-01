@@ -50,6 +50,7 @@ pnpm test:domain-app-sdk-auth-runtime
 pnpm test:notary-app-sdk-integration
 pnpm test:drive-app-sdk-integration
 pnpm test:knowledgebase-app-sdk-integration
+pnpm test:voice-app-sdk-integration
 pnpm test:qr-scan-standard
 ```
 
@@ -63,14 +64,45 @@ apps/sdkwork-im-pc/
 ├─ packages/            # sdkwork-im-pc-* feature and shell packages
 ├─ specs/               # PC application contract
 ├─ scripts/             # app-local contract tests
+├─ tsconfig.app.json    # lint/typecheck scope for IM-owned sources only
+├─ types/stubs/         # lint-only module stubs for dynamically loaded sibling PC capabilities
 └─ sdkwork.app.config.json
+```
+
+## Dependency composition (APP_COMPOSITION_SPEC)
+
+PC follows the same native workspace model as H5:
+
+| Layer | Authority | Declares |
+| --- | --- | --- |
+| Repository root | `pnpm-workspace.yaml` | sibling SDKWork source paths once |
+| `@sdkwork/im-pc-core` | SDK registry + cross-repo facades | `@sdkwork/drive-app-sdk`, `@sdkwork/agents-app-sdk`, domain PC integrations |
+| `@sdkwork/im-pc-shell` | capability module loaders | `@sdkwork/drive-pc-drive`, `@sdkwork/knowledgebase-pc-knowledge`, `@sdkwork/voice-pc-market`, `@sdkwork/voice-pc-speech`, local IM feature packages |
+| Feature packages | UI modules | `@sdkwork/im-pc-core`, `@sdkwork/im-pc-commons`, UI/catalog deps |
+| App root `@sdkwork/im-pc` | bootstrap + build/runtime | local IM packages, auth/UI base, required IM SDK inventory |
+
+Rules enforced by `pnpm test:sdkwork-im-pc-architecture-standard`:
+
+- Do not declare `"workspaces"` in app-root `package.json`.
+- Do not hoist domain facade packages on the app root to compensate for empty member `dependencies`.
+- Do not declare `pnpm.overrides` under the app root.
+- Run `pnpm lint` through `tsconfig.app.json` so TypeScript does not typecheck sibling repositories via deep `paths` maps.
+- `tsconfig.app.json` keeps narrow path aliases only for in-repo IM SDK sources (`@sdkwork/im-sdk`, generated IM app/backend transports, IAM/Drive/Voice/RTC entrypoints). Dynamically loaded sibling PC capability modules (`drive`, `knowledgebase`, `voice`, `course`, `notary`) and Node-only lint stubs such as `jsdom` resolve through `types/stubs/*.d.ts` so IM-owned code stays the typecheck boundary.
+- Cross-capability runtime wiring lives in `@sdkwork/im-pc-core` integration modules and uses dynamic `import()` for sibling PC packages; Vite aliases in `vite.config.ts` may still source-link siblings for local HMR.
+
+Regenerate missing member dependencies after import changes:
+
+```bash
+node ../../scripts/dev/fix-pc-package-import-closure.mjs
+pnpm test:sdkwork-im-pc-architecture-standard
 ```
 
 ## SDK integration
 
 - IM HTTP/WebSocket: generated `@sdkwork/im-sdk` and app/backend SDK families under repository `sdks/`
-- Platform IAM/Drive/Knowledgebase/Agent: sibling app SDK families via `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
+- Platform IAM/Drive/Knowledgebase/Voice/Agent: sibling app SDK families via `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
   - Knowledgebase: `@sdkwork/knowledgebase-app-sdk` through composed `createKnowledgebaseAppClient` (not raw generated transport)
+  - Voice: `@sdkwork/voice-app-sdk` through `voicePcIntegration` and embed packages `@sdkwork/voice-pc-market` / `@sdkwork/voice-pc-speech` (tabs `voice` / `voicegen`). Production market lists `audio_assets` via SDK; pilot preview uses `VITE_SDKWORK_VOICE_MARKET_PILOT`. Split-deploy requires `SDKWORK_IM_VOICE_APP_API_UPSTREAM`.
 - RTC media: `@sdkwork/rtc-sdk` from sibling `../sdkwork-rtc` (not checked into this repository's `sdks/`)
 
 Do not add raw HTTP wrappers or manual auth headers in feature packages; bootstrap owns SDK construction.
@@ -93,8 +125,10 @@ When debugging QR login in DevTools, filter network requests to **`18079`** (app
 From repository root:
 
 ```bash
+pnpm test:sdkwork-im-pc-architecture-standard
 pnpm test:sdkwork-im-pc-dev-command
 pnpm test:workflow-commercial-gates
+node ../sdkwork-specs/tools/verify-repo.mjs --root ..
 ```
 
 From this directory:

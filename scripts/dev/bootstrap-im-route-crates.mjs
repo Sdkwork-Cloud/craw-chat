@@ -74,21 +74,21 @@ node scripts/dev/sdkwork-im-web-backend-standard.test.mjs
 }
 
 function webBootstrap(entry) {
-  const wrapFn =
-    entry.apiSurface === 'open-api'
-      ? 'wrap_im_open_api_service_router'
-      : 'wrap_im_service_router';
   return `use axum::Router;
-use sdkwork_im_web_bootstrap::${wrapFn};
+use sdkwork_im_web_bootstrap::wrap_im_service_router_with_manifest;
 
 use crate::manifest::route_manifest;
 
+/// Wrap the ${entry.packageName} router with the canonical SDKWork interceptor
+/// pipeline (\`WebFrameworkLayer\`) and the actual [\`HttpRouteManifest\`]
+/// declared by \`manifest::route_manifest()\`.
+///
+/// Passing the real route table (instead of an empty manifest) enables
+/// \`IamAuthorizationPolicy\` enforcement, route-level HTTP metrics
+/// dimensions, and OpenAPI metadata consistency per \`API_SPEC.md\` §4.5,
+/// §14, and §15.
 pub fn wrap_router(router: Router) -> Router {
-    ${wrapFn}(router)
-}
-
-pub fn route_manifest_for_wrap() -> sdkwork_web_core::HttpRouteManifest {
-    route_manifest()
+    wrap_im_service_router_with_manifest(router, route_manifest())
 }
 `;
 }

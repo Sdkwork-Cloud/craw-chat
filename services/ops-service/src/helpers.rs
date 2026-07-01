@@ -1,6 +1,4 @@
-use axum::extract::Extension;
-use axum::http::HeaderMap;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 
 use crate::error::OpsError;
 
@@ -18,14 +16,4 @@ pub(crate) fn ensure_ops_write_access(auth: &AppContext) -> Result<(), OpsError>
     }
 
     Err(OpsError::forbidden("ops.write"))
-}
-
-pub(crate) fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, OpsError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(OpsError::from),
-    }
 }

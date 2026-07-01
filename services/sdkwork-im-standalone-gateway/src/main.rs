@@ -58,9 +58,9 @@ async fn async_main(
     bind_addr: SocketAddr,
     base_url: String,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let _im_db = sdkwork_im_database_pool::bootstrap_im_database_from_env()
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
         .await
-        .map_err(|error| format!("failed to bootstrap IM database lifecycle: {error}"))?;
+        .map_err(|error| format!("failed to bootstrap IM process database pools: {error}"))?;
     let retention_scheduler =
         im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
 
@@ -115,14 +115,16 @@ async fn async_main(
     .await;
 
     // Dependency and IM assembly routes must win over cloud-gateway registry proxies.
-    let application_router = embedded_dependencies
-        .router
+    // Axum keeps the handler from the router merged later; start from registry proxies
+    // and layer embedded application + dependency routes on top.
+    let application_router = im_router
         .merge(embedded_application.router)
-        .merge(im_router);
+        .merge(embedded_dependencies.router);
     // The IM cloud-gateway router already mounts /healthz, /livez, /readyz, and /metrics
     // through sdkwork-web-bootstrap. Do not mount infra routes again on the merged router.
-    let app = iam_router
-        .merge(application_router)
+    // Embedded IAM routes must win over registry proxy catch-alls for /app/v3/api/auth|iam|oauth.
+    let app = application_router
+        .merge(iam_router)
         .layer(build_cors_layer(&gateway_config))
         .layer(from_fn_with_state(
             RateLimiter::new(RateLimitConfig::from_env()),
@@ -379,8 +381,8 @@ mod tests {
             "/app/v3/api/auth/ping",
             get(|| async { "ok" }),
         );
-        let app = iam_router
-            .merge(im_router)
+        let app = im_router
+            .merge(iam_router)
             .layer(build_cors_layer(&test_gateway_config()));
         let (address, handle) = spawn_server(app).await;
 
@@ -422,8 +424,8 @@ mod tests {
         let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
             .await
             .expect("iam router should build");
-        let app = iam_router
-            .merge(im_router)
+        let app = im_router
+            .merge(iam_router)
             .layer(build_cors_layer(&test_gateway_config()));
         let (address, handle) = spawn_server(app).await;
 
@@ -468,8 +470,8 @@ mod tests {
             Some(embedded_app_state),
         )
         .await;
-        let app = iam_router
-            .merge(im_router)
+        let app = im_router
+            .merge(iam_router)
             .layer(build_cors_layer(&test_gateway_config()));
         let (address, handle) = spawn_server(app).await;
 
@@ -514,8 +516,8 @@ mod tests {
             Some(embedded_app_state),
         )
         .await;
-        let app = iam_router
-            .merge(im_router)
+        let app = im_router
+            .merge(iam_router)
             .layer(build_cors_layer(&test_gateway_config()));
         let (address, handle) = spawn_server(app).await;
 
@@ -529,14 +531,14 @@ mod tests {
         let connect_result = connect_async(request).await;
         handle.abort();
         let (_, response) = connect_result
-            .expect("embedded realtime plane must preserve websocket upgrade in unified gateway");
+            .expect("embedded realtime plane must preserve websocket upgrade when session-gateway is embedded");
         assert_eq!(response.status(), 101);
     }
 
     fn web_gateway_config() -> sdkwork_im_cloud_gateway_config::WebGatewayConfig {
         sdkwork_im_cloud_gateway_config::WebGatewayConfig {
             bind_addr: "127.0.0.1:0".to_owned(),
-            runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::Unified,
+            runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::Split,
             strict_startup: true,
             upstreams: Vec::new(),
         }

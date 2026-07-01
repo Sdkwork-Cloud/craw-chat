@@ -1,18 +1,25 @@
 use std::sync::Arc;
 
 use axum::extract::{DefaultBodyLimit, Extension, State};
-use axum::http::{HeaderMap, Request, StatusCode};
+use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Json, Router, routing::get};
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_app_context::AppContext;
 use im_platform_contracts::ProviderHealthSnapshot;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_im_web_bootstrap::{
+    im_service_router_config, mount_im_infra_routes,
+};
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_web_core::{
+    WebFrameworkError, WebFrameworkErrorKind, WebRequestContext, problem_response,
+    ProblemCorrelation,
+};
 use tokio::sync::Semaphore;
 
 const MEDIA_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_MEDIA_MAX_IN_FLIGHT_REQUESTS";
@@ -69,7 +76,7 @@ impl MediaRuntime {
 
 #[derive(Debug, Clone)]
 pub struct MediaError {
-    status: StatusCode,
+    status: axum::http::StatusCode,
     code: &'static str,
     message: String,
 }
@@ -77,23 +84,7 @@ pub struct MediaError {
 impl MediaError {
     fn internal(code: &'static str, message: impl Into<String>) -> Self {
         Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            code,
-            message: message.into(),
-        }
-    }
-
-    fn unauthorized(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::UNAUTHORIZED,
-            code,
-            message: message.into(),
-        }
-    }
-
-    fn too_many_requests(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::TOO_MANY_REQUESTS,
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             code,
             message: message.into(),
         }
@@ -101,13 +92,13 @@ impl MediaError {
 
     fn payload_too_large(code: &'static str, message: impl Into<String>) -> Self {
         Self {
-            status: StatusCode::PAYLOAD_TOO_LARGE,
+            status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
             code,
             message: message.into(),
         }
     }
 
-    pub fn status(&self) -> StatusCode {
+    pub fn status(&self) -> axum::http::StatusCode {
         self.status
     }
 
@@ -120,33 +111,44 @@ impl MediaError {
     }
 }
 
-impl From<AppContextError> for MediaError {
-    fn from(value: AppContextError) -> Self {
-        Self::unauthorized(value.code(), value.message().to_owned())
+/// Map [`MediaError::status`] to the canonical [`WebFrameworkErrorKind`].
+fn media_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
     }
 }
 
+impl From<MediaError> for ApiProblem {
+    fn from(error: MediaError) -> Self {
+        let framework_error = WebFrameworkError {
+            kind: media_error_kind(&error.status),
+            message: error.message,
+            retry_after_seconds: None,
+        };
+        ApiProblem::from_web_framework(framework_error)
+    }
+}
+
+/// Fallback `IntoResponse` for contexts where [`WebRequestContext`] is not
+/// available (e.g. middleware without context injection). Produces a
+/// `application/problem+json` response without `traceId`.
 impl IntoResponse for MediaError {
     fn into_response(self) -> Response {
-        let status = self.status;
-        let detail = self.message;
-        let title = status.canonical_reason().unwrap_or("Unknown Error");
-        (
-            status,
-            [(
-                axum::http::header::CONTENT_TYPE,
-                "application/problem+json; charset=utf-8",
-            )],
-            Json(serde_json::json!({
-                "type": "about:blank",
-                "title": title,
-                "status": status.as_u16(),
-                "code": self.code,
-                "detail": detail,
-                "message": detail
-            })),
-        )
-            .into_response()
+        let error = WebFrameworkError {
+            kind: media_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }
 
@@ -223,8 +225,16 @@ async fn docs_html() -> Html<String> {
 }
 
 fn build_media_service_openapi_document() -> Result<serde_json::Value, String> {
-    let source = include_str!("lib.rs");
-    let routes = extract_routes_from_function(source, "build_business_router", &[], &[])?;
+    // Extract routes from `build_domain_api_router` (not `build_business_router`)
+    // because the business router only `.merge()`s the domain router; the
+    // extractor follows direct `.route()` calls and does not recurse into
+    // merged sub-routers. The domain router owns the media endpoint.
+    let routes = extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_domain_api_router",
+        &[],
+        &["/openapi.json", "/docs"],
+    )?;
     Ok(build_openapi_document(
         &media_service_openapi_spec(),
         &routes,
@@ -270,52 +280,50 @@ fn summarize_media_route(path: &str, _method: HttpMethod) -> String {
 }
 
 pub async fn get_media_provider_health(
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<ProviderHealthSnapshot>, MediaError> {
-    let auth = resolve_active_auth_context(auth, &headers)?;
-    Ok(Json(
-        state
+) -> Response {
+    let result: ApiResult<ProviderHealthSnapshot> = (|| {
+        Ok(state
             .runtime
-            .provider_health_snapshot(auth.tenant_id.as_str())?,
-    ))
-}
-
-fn resolve_active_auth_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, MediaError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(MediaError::from),
-    }
+            .provider_health_snapshot(auth.tenant_id.as_str())?)
+    })();
+    finish_api_json(&ctx, result)
 }
 
 async fn enforce_in_flight_gate(
     State(guardrails): State<PublicAppGuardrails>,
     request: Request<axum::body::Body>,
     next: Next,
-) -> Result<Response, MediaError> {
+) -> Response {
     if matches!(
         request.uri().path(),
         "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
     ) {
-        return Ok(next.run(request).await);
+        return next.run(request).await;
     }
-    let permit = guardrails
-        .request_gate
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| {
-            MediaError::too_many_requests(
-                "media_too_many_requests",
-                "too many concurrent media reference requests",
-            )
-        })?;
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            let problem = ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
+            return MediaError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "http_overloaded",
+                message:
+                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+            }
+            .into_response();
+        }
+    };
     let response = next.run(request).await;
     drop(permit);
-    Ok(response)
+    response
 }
 
 fn resolve_usize_env_with_upper_bound(name: &str, default: usize, max: usize) -> usize {

@@ -6,18 +6,15 @@ import type {
   CreateAgentDialogRequest,
   CreateConversationRequest,
   CreateConversationResult,
-  InboxResponse,
-  ListMembersResponse,
   MessageInteractionSummaryView,
-  PinnedMessagesResponse,
   PostMessageRequest,
   PostedMessageResponse,
   QueryParams,
   ReadCursorView,
-  TimelineResponse,
   UpdateConversationPreferencesRequest,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk-generated';
+import type { InboxResponse, ListMembersResponse, PinnedMessagesResponse, TimelineResponse } from './openapi-compat-types';
 import type { ImTransportClientLike } from './transport-client-like';
 
 export class ImConversationsModule {

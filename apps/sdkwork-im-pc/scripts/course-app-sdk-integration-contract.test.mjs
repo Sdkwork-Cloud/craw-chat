@@ -47,8 +47,10 @@ function functionBody(source, functionName) {
 }
 
 const packageJson = readJson('package.json');
+const corePackageJson = readJson('packages', 'sdkwork-im-pc-core', 'package.json');
+const shellPackageJson = readJson('packages', 'sdkwork-im-pc-shell', 'package.json');
 const tsconfig = readJson('tsconfig.json');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const viteConfigSource = readText('vite.config.ts');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
@@ -56,6 +58,8 @@ const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
 const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
+const gatewayRegistrySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'registry.rs');
+const gatewayConstantsSource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'constants.rs');
 const workflow = readRepoJson('sdkwork.workflow.json');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const moduleRegistrySource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
@@ -110,15 +114,15 @@ assert.equal(
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/course-app-sdk'],
+  corePackageJson.dependencies?.['@sdkwork/course-app-sdk'],
   'workspace:*',
-  'Chat PC must consume sdkwork-course through the workspace app SDK package.',
+  '@sdkwork/im-pc-core must consume sdkwork-course through the workspace app SDK package.',
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/course-pc-course'],
+  shellPackageJson.dependencies?.['@sdkwork/course-pc-course'],
   'workspace:*',
-  'Chat PC must consume the sdkwork-course-pc-course embed package through workspace:*.',
+  '@sdkwork/im-pc-shell must consume the sdkwork-course-pc-course embed package through workspace:*.',
 );
 
 assert.equal(
@@ -188,13 +192,13 @@ assert.match(
 );
 
 assert.match(
-  gatewaySource,
+  gatewayConstantsSource,
   /COURSE_APP_API_SEGMENTS[\s\S]*"courses"[\s\S]*"course_applications"/u,
   'Web gateway must declare sdkwork-course app-api route segments.',
 );
 
 assert.match(
-  gatewaySource,
+  gatewayRegistrySource,
   /"sdkwork-course-app-api"[\s\S]*SdkworkCourseAppSdk/u,
   'Web gateway must route sdkwork-course app-api paths to the Course app SDK upstream.',
 );

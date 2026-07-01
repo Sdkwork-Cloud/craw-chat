@@ -6,7 +6,7 @@ use im_postgres_realtime_contracts::{
 };
 
 const POSTGRES_CORE_SCHEMA: &str = include_str!(
-    "../../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+    "../../../database/ddl/baseline/postgres/0001_im_baseline.sql"
 );
 
 #[test]

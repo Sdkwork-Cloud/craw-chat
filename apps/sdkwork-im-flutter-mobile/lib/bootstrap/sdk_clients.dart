@@ -25,9 +25,6 @@ ImSdkClients createSdkClients({ImAppSession? session}) {
     applicationPublicWebSocketUrl: env.applicationPublicWebSocketUrl,
     accessToken: activeSession?.accessToken,
     authToken: activeSession?.authToken ?? activeSession?.accessToken,
-    tenantId: activeSession?.tenantId ?? defaultAppSession.tenantId,
-    organizationId: activeSession?.organizationId ?? defaultAppSession.organizationId,
-    userId: activeSession?.userId ?? defaultAppSession.userId,
     existingClient: _sharedBundle?.imSdk,
     existingComposedClient: _sharedBundle?.composed,
   );

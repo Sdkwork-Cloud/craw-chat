@@ -5,7 +5,7 @@ import { contactService } from '../services/ContactService';
 import { chatService } from '../services/ChatService';
 import { favoriteService } from '../services/FavoriteService';
 import { parseGroupInviteDescriptor } from '../services/GroupService';
-import { Avatar, MediaViewer } from '@sdkwork/im-pc-commons';
+import { Avatar, MediaViewer, formatMessageTime } from '@sdkwork/im-pc-commons';
 import { cn } from '@sdkwork/im-pc-commons';
 import type { Message, User } from '@sdkwork/im-pc-types';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
@@ -230,6 +230,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const scrollParentRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
+  const loadingOlderRef = useRef(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   const [viewerState, setViewerState] = useState({ isOpen: false, currentIndex: 0 });
@@ -262,6 +264,38 @@ export const MessageList: React.FC<MessageListProps> = ({
     virtualizer.scrollToIndex(filteredMessages.length - 1, { align: 'end' });
   }, [filteredMessages.length, virtualizer]);
 
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlderRef.current || !chatService.hasMoreMessages(chatId)) {
+      return;
+    }
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const element = scrollParentRef.current;
+      const previousHeight = element?.scrollHeight ?? 0;
+      const olderMessages = await chatService.loadMoreMessages(chatId);
+      if (olderMessages.length === 0) {
+        return;
+      }
+      setMessages((previous) => {
+        const existingIds = new Set(previous.map((message) => message.id));
+        const mergedOlder = olderMessages.filter((message) => !existingIds.has(message.id));
+        return [...mergedOlder, ...previous];
+      });
+      requestAnimationFrame(() => {
+        const scrollElement = scrollParentRef.current;
+        if (scrollElement) {
+          scrollElement.scrollTop = scrollElement.scrollHeight - previousHeight;
+        }
+      });
+    } catch {
+      toast(t('chat.messageList.toast.loadFailed'), 'error');
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [chatId, t]);
+
   const handleScroll = useCallback(() => {
     const element = scrollParentRef.current;
     if (!element) {
@@ -269,7 +303,10 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
     const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
     shouldStickToBottomRef.current = distanceFromBottom < 120;
-  }, []);
+    if (element.scrollTop < 80) {
+      void loadOlderMessages();
+    }
+  }, [loadOlderMessages]);
 
   const scrollToMessage = useCallback((messageId: string) => {
     const index = filteredMessages.findIndex((message) => message.id === messageId);
@@ -506,11 +543,6 @@ export const MessageList: React.FC<MessageListProps> = ({
     setSelectedIds(next);
   };
 
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-  };
-
   const mediaMessages = messages.filter(m => m.type === 'image' || m.type === 'video');
   const mediaItems = mediaMessages.map(m => ({
     id: m.id,
@@ -582,8 +614,13 @@ export const MessageList: React.FC<MessageListProps> = ({
       className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col bg-[#1e1e1e] custom-scrollbar relative"
     >
       {loading && <div className="text-center text-[12px] text-gray-500 my-4">{t('chat.messageList.loading')}</div>}
+      {loadingOlder && (
+        <div className="text-center text-[12px] text-gray-500 my-2" role="status">
+          {t('chat.messageList.loadingOlder', { defaultValue: 'Loading earlier messages…' })}
+        </div>
+      )}
       {!loading && filteredMessages.length > 0 && (
-        <div className="text-center text-[12px] text-gray-500 my-4">{formatTime(filteredMessages[0].timestamp)}</div>
+        <div className="text-center text-[12px] text-gray-500 my-4">{formatMessageTime(filteredMessages[0].timestamp)}</div>
       )}
 
       <div
@@ -610,7 +647,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
               {showTime && index > 0 && (
-                <div className="text-center text-[12px] text-gray-500 my-4">{formatTime(msg.timestamp)}</div>
+                <div className="text-center text-[12px] text-gray-500 my-4">{formatMessageTime(msg.timestamp)}</div>
               )}
               <div
                 id={`msg-${msg.id}`}

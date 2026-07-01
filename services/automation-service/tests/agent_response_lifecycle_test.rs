@@ -1091,7 +1091,7 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
         .to_bytes();
     let denied_json: serde_json::Value =
         serde_json::from_slice(&denied_body).expect("guardrail denied body should be valid json");
-    assert_eq!(denied_json["code"], "automation_guardrail_denied");
+    assert_eq!(denied_json["code"], 40301);
 
     let override_auth = AppContext {
         permission_scope: BTreeSet::from([
@@ -1230,7 +1230,7 @@ async fn test_agent_runtime_rejects_oversized_delta_and_tool_payloads() {
         .to_bytes();
     let oversized_delta_json: serde_json::Value = serde_json::from_slice(&oversized_delta_body)
         .expect("oversized delta body should be valid json");
-    assert_eq!(oversized_delta_json["code"], "payload_too_large");
+    assert_eq!(oversized_delta_json["code"], 41301);
 
     let oversized_attributes = runtime
         .append_agent_response_delta(

@@ -1,8 +1,15 @@
 # apps/
 
+## Purpose
+
+Host SDKWork IM client application roots (`pc`, `h5`, `flutter-mobile`) and their architecture-local packages.
+
+## Owner
+
+SDKWork maintainers
+
 Application: chat
 Status: active
-Owner: SDKWork maintainers
 Specs: APPLICATION_SPEC.md, SDKWORK_WORKSPACE_SPEC.md
 
 ## Primary App Surface
@@ -27,15 +34,19 @@ The repository root `sdkwork.app.config.json` governs the primary application ma
 
 - Repository-root API contracts, generated SDK workspaces, Rust crates, or deployment descriptors moved under `apps/`.
 - Runtime secrets, user-private state, generated SDK transport output, or cross-application copied business logic.
+- Nested `pnpm-workspace.yaml` files under application roots.
+- Nested npm `"workspaces"` fields under application-root `package.json` files; membership belongs in repository-root `pnpm-workspace.yaml` only.
 
 ## Related Specs
 
 - `../sdkwork-specs/APPLICATION_SPEC.md`
 - `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
 - `../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md`
+- `../sdkwork-specs/APP_COMPOSITION_SPEC.md`
 
 ## Verification
 
 ```bash
 node ../sdkwork-specs/tools/check-apps-directory-index.mjs --root .
+node ../sdkwork-specs/tools/verify-repo.mjs --root ..
 ```

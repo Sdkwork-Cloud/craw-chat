@@ -18,6 +18,7 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
+    sdkwork_im_service_readiness::bootstrap_im_service_database_from_env().await?;
     let retention_scheduler =
         im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
     let bind_addr = std::env::var(BIND_ADDR_ENV).unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());

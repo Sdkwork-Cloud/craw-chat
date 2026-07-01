@@ -8,6 +8,9 @@ const imRoot = path.resolve(imH5Root, "../..");
 const appbaseRoot = path.resolve(imRoot, "../sdkwork-appbase");
 const iamRoot = path.resolve(imRoot, "../sdkwork-iam");
 const uiRoot = path.resolve(imRoot, "../sdkwork-ui/sdkwork-ui-pc-react");
+const driveRoot = path.resolve(imRoot, "../sdkwork-drive");
+const utilsRoot = path.resolve(imRoot, "../sdkwork-utils");
+const sdkCommonRoot = path.resolve(imRoot, "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript");
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, imH5Root, "");
@@ -59,6 +62,20 @@ export default defineConfig(({ mode }) => {
           imRoot,
           "sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts",
         ),
+        "@sdkwork/drive-app-sdk": path.resolve(
+          driveRoot,
+          "sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts",
+        ),
+        "@sdkwork/utils": path.resolve(
+          utilsRoot,
+          "packages/sdkwork-utils-typescript/src/index.ts",
+        ),
+        "@sdkwork/sdk-common/core": path.resolve(sdkCommonRoot, "core/index.ts"),
+        "@sdkwork/sdk-common/auth": path.resolve(sdkCommonRoot, "auth/index.ts"),
+        "@sdkwork/sdk-common/http": path.resolve(sdkCommonRoot, "http/index.ts"),
+        "@sdkwork/sdk-common/errors": path.resolve(sdkCommonRoot, "errors/index.ts"),
+        "@sdkwork/sdk-common/utils": path.resolve(sdkCommonRoot, "utils/index.ts"),
+        "@sdkwork/sdk-common": path.resolve(sdkCommonRoot, "index.ts"),
       },
     },
     server: { port: 3010 },

@@ -1,17 +1,19 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.dart';
 
 export 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.dart'
     show ImAppSession, defaultAppSession, imFlutterMobileSessionStorageKey;
 
-SharedPreferences? _preferences;
+const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+  aOptions: AndroidOptions(encryptedSharedPreferences: true),
+);
+
 ImAppSession? _activeAppSession;
 
 Future<void> initAppAuthStorage() async {
-  _preferences ??= await SharedPreferences.getInstance();
-  final raw = _preferences!.getString(imFlutterMobileSessionStorageKey);
+  final raw = await _secureStorage.read(key: imFlutterMobileSessionStorageKey);
   if (raw == null || raw.isEmpty) {
     return;
   }
@@ -37,14 +39,15 @@ ImAppSession? loadAppSession() => _activeAppSession;
 
 Future<void> saveAppSession(ImAppSession session) async {
   _activeAppSession = session;
-  final prefs = _preferences ?? await SharedPreferences.getInstance();
-  await prefs.setString(imFlutterMobileSessionStorageKey, jsonEncode(session.toJson()));
+  await _secureStorage.write(
+    key: imFlutterMobileSessionStorageKey,
+    value: jsonEncode(session.toJson()),
+  );
 }
 
 Future<void> clearAppSession() async {
   _activeAppSession = null;
-  final prefs = _preferences ?? await SharedPreferences.getInstance();
-  await prefs.remove(imFlutterMobileSessionStorageKey);
+  await _secureStorage.delete(key: imFlutterMobileSessionStorageKey);
 }
 
 Future<ImAppSession?> consumeAppbaseCallbackSession(Uri? uri) async {

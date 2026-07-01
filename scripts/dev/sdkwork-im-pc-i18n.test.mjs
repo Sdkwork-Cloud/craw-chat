@@ -309,7 +309,6 @@ const packageI18nRoots = [
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-enterprise/src/i18n/index.ts',
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-music-gen/src/i18n/index.ts',
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-video-gen/src/i18n/index.ts',
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-voice-gen/src/i18n/index.ts',
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-image-gen/src/i18n/index.ts',
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-writing/src/i18n/index.ts',
 ];
@@ -317,6 +316,16 @@ for (const relativePath of packageI18nRoots) {
   const source = read(relativePath);
   assert.match(source, /resolvePersistedLanguage/u, `${relativePath} must resolve language from canonical im-settings storage`);
   assert.match(source, /SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT/u, `${relativePath} must subscribe to canonical language-changed event`);
+  assert.doesNotMatch(source, /clawchat-settings/u, `${relativePath} must not use retired clawchat settings storage keys`);
+}
+
+const embedCapabilityI18nRoots = [
+  '../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-speech/src/i18n/index.ts',
+];
+for (const relativePath of embedCapabilityI18nRoots) {
+  const source = read(relativePath);
+  assert.match(source, /resolveHostLanguage/u, `${relativePath} must resolve language from host capability ports`);
+  assert.match(source, /subscribeHostLanguage/u, `${relativePath} must subscribe to host language changes`);
   assert.doesNotMatch(source, /clawchat-settings/u, `${relativePath} must not use retired clawchat settings storage keys`);
 }
 

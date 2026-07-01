@@ -1,40 +1,21 @@
-# im-adapters-local-disk
+# local-disk
 
-Domain: communication
-Capability: im
-Package type: rust-crate
-Status: standardizing
+Local filesystem adapter for development and sandbox persistence.
 
-This README is the SDKWork module entrypoint for `im-adapters-local-disk`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+## Allowed uses
 
-## Public API
+- Social service dev/sandbox journal snapshots when PostgreSQL is not configured.
+- Admin sandbox fixtures under `sdkwork-api-product-runtime`.
+- Local-only integration tests.
 
-- `.`
+## Production boundary
 
-## Required SDK Surface
-
-- None declared in `specs/component.spec.json`.
-
-## Configuration
-
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
-
-## SaaS/Private/Local Behavior
-
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
-
-## Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
-
-## Extension Points
-
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
+- **Not** a production file-upload or object-storage authority.
+- All application uploads must go through `sdkwork-drive` per `DRIVE_SPEC.md`.
+- Do not route chat, community, or media client uploads through this adapter.
 
 ## Verification
 
-- `cargo test --manifest-path apps/sdkwork-im/adapters/local-disk/Cargo.toml`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+```bash
+cargo test -p im-adapters-local-disk
+```

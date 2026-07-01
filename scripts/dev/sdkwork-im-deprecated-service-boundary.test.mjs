@@ -18,8 +18,8 @@ assert.doesNotMatch(
 );
 assert.match(
   interactionHttp,
-  /\/healthz/u,
-  'interaction-service must keep health-only routes for workspace membership smoke checks.',
+  /mount_im_infra_routes/u,
+  'interaction-service must keep infra health routes for workspace membership smoke checks.',
 );
 
 const interactionSpec = JSON.parse(

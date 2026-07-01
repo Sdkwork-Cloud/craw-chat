@@ -4,10 +4,22 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
-    "@sdkwork/im-console-shop": "workspace:*",
+    "@sdkwork/im-console-communications": "workspace:*",
+    "@sdkwork/im-console-dashboard": "workspace:*",
+    "@sdkwork/im-console-integrations": "workspace:*",
     "@sdkwork/im-console-product": "workspace:*",
+    "@sdkwork/im-console-roles": "workspace:*",
+    "@sdkwork/im-console-security": "workspace:*",
+    "@sdkwork/im-console-settings": "workspace:*",
+    "@sdkwork/im-console-shop": "workspace:*",
+    "@sdkwork/im-console-users": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
-    "@sdkwork/im-pc-core": "workspace:*"
+    "@sdkwork/im-pc-core": "workspace:*",
+    "i18next": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-i18next": "catalog:",
+    "react-router-dom": "catalog:"
   },
   "exports": {
     ".": {
@@ -40,5 +52,9 @@
       "import": "./src/composition/index.ts",
       "default": "./src/composition/index.ts"
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

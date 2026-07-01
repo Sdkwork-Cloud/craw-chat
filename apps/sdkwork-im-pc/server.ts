@@ -1,4 +1,5 @@
 import express from 'express';
+import type { IncomingMessage, ServerResponse } from 'http';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { handleSdkworkChatLocalApiRequest } from './local-api';
@@ -8,8 +9,8 @@ async function startServer() {
   const PORT = Number(process.env.PORT ?? 3000);
 
   app.use(express.json());
-  app.use((req, res, next) => {
-    handleSdkworkChatLocalApiRequest(req, res, req.path)
+  app.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    handleSdkworkChatLocalApiRequest(req, res, (req as IncomingMessage & { path?: string }).path ?? '/')
       .then((handled) => {
         if (!handled) {
           next();

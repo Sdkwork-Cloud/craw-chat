@@ -5,6 +5,16 @@
   "types": "./src/index.tsx",
   "dependencies": {
     "@sdkwork/im-pc-core": "workspace:*",
-    "@sdkwork/im-pc-shell": "workspace:*"
+    "@sdkwork/im-pc-shell": "workspace:*",
+    "@sdkwork/im-pc-chat": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "i18next": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-i18next": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

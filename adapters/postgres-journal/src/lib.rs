@@ -2,7 +2,7 @@
 //!
 //! This adapter writes durable conversation/message commit events into the
 //! `im_commit_journal` table defined by
-//! `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql` (via `database/` lifecycle module).
+//! `database/ddl/baseline/postgres/0001_im_baseline.sql` (via `database/` lifecycle module).
 //!
 //! It replaces the previous single-machine JSONL append file
 //! (`adapters/local-disk/src/journal.rs`) as the production source of truth,
@@ -62,8 +62,14 @@ pub use search_store::PostgresSearchProvider;
 
 /// Default upper bound on pooled PostgreSQL connections for the journal store.
 ///
-/// Kept aligned with `adapters/postgres-realtime` (`DEFAULT_POOL_MAX_SIZE = 16`)
-/// so a single database is not over-subscribed when both stores are active.
+/// Production deployments should configure a larger pool size based on:
+/// - Number of concurrent requests
+/// - Database server capabilities (CPU, memory)
+/// - Network latency to database
+/// - Typical connection reuse rate
+///
+/// Recommendation: Start with 50% of max_connections from database config
+/// and adjust based on monitoring metrics.
 const DEFAULT_POOL_MAX_SIZE: u32 = 16;
 const DEFAULT_POOL_MIN_IDLE: u32 = 0;
 
@@ -77,7 +83,46 @@ const DEFAULT_POOL_MIN_IDLE: u32 = 0;
 pub type PostgresJournalTlsConnector = postgres_native_tls::MakeTlsConnector;
 /// Connection manager / pool type aliases mirroring the realtime adapter.
 pub type PostgresJournalConnectionManager = PostgresConnectionManager<PostgresJournalTlsConnector>;
-pub type PostgresJournalPool = Pool<PostgresJournalConnectionManager>;
+
+/// Owned r2d2 pool that drops off Tokio worker threads.
+#[derive(Clone)]
+pub struct PostgresJournalPool(Option<Pool<PostgresJournalConnectionManager>>);
+
+impl PostgresJournalPool {
+    pub fn from_pool(pool: Pool<PostgresJournalConnectionManager>) -> Self {
+        Self(Some(pool))
+    }
+
+    pub fn inner(&self) -> &Pool<PostgresJournalConnectionManager> {
+        self.0
+            .as_ref()
+            .expect("postgres journal pool should remain initialized")
+    }
+}
+
+impl std::ops::Deref for PostgresJournalPool {
+    type Target = Pool<PostgresJournalConnectionManager>;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner()
+    }
+}
+
+impl Drop for PostgresJournalPool {
+    fn drop(&mut self) {
+        if let Some(pool) = self.0.take() {
+            drop_journal_pool_off_runtime(pool);
+        }
+    }
+}
+
+fn drop_journal_pool_off_runtime(pool: Pool<PostgresJournalConnectionManager>) {
+    if tokio::runtime::Handle::try_current().is_err() {
+        drop(pool);
+        return;
+    }
+    std::thread::spawn(move || drop(pool));
+}
 
 /// Resolved connection configuration for the journal store.
 ///
@@ -163,6 +208,22 @@ impl PostgresJournalConfig {
 }
 
 fn build_journal_pool(config: &PostgresJournalConfig) -> Result<PostgresJournalPool, ContractError> {
+    if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
+        return Ok(PostgresJournalPool::from_pool(pool));
+    }
+    if cfg!(test) {
+        return build_journal_pool_local(config);
+    }
+    Err(ContractError::Unavailable(
+        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+            .err()
+            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+    ))
+}
+
+fn build_journal_pool_local(
+    config: &PostgresJournalConfig,
+) -> Result<PostgresJournalPool, ContractError> {
     verify_production_sslmode(config.database_url.as_str());
     let pg_config = config
         .database_url
@@ -179,6 +240,7 @@ fn build_journal_pool(config: &PostgresJournalConfig) -> Result<PostgresJournalP
         .min_idle(config.pool_min_idle)
         .build(manager)
         .map_err(|error| postgres_unavailable("create journal pool", error))
+        .map(PostgresJournalPool::from_pool)
 }
 
 /// Build a `native-tls` connector for PostgreSQL.
@@ -313,17 +375,30 @@ from im_commit_journal
 where event_id = $1
 "#;
 
+/// Look up an existing journal row by the composite primary key
+/// `(partition_key, commit_offset)`. Used after a SQLSTATE 23505 collision on
+/// the primary key to determine whether the occupying row belongs to the same
+/// `event_id` (defensive idempotent replay) or to a different `event_id`
+/// (genuine position conflict that must surface as `Conflict`).
+const LOAD_EVENT_BY_POSITION_SQL: &str = r#"
+select event_id, partition_key, commit_offset
+from im_commit_journal
+where partition_key = $1 and commit_offset = $2
+"#;
+
 const LOAD_RECORDED_SQL: &str = r#"
 select
     event_id,
     tenant_id,
+    organization_id,
     event_type,
     aggregate_type,
     aggregate_id,
     aggregate_seq,
     occurred_at,
     payload_json::text,
-    idempotency_key
+    idempotency_key,
+    partition_key
 from im_commit_journal
 where partition_key like $1 || '%'
 order by partition_key asc, commit_offset asc
@@ -341,7 +416,7 @@ pub(crate) fn postgres_jsonb_payload(payload: &str) -> Result<serde_json::Value,
     })
 }
 
-fn postgres_timestamptz(value: &str, field: &'static str) -> Result<DateTime<Utc>, ContractError> {
+pub(crate) fn postgres_timestamptz(value: &str, field: &'static str) -> Result<DateTime<Utc>, ContractError> {
     DateTime::parse_from_rfc3339(value.trim())
         .map(|instant| instant.with_timezone(&Utc))
         .or_else(|_| value.trim().parse::<DateTime<Utc>>())
@@ -350,6 +425,22 @@ fn postgres_timestamptz(value: &str, field: &'static str) -> Result<DateTime<Utc
                 "postgres journal {field} must be RFC3339: {error}"
             ))
         })
+}
+
+/// Outcome of an `INSERT ... ON CONFLICT (event_id) DO NOTHING` against
+/// `im_commit_journal`. Distinguishes the three possible results so the
+/// caller can resolve the final commit position correctly:
+///
+/// - `Inserted`: new row written; read position from the RETURNING clause.
+/// - `EventIdAbsorbed`: ON CONFLICT absorbed a duplicate `event_id`;
+///   read the previously committed position by `event_id` (idempotent replay).
+/// - `PositionCollision`: SQLSTATE 23505 on the `(partition_key,
+///   commit_offset)` primary key with a different `event_id`; look up the
+///   occupying row by position to confirm and surface a `Conflict`.
+enum InsertOutcome {
+    Inserted(r2d2_postgres::postgres::Row),
+    EventIdAbsorbed,
+    PositionCollision,
 }
 
 fn append_one(
@@ -366,7 +457,15 @@ fn append_one(
     let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
     let payload_hash = sha256_hash(envelope.payload.as_bytes());
     let created_at = Utc::now();
-    let aggregate_seq = i64::try_from(envelope.ordering_seq).unwrap_or(0).max(1);
+    // `commit_offset` and `aggregate_seq` must be > 0 (CHECK constraints on
+    // `im_commit_journal`). `ordering_seq` is 0-indexed by the runtime (created
+    // event = 0, first member = 1, ...), so we map it to a 1-indexed position
+    // via `ordering_seq + 1`. Using `ordering_seq.max(1)` instead would map
+    // both ordering_seq=0 and ordering_seq=1 to commit_offset=1, causing a
+    // PK collision between the created event and the first member_joined event.
+    let aggregate_seq = i64::try_from(envelope.ordering_seq)
+        .unwrap_or(0)
+        .saturating_add(1);
     let commit_offset = aggregate_seq;
     let organization_id = envelope.normalized_organization_id();
     let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
@@ -375,8 +474,17 @@ fn append_one(
         .map(|value| postgres_timestamptz(value, "retention_until"))
         .transpose()?;
 
-    let inserted = txn
-        .query_opt(
+    // Wrap the INSERT in a SAVEPOINT: a `(partition_key, commit_offset)`
+    // primary-key collision raises SQLSTATE 23505 and aborts the transaction.
+    // Rolling back to the savepoint restores a usable transaction so we can
+    // inspect the occupying row and either absorb an idempotent replay (same
+    // `event_id`) or surface a genuine `Conflict` (different `event_id` claims
+    // the position).
+    let outcome = {
+        let mut savepoint = txn
+            .savepoint("im_journal_append")
+            .map_err(|error| postgres_unavailable_db("journal append savepoint", error))?;
+        let result = savepoint.query_opt(
             APPEND_EVENT_SQL,
             &[
                 &partition_key,
@@ -395,23 +503,69 @@ fn append_one(
                 &created_at,
                 &retention_until,
             ],
-        )
-        .map_err(|error| postgres_unavailable_db("journal append insert", error))?;
+        );
+        match result {
+            Ok(row) => {
+                // Release the savepoint; the transaction remains usable.
+                savepoint
+                    .commit()
+                    .map_err(|error| postgres_unavailable_db("journal append savepoint commit", error))?;
+                match row {
+                    Some(row) => InsertOutcome::Inserted(row),
+                    None => InsertOutcome::EventIdAbsorbed,
+                }
+            }
+            Err(error) if is_unique_violation(&error) => {
+                savepoint.rollback().map_err(|error| {
+                    postgres_unavailable_db("journal append savepoint rollback", error)
+                })?;
+                InsertOutcome::PositionCollision
+            }
+            Err(error) => {
+                return Err(postgres_unavailable_db("journal append insert", error));
+            }
+        }
+    };
 
-    let (final_partition, final_offset) = match inserted {
-        Some(row) => {
+    let (final_partition, final_offset) = match outcome {
+        InsertOutcome::Inserted(row) => {
             let partition: String = row.get(0);
             let offset: i64 = row.get(1);
             (partition, offset as u64)
         }
-        // ON CONFLICT absorbed the row: read the previously committed position.
-        None => {
+        // ON CONFLICT (event_id) absorbed the row: read the previously
+        // committed position by event_id. This path is the idempotent replay
+        // of the exact same producer event.
+        InsertOutcome::EventIdAbsorbed => {
             let row = txn
                 .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
                 .map_err(|error| postgres_unavailable_db("journal append conflict lookup", error))?;
             let partition: String = row.get(0);
             let offset: i64 = row.get(1);
             (partition, offset as u64)
+        }
+        // PK (partition_key, commit_offset) violated with a different
+        // event_id. Look up the occupying row by position: if it carries the
+        // same event_id, treat as idempotent (defensive — ON CONFLICT should
+        // have caught it); otherwise surface a Conflict so callers map it to
+        // HTTP 409 instead of an opaque 503.
+        InsertOutcome::PositionCollision => {
+            let row = txn
+                .query_one(LOAD_EVENT_BY_POSITION_SQL, &[&partition_key, &commit_offset])
+                .map_err(|error| postgres_unavailable_db("journal append position lookup", error))?;
+            let existing_event_id: String = row.get(0);
+            let partition: String = row.get(1);
+            let offset: i64 = row.get(2);
+            if existing_event_id == envelope.event_id {
+                (partition, offset as u64)
+            } else {
+                return Err(ContractError::Conflict(format!(
+                    "journal position (partition_key={partition_key}, commit_offset={commit_offset}) \
+                     is already occupied by event_id={existing_event_id}; \
+                     cannot append event_id={}",
+                    envelope.event_id
+                )));
+            }
         }
     };
 
@@ -437,7 +591,11 @@ fn append_many(
         let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
         let payload_hash = sha256_hash(envelope.payload.as_bytes());
         let created_at = Utc::now();
-        let aggregate_seq = i64::try_from(envelope.ordering_seq).unwrap_or(0).max(1);
+        // Map 0-indexed `ordering_seq` to 1-indexed `commit_offset`/`aggregate_seq`.
+        // See `append_one` for why `.max(1)` would collide ordering_seq=0 and =1.
+        let aggregate_seq = i64::try_from(envelope.ordering_seq)
+            .unwrap_or(0)
+            .saturating_add(1);
         let commit_offset = aggregate_seq;
         let organization_id = envelope.normalized_organization_id();
         let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
@@ -446,8 +604,11 @@ fn append_many(
             .map(|value| postgres_timestamptz(value, "retention_until"))
             .transpose()?;
 
-        let inserted = txn
-            .query_opt(
+        let outcome = {
+            let mut savepoint = txn
+                .savepoint("im_journal_append_batch")
+                .map_err(|error| postgres_unavailable("journal append_batch savepoint", error))?;
+            let result = savepoint.query_opt(
                 APPEND_EVENT_SQL,
                 &[
                     &partition_key,
@@ -466,16 +627,36 @@ fn append_many(
                     &created_at,
                     &retention_until,
                 ],
-            )
-            .map_err(|error| postgres_unavailable("journal append_batch insert", error))?;
+            );
+            match result {
+                Ok(row) => {
+                    savepoint
+                        .commit()
+                        .map_err(|error| postgres_unavailable("journal append_batch savepoint commit", error))?;
+                    match row {
+                        Some(row) => InsertOutcome::Inserted(row),
+                        None => InsertOutcome::EventIdAbsorbed,
+                    }
+                }
+                Err(error) if is_unique_violation(&error) => {
+                    savepoint
+                        .rollback()
+                        .map_err(|error| postgres_unavailable("journal append_batch savepoint rollback", error))?;
+                    InsertOutcome::PositionCollision
+                }
+                Err(error) => {
+                    return Err(postgres_unavailable("journal append_batch insert", error));
+                }
+            }
+        };
 
-        let (final_partition, final_offset) = match inserted {
-            Some(row) => {
+        let (final_partition, final_offset) = match outcome {
+            InsertOutcome::Inserted(row) => {
                 let partition: String = row.get(0);
                 let offset: i64 = row.get(1);
                 (partition, offset as u64)
             }
-            None => {
+            InsertOutcome::EventIdAbsorbed => {
                 let row = txn
                     .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
                     .map_err(|error| {
@@ -484,6 +665,26 @@ fn append_many(
                 let partition: String = row.get(0);
                 let offset: i64 = row.get(1);
                 (partition, offset as u64)
+            }
+            InsertOutcome::PositionCollision => {
+                let row = txn
+                    .query_one(LOAD_EVENT_BY_POSITION_SQL, &[&partition_key, &commit_offset])
+                    .map_err(|error| {
+                        postgres_unavailable("journal append_batch position lookup", error)
+                    })?;
+                let existing_event_id: String = row.get(0);
+                let partition: String = row.get(1);
+                let offset: i64 = row.get(2);
+                if existing_event_id == envelope.event_id {
+                    (partition, offset as u64)
+                } else {
+                    return Err(ContractError::Conflict(format!(
+                        "journal position (partition_key={partition_key}, commit_offset={commit_offset}) \
+                         is already occupied by event_id={existing_event_id}; \
+                         cannot append event_id={}",
+                        envelope.event_id
+                    )));
+                }
             }
         };
 
@@ -517,26 +718,39 @@ fn load_recorded(
     for row in rows {
         let event_id: String = row.get(0);
         let tenant_id: String = row.get(1);
-        let event_type: String = row.get(2);
-        let aggregate_type_str: String = row.get(3);
-        let aggregate_id: String = row.get(4);
-        let aggregate_seq: i64 = row.get(5);
-        let occurred_at: String = row.get(6);
-        let payload: String = row.get(7);
-        let idempotency_key: Option<String> = row.get(8);
+        let organization_id: String = row.get(2);
+        let event_type: String = row.get(3);
+        let aggregate_type_str: String = row.get(4);
+        let aggregate_id: String = row.get(5);
+        let aggregate_seq: i64 = row.get(6);
+        let occurred_at: String = row.get(7);
+        let payload: String = row.get(8);
+        let idempotency_key: Option<String> = row.get(9);
+        let partition_key: String = row.get(10);
+        let aggregate_type = parse_aggregate_type(aggregate_type_str.as_str());
+        let scope = replay_scope_for_journal_row(
+            &aggregate_type,
+            tenant_id.as_str(),
+            aggregate_id.as_str(),
+            partition_key.as_str(),
+            prefix,
+        );
+        let ordering_seq = aggregate_seq.saturating_sub(1).max(0) as u64;
 
         envelopes.push(CommitEnvelope {
             event_id,
             tenant_id,
-            organization_id: "default".to_owned(),
+            organization_id: im_domain_events::normalize_commit_organization_id(
+                organization_id.as_str(),
+            ),
             event_type,
             event_version: 1,
-            aggregate_type: parse_aggregate_type(&aggregate_type_str),
-            aggregate_id,
-            scope_type: String::new(),
-            scope_id: String::new(),
-            ordering_key: String::new(),
-            ordering_seq: aggregate_seq.max(0) as u64,
+            aggregate_type,
+            aggregate_id: aggregate_id.clone(),
+            scope_type: scope.scope_type,
+            scope_id: scope.scope_id,
+            ordering_key: scope.ordering_key,
+            ordering_seq,
             causation_id: None,
             correlation_id: None,
             idempotency_key,
@@ -545,15 +759,70 @@ fn load_recorded(
                 actor_kind: String::new(),
                 actor_session_id: None,
             },
-            occurred_at,
-            committed_at: now_rfc3339(),
+            occurred_at: occurred_at.clone(),
+            committed_at: occurred_at,
             payload_schema: None,
             payload,
-            retention_class: String::new(),
-            audit_class: String::new(),
+            retention_class: "standard".into(),
+            audit_class: "default".into(),
         });
     }
     Ok(envelopes)
+}
+
+struct ReplayJournalScope {
+    scope_type: String,
+    scope_id: String,
+    ordering_key: String,
+}
+
+fn replay_scope_for_journal_row(
+    aggregate_type: &AggregateType,
+    tenant_id: &str,
+    aggregate_id: &str,
+    partition_key: &str,
+    partition_prefix: &str,
+) -> ReplayJournalScope {
+    let ordering_key = replay_ordering_key_from_partition(
+        tenant_id,
+        aggregate_id,
+        partition_key,
+        partition_prefix,
+    );
+    let (scope_type, scope_id) = match aggregate_type {
+        AggregateType::Conversation => ("conversation".to_owned(), aggregate_id.to_owned()),
+        AggregateType::DirectChat => ("direct_chat".to_owned(), aggregate_id.to_owned()),
+        AggregateType::Friendship => ("friendship".to_owned(), aggregate_id.to_owned()),
+        AggregateType::FriendRequest => ("friend_request".to_owned(), aggregate_id.to_owned()),
+        _ => (
+            aggregate_type.as_wire_value().to_owned(),
+            aggregate_id.to_owned(),
+        ),
+    };
+    ReplayJournalScope {
+        scope_type,
+        scope_id,
+        ordering_key,
+    }
+}
+
+fn replay_ordering_key_from_partition(
+    tenant_id: &str,
+    aggregate_id: &str,
+    partition_key: &str,
+    partition_prefix: &str,
+) -> String {
+    if partition_prefix.is_empty() {
+        if !partition_key.is_empty() {
+            return partition_key.to_owned();
+        }
+    } else if let Some(stripped) = partition_key.strip_prefix(partition_prefix) {
+        let ordering_key = stripped.strip_prefix(':').unwrap_or(stripped);
+        if !ordering_key.is_empty() {
+            return ordering_key.to_owned();
+        }
+    }
+    CommitEnvelope::ordering_key(tenant_id, aggregate_id)
 }
 
 /// Bridge a blocking PostgreSQL operation off the async runtime.
@@ -624,7 +893,7 @@ pub(crate) fn compose_partition_key(prefix: &str, ordering_key: &str) -> String 
 }
 
 pub(crate) fn now_rfc3339() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+    im_time::utc_now_rfc3339_millis()
 }
 pub(crate) fn postgres_unavailable(
     action: &'static str,
@@ -656,6 +925,18 @@ fn format_postgres_db_error(error: &r2d2_postgres::postgres::Error) -> String {
         return message.to_string();
     }
     error.to_string()
+}
+
+/// Returns true when the postgres error is a unique constraint violation
+/// (SQLSTATE 23505). Used to absorb `(partition_key, commit_offset)` primary
+/// key collisions in `append`/`append_batch` so that replayed producer events
+/// stay idempotent alongside the existing `ON CONFLICT (event_id) DO NOTHING`
+/// path.
+fn is_unique_violation(error: &r2d2_postgres::postgres::Error) -> bool {
+    error
+        .as_db_error()
+        .map(|db_error| db_error.code())
+        == Some(&r2d2_postgres::postgres::error::SqlState::UNIQUE_VIOLATION)
 }
 
 /// Best-effort mapping from the stored aggregate-type string back to the enum.

@@ -107,15 +107,18 @@ Product detail lives in the linked PRD shards below.
 
 ## 8. Commercial Readiness Status
 
-As of 2026-06-27:
+As of 2026-06-30:
 
 ### Backend, API, and Admin
 
 - OpenAPI authorities for `/im/v3/api`, `/app/v3/api`, and `/backend/v3/api` are checked in with generated TypeScript and Flutter SDK families.
 - PostgreSQL/SQLite migrations live under `database/migrations/` with framework contract tests (`pnpm run test:database-framework-standard`).
 - Admin/console surfaces ship through `apps/sdkwork-im-pc` package families (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) with generated backend SDK integration.
-- `pnpm check:commercial-readiness` passes locally (PC build/lint, SDK contracts including Flutter parity, Rust gates, Step-11 capacity evidence, Playwright shell + authenticated chat e2e).
-- All service binaries handle SIGTERM graceful shutdown via shared `sdkwork_im_service_readiness::shutdown_signal()`.
+- Gateway chat routes resolve principal directories from environment (catalog path or dev/test allow-all); production forbids `SDKWORK_IM_ALLOW_ALL_PRINCIPALS`.
+- Production rejects the public dev/test JWT signing secret (`sdkwork-im-dev-jwt-secret-not-for-production-use`) at AppContext validation time (fail-closed).
+- Audit, conversation journal, and RTC state stores fail-closed in production when durable backends are unavailable.
+- Social open-api handlers emit `SdkWorkApiResponse` / `ProblemDetail` envelopes via `finish_api_json`.
+- `shutdown_signal()` handles SIGTERM and SIGINT on Unix for Kubernetes graceful drain.
 - K8s deployments enforce Restricted Pod Security Standards with `securityContext`, `imagePullSecrets`, and `readOnlyRootFilesystem`.
 - Network policies enforce default-deny egress with explicit CIDR allowlists.
 - Release artifacts require SHA-256 checksums and Cosign/Sigstore code signing.
@@ -124,29 +127,29 @@ As of 2026-06-27:
 
 | Surface | Root | Status | Notes |
 | --- | --- | --- | --- |
-| PC web/desktop | `apps/sdkwork-im-pc` | **Production pilot ready** | Playwright shell + authenticated chat e2e (mock IAM/IM in CI); paginated message list with virtual scrolling |
-| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production pilot ready** | i18n migrated; module packages split from monolithic core |
-| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox + conversation REST, WebSocket live inbox (user scope) + conversation updates via `@sdkwork/im-sdk`, dev port `3010` |
-| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, WebSocket CCP live inbox (user scope) + conversation updates via `im_sdk_composed` with shared live hub, Appbase/dev auth |
+| PC web/desktop | `apps/sdkwork-im-pc` | **Production pilot ready** | Playwright shell + authenticated chat e2e (mock IAM/IM in CI); virtualized message list with scroll-up pagination |
+| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production pilot ready** | Admin overview wired to backend ops/audit SDKs |
+| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox + conversation REST, incremental WebSocket timeline sync, scroll-up pagination, Drive image upload; session tokens in `sessionStorage` |
+| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket timeline sync, scroll-up pagination, Drive image upload; tokens in `flutter_secure_storage` |
 
 ### Operations and Evidence
 
 - CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and split-service tests on `main`.
+- Pre-Release and Capacity tier evidence indexes both require `evidence_collected_gate_passed`; doc-captured backfill boundaries are declared in each index `boundary` field.
 - Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback.
 - Kubernetes reference manifests cover gateway, realtime, conversation, governance, notification, projection, media, streaming, audit, automation, social, space, contact, interaction, and ops services with Ingress, PDB, HPA, ConfigMap, Secret, and NetworkPolicy templates.
 - Staging topology profile: `cloud.split-services.staging`.
 - Customer operations and data protection guides: `docs/product/compliance/`.
 - Observability runbook: `deployments/observability/README.md`.
-- Commercial deployment contract: `pnpm run test:commercial-deployment-contract` (included in `pnpm check:commercial-readiness`).
-- Step 11 scenario catalog contract: `pnpm run test:step11-scenario-catalog` (validates repo assets and tier evidence states).
-- IM H5 architecture standard: `pnpm run test:sdkwork-im-h5-architecture-standard` (included in `pnpm check:commercial-readiness`).
-- IM Flutter mobile architecture standard: `pnpm run test:sdkwork-im-flutter-mobile-architecture-standard` (included in `pnpm check:commercial-readiness`).
-- IM app SDK Flutter parity: `pnpm run test:im-app-sdk-flutter-parity` (included in `pnpm check:commercial-readiness`).
 
 ### Remaining Enterprise Rollout Items
 
 - Staging-backed Playwright runs against real split-service topology (mock-based chat e2e ships in CI today).
 - Multi-region DR automation and published SDK artifact registry (git materialization remains the default today).
+- Dedicated staging/capacity topology runs to replace doc-captured Step-11 backfill before formal GA sign-off.
+- H5/Flutter RTC calls, reactions, threads, and rich media beyond image attachments.
+- Voice market: `@sdkwork/voice-pc-market` lists `audio_assets` via SDK in production; pilot preview via `VITE_SDKWORK_VOICE_MARKET_PILOT` (clone UI pilot-only).
+- Voice speech: `@sdkwork/voice-pc-speech` submits TTS through `voice.speech.create` with configurable defaults (`VITE_SDKWORK_VOICE_SPEECH_DEFAULT_MODEL` / `_VOICE`).
 
 
 ## 9. Open Questions

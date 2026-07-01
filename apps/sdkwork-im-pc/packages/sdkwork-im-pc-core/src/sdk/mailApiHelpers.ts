@@ -1,4 +1,5 @@
-import type { MailMessage } from '@sdkwork/mail-app-sdk';
+export type { MailMessage, MailFolder } from 'sdkwork-mail-app-sdk-generated-typescript';
+import type { MailMessage } from 'sdkwork-mail-app-sdk-generated-typescript';
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (value == null || typeof value !== 'object' || Array.isArray(value)) {

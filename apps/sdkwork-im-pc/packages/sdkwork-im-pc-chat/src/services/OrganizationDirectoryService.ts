@@ -730,6 +730,94 @@ function isActiveStatus(status?: string): boolean {
   return !status || ['active', 'enabled', 'acting'].includes(status.toLowerCase());
 }
 
+const DIRECTORY_BROWSE_PERMISSIONS = [
+  'iam.organizations.read',
+  'iam.departments.read',
+] as const;
+
+function readSessionPermissionScope(): string[] {
+  const session = readAppSdkSessionTokens();
+  return pickStringArray(
+    session?.context?.permissionScope,
+    toRecord(session?.context).permission_scope,
+  );
+}
+
+function hasPermissionInScope(permissionScope: string[], permission: string): boolean {
+  if (permissionScope.includes(permission)) {
+    return true;
+  }
+  return permissionScope.some((scopeEntry) => {
+    if (scopeEntry === '*' || scopeEntry === 'iam.*') {
+      return permission.startsWith('iam.');
+    }
+    if (!scopeEntry.endsWith('.*')) {
+      return false;
+    }
+    const prefix = scopeEntry.slice(0, -2);
+    return permission === prefix || permission.startsWith(`${prefix}.`);
+  });
+}
+
+function hasDirectoryBrowsePermission(permissionScope: string[] = readSessionPermissionScope()): boolean {
+  return DIRECTORY_BROWSE_PERMISSIONS.some((permission) => hasPermissionInScope(permissionScope, permission));
+}
+
+function hasRoleBindingsReadPermission(permissionScope: string[] = readSessionPermissionScope()): boolean {
+  return hasPermissionInScope(permissionScope, 'iam.role_bindings.read');
+}
+
+async function listRoleBindingsSafely(
+  listRoleBindings: () => Promise<unknown>,
+): Promise<UserRoleBinding[]> {
+  if (!hasRoleBindingsReadPermission()) {
+    return [];
+  }
+  const response = await safeDirectoryRequest(listRoleBindings);
+  if (!response) {
+    return [];
+  }
+  return extractRecordArray(response)
+    .map(mapRoleBindingRecord)
+    .filter(Boolean) as UserRoleBinding[];
+}
+
+function isDirectoryAccessError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error ?? '').toLowerCase();
+  return message.includes('403')
+    || message.includes('forbidden')
+    || message.includes('401')
+    || message.includes('unauthorized')
+    || message.includes('permission')
+    || message.includes('organization directory request failed');
+}
+
+async function safeDirectoryRequest<T>(request: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await request();
+  } catch (error) {
+    if (isDirectoryAccessError(error)) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+function organizationFromMembership(
+  membership: OrgOrganizationMembership,
+  index: number,
+): OrgOrganization {
+  const organizationId = membership.organizationId;
+  return {
+    id: organizationId,
+    name: organizationId,
+    organizationId,
+    parentOrganizationId: null,
+    order: membership.order ?? index,
+    status: membership.status,
+  };
+}
+
 function pickCreatedId(record: Record<string, unknown>, ...keys: string[]): string | undefined {
   return pickString(...keys.map((key) => record[key]));
 }
@@ -815,13 +903,11 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     const roleCodes = new Set<string>();
     if (client.iam?.roleBindings?.list) {
       for (const membershipId of membershipIds) {
-        const bindings = extractRecordArray(await client.iam.roleBindings.list({
+        const bindings = await listRoleBindingsSafely(() => client.iam.roleBindings.list({
           principalId: membershipId,
           scopeKind: 'organization',
           scopeId: resolvedOrganizationId,
-        }))
-          .map(mapRoleBindingRecord)
-          .filter(Boolean) as UserRoleBinding[];
+        }));
         for (const binding of bindings) {
           if (isActiveStatus(binding.status)) {
             roleCodes.add(binding.roleCode);
@@ -850,6 +936,72 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
   }
 
   async getOrganizations(): Promise<OrgOrganization[]> {
+    const membershipOrganizations = await this.getOrganizationsFromMemberships();
+    const listedOrganizations = await safeDirectoryRequest(() => this.fetchOrganizationsList());
+    if (listedOrganizations && listedOrganizations.length > 0) {
+      return listedOrganizations;
+    }
+    return membershipOrganizations;
+  }
+
+  async getOrganizationTree(): Promise<OrgOrganizationNode[]> {
+    if (hasDirectoryBrowsePermission()) {
+      const treeNodes = await safeDirectoryRequest(() => this.fetchOrganizationTree());
+      if (treeNodes && treeNodes.length > 0) {
+        return treeNodes;
+      }
+    }
+
+    const organizations = await this.getOrganizations();
+    if (organizations.length > 0) {
+      return buildOrganizationTree(organizations);
+    }
+    return [];
+  }
+
+  async getDepartments(organizationId?: string): Promise<OrgDepartment[]> {
+    const explicitOrganizationId = pickString(organizationId);
+    const listedDepartments = await safeDirectoryRequest(() => this.fetchDepartments(explicitOrganizationId));
+    if (listedDepartments) {
+      return listedDepartments;
+    }
+    return [];
+  }
+
+  async getDepartmentTree(organizationId?: string): Promise<OrgDepartmentNode[]> {
+    const explicitOrganizationId = pickString(organizationId);
+    const params = {
+      ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
+    };
+
+    if (hasDirectoryBrowsePermission()) {
+      const treeNodes = await safeDirectoryRequest(async () => {
+        const client = this.client();
+        if (!client.iam?.departments?.tree?.retrieve) {
+          return undefined;
+        }
+        const response = await client.iam.departments.tree.retrieve(params);
+        const nodes = extractRecordArray(response)
+          .map(mapDepartmentTreeRecord)
+          .filter(Boolean) as OrgDepartmentNode[];
+        if (nodes.length === 0) {
+          return undefined;
+        }
+        this.registerDepartmentOrganizationScope(nodes, explicitOrganizationId);
+        const scopedNodes = explicitOrganizationId
+          ? nodes.map((node) => withDepartmentOrganization(node, explicitOrganizationId))
+          : nodes;
+        return sortDepartmentNodes(scopedNodes);
+      });
+      if (treeNodes && treeNodes.length > 0) {
+        return treeNodes;
+      }
+    }
+
+    return buildDepartmentTree(await this.getDepartments(explicitOrganizationId));
+  }
+
+  private async fetchOrganizationsList(): Promise<OrgOrganization[]> {
     const client = this.client();
     const response = client.iam?.organizations?.list
       ? await client.iam.organizations.list({})
@@ -861,22 +1013,19 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     ).sort((left, right) => left.order - right.order || left.name.localeCompare(right.name));
   }
 
-  async getOrganizationTree(): Promise<OrgOrganizationNode[]> {
+  private async fetchOrganizationTree(): Promise<OrgOrganizationNode[]> {
     const client = this.client();
-    if (client.iam?.organizations?.tree?.retrieve) {
-      const response = await client.iam.organizations.tree.retrieve({});
-      const nodes = extractRecordArray(response)
-        .map(mapOrganizationTreeRecord)
-        .filter(Boolean) as OrgOrganizationNode[];
-      if (nodes.length > 0) {
-        return sortOrganizationNodes(nodes);
-      }
+    if (!client.iam?.organizations?.tree?.retrieve) {
+      return [];
     }
-
-    return buildOrganizationTree(await this.getOrganizations());
+    const response = await client.iam.organizations.tree.retrieve({});
+    const nodes = extractRecordArray(response)
+      .map(mapOrganizationTreeRecord)
+      .filter(Boolean) as OrgOrganizationNode[];
+    return nodes.length > 0 ? sortOrganizationNodes(nodes) : [];
   }
 
-  async getDepartments(organizationId?: string): Promise<OrgDepartment[]> {
+  private async fetchDepartments(organizationId?: string): Promise<OrgDepartment[]> {
     const explicitOrganizationId = pickString(organizationId);
     const params = {
       ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
@@ -904,40 +1053,57 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     return sortDepartments(uniqueById(scopedDepartments));
   }
 
-  async getDepartmentTree(organizationId?: string): Promise<OrgDepartmentNode[]> {
-    const explicitOrganizationId = pickString(organizationId);
-    const params = {
-      ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),
-    };
-    const client = this.client();
-    if (client.iam?.departments?.tree?.retrieve) {
-      const response = await client.iam.departments.tree.retrieve(params);
-      const nodes = extractRecordArray(response)
-        .map(mapDepartmentTreeRecord)
-        .filter(Boolean) as OrgDepartmentNode[];
-      if (nodes.length > 0) {
-        const register = (department: OrgDepartmentNode) => {
-          if (explicitOrganizationId) {
-            const departmentOrganizationId = department.organizationId ?? explicitOrganizationId;
-            if (departmentOrganizationId) {
-              this.explicitDepartmentOrganizationById.set(department.id, departmentOrganizationId);
-            }
-          }
-          for (const child of department.children) {
-            register(child);
-          }
-        };
-        for (const node of nodes) {
-          register(node);
+  private registerDepartmentOrganizationScope(
+    nodes: OrgDepartmentNode[],
+    explicitOrganizationId?: string,
+  ): void {
+    const register = (department: OrgDepartmentNode) => {
+      if (explicitOrganizationId) {
+        const departmentOrganizationId = department.organizationId ?? explicitOrganizationId;
+        if (departmentOrganizationId) {
+          this.explicitDepartmentOrganizationById.set(department.id, departmentOrganizationId);
         }
-        const scopedNodes = explicitOrganizationId
-          ? nodes.map((node) => withDepartmentOrganization(node, explicitOrganizationId))
-          : nodes;
-        return sortDepartmentNodes(scopedNodes);
       }
+      for (const child of department.children) {
+        register(child);
+      }
+    };
+    for (const node of nodes) {
+      register(node);
+    }
+  }
+
+  private async getOrganizationsFromMemberships(): Promise<OrgOrganization[]> {
+    const memberships = await this.listCurrentUserOrganizationMemberships();
+    if (memberships.length === 0) {
+      return [];
+    }
+    return uniqueById(
+      memberships
+        .map((membership, index) => organizationFromMembership(membership, index))
+        .filter(Boolean) as OrgOrganization[],
+    ).sort((left, right) => left.order - right.order || left.name.localeCompare(right.name));
+  }
+
+  private async listCurrentUserOrganizationMemberships(): Promise<OrgOrganizationMembership[]> {
+    const currentUser = await this.getCurrentUser();
+    const userId = pickString(currentUser?.id);
+    const client = this.client();
+    if (!userId || !client.iam?.organizationMemberships?.list) {
+      return [];
     }
 
-    return buildDepartmentTree(await this.getDepartments(explicitOrganizationId));
+    const memberships = await safeDirectoryRequest(async () => extractRecordArray(
+      await client.iam.organizationMemberships.list({ userId }),
+    ));
+    if (!memberships) {
+      return [];
+    }
+
+    return memberships
+      .map(mapOrganizationMembershipRecord)
+      .filter(Boolean)
+      .filter((membership) => isActiveStatus(membership?.status)) as OrgOrganizationMembership[];
   }
 
   async getOrganizationDirectoryTree(): Promise<OrganizationDirectoryTreeNode[]> {
@@ -1272,12 +1438,10 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     ));
 
     const roleBindings = client.iam?.roleBindings?.list
-      ? await client.iam.roleBindings.list({
+      ? await listRoleBindingsSafely(() => client.iam.roleBindings.list({
           scopeKind: 'department_assignment',
           scopeId: user.departmentAssignmentId,
-        }).then((response) => extractRecordArray(response)
-          .map(mapRoleBindingRecord)
-          .filter(Boolean) as UserRoleBinding[])
+        }))
       : [];
     const activeRoleBindings = roleBindings.filter((binding) => (
       !binding.status || binding.status.toLowerCase() === 'active'

@@ -9,5 +9,6 @@ hmac = "0.12"
 sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
+sdkwork_utils_rust.workspace = true
 sha2 = "0.10"
 tracing.workspace = true

@@ -6,7 +6,11 @@ use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use im_adapters_postgres_journal::retention_purge_metrics;
+use sdkwork_im_web_bootstrap::{
+    im_service_http_metrics, im_service_router_config, mount_im_infra_routes,
+};
+use sdkwork_web_core::{HttpMetricsRegistry, WebRequestContext};
 use tokio::sync::Semaphore;
 
 use crate::error::OpsError;
@@ -70,17 +74,51 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(Arc::new(OpsRuntime::default()))),
-        im_service_router_config(),
-    )
+    mount_ops_infra_routes(apply_public_http_guardrails(build_business_router(Arc::new(
+        OpsRuntime::default(),
+    ))))
 }
 
 pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
-    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+    mount_ops_infra_routes(build_business_router(runtime))
 }
 
-fn build_business_router(runtime: Arc<OpsRuntime>) -> Router {
+/// Mount IM infra routes with a custom `/metrics` handler that also renders
+/// retention purge metrics (`im_retention_purge_*`).
+fn mount_ops_infra_routes(router: Router) -> Router {
+    let config = im_service_router_config().skip_metrics();
+    let http_metrics = config.metrics().unwrap_or_else(im_service_http_metrics);
+    mount_im_infra_routes(router, config)
+        .route(
+            "/metrics",
+            get(move || {
+                let metrics = http_metrics.clone();
+                async move { ops_metrics_handler(metrics).await }
+            }),
+        )
+}
+
+async fn ops_metrics_handler(http_metrics: Arc<HttpMetricsRegistry>) -> impl IntoResponse {
+    let dimensions = http_metrics.dimensions();
+    let mut output = http_metrics.render_prometheus();
+    output.push('\n');
+    output.push_str(&retention_purge_metrics().render_prometheus(
+        &dimensions.service,
+        &dimensions.environment,
+        &dimensions.deployment_profile,
+        &dimensions.runtime_target,
+    ));
+    (
+        axum::http::StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
+        output,
+    )
+}
+
+pub fn build_business_router(runtime: Arc<OpsRuntime>) -> Router {
     let state = AppState { runtime };
     Router::new()
         .route("/openapi.json", get(openapi_json))
@@ -102,6 +140,12 @@ async fn enforce_in_flight_gate(
     let permit = match guardrails.request_gate.clone().try_acquire_owned() {
         Ok(permit) => permit,
         Err(_) => {
+            let problem = sdkwork_routes_web_framework_backend_api::response::ApiProblem::dependency_unavailable(
+                "server is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
             return OpsError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",

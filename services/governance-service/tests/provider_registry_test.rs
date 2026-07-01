@@ -18,6 +18,7 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_registry")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -38,14 +39,14 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("provider registry body should be valid json");
 
-    assert_eq!(json["status"], "registry");
-    assert_eq!(json["interfaceVersion"], "provider-registry/v1");
+    assert_eq!(json["data"]["status"], "registry");
+    assert_eq!(json["data"]["interfaceVersion"], "provider-registry/v1");
     assert_eq!(
-        json["precedence"],
+        json["data"]["precedence"],
         serde_json::json!(["tenant_override", "deployment_profile", "global_default"])
     );
 
-    let plugins = json["plugins"]
+    let plugins = json["data"]["plugins"]
         .as_array()
         .expect("plugins should be returned as an array");
     assert!(
@@ -66,7 +67,7 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
             .any(|plugin| plugin["pluginId"] == "principal-profile-upstream-context"),
         "provider registry should surface the upstream-context principal-profile provider"
     );
-    let effective_bindings = json["effectiveBindings"]
+    let effective_bindings = json["data"]["effectiveBindings"]
         .as_array()
         .expect("effective bindings should be returned as an array");
     let rtc_binding = effective_bindings
@@ -116,6 +117,7 @@ async fn test_control_plane_exposes_deployment_profile_provider_bindings_to_cont
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -136,15 +138,15 @@ async fn test_control_plane_exposes_deployment_profile_provider_bindings_to_cont
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("provider bindings body should be valid json");
 
-    assert_eq!(json["status"], "bindings");
-    assert_eq!(json["interfaceVersion"], "provider-registry/v1");
-    assert_eq!(json["tenantId"], serde_json::Value::Null);
+    assert_eq!(json["data"]["status"], "bindings");
+    assert_eq!(json["data"]["interfaceVersion"], "provider-registry/v1");
+    assert_eq!(json["data"]["tenantId"], serde_json::Value::Null);
     assert_eq!(
-        json["precedence"],
+        json["data"]["precedence"],
         serde_json::json!(["tenant_override", "deployment_profile", "global_default"])
     );
 
-    let effective_bindings = json["effectiveBindings"]
+    let effective_bindings = json["data"]["effectiveBindings"]
         .as_array()
         .expect("effective bindings should be returned as an array");
 
@@ -191,6 +193,7 @@ async fn test_control_plane_exposes_tenant_override_provider_bindings_to_control
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -211,10 +214,10 @@ async fn test_control_plane_exposes_tenant_override_provider_bindings_to_control
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("provider bindings body should be valid json");
 
-    assert_eq!(json["status"], "bindings");
-    assert_eq!(json["tenantId"], "t_provider_combo");
+    assert_eq!(json["data"]["status"], "bindings");
+    assert_eq!(json["data"]["tenantId"], "t_provider_combo");
 
-    let effective_bindings = json["effectiveBindings"]
+    let effective_bindings = json["data"]["effectiveBindings"]
         .as_array()
         .expect("effective bindings should be returned as an array");
 
@@ -251,6 +254,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -271,25 +275,25 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .to_bytes();
     let deployment_json: serde_json::Value =
         serde_json::from_slice(&deployment_body).expect("deployment body should be valid json");
-    assert_eq!(deployment_json["status"], "applied");
-    assert_eq!(deployment_json["tenantId"], serde_json::Value::Null);
-    assert_eq!(deployment_json["currentVersion"], 2);
+    assert_eq!(deployment_json["data"]["status"], "applied");
+    assert_eq!(deployment_json["data"]["tenantId"], serde_json::Value::Null);
+    assert_eq!(deployment_json["data"]["currentVersion"], 2);
     assert_eq!(
-        deployment_json["committedBinding"]["domain"],
+        deployment_json["data"]["committedBinding"]["domain"],
         "object-storage"
     );
     assert_eq!(
-        deployment_json["committedBinding"]["selectedPluginId"],
+        deployment_json["data"]["committedBinding"]["selectedPluginId"],
         "object-storage-volcengine"
     );
     assert_eq!(
-        deployment_json["committedBinding"]["selectionSource"],
+        deployment_json["data"]["committedBinding"]["selectionSource"],
         "deployment_profile"
     );
-    assert_eq!(deployment_json["diff"]["fromVersion"], 1);
-    assert_eq!(deployment_json["diff"]["toVersion"], 2);
+    assert_eq!(deployment_json["data"]["diff"]["fromVersion"], 1);
+    assert_eq!(deployment_json["data"]["diff"]["toVersion"], 2);
     assert!(
-        deployment_json["effectiveBindings"]
+        deployment_json["data"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -305,6 +309,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/preview")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -325,8 +330,8 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .to_bytes();
     let tenant_preview_json: serde_json::Value = serde_json::from_slice(&tenant_preview_body)
         .expect("tenant preview body should be valid json");
-    assert_eq!(tenant_preview_json["status"], "preview");
-    assert_eq!(tenant_preview_json["baseVersion"], 2);
+    assert_eq!(tenant_preview_json["data"]["status"], "preview");
+    assert_eq!(tenant_preview_json["data"]["baseVersion"], 2);
 
     let tenant_write = app
         .clone()
@@ -335,6 +340,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -355,22 +361,22 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .to_bytes();
     let tenant_json: serde_json::Value =
         serde_json::from_slice(&tenant_body).expect("tenant body should be valid json");
-    assert_eq!(tenant_json["status"], "applied");
-    assert_eq!(tenant_json["tenantId"], "t_provider_combo");
-    assert_eq!(tenant_json["currentVersion"], 3);
-    assert_eq!(tenant_json["committedBinding"]["domain"], "rtc");
+    assert_eq!(tenant_json["data"]["status"], "applied");
+    assert_eq!(tenant_json["data"]["tenantId"], "t_provider_combo");
+    assert_eq!(tenant_json["data"]["currentVersion"], 3);
+    assert_eq!(tenant_json["data"]["committedBinding"]["domain"], "rtc");
     assert_eq!(
-        tenant_json["committedBinding"]["selectedPluginId"],
+        tenant_json["data"]["committedBinding"]["selectedPluginId"],
         "rtc-aliyun"
     );
     assert_eq!(
-        tenant_json["committedBinding"]["selectionSource"],
+        tenant_json["data"]["committedBinding"]["selectionSource"],
         "tenant_override"
     );
-    assert_eq!(tenant_json["diff"]["fromVersion"], 2);
-    assert_eq!(tenant_json["diff"]["toVersion"], 3);
+    assert_eq!(tenant_json["data"]["diff"]["fromVersion"], 2);
+    assert_eq!(tenant_json["data"]["diff"]["toVersion"], 3);
     assert_eq!(
-        tenant_json["diff"]["tenantOverrideChanges"],
+        tenant_json["data"]["diff"]["tenantOverrideChanges"],
         serde_json::json!([
             {
                 "tenantId": "t_provider_combo",
@@ -382,7 +388,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         ])
     );
     assert!(
-        tenant_json["effectiveBindings"]
+        tenant_json["data"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -397,6 +403,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -414,9 +421,9 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .to_bytes();
     let tenant_read_json: serde_json::Value =
         serde_json::from_slice(&tenant_read_body).expect("tenant read body should be valid json");
-    assert_eq!(tenant_read_json["status"], "bindings");
+    assert_eq!(tenant_read_json["data"]["status"], "bindings");
     assert!(
-        tenant_read_json["effectiveBindings"]
+        tenant_read_json["data"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -439,6 +446,7 @@ async fn test_control_plane_rejects_cross_domain_provider_policy_write() {
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -460,9 +468,7 @@ async fn test_control_plane_rejects_cross_domain_provider_policy_write() {
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("cross-domain body should be valid json");
-    assert_eq!(json["status"], 400);
-    assert_eq!(json["errorStatus"], "invalid");
-    assert_eq!(json["code"], "invalid_provider_policy");
+    assert_eq!(json["code"].as_i64(), Some(40001));
 }
 
 #[tokio::test]
@@ -479,6 +485,7 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -499,6 +506,7 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -519,21 +527,21 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         .to_bytes();
     let noop_json: serde_json::Value =
         serde_json::from_slice(&noop_body).expect("noop body should be valid json");
-    assert_eq!(noop_json["status"], "noop");
-    assert_eq!(noop_json["applied"], false);
-    assert_eq!(noop_json["currentVersion"], 2);
+    assert_eq!(noop_json["data"]["status"], "noop");
+    assert_eq!(noop_json["data"]["applied"], false);
+    assert_eq!(noop_json["data"]["currentVersion"], 2);
     assert_eq!(
-        noop_json["committedBinding"]["selectedPluginId"],
+        noop_json["data"]["committedBinding"]["selectedPluginId"],
         "object-storage-volcengine"
     );
-    assert_eq!(noop_json["diff"]["fromVersion"], 2);
-    assert_eq!(noop_json["diff"]["toVersion"], 2);
+    assert_eq!(noop_json["data"]["diff"]["fromVersion"], 2);
+    assert_eq!(noop_json["data"]["diff"]["toVersion"], 2);
     assert_eq!(
-        noop_json["diff"]["deploymentProfileChanges"],
+        noop_json["data"]["diff"]["deploymentProfileChanges"],
         serde_json::json!([])
     );
     assert_eq!(
-        noop_json["diff"]["tenantOverrideChanges"],
+        noop_json["data"]["diff"]["tenantOverrideChanges"],
         serde_json::json!([])
     );
 
@@ -543,6 +551,7 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_policies")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -560,9 +569,9 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         .to_bytes();
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history body should be valid json");
-    assert_eq!(history_json["status"], "history");
-    assert_eq!(history_json["currentVersion"], 2);
-    assert_eq!(history_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(history_json["data"]["status"], "history");
+    assert_eq!(history_json["data"]["currentVersion"], 2);
+    assert_eq!(history_json["data"]["items"].as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -579,6 +588,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -599,6 +609,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -619,6 +630,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_policies")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -636,11 +648,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .to_bytes();
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history body should be valid json");
-    assert_eq!(history_json["status"], "history");
-    assert_eq!(history_json["currentVersion"], 3);
-    assert_eq!(history_json["items"].as_array().unwrap().len(), 3);
+    assert_eq!(history_json["data"]["status"], "history");
+    assert_eq!(history_json["data"]["currentVersion"], 3);
+    assert_eq!(history_json["data"]["items"].as_array().unwrap().len(), 3);
     assert!(
-        history_json["items"][2]["tenantOverrides"]
+        history_json["data"]["items"][2]["tenantOverrides"]
             .as_array()
             .unwrap()
             .iter()
@@ -655,6 +667,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/rollback")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -673,9 +686,9 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .to_bytes();
     let rollback_json: serde_json::Value =
         serde_json::from_slice(&rollback_body).expect("rollback body should be valid json");
-    assert_eq!(rollback_json["status"], "rolled_back");
-    assert_eq!(rollback_json["currentVersion"], 4);
-    assert_eq!(rollback_json["items"][3]["rollbackFromVersion"], 1);
+    assert_eq!(rollback_json["data"]["status"], "rolled_back");
+    assert_eq!(rollback_json["data"]["currentVersion"], 4);
+    assert_eq!(rollback_json["data"]["items"][3]["rollbackFromVersion"], 1);
 
     let global_read = app
         .clone()
@@ -684,6 +697,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -701,9 +715,9 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .to_bytes();
     let global_json: serde_json::Value =
         serde_json::from_slice(&global_body).expect("global read body should be valid json");
-    assert_eq!(global_json["status"], "bindings");
+    assert_eq!(global_json["data"]["status"], "bindings");
     assert!(
-        global_json["effectiveBindings"]
+        global_json["data"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -718,6 +732,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -735,9 +750,9 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .to_bytes();
     let tenant_json: serde_json::Value =
         serde_json::from_slice(&tenant_body).expect("tenant read body should be valid json");
-    assert_eq!(tenant_json["status"], "bindings");
+    assert_eq!(tenant_json["data"]["status"], "bindings");
     assert!(
-        tenant_json["effectiveBindings"]
+        tenant_json["data"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -761,6 +776,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -781,6 +797,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -801,6 +818,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -820,6 +838,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_policies/diff?fromVersion=2&toVersion=4")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -839,11 +858,11 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("diff body should be valid json");
 
-    assert_eq!(json["status"], "diff");
-    assert_eq!(json["fromVersion"], 2);
-    assert_eq!(json["toVersion"], 4);
+    assert_eq!(json["data"]["status"], "diff");
+    assert_eq!(json["data"]["fromVersion"], 2);
+    assert_eq!(json["data"]["toVersion"], 4);
     assert_eq!(
-        json["deploymentProfileChanges"],
+        json["data"]["deploymentProfileChanges"],
         serde_json::json!([
             {
                 "domain": "object-storage",
@@ -854,7 +873,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         ])
     );
     assert_eq!(
-        json["tenantOverrideChanges"],
+        json["data"]["tenantOverrideChanges"],
         serde_json::json!([
             {
                 "tenantId": "t_provider_combo",
@@ -881,6 +900,7 @@ async fn test_control_plane_exposes_provider_policy_preview_without_mutation() {
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/preview")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -902,23 +922,23 @@ async fn test_control_plane_exposes_provider_policy_preview_without_mutation() {
         .to_bytes();
     let preview_json: serde_json::Value =
         serde_json::from_slice(&preview_body).expect("preview body should be valid json");
-    assert_eq!(preview_json["status"], "preview");
-    assert_eq!(preview_json["baseVersion"], 1);
-    assert_eq!(preview_json["previewVersion"], 2);
-    assert_eq!(preview_json["tenantId"], "t_provider_combo");
-    assert_eq!(preview_json["previewBinding"]["domain"], "rtc");
+    assert_eq!(preview_json["data"]["status"], "preview");
+    assert_eq!(preview_json["data"]["baseVersion"], 1);
+    assert_eq!(preview_json["data"]["previewVersion"], 2);
+    assert_eq!(preview_json["data"]["tenantId"], "t_provider_combo");
+    assert_eq!(preview_json["data"]["previewBinding"]["domain"], "rtc");
     assert_eq!(
-        preview_json["previewBinding"]["selectedPluginId"],
+        preview_json["data"]["previewBinding"]["selectedPluginId"],
         "rtc-aliyun"
     );
     assert_eq!(
-        preview_json["previewBinding"]["selectionSource"],
+        preview_json["data"]["previewBinding"]["selectionSource"],
         "tenant_override"
     );
-    assert_eq!(preview_json["diff"]["fromVersion"], 1);
-    assert_eq!(preview_json["diff"]["toVersion"], 2);
+    assert_eq!(preview_json["data"]["diff"]["fromVersion"], 1);
+    assert_eq!(preview_json["data"]["diff"]["toVersion"], 2);
     assert_eq!(
-        preview_json["diff"]["tenantOverrideChanges"],
+        preview_json["data"]["diff"]["tenantOverrideChanges"],
         serde_json::json!([
             {
                 "tenantId": "t_provider_combo",
@@ -936,6 +956,7 @@ async fn test_control_plane_exposes_provider_policy_preview_without_mutation() {
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_policies")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -953,9 +974,9 @@ async fn test_control_plane_exposes_provider_policy_preview_without_mutation() {
         .to_bytes();
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history body should be valid json");
-    assert_eq!(history_json["status"], "history");
-    assert_eq!(history_json["currentVersion"], 1);
-    assert_eq!(history_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(history_json["data"]["status"], "history");
+    assert_eq!(history_json["data"]["currentVersion"], 1);
+    assert_eq!(history_json["data"]["items"].as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -972,6 +993,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_policies/preview")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -992,7 +1014,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .to_bytes();
     let preview_json: serde_json::Value =
         serde_json::from_slice(&preview_body).expect("preview body should be valid json");
-    assert_eq!(preview_json["baseVersion"], 1);
+    assert_eq!(preview_json["data"]["baseVersion"], 1);
 
     let concurrent_write = app
         .clone()
@@ -1001,6 +1023,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -1021,6 +1044,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -1041,11 +1065,9 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .to_bytes();
     let stale_json: serde_json::Value =
         serde_json::from_slice(&stale_body).expect("stale body should be valid json");
-    assert_eq!(stale_json["status"], 409);
-    assert_eq!(stale_json["errorStatus"], "conflict");
-    assert_eq!(stale_json["code"], "provider_policy_conflict");
+    assert_eq!(stale_json["code"].as_i64(), Some(40901));
     assert!(
-        stale_json["message"]
+        stale_json["detail"]
             .as_str()
             .expect("conflict message should be present")
             .contains("expected 1"),
@@ -1059,6 +1081,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_policies")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -1076,11 +1099,11 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .to_bytes();
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history body should be valid json");
-    assert_eq!(history_json["status"], "history");
-    assert_eq!(history_json["currentVersion"], 2);
-    assert_eq!(history_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(history_json["data"]["status"], "history");
+    assert_eq!(history_json["data"]["currentVersion"], 2);
+    assert_eq!(history_json["data"]["items"].as_array().unwrap().len(), 2);
     assert!(
-        history_json["items"][1]["tenantOverrides"]
+        history_json["data"]["items"][1]["tenantOverrides"]
             .as_array()
             .unwrap()
             .is_empty(),
@@ -1093,6 +1116,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -1110,9 +1134,9 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .to_bytes();
     let tenant_json: serde_json::Value =
         serde_json::from_slice(&tenant_body).expect("tenant body should be valid json");
-    assert_eq!(tenant_json["status"], "bindings");
+    assert_eq!(tenant_json["data"]["status"], "bindings");
     assert!(
-        tenant_json["effectiveBindings"]
+        tenant_json["data"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -1134,37 +1158,38 @@ async fn test_control_plane_returns_unavailable_status_when_provider_policy_runt
             "POST",
             "/backend/v3/api/control/provider_bindings",
             Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
-            "provider_policy_write_unavailable",
+            50301,
         ),
         (
             "POST",
             "/backend/v3/api/control/provider_policies/preview",
             Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
-            "provider_policy_preview_unavailable",
+            50301,
         ),
         (
             "GET",
             "/backend/v3/api/control/provider_policies",
             None,
-            "provider_policy_history_unavailable",
+            50301,
         ),
         (
             "GET",
             "/backend/v3/api/control/provider_policies/diff?fromVersion=1&toVersion=2",
             None,
-            "provider_policy_diff_unavailable",
+            50301,
         ),
         (
             "POST",
             "/backend/v3/api/control/provider_policies/rollback",
             Some(r#"{"targetVersion":1}"#),
-            "provider_policy_rollback_unavailable",
+            50301,
         ),
     ] {
         let mut request = Request::builder()
             .method(method)
             .uri(uri)
             .with_dual_token_tenant("100001")
+            .with_dual_token_organization("100001")
             .with_dual_token_user("1080")
             .with_dual_token_actor_kind("user")
             .with_dual_token_permission_scope("control.write");
@@ -1191,9 +1216,7 @@ async fn test_control_plane_returns_unavailable_status_when_provider_policy_runt
             .to_bytes();
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("unavailable body should be valid json");
-        assert_eq!(json["status"], 503);
-        assert_eq!(json["errorStatus"], "unavailable");
-        assert_eq!(json["code"], expected_code);
+        assert_eq!(json["code"].as_i64(), Some(expected_code));
     }
 }
 
@@ -1222,6 +1245,7 @@ async fn test_control_plane_returns_conflict_status_for_unknown_provider_policy_
             .method(method)
             .uri(uri)
             .with_dual_token_tenant("100001")
+            .with_dual_token_organization("100001")
             .with_dual_token_user("1080")
             .with_dual_token_actor_kind("user")
             .with_dual_token_permission_scope(permission);
@@ -1248,11 +1272,9 @@ async fn test_control_plane_returns_conflict_status_for_unknown_provider_policy_
             .to_bytes();
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("unknown-version body should be valid json");
-        assert_eq!(json["status"], 409);
-        assert_eq!(json["errorStatus"], "conflict");
-        assert_eq!(json["code"], "provider_policy_conflict");
+        assert_eq!(json["code"].as_i64(), Some(40901));
         assert!(
-            json["message"]
+            json["detail"]
                 .as_str()
                 .expect("unknown-version message should be present")
                 .contains("unknown provider policy version"),
@@ -1275,6 +1297,7 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
                 .method("POST")
                 .uri("/backend/v3/api/control/provider_bindings")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -1294,6 +1317,7 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
                 .method("GET")
                 .uri("/backend/v3/api/control/provider_policies/diff?fromVersion=2&toVersion=1")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1080")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.read")
@@ -1312,11 +1336,9 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("reversed diff body should be valid json");
-    assert_eq!(json["status"], 400);
-    assert_eq!(json["errorStatus"], "invalid");
-    assert_eq!(json["code"], "invalid_provider_policy");
+    assert_eq!(json["code"].as_i64(), Some(40001));
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
             .expect("reversed diff error message should be present")
             .contains("fromVersion must not exceed toVersion"),

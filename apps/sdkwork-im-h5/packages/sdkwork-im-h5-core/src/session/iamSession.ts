@@ -35,7 +35,7 @@ function getStorage(): Storage | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
-  return window.localStorage;
+  return window.sessionStorage;
 }
 
 function normalizeToken(value: unknown): string | undefined {

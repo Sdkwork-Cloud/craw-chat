@@ -1,6 +1,11 @@
 use im_domain_core::conversation::ConversationScenario;
 use im_domain_core::social::normalize_actor_pair;
 
+use super::support::{
+    canonical_agent_dialog_business_id, resolve_agent_dialog_conversation_id,
+    resolve_direct_chat_binding_ids,
+};
+
 use super::*;
 
 impl<J> ConversationRuntime<J>
@@ -590,18 +595,6 @@ where
         )?;
         validate_payload_size("binderKind", binder_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_direct_chat_binding_requester_kind(binder_kind)?;
-        let request_key = direct_chat_binding_request_key(
-            command.tenant_id.as_str(),
-            binder_kind,
-            command.bound_by.as_str(),
-            command.conversation_id.as_str(),
-        );
-
-        if command.direct_chat_id.trim().is_empty() {
-            return Err(RuntimeError::InvalidInput(
-                "direct chat binding requires direct_chat_id".into(),
-            ));
-        }
         if command.bound_by.trim().is_empty() {
             return Err(RuntimeError::InvalidInput(
                 "direct chat binding requires binder identity".into(),
@@ -612,6 +605,22 @@ where
                 "direct chat binding requires actor kinds for both participants".into(),
             ));
         }
+        let (conversation_id, direct_chat_id) = resolve_direct_chat_binding_ids(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.left_actor_kind.as_str(),
+            command.left_actor_id.as_str(),
+            command.right_actor_kind.as_str(),
+            command.right_actor_id.as_str(),
+            command.conversation_id.as_str(),
+            command.direct_chat_id.as_str(),
+        )?;
+        let request_key = direct_chat_binding_request_key(
+            command.tenant_id.as_str(),
+            binder_kind,
+            command.bound_by.as_str(),
+            conversation_id.as_str(),
+        );
 
         let pair = normalize_actor_pair(
             command.left_actor_id.as_str(),
@@ -619,18 +628,21 @@ where
         )
         .map_err(|error| RuntimeError::InvalidInput(error.to_string()))?;
         let created_at = conversation_timestamp();
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        );
         let business_binding = ConversationBusinessBinding {
             business_type: "direct_chat".into(),
-            business_id: command.direct_chat_id.clone(),
+            business_id: direct_chat_id.clone(),
         };
         let business_scope_key = conversation_business_scope_key(
             command.tenant_id.as_str(),
             business_binding.business_type.as_str(),
             business_binding.business_id.as_str(),
         );
-        let event_id = format!("evt_{}_created", command.conversation_id);
+        let event_id = format!("evt_{}_created", conversation_id);
 
         let anchor_attributes = BTreeMap::from([
             (
@@ -638,7 +650,7 @@ where
                 business_binding.business_type.clone(),
             ),
             ("businessId".into(), business_binding.business_id.clone()),
-            ("directChatId".into(), command.direct_chat_id.clone()),
+            ("directChatId".into(), direct_chat_id.clone()),
             ("pairHash".into(), pair.pair_hash.clone()),
             ("directChatRole".into(), "anchor".into()),
             ("peerActorId".into(), pair.right_actor_id.clone()),
@@ -647,9 +659,9 @@ where
         validate_member_attributes_payload_size("directChatAnchorAttributes", &anchor_attributes)?;
         let anchor_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
             member_id(
-                command.conversation_id.as_str(),
+                conversation_id.as_str(),
                 command.left_actor_kind.as_str(),
                 pair.left_actor_id.as_str(),
             ),
@@ -666,7 +678,7 @@ where
                 business_binding.business_type.clone(),
             ),
             ("businessId".into(), business_binding.business_id.clone()),
-            ("directChatId".into(), command.direct_chat_id.clone()),
+            ("directChatId".into(), direct_chat_id.clone()),
             ("pairHash".into(), pair.pair_hash.clone()),
             ("directChatRole".into(), "peer".into()),
             ("peerActorId".into(), pair.left_actor_id.clone()),
@@ -675,9 +687,9 @@ where
         validate_member_attributes_payload_size("directChatPeerAttributes", &peer_attributes)?;
         let peer_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
             member_id(
-                command.conversation_id.as_str(),
+                conversation_id.as_str(),
                 command.right_actor_kind.as_str(),
                 pair.right_actor_id.as_str(),
             ),
@@ -692,9 +704,15 @@ where
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.direct_chat_binding_request.as_ref() {
-                if direct_chat_binding_replay_matches(existing, &command, binder_kind, &pair) {
+                if direct_chat_binding_replay_matches(
+                    existing,
+                    &command,
+                    binder_kind,
+                    &pair,
+                    direct_chat_id.as_str(),
+                ) {
                     return Ok(CreateConversationResult::replayed_with_request_key(
-                        command.conversation_id,
+                        conversation_id,
                         existing.event_id.clone(),
                         request_key,
                     ));
@@ -704,19 +722,20 @@ where
                 )));
             }
             return Err(RuntimeError::Conflict(format!(
-                "direct chat binding request conflicts with existing conversation id: {}",
-                command.conversation_id
+                "direct chat binding request conflicts with existing conversation id: {conversation_id}"
             )));
         }
         if let Some(existing_conversation_id) =
             state.business_index.get(business_scope_key.as_str())
         {
-            return Err(RuntimeError::Conflict(format!(
-                "business binding {}/{} already mapped to conversation {}",
-                business_binding.business_type,
-                business_binding.business_id,
-                existing_conversation_id
-            )));
+            if existing_conversation_id != &conversation_id {
+                return Err(RuntimeError::Conflict(format!(
+                    "business binding {}/{} already mapped to conversation {}",
+                    business_binding.business_type,
+                    business_binding.business_id,
+                    existing_conversation_id
+                )));
+            }
         }
 
         let mut conversation = ConversationState {
@@ -724,7 +743,7 @@ where
             direct_chat_binding_request: Some(DirectChatBindingReplayRecord {
                 bound_by: command.bound_by.clone(),
                 binder_kind: binder_kind.into(),
-                direct_chat_id: command.direct_chat_id.clone(),
+                direct_chat_id: direct_chat_id.clone(),
                 anchor_actor_id: pair.left_actor_id.clone(),
                 anchor_actor_kind: command.left_actor_kind.clone(),
                 peer_actor_id: pair.right_actor_id.clone(),
@@ -753,12 +772,12 @@ where
             event_type: "conversation.created".into(),
             event_version: 1,
             aggregate_type: AggregateType::Conversation,
-            aggregate_id: command.conversation_id.clone(),
+            aggregate_id: conversation_id.clone(),
             scope_type: "conversation".into(),
-            scope_id: command.conversation_id.clone(),
+            scope_id: conversation_id.clone(),
             ordering_key: CommitEnvelope::ordering_key(
                 command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
+                conversation_id.as_str(),
             ),
             ordering_seq: 0,
             causation_id: None,
@@ -773,12 +792,12 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id.clone(),
+                "conversationId": conversation_id.clone(),
                 "conversationType": "direct",
                 "businessType": business_binding.business_type.clone(),
                 "businessId": business_binding.business_id.clone(),
                 "directChat": {
-                    "directChatId": command.direct_chat_id.clone(),
+                    "directChatId": direct_chat_id.clone(),
                     "anchorActorId": pair.left_actor_id.clone(),
                     "anchorActorKind": command.left_actor_kind.clone(),
                     "peerActorId": pair.right_actor_id.clone(),
@@ -794,7 +813,7 @@ where
             &self.journal,
             envelope,
             command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
             creation_members.as_slice(),
             command.bound_by.as_str(),
             binder_kind,
@@ -802,11 +821,11 @@ where
         state.conversations.insert(scope_key, conversation);
         state
             .business_index
-            .insert(business_scope_key, command.conversation_id.clone());
+            .insert(business_scope_key, conversation_id.clone());
         drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
-            command.conversation_id,
+            conversation_id,
             event_id,
             request_key,
         ))
@@ -876,11 +895,32 @@ where
         validate_standard_agent_id(command.agent_id.as_str())?;
         validate_payload_size("requesterKind", requester_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_agent_dialog_requester_kind(requester_kind)?;
+        let conversation_id = resolve_agent_dialog_conversation_id(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            requester_kind,
+            command.requester_id.as_str(),
+            command.agent_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
+        let business_binding = ConversationBusinessBinding {
+            business_type: "agent_dialog".into(),
+            business_id: canonical_agent_dialog_business_id(
+                requester_kind,
+                command.requester_id.as_str(),
+                command.agent_id.as_str(),
+            ),
+        };
+        let business_scope_key = conversation_business_scope_key(
+            command.tenant_id.as_str(),
+            business_binding.business_type.as_str(),
+            business_binding.business_id.as_str(),
+        );
         let request_key = agent_dialog_create_request_key(
             command.tenant_id.as_str(),
             requester_kind,
             command.requester_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
         );
 
         if command.requester_id == command.agent_id {
@@ -890,8 +930,11 @@ where
         }
 
         let created_at = conversation_timestamp();
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        );
         let mut requester_member_attributes =
             BTreeMap::from([("dialogRole".into(), "requester".into())]);
         requester_member_attributes.extend(requester_attributes);
@@ -901,9 +944,9 @@ where
         )?;
         let requester_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
             member_id(
-                command.conversation_id.as_str(),
+                conversation_id.as_str(),
                 requester_kind,
                 command.requester_id.as_str(),
             ),
@@ -917,13 +960,18 @@ where
         let agent_member_attributes = BTreeMap::from([
             ("agentId".into(), command.agent_id.clone()),
             ("dialogRole".into(), "assistant".into()),
+            (
+                "businessType".into(),
+                business_binding.business_type.clone(),
+            ),
+            ("businessId".into(), business_binding.business_id.clone()),
         ]);
         validate_member_attributes_payload_size("agentAttributes", &agent_member_attributes)?;
         let agent_member = build_conversation_member_with_attributes(
             command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
             member_id(
-                command.conversation_id.as_str(),
+                conversation_id.as_str(),
                 "agent",
                 command.agent_id.as_str(),
             ),
@@ -936,11 +984,19 @@ where
         );
 
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.creation");
+        if let Some(existing_conversation_id) = state.business_index.get(business_scope_key.as_str())
+        {
+            if existing_conversation_id != &conversation_id {
+                return Err(RuntimeError::Conflict(format!(
+                    "agent dialog binding already mapped to conversation {existing_conversation_id}"
+                )));
+            }
+        }
         if let Some(existing_conversation) = state.conversations.get(scope_key.as_str()) {
             if let Some(existing) = existing_conversation.agent_dialog_create_request.as_ref() {
                 if agent_dialog_create_replay_matches(existing, &command, requester_kind) {
                     return Ok(CreateConversationResult::replayed_with_request_key(
-                        command.conversation_id,
+                        conversation_id,
                         existing.event_id.clone(),
                         request_key,
                     ));
@@ -950,12 +1006,11 @@ where
                 )));
             }
             return Err(RuntimeError::Conflict(format!(
-                "agent dialog create request conflicts with existing conversation id: {}",
-                command.conversation_id
+                "agent dialog create request conflicts with existing conversation id: {conversation_id}"
             )));
         }
 
-        let event_id = format!("evt_{}_created", command.conversation_id);
+        let event_id = format!("evt_{}_created", conversation_id);
         let mut conversation = ConversationState {
             aggregate: ConversationAggregateState::new("agent_dialog"),
             agent_dialog_create_request: Some(AgentDialogCreateReplayRecord {
@@ -966,6 +1021,9 @@ where
             }),
             ..ConversationState::default()
         };
+        conversation
+            .aggregate
+            .replace_business_binding(Some(business_binding.clone()));
         let requester_ordering_seq = conversation.aggregate.next_member_epoch();
         upsert_member(&mut conversation, requester_member.clone());
         upsert_read_cursor(
@@ -986,12 +1044,12 @@ where
             event_type: "conversation.created".into(),
             event_version: 1,
             aggregate_type: AggregateType::Conversation,
-            aggregate_id: command.conversation_id.clone(),
+            aggregate_id: conversation_id.clone(),
             scope_type: "conversation".into(),
-            scope_id: command.conversation_id.clone(),
+            scope_id: conversation_id.clone(),
             ordering_key: CommitEnvelope::ordering_key(
                 command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
+                conversation_id.as_str(),
             ),
             ordering_seq: 0,
             causation_id: None,
@@ -1006,8 +1064,10 @@ where
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
             payload: json!({
-                "conversationId": command.conversation_id.clone(),
+                "conversationId": conversation_id.clone(),
                 "conversationType": "agent_dialog",
+                "businessType": business_binding.business_type.clone(),
+                "businessId": business_binding.business_id.clone(),
                 "agentDialog": {
                     "agentId": command.agent_id.clone()
                 }
@@ -1020,16 +1080,19 @@ where
             &self.journal,
             envelope,
             command.tenant_id.as_str(),
-            command.conversation_id.as_str(),
+            conversation_id.as_str(),
             creation_members.as_slice(),
             command.requester_id.as_str(),
             requester_kind,
         )?;
         state.conversations.insert(scope_key, conversation);
+        state
+            .business_index
+            .insert(business_scope_key, conversation_id.clone());
         drop(state);
 
         Ok(CreateConversationResult::applied_with_request_key(
-            command.conversation_id,
+            conversation_id,
             event_id,
             request_key,
         ))

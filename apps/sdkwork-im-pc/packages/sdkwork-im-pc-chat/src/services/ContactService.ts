@@ -246,7 +246,7 @@ class SdkworkContactService implements ContactService {
         ...(cursor ? { cursor } : {}),
       });
       items.push(...response.items);
-      cursor = response.hasMore ? response.nextCursor : undefined;
+      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
     } while (cursor);
 
     return items;
@@ -407,7 +407,7 @@ class SdkworkContactService implements ContactService {
       if (!response.nextCursor || response.nextCursor === cursor) {
         break;
       }
-      cursor = response.hasMore ? response.nextCursor : undefined;
+      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
     } while (cursor);
 
     return items;
@@ -763,8 +763,8 @@ class SdkworkContactService implements ContactService {
       limit: SOCIAL_USER_SEARCH_LIMIT,
     });
     return response.items
-      .filter((item) => options.includeCurrentUser || !this.isCurrentUserSearchResult(item))
-      .map((item) => this.mapSocialUserSearchResultToUser(item));
+      .filter((item: SocialUserSearchResult) => options.includeCurrentUser || !this.isCurrentUserSearchResult(item))
+      .map((item: SocialUserSearchResult) => this.mapSocialUserSearchResultToUser(item));
   }
 
   private async findSocialUserByLookup(lookup: string): Promise<User | null> {
@@ -857,8 +857,8 @@ class SdkworkContactService implements ContactService {
       name,
       avatar: result.avatarUrl ?? createAvatar(result.userId),
       status: result.relationshipState === 'active' || result.relationshipState === 'self' ? 'online' : 'offline',
-      email: result.email,
-      phone: result.phone,
+      email: result.email ?? undefined,
+      phone: result.phone ?? undefined,
       departmentId: pickString(
         toRecord(result).departmentId,
         toRecord(result).department_id,
@@ -958,7 +958,7 @@ class SdkworkContactService implements ContactService {
       q: targetUserId,
       limit: SOCIAL_USER_SEARCH_LIMIT,
     });
-    const match = response.items.find((item) => item.userId === targetUserId);
+    const match = response.items.find((item: SocialUserSearchResult) => item.userId === targetUserId);
     if (!match) {
       return;
     }

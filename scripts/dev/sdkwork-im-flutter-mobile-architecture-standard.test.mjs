@@ -50,7 +50,6 @@ for (const required of [
   'packages/sdkwork_im_flutter_mobile_chat/lib/src/services/chat_conversation_service.dart',
   'packages/sdkwork_im_flutter_mobile_chat/lib/src/services/chat_realtime_service.dart',
   'specs/component.spec.json',
-  'specs/dependency.composition.json',
   'test/widget_test.dart',
 ]) {
   assert.ok(existsSync(path.join(appRoot, required)), `missing ${required}`);
@@ -71,8 +70,16 @@ for (const dir of packageDirs) {
 }
 
 const coreSource = listDartFiles(coreRoot).map((file) => readFileSync(file, 'utf8')).join('\n');
+const driveClientSource = readFileSync(
+  path.join(coreRoot, 'lib/src/drive/drive_app_sdk_client.dart'),
+  'utf8',
+);
 assert.match(coreSource, /im_sdk_generated/u);
-assert.equal(coreSource.includes('package:http/http.dart'), false);
+assert.match(driveClientSource, /package:http\/http\.dart/u, 'Drive presigned upload may use http for external storage boundary only.');
+assert.equal(
+  coreSource.replace(driveClientSource, '').includes('package:http/http.dart'),
+  false,
+);
 
 const chatRoot = path.join(appRoot, 'packages', 'sdkwork_im_flutter_mobile_chat');
 const chatSource = listDartFiles(chatRoot).map((file) => readFileSync(file, 'utf8')).join('\n');
@@ -87,6 +94,11 @@ assert.match(chatSource, /stopConversation/u);
 assert.match(chatSource, /disposeChatRealtimeHub/u);
 assert.match(chatSource, /_ChatLiveHub/u);
 assert.match(coreSource, /im_sdk_composed/u);
+assert.match(coreSource, /drive_app_sdk_client/u);
+assert.match(
+  readFileSync(path.join(chatRoot, 'lib/src/services/chat_media_upload_service.dart'), 'utf8'),
+  /DriveAppSdkClient\.create/u,
+);
 const sdkClients = read('lib/bootstrap/sdk_clients.dart');
 assert.match(sdkClients, /disposeChatRealtimeHub/u);
 assert.match(sdkClients, /resetSdkClients/u);

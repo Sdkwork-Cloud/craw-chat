@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const appRoot = path.resolve(import.meta.dirname, '..');
+const repoRoot = path.resolve(appRoot, '..', '..');
 
 function readText(...segments) {
   return fs.readFileSync(path.join(appRoot, ...segments), 'utf8');
@@ -14,10 +15,14 @@ function readJson(...segments) {
   return JSON.parse(readText(...segments));
 }
 
+function readRepoText(...segments) {
+  return fs.readFileSync(path.join(repoRoot, ...segments), 'utf8');
+}
+
 const packageJson = readJson('package.json');
 const tsconfig = readJson('tsconfig.json');
 const viteConfigSource = readText('vite.config.ts');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const courseBackendClientSource = readText(
   'packages',
   'sdkwork-im-pc-core',

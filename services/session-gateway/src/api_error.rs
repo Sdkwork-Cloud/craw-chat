@@ -1,7 +1,8 @@
-use axum::http::header::CONTENT_TYPE;
-use axum::response::IntoResponse;
-use axum::{Json, response::Response};
+use axum::response::{IntoResponse, Response};
 use im_app_context::AppContextError;
+use sdkwork_web_core::{
+    problem_response, ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind,
+};
 
 use crate::cluster::RealtimeClusterError;
 use crate::presence::PresenceRuntimeError;
@@ -31,7 +32,7 @@ impl ApiError {
         }
     }
 
-    pub fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+    pub fn payload_too_large(field: &str, max_bytes: usize, actual_bytes: usize) -> Self {
         Self {
             status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
             code: "payload_too_large",
@@ -47,6 +48,21 @@ impl ApiError {
             code,
             message: message.into(),
         }
+    }
+}
+
+fn api_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
+    use axum::http::StatusCode;
+    match *status {
+        StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
+        StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
+        StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
+        StatusCode::CONFLICT => WebFrameworkErrorKind::Conflict,
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkErrorKind::PayloadTooLarge,
+        StatusCode::SERVICE_UNAVAILABLE => WebFrameworkErrorKind::DependencyUnavailable,
+        StatusCode::NOT_IMPLEMENTED => WebFrameworkErrorKind::NotImplemented,
+        _ => WebFrameworkErrorKind::InternalServerError,
     }
 }
 
@@ -122,22 +138,11 @@ impl From<PresenceRuntimeError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let status = self.status;
-        let detail = self.message;
-        let message = detail.clone();
-        let title = status.canonical_reason().unwrap_or("Unknown Error");
-        (
-            status,
-            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
-            Json(serde_json::json!({
-                "type": "about:blank",
-                "title": title,
-                "status": status.as_u16(),
-                "detail": detail,
-                "code": self.code,
-                "message": message
-            })),
-        )
-            .into_response()
+        let error = WebFrameworkError {
+            kind: api_error_kind(&self.status),
+            message: self.message,
+            retry_after_seconds: None,
+        };
+        problem_response(&error, ProblemCorrelation::from(None))
     }
 }

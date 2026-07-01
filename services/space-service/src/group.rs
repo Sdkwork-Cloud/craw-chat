@@ -2,16 +2,18 @@
 
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 
 use im_adapters_social_postgres::organization_store::GroupRecord;
 
 use crate::http::AppState;
 use crate::id::next_entity_id;
-use crate::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateGroupRequest {
@@ -64,205 +66,212 @@ pub struct ListQuery {
 }
 
 pub async fn create_group(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(space_id): Path<String>,
     Json(request): Json<CreateGroupRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
+) -> Response {
+    let result: ApiResult<GroupResponse> = (|| {
+        let group_id = next_entity_id(&state.id_generator)?;
+        let now = chrono::Utc::now().to_rfc3339();
 
-    let group_id = next_entity_id(&state.id_generator)?;
-    let now = chrono::Utc::now().to_rfc3339();
+        let record = GroupRecord {
+            tenant_id: auth.tenant_id,
+            organization_id: auth.organization_id,
+            group_id,
+            space_id: space_id.parse().ok(),
+            group_name: request.group_name,
+            group_type: request.group_type.unwrap_or_else(|| "normal".to_string()),
+            owner_user_id: auth.actor_id,
+            conversation_id: None,
+            max_members: request.max_members.unwrap_or(500),
+            description: request.description,
+            avatar_url: request.avatar_url,
+            announcement: None,
+            settings_json: request.settings_json.unwrap_or_else(|| "{}".to_string()),
+            created_at: now.clone(),
+            updated_at: now,
+        };
 
-    let record = GroupRecord {
-        tenant_id: scope.tenant_id,
-        organization_id: scope.organization_id,
-        group_id,
-        space_id: space_id.parse().ok(),
-        group_name: request.group_name,
-        group_type: request.group_type.unwrap_or_else(|| "normal".to_string()),
-        owner_user_id: scope.user_id,
-        conversation_id: None,
-        max_members: request.max_members.unwrap_or(500),
-        description: request.description,
-        avatar_url: request.avatar_url,
-        announcement: None,
-        settings_json: request.settings_json.unwrap_or_else(|| "{}".to_string()),
-        created_at: now.clone(),
-        updated_at: now,
-    };
-
-    match state.group_store.insert(&record) {
-        Ok(()) => {
-            let response = GroupResponse::from(record);
-            Ok((StatusCode::CREATED, Json(response)))
+        match state.group_store.insert(&record) {
+            Ok(()) => Ok(GroupResponse::from(record)),
+            Err(error) => {
+                tracing::error!(error = ?error, "failed to insert group record");
+                Err(ApiProblem::internal_server_error("failed to insert group"))
+            }
         }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn list_groups(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path(space_id): Path<String>,
     Query(query): Query<ListQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let sid: i64 = space_id.parse().map_err(|_| {
-        tracing::warn!("invalid space_id path parameter: {space_id}");
-        StatusCode::BAD_REQUEST
-    })?;
-    let limit = query.limit.unwrap_or(20);
+) -> Response {
+    let result: ApiResult<Vec<GroupResponse>> = (|| {
+        let sid: i64 = space_id.parse().map_err(|_| {
+            tracing::warn!("invalid space_id path parameter: {space_id}");
+            ApiProblem::bad_request("invalid space_id path parameter")
+        })?;
+        let limit = query.limit.unwrap_or(20);
 
-    match state.group_store.list_by_space(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        sid,
-        limit,
-    ) {
-        Ok(records) => {
-            let response: Vec<GroupResponse> =
-                records.into_iter().map(GroupResponse::from).collect();
-            Ok(Json(response))
+        match state.group_store.list_by_space(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            sid,
+            limit,
+        ) {
+            Ok(records) => {
+                Ok(records.into_iter().map(GroupResponse::from).collect())
+            }
+            Err(error) => {
+                tracing::error!(error = ?error, "failed to list groups for space {sid}");
+                Err(ApiProblem::internal_server_error("failed to list groups"))
+            }
         }
-        Err(error) => {
-            tracing::error!(error = ?error, "failed to list groups for space {sid}");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn get_group(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path((_space_id, group_id)): Path<(String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let gid: i64 = group_id.parse().map_err(|_| {
-        tracing::warn!("invalid group_id path parameter: {group_id}");
-        StatusCode::BAD_REQUEST
-    })?;
+) -> Response {
+    let result: ApiResult<GroupResponse> = (|| {
+        let gid: i64 = group_id.parse().map_err(|_| {
+            tracing::warn!("invalid group_id path parameter: {group_id}");
+            ApiProblem::bad_request("invalid group_id path parameter")
+        })?;
 
-    match state.group_store.get_by_id(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        gid,
-    ) {
-        Ok(Some(record)) => Ok(Json(GroupResponse::from(record))),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(error) => {
-            tracing::error!(error = ?error, "failed to get group {gid}");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        match state.group_store.get_by_id(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            gid,
+        ) {
+            Ok(Some(record)) => Ok(GroupResponse::from(record)),
+            Ok(None) => Err(ApiProblem::not_found("group not found")),
+            Err(error) => {
+                tracing::error!(error = ?error, "failed to get group {gid}");
+                Err(ApiProblem::internal_server_error("failed to get group"))
+            }
         }
-    }
+    })();
+    finish_api_json(&ctx, result)
 }
 
 pub async fn update_group(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path((_space_id, group_id)): Path<(String, String)>,
     Json(request): Json<UpdateGroupRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let gid: i64 = group_id.parse().map_err(|_| {
-        tracing::warn!("invalid group_id path parameter: {group_id}");
-        StatusCode::BAD_REQUEST
-    })?;
-    let now = chrono::Utc::now().to_rfc3339();
+) -> Response {
+    let result: ApiResult<()> = (|| {
+        let gid: i64 = group_id.parse().map_err(|_| {
+            tracing::warn!("invalid group_id path parameter: {group_id}");
+            ApiProblem::bad_request("invalid group_id path parameter")
+        })?;
+        let now = chrono::Utc::now().to_rfc3339();
 
-    match state.group_store.get_by_id(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        gid,
-    ) {
-        Ok(Some(mut record)) => {
-            if record.owner_user_id != scope.user_id {
-                tracing::warn!(
-                    user_id = %scope.user_id,
-                    group_id = %gid,
-                    owner_user_id = %record.owner_user_id,
-                    "ownership check failed for update_group"
-                );
-                return Err(StatusCode::FORBIDDEN);
-            }
-            if let Some(name) = request.group_name {
-                record.group_name = name;
-            }
-            if let Some(desc) = request.description {
-                record.description = Some(desc);
-            }
-            if let Some(url) = request.avatar_url {
-                record.avatar_url = Some(url);
-            }
-            if let Some(ann) = request.announcement {
-                record.announcement = Some(ann);
-            }
-            record.updated_at = now;
+        match state.group_store.get_by_id(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            gid,
+        ) {
+            Ok(Some(mut record)) => {
+                if record.owner_user_id != auth.actor_id {
+                    tracing::warn!(
+                        user_id = %auth.actor_id,
+                        group_id = %gid,
+                        owner_user_id = %record.owner_user_id,
+                        "ownership check failed for update_group"
+                    );
+                    return Err(ApiProblem::forbidden("group ownership check failed"));
+                }
+                if let Some(name) = request.group_name {
+                    record.group_name = name;
+                }
+                if let Some(desc) = request.description {
+                    record.description = Some(desc);
+                }
+                if let Some(url) = request.avatar_url {
+                    record.avatar_url = Some(url);
+                }
+                if let Some(ann) = request.announcement {
+                    record.announcement = Some(ann);
+                }
+                record.updated_at = now;
 
-            match state.group_store.update(&record) {
-                Ok(()) => Ok(StatusCode::NO_CONTENT),
-                Err(error) => {
-                    tracing::error!(error = ?error, "failed to update group {gid}");
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                match state.group_store.update(&record) {
+                    Ok(()) => Ok(()),
+                    Err(error) => {
+                        tracing::error!(error = ?error, "failed to update group {gid}");
+                        Err(ApiProblem::internal_server_error("failed to update group"))
+                    }
                 }
             }
+            Ok(None) => Err(ApiProblem::not_found("group not found")),
+            Err(error) => {
+                tracing::error!(error = ?error, "failed to get group {gid} for update");
+                Err(ApiProblem::internal_server_error("failed to get group"))
+            }
         }
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(error) => {
-            tracing::error!(error = ?error, "failed to get group {gid} for update");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+    })();
+    finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
 }
 
 pub async fn delete_group(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-    headers: HeaderMap,
-    auth: Option<Extension<AppContext>>,
     Path((_space_id, group_id)): Path<(String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let scope = require_request_scope(auth, &headers)?;
-    let gid: i64 = group_id.parse().map_err(|_| {
-        tracing::warn!("invalid group_id path parameter: {group_id}");
-        StatusCode::BAD_REQUEST
-    })?;
+) -> Response {
+    let result: ApiResult<()> = (|| {
+        let gid: i64 = group_id.parse().map_err(|_| {
+            tracing::warn!("invalid group_id path parameter: {group_id}");
+            ApiProblem::bad_request("invalid group_id path parameter")
+        })?;
 
-    // 先获取记录验证所有权，防止 IDOR 越权删除
-    match state.group_store.get_by_id(
-        scope.tenant_id.as_str(),
-        scope.organization_id.as_str(),
-        gid,
-    ) {
-        Ok(Some(record)) => {
-            if record.owner_user_id != scope.user_id {
-                tracing::warn!(
-                    user_id = %scope.user_id,
-                    group_id = %gid,
-                    owner_user_id = %record.owner_user_id,
-                    "ownership check failed for delete_group"
-                );
-                return Err(StatusCode::FORBIDDEN);
-            }
-            match state.group_store.delete(
-                scope.tenant_id.as_str(),
-                scope.organization_id.as_str(),
-                gid,
-            ) {
-                Ok(()) => Ok(StatusCode::NO_CONTENT),
-                Err(error) => {
-                    tracing::error!(error = ?error, "failed to delete group {gid}");
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+        // 先获取记录验证所有权，防止 IDOR 越权删除
+        match state.group_store.get_by_id(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            gid,
+        ) {
+            Ok(Some(record)) => {
+                if record.owner_user_id != auth.actor_id {
+                    tracing::warn!(
+                        user_id = %auth.actor_id,
+                        group_id = %gid,
+                        owner_user_id = %record.owner_user_id,
+                        "ownership check failed for delete_group"
+                    );
+                    return Err(ApiProblem::forbidden("group ownership check failed"));
+                }
+                match state.group_store.delete(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    gid,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(error) => {
+                        tracing::error!(error = ?error, "failed to delete group {gid}");
+                        Err(ApiProblem::internal_server_error("failed to delete group"))
+                    }
                 }
             }
+            Ok(None) => Err(ApiProblem::not_found("group not found")),
+            Err(error) => {
+                tracing::error!(error = ?error, "failed to get group {gid} for delete");
+                Err(ApiProblem::internal_server_error("failed to get group"))
+            }
         }
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(error) => {
-            tracing::error!(error = ?error, "failed to get group {gid} for delete");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+    })();
+    finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
 }

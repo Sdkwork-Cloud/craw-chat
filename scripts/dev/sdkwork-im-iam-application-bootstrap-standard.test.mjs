@@ -49,7 +49,7 @@ assert.match(
 
 assert.match(
   bootstrapCargo,
-  /sdkwork-iam-embedded-application-bootstrap/u,
+  /sdkwork_iam_embedded_application_bootstrap/u,
   'IM IAM application bootstrap crate must depend on sdkwork-iam-embedded-application-bootstrap.',
 );
 

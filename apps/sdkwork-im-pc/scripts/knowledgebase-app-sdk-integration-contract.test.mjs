@@ -47,8 +47,10 @@ function functionBody(source, functionName) {
 }
 
 const packageJson = readJson('package.json');
+const corePackageJson = readJson('packages', 'sdkwork-im-pc-core', 'package.json');
+const shellPackageJson = readJson('packages', 'sdkwork-im-pc-shell', 'package.json');
 const tsconfig = readJson('tsconfig.json');
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const viteConfigSource = readText('vite.config.ts');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
@@ -98,6 +100,7 @@ const knowledgeViewSource = fs.readFileSync(
   path.join(knowledgebasePcRoot, 'packages', 'sdkwork-knowledgebase-pc-knowledge', 'src', 'KnowledgeView.tsx'),
   'utf8',
 );
+const hostIndexCssSource = readText('src', 'index.css');
 
 assert.equal(
   packageJson.scripts?.['test:knowledgebase-app-sdk-integration'],
@@ -106,15 +109,15 @@ assert.equal(
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/knowledgebase-app-sdk'],
+  corePackageJson.dependencies?.['@sdkwork/knowledgebase-app-sdk'],
   'workspace:*',
-  'Chat PC must consume sdkwork-knowledgebase through the workspace app SDK package.',
+  '@sdkwork/im-pc-core must consume sdkwork-knowledgebase through the workspace app SDK package.',
 );
 
 assert.equal(
-  packageJson.dependencies?.['@sdkwork/knowledgebase-pc-knowledge'],
+  shellPackageJson.dependencies?.['@sdkwork/knowledgebase-pc-knowledge'],
   'workspace:*',
-  'Chat PC must consume the sdkwork-knowledgebase-pc-knowledge embed package through workspace:*.',
+  '@sdkwork/im-pc-shell must consume the sdkwork-knowledgebase-pc-knowledge embed package through workspace:*.',
 );
 
 assert.equal(
@@ -294,8 +297,8 @@ assert.match(
 
 assert.match(
   knowledgebasePcIntegrationSource,
-  /configureKnowledgebasePcRuntime/u,
-  'IM core must configure sdkwork-knowledgebase-pc runtime through the integration module.',
+  /ensureKnowledgebasePcRuntimeOnModule/u,
+  'IM core must expose module-targeted knowledgebase PC runtime configuration.',
 );
 
 assert.match(
@@ -312,8 +315,8 @@ assert.match(
 
 assert.match(
   shellLoadersSource,
-  /import\('@sdkwork\/knowledgebase-pc-knowledge'\)/u,
-  'IM shell must lazy-load the sdkwork-knowledgebase-pc-knowledge capability package.',
+  /ensureKnowledgebasePcRuntimeOnModule/u,
+  'IM shell knowledge loader must configure sdkPorts on the same lazy-loaded knowledgebase module instance.',
 );
 
 assert.match(
@@ -342,8 +345,20 @@ assert.match(
 
 assert.match(
   knowledgeViewSource,
-  /index\.css/u,
-  'Knowledgebase embed package must import the knowledgebase application stylesheet for host-managed UI fidelity.',
+  /@sdkwork\/knowledgebase-pc-knowledge\/i18n/u,
+  'Knowledgebase embed package must initialize i18n through the package export subpath.',
+);
+
+assert.match(
+  hostIndexCssSource,
+  /@source ".*sdkwork-knowledgebase-pc-knowledge\/src"/u,
+  'IM host stylesheet must @source the knowledgebase embed package for Tailwind class scanning.',
+);
+
+assert.match(
+  hostIndexCssSource,
+  /@source ".*sdkwork-knowledgebase-pc-knowledgebase\/src"/u,
+  'IM host stylesheet must @source the knowledgebase UI package for Tailwind class scanning.',
 );
 
 assert.match(
@@ -366,8 +381,8 @@ assert.match(
 
 assert.match(
   viteConfigSource,
-  /@sdkwork\/knowledgebase-pc-knowledge/u,
-  'Vite must alias @sdkwork/knowledgebase-pc-knowledge for host-managed knowledgebase embedding.',
+  /@sdkwork\\\/knowledgebase-pc-knowledge\\\/(.+)\$/u,
+  'Vite must alias @sdkwork/knowledgebase-pc-knowledge subpaths (for example /i18n) before the package root alias.',
 );
 
 assert.ok(

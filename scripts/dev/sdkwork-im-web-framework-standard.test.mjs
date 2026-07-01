@@ -224,16 +224,18 @@ assert.match(gatewayCargo, /sdkwork_iam_web_adapter\.workspace\s*=\s*true/u);
 
 const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
 
+const gatewayApp = read('services/sdkwork-im-cloud-gateway/src/app.rs');
+
 const gatewayWebFramework = read('services/sdkwork-im-cloud-gateway/src/web_framework.rs');
 
 assert.match(gatewayLib, /mod web_framework;/u);
 
-assert.match(gatewayLib, /web_framework::wrap_gateway_router/u);
+assert.match(gatewayApp, /web_framework::wrap_gateway_router/u);
 
-assert.match(gatewayLib, /RealtimeAuthContextResolver/u);
+assert.match(gatewayApp, /RealtimeAuthContextResolver/u);
 
 assert.match(
-  gatewayLib,
+  gatewayApp,
   /resolve_iam_auth_pool_from_env/u,
   'gateway must bootstrap realtime websocket auth from IAM database pool when configured',
 );
@@ -289,6 +291,7 @@ for (const relativePath of [
   'crates/sdkwork-routes-im-ops-backend-api/src/web_bootstrap.rs',
   'crates/sdkwork-routes-im-governance-backend-api/src/web_bootstrap.rs',
   'crates/sdkwork-routes-im-projection-open-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-calls-open-api/src/web_bootstrap.rs',
 ]) {
   const source = read(relativePath);
   assert.match(
@@ -312,6 +315,7 @@ for (const relativePath of [
   'services/streaming-service/src/lib.rs',
   'services/governance-service/src/lib.rs',
   'services/projection-service/src/http.rs',
+  'services/im-calls-service/src/app.rs',
   'services/automation-service/src/lib.rs',
 ]) {
   const source = read(relativePath);

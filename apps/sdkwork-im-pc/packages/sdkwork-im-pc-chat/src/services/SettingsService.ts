@@ -327,7 +327,7 @@ class SdkworkSettingsService implements SettingsService {
 
   async getDevices(): Promise<DeviceInfo[]> {
     try {
-      const twin = await this.getAiotClient().iot.devicesTwinRetrieve(
+      const twin = await this.getAiotClient().iot.devices.twin.retrieve(
         this.resolveClientId(),
       );
       return collectDeviceInfo(...collectTwinStateRecords(twin));
@@ -341,7 +341,7 @@ class SdkworkSettingsService implements SettingsService {
     if (!normalizedDeviceId) {
       throw new Error("Device id is required");
     }
-    await this.getAiotClient().iot.devicesCommandsCreate(
+    await this.getAiotClient().iot.devices.commands.create(
       this.resolveClientId(),
       {
         capabilityName: "login-sessions",
@@ -350,7 +350,7 @@ class SdkworkSettingsService implements SettingsService {
           disabledLoginDeviceIds: [normalizedDeviceId],
         },
       },
-      `disable-login-device:${normalizedDeviceId}`,
+      { idempotencyKey: `disable-login-device:${normalizedDeviceId}` },
     );
   }
 

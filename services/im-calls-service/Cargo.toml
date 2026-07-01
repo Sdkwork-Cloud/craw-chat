@@ -19,6 +19,8 @@ im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
 sdkwork_utils_rust.workspace = true
+sdkwork_web_core.workspace = true
+sdkwork_routes_web_framework_backend_api.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

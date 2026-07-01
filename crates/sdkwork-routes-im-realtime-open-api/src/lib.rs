@@ -1,5 +1,6 @@
 mod manifest;
 mod paths;
+mod routes;
 mod web_bootstrap;
 
 pub use manifest::{route_manifest, API_SURFACE};
@@ -18,9 +19,7 @@ async fn compose_public_app_from_env(websocket_router: Router, http_router: Rout
 }
 
 fn public_http_router_from_bootstrap(bootstrap: &RealtimePlaneBootstrap) -> Router {
-    session_gateway::build_public_http_app(session_gateway::AppState::from_realtime_bootstrap(
-        bootstrap,
-    ))
+    routes::build_api_router_from_bootstrap(bootstrap)
 }
 
 fn public_websocket_router_from_bootstrap(bootstrap: &RealtimePlaneBootstrap) -> Router {
@@ -33,7 +32,7 @@ pub fn build_public_app() -> Router {
     let state = session_gateway::default_app_state();
     compose_public_app(
         session_gateway::build_realtime_websocket_router(state.clone()),
-        session_gateway::build_public_http_app(state),
+        routes::build_api_router(),
     )
 }
 

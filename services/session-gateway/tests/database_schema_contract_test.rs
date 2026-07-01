@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 fn postgres_core_schema() -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql");
+        .join("../../database/ddl/baseline/postgres/0001_im_baseline.sql");
     std::fs::read_to_string(path)
         .expect("core IM PostgreSQL migration should be checked in")
         .replace("\r\n", "\n")

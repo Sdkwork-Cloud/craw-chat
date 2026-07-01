@@ -119,6 +119,11 @@ license = "AGPL-3.0-or-later"
 version = "0.1.0"
 
 [workspace.dependencies]
+sdkwork_iam_embedded_application_bootstrap = { path = "../sdkwork-iam/crates/sdkwork-iam-embedded-application-bootstrap", package = "sdkwork-iam-embedded-application-bootstrap" }
+sdkwork-rpc-server = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-server" }
+sdkwork-rpc-discovery = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-discovery" }
+sdkwork-rpc-core = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-core" }
+sdkwork-rpc-client = { path = "../sdkwork-rpc-framework/crates/sdkwork-rpc-client" }
 axum = { version = "0.8.8", features = ["ws"] }
 futures-util = { version = "0.3.32", features = ["sink"] }
 http-body-util = "0.1.3"
@@ -154,6 +159,7 @@ sdkwork_web_axum = { path = "../sdkwork-web-framework/crates/sdkwork-web-axum", 
 sdkwork_web_bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap", package = "sdkwork-web-bootstrap" }
 sdkwork_web_store_sqlx = { path = "../sdkwork-web-framework/crates/sdkwork-web-store-sqlx", package = "sdkwork-web-store-sqlx" }
 sdkwork_web_contract = { path = "../sdkwork-web-framework/crates/sdkwork-web-contract", package = "sdkwork-web-contract" }
+sdkwork_routes_web_framework_backend_api = { path = "../sdkwork-web-framework/crates/sdkwork-routes-web-framework-backend-api", package = "sdkwork-routes-web-framework-backend-api" }
 # DATABASE_SPEC §33: unified database config (env, pool, table prefix).
 sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
 sdkwork_database_lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }

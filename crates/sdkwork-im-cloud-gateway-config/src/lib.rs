@@ -117,9 +117,7 @@ pub const COMMERCE_T1_APP_API_SERVICES: &[&str] = &[
 
 pub fn is_commerce_t1_app_api_service(service_id: &str) -> bool {
     let canonical = canonical_service_id(service_id);
-    COMMERCE_T1_APP_API_SERVICES
-        .iter()
-        .any(|candidate| *candidate == canonical)
+    COMMERCE_T1_APP_API_SERVICES.contains(&canonical)
 }
 
 /// Sibling dependency app APIs embedded by IM standalone gateway in unified-process mode.
@@ -128,6 +126,7 @@ pub fn is_standalone_embedded_dependency_service(service_id: &str) -> bool {
         canonical_service_id(service_id),
         "sdkwork-drive-app-api"
             | "sdkwork-knowledgebase-app-api"
+            | "sdkwork-voice-app-api"
             | "sdkwork-agents-app-api"
             | "sdkwork-mail-app-api"
             | "sdkwork-notary-app-api"
@@ -263,6 +262,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
     let community_upstream = default_community_app_api_upstream();
     let course_upstream = default_course_app_api_upstream();
     let knowledgebase_upstream = default_knowledgebase_app_api_upstream();
+    let voice_upstream = default_voice_app_api_upstream();
     let mut upstreams = vec![
         service_upstream("sdkwork-iam-app-api", appbase_upstream.as_str()),
         service_upstream("session-gateway", "http://127.0.0.1:18080"),
@@ -278,6 +278,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("sdkwork-community-app-api", community_upstream.as_str()),
         service_upstream("sdkwork-course-app-api", course_upstream.as_str()),
         service_upstream("sdkwork-knowledgebase-app-api", knowledgebase_upstream.as_str()),
+        service_upstream("sdkwork-voice-app-api", voice_upstream.as_str()),
         service_upstream("media-service", "http://127.0.0.1:18086"),
         service_upstream("notification-service", "http://127.0.0.1:18087"),
         service_upstream("automation-service", "http://127.0.0.1:18088"),
@@ -380,6 +381,10 @@ fn default_knowledgebase_app_api_upstream() -> String {
     explicit_knowledgebase_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
 }
 
+fn default_voice_app_api_upstream() -> String {
+    explicit_voice_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
+}
+
 fn default_platform_api_gateway_base_url() -> String {
     first_env_value(&[
         "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
@@ -466,6 +471,16 @@ fn explicit_knowledgebase_app_api_upstream() -> Option<String> {
         "SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM",
         "SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM",
         "SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL",
+    ])
+    .map(|value| value.trim().trim_end_matches('/').to_owned())
+    .filter(|value| !value.is_empty())
+}
+
+fn explicit_voice_app_api_upstream() -> Option<String> {
+    first_env_value(&[
+        "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
+        "SDKWORK_VOICE_APP_API_UPSTREAM",
+        "SDKWORK_VOICE_APP_API_BASE_URL",
     ])
     .map(|value| value.trim().trim_end_matches('/').to_owned())
     .filter(|value| !value.is_empty())
@@ -778,6 +793,7 @@ bind_address = "127.0.0.1:38080"
         assert!(super::is_standalone_embedded_dependency_service(
             "sdkwork-knowledgebase-app-api"
         ));
+        assert!(super::is_standalone_embedded_dependency_service("sdkwork-voice-app-api"));
         assert!(super::is_standalone_embedded_dependency_service(
             "sdkwork-catalog-app-api"
         ));
@@ -1054,6 +1070,27 @@ bind_address = "127.0.0.1:38080"
         assert_eq!(
             config.upstream_base_url("sdkwork-course-app-api"),
             Some("http://127.0.0.1:28100")
+        );
+    }
+
+    #[test]
+    fn test_web_gateway_config_allows_voice_app_api_upstream_override() {
+        let _guard = gateway_config_env_guard();
+        let _voice_upstream = ScopedEnvVar::set(
+            "SDKWORK_IM_VOICE_APP_API_UPSTREAM",
+            "http://127.0.0.1:28103/",
+        );
+        let _sdkwork_voice_upstream =
+            ScopedEnvVar::set("SDKWORK_VOICE_APP_API_UPSTREAM", "http://127.0.0.1:38103");
+        let _sdkwork_voice_base_url =
+            ScopedEnvVar::set("SDKWORK_VOICE_APP_API_BASE_URL", "http://127.0.0.1:48103");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-voice-app-api"),
+            Some("http://127.0.0.1:28103")
         );
     }
 

@@ -12,10 +12,10 @@ path = "src/lib.rs"
 futures-util.workspace = true
 prost = "0.14"
 sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
-sdkwork-rpc-client = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-client" }
-sdkwork-rpc-core = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-core" }
-sdkwork-rpc-discovery = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-discovery" }
-sdkwork-rpc-server = { path = "../../../sdkwork-rpc-framework/crates/sdkwork-rpc-server" }
+sdkwork-rpc-client = { workspace = true }
+sdkwork-rpc-core = { workspace = true }
+sdkwork-rpc-discovery = { workspace = true }
+sdkwork-rpc-server = { workspace = true }
 tokio.workspace = true
 tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", features = ["transport"] }

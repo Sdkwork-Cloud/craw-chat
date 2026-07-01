@@ -11,7 +11,7 @@ function read(relativePath) {
 
 const contractControl = read('crates/sdkwork-im-contract-control/src/lib.rs');
 const baselineDdl = read(
-  'database/ddl/baseline/postgres/0001_im_legacy_baseline.sql',
+  'database/ddl/baseline/postgres/0001_im_baseline.sql',
 );
 
 assert.match(

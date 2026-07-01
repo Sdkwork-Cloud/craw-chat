@@ -1,4 +1,5 @@
 # Sdkwork IM
+repository-kind: application
 
 > Realtime communication infrastructure for the AI era — messaging, streaming, call signaling, and agent-native collaboration in a single Rust workspace.
 

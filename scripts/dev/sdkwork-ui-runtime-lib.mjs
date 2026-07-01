@@ -68,10 +68,18 @@ function canResolvePackageEntry(startRoot, packageName, {
 }
 
 function resolveSdkworkUiInstallRoot(appRoot, uiPackageRoot, fileExists = defaultFileExists) {
-  const normalizedAppRoot = path.resolve(appRoot);
+  let currentRoot = path.resolve(appRoot);
 
-  if (fileExists(path.join(normalizedAppRoot, 'pnpm-workspace.yaml'))) {
-    return normalizedAppRoot;
+  while (true) {
+    if (fileExists(path.join(currentRoot, 'pnpm-workspace.yaml'))) {
+      return currentRoot;
+    }
+
+    const parentRoot = path.dirname(currentRoot);
+    if (parentRoot === currentRoot) {
+      break;
+    }
+    currentRoot = parentRoot;
   }
 
   return uiPackageRoot;

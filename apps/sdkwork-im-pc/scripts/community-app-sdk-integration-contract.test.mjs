@@ -27,7 +27,7 @@ const packageJson = readJson('package.json');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const workflow = readRepoJson('sdkwork.workflow.json');
 const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
-const gatewaySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'lib.rs');
+const gatewayRegistrySource = readRepoText('services', 'sdkwork-im-cloud-gateway', 'src', 'registry.rs');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
 const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc-release-build.mjs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
@@ -45,9 +45,9 @@ assert.equal(
 );
 
 assert.equal(
-  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['@sdkwork/community-app-sdk'],
+  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['sdkwork-community-app-sdk-generated-typescript'],
   'workspace:*',
-  'Chat PC must consume sdkwork-community through the workspace app SDK package.',
+  'Chat PC core must consume sdkwork-community through the sibling generated app SDK workspace package.',
 );
 
 assert.match(
@@ -99,7 +99,7 @@ assert.match(
 );
 
 assert.match(
-  gatewaySource,
+  gatewayRegistrySource,
   /"sdkwork-community-app-api"[\s\S]*\/app\/v3\/api\/community\/\{\*path\}[\s\S]*SdkworkCommunityAppSdk/u,
   'Web gateway must route sdkwork-community app-api paths to the Community app SDK upstream.',
 );
@@ -160,19 +160,19 @@ assert.doesNotMatch(
 
 assert.match(
   communityClientSource,
-  /@sdkwork\/community-app-sdk/u,
-  'Community app SDK client wrapper must import the composed community app SDK package.',
+  /sdkwork-community-app-sdk-generated-typescript/u,
+  'Community app SDK client wrapper must import the sibling generated community app SDK package.',
 );
 
 assert.match(
   viteConfigSource,
-  /@sdkwork\/community-app-sdk/u,
-  'Vite config must alias @sdkwork/community-app-sdk for PC community integration.',
+  /sdkwork-community-app-sdk-generated-typescript/u,
+  'Vite config must alias sdkwork-community-app-sdk-generated-typescript for PC community integration.',
 );
 
 assert.ok(
-  tsconfig.compilerOptions?.paths?.['@sdkwork/community-app-sdk'],
-  'tsconfig must map @sdkwork/community-app-sdk for PC community integration.',
+  tsconfig.compilerOptions?.paths?.['sdkwork-community-app-sdk-generated-typescript'],
+  'tsconfig must map sdkwork-community-app-sdk-generated-typescript for PC community integration.',
 );
 
 console.log('community app SDK integration contract checks passed');

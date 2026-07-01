@@ -269,3 +269,98 @@ pub(super) struct ConversationCatalogEntry {
 fn default_history_visibility() -> String {
     "joined".into()
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationProfileView {
+    pub tenant_id: String,
+    pub conversation_id: String,
+    pub display_name: String,
+    pub avatar_url: String,
+    pub notice: String,
+    pub updated_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_by_principal_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_by_principal_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateConversationProfileRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notice: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationPreferencesView {
+    pub tenant_id: String,
+    pub conversation_id: String,
+    pub principal_kind: String,
+    pub principal_id: String,
+    pub is_pinned: bool,
+    pub is_muted: bool,
+    pub is_marked_unread: bool,
+    pub is_hidden: bool,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateConversationPreferencesRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_pinned: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_muted: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_marked_unread: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_hidden: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageFavoriteView {
+    pub tenant_id: String,
+    pub principal_kind: String,
+    pub principal_id: String,
+    pub favorite_id: String,
+    pub favorite_type: String,
+    pub conversation_id: String,
+    pub message_id: String,
+    pub message_seq: i32,
+    pub title: String,
+    pub content_preview: String,
+    pub source_display_name: String,
+    pub favorited_at: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FavoriteMessageRequest {
+    pub conversation_id: String,
+    pub favorite_type: String,
+    pub title: String,
+    pub content_preview: String,
+    pub source_display_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FavoriteMessagesWindowView {
+    pub items: Vec<MessageFavoriteView>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteMessageFavoriteResponse {
+    pub favorite_id: String,
+    pub deleted: bool,
+}

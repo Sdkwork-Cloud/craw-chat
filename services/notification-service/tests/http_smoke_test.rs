@@ -64,7 +64,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_request_and_query_notifications_over_http() {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let create_response = app
         .clone()
@@ -73,6 +73,7 @@ async fn test_request_and_query_notifications_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -104,8 +105,8 @@ async fn test_request_and_query_notifications_over_http() {
         .to_bytes();
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create body should be valid json");
-    assert_eq!(create_json["notificationId"], "ntf_http_demo");
-    assert_eq!(create_json["status"], "dispatched");
+    assert_eq!(create_json["data"]["notificationId"], "ntf_http_demo");
+    assert_eq!(create_json["data"]["status"], "dispatched");
 
     let list_response = app
         .clone()
@@ -113,6 +114,7 @@ async fn test_request_and_query_notifications_over_http() {
             Request::builder()
                 .uri("/app/v3/api/notifications")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1105")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -129,7 +131,7 @@ async fn test_request_and_query_notifications_over_http() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list body should be valid json");
-    assert_eq!(list_json["items"][0]["notificationId"], "ntf_http_demo");
+    assert_eq!(list_json["data"]["items"][0]["notificationId"], "ntf_http_demo");
 
     let get_response = app
         .clone()
@@ -137,6 +139,7 @@ async fn test_request_and_query_notifications_over_http() {
             Request::builder()
                 .uri("/app/v3/api/notifications/ntf_http_demo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1105")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -153,8 +156,8 @@ async fn test_request_and_query_notifications_over_http() {
         .to_bytes();
     let get_json: serde_json::Value =
         serde_json::from_slice(&get_body).expect("get body should be valid json");
-    assert_eq!(get_json["sourceEventType"], "message.posted");
-    assert_eq!(get_json["recipientId"], "1105");
+    assert_eq!(get_json["data"]["sourceEventType"], "message.posted");
+    assert_eq!(get_json["data"]["recipientId"], "1105");
 
     let non_recipient_list_response = app
         .clone()
@@ -162,6 +165,7 @@ async fn test_request_and_query_notifications_over_http() {
             Request::builder()
                 .uri("/app/v3/api/notifications")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -180,7 +184,7 @@ async fn test_request_and_query_notifications_over_http() {
         serde_json::from_slice(&non_recipient_list_body)
             .expect("non-recipient list body should be valid json");
     assert_eq!(
-        non_recipient_list_json["items"]
+        non_recipient_list_json["data"]["items"]
             .as_array()
             .expect("items should be an array")
             .len(),
@@ -192,6 +196,7 @@ async fn test_request_and_query_notifications_over_http() {
             Request::builder()
                 .uri("/app/v3/api/notifications/ntf_http_demo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -204,7 +209,7 @@ async fn test_request_and_query_notifications_over_http() {
 
 #[tokio::test]
 async fn test_notification_queries_reject_same_actor_id_with_different_actor_kind_over_http() {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let create_response = app
         .clone()
@@ -213,6 +218,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1106")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -243,6 +249,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
             Request::builder()
                 .uri("/app/v3/api/notifications")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -260,7 +267,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
     let recipient_list_json: serde_json::Value =
         serde_json::from_slice(&recipient_list_body).expect("recipient list should be valid json");
     assert_eq!(
-        recipient_list_json["items"][0]["notificationId"],
+        recipient_list_json["data"]["items"][0]["notificationId"],
         "ntf_http_actor_kind_isolation"
     );
 
@@ -270,6 +277,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
             Request::builder()
                 .uri("/app/v3/api/notifications")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("system")
                 .body(Body::empty())
@@ -287,7 +295,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
     let cross_kind_list_json: serde_json::Value = serde_json::from_slice(&cross_kind_list_body)
         .expect("cross-kind list should be valid json");
     assert_eq!(
-        cross_kind_list_json["items"]
+        cross_kind_list_json["data"]["items"]
             .as_array()
             .expect("items should be an array")
             .len(),
@@ -300,6 +308,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
             Request::builder()
                 .uri("/app/v3/api/notifications/ntf_http_actor_kind_isolation")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("system")
                 .body(Body::empty())
@@ -313,7 +322,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
 #[tokio::test]
 async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_rejected_over_http()
 {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let first_response = app
         .clone()
@@ -322,6 +331,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -353,13 +363,13 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_json["proofVersion"],
+        first_json["data"]["proofVersion"],
         "notification.request.delivery-proof.v1"
     );
     assert!(
-        !first_json["requestKey"]
+        !first_json["data"]["requestKey"]
             .as_str()
             .expect("requestKey should be string")
             .is_empty()
@@ -372,6 +382,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -403,11 +414,11 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let idempotent_json: serde_json::Value =
         serde_json::from_slice(&idempotent_body).expect("idempotent body should be valid json");
-    assert_eq!(idempotent_json["notificationId"], "ntf_http_idempotent");
-    assert_eq!(idempotent_json["status"], "dispatched");
-    assert_eq!(idempotent_json["deliveryStatus"], "replayed");
-    assert_eq!(idempotent_json["requestKey"], first_json["requestKey"]);
-    assert_eq!(idempotent_json["proofVersion"], first_json["proofVersion"]);
+    assert_eq!(idempotent_json["data"]["notificationId"], "ntf_http_idempotent");
+    assert_eq!(idempotent_json["data"]["status"], "dispatched");
+    assert_eq!(idempotent_json["data"]["deliveryStatus"], "replayed");
+    assert_eq!(idempotent_json["data"]["requestKey"], first_json["data"]["requestKey"]);
+    assert_eq!(idempotent_json["data"]["proofVersion"], first_json["data"]["proofVersion"]);
 
     let conflicting_response = app
         .oneshot(
@@ -415,6 +426,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -446,13 +458,13 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let conflicting_json: serde_json::Value =
         serde_json::from_slice(&conflicting_body).expect("conflicting body should be valid json");
-    assert_eq!(conflicting_json["code"], "notification_conflict");
+    assert_eq!(conflicting_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
 async fn test_duplicate_notification_request_from_different_principal_keeps_stable_request_key_over_http()
  {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let first_response = app
         .clone()
@@ -461,6 +473,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1109")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -492,7 +505,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["deliveryStatus"], "applied");
 
     let replayed_response = app
         .oneshot(
@@ -500,6 +513,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1107")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("notification.write")
@@ -531,13 +545,13 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         .to_bytes();
     let replayed_json: serde_json::Value =
         serde_json::from_slice(&replayed_body).expect("replayed body should be valid json");
-    assert_eq!(replayed_json["deliveryStatus"], "replayed");
-    assert_eq!(replayed_json["requestKey"], first_json["requestKey"]);
+    assert_eq!(replayed_json["data"]["deliveryStatus"], "replayed");
+    assert_eq!(replayed_json["data"]["requestKey"], first_json["data"]["requestKey"]);
 }
 
 #[tokio::test]
 async fn test_request_notification_rejects_oversized_payload_over_http() {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let oversized_payload = "x".repeat(262145);
     let request_body = serde_json::json!({
@@ -559,6 +573,7 @@ async fn test_request_notification_rejects_oversized_payload_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -572,7 +587,7 @@ async fn test_request_notification_rejects_oversized_payload_over_http() {
 
 #[tokio::test]
 async fn test_request_notification_rejects_oversized_notification_id_over_http() {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let oversized_notification_id = "n".repeat(513);
     let request_body = serde_json::json!({
@@ -594,6 +609,7 @@ async fn test_request_notification_rejects_oversized_notification_id_over_http()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -607,7 +623,7 @@ async fn test_request_notification_rejects_oversized_notification_id_over_http()
 
 #[tokio::test]
 async fn test_list_notifications_returns_newest_first_with_distinct_timestamps() {
-    let app = notification_service::build_default_app();
+    let app = sdkwork_routes_im_notification_app_api::build_public_app();
 
     let first_response = app
         .clone()
@@ -616,6 +632,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -656,6 +673,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
@@ -688,11 +706,11 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         serde_json::from_slice(&second_body).expect("second body should be valid json");
 
     assert_ne!(
-        first_json["requestedAt"], second_json["requestedAt"],
+        first_json["data"]["requestedAt"], second_json["data"]["requestedAt"],
         "separate notification requests must not reuse a fixed requestedAt timestamp"
     );
     assert_ne!(
-        first_json["dispatchedAt"], second_json["dispatchedAt"],
+        first_json["data"]["dispatchedAt"], second_json["data"]["dispatchedAt"],
         "separate notification requests must not reuse a fixed dispatchedAt timestamp"
     );
 
@@ -701,6 +719,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
             Request::builder()
                 .uri("/app/v3/api/notifications")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
@@ -717,7 +736,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list body should be valid json");
-    let items = list_json["items"]
+    let items = list_json["data"]["items"]
         .as_array()
         .expect("items should be an array");
     assert_eq!(items.len(), 2);

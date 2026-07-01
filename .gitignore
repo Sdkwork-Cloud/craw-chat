@@ -76,3 +76,11 @@ apps/sdkwork-im-pc.zip
 .env.postgres
 .env.release.local
 config/*.local.toml
+**/.runtime/
+!.env.example
+!.env.postgres.example
+**/.sdkwork/local/
+**/.sdkwork/secrets/
+**/.sdkwork/cache/
+**/.sdkwork/tmp/
+**/.sdkwork/dart/pub-cache/

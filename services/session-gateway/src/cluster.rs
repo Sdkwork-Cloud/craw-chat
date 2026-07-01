@@ -29,8 +29,32 @@ fn lock_cluster_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            tracing::warn!("recovering poisoned mutex in session-gateway/cluster: {label}");
-            poisoned.into_inner()
+            // Increment a counter for monitoring (in production, export this metric)
+            static POISON_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let count = POISON_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+            tracing::error!(
+                label = %label,
+                poison_count = count,
+                recovery_attempted = true,
+                "CRITICAL: Recovering from poisoned mutex\n\
+                 Mutex poisoning indicates a data corruption or thread contention issue.\n\
+                 This should be investigated immediately in production.\n\
+                 Metric: session_gateway_mutex_poison_recovery_total{{{label}}} = {count}"
+            );
+
+            // Create a new guard by recovering the poisoned mutex
+            let recovered = poisoned.into_inner();
+
+            // Log diagnostic information for investigation
+            tracing::error!(
+                mutex_type = ?std::any::type_name::<T>(),
+                label = %label,
+                poison_count = count,
+                "Recovered poisoned mutex - potential data corruption risk",
+            );
+
+            recovered
         }
     }
 }
@@ -143,6 +167,146 @@ impl RealtimeClusterBridge {
     pub fn bind_node_runtime(&self, node_id: &str, runtime: Arc<RealtimeDeliveryRuntime>) {
         lock_cluster_mutex(&self.node_runtimes, "node_runtimes").insert(node_id.into(), runtime);
         self.route_store.register_node(node_id);
+    }
+
+    /// Unregister a node runtime and clean up associated in-memory state.
+    ///
+    /// This prevents unbounded HashMap growth from nodes that have been
+    /// drained and removed from the cluster. Call this after a node has
+    /// completed its drain cycle and is being decommissioned.
+    pub fn unbind_node_runtime(&self, node_id: &str) {
+        // Remove the runtime reference
+        lock_cluster_mutex(&self.node_runtimes, "node_runtimes").remove(node_id);
+
+        // Clean up route epoch notifiers for routes owned by this node
+        // to prevent memory leaks from disconnected clients
+        let routes = self.route_store.routes_for_node(node_id);
+        let mut notifiers = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+        for route in &routes {
+            let scope_key = client_route_scope_key(
+                &route.tenant_id,
+                &route.organization_id,
+                &route.principal_id,
+                &route.principal_kind,
+                &route.device_id,
+            );
+            notifiers.remove(&scope_key);
+        }
+
+        // Clean up disconnect fences owned by this node
+        let mut fences = lock_cluster_mutex(&self.disconnect_fences, "disconnect_fences");
+        fences.retain(|_, fence| fence.owner_node_id != node_id);
+
+        tracing::info!(
+            node_id = %node_id,
+            route_count = routes.len(),
+            "unregistered node runtime and cleaned up associated state"
+        );
+    }
+
+    /// Periodic cleanup of stale route epoch notifiers.
+    ///
+    /// Removes notifiers for routes that no longer exist in the route store.
+    /// Call this periodically (e.g., every 5 minutes) to prevent memory leaks
+    /// from clients that disconnected without proper cleanup.
+    pub fn cleanup_stale_route_epoch_notifiers(&self) {
+        let mut notifiers = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+        let before_count = notifiers.len();
+
+        // Keep only notifiers for routes that still exist
+        notifiers.retain(|scope_key, _| {
+            // Parse the scope key to extract route components
+            // Format: {tenant_id}:{organization_id}:{principal_kind}:{principal_id}:{device_id}
+            let parts: Vec<&str> = scope_key.split(':').collect();
+            if parts.len() != 5 {
+                tracing::warn!(
+                    scope_key = %scope_key,
+                    "invalid route epoch notifier scope key format, removing"
+                );
+                return false;
+            }
+
+            let tenant_id = parts[0];
+            let organization_id = parts[1];
+            let principal_kind = parts[2];
+            let principal_id = parts[3];
+            let device_id = parts[4];
+
+            // Check if route still exists
+            self.route_store.lookup(
+                tenant_id,
+                organization_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            ).is_some()
+        });
+
+        let removed_count = before_count - notifiers.len();
+        if removed_count > 0 {
+            tracing::info!(
+                removed_count = removed_count,
+                remaining_count = notifiers.len(),
+                "cleaned up stale route epoch notifiers"
+            );
+        }
+    }
+
+    /// Periodic cleanup of stale disconnect fences from memory.
+    ///
+    /// Removes in-memory disconnect fences that have been cleared in the backing store
+    /// or have exceeded their TTL. Call this periodically (e.g., every 10 minutes)
+    /// to prevent memory leaks.
+    pub fn cleanup_stale_disconnect_fences(&self) {
+        let mut fences = lock_cluster_mutex(&self.disconnect_fences, "disconnect_fences");
+        let before_count = fences.len();
+
+        // Remove fences that no longer exist in the backing store
+        fences.retain(|scope_key, _fence| {
+            let parts: Vec<&str> = scope_key.split(':').collect();
+            if parts.len() != 5 {
+                tracing::warn!(
+                    scope_key = %scope_key,
+                    "invalid disconnect fence scope key format, removing"
+                );
+                return false;
+            }
+
+            let tenant_id = parts[0];
+            let organization_id = parts[1];
+            let principal_kind = parts[2];
+            let principal_id = parts[3];
+            let device_id = parts[4];
+
+            // Check if fence still exists in backing store
+            match self.disconnect_fence_store.load_fence(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            ) {
+                Ok(Some(_)) => true, // Fence still exists, keep it
+                Ok(None) => false,    // Fence cleared in store, remove from memory
+                Err(error) => {
+                    tracing::warn!(
+                        error = ?error,
+                        scope_key = %scope_key,
+                        "failed to verify disconnect fence in store, keeping in memory"
+                    );
+                    true // Keep on error to avoid breaking active fences
+                }
+            }
+        });
+
+        let removed_count = before_count - fences.len();
+        if removed_count > 0 {
+            tracing::info!(
+                removed_count = removed_count,
+                remaining_count = fences.len(),
+                "cleaned up stale disconnect fences"
+            );
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

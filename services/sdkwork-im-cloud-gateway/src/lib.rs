@@ -29,6 +29,15 @@
 //!   `SdkworkCourseAppSdk`
 //! - `"sdkwork-knowledgebase-app-api"` -> `/app/v3/api/knowledge/{*path}` ->
 //!   `SdkworkKnowledgebaseAppSdk`
+//! - `"sdkwork-voice-app-api"` -> `/app/v3/api/voice/{*path}` -> `SdkworkVoiceAppSdk`
+//! - `"sdkwork-mail-app-api"` -> `/app/v3/api/mail/{*path}` -> `SdkworkMailAppSdk`
+//! - `"sdkwork-community-app-api"` -> `/app/v3/api/community/{*path}` -> `SdkworkCommunityAppSdk`
+//!
+//! # IM-owned Room Capability
+//!
+//! Live/chat/game room lifecycle routes under `/im/v3/api/chat/rooms` are owned by
+//! IM and proxied to `sdkwork-comms-conversation-service` through the gateway
+//! registry (`rooms.create`, `rooms.get`, `rooms.enter`, `rooms.leave`).
 
 pub mod gateway_protection;
 
@@ -56,4 +65,5 @@ pub use embedded_session_gateway::{
     EmbeddedSessionGatewayRuntime, bootstrap_embedded_session_gateway_runtime,
 };
 pub use registry::build_gateway_registry;
+pub use sdkwork_im_realtime_api_paths::REALTIME_WS;
 pub use state::GatewayState;

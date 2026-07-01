@@ -85,6 +85,34 @@ fn list_all_messages<J: CommitJournal>(
     runtime.list_messages_window(tenant_id, "default", conversation_id, principal_id, None, 100)
 }
 
+fn canonical_bind_direct_chat_command(
+    tenant_id: &str,
+    left_actor_id: &str,
+    right_actor_id: &str,
+) -> BindDirectChatConversationCommand {
+    BindDirectChatConversationCommand {
+        tenant_id: tenant_id.into(),
+        organization_id: "0".into(),
+        conversation_id: String::new(),
+        direct_chat_id: String::new(),
+        left_actor_id: left_actor_id.into(),
+        left_actor_kind: "user".into(),
+        right_actor_id: right_actor_id.into(),
+        right_actor_kind: "user".into(),
+        bound_by: "svc_control".into(),
+    }
+}
+
+fn canonical_agent_dialog_command(requester_id: &str, agent_id: &str) -> CreateAgentDialogCommand {
+    CreateAgentDialogCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: String::new(),
+        requester_id: requester_id.into(),
+        agent_id: agent_id.into(),
+    }
+}
+
 #[test]
 fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
     let runtime = ConversationRuntime::new(InMemoryJournal::default());
@@ -219,33 +247,13 @@ fn test_bind_direct_chat_does_not_leak_state_when_batch_commit_fails() {
     let runtime = ConversationRuntime::new(journal.clone());
 
     let bind_attempt = runtime.bind_direct_chat_conversation_with_binder_kind(
-        BindDirectChatConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_direct_batch_fail".into(),
-            direct_chat_id: "dc_batch_fail".into(),
-            left_actor_id: "actor_a".into(),
-            left_actor_kind: "user".into(),
-            right_actor_id: "actor_b".into(),
-            right_actor_kind: "user".into(),
-            bound_by: "svc_control".into(),
-        },
+        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
         "system",
     );
     assert!(matches!(
         bind_attempt,
         Err(RuntimeError::Contract(ContractError::Unavailable(message)))
             if message == "forced journal batch append failure"
-    ));
-    assert!(matches!(
-        runtime.list_members("100001", "default", "c_direct_batch_fail"),
-        Err(RuntimeError::ConversationNotFound(conversation_id))
-            if conversation_id == "c_direct_batch_fail"
-    ));
-    assert!(matches!(
-        runtime.conversation_business_binding("100001", "default", "c_direct_batch_fail"),
-        Err(RuntimeError::ConversationNotFound(conversation_id))
-            if conversation_id == "c_direct_batch_fail"
     ));
     assert!(
         journal.recorded().is_empty(),
@@ -254,29 +262,20 @@ fn test_bind_direct_chat_does_not_leak_state_when_batch_commit_fails() {
 
     let created = runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_batch_fail".into(),
-                direct_chat_id: "dc_batch_fail".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("retry should succeed after failed direct chat bind");
 
-    assert_eq!(created.conversation_id, "c_direct_batch_fail");
+    let conversation_id = created.conversation_id.clone();
+    assert!(conversation_id.starts_with("c_direct_"));
     let binding = runtime
-        .conversation_business_binding("100001", "default", "c_direct_batch_fail")
+        .conversation_business_binding("100001", "default", conversation_id.as_str())
         .expect("binding should exist after retry");
     assert_eq!(binding.business_type, "direct_chat");
-    assert_eq!(binding.business_id, "dc_batch_fail");
+    assert!(!binding.business_id.starts_with("pc-dc-"));
     let members = runtime
-        .list_members("100001", "default", "c_direct_batch_fail")
+        .list_members("100001", "default", conversation_id.as_str())
         .expect("direct chat members should exist after retry");
     assert_eq!(members.len(), 2);
     assert_eq!(journal.recorded().len(), 3);
@@ -1098,21 +1097,16 @@ fn test_create_agent_dialog_creates_requester_and_agent_members() {
 
     let created = runtime
         .create_agent_dialog_with_requester_kind(
-            CreateAgentDialogCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_agent_dialog".into(),
-                requester_id: "1".into(),
-                agent_id: "agent.demo".into(),
-            },
+            canonical_agent_dialog_command("1", "agent.demo"),
             "user",
         )
         .expect("agent dialog create should succeed");
 
-    assert_eq!(created.conversation_id, "c_agent_dialog");
+    let conversation_id = created.conversation_id.clone();
+    assert!(conversation_id.starts_with("c_agent_"));
 
     let members = runtime
-        .list_members("100001", "default", "c_agent_dialog")
+        .list_members("100001", "default", conversation_id.as_str())
         .expect("agent dialog members should list");
     assert_eq!(members.len(), 2);
 
@@ -1147,13 +1141,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
 
     let first = source_runtime
         .create_agent_dialog_with_requester_kind(
-            CreateAgentDialogCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_agent_dialog_retry".into(),
-                requester_id: "1".into(),
-                agent_id: "agent.demo".into(),
-            },
+            canonical_agent_dialog_command("1", "agent.demo"),
             "user",
         )
         .expect("first agent dialog create should succeed");
@@ -1163,20 +1151,13 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         first.proof_version.as_deref(),
         Some("conversation.create.delivery-proof.v1")
     );
-    assert_eq!(
-        first.request_key.as_deref(),
-        Some("6#1000014#user1#119#create-agent-dialog20#c_agent_dialog_retry")
-    );
+    assert!(first.request_key.is_some());
+
+    let conversation_id = first.conversation_id.clone();
 
     let duplicate = source_runtime
         .create_agent_dialog_with_requester_kind(
-            CreateAgentDialogCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_agent_dialog_retry".into(),
-                requester_id: "1".into(),
-                agent_id: "agent.demo".into(),
-            },
+            canonical_agent_dialog_command("1", "agent.demo"),
             "user",
         )
         .expect("duplicate agent dialog create should replay");
@@ -1194,13 +1175,13 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         CreateAgentDialogCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
-            conversation_id: "c_agent_dialog_retry".into(),
+            conversation_id: conversation_id.clone(),
             requester_id: "1".into(),
             agent_id: "agent.other".into(),
         },
         "user",
     );
-    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+    assert!(matches!(conflicting_retry, Err(RuntimeError::InvalidInput(_))));
 
     let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
     for envelope in source_journal.recorded() {
@@ -1211,13 +1192,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
 
     let recovered_duplicate = replay_runtime
         .create_agent_dialog_with_requester_kind(
-            CreateAgentDialogCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_agent_dialog_retry".into(),
-                requester_id: "1".into(),
-                agent_id: "agent.demo".into(),
-            },
+            canonical_agent_dialog_command("1", "agent.demo"),
             "user",
         )
         .expect("recovered duplicate agent dialog create should replay");
@@ -6319,43 +6294,38 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
 
     let created = runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_binding".into(),
-                direct_chat_id: "dc_001".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("direct chat binding should succeed");
 
-    assert_eq!(created.conversation_id, "c_direct_binding");
+    let conversation_id = created.conversation_id.clone();
+    let direct_chat_id = runtime
+        .conversation_business_binding("100001", "default", conversation_id.as_str())
+        .expect("binding should be queryable")
+        .business_id;
+    assert!(conversation_id.starts_with("c_direct_"));
 
     let binding = runtime
-        .conversation_business_binding("100001", "default", "c_direct_binding")
+        .conversation_business_binding("100001", "default", conversation_id.as_str())
         .expect("binding should be queryable");
     assert_eq!(
         binding,
         ConversationBusinessBinding {
             business_type: "direct_chat".into(),
-            business_id: "dc_001".into(),
+            business_id: direct_chat_id.clone(),
         }
     );
 
     let members = runtime
-        .list_members("100001", "default", "c_direct_binding")
+        .list_members("100001", "default", conversation_id.as_str())
         .expect("bound direct conversation should expose members");
     assert_eq!(members.len(), 2);
     assert!(
         members.iter().any(|member| {
             member.principal_id == "actor_a"
                 && member.role == MembershipRole::Owner
-                && member.attributes.get("directChatId").map(String::as_str) == Some("dc_001")
+                && member.attributes.get("directChatId").map(String::as_str) == Some(direct_chat_id.as_str())
         }),
         "left actor should become the anchor owner with direct chat binding metadata"
     );
@@ -6363,7 +6333,7 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
         members.iter().any(|member| {
             member.principal_id == "actor_b"
                 && member.role == MembershipRole::Member
-                && member.attributes.get("directChatId").map(String::as_str) == Some("dc_001")
+                && member.attributes.get("directChatId").map(String::as_str) == Some(direct_chat_id.as_str())
         }),
         "right actor should become the peer member with direct chat binding metadata"
     );
@@ -6375,7 +6345,7 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
         serde_json::from_str(events[0].payload.as_str()).expect("created payload should be json");
     assert_eq!(created_payload["conversationType"], "direct");
     assert_eq!(created_payload["businessType"], "direct_chat");
-    assert_eq!(created_payload["businessId"], "dc_001");
+    assert_eq!(created_payload["businessId"], direct_chat_id);
 }
 
 #[test]
@@ -6620,7 +6590,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("6#1000014#user1#1#13#create-thread14#c_thread_retry")
+        Some("6#100001#4#user#1#1#13#create-thread#14#c_thread_retry")
     );
 
     let duplicate = runtime
@@ -7034,39 +7004,24 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal);
 
-    runtime
+    let first = runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_binding_first".into(),
-                direct_chat_id: "dc_dup".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("first direct chat binding should succeed");
 
     let duplicate = runtime.bind_direct_chat_conversation_with_binder_kind(
-        BindDirectChatConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_direct_binding_second".into(),
-            direct_chat_id: "dc_dup".into(),
-            left_actor_id: "actor_a".into(),
-            left_actor_kind: "user".into(),
-            right_actor_id: "actor_b".into(),
-            right_actor_kind: "user".into(),
-            bound_by: "svc_control".into(),
-        },
+        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
         "system",
-    );
+    )
+    .expect("duplicate direct chat binding should replay");
 
-    assert!(matches!(duplicate, Err(RuntimeError::Conflict(_))));
+    assert_eq!(duplicate.conversation_id, first.conversation_id);
+    assert_eq!(
+        duplicate.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
 }
 
 #[test]
@@ -7076,17 +7031,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
 
     let first = source_runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_retry".into(),
-                direct_chat_id: "dc_retry".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("first direct chat binding should succeed");
@@ -7096,24 +7041,12 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         first.proof_version.as_deref(),
         Some("conversation.create.delivery-proof.v1")
     );
-    assert_eq!(
-        first.request_key.as_deref(),
-        Some("6#1000016#system11#svc_control16#bind-direct-chat14#c_direct_retry")
-    );
+    assert!(first.request_key.is_some());
+    let conversation_id = first.conversation_id.clone();
 
     let duplicate = source_runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_retry".into(),
-                direct_chat_id: "dc_retry".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("duplicate direct chat binding should replay");
@@ -7131,17 +7064,17 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         BindDirectChatConversationCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
-            conversation_id: "c_direct_retry".into(),
-            direct_chat_id: "dc_other".into(),
+            conversation_id: conversation_id.clone(),
+            direct_chat_id: String::new(),
             left_actor_id: "actor_a".into(),
             left_actor_kind: "user".into(),
-            right_actor_id: "actor_b".into(),
+            right_actor_id: "actor_c".into(),
             right_actor_kind: "user".into(),
             bound_by: "svc_control".into(),
         },
         "system",
     );
-    assert!(matches!(conflicting_retry, Err(RuntimeError::Conflict(_))));
+    assert!(matches!(conflicting_retry, Err(RuntimeError::InvalidInput(_))));
 
     let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
     for envelope in source_journal.recorded() {
@@ -7152,17 +7085,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
 
     let recovered_duplicate = replay_runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_retry".into(),
-                direct_chat_id: "dc_retry".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("recovered duplicate direct chat binding should replay");
@@ -7181,7 +7104,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
     assert_eq!(
         events
             .iter()
-            .filter(|event| event.aggregate_id == "c_direct_retry")
+            .filter(|event| event.aggregate_id == conversation_id)
             .count(),
         3,
         "duplicate direct chat binding retry must not append another conversation.created/member_joined pair"
@@ -7194,56 +7117,29 @@ fn test_direct_chat_business_scope_key_is_segment_safe_for_delimiter_bearing_ids
 
     let first = runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "tenant:a".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_first".into(),
-                direct_chat_id: "b".into(),
-                left_actor_id: "1052".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "1065".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("tenant:a", "1052", "1065"),
             "system",
         )
         .expect("first direct chat binding should be created");
     let second = runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "tenant".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_second".into(),
-                direct_chat_id: "a:b".into(),
-                left_actor_id: "1053".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "1066".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("tenant", "1053", "1066"),
             "system",
         )
         .expect("second direct chat binding should not collide with first business key");
 
-    assert_eq!(first.conversation_id, "c_direct_first");
-    assert_eq!(second.conversation_id, "c_direct_second");
-    assert_eq!(
-        first.request_key.as_deref(),
-        Some("8#tenant:a6#system11#svc_control16#bind-direct-chat14#c_direct_first")
-    );
-    assert_eq!(
-        second.request_key.as_deref(),
-        Some("6#tenant6#system11#svc_control16#bind-direct-chat15#c_direct_second")
-    );
+    assert_ne!(first.conversation_id, second.conversation_id);
+    assert_ne!(first.request_key, second.request_key);
 
     let first_binding = runtime
-        .conversation_business_binding("tenant:a", "default", "c_direct_first")
+        .conversation_business_binding("tenant:a", "default", first.conversation_id.as_str())
         .expect("first direct chat binding should be readable");
     let second_binding = runtime
-        .conversation_business_binding("tenant", "default", "c_direct_second")
+        .conversation_business_binding("tenant", "default", second.conversation_id.as_str())
         .expect("second direct chat binding should be readable");
-    assert_eq!(first_binding.business_id, "b");
-    assert_eq!(second_binding.business_id, "a:b");
+    assert_ne!(first_binding.business_id, second_binding.business_id);
+    assert!(first_binding.business_id.contains('#'));
+    assert!(second_binding.business_id.contains('#'));
 }
 
 #[test]
@@ -7251,22 +7147,17 @@ fn test_direct_chat_business_binding_survives_recovery_replay() {
     let source_journal = InMemoryJournal::default();
     let source_runtime = ConversationRuntime::new(source_journal.clone());
 
-    source_runtime
+    let created = source_runtime
         .bind_direct_chat_conversation_with_binder_kind(
-            BindDirectChatConversationCommand {
-                tenant_id: "100001".into(),
-                organization_id: "0".into(),
-                conversation_id: "c_direct_replay".into(),
-                direct_chat_id: "dc_replay".into(),
-                left_actor_id: "actor_a".into(),
-                left_actor_kind: "user".into(),
-                right_actor_id: "actor_b".into(),
-                right_actor_kind: "user".into(),
-                bound_by: "svc_control".into(),
-            },
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
             "system",
         )
         .expect("direct chat binding should succeed");
+    let conversation_id = created.conversation_id.clone();
+    let direct_chat_id = source_runtime
+        .conversation_business_binding("100001", "default", conversation_id.as_str())
+        .expect("binding should exist")
+        .business_id;
 
     let replay_journal = InMemoryJournal::default();
     let replay_runtime = ConversationRuntime::new(replay_journal);
@@ -7277,30 +7168,22 @@ fn test_direct_chat_business_binding_survives_recovery_replay() {
     }
 
     let binding = replay_runtime
-        .conversation_business_binding("100001", "default", "c_direct_replay")
+        .conversation_business_binding("100001", "default", conversation_id.as_str())
         .expect("replayed binding should exist");
     assert_eq!(binding.business_type, "direct_chat");
-    assert_eq!(binding.business_id, "dc_replay");
+    assert_eq!(binding.business_id, direct_chat_id);
 
     let duplicate_after_replay = replay_runtime.bind_direct_chat_conversation_with_binder_kind(
-        BindDirectChatConversationCommand {
-            tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            conversation_id: "c_direct_replay_dup".into(),
-            direct_chat_id: "dc_replay".into(),
-            left_actor_id: "actor_a".into(),
-            left_actor_kind: "user".into(),
-            right_actor_id: "actor_b".into(),
-            right_actor_kind: "user".into(),
-            bound_by: "svc_control".into(),
-        },
+        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
         "system",
-    );
+    )
+    .expect("replayed direct chat binding should be idempotent");
 
-    assert!(matches!(
-        duplicate_after_replay,
-        Err(RuntimeError::Conflict(_))
-    ));
+    assert_eq!(duplicate_after_replay.conversation_id, conversation_id);
+    assert_eq!(
+        duplicate_after_replay.delivery_status.as_ref().unwrap().as_str(),
+        "replayed"
+    );
 }
 
 #[test]

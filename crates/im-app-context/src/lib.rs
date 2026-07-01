@@ -10,7 +10,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
-use sdkwork_utils_rust::{base64url_decode, base64url_encode, hmac_sha256_base64url};
+use sdkwork_utils_rust::{base64url_decode, base64url_encode, hmac_sha256_base64url, secure_compare};
 use sdkwork_web_core::{
     EnvBootstrapTenantSigningKeyLookup, JwtProductionClaimPolicy, JwtVerifier, ServerRequestId,
     TenantBoundJwtVerifier, WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment,
@@ -27,6 +27,8 @@ const APP_CONTEXT_JWT_KEY_ID_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID";
 const APP_CONTEXT_JWT_SIGNING_SECRET_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET";
 const APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV: &str =
     "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE";
+const DEV_JWT_SIGNING_SECRET_FALLBACK: &str =
+    "sdkwork-im-dev-jwt-secret-not-for-production-use";
 // P0-10 (SECURITY_SPEC §1 / IAM_SPEC): production JWT iss/aud allow-lists and
 // jti replay protection. In production, iss/aud MUST be configured; otherwise
 // verification fails closed to prevent cross-service token confusion and
@@ -555,7 +557,7 @@ pub fn require_app_context_signature(
             ))
         })?;
     let expected_signature = sign_app_context_headers(headers, shared_secret)?;
-    if !constant_time_eq(actual_signature.as_bytes(), expected_signature.as_bytes()) {
+    if !secure_compare(actual_signature, &expected_signature) {
         return Err(AppContextError::invalid(format!(
             "{SDKWORK_CONTEXT_SIGNATURE_HEADER} signature validation failed"
         )));
@@ -825,6 +827,8 @@ fn app_context_from_claims(
     let actor_kind = access_claims
         .optional(&["actor_kind", "actorKind"])
         .or_else(|| auth_claims.optional(&["actor_kind", "actorKind"]))
+        .or_else(|| access_claims.optional(&["subject_type", "subjectType"]))
+        .or_else(|| auth_claims.optional(&["subject_type", "subjectType"]))
         .unwrap_or_else(|| format!("{:?}", principal.subject.subject_type).to_ascii_lowercase());
 
     AppContext {
@@ -895,18 +899,11 @@ fn canonical_app_context_signature_payload(headers: &HeaderMap) -> String {
         .join("\n")
 }
 
-fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
-    let max_len = left.len().max(right.len());
-    let mut diff = left.len() ^ right.len();
-    for index in 0..max_len {
-        let left_byte = left.get(index).copied().unwrap_or(0);
-        let right_byte = right.get(index).copied().unwrap_or(0);
-        diff |= usize::from(left_byte ^ right_byte);
-    }
-    diff == 0
-}
-
-fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+/// Parse a truthy boolean from an environment variable value.
+///
+/// Accepts `1`, `true`, `yes`, `on` (case-insensitive) after trimming whitespace.
+/// Used internally and re-exported for other IM crates to avoid duplication.
+pub fn parse_truthy_env_flag(raw: Option<String>) -> bool {
     raw.as_deref().map(str::trim).is_some_and(|value| {
         matches!(
             value.to_ascii_lowercase().as_str(),
@@ -1219,6 +1216,19 @@ fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
         return Err(AppContextError::invalid(
             "JWT alg=none tokens are not allowed in production-like environments",
         ));
+    }
+
+    if !dev_or_test {
+        if let Some(secret) = resolve_secret_from_env_or_file(
+            APP_CONTEXT_JWT_SIGNING_SECRET_ENV,
+            APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV,
+        ) {
+            if secret.trim() == DEV_JWT_SIGNING_SECRET_FALLBACK {
+                return Err(AppContextError::invalid(format!(
+                    "Production environment must not use the built-in dev/test JWT signing secret ({DEV_JWT_SIGNING_SECRET_FALLBACK})"
+                )));
+            }
+        }
     }
 
     if let Some(lookup) = tenant_signing_lookup_from_env() {

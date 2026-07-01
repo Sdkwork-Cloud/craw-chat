@@ -6,12 +6,8 @@ use im_platform_contracts::{
     ContractError, ConversationAggregateState, ConversationAggregateStore,
     ConversationMemberRecord, ReadCursorRecord,
 };
-use r2d2::Pool;
-use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalTlsConnector};
-
-pub type PostgresJournalPool = Pool<PostgresConnectionManager<PostgresJournalTlsConnector>>;
+use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool};
 
 /// PostgreSQL implementation of [`ConversationAggregateStore`].
 #[derive(Clone)]

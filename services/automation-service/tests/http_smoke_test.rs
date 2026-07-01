@@ -60,7 +60,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_request_and_get_execution_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_response = app
         .clone()
@@ -69,6 +69,7 @@ async fn test_request_and_get_execution_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -95,17 +96,17 @@ async fn test_request_and_get_execution_over_http() {
         .to_bytes();
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create body should be valid json");
-    assert_eq!(create_json["executionId"], "ae_http_demo");
-    assert_eq!(create_json["state"], "succeeded");
-    assert_eq!(create_json["deliveryStatus"], "applied");
+    assert_eq!(create_json["data"]["executionId"], "ae_http_demo");
+    assert_eq!(create_json["data"]["state"], "succeeded");
+    assert_eq!(create_json["data"]["deliveryStatus"], "applied");
     assert!(
-        !create_json["requestKey"]
+        !create_json["data"]["requestKey"]
             .as_str()
             .expect("request key should be present")
             .is_empty()
     );
     assert_eq!(
-        create_json["proofVersion"],
+        create_json["data"]["proofVersion"],
         "automation.execution.delivery-proof.v1"
     );
 
@@ -114,6 +115,7 @@ async fn test_request_and_get_execution_over_http() {
             Request::builder()
                 .uri("/app/v3/api/automation/executions/ae_http_demo")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.read")
@@ -131,13 +133,13 @@ async fn test_request_and_get_execution_over_http() {
         .to_bytes();
     let get_json: serde_json::Value =
         serde_json::from_slice(&get_body).expect("get body should be valid json");
-    assert_eq!(get_json["targetRef"], "wf_http_demo");
-    assert_eq!(get_json["triggerType"], "webhook.manual");
+    assert_eq!(get_json["data"]["targetRef"], "wf_http_demo");
+    assert_eq!(get_json["data"]["triggerType"], "webhook.manual");
 }
 
 #[tokio::test]
 async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_rejected_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let first_response = app
         .clone()
@@ -146,6 +148,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -172,7 +175,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["deliveryStatus"], "applied");
 
     let idempotent_response = app
         .clone()
@@ -181,6 +184,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -207,12 +211,12 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .to_bytes();
     let idempotent_json: serde_json::Value =
         serde_json::from_slice(&idempotent_body).expect("idempotent body should be valid json");
-    assert_eq!(idempotent_json["deliveryStatus"], "replayed");
-    assert_eq!(idempotent_json["requestKey"], first_json["requestKey"]);
-    assert_eq!(idempotent_json["executionId"], first_json["executionId"]);
-    assert_eq!(idempotent_json["targetRef"], first_json["targetRef"]);
-    assert_eq!(idempotent_json["triggerType"], first_json["triggerType"]);
-    assert_eq!(idempotent_json["state"], first_json["state"]);
+    assert_eq!(idempotent_json["data"]["deliveryStatus"], "replayed");
+    assert_eq!(idempotent_json["data"]["requestKey"], first_json["data"]["requestKey"]);
+    assert_eq!(idempotent_json["data"]["executionId"], first_json["data"]["executionId"]);
+    assert_eq!(idempotent_json["data"]["targetRef"], first_json["data"]["targetRef"]);
+    assert_eq!(idempotent_json["data"]["triggerType"], first_json["data"]["triggerType"]);
+    assert_eq!(idempotent_json["data"]["state"], first_json["data"]["state"]);
 
     let conflicting_response = app
         .oneshot(
@@ -220,6 +224,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -246,12 +251,12 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .to_bytes();
     let conflicting_json: serde_json::Value =
         serde_json::from_slice(&conflicting_body).expect("conflicting body should be valid json");
-    assert_eq!(conflicting_json["code"], "automation_execution_conflict");
+    assert_eq!(conflicting_json["code"].as_i64(), Some(40901));
 }
 
 #[tokio::test]
 async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let user_response = app
         .clone()
@@ -260,6 +265,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -287,10 +293,10 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
     let user_json: serde_json::Value =
         serde_json::from_slice(&user_body).expect("user body should be valid json");
     assert_eq!(
-        user_json["requestKey"],
-        "6#1000014#user1#322#ae_http_kind_isolation"
+        user_json["data"]["requestKey"],
+        "6#1000014#user1#122#ae_http_kind_isolation"
     );
-    assert_eq!(user_json["principalKind"], "user");
+    assert_eq!(user_json["data"]["principalKind"], "user");
 
     let system_response = app
         .clone()
@@ -299,6 +305,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("system")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -326,10 +333,10 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
     let system_json: serde_json::Value =
         serde_json::from_slice(&system_body).expect("system body should be valid json");
     assert_eq!(
-        system_json["requestKey"],
-        "6#1000016#system1#322#ae_http_kind_isolation"
+        system_json["data"]["requestKey"],
+        "6#1000016#system1#122#ae_http_kind_isolation"
     );
-    assert_eq!(system_json["principalKind"], "system");
+    assert_eq!(system_json["data"]["principalKind"], "system");
 
     let user_get_response = app
         .clone()
@@ -337,6 +344,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
             Request::builder()
                 .uri("/app/v3/api/automation/executions/ae_http_kind_isolation")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.read")
@@ -354,13 +362,14 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .to_bytes();
     let user_get_json: serde_json::Value =
         serde_json::from_slice(&user_get_body).expect("user get body should be valid json");
-    assert_eq!(user_get_json["principalKind"], "user");
+    assert_eq!(user_get_json["data"]["principalKind"], "user");
 
     let system_get_response = app
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/automation/executions/ae_http_kind_isolation")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("system")
                 .with_dual_token_permission_scope("automation.read")
@@ -378,12 +387,12 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .to_bytes();
     let system_get_json: serde_json::Value =
         serde_json::from_slice(&system_get_body).expect("system get body should be valid json");
-    assert_eq!(system_get_json["principalKind"], "system");
+    assert_eq!(system_get_json["data"]["principalKind"], "system");
 }
 
 #[tokio::test]
 async fn test_agent_response_and_tool_call_lifecycle_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_response = app
         .clone()
@@ -392,6 +401,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -418,6 +428,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -453,8 +464,8 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let start_json: serde_json::Value =
         serde_json::from_slice(&start_body).expect("start body should be valid json");
-    assert_eq!(start_json["streamId"], "st_http_agent");
-    assert_eq!(start_json["state"], "opened");
+    assert_eq!(start_json["data"]["streamId"], "st_http_agent");
+    assert_eq!(start_json["data"]["state"], "opened");
 
     let delta_response = app
         .clone()
@@ -463,6 +474,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_agent/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -490,8 +502,8 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let delta_json: serde_json::Value =
         serde_json::from_slice(&delta_body).expect("delta body should be valid json");
-    assert_eq!(delta_json["sender"]["kind"], "agent");
-    assert_eq!(delta_json["sender"]["id"], "ag_demo");
+    assert_eq!(delta_json["data"]["sender"]["kind"], "agent");
+    assert_eq!(delta_json["data"]["sender"]["id"], "ag_demo");
 
     let tool_request_response = app
         .clone()
@@ -500,6 +512,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -525,7 +538,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let tool_request_json: serde_json::Value =
         serde_json::from_slice(&tool_request_body).expect("tool request body should be valid json");
-    assert_eq!(tool_request_json["state"], "requested");
+    assert_eq!(tool_request_json["data"]["state"], "requested");
 
     let tool_complete_response = app
         .clone()
@@ -534,6 +547,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions/ae_http_agent/agent_tool_calls/tc_http_lookup/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -556,7 +570,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let tool_complete_json: serde_json::Value = serde_json::from_slice(&tool_complete_body)
         .expect("tool complete body should be valid json");
-    assert_eq!(tool_complete_json["state"], "completed");
+    assert_eq!(tool_complete_json["data"]["state"], "completed");
 
     let complete_response = app
         .oneshot(
@@ -564,6 +578,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_agent/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -587,13 +602,13 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let complete_json: serde_json::Value =
         serde_json::from_slice(&complete_body).expect("complete body should be valid json");
-    assert_eq!(complete_json["state"], "completed");
-    assert_eq!(complete_json["resultMessageId"], "m_http_agent");
+    assert_eq!(complete_json["data"]["state"], "completed");
+    assert_eq!(complete_json["data"]["resultMessageId"], "m_http_agent");
 }
 
 #[tokio::test]
 async fn test_automation_governance_surface_and_operator_override_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let governance_response = app
         .clone()
@@ -601,6 +616,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
             Request::builder()
                 .uri("/backend/v3/api/automation/governance")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.read")
@@ -618,13 +634,13 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .to_bytes();
     let governance_json: serde_json::Value =
         serde_json::from_slice(&governance_body).expect("governance body should be valid json");
-    assert_eq!(governance_json["capabilityProfileId"], "stable-agent");
+    assert_eq!(governance_json["data"]["capabilityProfileId"], "stable-agent");
     assert_eq!(
-        governance_json["operatorOverridePermission"],
+        governance_json["data"]["operatorOverridePermission"],
         "automation.operator_override"
     );
-    assert_eq!(governance_json["operatorOverrideActive"], false);
-    assert_eq!(governance_json["restrictedToolPrefixes"][0], "ops.");
+    assert_eq!(governance_json["data"]["operatorOverrideActive"], false);
+    assert_eq!(governance_json["data"]["restrictedToolPrefixes"][0], "ops.");
 
     let create_response = app
         .clone()
@@ -633,6 +649,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -659,6 +676,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -694,6 +712,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -719,7 +738,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .to_bytes();
     let denied_json: serde_json::Value =
         serde_json::from_slice(&denied_body).expect("denied body should be valid json");
-    assert_eq!(denied_json["code"], "automation_guardrail_denied");
+    assert_eq!(denied_json["code"].as_i64(), Some(40301));
 
     let override_response = app
         .clone()
@@ -728,6 +747,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope(
@@ -755,13 +775,14 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .to_bytes();
     let override_json: serde_json::Value =
         serde_json::from_slice(&override_body).expect("override body should be valid json");
-    assert_eq!(override_json["state"], "requested");
+    assert_eq!(override_json["data"]["state"], "requested");
 
     let override_governance_response = app
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/automation/governance")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.read automation.operator_override")
@@ -780,12 +801,12 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
     let override_governance_json: serde_json::Value =
         serde_json::from_slice(&override_governance_body)
             .expect("override governance body should be valid json");
-    assert_eq!(override_governance_json["operatorOverrideActive"], true);
+    assert_eq!(override_governance_json["data"]["operatorOverrideActive"], true);
 }
 
 #[tokio::test]
 async fn test_request_execution_rejects_oversized_input_payload_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
     let oversized_input = "x".repeat(131073);
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_input",
@@ -802,6 +823,7 @@ async fn test_request_execution_rejects_oversized_input_payload_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -816,7 +838,7 @@ async fn test_request_execution_rejects_oversized_input_payload_over_http() {
 
 #[tokio::test]
 async fn test_request_execution_rejects_oversized_execution_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let oversized_execution_id = "e".repeat(257);
     let request_body = serde_json::json!({
@@ -833,6 +855,7 @@ async fn test_request_execution_rejects_oversized_execution_id_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -847,7 +870,7 @@ async fn test_request_execution_rejects_oversized_execution_id_over_http() {
 
 #[tokio::test]
 async fn test_get_execution_rejects_oversized_execution_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let response = app
         .oneshot(
@@ -857,6 +880,7 @@ async fn test_get_execution_rejects_oversized_execution_id_over_http() {
                     "e".repeat(257)
                 ))
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.read")
@@ -870,7 +894,7 @@ async fn test_get_execution_rejects_oversized_execution_id_over_http() {
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -879,6 +903,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -921,6 +946,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -935,7 +961,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
     let cases = [
         (
             "streamType",
@@ -1007,6 +1033,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/executions")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1034,6 +1061,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1053,7 +1081,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1062,6 +1090,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1104,6 +1133,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1118,7 +1148,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let request_body = serde_json::json!({
         "executionId": "e".repeat(257),
@@ -1143,6 +1173,7 @@ async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1157,7 +1188,7 @@ async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let response = app
         .oneshot(
@@ -1168,6 +1199,7 @@ async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_
                     "s".repeat(257)
                 ))
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1192,7 +1224,7 @@ async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1201,6 +1233,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1242,6 +1275,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1256,7 +1290,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
 
 #[tokio::test]
 async fn test_complete_agent_response_rejects_oversized_result_message_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1265,6 +1299,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1291,6 +1326,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1330,6 +1366,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_oversized_result_message_id/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1344,7 +1381,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
 
 #[tokio::test]
 async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let response = app
         .oneshot(
@@ -1355,6 +1392,7 @@ async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http
                     "s".repeat(257)
                 ))
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1387,7 +1425,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
             serde_json::Value::String("s".repeat(257)),
         ),
     ] {
-        let app = automation_service::build_default_app();
+        let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
         let create_execution_response = app
             .clone()
@@ -1396,6 +1434,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .method("POST")
                     .uri("/app/v3/api/automation/executions")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1439,6 +1478,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1458,7 +1498,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1467,6 +1507,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1493,6 +1534,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1537,6 +1579,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_oversized_delta/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1554,7 +1597,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
     let cases = [
         (
             "frameType",
@@ -1599,6 +1642,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/executions")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1626,6 +1670,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1661,6 +1706,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses/st_http_oversized_delta_contract/frames")
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1680,7 +1726,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1689,6 +1735,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1715,6 +1762,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1756,6 +1804,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1770,7 +1819,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let request_body = serde_json::json!({
         "executionId": "e".repeat(257),
@@ -1785,6 +1834,7 @@ async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1799,7 +1849,7 @@ async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http()
 
 #[tokio::test]
 async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     for (field, execution_id, tool_call_id) in [
         ("executionId", "e".repeat(257), "tc_http_demo".to_string()),
@@ -1815,6 +1865,7 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
                         execution_id, tool_call_id
                     ))
                     .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1839,7 +1890,7 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1848,6 +1899,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1874,6 +1926,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1915,6 +1968,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1929,7 +1983,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -1938,6 +1992,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1964,6 +2019,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2010,6 +2066,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_oversized_delta_attrs/frames")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2027,7 +2084,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_after_agent_response_completed_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -2036,6 +2093,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2062,6 +2120,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2097,6 +2156,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_tool_after_complete/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2119,6 +2179,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2140,7 +2201,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
 
 #[tokio::test]
 async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http() {
-    let app = automation_service::build_default_app();
+    let app = sdkwork_routes_im_automation_app_api::build_public_app();
 
     let create_execution_response = app
         .clone()
@@ -2149,6 +2210,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/executions")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2175,6 +2237,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2210,6 +2273,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_tool_calls")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2235,6 +2299,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_pending_tool_guard/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2259,8 +2324,8 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
     let blocked_complete_json: serde_json::Value = serde_json::from_slice(&blocked_complete_body)
         .expect("blocked completion body should be valid json");
     assert_eq!(
-        blocked_complete_json["code"],
-        "agent_response_pending_tool_calls"
+        blocked_complete_json["code"].as_i64(),
+        Some(40001)
     );
 
     let complete_tool_call_response = app
@@ -2272,6 +2337,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                     "/app/v3/api/automation/executions/ae_http_pending_tool_guard/agent_tool_calls/tc_http_pending/complete",
                 )
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")
@@ -2293,6 +2359,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .method("POST")
                 .uri("/app/v3/api/automation/agent_responses/st_http_pending_tool_guard/complete")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("automation.execute automation.read")

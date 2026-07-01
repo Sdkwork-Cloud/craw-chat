@@ -323,7 +323,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         
         // Stop all tracks to release microphone
-        stream.getTracks().forEach(track => track.stop());
+        stream?.getTracks().forEach((track) => track.stop());
         
         if (voiceTimerRef.current) {
           clearInterval(voiceTimerRef.current);

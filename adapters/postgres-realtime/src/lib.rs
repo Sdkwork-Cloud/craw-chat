@@ -264,6 +264,22 @@ impl PostgresRealtimeConfig {
 }
 
 fn build_realtime_pool(config: &PostgresRealtimeConfig) -> Result<PostgresRealtimePool, ContractError> {
+    if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
+        return Ok(pool);
+    }
+    if cfg!(test) {
+        return build_realtime_pool_local(config);
+    }
+    Err(ContractError::Unavailable(
+        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+            .err()
+            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+    ))
+}
+
+fn build_realtime_pool_local(
+    config: &PostgresRealtimeConfig,
+) -> Result<PostgresRealtimePool, ContractError> {
     verify_production_sslmode(config.database_url.as_str());
     let pg_config = config
         .database_url

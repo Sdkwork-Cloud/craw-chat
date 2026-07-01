@@ -72,6 +72,22 @@ impl PostgresProjectionConfig {
 fn build_projection_pool(
     config: &PostgresProjectionConfig,
 ) -> Result<PostgresProjectionPool, ContractError> {
+    if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
+        return Ok(pool);
+    }
+    if cfg!(test) {
+        return build_projection_pool_local(config);
+    }
+    Err(ContractError::Unavailable(
+        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
+            .err()
+            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+    ))
+}
+
+fn build_projection_pool_local(
+    config: &PostgresProjectionConfig,
+) -> Result<PostgresProjectionPool, ContractError> {
     verify_production_sslmode(config.database_url.as_str());
     let pg_config = config
         .database_url
@@ -173,7 +189,7 @@ pub(crate) fn postgres_pool_client(
 }
 
 pub(crate) fn now_rfc3339() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+    im_time::utc_now_rfc3339_millis()
 }
 
 pub(crate) fn postgres_unavailable(

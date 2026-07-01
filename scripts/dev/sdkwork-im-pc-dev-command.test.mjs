@@ -40,19 +40,29 @@ function readJson(relativePath) {
 
 const packageJson = readJson('package.json');
 const chatPcPackageJson = readJson('apps/sdkwork-im-pc/package.json');
+assert.equal(
+  chatPcPackageJson.workspaces,
+  undefined,
+  'apps/sdkwork-im-pc must not declare nested npm workspaces; pnpm workspace membership belongs in repository-root pnpm-workspace.yaml only',
+);
+assert.equal(
+  chatPcPackageJson.scripts.lint,
+  'node ../../scripts/dev/run-tsc-cli.mjs --noEmit -p tsconfig.app.json',
+  'apps/sdkwork-im-pc lint must typecheck IM-owned sources via tsconfig.app.json instead of sibling source path maps',
+);
 assert.ok(
   !chatPcPackageJson.dependencies?.['@google/genai'],
   'apps/sdkwork-im-pc must not depend on retired @google/genai AI Studio scaffold',
 );
 const desktopWorkspaceSource = fs.readFileSync(
-  path.join(repoRoot, 'apps/sdkwork-im-pc/pnpm-workspace.yaml'),
+  path.join(repoRoot, 'pnpm-workspace.yaml'),
   'utf8',
 );
 const desktopNpmrcSource = fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/.npmrc'))
   ? fs.readFileSync(path.join(repoRoot, 'apps/sdkwork-im-pc/.npmrc'), 'utf8')
   : '';
 const desktopLockfileSource = fs.readFileSync(
-  path.join(repoRoot, 'apps/sdkwork-im-pc/pnpm-lock.yaml'),
+  path.join(repoRoot, 'pnpm-lock.yaml'),
   'utf8',
 );
 const unifiedWebSource = fs.readFileSync(
@@ -279,6 +289,34 @@ assert.match(
   desktopNpmrcSource,
   /^virtual-store-dir=node_modules\/\.pnpm-codex-new$/mu,
   'desktop workspace must use the dedicated local virtual store so stale external workspace links do not block reinstall on Windows',
+);
+
+const chatPcIndexCssSource = fs.readFileSync(path.join(repoRoot, 'apps/sdkwork-im-pc/src/index.css'), 'utf8');
+const chatPcViteConfigSource = fs.readFileSync(path.join(repoRoot, 'apps/sdkwork-im-pc/vite.config.ts'), 'utf8');
+assert.match(
+  chatPcIndexCssSource,
+  /@import\s+"tailwindcss"\s*;/u,
+  'desktop shell index.css must own the single Tailwind bootstrap entry',
+);
+assert.doesNotMatch(
+  chatPcViteConfigSource,
+  /find:\s*['"]tailwindcss['"]/u,
+  'desktop Vite config must not alias bare specifier tailwindcss',
+);
+assert.equal(
+  chatPcPackageJson.dependencies?.tailwindcss,
+  'catalog:',
+  'desktop app must declare tailwindcss in dependencies for shell bootstrap import closure',
+);
+assert.equal(
+  chatPcPackageJson.dependencies?.['@tailwindcss/vite'],
+  'catalog:',
+  'desktop app must declare @tailwindcss/vite in dependencies',
+);
+assert.equal(
+  chatPcPackageJson.devDependencies?.tailwindcss,
+  undefined,
+  'desktop app must not keep tailwindcss only in devDependencies',
 );
 
 const sharedDependencyNames = [
@@ -1229,7 +1267,7 @@ assert.equal(
   'sdkwork ui runtime helper must resolve the source-linked UI package from the sibling workspace',
 );
 const sdkworkUiRuntimeFiles = new Set([
-  'apps/sdkwork-im-pc/pnpm-workspace.yaml',
+  'pnpm-workspace.yaml',
   '../sdkwork-ui/sdkwork-ui-pc-react/package.json',
   '../sdkwork-ui/sdkwork-ui-pc-react/dist/index.js',
   '../sdkwork-ui/sdkwork-ui-pc-react/dist/theme.js',
@@ -1259,9 +1297,9 @@ assert.equal(
 assert.ok(
   sdkworkUiInstallCalls.some((call) => (
     call.args.join(' ').includes('install')
-      && path.resolve(call.cwd) === chatPcAppRoot
+      && path.resolve(call.cwd) === repoRoot
   )),
-  'sdkwork ui runtime helper must install missing dependency packages from the app workspace root when pnpm-workspace.yaml is present',
+  'sdkwork ui runtime helper must install missing dependency packages from the repository workspace root when pnpm-workspace.yaml is present',
 );
 const appRequire = createRequire(path.join(chatPcAppRoot, 'package.json'));
 const { createServer } = await import(pathToFileURL(appRequire.resolve('vite')).href);

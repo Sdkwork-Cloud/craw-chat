@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use audit_service::RecordAuditAnchor;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 use im_platform_contracts::{
     PROVIDER_REGISTRY_INTERFACE_VERSION, ProviderDomain, ProviderPolicyCommit, ProviderPolicyDiff,
     ProviderPolicyHistory, ProviderRegistry, RuntimeProviderRegistry,
@@ -13,8 +13,6 @@ use sdkwork_im_ccp_registry::{
     EffectiveProtocolSnapshot, KillSwitchRule, ProtocolGovernanceSnapshot, QuotaProfile,
     ReleaseChannel, RolloutPolicy, SchemaDescriptor,
 };
-use axum::http::HeaderMap;
-use axum::extract::Extension;
 
 use crate::dto::{
     BusinessPolicyVocabularyResponse, CapabilityProfileResponse, ClientCompatibilityResponse,
@@ -233,16 +231,6 @@ pub(crate) fn ensure_control_read_access(auth: &AppContext) -> Result<(), Contro
     }
 
     Err(ControlPlaneError::forbidden("control.read"))
-}
-
-pub(crate) fn resolve_request_app_context(
-    auth: Option<Extension<AppContext>>,
-    headers: &HeaderMap,
-) -> Result<AppContext, ControlPlaneError> {
-    match auth {
-        Some(Extension(auth)) => Ok(auth),
-        None => resolve_app_context(headers).map_err(ControlPlaneError::from),
-    }
 }
 
 pub(crate) fn schema_response(schema: &SchemaDescriptor) -> ProtocolSchemaResponse {

@@ -1,10 +1,14 @@
 //! Invitation API handlers.
 
 use axum::Json;
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::extract::{Extension, Path, Query, State};
+use axum::response::Response;
+use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+};
+use sdkwork_web_core::WebRequestContext;
 
 use crate::http::AppState;
 
@@ -38,41 +42,52 @@ pub struct ListQuery {
 }
 
 pub async fn create_invitation(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path(_space_id): Path<String>,
     Json(_request): Json<CreateInvitationRequest>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok((
-        StatusCode::CREATED,
-        Json(serde_json::json!({"status": "created"})),
-    ))
+) -> Response {
+    let result: ApiResult<serde_json::Value> =
+        Ok(serde_json::json!({"status": "created"}));
+    finish_api_json(&ctx, result)
 }
 
 pub async fn list_invitations(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path(_space_id): Path<String>,
     Query(_query): Query<ListQuery>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(Json(Vec::<InvitationResponse>::new()))
+) -> Response {
+    let result: ApiResult<Vec<InvitationResponse>> = Ok(Vec::new());
+    finish_api_json(&ctx, result)
 }
 
 pub async fn get_invitation(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _invite_code)): Path<(String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Err::<(), StatusCode>(StatusCode::NOT_FOUND)
+) -> Response {
+    let result: ApiResult<InvitationResponse> = Err(ApiProblem::not_found("invitation not found"));
+    finish_api_json(&ctx, result)
 }
 
 pub async fn revoke_invitation(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _invite_code)): Path<(String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+) -> Response {
+    finish_api_response(&ctx, no_content(&ctx))
 }
 
 pub async fn accept_invitation(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(_auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Path((_space_id, _invite_code)): Path<(String, String)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+) -> Response {
+    finish_api_response(&ctx, no_content(&ctx))
 }

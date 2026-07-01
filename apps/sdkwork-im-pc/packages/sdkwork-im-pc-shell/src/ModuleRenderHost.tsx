@@ -20,7 +20,13 @@ export const ModuleRenderHost: React.FC<ModuleRenderHostProps> = ({
 }) => {
   return (
     <AppErrorBoundary>
-      {isChatModule(activeTab) ? chatSurface : capabilitySurface}
+      {isChatModule(activeTab) ? (
+        chatSurface
+      ) : (
+        <div className="sdkwork-capability-embed-host flex flex-1 min-h-0 h-full w-full min-w-0 flex-col overflow-hidden">
+          {capabilitySurface}
+        </div>
+      )}
     </AppErrorBoundary>
   );
 };

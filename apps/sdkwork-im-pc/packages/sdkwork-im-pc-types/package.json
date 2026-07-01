@@ -3,5 +3,11 @@
   "version": "1.0.0",
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
-  "dependencies": {}
+  "dependencies": {
+    "@sdkwork/notary-pc-commons": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

@@ -16,7 +16,7 @@ pub(super) struct RealtimeDisconnectFence {
     principal_kind: String,
     device_id: String,
     session_id: Option<String>,
-    owner_node_id: String,
+    pub(super) owner_node_id: String,
     disconnected_at: String,
     fence_token: String,
 }
@@ -144,6 +144,7 @@ impl ClusterMemoryDisconnectFenceStore {
     /// # Returns
     ///
     /// Number of expired fences removed
+    #[allow(dead_code)]
     pub fn expire_fences_older_than(&self, cutoff_timestamp: &str) -> Result<usize, ContractError> {
         let mut fences = self.fences.lock_cluster_disconnect_fences();
         let mut expired_keys = Vec::new();
@@ -163,6 +164,7 @@ impl ClusterMemoryDisconnectFenceStore {
     }
     
     /// Get the count of stored disconnect fences.
+    #[allow(dead_code)]
     pub fn fence_count(&self) -> usize {
         self.fences.lock_cluster_disconnect_fences().len()
     }

@@ -16,7 +16,7 @@
       "tableProfile": "event_log",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_outbox_events",
@@ -25,7 +25,7 @@
       "tableProfile": "outbox_event",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_inbox_events",
@@ -34,7 +34,7 @@
       "tableProfile": "inbox_event",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_idempotency_keys",
@@ -43,7 +43,7 @@
       "tableProfile": "idempotency",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_conversation_messages",
@@ -52,7 +52,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_conversation_seq_counters",
@@ -61,7 +61,7 @@
       "tableProfile": "sequence_allocator",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_message_media_refs",
@@ -70,7 +70,7 @@
       "tableProfile": "relation_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_realtime_device_events",
@@ -79,7 +79,7 @@
       "tableProfile": "event_log",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_realtime_checkpoints",
@@ -88,7 +88,7 @@
       "tableProfile": "checkpoint",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_realtime_subscriptions",
@@ -97,7 +97,7 @@
       "tableProfile": "subscription",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_realtime_subscription_scopes",
@@ -106,7 +106,7 @@
       "tableProfile": "fanout_index",
       "systemOfRecord": false,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_presence_states",
@@ -115,7 +115,7 @@
       "tableProfile": "presence_state",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_route_bindings",
@@ -124,7 +124,7 @@
       "tableProfile": "route_state",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_realtime_disconnect_fences",
@@ -133,7 +133,7 @@
       "tableProfile": "coordination_fence",
       "systemOfRecord": true,
       "writeOwner": "session-gateway",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_rtc_sessions",
@@ -142,7 +142,7 @@
       "tableProfile": "rtc_session",
       "systemOfRecord": true,
       "writeOwner": "im-call-runtime",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_rtc_signals",
@@ -151,7 +151,7 @@
       "tableProfile": "rtc_signal_log",
       "systemOfRecord": true,
       "writeOwner": "im-call-runtime",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_rtc_outbox_events",
@@ -160,7 +160,7 @@
       "tableProfile": "outbox_event",
       "systemOfRecord": true,
       "writeOwner": "im-call-runtime",
-      "migration": "database/migrations/postgres/0009_im_rtc_lifecycle_tables.up.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_rtc_quality_reports",
@@ -169,7 +169,7 @@
       "tableProfile": "telemetry_log",
       "systemOfRecord": true,
       "writeOwner": "im-call-runtime",
-      "migration": "database/migrations/postgres/0009_im_rtc_lifecycle_tables.up.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_rtc_participant_credentials",
@@ -178,7 +178,7 @@
       "tableProfile": "credential_lifecycle",
       "systemOfRecord": true,
       "writeOwner": "im-call-runtime",
-      "migration": "database/migrations/postgres/0009_im_rtc_lifecycle_tables.up.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_audit_records",
@@ -187,7 +187,7 @@
       "tableProfile": "audit_log",
       "systemOfRecord": true,
       "writeOwner": "audit-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_notification_tasks",
@@ -196,7 +196,7 @@
       "tableProfile": "notification_task",
       "systemOfRecord": true,
       "writeOwner": "notification-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
       "notes": "IM notification tasks use im_ because the source of truth is the chat message/realtime domain. Product-wide notification tables must use their own notification prefix."
     },
     {
@@ -206,7 +206,7 @@
       "tableProfile": "automation_execution",
       "systemOfRecord": true,
       "writeOwner": "automation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql",
       "notes": "IM automation executions use im_ only when they execute against chat/realtime message flows."
     },
     {
@@ -216,7 +216,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_metadata_snapshots",
@@ -225,7 +225,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_conversation_summaries",
@@ -234,7 +234,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_conversation_members",
@@ -243,7 +243,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_read_cursors",
@@ -252,7 +252,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_registered_client_routes",
@@ -261,7 +261,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_client_route_sync_feeds",
@@ -270,7 +270,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_client_route_sync_checkpoints",
@@ -279,7 +279,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_contacts",
@@ -288,7 +288,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_projection_direct_chat_bindings",
@@ -297,7 +297,7 @@
       "tableProfile": "projection",
       "systemOfRecord": false,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_stream_sessions",
@@ -306,7 +306,7 @@
       "tableProfile": "stream_session",
       "systemOfRecord": true,
       "writeOwner": "streaming-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_stream_frames",
@@ -315,7 +315,7 @@
       "tableProfile": "stream_frame_log",
       "systemOfRecord": true,
       "writeOwner": "streaming-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_friend_requests",
@@ -324,7 +324,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_friendships",
@@ -333,7 +333,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_user_blocks",
@@ -342,7 +342,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_direct_chats",
@@ -351,7 +351,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_external_connections",
@@ -360,7 +360,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_external_member_links",
@@ -369,7 +369,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_shared_channel_policies",
@@ -378,7 +378,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_spaces",
@@ -387,7 +387,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_space_members",
@@ -396,7 +396,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_chat_groups",
@@ -405,7 +405,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_group_members",
@@ -414,7 +414,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_chat_channels",
@@ -423,7 +423,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_channel_access_rules",
@@ -432,7 +432,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_message_reactions",
@@ -441,7 +441,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_message_pins",
@@ -450,7 +450,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_threads",
@@ -459,7 +459,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_thread_subscriptions",
@@ -468,7 +468,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "comms-conversation-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_user_profiles",
@@ -477,7 +477,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_user_settings",
@@ -486,7 +486,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_conversation_settings",
@@ -495,7 +495,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "projection-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_invitations",
@@ -504,7 +504,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
       "tableName": "im_ban_records",
@@ -513,7 +513,7 @@
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
       "writeOwner": "social-service",
-      "migration": "database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     }
   ]
 }

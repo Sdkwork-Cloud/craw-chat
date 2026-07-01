@@ -51,6 +51,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_a/drain")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -68,10 +69,10 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
         .to_bytes();
     let drain_json: serde_json::Value =
         serde_json::from_slice(&drain_body).expect("drain body should be valid json");
-    assert_eq!(drain_json["nodeId"], "node_a");
-    assert_eq!(drain_json["drainStatus"], "draining");
-    assert_eq!(drain_json["rebalanceState"], "moving_routes");
-    assert_eq!(drain_json["ownedRouteCount"], 1);
+    assert_eq!(drain_json["data"]["nodeId"], "node_a");
+    assert_eq!(drain_json["data"]["drainStatus"], "draining");
+    assert_eq!(drain_json["data"]["rebalanceState"], "moving_routes");
+    assert_eq!(drain_json["data"]["ownedRouteCount"], 1);
 
     let migrate_response = app
         .oneshot(
@@ -79,6 +80,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_a/routes/migrate")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -97,11 +99,11 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
         .to_bytes();
     let migrate_json: serde_json::Value =
         serde_json::from_slice(&migrate_body).expect("migrate body should be valid json");
-    assert_eq!(migrate_json["sourceNodeId"], "node_a");
-    assert_eq!(migrate_json["targetNodeId"], "node_b");
-    assert_eq!(migrate_json["migratedRouteCount"], 1);
-    assert_eq!(migrate_json["sourceDrainStatus"], "drained");
-    assert_eq!(migrate_json["targetDrainStatus"], "active");
+    assert_eq!(migrate_json["data"]["sourceNodeId"], "node_a");
+    assert_eq!(migrate_json["data"]["targetNodeId"], "node_b");
+    assert_eq!(migrate_json["data"]["migratedRouteCount"], 1);
+    assert_eq!(migrate_json["data"]["sourceDrainStatus"], "drained");
+    assert_eq!(migrate_json["data"]["targetDrainStatus"], "active");
 
     let migrated_route = cluster
         .resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_pad")
@@ -121,6 +123,7 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_missing/drain")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -138,7 +141,7 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
         .to_bytes();
     let drain_json: serde_json::Value =
         serde_json::from_slice(&drain_body).expect("unknown-node drain body should be valid json");
-    assert_eq!(drain_json["code"], "node_not_found");
+    assert_eq!(drain_json["code"].as_i64(), Some(40401));
 
     let activate_response = app
         .oneshot(
@@ -146,6 +149,7 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_missing/activate")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -163,7 +167,7 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
         .to_bytes();
     let activate_json: serde_json::Value = serde_json::from_slice(&activate_body)
         .expect("unknown-node activate body should be valid json");
-    assert_eq!(activate_json["code"], "node_not_found");
+    assert_eq!(activate_json["code"].as_i64(), Some(40401));
 }
 
 #[tokio::test]
@@ -182,6 +186,7 @@ async fn test_control_plane_rejects_migrate_when_source_node_is_not_draining() {
                 .method("POST")
                 .uri("/backend/v3/api/control/nodes/node_a/routes/migrate")
                 .with_dual_token_tenant("100001")
+                .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_permission_scope("control.write")
@@ -200,7 +205,7 @@ async fn test_control_plane_rejects_migrate_when_source_node_is_not_draining() {
         .to_bytes();
     let migrate_json: serde_json::Value =
         serde_json::from_slice(&migrate_body).expect("migrate body should be valid json");
-    assert_eq!(migrate_json["code"], "node_not_draining");
+    assert_eq!(migrate_json["code"].as_i64(), Some(40901));
 
     let source = cluster
         .node_lifecycle("node_a")

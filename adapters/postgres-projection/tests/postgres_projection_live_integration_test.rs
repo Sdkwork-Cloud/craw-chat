@@ -5,10 +5,7 @@ use sdkwork_im_contract_message::TimelineProjectionRecord;
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
 const CORE_SCHEMA_SQL: &str = include_str!(
-    "../../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
-);
-const METADATA_SNAPSHOTS_MIGRATION_SQL: &str = include_str!(
-    "../../../database/migrations/postgres/0002_im_projection_metadata_snapshots.up.sql"
+    "../../../database/ddl/baseline/postgres/0001_im_baseline.sql"
 );
 
 #[test]
@@ -110,9 +107,6 @@ fn apply_schema(database_url: &str) {
     client
         .batch_execute(CORE_SCHEMA_SQL)
         .expect("core schema should apply");
-    client
-        .batch_execute(METADATA_SNAPSHOTS_MIGRATION_SQL)
-        .expect("metadata snapshots migration should apply");
 }
 
 fn unique_suffix() -> String {

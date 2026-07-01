@@ -31,7 +31,7 @@ const devCommandSource = read('scripts/lib/im-pc-dev.mjs');
 const localAppApiSource = read('scripts/dev/start-sdkwork-im-local-app-api.mjs');
 const sharedDatabaseSource = read('scripts/dev/sdkwork-im-shared-database.mjs');
 const releaseSources = readJson('config/shared-sdk-release-sources.json');
-const workspaceSource = read('apps/sdkwork-im-pc/pnpm-workspace.yaml');
+const workspaceSource = read('pnpm-workspace.yaml');
 
 assert.match(
   specsReadme,

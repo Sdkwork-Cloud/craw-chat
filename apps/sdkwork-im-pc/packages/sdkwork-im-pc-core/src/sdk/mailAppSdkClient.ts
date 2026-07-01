@@ -1,8 +1,8 @@
 import {
-  createMailAppSdkClient,
-  type MailAppSdkClient,
+  createClient as createMailAppSdkClient,
+  type SdkworkAppClient,
   type SdkworkAppConfig,
-} from '@sdkwork/mail-app-sdk';
+} from 'sdkwork-mail-app-sdk-generated-typescript';
 import type { Interceptors } from '@sdkwork/sdk-common';
 import { resolveAppSdkBaseUrl } from './appSdkClient';
 import {
@@ -14,7 +14,8 @@ import {
   type SdkworkChatSession,
 } from './session';
 
-export type { MailAppSdkClient };
+export type MailAppSdkClient = SdkworkAppClient;
+export type { SdkworkAppConfig };
 export type MailAppSdkClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;
 };

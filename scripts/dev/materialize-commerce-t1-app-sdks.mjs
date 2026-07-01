@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Materialize per-T1 commerce app SDK families from the retired monolith OpenAPI snapshot.
- * Owner repos: sdkwork-catalog, sdkwork-shop, sdkwork-order.
+ * Owner repos: sdkwork-catalog, sdkwork-shop, sdkwork-order, sdkwork-membership.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -13,6 +13,16 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const imRepoRoot = path.resolve(scriptDir, '..', '..');
 const workspaceRoot = path.resolve(imRepoRoot, '..');
 const GENERATOR_BIN = path.resolve(workspaceRoot, 'sdkwork-sdk-generator', 'bin', 'sdkgen.js');
+const COMMERCE_MONOLITH_OPENAPI = path.join(
+  workspaceRoot,
+  'sdkwork-mall',
+  'sdks',
+  'sdkwork-commerce-app-sdk',
+  'sdkwork-commerce-app-sdk-typescript',
+  'generated',
+  'server-openapi',
+  'source-openapi.json',
+);
 
 const T1_APP_SDK_FAMILIES = [
   {
@@ -54,6 +64,19 @@ const T1_APP_SDK_FAMILIES = [
     ],
     sourceOpenapiRelative: 'apis/app-api/order/order-app-api.openapi.json',
   },
+  {
+    repoId: 'sdkwork-membership',
+    familyName: 'sdkwork-membership-app-sdk',
+    authorityName: 'sdkwork-membership-app-api',
+    packageName: '@sdkwork/membership-app-sdk',
+    displayTitle: 'SDKWork Membership App API',
+    apiPrefix: '/app/v3/api',
+    defaultBaseUrl: 'http://127.0.0.1:18079',
+    pathPrefixes: ['/app/v3/api/memberships'],
+    sourceOpenapiRelative: 'apis/app-api/membership/membership-app-api.openapi.json',
+    sliceFromMonolith: true,
+    skipSdkgen: true,
+  },
 ];
 
 function fail(message) {
@@ -71,12 +94,96 @@ function writeJson(filePath, value) {
 }
 
 
-function readOwnerOpenapi(repoRoot, relativePath) {
-  const filePath = path.join(repoRoot, relativePath);
-  if (!existsSync(filePath)) {
-    fail(`missing owner OpenAPI authority: ${filePath}`);
+function readOwnerOpenapi(repoRoot, family) {
+  const filePath = path.join(repoRoot, family.sourceOpenapiRelative);
+  if (existsSync(filePath)) {
+    return readJson(filePath);
   }
-  return readJson(filePath);
+  if (family.sliceFromMonolith) {
+    return sliceOpenapiFromMonolith(family);
+  }
+  fail(`missing owner OpenAPI authority: ${filePath}`);
+}
+
+function collectSchemaRefs(value, refs = new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectSchemaRefs(item, refs);
+    }
+    return refs;
+  }
+  if (value && typeof value === 'object') {
+    if (typeof value.$ref === 'string' && value.$ref.startsWith('#/components/schemas/')) {
+      refs.add(value.$ref.replace('#/components/schemas/', ''));
+    }
+    for (const nested of Object.values(value)) {
+      collectSchemaRefs(nested, refs);
+    }
+  }
+  return refs;
+}
+
+function sliceOpenapiFromMonolith(family) {
+  if (!existsSync(COMMERCE_MONOLITH_OPENAPI)) {
+    fail(`missing commerce monolith OpenAPI snapshot: ${COMMERCE_MONOLITH_OPENAPI}`);
+  }
+  const monolith = readJson(COMMERCE_MONOLITH_OPENAPI);
+  const paths = {};
+  for (const [routePath, pathItem] of Object.entries(monolith.paths ?? {})) {
+    if (family.pathPrefixes.some((prefix) => routePath === prefix || routePath.startsWith(`${prefix}/`))) {
+      paths[routePath] = pathItem;
+    }
+  }
+  if (Object.keys(paths).length === 0) {
+    fail(`no paths matched for ${family.familyName}`);
+  }
+
+  const schemaNames = new Set(['ProblemDetail']);
+  for (const pathItem of Object.values(paths)) {
+    collectSchemaRefs(pathItem, schemaNames);
+  }
+
+  let pending = [...schemaNames];
+  const schemas = {};
+  while (pending.length > 0) {
+    const schemaName = pending.pop();
+    if (schemas[schemaName] || !monolith.components?.schemas?.[schemaName]) {
+      continue;
+    }
+    schemas[schemaName] = monolith.components.schemas[schemaName];
+    const nested = new Set();
+    collectSchemaRefs(schemas[schemaName], nested);
+    for (const name of nested) {
+      if (!schemas[name]) {
+        pending.push(name);
+      }
+    }
+  }
+
+  return {
+    openapi: monolith.openapi ?? '3.1.2',
+    info: {
+      title: family.displayTitle,
+      version: '1.0.0',
+      description: `App/client contract for ${family.repoId} capability (split from retired sdkwork-commerce monolith).`,
+      'x-sdkwork-api-authority': family.authorityName,
+      'x-sdkwork-sdk-family': family.familyName,
+      'x-sdkwork-audience': 'App, desktop, mobile, H5, and user-facing clients.',
+      'x-sdkwork-owner': family.repoId,
+    },
+    servers: [
+      {
+        url: family.defaultBaseUrl,
+        description: `Local ${family.repoId} via IM gateway`,
+      },
+    ],
+    tags: (monolith.tags ?? []).filter((tag) => tag.name === 'memberships'),
+    paths,
+    components: {
+      schemas,
+      securitySchemes: monolith.components?.securitySchemes ?? {},
+    },
+  };
 }
 
 function writeAssemblyFiles(repoRoot, family, openapi, operationCount) {
@@ -224,13 +331,13 @@ function main() {
     if (!existsSync(repoRoot)) {
       fail(`missing T1 repo: ${repoRoot}`);
     }
-    const openapi = readOwnerOpenapi(repoRoot, family.sourceOpenapiRelative);
+    const openapi = readOwnerOpenapi(repoRoot, family);
     const operationCount = countOperations(openapi);
     const { familyRoot, sdkgenPath } = writeAssemblyFiles(repoRoot, family, openapi, operationCount);
     process.stdout.write(
       `[materialize-commerce-t1-app-sdks] ${family.familyName}: ${operationCount} operations\n`,
     );
-    if (!checkOnly) {
+    if (!checkOnly && !family.skipSdkgen) {
       runSdkgen(family, familyRoot, sdkgenPath);
       patchGeneratedPackageJson(familyRoot, family);
     }

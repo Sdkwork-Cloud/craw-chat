@@ -14,6 +14,10 @@
 @source "../../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-search/src";
 @source "../../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons/src";
 @source "../../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-core/src";
+@source "../../../../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-notary/src";
+@source "../../../../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-commons/src";
+@source "../../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src";
+@source "../../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-commons/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -582,6 +586,60 @@ html.light-mode .custom-scrollbar::-webkit-scrollbar-thumb {
 html.light-mode .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.25);
 }
+
+/* Embedded capability modules (drive, knowledgebase, notary, course, …) keep their own surfaces. */
+html.light-mode .sdkwork-capability-embed-host {
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-gray-950: #030712;
+  --color-app-bg: #1e1e1e;
+  --color-panel-bg: #2b2b2d;
+  --color-hover-dark: #343438;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+}
+
+html.light-mode .sdkwork-capability-embed-host .text-white { color: #ffffff !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/10 { color: rgba(255, 255, 255, 0.1) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/20 { color: rgba(255, 255, 255, 0.2) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/30 { color: rgba(255, 255, 255, 0.3) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/50 { color: rgba(255, 255, 255, 0.5) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/70 { color: rgba(255, 255, 255, 0.7) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/80 { color: rgba(255, 255, 255, 0.8) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-white\/90 { color: rgba(255, 255, 255, 0.9) !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-50 { color: #f9fafb !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-100 { color: #f3f4f6 !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-200 { color: #e5e7eb !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-300 { color: #d1d5db !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-400 { color: #9ca3af !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-500 { color: #6b7280 !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-600 { color: #4b5563 !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-700 { color: #374151 !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-800 { color: #1f2937 !important; }
+html.light-mode .sdkwork-capability-embed-host .text-gray-900 { color: #111827 !important; }
+
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#1e1e1e\] { background-color: #1e1e1e !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#1e1e20\] { background-color: #1e1e20 !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#09090b\] { background-color: #09090b !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#111\] { background-color: #111111 !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#0a0a0a\] { background-color: #0a0a0a !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#181818\] { background-color: #181818 !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#2b2b2d\] { background-color: #2b2b2d !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#242424\] { background-color: #242424 !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#2a2a2a\] { background-color: #2a2a2a !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-\[\#f5f5f5\] { background-color: #f5f5f5 !important; }
+
+html.light-mode .sdkwork-capability-embed-host .border-white\/5 { border-color: rgba(255, 255, 255, 0.05) !important; }
+html.light-mode .sdkwork-capability-embed-host .border-white\/10 { border-color: rgba(255, 255, 255, 0.1) !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-white\/5 { background-color: rgba(255, 255, 255, 0.05) !important; }
+html.light-mode .sdkwork-capability-embed-host .bg-white\/10 { background-color: rgba(255, 255, 255, 0.1) !important; }
 
 @keyframes scan {
   0% { transform: translateY(-100%); }

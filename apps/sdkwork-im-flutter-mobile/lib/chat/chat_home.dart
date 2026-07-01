@@ -41,6 +41,8 @@ class _ChatHomeState extends State<ChatHome> {
       imClients: _clientBundle,
       realtimeService: _realtimeService,
       userId: widget.session.userId,
+      applicationPublicHttpUrl: getSdkClients().applicationPublicHttpUrl,
+      session: widget.session,
     );
   }
 }
