@@ -15,7 +15,7 @@ import { ConsoleSecurity, ConsoleAnalytics } from '@sdkwork/im-console-security'
 import { ConsoleSettings } from '@sdkwork/im-console-settings';
 import { ConsoleStores } from '@sdkwork/im-console-shop';
 import { ConsoleProducts } from '@sdkwork/im-console-product';
-import { ConsoleCourse } from './ConsoleCourse';
+import { ConsoleCourse } from '@sdkwork/course-pc-console';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import './i18n';
 

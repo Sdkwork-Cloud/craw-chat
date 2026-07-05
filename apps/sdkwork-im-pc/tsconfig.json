@@ -114,6 +114,9 @@
       "@sdkwork/course-pc-course": [
         "../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/index.ts"
       ],
+      "@sdkwork/course-pc-console": [
+        "../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console/src/index.ts"
+      ],
       "@packages/*": [
         "../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/*"
       ],

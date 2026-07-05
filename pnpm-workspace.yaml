@@ -85,6 +85,7 @@ packages:
   - "../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript"
   - "../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi"
   - "../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course"
+  - "../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console"
   - "../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-commons"
   - "../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-core"
   - "../sdkwork-notary/apps/sdkwork-notary-pc/packages/sdkwork-notary-pc-notary"
