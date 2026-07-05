@@ -53,8 +53,8 @@ const generatedOrderAppSdkEntry = path.resolve(
   'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedMembershipAppSdkEntry = path.resolve(
-  __dirname,
-  'packages/sdkwork-im-pc-membership-transport/src/index.ts',
+  dependencyRoot('sdkwork-membership'),
+  'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts',
 );
 
 const generatedMailAppSdkTransportEntry = path.resolve(

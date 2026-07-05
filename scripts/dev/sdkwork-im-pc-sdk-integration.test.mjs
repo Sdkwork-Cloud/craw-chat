@@ -651,7 +651,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(appSdkClientSource, /\bfetch\s*\(/u, 'app SDK wrapper must not use raw fetch');
 
-const driveAppSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/driveAppSdkClient.ts');
+const driveAppSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/drivePcIntegration.ts');
 assert.match(
   driveAppSdkClientSource,
   /from ['"]@sdkwork\/drive-app-sdk['"]/u,
