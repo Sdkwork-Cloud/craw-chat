@@ -24,7 +24,7 @@ function readCourseText(...segments) {
   return fs.readFileSync(path.join(courseRepoRoot, ...segments), 'utf8');
 }
 
-const packageJson = readJson('package.json');
+const packageJson = readJson('packages', 'sdkwork-im-pc-core', 'package.json');
 const tsconfig = readJson('tsconfig.json');
 const viteConfigSource = readText('vite.config.ts');
 const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
@@ -85,7 +85,7 @@ const appAuthRuntimeSource = readText(
 assert.equal(
   packageJson.dependencies?.['@sdkwork/course-backend-sdk'],
   'workspace:*',
-  'Chat PC must consume sdkwork-course through the workspace backend SDK package.',
+  'Chat PC core must consume sdkwork-course through the workspace backend SDK package.',
 );
 
 assert.match(
