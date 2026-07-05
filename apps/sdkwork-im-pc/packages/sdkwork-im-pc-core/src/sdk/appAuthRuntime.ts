@@ -17,21 +17,16 @@ import { resetAppSdkClient, getAppSdkClient, resolveAppSdkBaseUrl } from './appS
 import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClient';
 import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
 import {
-  getCatalogAppSdkClient,
-  resetCatalogAppSdkClient,
-} from './catalogAppSdkClient';
+  getImHostedCatalogAppSdkClient,
+  getImHostedOrderAppSdkClient,
+  getImHostedShopAppSdkClient,
+  resetCommercePcIntegration,
+  syncImSessionToCommercePc,
+} from './commercePcIntegration';
 import {
   getMembershipAppSdkClient,
   resetMembershipAppSdkClient,
 } from './membershipAppSdkClient';
-import {
-  getOrderAppSdkClient,
-  resetOrderAppSdkClient,
-} from './orderAppSdkClient';
-import {
-  getShopAppSdkClient,
-  resetShopAppSdkClient,
-} from './shopAppSdkClient';
 import {
   getCommunityAppSdkClient,
   resetCommunityAppSdkClient,
@@ -129,10 +124,8 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAiotPcIntegration();
   resetAppSdkClient();
   resetAgentAppSdkClient();
-  resetCatalogAppSdkClient();
+  resetCommercePcIntegration();
   resetMembershipAppSdkClient();
-  resetOrderAppSdkClient();
-  resetShopAppSdkClient();
   resetCommunityAppSdkClient();
   resetCourseAppSdkClient();
   resetCourseBackendSdkClient();
@@ -160,9 +153,9 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getImHostedAiotAppSdkClient(),
     getAppSdkClient(),
     getAgentAppSdkClient(),
-    getCatalogAppSdkClient(),
-    getOrderAppSdkClient(),
-    getShopAppSdkClient(),
+    getImHostedCatalogAppSdkClient(),
+    getImHostedOrderAppSdkClient(),
+    getImHostedShopAppSdkClient(),
     getCommunityAppSdkClient(),
     getCourseAppSdkClient(),
     getDriveAppSdkClient(),
@@ -195,6 +188,7 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         void rebootstrapVoicePcRuntimeForIm();
         void rebootstrapCoursePcRuntimeForIm();
         syncImSessionToMailPc();
+        syncImSessionToCommercePc();
         syncImSessionToAiotPc();
       },
     },

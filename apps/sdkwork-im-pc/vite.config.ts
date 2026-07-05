@@ -115,6 +115,10 @@ const communityCommonPackageRoot = path.resolve(
   dependencyRoot('sdkwork-community'),
   'apps/sdkwork-community-common/packages',
 );
+const shopPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-shop'),
+  'apps/sdkwork-shop-pc/packages',
+);
 const mailPcPackageRoot = path.resolve(
   dependencyRoot('sdkwork-mail'),
   'apps/sdkwork-mail-pc/packages',
@@ -340,6 +344,9 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/sdkwork-knowledgebase-pc-commons/reactKeyedProps', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-commons/src/reactKeyedProps.ts') },
         { find: '@sdkwork/sdkwork-knowledgebase-pc-commons/htmlSanitizer', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-commons/src/htmlSanitizer.ts') },
         { find: '@sdkwork/sdkwork-knowledgebase-pc-commons', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-commons/src/index.ts') },
+        { find: '@sdkwork/shop-pc-core', replacement: path.resolve(shopPcPackageRoot, 'sdkwork-shop-pc-core/src/index.ts') },
+        { find: '@sdkwork/shop-pc-consumer', replacement: path.resolve(shopPcPackageRoot, 'sdkwork-shop-pc-consumer/src/index.ts') },
+        { find: '@sdkwork/shop-pc-orders', replacement: path.resolve(shopPcPackageRoot, 'sdkwork-shop-pc-orders/src/index.ts') },
         { find: '@sdkwork/mail-pc-core', replacement: path.resolve(mailPcPackageRoot, 'sdkwork-mail-pc-core/src/index.ts') },
         { find: '@sdkwork/mail-pc-mail', replacement: path.resolve(mailPcPackageRoot, 'sdkwork-mail-pc-mail/src/index.ts') },
         { find: '@sdkwork/aiot-app-core', replacement: path.resolve(aiotAppCoreSourceRoot, 'index.ts') },
