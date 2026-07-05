@@ -5,6 +5,7 @@
 本报告记录 sdkwork-im 技术债务清理与性能优化工作。**2026-07 对齐周期**已完成：Social realtime fanout、RTC outbox relay（多租户 scope 发现）、Space conversation binder、Typing indicators、群组成员 API（`im_group_members` + conversation 同步）等 P1 闭环项。
 
 **关键成果（历史 + 本轮 2026-07-05 安全/一致性对齐）：**
+- ✅ PC 集成适配层：mail / shop / orders / devices / community / course 消费者路径已迁 sibling PC 包；IM 仅保留 session bridge（详见 [`INTEGRATION-ADAPTER-REGISTER.md`](./INTEGRATION-ADAPTER-REGISTER.md)）
 - ✅ P0 社交 org 隔离：accept/decline/cancel/remove 校验 commit `organizationId` 与 auth 一致
 - ✅ P0 社交 realtime：好友 accept/decline/cancel 双方通知；outcome payload 携带 requester/target
 - ✅ P0 社交限流：production-like 环境无 Postgres supplemental store 时 fail-closed

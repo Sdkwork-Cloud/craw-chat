@@ -35,7 +35,7 @@ Authority: `sdkwork-specs/PAGINATION_SPEC.md` v1.1.
 | PAG-015 | PC `ChatService.doCatchUpConversationMessages` — bounded to `MAX_CATCH_UP_MESSAGE_PAGES` (50 pages × default `pageSize` 20) |
 | PAG-016 | H5 `fetchAllChatInboxEntries` removed; inbox uses `fetchChatInboxPage` only |
 | PAG-017 | PC/H5 default `pageSize` aligned to `SDKWORK_DEFAULT_PAGE_SIZE` (20) across chat/contact/group/favorite services |
-| PAG-018 | PC mail/shop/devices services — replaced `collectCursorPages` interactive loads with `list*Page` + UI load-more |
+| PAG-018 | PC mail/shop/devices/orders — migrated to sibling PC packages (`sdkwork-mail-pc`, `sdkwork-shop-pc`, `sdkwork-aiot-pc`); IM packages are thin adapters only |
 | PAG-019 | Console `RoleService` — `forEachCursorPage` bounded sync instead of `collectCursorPages` |
 | PAG-020 | Social `postgres/user_search.rs` — per-result `find_by_pair` / `find_active_block` instead of 500-row friendship/block scans |
 
@@ -46,7 +46,7 @@ Authority: `sdkwork-specs/PAGINATION_SPEC.md` v1.1.
 | Inbox export helpers (`projection-service/src/inbox.rs`) | Bounded multi-page export (`INBOX_EXPORT_MAX_ITEMS = 10_000`), not interactive UI |
 | Maintenance sweeps (`session-gateway/presence.rs`, `im-calls-service` expiration) | Batch jobs with early `take`; not interactive list APIs |
 | Contact tag memory fallback (`contact_open_api_backend.rs`) | Dev/test memory path only; production uses Postgres `list_tags_by_owner` SQL pagination |
-| Organization directory bulk sync | Bounded `forEachCursorPage` startup hydration; interactive UI should migrate to explicit page APIs over time |
+| Organization directory bulk sync | Bounded `forEachCursorPage` startup hydration with `mapAppSdkCursorPage` + `unwrapSdkWorkApiEnvelope`; interactive UI should migrate to explicit page APIs over time |
 
 Rust HTTP query deserializers accept `limit` as an alias for `pageSize` until external integrators migrate. OpenAPI authority and generated IM SDK expose **`pageSize` only**.
 

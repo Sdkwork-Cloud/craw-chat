@@ -29,13 +29,18 @@ import {
 } from './membershipAppSdkClient';
 import {
   getCommunityAppSdkClient,
-  resetCommunityAppSdkClient,
-} from './communityAppSdkClient';
-import { getCourseAppSdkClient, resetCourseAppSdkClient } from './courseAppSdkClient';
+  resetCommunityPcIntegration,
+  syncImSessionToCommunityPc,
+} from './communityPcIntegration';
+import {
+  getCourseAppSdkClient,
+  rebootstrapCoursePcRuntimeForIm,
+  resetCoursePcIntegration,
+  syncImSessionToCoursePc,
+} from './coursePcIntegration';
 import { resetCourseBackendSdkClient } from './courseBackendSdkClient';
 import { resetDriveAppSdkClient, getDriveAppSdkClient } from './driveAppSdkClient';
 import { rebootstrapDrivePcRuntimeForIm, resetDrivePcRuntime } from './drivePcIntegration';
-import { rebootstrapCoursePcRuntimeForIm, resetCoursePcRuntime } from './coursePcIntegration';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
 import { getKnowledgebaseAppSdkClient, resetKnowledgebaseAppSdkClient } from './knowledgebaseAppSdkClient';
 import { rebootstrapKnowledgebasePcRuntimeForIm, resetKnowledgebasePcRuntime } from './knowledgebasePcIntegration';
@@ -126,8 +131,8 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAgentAppSdkClient();
   resetCommercePcIntegration();
   resetMembershipAppSdkClient();
-  resetCommunityAppSdkClient();
-  resetCourseAppSdkClient();
+  resetCommunityPcIntegration();
+  resetCoursePcIntegration();
   resetCourseBackendSdkClient();
   resetDriveAppSdkClient();
   resetImSdkClient();
@@ -140,7 +145,6 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetDrivePcRuntime();
   resetKnowledgebasePcRuntime();
   resetVoicePcRuntime();
-  resetCoursePcRuntime();
 }
 
 export function clearSdkworkChatIamRuntimeSession(): void {
@@ -190,6 +194,8 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         syncImSessionToMailPc();
         syncImSessionToCommercePc();
         syncImSessionToAiotPc();
+        syncImSessionToCommunityPc();
+        syncImSessionToCoursePc();
       },
     },
     sdkClients: getAuthenticatedSdkClients(),

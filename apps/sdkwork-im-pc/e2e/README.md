@@ -12,7 +12,7 @@ Commercial readiness runs four Playwright specs against the production build:
 
 Fixtures live under `e2e/fixtures/`:
 
-- `auth.ts` — JWT-shaped IAM session + `AppbaseApiResult` envelope
+- `auth.ts` — JWT-shaped IAM session + SdkWorkApiResponse envelope (`code: 0`, `data`, `traceId`)
 - `setup-authenticated-page.ts` — session seeding and IAM/IM route mocks
 - `im-api.ts` — inbox, timeline, contacts, and post-message mocks
 

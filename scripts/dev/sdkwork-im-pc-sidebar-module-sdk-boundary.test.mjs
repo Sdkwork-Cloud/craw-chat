@@ -1,24 +1,66 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
+const workspaceRoot = path.resolve(repoRoot, '..');
 
 function read(relativePath) {
   return readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
-const mailServiceSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-mail/src/services/MailService.ts',
+function readSibling(...segments) {
+  return readFileSync(path.join(workspaceRoot, ...segments), 'utf8');
+}
+
+function assertImAdapterOnly(relativePath, label) {
+  assert.ok(
+    !fs.existsSync(path.join(repoRoot, relativePath)),
+    `${label} must not keep duplicate IM-local service implementation at ${relativePath}`,
+  );
+}
+
+assertImAdapterOnly('apps/sdkwork-im-pc/packages/sdkwork-im-pc-mail/src/services/MailService.ts', 'Mail');
+assertImAdapterOnly('apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/src/services/OrdersService.ts', 'Orders');
+assertImAdapterOnly('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/services/ShopService.ts', 'Shop');
+
+const mailAppServicesSource = readSibling(
+  'sdkwork-mail',
+  'apps',
+  'sdkwork-mail-pc',
+  'packages',
+  'sdkwork-mail-pc-mail',
+  'src',
+  'services',
+  'mailAppServices.ts',
 );
-const ordersServiceSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/src/services/OrdersService.ts',
+const ordersServiceSource = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-orders',
+  'src',
+  'services',
+  'OrdersService.ts',
 );
-const shopServiceSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/services/ShopService.ts',
+const shopServiceSource = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-consumer',
+  'src',
+  'services',
+  'ShopService.ts',
 );
+const imMailAdapterSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-mail/src/bootstrapImMailPcHost.ts');
+const imShopAdapterSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/index.tsx');
+const imOrdersAdapterSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/src/index.tsx');
+const imDevicesAdapterSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/DevicesView.tsx');
 const communityServiceSource = read(
   '../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/services/CommunityService.ts',
 );
@@ -37,8 +79,15 @@ const communityViewSource = read(
 const communitySettingsSource = read(
   '../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunitySettings.tsx',
 );
-const shopHomeSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/ShopHome.tsx',
+const shopHomeSource = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-consumer',
+  'src',
+  'components',
+  'ShopHome.tsx',
 );
 const videoPlayerViewSource = read(
   '../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/VideoPlayerView.tsx',
@@ -46,11 +95,25 @@ const videoPlayerViewSource = read(
 const liveRoomViewSource = read(
   '../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/LiveRoomView.tsx',
 );
-const checkoutViewSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CheckoutView.tsx',
+const checkoutViewSource = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-consumer',
+  'src',
+  'components',
+  'CheckoutView.tsx',
 );
-const cashierViewSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CashierView.tsx',
+const cashierViewSource = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-consumer',
+  'src',
+  'components',
+  'CashierView.tsx',
 );
 const videoGenServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-video-gen/src/services/VideoGenService.ts',
@@ -87,9 +150,9 @@ const forbiddenMockPattern =
   /mock|MockMailService|MockOrdersService|MockShopService|MockCommunityService|setTimeout|new Promise\s*\(|\bunsplash\b|\bpravatar\b|Date\.now\s*\(\s*\)|Math\.random\s*\(|\bfetch\s*\(|\b(Authorization|Access-Token|X-API-Key)\b/u;
 
 for (const [label, source] of [
-  ['pc mail service', mailServiceSource],
-  ['pc orders service', ordersServiceSource],
-  ['pc shop service', shopServiceSource],
+  ['canonical mail app services', mailAppServicesSource],
+  ['canonical orders service', ordersServiceSource],
+  ['canonical shop service', shopServiceSource],
   ['pc community service', communityServiceSource],
   ['pc calendar service', calendarServiceSource],
   ['pc course service', courseServiceSource],
@@ -106,44 +169,69 @@ for (const [label, source] of [
 }
 
 assert.match(
-  mailServiceSource,
-  /getMailAppSdkClientWithSession/u,
-  'pc mail service must consume the generated mail app SDK wrapper.',
+  mailAppServicesSource,
+  /mail\.messages\.list/u,
+  'canonical mail app services must consume the generated mail app SDK.',
+);
+assert.match(
+  imMailAdapterSource,
+  /createImHostedMailAppServices|createMailAppServices/u,
+  'im pc mail adapter must delegate service wiring to mail-pc-mail.',
+);
+assert.doesNotMatch(
+  imMailAdapterSource,
+  /class\s+MailService|MailService\.ts/u,
+  'im pc mail adapter must not reintroduce IM-local mail service logic.',
+);
+assert.match(
+  imShopAdapterSource,
+  /@sdkwork\/shop-pc-consumer/u,
+  'im pc shop adapter must re-export canonical shop PC consumer surfaces.',
+);
+assert.match(
+  imOrdersAdapterSource,
+  /@sdkwork\/shop-pc-orders/u,
+  'im pc orders adapter must re-export canonical shop PC orders surfaces.',
+);
+assert.match(
+  imDevicesAdapterSource,
+  /SdkworkDevicePage/u,
+  'im pc devices adapter must embed canonical AIoT device page only.',
 );
 assert.match(
   ordersServiceSource,
   /getOrderAppSdkClientWithSession/u,
-  'pc orders service must consume the generated order app SDK wrapper.',
+  'canonical orders service must consume the generated order app SDK wrapper.',
 );
 assert.match(
   ordersServiceSource,
   /orders\.cancel\(|orders\.pay\(|fulfillments\.create/u,
-  'pc orders write mutations must route cancel, pay, and fulfillment through generated order/shop app SDKs.',
+  'canonical orders write mutations must route cancel, pay, and fulfillment through generated order/shop app SDKs.',
 );
 assert.match(
   ordersServiceSource,
   /COMMERCE_COMMAND/u,
-  'pc orders write mutations must pass commerce command payloads through the SDK.',
+  'canonical orders write mutations must pass commerce command payloads through the SDK.',
 );
 assert.match(
   shopServiceSource,
   /getCatalogAppSdkClientWithSession[\s\S]*getOrderAppSdkClientWithSession/u,
-  'pc shop service must consume the generated catalog and order app SDK wrappers.',
+  'canonical shop service must consume the generated catalog and order app SDK wrappers.',
 );
 assert.match(
   shopServiceSource,
   /pc shop favorites contract is not available/u,
-  'pc shop favorites must fail closed until the commerce favorites contract exists.',
+  'canonical shop favorites must fail closed until the commerce favorites contract exists.',
 );
 assert.match(
   shopServiceSource,
   /pc shop shipping address contract is not available/u,
-  'pc shop shipping address mutations must fail closed until the commerce address contract exists.',
+  'canonical shop shipping address mutations must fail closed until the commerce address contract exists.',
 );
 assert.match(
   shopServiceSource,
   /pc shop payment contract is not available/u,
-  'pc shop payment mutations must fail closed until the commerce payment contract exists.',
+  'canonical shop payment mutations must fail closed until the commerce payment contract exists.',
 );
 assert.match(
   communityServiceSource,
@@ -203,7 +291,7 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   shopHomeSource,
   /unsplash/u,
-  'pc shop home must not keep demo banner media.',
+  'pc shop, shop home must not keep demo banner media.',
 );
 assert.doesNotMatch(
   `${videoPlayerViewSource}${liveRoomViewSource}`,
@@ -213,17 +301,17 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   checkoutViewSource,
   /MOCK_ADDRESSES|138 \*\*\*\* 0000/u,
-  'pc shop checkout must not keep mock shipping addresses or demo account labels.',
+  'pc canonical shop checkout must not keep mock shipping addresses or demo account labels.',
 );
 assert.doesNotMatch(
   cashierViewSource,
   /Math\.random|setTimeout/u,
-  'pc shop cashier must not simulate payment status with timers or random qr codes.',
+  'pc canonical shop cashier must not simulate payment status with timers or random qr codes.',
 );
 assert.match(
   `${cashierViewSource}${shopServiceSource}`,
   /pc shop payment contract is not available|PC_SHOP_PAYMENT_CONTRACT_UNAVAILABLE/u,
-  'pc shop cashier must fail closed until the commerce payment contract exists.',
+  'pc canonical shop cashier must fail closed until the commerce payment contract exists.',
 );
 assert.match(videoGenServiceSource, /pc videogen contract is not available/u, 'pc videogen mutations must fail closed until the videogen SDK contract exists.');
 assert.match(imageGenServiceSource, /pc imagegen contract is not available/u, 'pc imagegen mutations must fail closed until the imagegen SDK contract exists.');

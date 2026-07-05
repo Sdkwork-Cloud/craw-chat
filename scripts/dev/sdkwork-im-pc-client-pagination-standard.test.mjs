@@ -7,9 +7,21 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pcRoot = path.join(repoRoot, 'apps', 'sdkwork-im-pc');
+const workspaceRoot = path.resolve(repoRoot, '..');
 
 function readPc(...segments) {
   return fs.readFileSync(path.join(pcRoot, ...segments), 'utf8');
+}
+
+function readSibling(...segments) {
+  return fs.readFileSync(path.join(workspaceRoot, ...segments), 'utf8');
+}
+
+function assertImAdapterOnly(relativePath, label) {
+  assert.ok(
+    !fs.existsSync(path.join(pcRoot, relativePath)),
+    `${label} must not keep duplicate IM-local implementation at ${relativePath}`,
+  );
 }
 
 const helpers = readPc('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appSdkResponseHelpers.ts');
@@ -23,7 +35,7 @@ assert.match(helpers, /SDKWORK_MAX_PAGE_SIZE = 200/u);
 const chatService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'ChatService.ts');
 assert.match(chatService, /listChatsPage/u);
 assert.match(chatService, /forEachCursorPage/u);
-assert.match(chatService, /MAX_INBOX_CONVERSATIONS = 500/u);
+assert.match(chatService, /MAX_INBOX_CONVERSATIONS = SDKWORK_MAX_PAGE_SIZE/u);
 assert.doesNotMatch(chatService, /listAllInboxEntries/u);
 assert.doesNotMatch(chatService, /collectCursorPages/u);
 
@@ -34,14 +46,6 @@ assert.match(chatLayout, /groupService\.getGroupById/u);
 
 const groupsContainer = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'contacts', 'GroupsContainer.tsx');
 assert.match(groupsContainer, /groupService\.listGroupsPage/u);
-
-const shopService = readPc('packages', 'sdkwork-im-pc-shop', 'src', 'services', 'ShopService.ts');
-assert.match(shopService, /collectCursorPages/u);
-assert.match(shopService, /initiatePayment[\s\S]*orders\.pay/u);
-
-const ordersService = readPc('packages', 'sdkwork-im-pc-orders', 'src', 'services', 'OrdersService.ts');
-assert.match(ordersService, /listOrdersPage/u);
-assert.doesNotMatch(ordersService, /collectCursorPages/u);
 
 const contactService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'ContactService.ts');
 assert.match(contactService, /forEachCursorPage/u);
@@ -62,32 +66,72 @@ const organizationDirectoryService = readPc(
   'services',
   'OrganizationDirectoryService.ts',
 );
-assert.match(organizationDirectoryService, /collectCursorPages/u);
+assert.match(organizationDirectoryService, /forEachCursorPage/u);
 assert.match(organizationDirectoryService, /SDKWORK_MAX_PAGE_SIZE/u);
+assert.doesNotMatch(organizationDirectoryService, /collectCursorPages/u);
 
 const roleService = readPc('packages', 'sdkwork-im-console-roles', 'src', 'services', 'RoleService.ts');
-assert.match(roleService, /collectCursorPages/u);
+assert.match(roleService, /forEachCursorPage/u);
+assert.doesNotMatch(roleService, /collectCursorPages/u);
 
-const deviceService = fs.readFileSync(
-  path.join(pcRoot, 'packages', 'sdkwork-im-pc-devices', 'src', 'services', 'DeviceService.ts'),
-  'utf8',
-);
-assert.match(deviceService, /collectCursorPages/u);
-assert.match(deviceService, /MAX_DEVICES_SYNC = 500/u);
+assertImAdapterOnly('packages/sdkwork-im-pc-shop/src/services/ShopService.ts', 'Shop');
+assertImAdapterOnly('packages/sdkwork-im-pc-orders/src/services/OrdersService.ts', 'Orders');
+assertImAdapterOnly('packages/sdkwork-im-pc-devices/src/services/DeviceService.ts', 'Devices');
+assertImAdapterOnly('packages/sdkwork-im-pc-mail/src/services/MailService.ts', 'Mail');
 
-const bindAgentModal = fs.readFileSync(
-  path.join(pcRoot, 'packages', 'sdkwork-im-pc-devices', 'src', 'components', 'BindAgentModal.tsx'),
-  'utf8',
-);
-assert.match(bindAgentModal, /listAgentsPage/u);
-assert.doesNotMatch(bindAgentModal, /getAgents|getMarketAgents/u);
+const imShopAdapter = readPc('packages', 'sdkwork-im-pc-shop', 'src', 'index.tsx');
+assert.match(imShopAdapter, /@sdkwork\/shop-pc-consumer/u, 'IM shop adapter must re-export canonical shop PC consumer surfaces');
 
-const mailService = fs.readFileSync(
-  path.join(pcRoot, 'packages', 'sdkwork-im-pc-mail', 'src', 'services', 'MailService.ts'),
-  'utf8',
+const shopService = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-consumer',
+  'src',
+  'services',
+  'ShopService.ts',
 );
-assert.match(mailService, /collectCursorPages/u);
-assert.match(mailService, /MAX_MAIL_MESSAGES_SYNC = 500/u);
+assert.match(shopService, /listProductsPage/u);
+assert.match(shopService, /mapAppSdkCursorPage/u);
+assert.match(shopService, /initiatePayment[\s\S]*orders\.pay/u);
+
+const ordersService = readSibling(
+  'sdkwork-shop',
+  'apps',
+  'sdkwork-shop-pc',
+  'packages',
+  'sdkwork-shop-pc-orders',
+  'src',
+  'services',
+  'OrdersService.ts',
+);
+assert.match(ordersService, /listOrdersPage/u);
+assert.doesNotMatch(ordersService, /collectCursorPages/u);
+
+const deviceService = readSibling(
+  'sdkwork-aiot',
+  'apps',
+  'sdkwork-aiot-pc',
+  'packages',
+  'sdkwork-aiot-pc-console-device',
+  'src',
+  'device-service.ts',
+);
+assert.match(deviceService, /listDevicePage/u);
+
+const mailAppServices = readSibling(
+  'sdkwork-mail',
+  'apps',
+  'sdkwork-mail-pc',
+  'packages',
+  'sdkwork-mail-pc-mail',
+  'src',
+  'services',
+  'mailAppServices.ts',
+);
+assert.match(mailAppServices, /mail\.messages\.list/u);
+assert.doesNotMatch(mailAppServices, /collectCursorPages/u);
 
 const moduleRegistry = readPc('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
 const commercialBlock = moduleRegistry.match(
@@ -100,7 +144,7 @@ assert.doesNotMatch(commercialBlock, /"devices"/u, 'devices must stay contract-p
 assert.doesNotMatch(commercialBlock, /"course"/u, 'course must stay out of commercial runtime until verified');
 assert.doesNotMatch(commercialBlock, /"enterprise"/u, 'enterprise must stay out of commercial runtime until verified');
 
-assert.match(chatService, /LOCAL_MESSAGES_PER_CONVERSATION_CAP = 500/u);
+assert.match(chatService, /LOCAL_MESSAGES_PER_CONVERSATION_CAP = SDKWORK_MAX_PAGE_SIZE/u);
 
 const projectionBootstrap = fs.readFileSync(
   path.join(repoRoot, 'services', 'projection-service', 'src', 'bootstrap.rs'),

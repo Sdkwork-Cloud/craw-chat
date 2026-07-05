@@ -56,9 +56,17 @@
       "types": "./src/sdk/communityAppSdkClient.ts",
       "default": "./src/sdk/communityAppSdkClient.ts"
     },
+    "./sdk/communityPcIntegration": {
+      "types": "./src/sdk/communityPcIntegration.ts",
+      "default": "./src/sdk/communityPcIntegration.ts"
+    },
     "./sdk/courseAppSdkClient": {
       "types": "./src/sdk/courseAppSdkClient.ts",
       "default": "./src/sdk/courseAppSdkClient.ts"
+    },
+    "./sdk/coursePcIntegration": {
+      "types": "./src/sdk/coursePcIntegration.ts",
+      "default": "./src/sdk/coursePcIntegration.ts"
     },
     "./sdk/imSdkClient": {
       "types": "./src/sdk/imSdkClient.ts",

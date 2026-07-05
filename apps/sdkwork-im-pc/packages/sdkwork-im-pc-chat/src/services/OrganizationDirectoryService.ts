@@ -2,8 +2,11 @@ import {
   getAppbaseAppSdkClientWithSession,
 } from '@sdkwork/im-pc-core/sdk/appbaseAppSdkClient';
 import {
-  collectCursorPages,
+  forEachCursorPage,
+  extractAppSdkRecords,
+  mapAppSdkCursorPage,
   SDKWORK_MAX_PAGE_SIZE,
+  unwrapSdkWorkApiEnvelope,
 } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
 import {
   readAppSdkSessionTokens,
@@ -268,34 +271,19 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function unwrapEnvelope(value: unknown): unknown {
-  const record = toRecord(value);
-  if (!('code' in record) && !('data' in record)) {
-    return value;
-  }
-
-  const code = record.code;
-  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
-  if (!['0', '200', '2000'].includes(normalizedCode)) {
-    throw new Error(String(record.message || record.msg || 'Organization directory request failed'));
-  }
-  return record.data;
-}
-
 function extractRecordArray(value: unknown): Record<string, unknown>[] {
-  const unwrapped = unwrapEnvelope(value);
+  const unwrapped = unwrapSdkWorkApiEnvelope(value);
   if (Array.isArray(unwrapped)) {
     return unwrapped.map(toRecord).filter((record) => Object.keys(record).length > 0);
   }
 
+  const standardRecords = extractAppSdkRecords(unwrapped);
+  if (standardRecords.length > 0) {
+    return standardRecords;
+  }
+
   const record = toRecord(unwrapped);
   for (const key of [
-    'items',
-    'records',
-    'data',
-    'list',
-    'rows',
-    'content',
     'nodes',
     'organizations',
     'departments',
@@ -315,7 +303,7 @@ function extractRecordArray(value: unknown): Record<string, unknown>[] {
 }
 
 function extractRecord(value: unknown): Record<string, unknown> {
-  return toRecord(unwrapEnvelope(value));
+  return toRecord(unwrapSdkWorkApiEnvelope(value));
 }
 
 function createSearchKey(value: string): string {
@@ -777,7 +765,8 @@ async function listRoleBindingsSafely(
   if (!hasRoleBindingsReadPermission()) {
     return [];
   }
-  return collectCursorPages(async (cursor) => {
+  const bindings: UserRoleBinding[] = [];
+  await forEachCursorPage(async (cursor) => {
     const response = await safeDirectoryRequest(() => listRoleBindings({
       pageSize: SDKWORK_MAX_PAGE_SIZE,
       ...(cursor ? { cursor } : {}),
@@ -785,16 +774,16 @@ async function listRoleBindingsSafely(
     if (!response) {
       return { items: [], hasMore: false };
     }
-    const payload = toRecord(unwrapEnvelope(response));
-    const pageInfo = toRecord(payload.pageInfo);
+    const page = mapAppSdkCursorPage(response, mapRoleBindingRecord);
     return {
-      items: extractRecordArray(response)
-        .map(mapRoleBindingRecord)
-        .filter(Boolean) as UserRoleBinding[],
-      hasMore: pageInfo.hasMore === true || Boolean(pageInfo.nextCursor),
-      nextCursor: typeof pageInfo.nextCursor === 'string' ? pageInfo.nextCursor : undefined,
+      items: page.items.filter(Boolean) as UserRoleBinding[],
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     };
+  }, (pageItems) => {
+    bindings.push(...pageItems);
   }, { maxItems: SDKWORK_MAX_PAGE_SIZE * 10 });
+  return bindings;
 }
 
 function isDirectoryAccessError(error: unknown): boolean {
@@ -1031,7 +1020,8 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
 
   private async fetchOrganizationsList(): Promise<OrgOrganization[]> {
     const client = this.client();
-    const organizations = await collectCursorPages(async (cursor) => {
+    const organizations: OrgOrganization[] = [];
+    await forEachCursorPage(async (cursor) => {
       const response = client.iam?.organizations?.list
         ? await client.iam.organizations.list({
             pageSize: SDKWORK_MAX_PAGE_SIZE,
@@ -1041,15 +1031,14 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
             pageSize: SDKWORK_MAX_PAGE_SIZE,
             ...(cursor ? { cursor } : {}),
           });
-      const payload = toRecord(unwrapEnvelope(response));
-      const pageInfo = toRecord(payload.pageInfo);
+      const page = mapAppSdkCursorPage(response, mapOrganizationRecord);
       return {
-        items: extractRecordArray(response)
-          .map(mapOrganizationRecord)
-          .filter(Boolean) as OrgOrganization[],
-        hasMore: pageInfo.hasMore === true || Boolean(pageInfo.nextCursor),
-        nextCursor: typeof pageInfo.nextCursor === 'string' ? pageInfo.nextCursor : undefined,
+        items: page.items.filter(Boolean) as OrgOrganization[],
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
       };
+    }, (pageItems) => {
+      organizations.push(...pageItems);
     }, { maxItems: SDKWORK_MAX_PAGE_SIZE * 10 });
     return uniqueById(organizations).sort((left, right) => left.order - right.order || left.name.localeCompare(right.name));
   }

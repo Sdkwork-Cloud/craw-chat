@@ -732,107 +732,147 @@ assert.doesNotMatch(
   'IM Drive integration must not use raw fetch',
 );
 
-const catalogAppSdkClientSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/catalogAppSdkClient.ts',
+const commercePcIntegrationSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/commercePcIntegration.ts',
 );
-const shopAppSdkClientSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/shopAppSdkClient.ts',
+const shopPcCatalogClientSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-core/src/sdk/catalogAppSdkClient.ts',
 );
-const orderAppSdkClientSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/orderAppSdkClient.ts',
+const shopPcShopClientSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-core/src/sdk/shopAppSdkClient.ts',
+);
+const shopPcOrderClientSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-core/src/sdk/orderAppSdkClient.ts',
+);
+
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/catalogAppSdkClient.ts')),
+  'IM PC core must not duplicate sdkwork-shop catalog app SDK wrapper',
+);
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/shopAppSdkClient.ts')),
+  'IM PC core must not duplicate sdkwork-shop shop app SDK wrapper',
+);
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/orderAppSdkClient.ts')),
+  'IM PC core must not duplicate sdkwork-shop order app SDK wrapper',
+);
+
+assert.match(
+  commercePcIntegrationSource,
+  /from ['"]@sdkwork\/shop-pc-core['"]/u,
+  'Commerce PC integration must delegate SDK clients to sdkwork-shop-pc-core',
 );
 assert.match(
-  catalogAppSdkClientSource,
+  commercePcIntegrationSource,
+  /getImHostedCatalogAppSdkClient|getImHostedOrderAppSdkClient|getImHostedShopAppSdkClient/u,
+  'Commerce PC integration must expose IM-hosted commerce SDK accessors',
+);
+assert.doesNotMatch(commercePcIntegrationSource, /\bfetch\s*\(/u, 'Commerce PC integration must not use raw fetch');
+
+assert.match(
+  shopPcCatalogClientSource,
   /from ['"]@sdkwork\/catalog-app-sdk['"]/u,
-  'Catalog app SDK wrapper must use the generated sdkwork-catalog app SDK client',
+  'Canonical catalog app SDK wrapper must use the generated sdkwork-catalog app SDK client',
 );
 assert.match(
-  catalogAppSdkClientSource,
+  shopPcCatalogClientSource,
   /getCatalogAppSdkClientWithSession/u,
-  'Catalog app SDK wrapper must expose session-aware client access',
+  'Canonical catalog app SDK wrapper must expose session-aware client access',
 );
 assert.match(
-  shopAppSdkClientSource,
+  shopPcShopClientSource,
   /from ['"]@sdkwork\/shop-app-sdk['"]/u,
-  'Shop app SDK wrapper must use the generated sdkwork-shop app SDK client',
+  'Canonical shop app SDK wrapper must use the generated sdkwork-shop app SDK client',
 );
 assert.match(
-  shopAppSdkClientSource,
+  shopPcShopClientSource,
   /getShopAppSdkClientWithSession/u,
-  'Shop app SDK wrapper must expose session-aware client access',
+  'Canonical shop app SDK wrapper must expose session-aware client access',
 );
 assert.match(
-  orderAppSdkClientSource,
+  shopPcOrderClientSource,
   /from ['"]@sdkwork\/order-app-sdk['"]/u,
-  'Order app SDK wrapper must use the generated sdkwork-order app SDK client',
+  'Canonical order app SDK wrapper must use the generated sdkwork-order app SDK client',
 );
 assert.match(
-  orderAppSdkClientSource,
+  shopPcOrderClientSource,
   /getOrderAppSdkClientWithSession/u,
-  'Order app SDK wrapper must expose session-aware client access',
+  'Canonical order app SDK wrapper must expose session-aware client access',
 );
 assert.doesNotMatch(
-  `${catalogAppSdkClientSource}\n${shopAppSdkClientSource}\n${orderAppSdkClientSource}`,
+  `${shopPcCatalogClientSource}\n${shopPcShopClientSource}\n${shopPcOrderClientSource}`,
   /\bfetch\s*\(/u,
-  'Commerce T1 app SDK wrappers must not use raw fetch',
+  'Canonical commerce T1 app SDK wrappers must not use raw fetch',
 );
 
 const shopPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/package.json');
 assert.ok(
+  shopPackageJson.dependencies['@sdkwork/shop-pc-consumer'],
+  'IM shop adapter must depend on canonical shop PC consumer package',
+);
+assert.ok(
+  shopPackageJson.dependencies['@sdkwork/shop-pc-core'],
+  'IM shop adapter must depend on canonical shop PC core integration package',
+);
+assert.equal(
   shopPackageJson.dependencies['@sdkwork/catalog-app-sdk'],
-  'Shop package must declare the generated sdkwork-catalog app SDK dependency',
-);
-assert.ok(
-  shopPackageJson.dependencies['@sdkwork/order-app-sdk'],
-  'Shop package must declare the generated sdkwork-order app SDK dependency',
-);
-assert.ok(
-  shopPackageJson.dependencies['@sdkwork/im-pc-core'],
-  'Shop package must declare the PC core SDK wrapper dependency',
+  undefined,
+  'IM shop adapter must not declare direct catalog app SDK dependency',
 );
 
 const ordersPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/package.json');
 assert.ok(
+  ordersPackageJson.dependencies['@sdkwork/shop-pc-orders'],
+  'IM orders adapter must depend on canonical shop PC orders package',
+);
+assert.equal(
   ordersPackageJson.dependencies['@sdkwork/order-app-sdk'],
-  'Orders package must declare the generated sdkwork-order app SDK dependency',
-);
-assert.ok(
-  ordersPackageJson.dependencies['@sdkwork/shop-app-sdk'],
-  'Orders package must declare the generated sdkwork-shop app SDK dependency',
-);
-assert.ok(
-  ordersPackageJson.dependencies['@sdkwork/im-pc-core'],
-  'Orders package must declare the PC core SDK wrapper dependency',
+  undefined,
+  'IM orders adapter must not declare direct order app SDK dependency',
 );
 
-const shopServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/services/ShopService.ts');
-const ordersServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/src/services/OrdersService.ts');
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/services/ShopService.ts')),
+  'IM shop adapter must not keep duplicate ShopService implementation',
+);
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/src/services/OrdersService.ts')),
+  'IM orders adapter must not keep duplicate OrdersService implementation',
+);
+
+const shopServiceSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-consumer/src/services/ShopService.ts',
+);
+const ordersServiceSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-orders/src/services/OrdersService.ts',
+);
 const commercePackageSource = `${shopServiceSource}\n${ordersServiceSource}`;
 
 assert.match(
   shopServiceSource,
   /getCatalogAppSdkClientWithSession[\s\S]*getOrderAppSdkClientWithSession/u,
-  'Shop package service must consume catalog and order T1 app SDK wrappers',
+  'Canonical shop service must consume catalog and order T1 app SDK wrappers',
 );
-assert.match(shopServiceSource, /\.catalog\.categories\.list\s*\(/u, 'Shop package service must list categories through catalog app SDK');
-assert.match(shopServiceSource, /\.catalog\.products\.list\s*\(/u, 'Shop package service must list products through catalog app SDK');
-assert.match(shopServiceSource, /\.cart\.current\.retrieve\s*\(/u, 'Shop package service must read the cart through catalog app SDK');
-assert.match(shopServiceSource, /\.checkout\.sessions\.create\s*\(/u, 'Shop package service must create checkout sessions through order app SDK');
+assert.match(shopServiceSource, /\.catalog\.categories\.list\s*\(/u, 'Canonical shop service must list categories through catalog app SDK');
+assert.match(shopServiceSource, /\.catalog\.products\.list\s*\(/u, 'Canonical shop service must list products through catalog app SDK');
+assert.match(shopServiceSource, /\.cart\.current\.retrieve\s*\(/u, 'Canonical shop service must read the cart through catalog app SDK');
+assert.match(shopServiceSource, /\.checkout\.sessions\.create\s*\(/u, 'Canonical shop service must create checkout sessions through order app SDK');
 assert.match(
   ordersServiceSource,
   /getOrderAppSdkClientWithSession[\s\S]*getShopAppSdkClientWithSession/u,
-  'Orders package service must consume order and shop T1 app SDK wrappers',
+  'Canonical orders service must consume order and shop T1 app SDK wrappers',
 );
 assert.match(
   ordersServiceSource,
   /\.shops\.current\.orders\.list\s*\(/u,
-  'Orders package service must list merchant orders through shop app SDK',
+  'Canonical orders service must list merchant orders through shop app SDK',
 );
-assert.doesNotMatch(commercePackageSource, /\bfetch\s*\(/u, 'Commerce PC packages must not bypass generated SDKs with raw fetch');
+assert.doesNotMatch(commercePackageSource, /\bfetch\s*\(/u, 'Canonical commerce PC packages must not bypass generated SDKs with raw fetch');
 assert.doesNotMatch(
   commercePackageSource,
   /\/(?:im|app|backend)\/v3/u,
-  'Commerce PC packages must not hand-code SDKWork API paths',
+  'Canonical commerce PC packages must not hand-code SDKWork API paths',
 );
 
 const moduleRegistrySource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/moduleRegistry.ts');
@@ -842,16 +882,25 @@ assert.match(
   'Commercial runtime modules must include shop and orders after Commerce SDK integration',
 );
 
-const aiotAppSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/aiotAppSdkClient.ts');
-assert.doesNotMatch(
-  aiotAppSdkClientSource,
-  /createAiotSdkPermissionParams|xSdkworkTenantId|xSdkworkOrganizationId/u,
-  'AIoT app SDK wrapper must not map tenant or organization scope into generated SDK params',
+const aiotPcIntegrationSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/aiotPcIntegration.ts');
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/aiotAppSdkClient.ts')),
+  'IM PC core must not duplicate sdkwork-aiot app SDK wrapper',
 );
 assert.match(
-  aiotAppSdkClientSource,
-  /createSdkworkChatRequestContextInterceptors/u,
-  'AIoT app SDK wrapper must install the shared generated-SDK request interceptor',
+  aiotPcIntegrationSource,
+  /from ['"]@sdkwork\/aiot-pc-core['"]/u,
+  'AIoT PC integration must delegate SDK clients to sdkwork-aiot-pc-core',
+);
+assert.match(
+  aiotPcIntegrationSource,
+  /getImHostedAiotAppSdkClient/u,
+  'AIoT PC integration must expose IM-hosted AIoT SDK accessor',
+);
+assert.doesNotMatch(
+  aiotPcIntegrationSource,
+  /createAiotSdkPermissionParams|xSdkworkTenantId|xSdkworkOrganizationId/u,
+  'AIoT PC integration must not map tenant or organization scope into generated SDK params',
 );
 
 assert.match(
@@ -1244,8 +1293,8 @@ assert.match(
 );
 assert.match(
   settingsServiceSource,
-  /getAiotAppSdkClientWithSession/u,
-  'settings service device capability must use the sdkwork-aiot app SDK wrapper',
+  /getImHostedAiotAppSdkClient/u,
+  'settings service device capability must use the IM-hosted AIoT PC integration bridge',
 );
 assert.match(
   settingsServiceSource,
@@ -1271,48 +1320,50 @@ assert.ok(
   'DeviceSyncFeedService must be removed because IM no longer owns device registration or device sync feed APIs',
 );
 const pcDevicesPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/package.json');
-const pcDevicesServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/services/DeviceService.ts');
+const pcDevicesAdapterSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/DevicesView.tsx');
 assert.equal(
   pcDevicesPackageJson.dependencies['@sdkwork/aiot-backend-sdk'],
   undefined,
   'pc-devices is not backend-admin and must not depend on sdkwork-aiot backend SDK',
 );
-assert.match(
-  pcDevicesServiceSource,
-  /getAiotAppSdkClientWithSession/u,
-  'pc-devices service must use the sdkwork-aiot app SDK wrapper',
+assert.ok(
+  pcDevicesPackageJson.dependencies['@sdkwork/aiot-pc-console-device'],
+  'pc-devices adapter must depend on canonical AIoT PC device package',
 );
 assert.match(
-  pcDevicesServiceSource,
-  /\.iot\.devices\.commands\.create\s*\(/u,
-  'pc-devices user actions must submit real AIoT app SDK device commands',
+  pcDevicesAdapterSource,
+  /SdkworkDevicePage/u,
+  'pc-devices adapter must embed canonical AIoT device page only',
+);
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/services/DeviceService.ts')),
+  'pc-devices adapter must not keep duplicate DeviceService implementation',
+);
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/components/BindAgentModal.tsx')),
+  'pc-devices adapter must not keep duplicate bind-agent UI',
+);
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/components/DeviceDetailPanel.tsx')),
+  'pc-devices adapter must not keep duplicate device detail UI',
+);
+const pcDevicesServiceSource = readSibling(
+  'sdkwork-aiot/apps/sdkwork-aiot-pc/packages/sdkwork-aiot-pc-console-device/src/device-service.ts',
 );
 assert.doesNotMatch(
   pcDevicesServiceSource,
-  /@sdkwork\/aiot-backend-sdk|backendClient|BackendClient|getBackendClient|\.iot\.devices\.twin\.update|\.iot\.devices\.delete\s*\(/u,
-  'pc-devices non-admin service must not import, configure, or route through backend SDK clients',
+  /@sdkwork\/aiot-backend-sdk|backendClient|BackendClient|getBackendClient/u,
+  'canonical AIoT device service must not import or route through backend SDK clients',
 );
 assert.match(
   pcDevicesServiceSource,
-  /\.iot\.devices\.list\s*\(/u,
-  'pc-devices service must list devices through the generated AIoT app SDK',
+  /listDevicePage/u,
+  'canonical AIoT device service must list devices through paginated AIoT app SDK helpers',
 );
 assert.doesNotMatch(
   pcDevicesServiceSource,
   /\btenantId\b|\borganizationId\b|resolveAppSdkTenantId|resolveAppSdkOrganizationId|xSdkworkTenantId|createAiotSdkPermissionParams/u,
-  'pc-devices service must not pass tenant or organization scope to sdkwork-aiot requests',
-);
-const pcDevicesBindModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/components/BindAgentModal.tsx');
-const pcDevicesDetailPanelSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/components/DeviceDetailPanel.tsx');
-assert.match(
-  pcDevicesBindModalSource,
-  /deviceService\.bindAgent\s*\(/u,
-  'pc-devices bind modal must persist selected agent through the SDK-backed device service',
-);
-assert.match(
-  pcDevicesDetailPanelSource,
-  /deviceService\.unbindAgent\s*\(/u,
-  'pc-devices detail panel must persist agent unbinding through the SDK-backed device service',
+  'canonical AIoT device service must not pass tenant or organization scope to sdkwork-aiot requests',
 );
 assertNoImDeviceApiUsage(chatServiceSource, 'chat service');
 assert.match(chatServiceSource, /syncOfflineMessages/u, 'chat service must expose offline message window sync');
@@ -2052,7 +2103,7 @@ assert.doesNotMatch(
 );
 assert.match(
   chatServiceSource,
-  /MESSAGE_PAGE_LIMIT\s*=\s*\d+/u,
+  /MESSAGE_PAGE_LIMIT\s*=\s*SDKWORK_DEFAULT_PAGE_SIZE/u,
   'chat service message sync must use a bounded page size',
 );
 assert.match(
@@ -2188,7 +2239,7 @@ assert.match(
 );
 assert.match(
   favoriteServiceSource,
-  /FAVORITES_PAGE_LIMIT\s*=\s*100/u,
+  /FAVORITES_PAGE_LIMIT\s*=\s*SDKWORK_DEFAULT_PAGE_SIZE/u,
   'favorite service message favorite sync must use a bounded SDK page size',
 );
 assert.match(
@@ -3506,9 +3557,15 @@ assert.match(
 );
 const communityViewSource = read('../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunityView.tsx');
 const communitySettingsSource = read('../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunitySettings.tsx');
-const shopHomeSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/ShopHome.tsx');
-const checkoutViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CheckoutView.tsx');
-const cashierViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CashierView.tsx');
+const shopHomeSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-consumer/src/components/ShopHome.tsx',
+);
+const checkoutViewSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-consumer/src/components/CheckoutView.tsx',
+);
+const cashierViewSource = readSibling(
+  'sdkwork-shop/apps/sdkwork-shop-pc/packages/sdkwork-shop-pc-consumer/src/components/CashierView.tsx',
+);
 const videoGenServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-video-gen/src/services/VideoGenService.ts');
 const videoPlayerViewSource = read('../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/VideoPlayerView.tsx');
 const liveRoomViewSource = read('../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/LiveRoomView.tsx');

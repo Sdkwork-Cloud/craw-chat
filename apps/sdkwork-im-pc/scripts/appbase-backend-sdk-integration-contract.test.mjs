@@ -91,10 +91,15 @@ for (const [label, source] of [
     /@sdkwork\/im-admin-core\/sdk[\s\S]*getAppbaseBackendSdkClientWithSession/u,
     `${label} must consume IAM admin data through the admin-core appbase backend SDK wrapper.`,
   );
+  assert.match(
+    source,
+    /unwrapSdkWorkApiEnvelope|backendSdkResponseHelpers/u,
+    `${label} must unwrap IAM backend SDK responses through SdkWorkApiResponse helpers.`,
+  );
   assert.doesNotMatch(
     source,
-    /mock|setTimeout|new Promise\s*\(|\bfetch\s*\(|\b(Authorization|Access-Token|X-API-Key)\b/u,
-    `${label} must not keep mock data, fake delay, raw HTTP, or manual auth header logic.`,
+    /mock|setTimeout|new Promise\s*\(|\bfetch\s*\(|\b(Authorization|Access-Token|X-API-Key)\b|unwrapAppbaseResult|'2000'/u,
+    `${label} must not keep mock data, fake delay, raw HTTP, manual auth headers, or legacy envelope codes.`,
   );
 }
 
