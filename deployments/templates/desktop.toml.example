@@ -11,10 +11,13 @@ log_directory = "~/.sdkwork/chat/logs"
 cache_directory = "~/.sdkwork/chat/cache"
 runtime_directory = "~/.sdkwork/chat/tmp"
 
+# IM business database uses PostgreSQL. Desktop standalone deployments must
+# connect to a local or remote PostgreSQL instance. SQLite is not supported
+# as an IM business store (no SQLite adapter is implemented in this repo).
 [database]
-engine = "sqlite"
-file = "~/.sdkwork/chat/data/chat.sqlite"
-max_connections = 1
+engine = "postgres"
+url = "postgresql://sdkwork:sdkwork@127.0.0.1:5432/chat"
+max_connections = 8
 auto_migrate = true
 
 [redis]

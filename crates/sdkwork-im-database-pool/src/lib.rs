@@ -5,22 +5,28 @@
 //! [`try_bootstrap_im_process_database_pools_from_env`] once at startup when PostgreSQL
 //! is configured, so all modules reuse one sqlx lifecycle host and one shared r2d2 pool.
 
+mod engine_policy;
 mod shared_postgres;
 
 use sdkwork_database_config::DatabaseConfig;
-use sdkwork_database_sqlx::{create_pool_from_config, DatabasePool, PoolError};
+use sdkwork_database_sqlx::{DatabasePool, PoolError, create_pool_from_config};
 
 const IM_DATABASE_SERVICE_NAME: &str = "IM";
 
-pub use sdkwork_im_database_host::{bootstrap_im_database, bootstrap_im_database_from_env, ImDatabaseHost};
+pub use sdkwork_im_database_host::{
+    ImDatabaseHost, bootstrap_im_database, bootstrap_im_database_from_env,
+};
+pub use engine_policy::{
+    im_core_requires_postgres_authority, log_im_core_ephemeral_non_postgres_authority,
+};
 pub use shared_postgres::{
+    ImProcessDatabasePools, ImSharedPostgresConnectionManager, ImSharedPostgresR2d2Pool,
+    ImSharedPostgresTlsConnector, ImUnifiedProcessPools,
     bootstrap_im_process_database_pools_from_env, bootstrap_im_unified_process_pools_from_env,
     clone_shared_im_postgres_r2d2_pool, ensure_im_process_postgres_r2d2_pool,
     im_process_database_pools, is_im_process_database_pools_installed,
     is_im_unified_process_pools_installed, shared_im_postgres_r2d2_pool,
     try_bootstrap_im_process_database_pools_from_env, unified_process_pools,
-    ImProcessDatabasePools, ImSharedPostgresConnectionManager, ImSharedPostgresR2d2Pool,
-    ImSharedPostgresTlsConnector, ImUnifiedProcessPools,
 };
 
 /// Create the canonical IM sqlx pool from `SDKWORK_IM_DATABASE_*` environment variables.

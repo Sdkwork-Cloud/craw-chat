@@ -4,8 +4,11 @@ use http_body_util::BodyExt;
 use im_app_context::DualTokenRequestBuilderExt;
 use tower::ServiceExt;
 
+mod test_env;
+
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
+    let _env = test_env::dev_test_environment();
     let app = audit_service::build_public_app();
 
     let response = app
@@ -36,6 +39,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
+    let _env = test_env::dev_test_environment();
     let app = audit_service::build_public_app();
 
     let response = app
@@ -60,6 +64,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_record_list_and_export_audit_over_http() {
+    let _env = test_env::dev_test_environment();
     let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     let record_response = app
@@ -187,6 +192,7 @@ async fn test_record_list_and_export_audit_over_http() {
 
 #[tokio::test]
 async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
+    let _env = test_env::dev_test_environment();
     let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     for (record_id, action) in [
@@ -226,7 +232,7 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/audit/records?afterAuditSeq=0&limit=2")
+                .uri("/backend/v3/api/audit/records?afterAuditSeq=0&pageSize=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -261,7 +267,7 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
     let second_window_response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/audit/records?afterAuditSeq=2&limit=2")
+                .uri("/backend/v3/api/audit/records?afterAuditSeq=2&pageSize=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -299,6 +305,7 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
 
 #[tokio::test]
 async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected() {
+    let _env = test_env::dev_test_environment();
     let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     let first_record = app
@@ -452,6 +459,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
 
 #[tokio::test]
 async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
+    let _env = test_env::dev_test_environment();
     let app = sdkwork_routes_im_audit_backend_api::build_public_app();
 
     let first_record = app
@@ -566,6 +574,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
 
 #[tokio::test]
 async fn test_record_audit_rejects_oversized_payload_over_http() {
+    let _env = test_env::dev_test_environment();
     let app = sdkwork_routes_im_audit_backend_api::build_public_app();
     let request_body = serde_json::json!({
         "recordId": "audit_http_oversized_payload",

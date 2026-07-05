@@ -1,7 +1,12 @@
 export interface ReadCursorView {
   tenantId: string;
   conversationId: string;
+  memberId: string;
   principalId: string;
-  readSeq: number;
+  principalKind: string;
+  deviceId?: string | null;
+  readSeq: string;
+  lastReadMessageId?: string | null;
   updatedAt: string;
+  unreadCount: string;
 }

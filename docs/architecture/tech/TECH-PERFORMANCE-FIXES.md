@@ -2,13 +2,39 @@
 
 ## 执行摘要
 
-本报告记录了对 sdkwork-im 项目进行的全面技术债务清理和性能优化工作。所有P1级别的问题已全部解决，P2级别问题大部分已完成，P3级别问题已标记为规划项。
+本报告记录 sdkwork-im 技术债务清理与性能优化工作。**2026-07 对齐周期**已完成：Social realtime fanout、RTC outbox relay（多租户 scope 发现）、Space conversation binder、Typing indicators、群组成员 API（`im_group_members` + conversation 同步）等 P1 闭环项。
 
-**关键成果：**
-- ✅ P1问题（6项）: 100%完成
-- ⏳ P2问题（8项）: 75%完成
-- 📋 P3问题（8项）: 已标记为规划/评估中
-- 📝 商业化能力（3项）: 已标记为roadmap
+**关键成果（历史 + 本轮 2026-07-05 安全/一致性对齐）：**
+- ✅ P0 社交 org 隔离：accept/decline/cancel/remove 校验 commit `organizationId` 与 auth 一致
+- ✅ P0 社交 realtime：好友 accept/decline/cancel 双方通知；outcome payload 携带 requester/target
+- ✅ P0 社交限流：production-like 环境无 Postgres supplemental store 时 fail-closed
+- ✅ P0 消息冷读：`list_messages_*` 在内存 log 为空时回退 `MessageStore.read_window`
+- ✅ P0 会话加载：禁止 MessageStore 路径插入空 roster，改 journal 重放成员状态
+- ✅ P0 Inbox 分页：按 `ProjectionMemberRuntimeStore.inbox_activity_by_principal` 索引逐页 hydrate，禁止全量 collect-sort-skip
+- ✅ P0 私信门禁：production 默认 `SDKWORK_IM_REQUIRE_DM_ACCESS_GATE` fail-closed（可显式关闭）
+- ✅ P0 RTC：Postgres epoch fencing 拒绝 `incoming <= existing`；`rtc.session.created` 通知 initiator
+- ✅ P0 RTC：production-like 环境 conversation-bound 调用未配置 member gate 时 fail-closed
+- ✅ P0 群组容量：conversation runtime `ensure_member_add_request_allowed` 强制 `SDKWORK_IM_GROUP_MAX_MEMBERS`（默认 500）
+- ✅ P1 journal consumer：`applied_event_ids` 有界 dedup（50k LRU）
+- ✅ P0 一致性：Projection journal consumer 改为 `(partition_key, commit_offset)` 增量游标；Inbox 按 `lastActivityAt` 降序
+- ✅ P1 社交：好友 accept 拒绝已过期 pending 请求；运行时 block `expiresAt` 生效
+- ✅ P1 社交：`GET /im/v3/api/social/friendships` cursor 分页 + OpenAPI 契约
+- ✅ P1 Projection HTTP：`limit=0` 走 access 层校验（禁止 `resolved_page_size` 静默 clamp）
+- ✅ P1 Projection 联系人：`ContactScopeStore` 维护有序索引，分页读取不再全量 sort-skip
+- ✅ P1 Projection Inbox：cursor 按 item offset 分页（修复 scope-index cursor 漏页）
+- ✅ P1 RTC：per-sender signal 限流（`signal_rate_by_sender`）；Postgres UPSERT `WHERE epoch` CAS
+- ✅ P1 测试：projection `build_integration_test_app` 注入 auth；ProblemDetail type/title 对齐 sdkwork-v3
+- ✅ P1 核心闭环：Social/RTC/Space/Conversation 嵌入式接线与 outbox relay
+- ✅ Space governance surface：`space_member`、`invitation`、`ban`、`channel_access_rule` 已接入 Postgres store 与权限校验（2026-07）
+- ✅ P2 列表分页：`pageSize` 规范、`SdkWorkApiResponse` 列表 envelope、IM/backend OpenAPI 与 SDK 对齐（详见 `PAGINATION-DEBT-REGISTER.md`，2026-07-05 清零）
+- ✅ P1 消息写路径：`PostgresDurableMessagePostWriter` 单事务写入 journal + `im_conversation_messages` + 可选 outbox；`clientMsgId` 预查幂等
+- ✅ P1 实时投递：split-deploy 通过 `conversation_outbox_relay` 投递 `message.posted`；显式 `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` 时 fail-closed
+- ✅ P2 大 roster fanout：`RealtimeDeliveryRuntime` 对 durable/ephemeral scope fanout 做 recipient 去重、共享 payload（Arc）、分块投递（`SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE`，默认 256）；conversation/RTC/social outbox relay 与 embedded social fanout 统一走 batch 路径
+- ✅ P3 split-deploy social realtime：`build_social_realtime_outbox_record` + `spawn_social_outbox_relay_from_env`（`aggregate_type=social`）
+- ✅ P3 social fail-closed：`SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` 时 social commit 在无 embedded fanout 且无 outbox 配置下拒绝持久化（与 conversation `post_message` 一致）
+- ✅ P1 测试/嵌入式稳定性：projection embedded bridge 非 panic；单测 auth 中间件注入；personalization key 归一化 org id 断言对齐
+- ✅ P1 社交：好友请求 per-user 日限额（`SDKWORK_IM_FRIEND_REQUEST_DAILY_LIMIT`，默认 50）
+- ✅ P1 私信门禁：split-deploy 通过 `PostgresDirectMessageAccessGate`（`im_user_blocks`）；unified-process 优先 embedded `SocialRuntime` gate
 
 ---
 
@@ -350,6 +376,11 @@ SDKWORK_IM_DATABASE_CONNECT_TIMEOUT_SECONDS=10
 - **说明**: 需要性能测试验证GIN索引的实际开销
 - **建议**: 监控写入吞吐量和查询性能后决定是否优化
 
+#### 列表分页规范对齐（2026-07-05）
+- **状态**: 已完成
+- **范围**: IM open-api、backend audit list、conversation/social/space/projection 运行时路径；PC/H5 消费层 `pageSize`；`sdkwork-utils-rust` 支持 flattened query-string `pageSize`
+- **权威**: `sdkwork-specs/PAGINATION_SPEC.md`、`docs/architecture/tech/PAGINATION-DEBT-REGISTER.md`
+
 #### 内存事件窗口累积
 - **状态**: 已在cluster cleanup中处理
 - **说明**: 通过定期清理机制防止内存泄漏
@@ -358,14 +389,16 @@ SDKWORK_IM_DATABASE_CONNECT_TIMEOUT_SECONDS=10
 - **状态**: 标记为规划中
 - **说明**: 当前硬编码权限列表，未来可移至配置文件
 
-### 2.2 待处理的P2问题
+### 2.2 Post-launch 性能优化 backlog（非上线阻塞）
 
-以下问题需要进一步调研和实施：
+以下项为上线后持续优化方向，**不构成 pre-launch 技术债务**：
 
-1. **JSONB GIN索引优化** - 需要性能基准测试
-2. **Redis事件窗口String类型** - 考虑改用Hash类型支持字段级更新
-3. **HTTP连接池配置** - 添加外部服务调用的连接池
-4. **同步Mutex替换** - 热路径异步化优化
+1. **JSONB GIN 索引优化** — 需生产写入/查询基准
+2. **Redis 事件窗口 Hash 类型** — 字段级更新与内存占用评估
+3. **HTTP 连接池配置** — 外部服务调用连接复用
+4. **热路径异步化** — 同步 Mutex 替换评估
+
+权威产品级 gap：`docs/architecture/tech/OPTIMIZATION_ROADMAP.md`。
 
 ---
 
@@ -517,7 +550,7 @@ curl http://localhost:8080/readyz
 ### 7.1 本次修复成果
 
 ✅ **P1问题（6项）**: 100%完成
-✅ **P2问题（部分）**: 主要安全问题已解决
+✅ **P2问题（部分）**: 主要安全问题与列表分页规范已解决
 ✅ **安全性显著提升**: 生产环境加固
 ✅ **性能瓶颈缓解**: 数据库热点消除
 
@@ -564,4 +597,4 @@ curl http://localhost:8080/readyz
 
 **报告生成时间**: 2025年5月
 **执行人**: AI Assistant
-**审核状态**: 待人工审核
+**审核状态**: 2026-07-05 分页对齐周期已验证（`check:pagination`、核心服务编译、audit smoke tests）

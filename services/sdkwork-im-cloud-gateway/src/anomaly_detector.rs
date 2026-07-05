@@ -41,6 +41,10 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
+use im_adapters_redis_cache::{
+    RedisFixedWindowRateLimiter, RedisIpBlockStore, gateway_rate_limit_redis_fail_closed_from_env,
+    resolve_gateway_rate_limit_redis_url_from_env,
+};
 use serde::{Deserialize, Serialize};
 
 /// Anomaly type classification.
@@ -90,7 +94,7 @@ impl AnomalyType {
 }
 
 /// Anomaly event record.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct AnomalyEvent {
     /// Anomaly type.
     pub anomaly_type: AnomalyType,
@@ -232,7 +236,7 @@ impl RateTrackerEntry {
     }
 
     /// Record an IP and check for multiple IP pattern.
-    fn record_ip(&mut self, ip: IpAddr, window: Duration) -> bool {
+    fn record_ip(&mut self, ip: IpAddr, _window: Duration) -> bool {
         // Only add if different from last IP
         if self.recent_ips.back().map_or(true, |last| *last != ip) {
             self.recent_ips.push_back(ip);
@@ -267,16 +271,24 @@ impl ContentAnalyzer {
         Self {
             suspicious_patterns: vec![
                 // URL patterns
-                r"https?://[^\s]+",
-                r"www\.[^\s]+",
+                r"https?://[^\s]+".to_string(),
+                r"www\.[^\s]+".to_string(),
                 // Phone number patterns
-                r"\+?\d{1,3}[\s-]?\d{3,4}[\s-]?\d{4}",
+                r"\+?\d{1,3}[\s-]?\d{3,4}[\s-]?\d{4}".to_string(),
                 // Email patterns
-                r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+                r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}".to_string(),
             ],
             spam_keywords: vec![
-                "免费", "优惠", "促销", "中奖", "红包",
-                "free", "winner", "prize", "discount", "click here",
+                "免费".to_string(),
+                "优惠".to_string(),
+                "促销".to_string(),
+                "中奖".to_string(),
+                "红包".to_string(),
+                "free".to_string(),
+                "winner".to_string(),
+                "prize".to_string(),
+                "discount".to_string(),
+                "click here".to_string(),
             ],
         }
     }
@@ -346,6 +358,20 @@ pub struct AnomalyDetector {
     config: AnomalyDetectorConfig,
     /// Statistics.
     stats: AnomalyStats,
+    /// Temporary IP blocks enforced by gateway handlers.
+    ip_blocks: DashMap<IpAddr, Instant>,
+    /// Shared Redis IP blocks across gateway replicas.
+    redis_ip_blocks: Option<RedisIpBlockStore>,
+    /// Shared Redis failed-auth counters across gateway replicas.
+    redis_failed_auth: Option<RedisFixedWindowRateLimiter>,
+    /// Shared Redis per-user message rate counters across gateway replicas.
+    redis_user_message_rate: Option<RedisFixedWindowRateLimiter>,
+    /// Shared Redis per-IP message rate counters across gateway replicas.
+    redis_ip_message_rate: Option<RedisFixedWindowRateLimiter>,
+    /// Shared Redis per-user connection counters across gateway replicas.
+    redis_connection_rate: Option<RedisFixedWindowRateLimiter>,
+    /// Deny when Redis enforcement backends are unavailable in production-like envs.
+    redis_fail_closed: bool,
 }
 
 /// Anomaly detector configuration.
@@ -365,6 +391,8 @@ pub struct AnomalyDetectorConfig {
     pub auth_window: Duration,
     /// Maximum anomaly log entries.
     pub max_log_entries: usize,
+    /// Temporary IP block duration after credential-stuffing detection.
+    pub auth_block_duration: Duration,
 }
 
 impl AnomalyDetectorConfig {
@@ -377,6 +405,7 @@ impl AnomalyDetectorConfig {
             rate_window: Duration::from_secs(60),
             auth_window: Duration::from_secs(3600),
             max_log_entries: 1000,
+            auth_block_duration: Duration::from_secs(3600),
         }
     }
 
@@ -401,6 +430,12 @@ impl AnomalyDetectorConfig {
             rate_window: Duration::from_secs(60),
             auth_window: Duration::from_secs(3600),
             max_log_entries: 1000,
+            auth_block_duration: Duration::from_secs(
+                std::env::var("SDKWORK_IM_ANOMALY_AUTH_BLOCK_SECS")
+                    .ok()
+                    .and_then(|value| value.parse().ok())
+                    .unwrap_or(3600),
+            ),
         }
     }
 }
@@ -412,7 +447,7 @@ impl Default for AnomalyDetectorConfig {
 }
 
 /// Anomaly detection statistics.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default)]
 pub struct AnomalyStats {
     /// Total anomalies detected.
     pub total_anomalies: AtomicU64,
@@ -422,6 +457,19 @@ pub struct AnomalyStats {
     messages_analyzed: AtomicU64,
     /// Auth attempts analyzed.
     auth_attempts_analyzed: AtomicU64,
+}
+
+impl Clone for AnomalyStats {
+    fn clone(&self) -> Self {
+        Self {
+            total_anomalies: AtomicU64::new(self.total_anomalies.load(Ordering::Relaxed)),
+            anomalies_by_type: self.anomalies_by_type.clone(),
+            messages_analyzed: AtomicU64::new(self.messages_analyzed.load(Ordering::Relaxed)),
+            auth_attempts_analyzed: AtomicU64::new(
+                self.auth_attempts_analyzed.load(Ordering::Relaxed),
+            ),
+        }
+    }
 }
 
 impl AnomalyDetector {
@@ -474,7 +522,244 @@ impl AnomalyDetector {
             anomaly_log: Arc::new(Mutex::new(VecDeque::with_capacity(safe_config.max_log_entries))),
             config: safe_config,
             stats: AnomalyStats::default(),
+            ip_blocks: DashMap::new(),
+            redis_ip_blocks: None,
+            redis_failed_auth: None,
+            redis_user_message_rate: None,
+            redis_ip_message_rate: None,
+            redis_connection_rate: None,
+            redis_fail_closed: false,
         }
+    }
+
+    /// Build with optional Redis-backed IP blocks and failed-auth counters.
+    pub fn from_env() -> Self {
+        let config = AnomalyDetectorConfig::from_env();
+        let mut detector = Self::new(config);
+        let redis_url = resolve_gateway_rate_limit_redis_url_from_env();
+        detector.redis_ip_blocks = redis_url
+            .as_ref()
+            .and_then(|url| RedisIpBlockStore::try_from_url(url.as_str(), "gateway:ip_block:"));
+        detector.redis_failed_auth = redis_url.as_ref().and_then(|url| {
+            RedisFixedWindowRateLimiter::try_from_url(url.as_str(), "gateway:failed_auth:")
+        });
+        detector.redis_user_message_rate = redis_url.as_ref().and_then(|url| {
+            RedisFixedWindowRateLimiter::try_from_url(url.as_str(), "gateway:user_msg_rate:")
+        });
+        detector.redis_ip_message_rate = redis_url.as_ref().and_then(|url| {
+            RedisFixedWindowRateLimiter::try_from_url(url.as_str(), "gateway:ip_msg_rate:")
+        });
+        detector.redis_connection_rate = redis_url.as_ref().and_then(|url| {
+            RedisFixedWindowRateLimiter::try_from_url(url.as_str(), "gateway:connection_rate:")
+        });
+        detector.redis_fail_closed = gateway_rate_limit_redis_fail_closed_from_env();
+        detector
+    }
+
+    fn record_message_rate_for_user(&self, tenant_id: &str, user_id: &str) -> Option<f64> {
+        let threshold = self.config.message_rate_threshold;
+        let window_secs = self.config.rate_window.as_secs().max(1);
+        if let Some(redis) = &self.redis_user_message_rate {
+            let bucket = format!("{tenant_id}:{user_id}");
+            match redis.increment(bucket.as_str(), window_secs) {
+                Ok(count) => {
+                    let rate = count as f64;
+                    if rate > threshold {
+                        return Some(rate);
+                    }
+                    return None;
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.gateway.anomaly",
+                        event = "im.gateway.user_message_rate_redis_unavailable",
+                        ?error,
+                        user_id,
+                        fail_closed = self.redis_fail_closed,
+                        "redis user message-rate counter unavailable"
+                    );
+                    if self.redis_fail_closed {
+                        return Some(threshold + 1.0);
+                    }
+                }
+            }
+        }
+
+        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
+        let user_rate = user_tracker.record_message(self.config.rate_window);
+        if user_rate > threshold {
+            Some(user_rate)
+        } else {
+            None
+        }
+    }
+
+    fn record_message_rate_for_ip(&self, client_ip: IpAddr) -> Option<f64> {
+        let threshold = self.config.message_rate_threshold * 5.0;
+        let window_secs = self.config.rate_window.as_secs().max(1);
+        if let Some(redis) = &self.redis_ip_message_rate {
+            let bucket = format!("ip:{client_ip}");
+            match redis.increment(bucket.as_str(), window_secs) {
+                Ok(count) => {
+                    let rate = count as f64;
+                    if rate > threshold {
+                        return Some(rate);
+                    }
+                    return None;
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.gateway.anomaly",
+                        event = "im.gateway.ip_message_rate_redis_unavailable",
+                        ?error,
+                        client_ip = %client_ip,
+                        fail_closed = self.redis_fail_closed,
+                        "redis ip message-rate counter unavailable"
+                    );
+                    if self.redis_fail_closed {
+                        return Some(threshold + 1.0);
+                    }
+                }
+            }
+        }
+
+        let mut ip_tracker = self.ip_trackers.entry(client_ip).or_default();
+        let ip_rate = ip_tracker.record_message(self.config.rate_window);
+        if ip_rate > threshold {
+            Some(ip_rate)
+        } else {
+            None
+        }
+    }
+
+    fn record_connection_rate_for_user(&self, tenant_id: &str, user_id: &str) -> Option<u32> {
+        let threshold = self.config.connection_rate_threshold.max(1);
+        let window_secs = self.config.rate_window.as_secs().max(1);
+        if let Some(redis) = &self.redis_connection_rate {
+            let bucket = format!("{tenant_id}:{user_id}");
+            match redis.increment(bucket.as_str(), window_secs) {
+                Ok(count) if count > threshold => return Some(count),
+                Ok(_) => return None,
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.gateway.anomaly",
+                        event = "im.gateway.connection_rate_redis_unavailable",
+                        ?error,
+                        user_id,
+                        fail_closed = self.redis_fail_closed,
+                        "redis connection-rate counter unavailable"
+                    );
+                    if self.redis_fail_closed {
+                        return Some(threshold.saturating_add(1));
+                    }
+                }
+            }
+        }
+
+        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
+        if user_tracker.record_connection(self.config.rate_window) {
+            Some(threshold.saturating_add(1))
+        } else {
+            None
+        }
+    }
+
+    fn record_failed_auth_for_ip(&self, client_ip: IpAddr) -> u32 {
+        if let Some(redis) = &self.redis_failed_auth {
+            let bucket = format!("ip:{client_ip}");
+            match redis.increment(
+                bucket.as_str(),
+                self.config.auth_window.as_secs().max(1),
+            ) {
+                Ok(count) => return count,
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.gateway.anomaly",
+                        event = "im.gateway.failed_auth_redis_unavailable",
+                        ?error,
+                        client_ip = %client_ip,
+                        fail_closed = self.redis_fail_closed,
+                        "redis failed-auth counter unavailable"
+                    );
+                    if self.redis_fail_closed {
+                        return self.config.failed_auth_threshold;
+                    }
+                }
+            }
+        }
+
+        let mut ip_tracker = self.ip_trackers.entry(client_ip).or_default();
+        ip_tracker.record_failed_auth(self.config.auth_window)
+    }
+
+    /// Returns true when the client IP is under an active temporary block.
+    pub fn is_ip_blocked(&self, client_ip: IpAddr) -> bool {
+        if let Some(redis) = &self.redis_ip_blocks {
+            match redis.is_blocked(&client_ip) {
+                Ok(true) => return true,
+                Ok(false) => {}
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.gateway.anomaly",
+                        event = "im.gateway.ip_block_redis_unavailable",
+                        ?error,
+                        client_ip = %client_ip,
+                        fail_closed = self.redis_fail_closed,
+                        "redis ip block lookup unavailable"
+                    );
+                    if self.redis_fail_closed {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        self.ip_blocks
+            .get(&client_ip)
+            .is_some_and(|blocked_until| *blocked_until > Instant::now())
+    }
+
+    fn block_ip_temporarily(&self, client_ip: IpAddr) {
+        let duration_secs = self.config.auth_block_duration.as_secs().max(1);
+        if let Some(redis) = &self.redis_ip_blocks {
+            if let Err(error) = redis.block_for_secs(&client_ip, duration_secs) {
+                tracing::warn!(
+                    target: "sdkwork.im.gateway.anomaly",
+                    event = "im.gateway.ip_block_redis_write_failed",
+                    ?error,
+                    client_ip = %client_ip,
+                    "failed to persist temporary ip block to redis"
+                );
+            }
+        }
+        self.ip_blocks.insert(
+            client_ip,
+            Instant::now() + self.config.auth_block_duration,
+        );
+    }
+
+    /// Apply the recommended enforcement action for a detected anomaly.
+    pub fn enforce_recommended_action(
+        &self,
+        action: RecommendedAction,
+        client_ip: IpAddr,
+    ) {
+        match action {
+            RecommendedAction::TemporaryBlock | RecommendedAction::PermanentBan => {
+                self.block_ip_temporarily(client_ip);
+            }
+            _ => {}
+        }
+    }
+
+    /// Returns true when the connection should be terminated after a message anomaly.
+    pub fn should_terminate_connection(&self, event: &AnomalyEvent) -> bool {
+        matches!(
+            event.recommended_action,
+            RecommendedAction::TemporaryBlock
+                | RecommendedAction::PermanentBan
+                | RecommendedAction::RateLimit
+        )
     }
 
     /// Check a message for anomalies.
@@ -487,19 +772,17 @@ impl AnomalyDetector {
     ) -> Option<AnomalyEvent> {
         self.stats.messages_analyzed.fetch_add(1, Ordering::Relaxed);
 
-        // Check user rate
-        let user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
-        let user_rate = user_tracker.record_message(self.config.rate_window);
-
-        if user_rate > self.config.message_rate_threshold {
+        if let Some(user_rate) = self.record_message_rate_for_user(tenant_id, user_id) {
             let event = AnomalyEvent {
                 anomaly_type: AnomalyType::MessageRateSpike,
                 user_id: Some(user_id.to_owned()),
                 tenant_id: tenant_id.to_owned(),
                 client_ip,
                 detected_at: Instant::now(),
-                details: format!("Message rate {:.1}/min exceeds threshold {:.1}/min", 
-                    user_rate, self.config.message_rate_threshold),
+                details: format!(
+                    "Message rate {:.1}/min exceeds threshold {:.1}/min",
+                    user_rate, self.config.message_rate_threshold
+                ),
                 severity: AnomalyType::MessageRateSpike.severity(),
                 recommended_action: RecommendedAction::RateLimit,
             };
@@ -507,18 +790,17 @@ impl AnomalyDetector {
             return Some(event);
         }
 
-        // Check IP rate
-        let ip_tracker = self.ip_trackers.entry(client_ip).or_default();
-        let ip_rate = ip_tracker.record_message(self.config.rate_window);
-
-        if ip_rate > self.config.message_rate_threshold * 5.0 { // Higher threshold for IP
+        if let Some(ip_rate) = self.record_message_rate_for_ip(client_ip) {
             let event = AnomalyEvent {
                 anomaly_type: AnomalyType::DistributedAttack,
                 user_id: Some(user_id.to_owned()),
                 tenant_id: tenant_id.to_owned(),
                 client_ip,
                 detected_at: Instant::now(),
-                details: format!("IP message rate {:.1}/min suggests distributed attack", ip_rate),
+                details: format!(
+                    "IP message rate {:.1}/min suggests distributed attack",
+                    ip_rate
+                ),
                 severity: AnomalyType::DistributedAttack.severity(),
                 recommended_action: RecommendedAction::TemporaryBlock,
             };
@@ -559,11 +841,11 @@ impl AnomalyDetector {
             return None;
         }
 
-        // Track failed auth by IP
-        let ip_tracker = self.ip_trackers.entry(client_ip).or_default();
-        let failed_count = ip_tracker.record_failed_auth(self.config.auth_window);
+        // Track failed auth by IP (Redis-shared when configured).
+        let failed_count = self.record_failed_auth_for_ip(client_ip);
 
         if failed_count >= self.config.failed_auth_threshold {
+            self.block_ip_temporarily(client_ip);
             let event = AnomalyEvent {
                 anomaly_type: AnomalyType::CredentialStuffing,
                 user_id: user_id.map(|s| s.to_owned()),
@@ -581,7 +863,7 @@ impl AnomalyDetector {
 
         // Track failed auth by user (if identified)
         if let Some(uid) = user_id {
-            let user_tracker = self.user_trackers.entry(uid.to_owned()).or_default();
+            let mut user_tracker = self.user_trackers.entry(uid.to_owned()).or_default();
             let user_failed = user_tracker.record_failed_auth(self.config.auth_window);
 
             if user_failed >= self.config.failed_auth_threshold {
@@ -610,18 +892,19 @@ impl AnomalyDetector {
         tenant_id: &str,
         client_ip: IpAddr,
     ) -> Option<AnomalyEvent> {
-        // Check for rapid reconnect
-        let user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
-        let rapid_reconnect = user_tracker.record_connection(self.config.rate_window);
-
-        if rapid_reconnect {
+        if let Some(connection_count) =
+            self.record_connection_rate_for_user(tenant_id, user_id)
+        {
             let event = AnomalyEvent {
                 anomaly_type: AnomalyType::AbnormalConnection,
                 user_id: Some(user_id.to_owned()),
                 tenant_id: tenant_id.to_owned(),
                 client_ip,
                 detected_at: Instant::now(),
-                details: "Rapid connection pattern detected (>5 connections/min)",
+                details: format!(
+                    "Rapid connection pattern detected ({connection_count} connections in {}s window)",
+                    self.config.rate_window.as_secs()
+                ),
                 severity: AnomalyType::AbnormalConnection.severity(),
                 recommended_action: RecommendedAction::RateLimit,
             };
@@ -629,7 +912,8 @@ impl AnomalyDetector {
             return Some(event);
         }
 
-        // Check for multiple IPs
+        // Check for multiple IPs (per-process heuristic; multi-IP set not shared across replicas)
+        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
         let multiple_ips = user_tracker.record_ip(client_ip, self.config.rate_window);
         if multiple_ips {
             let event = AnomalyEvent {
@@ -638,7 +922,7 @@ impl AnomalyDetector {
                 tenant_id: tenant_id.to_owned(),
                 client_ip,
                 detected_at: Instant::now(),
-                details: "Multiple IP addresses detected for user",
+                details: "Multiple IP addresses detected for user".to_string(),
                 severity: AnomalyType::AbnormalConnection.severity(),
                 recommended_action: RecommendedAction::Challenge,
             };
@@ -660,8 +944,6 @@ impl AnomalyDetector {
             log.pop_front();
         }
         
-        log.push_back(event);
-
         tracing::warn!(
             target: "sdkwork.im.anomaly",
             event = "im.anomaly.detected",
@@ -674,6 +956,8 @@ impl AnomalyDetector {
             details = %event.details,
             "anomaly detected"
         );
+
+        log.push_back(event);
     }
 
     /// Get recent anomaly events.
@@ -730,7 +1014,7 @@ impl AnomalyDetector {
 
 impl Default for AnomalyDetector {
     fn default() -> Self {
-        Self::new(AnomalyDetectorConfig::default())
+        Self::from_env()
     }
 }
 

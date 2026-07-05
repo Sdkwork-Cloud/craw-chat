@@ -1,8 +1,13 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { PageInfo, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView } from '../types';
+import type { PageInfo, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView, TransferSpaceGroupOwnerRequest } from '../types';
 
+
+export interface SpacesBansListParams {
+  limit?: number;
+  cursor?: string;
+}
 
 export class SpacesBansApi {
   private client: HttpClient;
@@ -13,8 +18,12 @@ export class SpacesBansApi {
 
 
 /** List spaces bans */
-  async list(spaceId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`));
+  async list(spaceId: string, params?: SpacesBansListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query));
   }
 
 /** Create spaces bans */
@@ -33,6 +42,12 @@ export class SpacesBansApi {
   }
 }
 
+export interface SpacesInvitesListParams {
+  status?: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all';
+  limit?: number;
+  cursor?: string;
+}
+
 export class SpacesInvitesApi {
   private client: HttpClient;
 
@@ -42,8 +57,13 @@ export class SpacesInvitesApi {
 
 
 /** List spaces invites */
-  async list(spaceId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`));
+  async list(spaceId: string, params?: SpacesInvitesListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query));
   }
 
 /** Create spaces invites */
@@ -67,6 +87,11 @@ export class SpacesInvitesApi {
   }
 }
 
+export interface SpacesChannelsAccessRulesListParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export class SpacesChannelsAccessRulesApi {
   private client: HttpClient;
 
@@ -76,8 +101,12 @@ export class SpacesChannelsAccessRulesApi {
 
 
 /** List spaces channels access Rules */
-  async list(spaceId: string, channelId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`));
+  async list(spaceId: string, channelId: string, params?: SpacesChannelsAccessRulesListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query));
   }
 
 /** Create spaces channels access Rules */
@@ -91,6 +120,11 @@ export class SpacesChannelsAccessRulesApi {
   }
 }
 
+export interface SpacesChannelsListParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export class SpacesChannelsApi {
   private client: HttpClient;
   public readonly accessRules: SpacesChannelsAccessRulesApi;
@@ -102,8 +136,12 @@ export class SpacesChannelsApi {
 
 
 /** List spaces channels */
-  async list(spaceId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`));
+  async list(spaceId: string, params?: SpacesChannelsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query));
   }
 
 /** Create spaces channels */
@@ -127,6 +165,11 @@ export class SpacesChannelsApi {
   }
 }
 
+export interface SpacesGroupsMembersListParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export class SpacesGroupsMembersApi {
   private client: HttpClient;
 
@@ -136,8 +179,12 @@ export class SpacesGroupsMembersApi {
 
 
 /** List spaces groups members */
-  async list(spaceId: string, groupId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`));
+  async list(spaceId: string, groupId: string, params?: SpacesGroupsMembersListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query));
   }
 
 /** Create spaces groups members */
@@ -161,6 +208,11 @@ export class SpacesGroupsMembersApi {
   }
 }
 
+export interface SpacesGroupsListParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export class SpacesGroupsApi {
   private client: HttpClient;
   public readonly members: SpacesGroupsMembersApi;
@@ -172,8 +224,12 @@ export class SpacesGroupsApi {
 
 
 /** List spaces groups */
-  async list(spaceId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`));
+  async list(spaceId: string, params?: SpacesGroupsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query));
   }
 
 /** Create spaces groups */
@@ -195,6 +251,16 @@ export class SpacesGroupsApi {
   async delete(spaceId: string, groupId: string): Promise<void> {
     return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
   }
+
+/** Transfer space group ownership */
+  async transferOwner(spaceId: string, groupId: string, body: TransferSpaceGroupOwnerRequest): Promise<SpaceGroupView> {
+    return this.client.post<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/transfer_owner`), body, undefined, undefined, 'application/json');
+  }
+}
+
+export interface SpacesMembersListParams {
+  limit?: number;
+  cursor?: string;
 }
 
 export class SpacesMembersApi {
@@ -206,8 +272,12 @@ export class SpacesMembersApi {
 
 
 /** List spaces members */
-  async list(spaceId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`));
+  async list(spaceId: string, params?: SpacesMembersListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query));
   }
 
 /** Create spaces members */
@@ -229,6 +299,11 @@ export class SpacesMembersApi {
   async delete(spaceId: string, userId: string): Promise<void> {
     return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
   }
+}
+
+export interface SpacesListParams {
+  limit?: number;
+  cursor?: string;
 }
 
 export class SpacesApi {
@@ -255,8 +330,12 @@ export class SpacesApi {
   }
 
 /** List spaces */
-  async list(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/spaces`));
+  async list(params?: SpacesListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces`), query));
   }
 
 /** Get a space */
@@ -357,4 +436,156 @@ function serializePathPrimitive(value: unknown): string {
     return JSON.stringify(value);
   }
   return String(value);
+}
+interface QueryParameterSpec {
+  name: string;
+  value: unknown;
+  style: string;
+  explode: boolean;
+  allowReserved: boolean;
+  contentType?: string;
+}
+
+function buildQueryString(parameters: QueryParameterSpec[]): string {
+  const pairs: string[] = [];
+  for (const parameter of parameters) {
+    appendSerializedParameter(pairs, parameter);
+  }
+  return pairs.join('&');
+}
+
+function appendSerializedParameter(pairs: string[], parameter: QueryParameterSpec): void {
+  if (parameter.value === undefined || parameter.value === null) {
+    return;
+  }
+
+  if (parameter.contentType) {
+    pairs.push(`${encodeQueryComponent(parameter.name)}=${encodeQueryValue(JSON.stringify(parameter.value), parameter.allowReserved)}`);
+    return;
+  }
+
+  const style = parameter.style || 'form';
+  if (style === 'deepObject') {
+    appendDeepObjectParameter(pairs, parameter.name, parameter.value, parameter.allowReserved);
+    return;
+  }
+
+  if (Array.isArray(parameter.value)) {
+    appendArrayParameter(pairs, parameter.name, parameter.value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+
+  if (typeof parameter.value === 'object') {
+    appendObjectParameter(pairs, parameter.name, parameter.value as Record<string, unknown>, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+
+  pairs.push(`${encodeQueryComponent(parameter.name)}=${encodeQueryValue(serializePrimitive(parameter.value), parameter.allowReserved)}`);
+}
+
+function appendArrayParameter(
+  pairs: string[],
+  name: string,
+  value: unknown[],
+  style: string,
+  explode: boolean,
+  allowReserved: boolean,
+): void {
+  const values = value
+    .filter((item) => item !== undefined && item !== null)
+    .map((item) => serializePrimitive(item));
+  if (values.length === 0) {
+    return;
+  }
+
+  if (style === 'form' && explode) {
+    for (const item of values) {
+      pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(item, allowReserved)}`);
+    }
+    return;
+  }
+
+  pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(values.join(','), allowReserved)}`);
+}
+
+function appendObjectParameter(
+  pairs: string[],
+  name: string,
+  value: Record<string, unknown>,
+  style: string,
+  explode: boolean,
+  allowReserved: boolean,
+): void {
+  const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null);
+  if (entries.length === 0) {
+    return;
+  }
+
+  if (style === 'form' && explode) {
+    for (const [key, entryValue] of entries) {
+      pairs.push(`${encodeQueryComponent(key)}=${encodeQueryValue(serializePrimitive(entryValue), allowReserved)}`);
+    }
+    return;
+  }
+
+  const serialized = entries.flatMap(([key, entryValue]) => [key, serializePrimitive(entryValue)]).join(',');
+  pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(serialized, allowReserved)}`);
+}
+
+function appendDeepObjectParameter(
+  pairs: string[],
+  name: string,
+  value: unknown,
+  allowReserved: boolean,
+): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    pairs.push(`${encodeQueryComponent(name)}=${encodeQueryValue(serializePrimitive(value), allowReserved)}`);
+    return;
+  }
+
+  for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+    if (entryValue === undefined || entryValue === null) {
+      continue;
+    }
+    pairs.push(`${encodeQueryComponent(`${name}[${key}]`)}=${encodeQueryValue(serializePrimitive(entryValue), allowReserved)}`);
+  }
+}
+
+function serializePrimitive(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function encodeQueryComponent(value: string): string {
+  return encodeURIComponent(value);
+}
+
+function encodeQueryValue(value: string, allowReserved: boolean): string {
+  const encoded = encodeURIComponent(value);
+  if (!allowReserved) {
+    return encoded;
+  }
+  return encoded.replace(/%3A/gi, ':')
+    .replace(/%2F/gi, '/')
+    .replace(/%3F/gi, '?')
+    .replace(/%23/gi, '#')
+    .replace(/%5B/gi, '[')
+    .replace(/%5D/gi, ']')
+    .replace(/%40/gi, '@')
+    .replace(/%21/gi, '!')
+    .replace(/%24/gi, '$')
+    .replace(/%26/gi, '&')
+    .replace(/%27/gi, "'")
+    .replace(/%28/gi, '(')
+    .replace(/%29/gi, ')')
+    .replace(/%2A/gi, '*')
+    .replace(/%2B/gi, '+')
+    .replace(/%2C/gi, ',')
+    .replace(/%3B/gi, ';')
+    .replace(/%3D/gi, '=');
 }

@@ -6,8 +6,8 @@ use im_adapters_local_memory::{
 };
 use im_adapters_postgres_realtime::{
     PostgresBackedRouteStore, PostgresRealtimeCheckpointStore, PostgresRealtimeConfig,
-    PostgresRealtimeDisconnectFenceStore, PostgresRealtimeEventWindowStore,
-    PostgresRealtimePool, PostgresRealtimePresenceStateStore, PostgresRealtimeSubscriptionStore,
+    PostgresRealtimeDisconnectFenceStore, PostgresRealtimeEventWindowStore, PostgresRealtimePool,
+    PostgresRealtimePresenceStateStore, PostgresRealtimeSubscriptionStore,
 };
 use im_adapters_redis_cache::{RedisBackedRouteStore, RedisClusterBus};
 use im_platform_contracts::ClusterEventBus;
@@ -16,20 +16,76 @@ use sdkwork_im_contract_control::{
     PresenceStateStore, RealtimeCheckpointStore, RealtimeDisconnectFenceStore,
     RealtimeSubscriptionStore,
 };
-use sdkwork_im_runtime_route::{memory_route_store, RouteStore};
-use tracing::warn;
+use sdkwork_im_runtime_route::{RouteStore, memory_route_store};
+use im_app_context::resolve_web_environment_from_process_env;
+use sdkwork_web_core::WebEnvironment;
 
 use crate::{
-    PresenceRuntime, RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimePlaneAssembly,
+    ConversationMemberRealtimeScopeAccessPolicy, PresenceRuntime, RealtimeClusterBridge,
+    RealtimeDeliveryRuntime, RealtimePlaneAssembly, StandaloneRealtimeScopeAccessPolicy,
     cluster_route_event_auth::{
         resolve_cluster_bus_secret_from_env, validate_realtime_node_id_for_cluster,
     },
-    route_store_tier::RedisPostgresTieredRouteStore, resolve_realtime_node_id_from_env,
+    resolve_realtime_node_id_from_env,
+    route_store_tier::RedisPostgresTieredRouteStore,
 };
+use im_adapters_postgres_journal::{
+    PostgresJournalPool, conversation_member_access_gate_from_pool,
+};
+use sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool;
+use tracing::warn;
 
 const REALTIME_CLUSTER_BUS_URL_ENV: &str = "SDKWORK_IM_REALTIME_CLUSTER_BUS_URL";
 const REALTIME_ROUTE_STORE_URL_ENV: &str = "SDKWORK_IM_REALTIME_ROUTE_STORE_URL";
 const REALTIME_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+const REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV: &str = "SDKWORK_IM_REALTIME_PERMISSIVE_SCOPE_ACCESS";
+
+fn resolve_realtime_scope_access_policy(
+) -> std::sync::Arc<dyn crate::RealtimeScopeAccessPolicy> {
+    let permissive = std::env::var(REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV)
+        .ok()
+        .is_some_and(|value| value == "1" || value.eq_ignore_ascii_case("true"));
+    let environment = resolve_web_environment_from_process_env();
+    if permissive {
+        if matches!(environment, WebEnvironment::Prod) {
+            panic!(
+                "{REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV}=true is forbidden in production-like environments; \
+                 realtime conversation scopes must be membership-gated via PostgreSQL"
+            );
+        }
+        warn!(
+            "{REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV}=true; realtime conversation scopes are not membership-gated (development only)"
+        );
+        return std::sync::Arc::new(StandaloneRealtimeScopeAccessPolicy);
+    }
+
+    if let Some(pool) = clone_shared_im_postgres_r2d2_pool() {
+        let gate = conversation_member_access_gate_from_pool(PostgresJournalPool::from_pool(pool));
+        return std::sync::Arc::new(ConversationMemberRealtimeScopeAccessPolicy::new(gate));
+    }
+
+    if resolve_realtime_database_url_from_env().is_some() {
+        let environment = resolve_web_environment_from_process_env();
+        if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
+            warn!(
+                "PostgreSQL is configured but shared IM process pools are not installed; \
+                 falling back to permissive realtime scope access until pools are bootstrapped (development only)"
+            );
+        } else if matches!(environment, WebEnvironment::Prod) {
+            panic!(
+                "PostgreSQL is configured ({REALTIME_DATABASE_URL_ENV}) but shared IM process pools are not installed; \
+                 realtime conversation scopes cannot be membership-gated. Bootstrap shared Postgres pools before starting session-gateway in production."
+            );
+        } else {
+            panic!(
+                "PostgreSQL is configured ({REALTIME_DATABASE_URL_ENV}) but shared IM process pools are not installed; \
+                 realtime conversation scopes cannot be membership-gated. Bootstrap shared Postgres pools before starting session-gateway."
+            );
+        }
+    }
+
+    std::sync::Arc::new(StandaloneRealtimeScopeAccessPolicy)
+}
 
 pub struct RealtimePlaneBootstrap {
     pub assembly: RealtimePlaneAssembly,
@@ -50,7 +106,9 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
     let cluster_bus = resolve_cluster_bus_from_env(node_id.as_str())?;
     let postgres_pool = connect_realtime_postgres_pool_from_env()?;
     let route_store = resolve_route_store_from_env(postgres_pool.clone())?;
-    let shared_cluster_bus = cluster_bus.clone().map(|bus| bus as Arc<dyn ClusterEventBus>);
+    let shared_cluster_bus = cluster_bus
+        .clone()
+        .map(|bus| bus as Arc<dyn ClusterEventBus>);
 
     // HA fail-closed check: when cluster bus is enabled (multi-node HA topology),
     // the disconnect fence MUST use a shared storage backend (Postgres or Redis).
@@ -67,12 +125,14 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
     }
 
     let assembly = if let Some(pool) = postgres_pool {
-        let disconnect_fence_store =
-            Arc::new(PostgresRealtimeDisconnectFenceStore::from_pool(pool.clone()));
+        let disconnect_fence_store = Arc::new(PostgresRealtimeDisconnectFenceStore::from_pool(
+            pool.clone(),
+        ));
         let checkpoint_store = Arc::new(PostgresRealtimeCheckpointStore::from_pool(pool.clone()));
         let subscription_store =
             Arc::new(PostgresRealtimeSubscriptionStore::from_pool(pool.clone()));
-        let event_window_store = Arc::new(PostgresRealtimeEventWindowStore::from_pool(pool.clone()));
+        let event_window_store =
+            Arc::new(PostgresRealtimeEventWindowStore::from_pool(pool.clone()));
         let presence_state_store = Arc::new(PostgresRealtimePresenceStateStore::from_pool(pool));
         build_assembly_with_stores(
             disconnect_fence_store,
@@ -139,13 +199,12 @@ where
 
     RealtimePlaneAssembly::new(
         Arc::new(realtime_cluster),
-        Arc::new(
-            RealtimeDeliveryRuntime::with_durable_stores_for_standalone_gateway(
-                checkpoint_store,
-                subscription_store,
-                event_window_store,
-            ),
-        ),
+        Arc::new(RealtimeDeliveryRuntime::with_durable_stores_and_scope_access_policy(
+            checkpoint_store,
+            subscription_store,
+            event_window_store,
+            resolve_realtime_scope_access_policy(),
+        )),
         Arc::new(PresenceRuntime::with_store(presence_state_store)),
     )
 }
@@ -224,34 +283,36 @@ pub fn spawn_cluster_route_event_subscriber(
     let cluster = bootstrap.assembly.realtime_cluster();
     let node_id = bootstrap.node_id.clone();
 
-    Some(std::thread::spawn(move || loop {
-        match cluster_bus.subscribe_connection(|message| -> redis::ControlFlow<()> {
-            let payload = message.get_payload::<String>().unwrap_or_default();
-            if payload.is_empty() {
-                return redis::ControlFlow::Continue;
-            }
-            if let Err(delivery_error) =
-                cluster.ingest_cluster_route_event_for_node(node_id.as_str(), payload.as_str())
-            {
-                warn!(
-                    target: "sdkwork.im",
-                    event = "im.realtime.cluster.ingress_failed",
-                    node_id = %node_id,
-                    code = delivery_error.code,
-                    message = %delivery_error.message,
-                );
-            }
-            redis::ControlFlow::Continue
-        }) {
-            Ok(_) => break,
-            Err(error) => {
-                warn!(
-                    target: "sdkwork.im",
-                    event = "im.realtime.cluster.subscribe_failed",
-                    node_id = %node_id,
-                    error = ?error,
-                );
-                std::thread::sleep(std::time::Duration::from_secs(1));
+    Some(std::thread::spawn(move || {
+        loop {
+            match cluster_bus.subscribe_connection(|message| -> redis::ControlFlow<()> {
+                let payload = message.get_payload::<String>().unwrap_or_default();
+                if payload.is_empty() {
+                    return redis::ControlFlow::Continue;
+                }
+                if let Err(delivery_error) =
+                    cluster.ingest_cluster_route_event_for_node(node_id.as_str(), payload.as_str())
+                {
+                    warn!(
+                        target: "sdkwork.im",
+                        event = "im.realtime.cluster.ingress_failed",
+                        node_id = %node_id,
+                        code = delivery_error.code,
+                        message = %delivery_error.message,
+                    );
+                }
+                redis::ControlFlow::Continue
+            }) {
+                Ok(_) => break,
+                Err(error) => {
+                    warn!(
+                        target: "sdkwork.im",
+                        event = "im.realtime.cluster.subscribe_failed",
+                        node_id = %node_id,
+                        error = ?error,
+                    );
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
             }
         }
     }))

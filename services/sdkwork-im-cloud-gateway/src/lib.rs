@@ -42,6 +42,7 @@
 pub mod gateway_protection;
 
 mod app;
+mod anomaly_detector;
 mod client;
 mod constants;
 mod cors;

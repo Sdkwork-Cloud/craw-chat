@@ -1,7 +1,7 @@
 # Sdkwork IM IM App API And SDK Integration Standard
 
 - Version: 1.0
-- Scope: Sdkwork IM PC, `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `@sdkwork/im-sdk`, appbase IAM integration, local SQLite/PostgreSQL development, and release dependency sourcing
+- Scope: Sdkwork IM PC, `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `@sdkwork/im-sdk`, appbase IAM integration, local PostgreSQL development, and release dependency sourcing
 - Related root standards: `../../../specs/API_SPEC.md`, `../../../specs/SDK_SPEC.md`, `../../../specs/IAM_SPEC.md`, `../../../specs/DATABASE_SPEC.md`, `../../../specs/CONFIG_SPEC.md`, `../../../specs/DEPLOYMENT_SPEC.md`, `../../../specs/TEST_SPEC.md`
 
 This local standard narrows the root SDKWork standards for the Sdkwork IM application. It is authoritative for the Sdkwork IM app workspace when root examples mention retired generic Spring app/backend SDK packages or authorities.
@@ -77,8 +77,7 @@ Sdkwork IM uses the standard Sdkwork IM database policy for appbase IAM and IM d
 
 Rules:
 
-- Local development defaults to the per-app private SQLite database: `~/.sdkwork/chat/data/chat.sqlite`.
-- PostgreSQL is supported by setting canonical `SDKWORK_IM_DATABASE_*` variables such as `SDKWORK_IM_DATABASE_ENGINE=postgresql`, `SDKWORK_IM_DATABASE_HOST`, `SDKWORK_IM_DATABASE_NAME`, `SDKWORK_IM_DATABASE_USERNAME`, `SDKWORK_IM_DATABASE_PASSWORD`, and `SDKWORK_IM_DATABASE_SSL_MODE`.
+- Local development and production default to PostgreSQL via canonical `SDKWORK_IM_DATABASE_*` variables such as `SDKWORK_IM_DATABASE_ENGINE=postgresql`, `SDKWORK_IM_DATABASE_HOST`, `SDKWORK_IM_DATABASE_NAME`, `SDKWORK_IM_DATABASE_USERNAME`, `SDKWORK_IM_DATABASE_PASSWORD`, and `SDKWORK_IM_DATABASE_SSL_MODE`. 桌面端本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不依赖 SQL 数据库文件。
 - Legacy `SDKWORK_CLAW_DATABASE_*` variables may be bridged for compatibility, but new configuration and documentation must use the canonical `SDKWORK_IM_DATABASE_*` namespace.
 - Sdkwork IM must not create duplicate IAM tables or alternate login schemas when appbase IAM already owns those tables.
 - Schema or migration changes require explicit approval before implementation.
@@ -92,7 +91,7 @@ Rules:
 - Local `apps/sdkwork-im-pc/package.json` dependencies for SDKWork packages use relative `link:` specifiers.
 - Vite and TypeScript aliases resolve generated IM app/backend SDKs, `@sdkwork/im-sdk`, `@sdkwork/drive-app-sdk`, appbase IAM packages, core PC React, and UI PC React to source entries, not prebuilt `dist`.
 - Vite `optimizeDeps.exclude` must include linked SDKWork source packages so live source edits are not hidden by dependency pre-bundling.
-- Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM standalone gateway. Embedded IAM, Drive, Knowledgebase, Commerce, Mail, Notary, and Course app APIs are served in-process on that bind. Community still requires split-service overrides or a future embedded gateway assembly.
+- Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM standalone gateway. Embedded IAM, Drive, Knowledgebase, Commerce, Mail, Notary, and Course app APIs are served in-process on that bind. Community app API (`/app/v3/api/community/*`) proxies to `sdkwork-community` through the shared gateway root; split upstream overrides use `SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM` / `SDKWORK_COMMUNITY_APP_API_UPSTREAM`.
 - The chat-pc `pnpm-workspace.yaml` must not register sibling `sdkwork-appbase`, `sdkwork-core`, or `sdkwork-ui` packages as workspace importers. They remain source-linked dependencies; otherwise pnpm install rewrites sibling `node_modules` and breaks isolated local builds.
 - Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `sdk:shared:prepare`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-clawrouter`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Sdkwork IM PC from those source links.
 
@@ -104,7 +103,7 @@ Foundation API integration depends on topology profile:
 
 | Topology profile | Foundation API integration |
 | --- | --- |
-| `standalone.unified-process.*` (default local PC) | `sdkwork-im-standalone-gateway` collapses application and platform ingress on one bind. Drive, Knowledgebase, Commerce, Mail, Notary, and Course app APIs mount in-process through Cargo-linked sibling route crates. Community remains split-only until its sibling repository ships an executable gateway assembly with production port adapters. |
+| `standalone.unified-process.*` (default local PC) | `sdkwork-im-standalone-gateway` collapses application and platform ingress on one bind. Drive, Knowledgebase, Commerce, Mail, Notary, and Course app APIs mount in-process through Cargo-linked sibling route crates. Community app API routes through the shared gateway to `sdkwork-community` upstream (default platform gateway root; optional `SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM`). |
 | `standalone.split-services.*` and cloud profiles | Foundation APIs route through `sdkwork-api-cloud-gateway` or explicit `SDKWORK_IM_*_APP_API_UPSTREAM` overrides documented in `specs/component.spec.json`. |
 
 Rules:

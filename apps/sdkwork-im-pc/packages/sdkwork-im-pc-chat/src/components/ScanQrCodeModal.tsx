@@ -96,11 +96,8 @@ export const ScanQrCodeModal: React.FC<ScanQrCodeModalProps> = ({
       }
 
       if (payload.kind === 'group') {
-        const groups = await groupService.getGroups();
-        const group = groups.find((item) => (
-          item.id === payload.groupId
-          || item.id === payload.conversationId
-        )) ?? null;
+        const groupId = payload.groupId ?? payload.conversationId;
+        const group = groupId ? await groupService.getGroupById(groupId) : null;
         setResult({ payload, group, isResolving: false });
         return;
       }

@@ -82,6 +82,18 @@ assert.doesNotMatch(imSdkSource, /readonly\s+rtc:\s+ImRtcModule/u, 'IM SDK clien
 assert.doesNotMatch(imIndexSource, /rtc-module/u, 'IM SDK public exports must not expose legacy rtc-module');
 assert.match(imIndexSource, /calls-module/u, 'IM SDK public exports must expose calls-module');
 
+const imCallsModuleSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/calls-module.ts');
+assert.doesNotMatch(
+  imCallsModuleSource,
+  /\bepoch:\s/u,
+  'calls-module must not map retired RtcSession.epoch onto generated transport types',
+);
+assert.doesNotMatch(
+  imCallsModuleSource,
+  /participantIds:\s*options\.participantIds/u,
+  'calls-module invite must not send undeclared InviteRtcSessionRequest.participantIds',
+);
+
 const rtcIndexPath = path.join(rtcSdkRoot, 'src', 'index.ts');
 const rtcIndexSource = readFile(rtcIndexPath);
 for (const forbiddenExport of [

@@ -55,6 +55,13 @@ pub struct TimelineProjectionBatch {
     pub records: Vec<TimelineProjectionRecord>,
 }
 
+/// Keyset page of timeline projection payloads ordered by `message_seq`.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct TimelineProjectionWindow {
+    pub items: Vec<(u64, String)>,
+    pub has_more: bool,
+}
+
 pub trait TimelineProjectionStore {
     fn upsert_timeline_entry(
         &self,
@@ -69,6 +76,25 @@ pub trait TimelineProjectionStore {
         tenant_id: &str,
         timeline_scope: &str,
     ) -> Result<Vec<(u64, String)>, ContractError>;
+
+    /// Load a keyset window of timeline entries with `message_seq > after_seq`.
+    fn load_timeline_window(
+        &self,
+        tenant_id: &str,
+        timeline_scope: &str,
+        after_seq: u64,
+        limit: usize,
+    ) -> Result<TimelineProjectionWindow, ContractError> {
+        let mut items = self
+            .load_timeline(tenant_id, timeline_scope)?
+            .into_iter()
+            .filter(|(message_seq, _)| *message_seq > after_seq)
+            .collect::<Vec<_>>();
+        items.sort_by_key(|(message_seq, _)| *message_seq);
+        let has_more = items.len() > limit;
+        items.truncate(limit);
+        Ok(TimelineProjectionWindow { items, has_more })
+    }
 
     fn upsert_timeline_entries(
         &self,

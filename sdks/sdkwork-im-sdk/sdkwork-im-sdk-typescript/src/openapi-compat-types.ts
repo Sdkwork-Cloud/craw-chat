@@ -67,6 +67,7 @@ export interface ContactsResponse {
   hasMore: boolean;
 }
 
+/** Unwrapped cursor list page (`data.items` + `data.pageInfo`) for contact tags. */
 export interface ContactTagsResponse {
   items: ContactTagView[];
   nextCursor?: string | null;
@@ -84,6 +85,7 @@ export interface SocialUserSearchResponse {
   hasMore: boolean;
 }
 
+/** Unwrapped cursor list page (`data.items` + `data.pageInfo`) for friend requests. */
 export interface SocialFriendRequestListResponse {
   items: FriendRequest[];
   nextCursor?: string | null;

@@ -2,6 +2,10 @@ import {
   getAppbaseAppSdkClientWithSession,
 } from '@sdkwork/im-pc-core/sdk/appbaseAppSdkClient';
 import {
+  collectCursorPages,
+  SDKWORK_MAX_PAGE_SIZE,
+} from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
+import {
   readAppSdkSessionTokens,
 } from '@sdkwork/im-pc-core/sdk/session';
 import type { User, UserPositionAssignment, UserRoleBinding } from '@sdkwork/im-pc-types';
@@ -768,18 +772,29 @@ function hasRoleBindingsReadPermission(permissionScope: string[] = readSessionPe
 }
 
 async function listRoleBindingsSafely(
-  listRoleBindings: () => Promise<unknown>,
+  listRoleBindings: (params: { pageSize?: number; cursor?: string }) => Promise<unknown>,
 ): Promise<UserRoleBinding[]> {
   if (!hasRoleBindingsReadPermission()) {
     return [];
   }
-  const response = await safeDirectoryRequest(listRoleBindings);
-  if (!response) {
-    return [];
-  }
-  return extractRecordArray(response)
-    .map(mapRoleBindingRecord)
-    .filter(Boolean) as UserRoleBinding[];
+  return collectCursorPages(async (cursor) => {
+    const response = await safeDirectoryRequest(() => listRoleBindings({
+      pageSize: SDKWORK_MAX_PAGE_SIZE,
+      ...(cursor ? { cursor } : {}),
+    }));
+    if (!response) {
+      return { items: [], hasMore: false };
+    }
+    const payload = toRecord(unwrapEnvelope(response));
+    const pageInfo = toRecord(payload.pageInfo);
+    return {
+      items: extractRecordArray(response)
+        .map(mapRoleBindingRecord)
+        .filter(Boolean) as UserRoleBinding[],
+      hasMore: pageInfo.hasMore === true || Boolean(pageInfo.nextCursor),
+      nextCursor: typeof pageInfo.nextCursor === 'string' ? pageInfo.nextCursor : undefined,
+    };
+  }, { maxItems: SDKWORK_MAX_PAGE_SIZE * 10 });
 }
 
 function isDirectoryAccessError(error: unknown): boolean {
@@ -901,17 +916,30 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
 
     const client = this.client();
     const roleCodes = new Set<string>();
-    if (client.iam?.roleBindings?.list) {
-      for (const membershipId of membershipIds) {
-        const bindings = await listRoleBindingsSafely(() => client.iam.roleBindings.list({
-          principalId: membershipId,
-          scopeKind: 'organization',
-          scopeId: resolvedOrganizationId,
-        }));
-        for (const binding of bindings) {
-          if (isActiveStatus(binding.status)) {
-            roleCodes.add(binding.roleCode);
-          }
+    if (!client.iam?.roleBindings?.list) {
+      const sortedRoleCodes: string[] = [];
+      return {
+        adminCapabilityAvailable: this.hasAdminMemberCapability(),
+        canAssignRoles: false,
+        canInviteMembers: false,
+        canManageMembers: false,
+        currentUserId: currentUser.id,
+        organizationId: resolvedOrganizationId,
+        organizationMembershipIds: membershipIds,
+        reason: 'role_denied',
+        roleCodes: sortedRoleCodes,
+      };
+    }
+    for (const membershipId of membershipIds) {
+      const bindings = await listRoleBindingsSafely((params) => client.iam.roleBindings.list({
+        principalId: membershipId,
+        scopeKind: 'organization',
+        scopeId: resolvedOrganizationId,
+        ...params,
+      }));
+      for (const binding of bindings) {
+        if (isActiveStatus(binding.status)) {
+          roleCodes.add(binding.roleCode);
         }
       }
     }
@@ -1003,14 +1031,27 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
 
   private async fetchOrganizationsList(): Promise<OrgOrganization[]> {
     const client = this.client();
-    const response = client.iam?.organizations?.list
-      ? await client.iam.organizations.list({})
-      : await client.listOrganizations?.({});
-    return uniqueById(
-      extractRecordArray(response)
-        .map(mapOrganizationRecord)
-        .filter(Boolean) as OrgOrganization[],
-    ).sort((left, right) => left.order - right.order || left.name.localeCompare(right.name));
+    const organizations = await collectCursorPages(async (cursor) => {
+      const response = client.iam?.organizations?.list
+        ? await client.iam.organizations.list({
+            pageSize: SDKWORK_MAX_PAGE_SIZE,
+            ...(cursor ? { cursor } : {}),
+          })
+        : await client.listOrganizations?.({
+            pageSize: SDKWORK_MAX_PAGE_SIZE,
+            ...(cursor ? { cursor } : {}),
+          });
+      const payload = toRecord(unwrapEnvelope(response));
+      const pageInfo = toRecord(payload.pageInfo);
+      return {
+        items: extractRecordArray(response)
+          .map(mapOrganizationRecord)
+          .filter(Boolean) as OrgOrganization[],
+        hasMore: pageInfo.hasMore === true || Boolean(pageInfo.nextCursor),
+        nextCursor: typeof pageInfo.nextCursor === 'string' ? pageInfo.nextCursor : undefined,
+      };
+    }, { maxItems: SDKWORK_MAX_PAGE_SIZE * 10 });
+    return uniqueById(organizations).sort((left, right) => left.order - right.order || left.name.localeCompare(right.name));
   }
 
   private async fetchOrganizationTree(): Promise<OrgOrganizationNode[]> {
@@ -1089,12 +1130,14 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     const currentUser = await this.getCurrentUser();
     const userId = pickString(currentUser?.id);
     const client = this.client();
-    if (!userId || !client.iam?.organizationMemberships?.list) {
+    const organizationMembershipsApi = client.iam?.organizationMemberships;
+    const listOrganizationMemberships = organizationMembershipsApi?.list?.bind(organizationMembershipsApi);
+    if (!userId || !listOrganizationMemberships) {
       return [];
     }
 
     const memberships = await safeDirectoryRequest(async () => extractRecordArray(
-      await client.iam.organizationMemberships.list({ userId }),
+      await listOrganizationMemberships({ userId }),
     ));
     if (!memberships) {
       return [];
@@ -1425,8 +1468,10 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     }
 
     const client = this.client();
-    const positionAssignments = client.iam?.positionAssignments?.list
-      ? await client.iam.positionAssignments.list({
+    const positionAssignmentsApi = client.iam?.positionAssignments;
+    const listPositionAssignments = positionAssignmentsApi?.list?.bind(positionAssignmentsApi);
+    const positionAssignments = listPositionAssignments
+      ? await listPositionAssignments({
           departmentAssignmentId: user.departmentAssignmentId,
           userId: user.id,
         }).then((response) => extractRecordArray(response)
@@ -1437,10 +1482,13 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
       !assignment.status || ['active', 'acting'].includes(assignment.status.toLowerCase())
     ));
 
-    const roleBindings = client.iam?.roleBindings?.list
-      ? await listRoleBindingsSafely(() => client.iam.roleBindings.list({
+    const roleBindingsApi = client.iam?.roleBindings;
+    const listRoleBindings = roleBindingsApi?.list?.bind(roleBindingsApi);
+    const roleBindings = listRoleBindings
+      ? await listRoleBindingsSafely((params) => listRoleBindings({
           scopeKind: 'department_assignment',
           scopeId: user.departmentAssignmentId,
+          ...params,
         }))
       : [];
     const activeRoleBindings = roleBindings.filter((binding) => (

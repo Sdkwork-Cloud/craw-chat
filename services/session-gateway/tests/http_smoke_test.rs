@@ -118,7 +118,7 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
 
-    assert_eq!(value["code"], "access_token_missing");
+    assert_eq!(value["code"], 40101);
 }
 
 #[tokio::test]
@@ -227,7 +227,7 @@ async fn test_presence_heartbeat_rejects_mismatched_client_route_id() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
 
-    assert_eq!(value["code"], "device_id_mismatch");
+    assert_eq!(value["code"], 40001);
 }
 
 #[tokio::test]
@@ -389,7 +389,7 @@ async fn test_presence_heartbeat_rejects_same_route_id_with_different_actor_kind
         .to_bytes();
     let agent_resume_json: serde_json::Value =
         serde_json::from_slice(&agent_resume_body).expect("agent resume should be valid json");
-    assert_eq!(agent_resume_json["code"], "client_route_scope_conflict");
+    assert_eq!(agent_resume_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -441,7 +441,7 @@ async fn test_presence_heartbeat_rejects_same_route_id_with_different_principal_
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("conflicting owner resume should be valid json");
-    assert_eq!(json["code"], "client_route_scope_conflict");
+    assert_eq!(json["code"], 40901);
 }
 
 #[tokio::test]
@@ -520,7 +520,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
         .to_bytes();
     let heartbeat_json: serde_json::Value =
         serde_json::from_slice(&heartbeat_body).expect("heartbeat should be valid json");
-    assert_eq!(heartbeat_json["code"], "session_id_required");
+    assert_eq!(heartbeat_json["code"], 40901);
 }
 
 #[tokio::test]
@@ -647,7 +647,7 @@ async fn test_realtime_subscription_sync_returns_403_when_scope_policy_denies_ov
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "realtime_scope_access_denied");
+    assert_eq!(json["code"], 40301);
     assert!(
         cluster
             .resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_demo")
@@ -746,7 +746,7 @@ async fn test_presence_heartbeat_rejects_oversized_client_route_id_over_http() {
         .await
         .expect("resume request should return response");
 
-    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body = response
         .into_body()
         .collect()
@@ -754,12 +754,14 @@ async fn test_presence_heartbeat_rejects_oversized_client_route_id_over_http() {
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"], 40001);
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
-            .expect("message should be present")
-            .contains("deviceId")
+            .expect("detail should be present")
+            .to_ascii_lowercase()
+            .contains("device"),
+        "detail should describe device id validation failure"
     );
 }
 
@@ -804,11 +806,11 @@ async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() 
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"], 41301);
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("scopeId")
     );
     assert!(
@@ -846,7 +848,7 @@ async fn test_realtime_event_window_rejects_limit_above_guardrail_over_http() {
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "limit_invalid");
+    assert_eq!(json["code"], 40001);
 }
 
 #[tokio::test]
@@ -877,7 +879,7 @@ async fn test_realtime_event_window_rejects_zero_limit_without_binding_route_ove
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "limit_invalid");
+    assert_eq!(json["code"], 40001);
     assert!(
         cluster
             .resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_demo")
@@ -928,11 +930,11 @@ async fn test_realtime_subscription_sync_rejects_oversized_event_types_payload_o
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"], 41301);
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("eventTypes")
     );
 }
@@ -979,11 +981,11 @@ async fn test_realtime_subscription_sync_rejects_too_many_items_over_http() {
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"], 41301);
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("items")
     );
 }
@@ -1032,11 +1034,11 @@ async fn test_realtime_subscription_sync_rejects_oversized_total_payload_over_ht
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(json["code"], "payload_too_large");
+    assert_eq!(json["code"], 41301);
     assert!(
-        json["message"]
+        json["detail"]
             .as_str()
-            .expect("message should be present")
+            .expect("detail should be present")
             .contains("items")
     );
 }

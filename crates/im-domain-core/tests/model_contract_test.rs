@@ -22,7 +22,9 @@ use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
     RealtimeSubscriptionSnapshot,
 };
-use im_domain_core::rtc::{Session, SessionParticipants, SessionState, SignalEvent, SignalSender, SignalRateTracker};
+use im_domain_core::rtc::{
+    Session, SessionParticipants, SessionState, SignalEvent, SignalRateTracker, SignalSender,
+};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };

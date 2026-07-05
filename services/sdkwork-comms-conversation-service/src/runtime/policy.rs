@@ -1,8 +1,81 @@
+use std::sync::OnceLock;
+
+use chrono::{DateTime, Utc};
 use im_domain_core::conversation::{ConversationMember, ConversationScenario, MembershipRole};
 use im_domain_core::message::Message;
 use im_domain_core::room::{RoomKind, is_room_business_type, room_kind_from_business_type};
 
 use super::{ConversationState, RuntimeError};
+
+const MESSAGE_RECALL_TTL_SECS_ENV: &str = "SDKWORK_IM_MESSAGE_RECALL_TTL_SECS";
+const MESSAGE_EDIT_TTL_SECS_ENV: &str = "SDKWORK_IM_MESSAGE_EDIT_TTL_SECS";
+const DEFAULT_MESSAGE_RECALL_TTL_SECS: u64 = 120;
+const DEFAULT_MESSAGE_EDIT_TTL_SECS: u64 = 86_400;
+
+fn is_member_posting_restricted(member: &ConversationMember) -> bool {
+    let restricted = member
+        .attributes
+        .get("postingRestricted")
+        .is_some_and(|value| value == "true");
+    if !restricted {
+        return false;
+    }
+    match member.attributes.get("muteUntil") {
+        Some(mute_until) if !mute_until.trim().is_empty() => DateTime::parse_from_rfc3339(mute_until)
+            .map(|deadline| deadline > Utc::now())
+            .unwrap_or(true),
+        _ => true,
+    }
+}
+
+fn resolve_group_max_members() -> usize {
+    static CACHED: OnceLock<usize> = OnceLock::new();
+    *CACHED.get_or_init(|| im_domain_core::space::resolve_chat_group_max_members() as usize)
+}
+
+fn resolve_message_recall_ttl_secs() -> u64 {
+    static CACHED: OnceLock<u64> = OnceLock::new();
+    *CACHED.get_or_init(|| {
+        std::env::var(MESSAGE_RECALL_TTL_SECS_ENV)
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(DEFAULT_MESSAGE_RECALL_TTL_SECS)
+    })
+}
+
+fn resolve_message_edit_ttl_secs() -> u64 {
+    static CACHED: OnceLock<u64> = OnceLock::new();
+    *CACHED.get_or_init(|| {
+        std::env::var(MESSAGE_EDIT_TTL_SECS_ENV)
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(DEFAULT_MESSAGE_EDIT_TTL_SECS)
+    })
+}
+
+fn message_age_exceeds_ttl(occurred_at: &str, ttl_secs: u64, now: &str) -> bool {
+    let Some(cutoff) = im_time::rfc3339_add_secs(now, -(ttl_secs as i64)) else {
+        return false;
+    };
+    im_time::rfc3339_lt(occurred_at, cutoff.as_str())
+}
+
+fn ensure_message_mutation_within_ttl(
+    message: &Message,
+    ttl_secs: u64,
+    operation: &str,
+) -> Result<(), RuntimeError> {
+    let now = im_time::utc_now_rfc3339_millis();
+    if message_age_exceeds_ttl(message.occurred_at.as_str(), ttl_secs, now.as_str()) {
+        return Err(RuntimeError::Conflict(format!(
+            "{operation} window expired for message {}",
+            message.message_id
+        )));
+    }
+    Ok(())
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum MessagePostPolicy {
@@ -165,7 +238,19 @@ pub(super) fn ensure_member_add_request_allowed(
     requested_role: &MembershipRole,
 ) -> Result<(), RuntimeError> {
     match conversation.aggregate.scenario() {
-        ConversationScenario::Group | ConversationScenario::Thread => match actor_member.role {
+        ConversationScenario::Group | ConversationScenario::Thread => {
+            let max_members = conversation
+                .aggregate
+                .policy()
+                .and_then(|policy| policy.max_members)
+                .map(|value| value as usize)
+                .unwrap_or_else(resolve_group_max_members);
+            if conversation.roster.active_principal_count() >= max_members {
+                return Err(RuntimeError::PermissionDenied(format!(
+                    "group conversation has reached the maximum active member count ({max_members})"
+                )));
+            }
+            match actor_member.role {
             MembershipRole::Owner => {
                 if matches!(requested_role, MembershipRole::Owner) {
                     return Err(RuntimeError::PermissionDenied(
@@ -192,6 +277,7 @@ pub(super) fn ensure_member_add_request_allowed(
                 "member {} cannot add members",
                 actor_member.principal_id
             ))),
+        }
         },
         ConversationScenario::Direct => {
             if conversation.roster.active_principal_count() >= 2 {
@@ -386,6 +472,12 @@ pub(super) fn ensure_message_post_allowed(
     conversation: &ConversationState,
     actor_member: &ConversationMember,
 ) -> Result<(), RuntimeError> {
+    if is_member_posting_restricted(actor_member) {
+        return Err(RuntimeError::PermissionDenied(
+            "member posting is restricted by space group mute policy".into(),
+        ));
+    }
+
     if is_closed_agent_handoff(conversation) {
         return Err(RuntimeError::Conflict(format!(
             "agent handoff {} is already closed",
@@ -437,6 +529,11 @@ pub(super) fn ensure_message_edit_allowed(
         )));
     }
     if message.sender.id == actor_id {
+        ensure_message_mutation_within_ttl(
+            message,
+            resolve_message_edit_ttl_secs(),
+            "edit",
+        )?;
         return Ok(());
     }
 
@@ -460,6 +557,11 @@ pub(super) fn ensure_message_recall_allowed(
         )));
     }
     if message.sender.id == actor_id {
+        ensure_message_mutation_within_ttl(
+            message,
+            resolve_message_recall_ttl_secs(),
+            "recall",
+        )?;
         return Ok(());
     }
 

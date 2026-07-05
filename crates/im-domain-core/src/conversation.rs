@@ -137,6 +137,8 @@ pub struct ConversationReadCursor {
     pub member_id: String,
     pub principal_id: String,
     pub principal_kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
     pub read_seq: u64,
     pub last_read_message_id: Option<String>,
     pub updated_at: String,
@@ -150,10 +152,44 @@ pub struct ConversationReadCursorView {
     pub member_id: String,
     pub principal_id: String,
     pub principal_kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
     pub read_seq: u64,
     pub last_read_message_id: Option<String>,
     pub updated_at: String,
     pub unread_count: u64,
+}
+
+/// Map key for an in-memory read cursor entry.
+/// Legacy member-only cursors use bare `member_id`; device-scoped cursors use `member_id#device_id`.
+pub fn read_cursor_storage_key(member_id: &str, device_id: Option<&str>) -> String {
+    match device_id.filter(|value| !value.is_empty()) {
+        Some(device) => format!("{member_id}#{device}"),
+        None => member_id.to_string(),
+    }
+}
+
+pub fn max_read_seq_for_member<'a>(
+    read_cursors: impl IntoIterator<Item = &'a ConversationReadCursor>,
+    member_id: &str,
+) -> u64 {
+    read_cursors
+        .into_iter()
+        .filter(|cursor| cursor.member_id == member_id)
+        .map(|cursor| cursor.read_seq)
+        .max()
+        .unwrap_or(0)
+}
+
+pub fn best_read_cursor_for_member_at_seq<'a>(
+    read_cursors: impl IntoIterator<Item = &'a ConversationReadCursor>,
+    member_id: &str,
+    min_read_seq: u64,
+) -> Option<&'a ConversationReadCursor> {
+    read_cursors
+        .into_iter()
+        .filter(|cursor| cursor.member_id == member_id && cursor.read_seq >= min_read_seq)
+        .max_by_key(|cursor| cursor.read_seq)
 }
 
 impl ConversationReadCursorView {
@@ -164,6 +200,7 @@ impl ConversationReadCursorView {
             member_id: cursor.member_id.clone(),
             principal_id: cursor.principal_id.clone(),
             principal_kind: cursor.principal_kind.clone(),
+            device_id: cursor.device_id.clone(),
             read_seq: cursor.read_seq,
             last_read_message_id: cursor.last_read_message_id.clone(),
             updated_at: cursor.updated_at.clone(),
@@ -180,6 +217,8 @@ pub struct ConversationPolicy {
     pub capability_flags: Option<Vec<String>>,
     pub history_visibility: String,
     pub retention_policy_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_members: Option<i32>,
 }
 
 impl Default for ConversationPolicy {
@@ -189,6 +228,7 @@ impl Default for ConversationPolicy {
             capability_flags: None,
             history_visibility: "joined".into(),
             retention_policy_ref: "tenant.standard".into(),
+            max_members: None,
         }
     }
 }
@@ -224,6 +264,18 @@ impl ConversationPolicy {
             }
             flags.sort();
             flags.dedup();
+        }
+
+        if let Some(max_members) = self.max_members {
+            if max_members < crate::space::MIN_CHAT_GROUP_MAX_MEMBERS
+                || max_members > crate::space::MAX_CHAT_GROUP_MAX_MEMBERS
+            {
+                return Err(format!(
+                    "conversation maxMembers must be between {} and {}",
+                    crate::space::MIN_CHAT_GROUP_MAX_MEMBERS,
+                    crate::space::MAX_CHAT_GROUP_MAX_MEMBERS
+                ));
+            }
         }
 
         Ok(self)
@@ -263,6 +315,7 @@ pub fn build_default_read_cursor(member: &ConversationMember) -> ConversationRea
         member_id: member.member_id.clone(),
         principal_id: member.principal_id.clone(),
         principal_kind: member.principal_kind.clone(),
+        device_id: None,
         read_seq: 0,
         last_read_message_id: None,
         updated_at: member.joined_at.clone(),
@@ -278,6 +331,13 @@ pub struct ConversationRoster {
     members: BTreeMap<String, ConversationMember>,
     principal_members: HashMap<String, String>,
     read_cursors: BTreeMap<String, ConversationReadCursor>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConversationMemberListWindow {
+    pub items: Vec<ConversationMember>,
+    pub next_offset: Option<usize>,
+    pub has_more: bool,
 }
 
 impl ConversationRoster {
@@ -306,6 +366,92 @@ impl ConversationRoster {
                     .is_some_and(ConversationMember::is_active)
             })
             .count()
+    }
+
+    /// Lists active members using roster index order without materializing the full roster.
+    pub fn list_active_members_window(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> ConversationMemberListWindow {
+        let limit = limit.max(1);
+        let mut skipped = 0usize;
+        let mut items = Vec::with_capacity(limit.saturating_add(1));
+        let mut has_more = false;
+
+        for member in self.members.values() {
+            if !member.is_active() {
+                continue;
+            }
+            if skipped < offset {
+                skipped += 1;
+                continue;
+            }
+            items.push(member.clone());
+            if items.len() > limit {
+                has_more = true;
+                break;
+            }
+        }
+
+        if has_more {
+            items.truncate(limit);
+        }
+
+        let next_offset = has_more.then(|| offset.saturating_add(items.len()));
+        ConversationMemberListWindow {
+            items,
+            next_offset,
+            has_more,
+        }
+    }
+
+    /// Lists active members matching an optional principal-id substring without over-fetching.
+    pub fn list_active_members_window_filtered(
+        &self,
+        offset: usize,
+        limit: usize,
+        query: &str,
+    ) -> ConversationMemberListWindow {
+        let limit = limit.max(1);
+        let normalized_query = query.trim().to_ascii_lowercase();
+        let mut skipped = 0usize;
+        let mut items = Vec::with_capacity(limit.saturating_add(1));
+        let mut has_more = false;
+
+        for member in self.members.values() {
+            if !member.is_active() {
+                continue;
+            }
+            if !normalized_query.is_empty()
+                && !member
+                    .principal_id
+                    .to_ascii_lowercase()
+                    .contains(normalized_query.as_str())
+            {
+                continue;
+            }
+            if skipped < offset {
+                skipped += 1;
+                continue;
+            }
+            items.push(member.clone());
+            if items.len() > limit {
+                has_more = true;
+                break;
+            }
+        }
+
+        if has_more {
+            items.truncate(limit);
+        }
+
+        let next_offset = has_more.then(|| offset.saturating_add(items.len()));
+        ConversationMemberListWindow {
+            items,
+            next_offset,
+            has_more,
+        }
     }
 
     pub fn upsert_member(&mut self, member: ConversationMember) {
@@ -455,17 +601,30 @@ impl ConversationRoster {
         self.members.get(member_id)
     }
 
-    pub fn read_cursor(&self, member_id: &str) -> Option<&ConversationReadCursor> {
-        self.read_cursors.get(member_id)
+    pub fn read_cursor(&self, member_id: &str, device_id: Option<&str>) -> Option<&ConversationReadCursor> {
+        let storage_key = read_cursor_storage_key(member_id, device_id);
+        if let Some(cursor) = self.read_cursors.get(storage_key.as_str()) {
+            return Some(cursor);
+        }
+        if device_id.is_some() {
+            return self.read_cursors.get(member_id);
+        }
+        None
+    }
+
+    pub fn max_read_seq_for_member(&self, member_id: &str) -> u64 {
+        max_read_seq_for_member(self.read_cursors.values(), member_id)
     }
 
     pub fn upsert_read_cursor(&mut self, cursor: ConversationReadCursor) {
-        self.read_cursors.insert(cursor.member_id.clone(), cursor);
+        let storage_key =
+            read_cursor_storage_key(cursor.member_id.as_str(), cursor.device_id.as_deref());
+        self.read_cursors.insert(storage_key, cursor);
     }
 
     pub fn ensure_default_read_cursor(&mut self, member: &ConversationMember) {
         self.read_cursors
-            .entry(member.member_id.clone())
+            .entry(read_cursor_storage_key(member.member_id.as_str(), None))
             .or_insert_with(|| build_default_read_cursor(member));
     }
 }
@@ -604,6 +763,8 @@ impl AgentHandoffStateView {
 #[serde(rename_all = "camelCase")]
 pub struct ConversationAggregateState {
     conversation_type: String,
+    /// Monotonic journal ordering sequence for all commit envelopes in this conversation.
+    commit_seq: u64,
     member_epoch: u64,
     policy_epoch: u64,
     policy: Option<ConversationPolicy>,
@@ -662,16 +823,30 @@ impl ConversationAggregateState {
         ConversationScenario::from_conversation_type(self.conversation_type.as_str())
     }
 
+    pub fn commit_seq(&self) -> u64 {
+        self.commit_seq
+    }
+
+    /// Allocate the next monotonic journal `ordering_seq` for this conversation.
+    pub fn next_commit_seq(&mut self) -> u64 {
+        self.commit_seq += 1;
+        self.commit_seq
+    }
+
+    pub fn observe_commit_seq(&mut self, ordering_seq: u64) {
+        self.commit_seq = self.commit_seq.max(ordering_seq);
+    }
+
     pub fn member_epoch(&self) -> u64 {
         self.member_epoch
     }
 
     pub fn next_member_epoch(&mut self) -> u64 {
-        self.member_epoch += 1;
-        self.member_epoch
+        self.next_commit_seq()
     }
 
     pub fn observe_member_epoch(&mut self, ordering_seq: u64) {
+        self.observe_commit_seq(ordering_seq);
         self.member_epoch = self.member_epoch.max(ordering_seq);
     }
 
@@ -680,11 +855,11 @@ impl ConversationAggregateState {
     }
 
     pub fn next_policy_epoch(&mut self) -> u64 {
-        self.policy_epoch += 1;
-        self.policy_epoch
+        self.next_commit_seq()
     }
 
     pub fn observe_policy_epoch(&mut self, ordering_seq: u64) {
+        self.observe_commit_seq(ordering_seq);
         self.policy_epoch = self.policy_epoch.max(ordering_seq);
     }
 
@@ -712,6 +887,7 @@ impl ConversationAggregateState {
     }
 
     pub fn observe_handoff_status_epoch(&mut self, ordering_seq: u64) {
+        self.observe_commit_seq(ordering_seq);
         self.handoff_status_epoch = self.handoff_status_epoch.max(ordering_seq);
     }
 
@@ -754,8 +930,9 @@ impl ConversationAggregateState {
         };
 
         let ordering_seq = if outcome == ConversationHandoffTransitionOutcome::Mutated {
-            self.handoff_status_epoch += 1;
-            self.handoff_status_epoch
+            let seq = self.next_commit_seq();
+            self.handoff_status_epoch = seq;
+            seq
         } else {
             self.handoff_status_epoch
         };

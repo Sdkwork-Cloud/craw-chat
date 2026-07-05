@@ -107,13 +107,37 @@ const voicePcPackageRoot = path.resolve(
   dependencyRoot('sdkwork-voice'),
   'apps/sdkwork-voice-pc/packages',
 );
+const communityPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-community'),
+  'apps/sdkwork-community-pc/packages',
+);
+const communityCommonPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-community'),
+  'apps/sdkwork-community-common/packages',
+);
+const mailPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-mail'),
+  'apps/sdkwork-mail-pc/packages',
+);
+const aiotPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-aiot'),
+  'apps/sdkwork-aiot-pc/packages',
+);
+const aiotAppCoreSourceRoot = path.resolve(
+  dependencyRoot('sdkwork-aiot'),
+  'apps/sdkwork-aiot-shared/packages/sdkwork-aiot-app-core/src',
+);
+const communityPcCommunitySourceRoot = path.resolve(
+  communityPcPackageRoot,
+  'sdkwork-community-pc-community/src',
+);
 const generatedVoiceAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-voice'),
   'sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
-const generatedAgentsAppSdkEntry = path.resolve(
+const agentsAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-agents'),
-  'sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts',
 );
 const generatedKnowledgebaseAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-knowledgebase'),
@@ -241,7 +265,7 @@ export default defineConfig(({mode}) => {
         { find: /^react$/, replacement: reactEntry },
         { find: '@sdkwork-internal/im-app-api-generated', replacement: generatedImAppSdkEntry },
         { find: '@sdkwork-internal/im-backend-api-generated', replacement: generatedImBackendSdkEntry },
-        { find: '@sdkwork/agents-app-sdk', replacement: generatedAgentsAppSdkEntry },
+        { find: '@sdkwork/agents-app-sdk', replacement: agentsAppSdkEntry },
         { find: '@sdkwork/agents-pc-agents', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-agents/src/index.ts') },
         { find: '@sdkwork/agents-pc-commons', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-commons/src/index.ts') },
         { find: '@sdkwork/agents-pc-core', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-core/src') },
@@ -257,6 +281,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/shop-app-sdk', replacement: generatedShopAppSdkEntry },
         { find: '@sdkwork/order-app-sdk', replacement: generatedOrderAppSdkEntry },
         { find: '@sdkwork/membership-app-sdk', replacement: generatedMembershipAppSdkEntry },
+        { find: '@sdkwork/mail-app-sdk', replacement: generatedMailAppSdkTransportEntry },
         { find: 'sdkwork-mail-app-sdk-generated-typescript', replacement: generatedMailAppSdkTransportEntry },
         { find: 'sdkwork-community-app-sdk-generated-typescript', replacement: generatedCommunityAppSdkTransportEntry },
         { find: '@sdkwork/course-app-sdk', replacement: generatedCourseAppSdkEntry },
@@ -315,12 +340,23 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/sdkwork-knowledgebase-pc-commons/reactKeyedProps', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-commons/src/reactKeyedProps.ts') },
         { find: '@sdkwork/sdkwork-knowledgebase-pc-commons/htmlSanitizer', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-commons/src/htmlSanitizer.ts') },
         { find: '@sdkwork/sdkwork-knowledgebase-pc-commons', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-commons/src/index.ts') },
+        { find: '@sdkwork/mail-pc-core', replacement: path.resolve(mailPcPackageRoot, 'sdkwork-mail-pc-core/src/index.ts') },
+        { find: '@sdkwork/mail-pc-mail', replacement: path.resolve(mailPcPackageRoot, 'sdkwork-mail-pc-mail/src/index.ts') },
+        { find: '@sdkwork/aiot-app-core', replacement: path.resolve(aiotAppCoreSourceRoot, 'index.ts') },
+        { find: '@sdkwork/aiot-pc-core', replacement: path.resolve(aiotPcPackageRoot, 'sdkwork-aiot-pc-core/src/index.ts') },
+        { find: '@sdkwork/aiot-pc-console-device', replacement: path.resolve(aiotPcPackageRoot, 'sdkwork-aiot-pc-console-device/src/index.ts') },
         { find: '@sdkwork/im-pc-mail', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-mail/src') },
         { find: '@sdkwork/im-pc-contacts', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-contacts/src') },
         { find: '@sdkwork/im-pc-calendar', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-calendar/src') },
         { find: '@sdkwork/im-pc-shop', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shop/src') },
         { find: '@sdkwork/im-pc-devices', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-devices/src') },
         { find: '@sdkwork/im-pc-community', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-community/src') },
+        { find: /^@sdkwork\/community-pc-community\/(.+)$/, replacement: `${communityPcCommunitySourceRoot}/$1` },
+        { find: '@sdkwork/community-pc-community', replacement: path.resolve(communityPcCommunitySourceRoot, 'index.ts') },
+        { find: '@sdkwork/community-runtime', replacement: path.resolve(communityCommonPackageRoot, 'sdkwork-community-runtime/src/index.ts') },
+        { find: '@sdkwork/community-sdk-ports', replacement: path.resolve(communityCommonPackageRoot, 'sdkwork-community-sdk-ports/src/index.ts') },
+        { find: '@sdkwork/community-contracts', replacement: path.resolve(communityCommonPackageRoot, 'sdkwork-community-contracts/src/index.ts') },
+        { find: '@sdkwork/community-app-sdk', replacement: path.resolve(dependencyRoot('sdkwork-community'), 'sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts') },
         { find: '@sdkwork/im-pc-enterprise', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-enterprise/src') },
         { find: '@sdkwork/im-console-core', replacement: path.resolve(__dirname, './packages/sdkwork-im-console-core/src') },
         { find: /^@sdkwork\/im-admin-core\/(.+)$/, replacement: `${adminCoreSourceRoot}/$1` },
@@ -367,6 +403,11 @@ export default defineConfig(({mode}) => {
         '@sdkwork/voice-pc-market',
         '@sdkwork/voice-pc-speech',
         '@sdkwork/knowledgebase-pc-knowledge',
+        '@sdkwork/community-pc-community',
+        '@sdkwork/community-runtime',
+        '@sdkwork/community-sdk-ports',
+        '@sdkwork/community-contracts',
+        '@sdkwork/community-app-sdk',
         '@sdkwork/course-pc-course',
         'sdkwork-drive-pc-core',
         'sdkwork-drive-pc-commons',
@@ -405,11 +446,54 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('/node_modules/react') || id.includes('/node_modules/react-dom')) {
+            // Vendor chunking strategy:
+            // - `react-vendor`: React core + router (stable, large, shared by every page).
+            // - `editor-vendor`: TipTap + Prosemirror rich text editor (heavy, only used by chat composer).
+            // - `animation-vendor`: framer-motion / motion animation runtime.
+            // - `i18n-vendor`: i18next + react-i18next (loaded once at boot).
+            // - `icons-vendor`: lucide-react icon set (large, tree-shaken per-page but worth isolating).
+            // - `qr-vendor`: ZXing + qrcode scanning stack (heavy, lazy-loaded).
+            // - `ui-vendor`: shared UI utilities (clsx, cva, tailwind-merge, virtualization, emoji picker, hook form, markdown).
+            // Everything else (app code, generated SDKs, small leaf deps) falls through to the
+            // default chunking so we don't fragment the graph into too many tiny chunks.
+            if (id.includes('node_modules/react/') ||
+                id.includes('node_modules/react-dom/') ||
+                id.includes('node_modules/react-router/') ||
+                id.includes('node_modules/react-router-dom/') ||
+                id.includes('node_modules/scheduler/')) {
               return 'react-vendor';
             }
-            if (id.includes('/node_modules/@tiptap') || id.includes('/node_modules/prosemirror')) {
+            if (id.includes('node_modules/@tiptap/') ||
+                id.includes('node_modules/prosemirror-') ||
+                id.includes('node_modules/tiptap-markdown/')) {
               return 'editor-vendor';
+            }
+            if (id.includes('node_modules/framer-motion/') ||
+                id.includes('node_modules/motion/') ||
+                id.includes('node_modules/motion-dom/') ||
+                id.includes('node_modules/motion-utils/')) {
+              return 'animation-vendor';
+            }
+            if (id.includes('node_modules/i18next/') ||
+                id.includes('node_modules/react-i18next/')) {
+              return 'i18n-vendor';
+            }
+            if (id.includes('node_modules/lucide-react/')) {
+              return 'icons-vendor';
+            }
+            if (id.includes('node_modules/@zxing/') ||
+                id.includes('node_modules/qrcode/') ||
+                id.includes('node_modules/react-qr-code/')) {
+              return 'qr-vendor';
+            }
+            if (id.includes('node_modules/class-variance-authority/') ||
+                id.includes('node_modules/clsx/') ||
+                id.includes('node_modules/tailwind-merge/') ||
+                id.includes('node_modules/@tanstack/react-virtual/') ||
+                id.includes('node_modules/emoji-picker-react/') ||
+                id.includes('node_modules/react-hook-form/') ||
+                id.includes('node_modules/react-markdown/')) {
+              return 'ui-vendor';
             }
             return undefined;
           },

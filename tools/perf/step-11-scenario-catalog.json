@@ -38,7 +38,7 @@
       "id": "pre-release",
       "name": "Pre-Release Tier",
       "profile": "self-hosted.split-services.development",
-      "state": "evidence_collected_gate_blocked",
+      "state": "evidence_collected_gate_passed",
       "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
       "goal": "Release-gate validation for medium-scale concurrency, throughput, and operator drills.",
       "intendedScale": "standalone.split-services.development or dedicated pre-release topology with controlled clients",

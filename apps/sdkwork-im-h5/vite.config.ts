@@ -11,6 +11,7 @@ const uiRoot = path.resolve(imRoot, "../sdkwork-ui/sdkwork-ui-pc-react");
 const driveRoot = path.resolve(imRoot, "../sdkwork-drive");
 const utilsRoot = path.resolve(imRoot, "../sdkwork-utils");
 const sdkCommonRoot = path.resolve(imRoot, "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript");
+const sdkCommonSourceRoot = path.resolve(sdkCommonRoot, "src");
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, imH5Root, "");
@@ -70,12 +71,16 @@ export default defineConfig(({ mode }) => {
           utilsRoot,
           "packages/sdkwork-utils-typescript/src/index.ts",
         ),
-        "@sdkwork/sdk-common/core": path.resolve(sdkCommonRoot, "core/index.ts"),
-        "@sdkwork/sdk-common/auth": path.resolve(sdkCommonRoot, "auth/index.ts"),
-        "@sdkwork/sdk-common/http": path.resolve(sdkCommonRoot, "http/index.ts"),
-        "@sdkwork/sdk-common/errors": path.resolve(sdkCommonRoot, "errors/index.ts"),
-        "@sdkwork/sdk-common/utils": path.resolve(sdkCommonRoot, "utils/index.ts"),
-        "@sdkwork/sdk-common": path.resolve(sdkCommonRoot, "index.ts"),
+        "@sdkwork/sdk-common/core": path.resolve(sdkCommonSourceRoot, "core/index.ts"),
+        "@sdkwork/sdk-common/auth": path.resolve(sdkCommonSourceRoot, "auth/index.ts"),
+        "@sdkwork/sdk-common/http": path.resolve(sdkCommonSourceRoot, "http/index.ts"),
+        "@sdkwork/sdk-common/errors": path.resolve(sdkCommonSourceRoot, "errors/index.ts"),
+        "@sdkwork/sdk-common/utils": path.resolve(sdkCommonSourceRoot, "utils/index.ts"),
+        "@sdkwork/sdk-common": path.resolve(sdkCommonSourceRoot, "index.ts"),
+        "@sdkwork/im-h5-commons": path.resolve(imH5Root, "packages/sdkwork-im-h5-commons/src"),
+        "@sdkwork/im-h5-core": path.resolve(imH5Root, "packages/sdkwork-im-h5-core/src"),
+        "@sdkwork/im-h5-shell": path.resolve(imH5Root, "packages/sdkwork-im-h5-shell/src"),
+        "@sdkwork/im-h5-chat": path.resolve(imH5Root, "packages/sdkwork-im-h5-chat/src"),
       },
     },
     server: { port: 3010 },

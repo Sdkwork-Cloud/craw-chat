@@ -21,11 +21,16 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 mod test_env;
 
-type RealtimeWsSocket = tokio_tungstenite::WebSocketStream<
-    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
->;
+type RealtimeWsSocket =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
-async fn spawn_server(app: Router) -> (test_env::DevTestEnvironment, String, tokio::task::JoinHandle<()>) {
+async fn spawn_server(
+    app: Router,
+) -> (
+    test_env::DevTestEnvironment,
+    String,
+    tokio::task::JoinHandle<()>,
+) {
     let env = test_env::dev_test_environment();
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -36,11 +41,7 @@ async fn spawn_server(app: Router) -> (test_env::DevTestEnvironment, String, tok
     let handle = tokio::spawn(async move {
         axum::serve(listener, app).await.expect("server should run");
     });
-    (
-        env,
-        format!("127.0.0.1:{}", address.port()),
-        handle,
-    )
+    (env, format!("127.0.0.1:{}", address.port()), handle)
 }
 
 fn build_permissive_realtime_app() -> Router {
@@ -50,9 +51,7 @@ fn build_permissive_realtime_app() -> Router {
     )
 }
 
-async fn next_message(
-    socket: &mut RealtimeWsSocket,
-) -> Message {
+async fn next_message(socket: &mut RealtimeWsSocket) -> Message {
     timeout(Duration::from_secs(5), socket.next())
         .await
         .expect("websocket frame should arrive before timeout")
@@ -226,10 +225,7 @@ fn authenticated_ccp_request(url: String) -> ClientRequestBuilder {
         .with_sub_protocol(CCP_WS_SUBPROTOCOL)
         .with_header(
             "authorization",
-            format!(
-                "Bearer {}",
-                test_auth_token("100001", "1", "user", "s_pad")
-            ),
+            format!("Bearer {}", test_auth_token("100001", "1", "user", "s_pad")),
         )
         .with_header(
             "Access-Token",
@@ -1493,8 +1489,8 @@ async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotoco
     runtime
         .publish_scope_event_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "conversation",
             "c_demo",
@@ -1616,8 +1612,8 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
     runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
@@ -1698,8 +1694,8 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
     runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
@@ -1747,8 +1743,8 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
     runtime
         .publish_scope_event_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "conversation",
             "c_demo",
@@ -1802,8 +1798,8 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
     runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
@@ -1877,7 +1873,7 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
 
 #[tokio::test]
 async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backlog_under_hard_limit()
-{
+ {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
         .ensure_client_route_state_for_principal_kind("100001", "default", "1", "user", "d_pad")
@@ -1885,8 +1881,8 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
     runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {
@@ -1974,8 +1970,8 @@ async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overlo
     runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![session_gateway::RealtimeSubscriptionItemInput {

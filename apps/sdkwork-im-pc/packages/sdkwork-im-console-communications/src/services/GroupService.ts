@@ -1,101 +1,65 @@
-import { getImSdkClientWithSession } from '@sdkwork/im-pc-core';
-import type { InboxResponse } from '@sdkwork/im-sdk';
+import type { ConversationInboxEntry } from '@sdkwork/im-sdk';
+import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
+
+const GROUP_INBOX_PAGE_LIMIT = 50;
 
 export interface Group {
   id: string;
   name: string;
   type: 'public' | 'private';
-  members: number;
   owner: string;
-  status: 'active' | 'archived';
+  members: number;
   messagesToDay: number;
-  created: string;
+  status: 'active' | 'muted' | 'dissolved';
 }
 
-export interface GetGroupsResponse {
+export interface GroupListPage {
   data: Group[];
-  total: number;
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
-const GROUP_INBOX_PAGE_LIMIT = 50;
-
-type ConversationListEntry = InboxResponse['items'][number];
-
-function resolveGroupOwner(entry: ConversationListEntry): string {
-  return entry.lastSenderId?.trim()
-    || entry.peer?.principalId?.trim()
-    || '—';
-}
-
-function resolveGroupCreatedDate(entry: ConversationListEntry): string {
-  const activityAt = entry.lastActivityAt?.trim();
-  if (!activityAt) {
-    return '';
-  }
-  return activityAt.slice(0, 10);
-}
-
-function resolveMessagesToday(entry: ConversationListEntry): number {
-  const activityAt = entry.lastActivityAt?.trim();
-  if (!activityAt) {
-    return 0;
-  }
-  const activityDate = activityAt.slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
-  return activityDate === today ? entry.unreadCount : 0;
-}
-
-function mapInboxEntryToGroup(entry: ConversationListEntry): Group {
+function mapInboxEntryToGroup(entry: ConversationInboxEntry): Group {
   return {
     id: entry.conversationId,
-    name: entry.displayName?.trim() || 'Group chat',
+    name: entry.displayName ?? entry.conversationId,
     type: 'private',
-    members: 0,
-    owner: resolveGroupOwner(entry),
+    owner: entry.lastSenderId ?? 'unknown',
+    members: entry.messageCount ?? 0,
+    messagesToDay: entry.unreadCount ?? 0,
     status: 'active',
-    messagesToDay: resolveMessagesToday(entry),
-    created: resolveGroupCreatedDate(entry),
   };
 }
 
-async function listAllInboxGroups(): Promise<ConversationListEntry[]> {
-  const client = getImSdkClientWithSession();
-  const items: ConversationListEntry[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const response = await client.chat.inbox.retrieve({
-      limit: GROUP_INBOX_PAGE_LIMIT,
-      ...(cursor ? { cursor } : {}),
-    });
-    items.push(
-      ...response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'),
-    );
-    cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
-  } while (cursor);
-
-  return items;
+function matchesGroupSearch(group: Group, search?: string): boolean {
+  const normalizedSearch = search?.trim().toLowerCase();
+  if (!normalizedSearch) {
+    return true;
+  }
+  const haystack = `${group.name} ${group.owner} ${group.id}`.toLowerCase();
+  return haystack.includes(normalizedSearch);
 }
 
 class GroupService {
-  async getGroups(params: { page: number; pageSize: number; search?: string }): Promise<GetGroupsResponse> {
-    const inboxGroups = (await listAllInboxGroups()).map(mapInboxEntryToGroup);
-    const normalizedSearch = params.search?.trim().toLowerCase();
-
-    const filtered = normalizedSearch
-      ? inboxGroups.filter((group) => (
-        group.name.toLowerCase().includes(normalizedSearch)
-        || group.owner.toLowerCase().includes(normalizedSearch)
-        || group.id.toLowerCase().includes(normalizedSearch)
-      ))
-      : inboxGroups;
-
-    const start = Math.max(0, (params.page - 1) * params.pageSize);
-    const end = start + params.pageSize;
+  async listGroupsPage(params: {
+    pageSize: number;
+    cursor?: string;
+    search?: string;
+  }): Promise<GroupListPage> {
+    const client = getImSdkClientWithSession();
+    const response = await client.chat.inbox.retrieve({
+      pageSize: Math.min(params.pageSize, GROUP_INBOX_PAGE_LIMIT),
+      ...(params.cursor ? { cursor: params.cursor } : {}),
+    });
+    const data = response.items
+      .filter((entry) => entry.conversationType.toLowerCase() === 'group')
+      .map(mapInboxEntryToGroup)
+      .filter((group) => matchesGroupSearch(group, params.search));
 
     return {
-      data: filtered.slice(start, end),
-      total: filtered.length,
+      data,
+      hasMore: Boolean(response.hasMore),
+      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
     };
   }
 }

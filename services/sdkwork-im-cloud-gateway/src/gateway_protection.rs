@@ -21,6 +21,8 @@
 //! | `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` | `10` | Consecutive failures before tripping |
 //! | `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` | `30` | Seconds before half-open retry |
 //! | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs |
+//! | `SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_URL` | _(empty)_ | Optional Redis URL override for distributed per-IP rate limiting |
+//! | `SDKWORK_IM_REDIS_ENABLED` | false | When true, uses SDKWORK_IM_REDIS_URL for shared rate limit counters |
 
 use std::collections::HashMap;
 use std::fmt;
@@ -29,199 +31,46 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use axum::extract::{ConnectInfo, Request, State};
-use axum::http::StatusCode;
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use dashmap::DashMap;
+use im_adapters_redis_cache::{
+    RedisFixedWindowRateLimiter, gateway_rate_limit_redis_fail_closed_from_env,
+    resolve_gateway_rate_limit_redis_url_from_env,
+};
+use sdkwork_utils_rust::trusted_proxy::{
+    TrustedProxyConfig, extract_client_ip as resolve_client_ip,
+    extract_client_ip_from_headers as resolve_client_ip_from_headers,
+};
+use sdkwork_web_core::{ProblemCorrelation, WebFrameworkError, problem_response};
 
 // ---------------------------------------------------------------------------
-// Trusted Proxy IP Extraction
+// Trusted Proxy IP Extraction (sdkwork-utils-rust)
 // ---------------------------------------------------------------------------
-
-const TRUSTED_PROXIES_ENV: &str = "SDKWORK_IM_GATEWAY_TRUSTED_PROXIES";
-
-/// Configuration controlling which direct TCP peers are allowed to set
-/// forwarded IP headers.
-#[derive(Clone, Debug)]
-pub struct TrustedProxyConfig {
-    trusted_proxies: Vec<IpAddr>,
-}
-
-impl TrustedProxyConfig {
-    /// Load trusted-proxy list from `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`.
-    pub fn from_env() -> Self {
-        let raw = std::env::var(TRUSTED_PROXIES_ENV).unwrap_or_default();
-        let trusted_proxies = raw
-            .split(',')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .filter_map(|s| s.parse::<IpAddr>().ok())
-            .collect();
-        Self { trusted_proxies }
-    }
-
-    fn is_trusted(&self, ip: &IpAddr) -> bool {
-        self.trusted_proxies.iter().any(|trusted| trusted == ip)
-    }
-
-    fn is_empty(&self) -> bool {
-        self.trusted_proxies.is_empty()
-    }
-}
-
-impl Default for TrustedProxyConfig {
-    fn default() -> Self {
-        Self {
-            trusted_proxies: Vec::new(),
-        }
-    }
-}
 
 /// Extract the real client IP from a request using trusted-proxy validation.
-///
-/// Resolution order:
-/// 1. If `ConnectInfo<SocketAddr>` is available (requires
-///    `into_make_service_with_connect_info`), use the TCP peer IP as the
-///    baseline.
-/// 2. If the peer IP is a trusted proxy, parse `X-Forwarded-For` from right
-///    to left, skipping trusted-proxy entries, and return the first
-///    untrusted IP.
-/// 3. If the peer IP is NOT a trusted proxy (or no trusted proxies are
-///    configured), return the peer IP directly — forwarded headers are
-///    ignored to prevent spoofing.
-/// 4. If `ConnectInfo` is unavailable, fall back to `X-Real-IP` only when
-///    trusted proxies are configured; otherwise return `0.0.0.0`.
 pub fn extract_client_ip(req: &Request) -> IpAddr {
-    extract_client_ip_with_config(req, &TrustedProxyConfig::from_env())
+    let peer_ip = req
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|connection| connection.0.ip());
+    let config = TrustedProxyConfig::from_env();
+    resolve_client_ip(peer_ip, |name| {
+        req.headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+    }, &config)
 }
 
-fn extract_client_ip_with_config(req: &Request, config: &TrustedProxyConfig) -> IpAddr {
-    // Strategy 1: ConnectInfo is available — use TCP peer as baseline.
-    if let Some(conn_info) = req.extensions().get::<ConnectInfo<SocketAddr>>() {
-        let peer_ip = conn_info.0.ip();
-
-        if config.is_empty() {
-            // No trusted proxies — use the direct peer IP, ignore forwarded headers.
-            return peer_ip;
-        }
-
-        if config.is_trusted(&peer_ip) {
-            // Peer is a trusted proxy — parse X-Forwarded-For chain from right to left.
-            if let Some(real_ip) = parse_forwarded_for_trusted(req.headers(), config) {
-                return real_ip;
-            }
-            // Fallback to X-Real-IP if X-Forwarded-For is absent or unparseable.
-            if let Some(ip) = parse_header_ip(req.headers(), "x-real-ip") {
-                return ip;
-            }
-        }
-
-        // Peer is not a trusted proxy — use peer IP directly.
-        return peer_ip;
-    }
-
-    // Strategy 2: ConnectInfo unavailable — conservative fallback.
-    if !config.is_empty() {
-        // Trusted proxies are configured, so we assume traffic arrives via proxy.
-        if let Some(ip) = parse_forwarded_for_trusted(req.headers(), config) {
-            return ip;
-        }
-        if let Some(ip) = parse_header_ip(req.headers(), "x-real-ip") {
-            return ip;
-        }
-    }
-
-    // P1-9 fix: When we cannot determine the real client IP, generate a unique
-    // identifier based on request characteristics to prevent all unknown-IP
-    // requests from sharing a single rate-limit bucket.
-    // 
-    // This uses a hash of available headers to create a pseudo-IP that provides
-    // some level of differentiation between different clients even when we
-    // can't determine their real IP.
-    //
-    // The fallback strategy:
-    // 1. Try User-Agent + Accept-Language headers for differentiation
-    // 2. Fall back to a time-based bucket that rotates every 10 seconds
-    // 3. This limits the blast radius of attacks from unknown-IP sources
-    let fallback_ip = generate_fallback_ip_from_headers(req.headers());
-    tracing::warn!(
-        target: "sdkwork.im.gateway",
-        event = "im.gateway.ip_extraction_fallback",
-        path = %req.uri().path(),
-        fallback_ip = %fallback_ip,
-        "could not determine real client IP, using header-based fallback"
-    );
-    fallback_ip
-}
-
-/// Generate a fallback pseudo-IP from request headers when real IP cannot be determined.
-///
-/// This prevents all unknown-IP requests from sharing a single rate-limit bucket
-/// by creating differentiation based on request characteristics.
-fn generate_fallback_ip_from_headers(headers: &axum::http::HeaderMap) -> IpAddr {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    
-    // Collect header values for hashing
-    let mut hasher = DefaultHasher::new();
-    
-    // Hash User-Agent for client differentiation
-    if let Some(ua) = headers.get("user-agent").and_then(|v| v.to_str().ok()) {
-        ua.hash(&mut hasher);
-    }
-    
-    // Hash Accept-Language for additional differentiation
-    if let Some(lang) = headers.get("accept-language").and_then(|v| v.to_str().ok()) {
-        lang.hash(&mut hasher);
-    }
-    
-    // Add time-based component that rotates every 10 seconds
-    // This limits the window of attack for any single bucket
-    let time_bucket = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() / 10;
-    time_bucket.hash(&mut hasher);
-    
-    // Convert hash to an IPv4 address in the 198.51.100.0/24 range (TEST-NET-2)
-    // This range is reserved for documentation and won't conflict with real IPs
-    let hash = hasher.finish();
-    let octet3 = ((hash >> 8) & 0xFF) as u8;
-    let octet4 = (hash & 0xFF) as u8;
-    
-    IpAddr::V4(std::net::Ipv4Addr::new(198, 51, octet3, octet4))
-}
-
-fn parse_forwarded_for_trusted(
-    headers: &axum::http::HeaderMap,
-    config: &TrustedProxyConfig,
-) -> Option<IpAddr> {
-    let raw = headers.get("x-forwarded-for")?.to_str().ok()?;
-    let chain: Vec<&str> = raw.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
-    if chain.is_empty() {
-        return None;
-    }
-
-    // Walk from right to left, skipping trusted proxy IPs.
-    for entry in chain.iter().rev() {
-        if let Ok(ip) = entry.parse::<IpAddr>() {
-            if !config.is_trusted(&ip) {
-                return Some(ip);
-            }
-        }
-    }
-
-    // All entries were trusted proxies — return the leftmost (original client).
-    chain
-        .first()
-        .and_then(|s| s.parse::<IpAddr>().ok())
-}
-
-fn parse_header_ip(headers: &axum::http::HeaderMap, name: &str) -> Option<IpAddr> {
-    headers
-        .get(name)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.trim().parse::<IpAddr>().ok())
+/// Extract client IP from headers when [`ConnectInfo`] is unavailable.
+pub fn extract_client_ip_from_headers(headers: &axum::http::HeaderMap) -> IpAddr {
+    resolve_client_ip_from_headers(|name| {
+        headers
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -414,6 +263,113 @@ impl DashMapRateLimiter {
     }
 }
 
+const GATEWAY_RATE_WINDOW_SECS: u64 = 60;
+const GATEWAY_HTTP_RATE_SCOPE: &str = "gateway.http";
+const GATEWAY_REDIS_KEY_PREFIX: &str = "gateway:rate:";
+
+fn gateway_rate_limit_problem_response(
+    message: impl Into<String>,
+    retry_after_secs: u64,
+) -> Response {
+    problem_response(
+        &WebFrameworkError::rate_limit_exceeded(message, retry_after_secs.max(1)),
+        ProblemCorrelation::from(None),
+    )
+}
+
+/// Per-IP rate limiter with optional Redis fixed-window backend for multi-instance deployments.
+///
+/// When Redis is configured, all gateway replicas share counters. In production-like
+/// environments with Redis configured, backend outages fail closed (HTTP 429).
+#[derive(Clone)]
+pub struct HybridIpRateLimiter {
+    pub config: RateLimitConfig,
+    local: DashMapRateLimiter,
+    redis: Option<RedisFixedWindowRateLimiter>,
+    redis_fail_closed: bool,
+}
+
+impl HybridIpRateLimiter {
+    pub fn from_env() -> Self {
+        let config = RateLimitConfig::from_env();
+        let local = DashMapRateLimiter::new(config.clone());
+        let redis = resolve_gateway_rate_limit_redis_url_from_env().and_then(|url| {
+            RedisFixedWindowRateLimiter::try_from_url(url.as_str(), GATEWAY_REDIS_KEY_PREFIX)
+        });
+        let redis_fail_closed = gateway_rate_limit_redis_fail_closed_from_env();
+        Self {
+            config,
+            local,
+            redis,
+            redis_fail_closed,
+        }
+    }
+
+    pub fn check(&self, scope: &str, client_ip: IpAddr) -> bool {
+        if let Some(redis) = &self.redis {
+            let bucket = format!("{scope}:{client_ip}");
+            match redis.allow(
+                bucket.as_str(),
+                self.config.max_rpm,
+                GATEWAY_RATE_WINDOW_SECS,
+            ) {
+                Ok(allowed) => return allowed,
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.gateway",
+                        event = "im.gateway.rate_limit_redis_unavailable",
+                        ?error,
+                        scope,
+                        client_ip = %client_ip,
+                        fail_closed = self.redis_fail_closed,
+                        "redis rate limit backend unavailable"
+                    );
+                    if self.redis_fail_closed {
+                        return false;
+                    }
+                }
+            }
+        }
+        self.local.check(client_ip)
+    }
+
+    pub fn tracked_count(&self) -> usize {
+        self.local.tracked_count()
+    }
+}
+
+/// Axum middleware: per-IP rate limiting using hybrid local + Redis backend.
+///
+/// Returns HTTP 429 when the client exceeds the configured rate.
+/// The retry_after_secs is calculated based on actual RPM configuration (P0-5 fix).
+pub async fn hybrid_rate_limit_middleware(
+    State(limiter): State<HybridIpRateLimiter>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let client_ip = extract_client_ip(&req);
+
+    if !limiter.check(GATEWAY_HTTP_RATE_SCOPE, client_ip) {
+        let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
+
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.rate_limited",
+            client_ip = %client_ip,
+            path = %req.uri().path(),
+            retry_after_secs = retry_after_secs,
+            max_rpm = limiter.config.max_rpm,
+            "request rate limited"
+        );
+        return gateway_rate_limit_problem_response(
+            "Too many requests. Please slow down.",
+            retry_after_secs,
+        );
+    }
+
+    next.run(req).await
+}
+
 /// Axum middleware: per-IP rate limiting using DashMap (high-performance variant).
 ///
 /// Returns HTTP 429 when the client exceeds the configured rate.
@@ -439,15 +395,10 @@ pub async fn dashmap_rate_limit_middleware(
             max_rpm = limiter.config.max_rpm,
             "request rate limited"
         );
-        return (
-            StatusCode::TOO_MANY_REQUESTS,
-            axum::Json(serde_json::json!({
-                "error": "rate_limit_exceeded",
-                "message": "Too many requests. Please slow down.",
-                "retry_after_secs": retry_after_secs.max(1), // minimum 1 second
-            })),
-        )
-            .into_response();
+        return gateway_rate_limit_problem_response(
+            "Too many requests. Please slow down.",
+            retry_after_secs,
+        );
     }
 
     next.run(req).await
@@ -478,15 +429,10 @@ pub async fn rate_limit_middleware(
             max_rpm = limiter.config.max_rpm,
             "request rate limited"
         );
-        return (
-            StatusCode::TOO_MANY_REQUESTS,
-            axum::Json(serde_json::json!({
-                "error": "rate_limit_exceeded",
-                "message": "Too many requests. Please slow down.",
-                "retry_after_secs": retry_after_secs.max(1), // minimum 1 second
-            })),
-        )
-            .into_response();
+        return gateway_rate_limit_problem_response(
+            "Too many requests. Please slow down.",
+            retry_after_secs,
+        );
     }
 
     next.run(req).await
@@ -867,15 +813,10 @@ pub async fn per_tenant_rate_limit_middleware(
                 max_rpm = limiter.config.max_rpm,
                 "tenant request rate limited"
             );
-            return (
-                StatusCode::TOO_MANY_REQUESTS,
-                axum::Json(serde_json::json!({
-                    "error": "tenant_rate_limit_exceeded",
-                    "message": "Tenant request rate limit exceeded. Please slow down.",
-                    "retry_after_secs": retry_after_secs.max(1), // minimum 1 second
-                })),
-            )
-                .into_response();
+            return gateway_rate_limit_problem_response(
+                "Tenant request rate limit exceeded. Please slow down.",
+                retry_after_secs,
+            );
         }
     }
 
@@ -1061,11 +1002,17 @@ mod tests {
 
     // -- Trusted proxy IP extraction tests --
 
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn trusted_proxy_config_parses_env() {
-        let _guard = TestEnvGuard::set(TRUSTED_PROXIES_ENV, "10.0.0.1, 10.0.0.2, 192.168.1.1");
+        let _lock = ENV_TEST_LOCK.lock().expect("env test lock");
+        let _guard = TestEnvGuard::set(
+            "SDKWORK_IM_GATEWAY_TRUSTED_PROXIES",
+            "10.0.0.1, 10.0.0.2, 192.168.1.1",
+        );
         let config = TrustedProxyConfig::from_env();
-        assert_eq!(config.trusted_proxies.len(), 3);
+        assert!(!config.is_empty());
         assert!(config.is_trusted(&"10.0.0.1".parse::<IpAddr>().unwrap()));
         assert!(config.is_trusted(&"192.168.1.1".parse::<IpAddr>().unwrap()));
         assert!(!config.is_trusted(&"8.8.8.8".parse::<IpAddr>().unwrap()));
@@ -1073,7 +1020,8 @@ mod tests {
 
     #[test]
     fn trusted_proxy_config_empty_when_unset() {
-        let _guard = TestEnvGuard::remove(TRUSTED_PROXIES_ENV);
+        let _lock = ENV_TEST_LOCK.lock().expect("env test lock");
+        let _guard = TestEnvGuard::remove("SDKWORK_IM_GATEWAY_TRUSTED_PROXIES");
         let config = TrustedProxyConfig::from_env();
         assert!(config.is_empty());
     }

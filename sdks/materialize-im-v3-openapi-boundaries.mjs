@@ -477,6 +477,12 @@ function pruneUnreachableParameters(document) {
   }
 }
 
+function finalizeMaterializedAuthority(document) {
+  pruneUnreachableSchemas(document);
+  pruneUnreachableParameters(document);
+  return document;
+}
+
 function normalizeImAuthority(im) {
   const next = cloneOpenApiJson(im);
   next.info = {
@@ -647,35 +653,50 @@ const appbaseBackendRouteSet = collectRouteSet(appbaseBackend, backendPrefix);
 const dependencyAppRouteSet = appbaseAppRouteSet;
 const dependencyBackendRouteSet = appbaseBackendRouteSet;
 
-const consolidatedIm = bootstrapOpenApiEnvelope(
-  applySdkworkV3OpenApiStandard(normalizeImAuthority(im)),
+const consolidatedIm = finalizeMaterializedAuthority(
+  bootstrapOpenApiEnvelope(
+    applySdkworkV3OpenApiStandard(normalizeImAuthority(im)),
+  ),
 );
 applyWebFrameworkOpenApiExtensions(consolidatedIm, 'open-api');
 annotateOwnerMetadata(consolidatedIm, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.im' });
-const consolidatedImSdkgen = sdkgenDerivedDocument(consolidatedIm, {
-  describeRealtimeWebsocketExclusion: true,
-});
-const consolidatedImFlutter = sdkgenDerivedDocument(consolidatedIm, {
-  describeRealtimeWebsocketExclusion: true,
-  applyFlutterCompatibility: true,
-  describeFlutterCompatibility: true,
-});
+finalizeMaterializedAuthority(consolidatedIm);
+const consolidatedImSdkgen = finalizeMaterializedAuthority(
+  sdkgenDerivedDocument(consolidatedIm, {
+    describeRealtimeWebsocketExclusion: true,
+  }),
+);
+const consolidatedImFlutter = finalizeMaterializedAuthority(
+  sdkgenDerivedDocument(consolidatedIm, {
+    describeRealtimeWebsocketExclusion: true,
+    applyFlutterCompatibility: true,
+    describeFlutterCompatibility: true,
+  }),
+);
 
-const consolidatedBackend = bootstrapOpenApiEnvelope(
-  applySdkworkV3OpenApiStandard(normalizeBackendAuthority(backend, dependencyBackendRouteSet)),
+const consolidatedBackend = finalizeMaterializedAuthority(
+  bootstrapOpenApiEnvelope(
+    applySdkworkV3OpenApiStandard(normalizeBackendAuthority(backend, dependencyBackendRouteSet)),
+  ),
 );
 applyWebFrameworkOpenApiExtensions(consolidatedBackend, 'backend-api');
 annotateOwnerMetadata(consolidatedBackend, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.backend' });
+finalizeMaterializedAuthority(consolidatedBackend);
 
-const consolidatedApp = bootstrapOpenApiEnvelope(
-  applySdkworkV3OpenApiStandard(normalizeAppAuthority(app, im, dependencyAppRouteSet)),
+const consolidatedApp = finalizeMaterializedAuthority(
+  bootstrapOpenApiEnvelope(
+    applySdkworkV3OpenApiStandard(normalizeAppAuthority(app, im, dependencyAppRouteSet)),
+  ),
 );
 applyWebFrameworkOpenApiExtensions(consolidatedApp, 'app-api');
 annotateOwnerMetadata(consolidatedApp, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.app' });
-const consolidatedAppSdkgen = sdkgenDerivedDocument(consolidatedApp);
-const consolidatedAppFlutter = sdkgenDerivedDocument(consolidatedApp, {
-  applyFlutterCompatibility: true,
-});
+finalizeMaterializedAuthority(consolidatedApp);
+const consolidatedAppSdkgen = finalizeMaterializedAuthority(sdkgenDerivedDocument(consolidatedApp));
+const consolidatedAppFlutter = finalizeMaterializedAuthority(
+  sdkgenDerivedDocument(consolidatedApp, {
+    applyFlutterCompatibility: true,
+  }),
+);
 
 if (!consolidatedIm.paths['/im/v3/api/spaces']) {
   fail('IM authority is missing /im/v3/api/spaces.');

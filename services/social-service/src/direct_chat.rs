@@ -1,7 +1,8 @@
 use axum::Json;
-use axum::extract::{Path, State};
-use axum::http::HeaderMap;
+use axum::extract::{Extension, Path, State};
+use axum::response::Response;
 use im_app_context::AppContext;
+use sdkwork_web_core::WebRequestContext;
 use im_domain_core::social::{DirectChat, DirectChatStatus, normalize_actor_pair};
 use im_domain_events::social::{
     DirectChatBoundPayload, SocialCommitEnvelopeInput, SocialEventType, social_commit_envelope,
@@ -9,6 +10,8 @@ use im_domain_events::social::{
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use serde::{Deserialize, Serialize};
 
+use crate::api_payload::resource_item;
+use crate::envelope::finish_enveloped_json;
 use crate::friendship::{AppState, SocialServiceError};
 use crate::runtime::{
     SocialRuntime, SocialWritePersistence, StoredDirectChat, active_direct_chat_record_for_pair,
@@ -241,6 +244,15 @@ impl SocialRuntime {
             "invalid_direct_chat",
         )?;
         validate_required_with_code("boundAt", request.bound_at.as_str(), "invalid_direct_chat")?;
+        let principal = auth.social_principal_user_id();
+        if principal != request.left_actor_id.as_str()
+            && principal != request.right_actor_id.as_str()
+        {
+            return Err(SocialServiceError::forbidden(
+                "social_actor_mismatch",
+                "authenticated user must be a direct chat participant",
+            ));
+        }
         let pair = normalize_actor_pair(
             request.left_actor_id.as_str(),
             request.right_actor_id.as_str(),
@@ -362,53 +374,74 @@ impl SocialRuntime {
     }
 }
 
+fn ensure_direct_chat_participant(
+    auth: &AppContext,
+    direct_chat: &DirectChat,
+) -> Result<(), SocialServiceError> {
+    let principal = auth.social_principal_user_id();
+    if principal == direct_chat.left_actor_id.as_str()
+        || principal == direct_chat.right_actor_id.as_str()
+    {
+        return Ok(());
+    }
+    Err(SocialServiceError::forbidden(
+        "social_actor_mismatch",
+        "authenticated user must be a direct chat participant",
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // HTTP handler functions
 // ---------------------------------------------------------------------------
 
 pub(crate) async fn bind_direct_chat(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(request): Json<BindDirectChatRequest>,
-) -> Result<Json<SocialDirectChatCommitResponse>, SocialServiceError> {
-    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+) -> Response {
+    let result = (|| {
+        let bound = state
+            .social_runtime
+            .bind_direct_chat(auth.tenant_id.as_str(), &auth, request)?;
 
-    let bound = state
-        .social_runtime
-        .bind_direct_chat(auth.tenant_id.as_str(), &auth, request)?;
-
-    Ok(Json(SocialDirectChatCommitResponse {
-        status: SocialDirectChatWriteStatus::Bound,
-        direct_chat: bound.direct_chat,
-        latest_commit: bound.latest_commit.into(),
-        persistence: bound.persistence,
-    }))
+        Ok(resource_item(SocialDirectChatCommitResponse {
+            status: SocialDirectChatWriteStatus::Bound,
+            direct_chat: bound.direct_chat,
+            latest_commit: bound.latest_commit.into(),
+            persistence: bound.persistence,
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn direct_chat_snapshot(
     Path(direct_chat_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialDirectChatSnapshotResponse>, SocialServiceError> {
-    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+) -> Response {
+    let result = (|| {
+        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state
+            .social_runtime
+            .refresh_state_from_authority_for_write()?;
+        let snapshot = state
+            .social_runtime
+            .direct_chat_snapshot(auth.tenant_id.as_str(), direct_chat_id.as_str())
+            .ok_or_else(|| {
+                SocialServiceError::not_found(
+                    "direct_chat_not_found",
+                    format!("direct chat {direct_chat_id} was not found"),
+                )
+            })?;
+        ensure_direct_chat_participant(&auth, &snapshot.direct_chat)?;
 
-    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
-    state
-        .social_runtime
-        .refresh_state_from_authority_for_write()?;
-    let snapshot = state
-        .social_runtime
-        .direct_chat_snapshot(auth.tenant_id.as_str(), direct_chat_id.as_str())
-        .ok_or_else(|| {
-            SocialServiceError::not_found(
-                "direct_chat_not_found",
-                format!("direct chat {direct_chat_id} was not found"),
-            )
-        })?;
-
-    Ok(Json(SocialDirectChatSnapshotResponse {
-        status: SocialDirectChatReadStatus::Snapshot,
-        direct_chat: snapshot.direct_chat,
-        commits: snapshot.commits.into_iter().map(Into::into).collect(),
-    }))
+        Ok(resource_item(SocialDirectChatSnapshotResponse {
+            status: SocialDirectChatReadStatus::Snapshot,
+            direct_chat: snapshot.direct_chat,
+            commits: snapshot.commits.into_iter().map(Into::into).collect(),
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }

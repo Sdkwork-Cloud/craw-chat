@@ -4,15 +4,27 @@
 //! user blocks, direct chats, external connections, and shared channel policies.
 
 pub mod config;
+pub mod contact_store;
 pub mod direct_chat_store;
 pub mod external_store;
 pub mod friend_request_store;
 pub mod friendship_store;
+pub mod governance_store;
+pub mod materialize_writes;
+pub mod member_capacity;
 pub mod organization_store;
 pub mod shared_channel_store;
+pub mod space_materialize_writes;
+pub mod space_materializer;
 pub mod user_block_store;
 pub mod user_profile_store;
 pub mod user_settings_store;
+pub mod wire_id;
+
+pub use materialize_writes::materialize_commits_in_transaction;
+pub use space_materialize_writes::materialize_space_commits_in_transaction;
+pub use space_materializer::SpacePostgresMaterializer;
+pub use member_capacity::MemberInsertOutcome;
 
 pub use config::SocialPostgresConfig;
 

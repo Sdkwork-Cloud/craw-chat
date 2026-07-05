@@ -10,7 +10,7 @@ export function useTauriTrayNavigationBridge(): void {
   useEffect(() => {
     const listen = resolveTauriListen();
     if (!listen) {
-      return;
+      return undefined;
     }
 
     const unlisteners: TauriUnlisten[] = [];

@@ -4,20 +4,26 @@
 use std::sync::Arc;
 
 use axum::Router;
+use conversation_runtime::resolve_embedded_conversation_runtime;
 use im_adapters_social_postgres::SocialPostgresConfig;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
+use im_app_context::allows_header_only_app_context_fallback;
 use social_service::SocialRuntime;
 use tokio::task::JoinHandle;
+
+use crate::space_conversation_wiring::wire_space_conversation_binders;
 
 const SOCIAL_RUNTIME_DIR_ENV: &str = "SDKWORK_IM_RUNTIME_DIR";
 
 pub struct ApplicationAssembly {
     pub router: Router,
+    pub social_runtime: Arc<SocialRuntime>,
     _background: ApplicationAssemblyBackground,
 }
 
 struct ApplicationAssemblyBackground {
     _social_shared_channel_sync: Option<JoinHandle<()>>,
+    _social_friend_request_expiration: Option<JoinHandle<()>>,
     /// Keep postgres-backed handler state alive when router merge replaces route handlers.
     _social_postgres_state: Option<social_service::PostgresAppState>,
     _space_state: Option<space_service::http::AppState>,
@@ -29,6 +35,7 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
     let mut router = Router::new();
     let mut background = ApplicationAssemblyBackground {
         _social_shared_channel_sync: None,
+        _social_friend_request_expiration: None,
         _social_postgres_state: None,
         _space_state: None,
         _projection_journal_consumer: None,
@@ -39,6 +46,8 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
         social_service::spawn_shared_channel_sync_stale_reclaim_scheduler_from_env(
             social_runtime.clone(),
         );
+    background._social_friend_request_expiration =
+        social_service::spawn_friend_request_expiration_scheduler_from_env(social_runtime.clone());
 
     router = router.merge(sdkwork_routes_im_audit_backend_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_automation_app_api::gateway_mount());
@@ -69,7 +78,10 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
         );
         background._social_postgres_state = Some(social_state);
 
-        let space_state = space_service::app_state_from_postgres_pool(pool).await;
+        let mut space_state = space_service::app_state_from_postgres_pool(pool).await;
+        if let Some(conversation_runtime) = resolve_embedded_conversation_runtime() {
+            space_state = wire_space_conversation_binders(space_state, conversation_runtime);
+        }
         router = router.merge(sdkwork_routes_im_space_open_api::gateway_mount(space_state.clone()));
         background._space_state = Some(space_state);
     }
@@ -78,16 +90,31 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
 
     ApplicationAssembly {
         router,
+        social_runtime,
         _background: background,
     }
 }
 
 fn build_social_runtime() -> Arc<SocialRuntime> {
-    match std::env::var(SOCIAL_RUNTIME_DIR_ENV) {
-        Ok(runtime_dir) if !runtime_dir.trim().is_empty() => Arc::new(SocialRuntime::from_runtime_dir(
-            runtime_dir.as_str(),
-        )),
-        _ => Arc::new(SocialRuntime::default()),
+    match social_service::build_social_runtime_from_env() {
+        Ok(runtime) => runtime,
+        Err(error) if allows_header_only_app_context_fallback() => {
+            tracing::warn!(
+                error = %error,
+                "social runtime env bootstrap failed; falling back to file or in-memory runtime (development/test only)"
+            );
+            match std::env::var(SOCIAL_RUNTIME_DIR_ENV) {
+                Ok(runtime_dir) if !runtime_dir.trim().is_empty() => {
+                    Arc::new(SocialRuntime::from_runtime_dir(runtime_dir.as_str()))
+                }
+                _ => Arc::new(SocialRuntime::default()),
+            }
+        }
+        Err(error) => {
+            panic!(
+                "social runtime env bootstrap failed in production-like environment: {error}"
+            );
+        }
     }
 }
 

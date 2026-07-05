@@ -3,7 +3,9 @@ use im_app_context::AppContext;
 use im_domain_core::conversation::{
     MembershipRole, build_conversation_member, build_default_read_cursor,
 };
-use projection_service::TimelineProjectionService;
+use projection_service::{
+    FavoriteMessageRequest, TimelineProjectionService, UpdateConversationPreferencesRequest,
+};
 
 fn app_context(
     tenant_id: &str,
@@ -400,22 +402,46 @@ fn test_projection_service_restores_tenant_scoped_conversation_snapshots_from_sh
         .expect("beta projection should succeed");
 
     service
-        .persist_conversation_snapshot("t_alpha", "default", "c_shared", &metadata_store, &timeline_store)
+        .persist_conversation_snapshot(
+            "t_alpha",
+            "default",
+            "c_shared",
+            &metadata_store,
+            &timeline_store,
+        )
         .expect("alpha snapshot should persist");
     service
-        .persist_conversation_snapshot("t_beta", "default", "c_shared", &metadata_store, &timeline_store)
+        .persist_conversation_snapshot(
+            "t_beta",
+            "default",
+            "c_shared",
+            &metadata_store,
+            &timeline_store,
+        )
         .expect("beta snapshot should persist");
 
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_shared", &metadata_store, &timeline_store,)
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_shared",
+                &metadata_store,
+                &timeline_store,
+            )
             .expect("alpha snapshot should restore"),
         "alpha snapshot should exist"
     );
     assert!(
         restored
-            .restore_conversation_snapshot("t_beta", "default", "c_shared", &metadata_store, &timeline_store)
+            .restore_conversation_snapshot(
+                "t_beta",
+                "default",
+                "c_shared",
+                &metadata_store,
+                &timeline_store
+            )
             .expect("beta snapshot should restore"),
         "beta snapshot should exist"
     );
@@ -503,7 +529,13 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_restore", &metadata_store, &timeline_store)
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_restore",
+                &metadata_store,
+                &timeline_store
+            )
             .expect("snapshot should persist"),
         "snapshot should exist"
     );
@@ -511,7 +543,13 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_restore", &metadata_store, &timeline_store)
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_restore",
+                &metadata_store,
+                &timeline_store
+            )
             .expect("snapshot should restore"),
         "snapshot should restore"
     );
@@ -519,7 +557,7 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
     let member = restored
         .member_snapshot_for_principal_kind("t_alpha", "default", "c_restore", "1014", "user")
         .expect("member should restore");
-    assert_eq!(member.member_id, "cm_c_restore_user_u_member");
+    assert_eq!(member.member_id, typed_member_id("c_restore", "user", "1014"));
     assert_eq!(member.principal_id, "1014");
 
     let read_cursor = restored
@@ -584,7 +622,11 @@ fn test_projection_service_restores_member_directory_view_from_snapshot_metadata
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_directory_restore", &metadata_store,
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_directory_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should persist"),
@@ -594,7 +636,11 @@ fn test_projection_service_restores_member_directory_view_from_snapshot_metadata
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_directory_restore", &metadata_store,
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_directory_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should restore"),
@@ -654,7 +700,11 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_client_route_sync_restore", &metadata_store,
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_client_route_sync_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should persist"),
@@ -664,7 +714,11 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_client_route_sync_restore", &metadata_store,
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_client_route_sync_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should restore"),
@@ -678,7 +732,9 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
 
     let phone_feed = restored
         .client_route_sync_feed_window_for_principal_kind(
-            "t_alpha", "default", "1014",
+            "t_alpha",
+            "default",
+            "1014",
             "user",
             "d_phone",
             Some(0),
@@ -699,7 +755,9 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
 
     let pad_feed = restored
         .client_route_sync_feed_window_for_principal_kind(
-            "t_alpha", "default", "1014",
+            "t_alpha",
+            "default",
+            "1014",
             "user",
             "d_pad",
             Some(0),
@@ -774,8 +832,11 @@ fn test_projection_service_restores_typed_client_route_sync_state_for_same_actor
         .expect("typed user join projection should succeed");
 
     service.register_client_route_for_principal_kind("t_alpha", "default", "1", "user", "d_owner");
-    service.register_client_route_for_principal_kind("t_alpha", "default", "1018", "user", "d_shared");
-    service.register_client_route_for_principal_kind("t_alpha", "default", "1018", "agent", "d_shared");
+    service
+        .register_client_route_for_principal_kind("t_alpha", "default", "1018", "user", "d_shared");
+    service.register_client_route_for_principal_kind(
+        "t_alpha", "default", "1018", "agent", "d_shared",
+    );
     service
         .apply(&message_posted_event(
             "t_alpha",
@@ -789,7 +850,11 @@ fn test_projection_service_restores_typed_client_route_sync_state_for_same_actor
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_typed_client_route_sync_restore", &metadata_store,
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_typed_client_route_sync_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should persist"),
@@ -799,7 +864,11 @@ fn test_projection_service_restores_typed_client_route_sync_state_for_same_actor
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_typed_client_route_sync_restore", &metadata_store,
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_typed_client_route_sync_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should restore"),
@@ -899,7 +968,11 @@ fn test_projection_service_restores_contacts_view_from_snapshot_metadata() {
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_contacts_seed", &metadata_store,
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_contacts_seed",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should persist"),
@@ -909,7 +982,11 @@ fn test_projection_service_restores_contacts_view_from_snapshot_metadata() {
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_contacts_seed", &metadata_store,
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_contacts_seed",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should restore"),
@@ -982,7 +1059,11 @@ fn test_projection_service_restores_interaction_summary_view_from_snapshot_metad
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_interaction_restore", &metadata_store,
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_interaction_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should persist"),
@@ -992,7 +1073,11 @@ fn test_projection_service_restores_interaction_summary_view_from_snapshot_metad
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_interaction_restore", &metadata_store,
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_interaction_restore",
+                &metadata_store,
                 &timeline_store,
             )
             .expect("snapshot should restore"),
@@ -1000,7 +1085,10 @@ fn test_projection_service_restores_interaction_summary_view_from_snapshot_metad
     );
 
     let summary = restored
-        .message_interaction_summary("t_alpha", "default", "c_interaction_restore",
+        .message_interaction_summary(
+            "t_alpha",
+            "default",
+            "c_interaction_restore",
             "msg_c_interaction_restore_1",
         )
         .expect("interaction summary should restore");
@@ -1048,7 +1136,13 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
 
     assert!(
         service
-            .persist_conversation_snapshot("t_alpha", "default", "c_obs", &metadata_store, &timeline_store)
+            .persist_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_obs",
+                &metadata_store,
+                &timeline_store
+            )
             .expect("snapshot should persist"),
         "snapshot should exist"
     );
@@ -1056,7 +1150,13 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
     let restored = TimelineProjectionService::default();
     assert!(
         restored
-            .restore_conversation_snapshot("t_alpha", "default", "c_obs", &metadata_store, &timeline_store)
+            .restore_conversation_snapshot(
+                "t_alpha",
+                "default",
+                "c_obs",
+                &metadata_store,
+                &timeline_store
+            )
             .expect("snapshot should restore"),
         "snapshot should restore"
     );
@@ -1079,7 +1179,7 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
             .traces
             .iter()
             .any(|item| item.operation == "conversation_snapshot.restore"
-                && item.scope_id == "7#t_alpha7#default5#c_obs"
+                && item.scope_id == "7#t_alpha1#05#c_obs"
                 && item.outcome == "success"),
         "restore trace should be recorded"
     );
@@ -1180,7 +1280,7 @@ fn test_projection_service_tracks_live_projection_lag_per_scope() {
     assert!(
         lag_json.as_array().unwrap().iter().any(|item| {
             item["component"] == "projection_live"
-                && item["scopeId"] == "6#1000017#default21#c_projection_live_lag"
+                && item["scopeId"] == "6#1000011#021#c_projection_live_lag"
                 && item["currentOffset"] == 1
                 && item["committedOffset"] == 1
                 && item["lag"] == 0
@@ -1236,6 +1336,111 @@ fn test_projection_service_records_projection_update_delay_metrics() {
     );
     assert_eq!(
         snapshot_json["updateDelay"]["scopeId"],
-        "6#1000017#default18#c_projection_delay"
+        "6#1000011#018#c_projection_delay"
     );
+}
+
+#[test]
+fn test_projection_service_restores_personalization_snapshot_from_metadata() {
+    let metadata_store = MemoryMetadataStore::default();
+    let service = TimelineProjectionService::default();
+    let tenant_id = "t_personalization";
+    let organization_id = "default";
+    let conversation_id = "c_personalization";
+    let principal_kind = "user";
+    let principal_id = "9001";
+    let message_id = "msg_personalization_1";
+
+    service
+        .apply(&conversation_created_event(
+            tenant_id,
+            conversation_id,
+            "direct",
+        ))
+        .expect("conversation projection should succeed");
+    service
+        .apply(&member_joined_event(
+            tenant_id,
+            conversation_id,
+            principal_id,
+            MembershipRole::Owner,
+        ))
+        .expect("member join projection should succeed");
+    service
+        .apply(&message_posted_event(
+            tenant_id,
+            conversation_id,
+            message_id,
+            1,
+            principal_id,
+            "pinned favorite",
+        ))
+        .expect("message projection should succeed");
+
+    let preferences = service.update_conversation_preferences(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        principal_kind,
+        principal_id,
+        UpdateConversationPreferencesRequest {
+            is_pinned: Some(true),
+            is_muted: Some(true),
+            is_marked_unread: None,
+            is_hidden: None,
+        },
+    );
+    assert!(preferences.is_pinned);
+    assert!(preferences.is_muted);
+
+    let favorite = service.create_message_favorite(
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+        message_id,
+        FavoriteMessageRequest {
+            conversation_id: conversation_id.to_owned(),
+            favorite_type: "chat".to_owned(),
+            title: "Pinned context".to_owned(),
+            content_preview: "pinned favorite".to_owned(),
+            source_display_name: "Alice".to_owned(),
+        },
+    );
+    assert_eq!(favorite.message_id, message_id);
+
+    assert!(
+        service
+            .persist_personalization_snapshot(&metadata_store)
+            .expect("personalization snapshot should persist"),
+        "personalization snapshot should exist"
+    );
+
+    let restored = TimelineProjectionService::default();
+    assert!(
+        restored
+            .restore_personalization_snapshot(&metadata_store)
+            .expect("personalization snapshot should restore"),
+        "personalization snapshot should restore"
+    );
+
+    let restored_preferences = restored.conversation_preferences(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        principal_kind,
+        principal_id,
+    );
+    assert!(restored_preferences.is_pinned);
+    assert!(restored_preferences.is_muted);
+
+    let restored_favorites = restored.message_favorites_for_principal(
+        tenant_id,
+        organization_id,
+        principal_kind,
+        principal_id,
+    );
+    assert_eq!(restored_favorites.len(), 1);
+    assert_eq!(restored_favorites[0].message_id, message_id);
+    assert_eq!(restored_favorites[0].content_preview, "pinned favorite");
 }

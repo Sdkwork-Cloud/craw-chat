@@ -5,14 +5,17 @@ use sdkwork_im_websocket_auth_gate::{
 };
 
 use crate::AppState;
-use crate::websocket_upgrade::{prepare_realtime_websocket_upgrade, serve_realtime_websocket_upgrade};
+use crate::websocket_upgrade::{
+    acquire_websocket_connection_permit, prepare_realtime_websocket_upgrade,
+    serve_realtime_websocket_upgrade,
+};
 
 pub(crate) async fn realtime_websocket_after_auth_init_frame(
     mut socket: axum::extract::ws::WebSocket,
     state: AppState,
     selected_protocol: Option<String>,
     query_device_id: Option<String>,
-    semaphore_permit: tokio::sync::OwnedSemaphorePermit,
+    _preauth_permit: tokio::sync::OwnedSemaphorePermit,
 ) {
     let Some(auth_init) = read_websocket_auth_init_frame(&mut socket).await else {
         close_websocket_with_auth_error(
@@ -39,7 +42,11 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         }
     };
 
-    let auth = match state.auth_resolver.resolve_from_headers(&auth_headers).await {
+    let auth = match state
+        .auth_resolver
+        .resolve_from_headers(&auth_headers)
+        .await
+    {
         Ok(context) => context,
         Err(_) => {
             close_websocket_with_auth_error(
@@ -69,7 +76,8 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         }
     };
 
-    if let Err(error) = state.prepare_active_client_route(&auth, device_id.as_str(), "websocket", false)
+    if let Err(error) =
+        state.prepare_active_client_route(&auth, device_id.as_str(), "websocket", false)
     {
         close_websocket_with_auth_error(
             &mut socket,
@@ -80,6 +88,20 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         .await;
         return;
     }
+
+    let semaphore_permit = match acquire_websocket_connection_permit(&state) {
+        Ok(permit) => permit,
+        Err(error) => {
+            close_websocket_with_auth_error(
+                &mut socket,
+                auth_init.request_id.as_deref(),
+                error.code,
+                error.message.as_str(),
+            )
+            .await;
+            return;
+        }
+    };
 
     let _ = send_websocket_auth_ok(
         &mut socket,
@@ -95,6 +117,7 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         device_id,
         state.realtime_runtime.clone(),
         state.client_route_registration.clone(),
+        state.websocket_frame_rate_limiter.clone(),
     );
     upgrade
         .execute(socket, move |socket, context, mode| {

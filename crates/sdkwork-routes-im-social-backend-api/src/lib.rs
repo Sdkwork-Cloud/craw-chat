@@ -1,6 +1,7 @@
 //! IM social backend-api control routes.
 
 mod manifest;
+mod paths;
 mod routes;
 mod web_bootstrap;
 

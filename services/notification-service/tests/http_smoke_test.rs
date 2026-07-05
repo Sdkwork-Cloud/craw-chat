@@ -2,12 +2,31 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_app_context::DualTokenRequestBuilderExt;
+use std::sync::Once;
 use tokio::time::{Duration, sleep};
 use tower::ServiceExt;
 
+static INIT_NOTIFICATION_HTTP_TEST_ENV: Once = Once::new();
+
+fn init_notification_http_test_env() {
+    INIT_NOTIFICATION_HTTP_TEST_ENV.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+    });
+}
+
+fn notification_http_test_app() -> axum::Router {
+    init_notification_http_test_env();
+    notification_service::build_public_app()
+}
+
+fn notification_route_http_test_app() -> axum::Router {
+    init_notification_http_test_env();
+    sdkwork_routes_im_notification_app_api::build_public_app()
+}
+
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = notification_service::build_public_app();
+    let app = notification_http_test_app();
 
     let response = app
         .oneshot(
@@ -40,7 +59,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
-    let app = notification_service::build_public_app();
+    let app = notification_http_test_app();
 
     let response = app
         .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
@@ -64,7 +83,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_request_and_query_notifications_over_http() {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let create_response = app
         .clone()
@@ -209,7 +228,7 @@ async fn test_request_and_query_notifications_over_http() {
 
 #[tokio::test]
 async fn test_notification_queries_reject_same_actor_id_with_different_actor_kind_over_http() {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let create_response = app
         .clone()
@@ -322,7 +341,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
 #[tokio::test]
 async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_rejected_over_http()
 {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let first_response = app
         .clone()
@@ -464,7 +483,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
 #[tokio::test]
 async fn test_duplicate_notification_request_from_different_principal_keeps_stable_request_key_over_http()
  {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let first_response = app
         .clone()
@@ -551,7 +570,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
 
 #[tokio::test]
 async fn test_request_notification_rejects_oversized_payload_over_http() {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let oversized_payload = "x".repeat(262145);
     let request_body = serde_json::json!({
@@ -587,7 +606,7 @@ async fn test_request_notification_rejects_oversized_payload_over_http() {
 
 #[tokio::test]
 async fn test_request_notification_rejects_oversized_notification_id_over_http() {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let oversized_notification_id = "n".repeat(513);
     let request_body = serde_json::json!({
@@ -623,7 +642,7 @@ async fn test_request_notification_rejects_oversized_notification_id_over_http()
 
 #[tokio::test]
 async fn test_list_notifications_returns_newest_first_with_distinct_timestamps() {
-    let app = sdkwork_routes_im_notification_app_api::build_public_app();
+    let app = notification_route_http_test_app();
 
     let first_response = app
         .clone()

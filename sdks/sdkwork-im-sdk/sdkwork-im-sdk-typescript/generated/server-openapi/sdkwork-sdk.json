@@ -5,6 +5,8 @@
   "language": "typescript",
   "sdkType": "im",
   "packageName": "@sdkwork/im-sdk-generated",
+  "transportPackageName": "@sdkwork/im-sdk-generated",
+  "consumerPackageName": "@sdkwork/im-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

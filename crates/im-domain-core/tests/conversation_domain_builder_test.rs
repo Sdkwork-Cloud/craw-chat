@@ -94,10 +94,7 @@ fn test_default_read_cursor_reuses_member_identity() {
 
 #[test]
 fn test_member_episode_id_adds_suffix_only_after_first_episode() {
-    assert_eq!(
-        member_id("c_demo", "user", "1"),
-        "cm_c_demo_user_1"
-    );
+    assert_eq!(member_id("c_demo", "user", "1"), "cm_c_demo_user_1");
     assert_eq!(
         member_episode_id("c_demo", "user", "1", 1),
         "cm_c_demo_user_1"

@@ -53,7 +53,7 @@ impl PresenceStatus {
             Self::Offline => "offline",
         }
     }
-    
+
     /// Parse a string into a PresenceStatus.
     /// Returns None for unknown values.
     pub fn from_str(value: &str) -> Option<Self> {
@@ -66,40 +66,43 @@ impl PresenceStatus {
             _ => None,
         }
     }
-    
+
     /// Check if the user is technically connected (has an active session).
     /// Returns true for Online, Away, Busy, and Invisible states.
     pub fn is_connected(&self) -> bool {
-        matches!(self, Self::Online | Self::Away | Self::Busy | Self::Invisible)
+        matches!(
+            self,
+            Self::Online | Self::Away | Self::Busy | Self::Invisible
+        )
     }
-    
+
     /// Check if the user should receive normal priority notifications.
     /// Returns false for Busy and Offline states.
     pub fn should_receive_normal_notifications(&self) -> bool {
         matches!(self, Self::Online | Self::Away | Self::Invisible)
     }
-    
+
     /// Check if the user should receive high priority notifications only.
     /// Returns true only for Busy state.
     pub fn is_high_priority_only(&self) -> bool {
         matches!(self, Self::Busy)
     }
-    
+
     /// Check if the user appears online to others.
     /// Returns false for Invisible and Offline states.
     pub fn appears_online_to_others(&self) -> bool {
         matches!(self, Self::Online | Self::Away | Self::Busy)
     }
-    
+
     /// Get the push QoS level for this presence status.
     /// Higher values mean more aggressive push delivery.
     pub fn push_qos_level(&self) -> u8 {
         match self {
-            Self::Online => 3,      // Immediate push, all notifications
-            Self::Away => 2,        // Normal push, may batch non-urgent
-            Self::Busy => 1,        // High priority only
-            Self::Invisible => 2,   // Normal push but appears offline
-            Self::Offline => 0,     // No push, queue for later
+            Self::Online => 3,    // Immediate push, all notifications
+            Self::Away => 2,      // Normal push, may batch non-urgent
+            Self::Busy => 1,      // High priority only
+            Self::Invisible => 2, // Normal push but appears offline
+            Self::Offline => 0,   // No push, queue for later
         }
     }
 }

@@ -9,6 +9,7 @@ pub enum SocialEventType {
     FriendRequestAccepted,
     FriendRequestDeclined,
     FriendRequestCanceled,
+    FriendRequestExpired,
     FriendshipActivated,
     FriendshipRemoved,
     ExternalConnectionEstablished,
@@ -27,6 +28,7 @@ impl SocialEventType {
             Self::FriendRequestAccepted => "friend_request.accepted",
             Self::FriendRequestDeclined => "friend_request.declined",
             Self::FriendRequestCanceled => "friend_request.canceled",
+            Self::FriendRequestExpired => "friend_request.expired",
             Self::FriendshipActivated => "friendship.activated",
             Self::FriendshipRemoved => "friendship.removed",
             Self::ExternalConnectionEstablished => "external_connection.established",
@@ -45,6 +47,7 @@ impl SocialEventType {
             Self::FriendRequestAccepted => "social.friend_request.accepted.v1",
             Self::FriendRequestDeclined => "social.friend_request.declined.v1",
             Self::FriendRequestCanceled => "social.friend_request.canceled.v1",
+            Self::FriendRequestExpired => "social.friend_request.expired.v1",
             Self::FriendshipActivated => "social.friendship.activated.v1",
             Self::FriendshipRemoved => "social.friendship.removed.v1",
             Self::ExternalConnectionEstablished => "social.external_connection.established.v1",
@@ -66,12 +69,18 @@ pub struct FriendRequestSubmittedPayload {
     pub target_user_id: String,
     pub request_message: Option<String>,
     pub requested_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FriendRequestAcceptedPayload {
     pub request_id: String,
+    #[serde(default)]
+    pub requester_user_id: String,
+    #[serde(default)]
+    pub target_user_id: String,
     pub accepted_by_user_id: String,
     pub accepted_at: String,
 }
@@ -80,6 +89,10 @@ pub struct FriendRequestAcceptedPayload {
 #[serde(rename_all = "camelCase")]
 pub struct FriendRequestDeclinedPayload {
     pub request_id: String,
+    #[serde(default)]
+    pub requester_user_id: String,
+    #[serde(default)]
+    pub target_user_id: String,
     pub declined_by_user_id: String,
     pub declined_at: String,
 }
@@ -88,8 +101,21 @@ pub struct FriendRequestDeclinedPayload {
 #[serde(rename_all = "camelCase")]
 pub struct FriendRequestCanceledPayload {
     pub request_id: String,
+    #[serde(default)]
+    pub requester_user_id: String,
+    #[serde(default)]
+    pub target_user_id: String,
     pub canceled_by_user_id: String,
     pub canceled_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FriendRequestExpiredPayload {
+    pub request_id: String,
+    pub requester_user_id: String,
+    pub target_user_id: String,
+    pub expired_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -157,6 +183,15 @@ pub struct UserBlockedPayload {
     pub direct_chat_id: Option<String>,
     pub expires_at: Option<String>,
     pub effective_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserBlockReleasedPayload {
+    pub block_id: String,
+    pub blocker_user_id: String,
+    pub blocked_user_id: String,
+    pub released_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

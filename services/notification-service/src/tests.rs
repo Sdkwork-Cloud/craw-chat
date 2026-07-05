@@ -71,12 +71,12 @@ fn test_notification_runtime_uses_recipient_index_for_listing() {
     let source = include_str!("state.rs").replace("\r\n", "\n");
 
     assert!(
-        source.contains("tasks_by_recipient: HashMap<String, BTreeSet<String>>"),
-        "notification runtime should maintain a tenant/recipient-kind/recipient-id task index"
+        source.contains("tasks_by_recipient: NotificationRecipientIndex"),
+        "notification runtime should maintain a sorted tenant/recipient task index"
     );
     assert!(
-        source.contains("notification_keys_for_recipient("),
-        "list_notifications should read notification keys from the runtime recipient index"
+        source.contains("list_notifications_page("),
+        "list_notifications should page from the runtime recipient index"
     );
     assert!(
         !source.contains(".iter()\n            .filter(|(key, task)| {\n                key.starts_with(prefix.as_str()) && notification_visible_to_actor(task, auth)\n            })"),
@@ -164,7 +164,7 @@ fn test_runtime_memory_task_store_uses_recipient_kind_index_for_listing() {
     let source = include_str!("state.rs").replace("\r\n", "\n");
 
     assert!(
-        source.contains("tasks_by_recipient: HashMap<String, BTreeSet<String>>"),
+        source.contains("tasks_by_recipient: NotificationRecipientIndex"),
         "runtime notification task store should maintain a tenant/recipient-kind/recipient-id index"
     );
     assert!(

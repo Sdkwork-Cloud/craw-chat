@@ -4,19 +4,17 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_platform_contracts::ClusterEventBus;
 use im_time::utc_now_rfc3339_millis;
-use serde::Deserialize;
 use sdkwork_im_contract_control::RealtimeDisconnectFenceStore;
 use sdkwork_im_runtime_route::{
     RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
     RouteRuntimeError, RouteStore,
 };
+use serde::Deserialize;
 use tokio::sync::watch;
 
 use crate::{
     RealtimeDeliveryRuntime,
-    cluster_route_event_auth::{
-        sign_cluster_route_event, verify_and_extract_cluster_route_event,
-    },
+    cluster_route_event_auth::{sign_cluster_route_event, verify_and_extract_cluster_route_event},
     principal_scope::typed_client_route_scope_key,
     realtime::{RealtimeClientRouteStateSnapshot, RealtimeRuntimeError},
 };
@@ -30,7 +28,8 @@ fn lock_cluster_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
         Ok(guard) => guard,
         Err(poisoned) => {
             // Increment a counter for monitoring (in production, export this metric)
-            static POISON_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            static POISON_COUNTER: std::sync::atomic::AtomicU64 =
+                std::sync::atomic::AtomicU64::new(0);
             let count = POISON_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
             tracing::error!(
@@ -181,7 +180,8 @@ impl RealtimeClusterBridge {
         // Clean up route epoch notifiers for routes owned by this node
         // to prevent memory leaks from disconnected clients
         let routes = self.route_store.routes_for_node(node_id);
-        let mut notifiers = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+        let mut notifiers =
+            lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
         for route in &routes {
             let scope_key = client_route_scope_key(
                 &route.tenant_id,
@@ -210,7 +210,8 @@ impl RealtimeClusterBridge {
     /// Call this periodically (e.g., every 5 minutes) to prevent memory leaks
     /// from clients that disconnected without proper cleanup.
     pub fn cleanup_stale_route_epoch_notifiers(&self) {
-        let mut notifiers = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+        let mut notifiers =
+            lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
         let before_count = notifiers.len();
 
         // Keep only notifiers for routes that still exist
@@ -233,13 +234,15 @@ impl RealtimeClusterBridge {
             let device_id = parts[4];
 
             // Check if route still exists
-            self.route_store.lookup(
-                tenant_id,
-                organization_id,
-                principal_id,
-                principal_kind,
-                device_id,
-            ).is_some()
+            self.route_store
+                .lookup(
+                    tenant_id,
+                    organization_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                )
+                .is_some()
         });
 
         let removed_count = before_count - notifiers.len();
@@ -287,7 +290,7 @@ impl RealtimeClusterBridge {
                 device_id,
             ) {
                 Ok(Some(_)) => true, // Fence still exists, keep it
-                Ok(None) => false,    // Fence cleared in store, remove from memory
+                Ok(None) => false,   // Fence cleared in store, remove from memory
                 Err(error) => {
                     tracing::warn!(
                         error = ?error,
@@ -641,7 +644,13 @@ impl RealtimeClusterBridge {
         principal_kind: &str,
         device_id: &str,
     ) -> watch::Receiver<u64> {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let current_epoch = self
             .resolve_client_route_internal(
                 tenant_id,
@@ -1012,13 +1021,9 @@ impl RealtimeClusterBridge {
         event_json: &str,
     ) -> Result<RealtimeRouteDeliveryResult, RealtimeClusterError> {
         let secret = self.require_cluster_bus_secret(own_node_id)?;
-        let verified_event = verify_and_extract_cluster_route_event(secret, event_json)
-            .map_err(|error| {
-                self.node_error(
-                    "invalid_cluster_route_event_signature",
-                    own_node_id,
-                    error,
-                )
+        let verified_event =
+            verify_and_extract_cluster_route_event(secret, event_json).map_err(|error| {
+                self.node_error("invalid_cluster_route_event_signature", own_node_id, error)
             })?;
         let parsed = serde_json::from_value::<ClusterRouteEventPayload>(verified_event).map_err(
             |error| {
@@ -1059,10 +1064,7 @@ impl RealtimeClusterBridge {
         })
     }
 
-    fn require_cluster_bus_secret(
-        &self,
-        own_node_id: &str,
-    ) -> Result<&str, RealtimeClusterError> {
+    fn require_cluster_bus_secret(&self, own_node_id: &str) -> Result<&str, RealtimeClusterError> {
         self.cluster_bus_secret.as_deref().ok_or_else(|| {
             self.node_error(
                 "cluster_bus_secret_missing",
@@ -1114,13 +1116,23 @@ impl RealtimeClusterBridge {
         event_type: &str,
         payload: String,
     ) -> RealtimeRouteDeliveryResult {
-        let route = self.resolve_client_route_internal(
+        // Capture the route epoch at resolution time. Between the initial
+        // `resolve_client_route_internal` and the actual call to
+        // `runtime.publish_scope_event_for_principal_kind` below, the route
+        // may be concurrently moved (e.g. via `restore_client_route_if_current`
+        // or `release_client_route_for_principal_kind`) which bumps the
+        // epoch. Without a re-check the publish would land on a stale runtime
+        // whose state has already been migrated/dropped (TOCTOU).
+        let (route, observed_route_epoch) = match self.resolve_client_route_internal(
             tenant_id,
             organization_id,
             principal_id,
             principal_kind,
             device_id,
-        );
+        ) {
+            Some(route) => (Some(route.clone()), Some(route.route_epoch)),
+            None => (None, None),
+        };
         let runtimes = lock_cluster_mutex(&self.node_runtimes, "node_runtimes");
         let (target_node_id, route_state, runtime) = match route {
             Some(ref route) => {
@@ -1206,6 +1218,40 @@ impl RealtimeClusterBridge {
                         delivery_error_message: Some(error),
                     };
                 }
+            }
+        }
+
+        // TOCTOU re-check: if we initially resolved a route, make sure its
+        // epoch has not changed since we resolved it. If the route was
+        // moved or released in the meantime, the runtime we hold may be
+        // stale (its in-memory state was already migrated/dropped by
+        // `move_client_route_state_between_runtimes` or
+        // `drop_client_route_state`). Re-resolve and bail out with a
+        // distinct `stale_route_epoch` route state so callers can react
+        // (e.g. by triggering a fresh resolve on the next attempt).
+        if let Some(expected_epoch) = observed_route_epoch {
+            let current_route = self.resolve_client_route_internal(
+                tenant_id,
+                organization_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            );
+            let current_epoch = current_route
+                .as_ref()
+                .map(|route| route.route_epoch)
+                .unwrap_or(0);
+            if current_epoch != expected_epoch {
+                return RealtimeRouteDeliveryResult {
+                    target_node_id,
+                    route_state: "stale_route_epoch".to_string(),
+                    delivered: 0,
+                    delivery_error_code: Some("route_epoch_mismatch".to_string()),
+                    delivery_error_message: Some(format!(
+                        "route epoch changed between resolve and publish: \
+                         expected={expected_epoch}, current={current_epoch}"
+                    )),
+                };
             }
         }
 
@@ -1318,7 +1364,13 @@ impl RealtimeClusterBridge {
         device_id: &str,
         route_epoch: u64,
     ) {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let sender = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers")
             .entry(scope_key)
             .or_insert_with(|| {
@@ -1544,7 +1596,8 @@ mod tests {
         assert_eq!(result.delivered, 0);
 
         let origin_window = expect_ok(
-            runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+            runtime_a
+                .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
         );
         assert_eq!(origin_window.items.len(), 0);
     }
@@ -1633,7 +1686,8 @@ mod tests {
         assert_eq!(publish.delivered, 1);
 
         let target_window = expect_ok(
-            runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+            runtime_b
+                .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
         );
         assert_eq!(target_window.items.len(), 1);
         assert_eq!(target_window.items[0].event_type, "message.posted");

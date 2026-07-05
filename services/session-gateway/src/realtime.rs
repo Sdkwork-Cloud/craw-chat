@@ -3,8 +3,8 @@ use im_platform_contracts::{
     RealtimeEventWindowRecord, RealtimeEventWindowStore,
 };
 use sdkwork_im_contract_control::{
-    normalize_realtime_organization_id, RealtimeCheckpointRecord, RealtimeCheckpointStore,
-    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeMatchingSubscriptionQuery,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, normalize_realtime_organization_id,
 };
 use sdkwork_im_contract_core::ContractError;
 use std::collections::hash_map::DefaultHasher;
@@ -78,8 +78,8 @@ pub struct SyncRealtimeSubscriptionsRequest {
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ListRealtimeEventsQuery {
-    pub after_seq: Option<u64>,
-    pub limit: Option<usize>,
+    #[serde(flatten)]
+    pub paging: sdkwork_utils_rust::SdkWorkSeqWindowQuery,
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,6 +197,7 @@ pub trait RealtimeScopeAccessPolicy: Send + Sync {
     fn validate_subscription_scope(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_id: &str,
         _principal_kind: &str,
         _scope_type: &str,
@@ -211,6 +212,7 @@ pub trait RealtimeScopeAccessPolicy: Send + Sync {
     fn is_event_visible(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_id: &str,
         _principal_kind: &str,
         _event: &RealtimeEvent,
@@ -231,6 +233,7 @@ impl RealtimeScopeAccessPolicy for StandaloneRealtimeScopeAccessPolicy {
     fn validate_subscription_scope(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_id: &str,
         _principal_kind: &str,
         _scope_type: &str,
@@ -242,6 +245,7 @@ impl RealtimeScopeAccessPolicy for StandaloneRealtimeScopeAccessPolicy {
     fn is_event_visible(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_id: &str,
         _principal_kind: &str,
         _event: &RealtimeEvent,
@@ -549,6 +553,23 @@ impl fmt::Debug for RealtimeDeliveryRuntime {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PublishScopeOptions {
+    delivery_class: &'static str,
+    persist_durable: bool,
+}
+
+impl PublishScopeOptions {
+    const DURABLE: Self = Self {
+        delivery_class: "durable",
+        persist_durable: true,
+    };
+    const EPHEMERAL: Self = Self {
+        delivery_class: "ephemeral",
+        persist_durable: false,
+    };
+}
+
 impl RealtimeDeliveryRuntime {
     pub fn with_checkpoint_store(checkpoint_store: Arc<dyn RealtimeCheckpointStore>) -> Self {
         Self::with_stores_and_scope_access_policy(
@@ -699,6 +720,24 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
+        // Acquire the per-principal mutation shard so this cold-start restore
+        // cannot race with a concurrent `publish_scope_event_internal`,
+        // `clear_client_route_subscriptions_internal`, or
+        // `drop_client_route_state` for the same principal. Without this
+        // guard the restore's writes to `latest_sequences` / `windows` /
+        // `trimmed_sequences` etc. could be interleaved between a publish's
+        // snapshot and its commit, dropping the freshly restored state on
+        // the floor (TOCTOU). The internal helper still assumes the caller
+        // holds the mutation shard, so callers that already hold it (e.g.
+        // `publish_scope_event_internal`) call the internal helper directly
+        // to avoid re-entrant locking.
+        let mutation_keys = [realtime_mutation_principal_key(
+            tenant_id,
+            principal_kind,
+            principal_id,
+        )];
+        let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
+        let _mutation_guards = mutation_scope.lock();
         self.ensure_client_route_state_internal(
             tenant_id,
             organization_id,
@@ -725,7 +764,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         if lock_realtime_mutex(
             &self.migrated_out_client_route_scopes,
             "realtime migrated-out device scope store",
@@ -738,21 +783,39 @@ impl RealtimeDeliveryRuntime {
             .contains_key(scope_key.as_str());
         let restored = if needs_restore {
             self.checkpoint_store
-                .load_checkpoint(tenant_id, organization_id, principal_kind, principal_id, device_id)
+                .load_checkpoint(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
                 .map_err(RealtimeRuntimeError::checkpoint_store)?
         } else {
             None
         };
         let restored_subscriptions = if needs_restore {
             self.subscription_store
-                .load_subscriptions(tenant_id, organization_id, principal_kind, principal_id, device_id)
+                .load_subscriptions(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
                 .map_err(RealtimeRuntimeError::subscription_store)?
         } else {
             None
         };
         let restored_window = if needs_restore {
             self.event_window_store
-                .load_window(tenant_id, organization_id, principal_kind, principal_id, device_id)
+                .load_window(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
                 .map_err(RealtimeRuntimeError::event_window_store)?
         } else {
             None
@@ -951,7 +1014,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
-        self.subscribe_device_internal(tenant_id, organization_id, principal_id, principal_kind, device_id)
+        self.subscribe_device_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
     fn subscribe_device_internal(
@@ -969,7 +1038,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let sender = lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .entry(scope_key)
             .or_insert_with(|| {
@@ -1013,7 +1088,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let sender = lock_realtime_mutex(
             &self.disconnect_notifiers,
             "realtime disconnect notifier store",
@@ -1038,7 +1119,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<u64, RealtimeRuntimeError> {
-        self.disconnect_generation_internal(tenant_id, organization_id, principal_id, principal_kind, device_id)
+        self.disconnect_generation_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
     fn disconnect_generation_internal(
@@ -1060,7 +1147,16 @@ impl RealtimeDeliveryRuntime {
             &self.disconnect_generations,
             "realtime disconnect generation store",
         )
-        .get(client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id).as_str())
+        .get(
+            client_route_scope_key(
+                tenant_id,
+                organization_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            )
+            .as_str(),
+        )
         .copied()
         .unwrap_or(0))
     }
@@ -1073,7 +1169,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        self.signal_device_disconnect_internal(tenant_id, organization_id, principal_id, principal_kind, device_id)
+        self.signal_device_disconnect_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
     fn signal_device_disconnect_internal(
@@ -1091,7 +1193,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let next_generation = {
             let mut disconnect_generations = lock_realtime_mutex(
                 &self.disconnect_generations,
@@ -1122,7 +1230,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<RealtimeWindowCheckpoint, RealtimeRuntimeError> {
-        self.window_checkpoint_internal(tenant_id, organization_id, principal_id, principal_kind, device_id)
+        self.window_checkpoint_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
     fn window_checkpoint_internal(
@@ -1140,7 +1254,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let latest_realtime_seq =
             lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
                 .get(scope_key.as_str())
@@ -1220,14 +1340,27 @@ impl RealtimeDeliveryRuntime {
         )];
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
-        self.validate_subscriptions_internal(tenant_id, organization_id, principal_id, principal_kind, &items)?;
+        self.validate_subscriptions_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            &items,
+        )?;
         let synced_at = realtime_timestamp();
         lock_realtime_mutex(
             &self.migrated_out_client_route_scopes,
             "realtime migrated-out device scope store",
         )
         .remove(
-            client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id).as_str(),
+            client_route_scope_key(
+                tenant_id,
+                organization_id,
+                principal_id,
+                principal_kind,
+                device_id,
+            )
+            .as_str(),
         );
         self.ensure_client_route_state_internal(
             tenant_id,
@@ -1245,7 +1378,13 @@ impl RealtimeDeliveryRuntime {
                 subscribed_at: synced_at.clone(),
             })
             .collect::<Vec<_>>();
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let previous_subscriptions =
             lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
                 .get(scope_key.as_str())
@@ -1270,9 +1409,13 @@ impl RealtimeDeliveryRuntime {
             device_id,
             &client_route_subscriptions,
         );
-        if let Err(error) =
-            self.persist_subscriptions_internal(tenant_id, organization_id, principal_id, principal_kind, device_id)
-        {
+        if let Err(error) = self.persist_subscriptions_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        ) {
             self.remove_device_subscription_index(
                 tenant_id,
                 organization_id,
@@ -1319,6 +1462,7 @@ impl RealtimeDeliveryRuntime {
         for item in items {
             self.scope_access_policy.validate_subscription_scope(
                 tenant_id,
+                _organization_id,
                 principal_id,
                 principal_kind,
                 item.scope_type.as_str(),
@@ -1360,7 +1504,13 @@ impl RealtimeDeliveryRuntime {
         )];
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let removed = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str());
         if removed.is_some() {
@@ -1442,7 +1592,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .get(scope_key.as_str())
             .copied()
@@ -1467,6 +1623,7 @@ impl RealtimeDeliveryRuntime {
                     last_examined_seq = Some(event.realtime_seq);
                     if !self.scope_access_policy.is_event_visible(
                         tenant_id,
+                        organization_id,
                         principal_id,
                         principal_kind,
                         event,
@@ -1541,7 +1698,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let latest_seq = lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .get(scope_key.as_str())
             .copied()
@@ -1588,7 +1751,13 @@ impl RealtimeDeliveryRuntime {
         };
         let previous_event_window = self
             .event_window_store
-            .load_window(tenant_id, organization_id, principal_kind, principal_id, device_id)
+            .load_window(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
             .map_err(RealtimeRuntimeError::event_window_store)?;
         let rollback_event_window = event_window_record_or_empty(
             previous_event_window,
@@ -1654,7 +1823,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<RealtimeClientRouteStateSnapshot, RealtimeRuntimeError> {
-        self.take_client_route_state_internal(tenant_id, organization_id, principal_id, principal_kind, device_id)
+        self.take_client_route_state_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
     /// Drop in-memory realtime state for a disconnected client route.
@@ -1679,6 +1854,14 @@ impl RealtimeDeliveryRuntime {
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
 
+        let _ = self.persist_subscriptions_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
+
         let scope_key = client_route_scope_key(
             tenant_id,
             organization_id,
@@ -1702,8 +1885,7 @@ impl RealtimeDeliveryRuntime {
         lock_realtime_mutex(&self.windows, "realtime window store").remove(scope_key.as_str());
         lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .remove(scope_key.as_str());
-        lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
-            .remove(scope_key.as_str());
+        lock_realtime_mutex(&self.acked_sequences, "realtime ack store").remove(scope_key.as_str());
         lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
             .remove(scope_key.as_str());
         lock_realtime_mutex(
@@ -1735,14 +1917,6 @@ impl RealtimeDeliveryRuntime {
         )
         .remove(scope_key.as_str());
 
-        // Clear persisted event window and subscription state for this route.
-        self.event_window_store
-            .clear_window(tenant_id, organization_id, principal_kind, principal_id, device_id)
-            .map_err(RealtimeRuntimeError::event_window_store)?;
-        self.subscription_store
-            .clear_subscriptions(tenant_id, organization_id, principal_kind, principal_id, device_id)
-            .map_err(RealtimeRuntimeError::subscription_store)?;
-
         Ok(())
     }
 
@@ -1768,7 +1942,13 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         )?;
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let subscriptions = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str())
             .map(|subscriptions| subscriptions.ordered_items())
@@ -1786,10 +1966,22 @@ impl RealtimeDeliveryRuntime {
             .into_values()
             .collect();
         self.event_window_store
-            .clear_window(tenant_id, organization_id, principal_kind, principal_id, device_id)
+            .clear_window(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
             .map_err(RealtimeRuntimeError::event_window_store)?;
         self.subscription_store
-            .clear_subscriptions(tenant_id, organization_id, principal_kind, principal_id, device_id)
+            .clear_subscriptions(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
             .map_err(RealtimeRuntimeError::subscription_store)?;
         let latest_realtime_seq =
             lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
@@ -2151,6 +2343,7 @@ impl RealtimeDeliveryRuntime {
     // Scope fanout takes explicit addressing and payload fields because this is
     // the runtime's main delivery boundary and call sites benefit from keeping
     // the event identity fully visible.
+
     #[allow(clippy::too_many_arguments)]
     pub fn publish_scope_event_for_principal_kind(
         &self,
@@ -2174,6 +2367,34 @@ impl RealtimeDeliveryRuntime {
             event_type,
             payload,
             registered_client_routes,
+            PublishScopeOptions::DURABLE,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn publish_ephemeral_scope_event_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+        registered_client_routes: Vec<String>,
+    ) -> Result<usize, RealtimeRuntimeError> {
+        self.publish_scope_event_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            scope_type,
+            scope_id,
+            event_type,
+            payload,
+            registered_client_routes,
+            PublishScopeOptions::EPHEMERAL,
         )
     }
 
@@ -2189,6 +2410,7 @@ impl RealtimeDeliveryRuntime {
         event_type: &str,
         payload: String,
         registered_client_routes: Vec<String>,
+        publish_options: PublishScopeOptions,
     ) -> Result<usize, RealtimeRuntimeError> {
         let mutation_keys = [realtime_mutation_principal_key(
             tenant_id,
@@ -2369,7 +2591,7 @@ impl RealtimeDeliveryRuntime {
                             scope_type: scope_type.into(),
                             scope_id: scope_id.into(),
                             event_type: event_type.into(),
-                            delivery_class: "ephemeral".into(),
+                            delivery_class: publish_options.delivery_class.into(),
                             payload: payload.clone(),
                             occurred_at: realtime_timestamp(),
                         },
@@ -2424,49 +2646,51 @@ impl RealtimeDeliveryRuntime {
                 .collect::<Vec<_>>()
         };
         let delivered = mutations.len();
-        let rollback_event_windows = mutations
-            .iter()
-            .map(|mutation| {
-                self.event_window_store
-                    .load_window(
-                        mutation.checkpoint.tenant_id.as_str(),
-                        mutation.checkpoint.organization_id.as_str(),
-                        mutation.checkpoint.principal_kind.as_str(),
-                        mutation.checkpoint.principal_id.as_str(),
-                        mutation.checkpoint.device_id.as_str(),
-                    )
-                    .map(|record| {
-                        event_window_record_or_empty(
-                            record,
+        if publish_options.persist_durable {
+            let rollback_event_windows = mutations
+                .iter()
+                .map(|mutation| {
+                    self.event_window_store
+                        .load_window(
                             mutation.checkpoint.tenant_id.as_str(),
                             mutation.checkpoint.organization_id.as_str(),
-                            mutation.checkpoint.principal_id.as_str(),
                             mutation.checkpoint.principal_kind.as_str(),
+                            mutation.checkpoint.principal_id.as_str(),
                             mutation.checkpoint.device_id.as_str(),
                         )
-                    })
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(RealtimeRuntimeError::event_window_store)?;
-        self.event_window_store
-            .save_windows(
+                        .map(|record| {
+                            event_window_record_or_empty(
+                                record,
+                                mutation.checkpoint.tenant_id.as_str(),
+                                mutation.checkpoint.organization_id.as_str(),
+                                mutation.checkpoint.principal_id.as_str(),
+                                mutation.checkpoint.principal_kind.as_str(),
+                                mutation.checkpoint.device_id.as_str(),
+                            )
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(RealtimeRuntimeError::event_window_store)?;
+            self.event_window_store
+                .save_windows(
+                    mutations
+                        .iter()
+                        .map(|mutation| mutation.event_window.clone())
+                        .collect(),
+                )
+                .map_err(RealtimeRuntimeError::event_window_store)?;
+            if let Err(error) = self.persist_checkpoint_records(
                 mutations
                     .iter()
-                    .map(|mutation| mutation.event_window.clone())
+                    .map(|mutation| mutation.checkpoint.clone())
                     .collect(),
-            )
-            .map_err(RealtimeRuntimeError::event_window_store)?;
-        if let Err(error) = self.persist_checkpoint_records(
-            mutations
-                .iter()
-                .map(|mutation| mutation.checkpoint.clone())
-                .collect(),
-        ) {
-            return self.fail_with_event_window_rollback(
-                rollback_event_windows,
-                error,
-                "publish checkpoint persist failed",
-            );
+            ) {
+                return self.fail_with_event_window_rollback(
+                    rollback_event_windows,
+                    error,
+                    "publish checkpoint persist failed",
+                );
+            }
         }
 
         {
@@ -2720,6 +2944,22 @@ pub(crate) fn validate_realtime_event_limit(limit: usize) -> Result<(), Realtime
     Ok(())
 }
 
+/// Resolve the raw `limit`/`pageSize` query param for realtime event windows.
+/// Invalid values fail closed before route binding or silent clamping.
+pub(crate) fn resolve_realtime_event_limit(
+    paging: &sdkwork_utils_rust::SdkWorkSeqWindowQuery,
+) -> Result<usize, RealtimeRuntimeError> {
+    match paging.page_size {
+        None => Ok(paging.resolved_page_size()),
+        Some(raw) if raw <= 0 => Err(RealtimeRuntimeError::limit_invalid(raw.max(0) as usize)),
+        Some(raw) => {
+            let limit = raw as usize;
+            validate_realtime_event_limit(limit)?;
+            Ok(limit)
+        }
+    }
+}
+
 pub fn realtime_postgres_sql_contracts() -> &'static [&'static str] {
     postgres_sql::ALL_REALTIME_POSTGRES_SQL_CONTRACTS
 }
@@ -2965,6 +3205,162 @@ fn subscriptions_synced_at(items: &[RealtimeSubscription]) -> String {
         .unwrap_or_else(realtime_timestamp)
 }
 
+const DEFAULT_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE: usize = 256;
+const REALTIME_FANOUT_RECIPIENT_BATCH_SIZE_ENV: &str = "SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE";
+
+fn resolve_realtime_fanout_recipient_batch_size() -> usize {
+    std::env::var(REALTIME_FANOUT_RECIPIENT_BATCH_SIZE_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE)
+}
+
+fn dedupe_realtime_recipients(
+    mut recipients: Vec<im_platform_contracts::RealtimeEventRecipient>,
+) -> Vec<im_platform_contracts::RealtimeEventRecipient> {
+    recipients.sort_by(|left, right| {
+        left.principal_kind
+            .cmp(&right.principal_kind)
+            .then_with(|| left.principal_id.cmp(&right.principal_id))
+    });
+    recipients.dedup_by(|left, right| {
+        left.principal_id == right.principal_id && left.principal_kind == right.principal_kind
+    });
+    recipients
+}
+
+impl RealtimeDeliveryRuntime {
+    /// Fan out a durable user-scoped event to many principals with shared payload
+    /// cloning and chunked recipient processing for large rosters.
+    pub fn publish_durable_user_scope_events_to_principals(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        event_type: &str,
+        payload: String,
+        recipients: Vec<(String, String)>,
+    ) -> Result<usize, RealtimeRuntimeError> {
+        let recipients = dedupe_realtime_recipients(
+            recipients
+                .into_iter()
+                .map(|(principal_id, principal_kind)| {
+                    im_platform_contracts::RealtimeEventRecipient::new(
+                        principal_id,
+                        principal_kind,
+                    )
+                })
+                .collect(),
+        );
+        if recipients.is_empty() {
+            return Ok(0);
+        }
+        let payload = std::sync::Arc::new(payload);
+        let batch_size = resolve_realtime_fanout_recipient_batch_size();
+        let mut delivered = 0usize;
+        for batch in sdkwork_utils_rust::chunk(&recipients, batch_size) {
+            for recipient in batch {
+                delivered = delivered.saturating_add(
+                    self.publish_scope_event_for_principal_kind(
+                        tenant_id,
+                        organization_id,
+                        recipient.principal_id.as_str(),
+                        recipient.principal_kind.as_str(),
+                        "user",
+                        recipient.principal_id.as_str(),
+                        event_type,
+                        payload.as_ref().clone(),
+                        Vec::new(),
+                    )?,
+                );
+            }
+        }
+        Ok(delivered)
+    }
+}
+
+impl im_platform_contracts::RealtimeEventPublisher for RealtimeDeliveryRuntime {
+    fn publish_ephemeral_scope_event_to_recipients(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+        recipients: Vec<im_platform_contracts::RealtimeEventRecipient>,
+    ) -> Result<usize, sdkwork_im_contract_core::ContractError> {
+        let recipients = dedupe_realtime_recipients(recipients);
+        if recipients.is_empty() {
+            return Ok(0);
+        }
+        let payload = std::sync::Arc::new(payload);
+        let batch_size = resolve_realtime_fanout_recipient_batch_size();
+        let mut delivered = 0usize;
+        for batch in sdkwork_utils_rust::chunk(&recipients, batch_size) {
+            for recipient in batch {
+                delivered = delivered.saturating_add(
+                    self.publish_ephemeral_scope_event_for_principal_kind(
+                        tenant_id,
+                        organization_id,
+                        recipient.principal_id.as_str(),
+                        recipient.principal_kind.as_str(),
+                        scope_type,
+                        scope_id,
+                        event_type,
+                        payload.as_ref().clone(),
+                        Vec::new(),
+                    )
+                    .map_err(|error| {
+                        sdkwork_im_contract_core::ContractError::Unavailable(format!("{error:?}"))
+                    })?,
+                );
+            }
+        }
+        Ok(delivered)
+    }
+
+    fn publish_durable_scope_event_to_recipients(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        scope_type: &str,
+        scope_id: &str,
+        event_type: &str,
+        payload: String,
+        recipients: Vec<im_platform_contracts::RealtimeEventRecipient>,
+    ) -> Result<usize, sdkwork_im_contract_core::ContractError> {
+        let recipients = dedupe_realtime_recipients(recipients);
+        if recipients.is_empty() {
+            return Ok(0);
+        }
+        let payload = std::sync::Arc::new(payload);
+        let batch_size = resolve_realtime_fanout_recipient_batch_size();
+        let mut delivered = 0usize;
+        for batch in sdkwork_utils_rust::chunk(&recipients, batch_size) {
+            for recipient in batch {
+                delivered = delivered.saturating_add(
+                    self.publish_scope_event_for_principal_kind(
+                        tenant_id,
+                        organization_id,
+                        recipient.principal_id.as_str(),
+                        recipient.principal_kind.as_str(),
+                        scope_type,
+                        scope_id,
+                        event_type,
+                        payload.as_ref().clone(),
+                        Vec::new(),
+                    )
+                    .map_err(|error| {
+                        sdkwork_im_contract_core::ContractError::Unavailable(format!("{error:?}"))
+                    })?,
+                );
+            }
+        }
+        Ok(delivered)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3026,7 +3422,10 @@ mod tests {
             (
                 "d_match",
                 subscriptions
-                    .get(client_route_scope_key("100001", "default", "1", "user", "d_match").as_str())
+                    .get(
+                        client_route_scope_key("100001", "default", "1", "user", "d_match")
+                            .as_str(),
+                    )
                     .expect("matching subscription should exist"),
             ),
             (
@@ -3090,7 +3489,9 @@ mod tests {
         let subscription_scope_index = subscription_scope_index_from_subscriptions(&[(
             "d_wildcard",
             subscriptions
-                .get(client_route_scope_key("100001", "default", "1", "user", "d_wildcard").as_str())
+                .get(
+                    client_route_scope_key("100001", "default", "1", "user", "d_wildcard").as_str(),
+                )
                 .expect("wildcard subscription should exist"),
         )]);
 
@@ -3113,6 +3514,20 @@ mod tests {
                 "d_wildcard".into()
             )]
         );
+    }
+
+    #[test]
+    fn test_dedupe_realtime_recipients_removes_duplicate_principals() {
+        use im_platform_contracts::RealtimeEventRecipient;
+
+        let recipients = dedupe_realtime_recipients(vec![
+            RealtimeEventRecipient::new("u_1", "user"),
+            RealtimeEventRecipient::new("u_1", "user"),
+            RealtimeEventRecipient::new("u_2", "user"),
+        ]);
+        assert_eq!(recipients.len(), 2);
+        assert_eq!(recipients[0].principal_id, "u_1");
+        assert_eq!(recipients[1].principal_id, "u_2");
     }
 
     #[test]
@@ -3192,7 +3607,9 @@ mod tests {
         });
 
         runtime
-            .ensure_client_route_state_for_principal_kind("100001", "default", "1", "user", "d_poison")
+            .ensure_client_route_state_for_principal_kind(
+                "100001", "default", "1", "user", "d_poison",
+            )
             .expect("poisoned lock should be recovered");
         let checkpoint = runtime
             .window_checkpoint_for_principal_kind("100001", "default", "1", "user", "d_poison")
@@ -3348,12 +3765,13 @@ mod tests {
     impl RealtimeScopeAccessPolicy for ArchivedConversationPolicy {
         fn validate_subscription_scope(
             &self,
-            _tenant_id: &str,
-            _principal_id: &str,
-            _principal_kind: &str,
-            scope_type: &str,
-            scope_id: &str,
-        ) -> Result<(), RealtimeRuntimeError> {
+        _tenant_id: &str,
+        _organization_id: &str,
+        _principal_id: &str,
+        _principal_kind: &str,
+        scope_type: &str,
+        scope_id: &str,
+    ) -> Result<(), RealtimeRuntimeError> {
             if scope_type == "conversation" && scope_id == "c_archived" {
                 return Err(RealtimeRuntimeError {
                     code: "conversation_archived",
@@ -3366,11 +3784,12 @@ mod tests {
 
         fn is_event_visible(
             &self,
-            _tenant_id: &str,
-            _principal_id: &str,
-            _principal_kind: &str,
-            event: &RealtimeEvent,
-        ) -> bool {
+        _tenant_id: &str,
+        _organization_id: &str,
+        _principal_id: &str,
+        _principal_kind: &str,
+        event: &RealtimeEvent,
+    ) -> bool {
             event.scope_type != "conversation" || event.scope_id != "c_archived"
         }
     }

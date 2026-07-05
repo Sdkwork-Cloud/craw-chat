@@ -32,8 +32,14 @@ impl RealtimeCheckpointStore for RuntimeMemoryCheckpointStore {
         Ok(
             lock_realtime_mutex(&self.checkpoints, "runtime checkpoint store")
                 .get(
-                    client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .cloned(),
         )
@@ -84,8 +90,14 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         Ok(
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
                 .get(
-                    client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .cloned(),
         )
@@ -148,8 +160,14 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         Ok(
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
                 .remove(
-                    client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .is_some(),
         )
@@ -164,7 +182,13 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         device_id: &str,
         cutoff_synced_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let mut subscriptions =
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store");
         let should_clear = subscriptions
@@ -190,8 +214,14 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
         Ok(
             lock_realtime_mutex(&self.windows, "runtime event window store")
                 .get(
-                    client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .cloned()
                 .map(RealtimeEventWindowRecord::normalized),
@@ -226,8 +256,14 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
         Ok(
             lock_realtime_mutex(&self.windows, "runtime event window store")
                 .remove(
-                    client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .is_some(),
         )
@@ -251,7 +287,13 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
         device_id: &str,
         acked_through_seq: u64,
     ) -> Result<(), ContractError> {
-        let key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         if let Some(record) =
             lock_realtime_mutex(&self.windows, "runtime event window store").get_mut(key.as_str())
         {
@@ -396,7 +438,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> RealtimeCheckpointRecord {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let latest_realtime_seq =
             lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
                 .get(scope_key.as_str())
@@ -454,7 +502,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Option<RealtimeSubscriptionRecord> {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let items = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .get(scope_key.as_str())
             .cloned()
@@ -464,7 +518,14 @@ impl RealtimeDeliveryRuntime {
             return None;
         }
 
-        subscription_record_from_items(tenant_id, organization_id, principal_id, principal_kind, device_id, items)
+        subscription_record_from_items(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+            items,
+        )
     }
 }
 

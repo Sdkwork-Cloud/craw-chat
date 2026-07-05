@@ -25,8 +25,8 @@ fn test_cluster_bridge_routes_client_route_event_to_owner_node_runtime() {
 
     expect_ok(runtime_b.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -36,7 +36,10 @@ fn test_cluster_bridge_routes_client_route_event_to_owner_node_runtime() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -87,8 +90,8 @@ fn test_cluster_publish_surfaces_runtime_delivery_error_without_overwriting_rout
 
     expect_ok(runtime_b.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -98,7 +101,10 @@ fn test_cluster_publish_surfaces_runtime_delivery_error_without_overwriting_rout
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -148,8 +154,8 @@ fn test_cluster_bridge_falls_back_to_origin_node_when_route_is_missing() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -189,7 +195,10 @@ fn test_cluster_bridge_rejects_new_route_binds_when_node_is_draining() {
     cluster.bind_node_runtime("node_a", runtime_a);
 
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_existing",
             "node_a",
@@ -228,7 +237,10 @@ fn test_cluster_bridge_release_route_reconciles_draining_node_to_drained() {
     cluster.bind_node_runtime("node_a", runtime_a);
 
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_existing",
             "node_a",
@@ -245,7 +257,14 @@ fn test_cluster_bridge_release_route_reconciles_draining_node_to_drained() {
     assert_eq!(draining.owned_route_count, 1);
 
     let released = cluster
-        .release_client_route_for_principal_kind("100001", "default", "1", "user", "d_existing", "node_a")
+        .release_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
+            "user",
+            "d_existing",
+            "node_a",
+        )
         .expect("route should be released");
     assert_eq!(released.owner_node_id, "node_a");
     assert_eq!(released.session_id.as_deref(), Some("s_demo"));
@@ -275,8 +294,8 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -286,7 +305,10 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -297,8 +319,8 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
 
     let delivered = expect_ok(runtime_a.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -381,8 +403,8 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -393,8 +415,8 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
     ));
     expect_ok(runtime_b.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "agent",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -404,7 +426,10 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -413,7 +438,10 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
         )
         .expect("user route bind should succeed");
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "agent",
             "d_pad",
             "node_b",
@@ -483,8 +511,8 @@ fn test_cluster_disconnect_fence_isolated_by_principal_kind() {
     cluster
         .mark_client_route_disconnected_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             Some("s_user"),
@@ -516,8 +544,8 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -527,7 +555,10 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -538,8 +569,8 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
 
     let delivered_before_rebind = expect_ok(runtime_a.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -549,15 +580,16 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     ));
     assert_eq!(delivered_before_rebind, 1);
 
-    let ack =
-        expect_ok(runtime_a.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 1));
+    let ack = expect_ok(
+        runtime_a.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 1),
+    );
     assert_eq!(ack.acked_through_seq, 1);
     assert_eq!(ack.trimmed_through_seq, 1);
 
     let delivered_pending = expect_ok(runtime_a.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -568,7 +600,10 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     assert_eq!(delivered_pending, 1);
 
     let rebound_route = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -689,7 +724,10 @@ fn test_cluster_bridge_migration_restores_lazy_checkpoint_state_from_source_runt
     cluster.bind_node_runtime("node_a", runtime_a);
     cluster.bind_node_runtime("node_b", runtime_b.clone());
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -838,7 +876,10 @@ fn test_cluster_bridge_rebind_surfaces_checkpoint_store_failures_as_controlled_e
     cluster.bind_node_runtime("node_b", runtime_b);
 
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -848,7 +889,10 @@ fn test_cluster_bridge_rebind_surfaces_checkpoint_store_failures_as_controlled_e
         .expect("initial route bind should succeed");
 
     let error = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -879,8 +923,8 @@ fn test_cluster_bridge_rebind_reports_source_compensation_failure() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -890,7 +934,10 @@ fn test_cluster_bridge_rebind_reports_source_compensation_failure() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -901,7 +948,10 @@ fn test_cluster_bridge_rebind_reports_source_compensation_failure() {
 
     source_checkpoint_store.fail_saves();
     let error = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -947,8 +997,8 @@ fn test_cluster_bridge_rebind_route_commit_failure_rolls_runtime_state_back() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -958,7 +1008,10 @@ fn test_cluster_bridge_rebind_route_commit_failure_rolls_runtime_state_back() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -968,7 +1021,10 @@ fn test_cluster_bridge_rebind_route_commit_failure_rolls_runtime_state_back() {
         .expect("initial route bind should succeed");
 
     let error = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -1018,8 +1074,8 @@ fn test_cluster_bridge_failed_rebind_keeps_source_runtime_state() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1029,7 +1085,10 @@ fn test_cluster_bridge_failed_rebind_keeps_source_runtime_state() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -1039,7 +1098,10 @@ fn test_cluster_bridge_failed_rebind_keeps_source_runtime_state() {
         .expect("initial route bind should succeed");
 
     let error = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_b",
@@ -1088,8 +1150,8 @@ fn test_cluster_bridge_migration_route_commit_failure_rolls_runtime_state_back()
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1099,7 +1161,10 @@ fn test_cluster_bridge_migration_route_commit_failure_rolls_runtime_state_back()
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -1155,8 +1220,8 @@ fn test_cluster_bridge_failed_migration_keeps_source_runtime_state() {
 
     expect_ok(runtime_a.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1166,7 +1231,10 @@ fn test_cluster_bridge_failed_migration_keeps_source_runtime_state() {
         }],
     ));
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "node_a",
@@ -1229,7 +1297,10 @@ fn test_cluster_bridge_rejects_route_bind_for_unknown_node() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
 
     let error = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_missing",
             "node_missing",
@@ -1240,8 +1311,13 @@ fn test_cluster_bridge_rejects_route_bind_for_unknown_node() {
     assert_eq!(error.code, "node_not_found");
     assert_eq!(error.node_id, "node_missing");
 
-    let route =
-        cluster.resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_missing");
+    let route = cluster.resolve_client_route_for_principal_kind(
+        "100001",
+        "default",
+        "1",
+        "user",
+        "d_missing",
+    );
     assert!(
         route.is_none(),
         "failed bind must not create route ownership"
@@ -1263,7 +1339,10 @@ fn test_cluster_route_bound_at_advances_between_distinct_bind_and_migration_oper
     cluster.bind_node_runtime("node_b", runtime_b);
 
     let first_route = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_one",
             "node_a",
@@ -1306,7 +1385,10 @@ fn test_cluster_bridge_public_route_models_use_runtime_route_owner_types() {
     cluster.bind_node_runtime("node_b", runtime_b);
 
     let first_bind: RouteBinding = cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_runtime_owner",
             "node_a",
@@ -1334,7 +1416,13 @@ fn test_cluster_bridge_public_route_models_use_runtime_route_owner_types() {
     assert_eq!(migration.target_drain_status, "active");
 
     let migrated: RouteBinding = cluster
-        .resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_runtime_owner")
+        .resolve_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
+            "user",
+            "d_runtime_owner",
+        )
         .expect("migrated route should remain present");
     assert_eq!(migrated.owner_node_id, "node_b");
     assert_eq!(migrated.route_epoch, 2);

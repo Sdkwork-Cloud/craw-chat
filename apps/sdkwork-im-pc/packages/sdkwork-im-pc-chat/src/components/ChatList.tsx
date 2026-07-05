@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { Chat } from '@sdkwork/im-pc-types';
@@ -17,6 +17,9 @@ interface ChatListProps {
   onChatSelect: (chat: Chat) => void;
   onChatsChange?: () => void;
   searchQuery?: string;
+  hasMoreChats?: boolean;
+  loadingMoreChats?: boolean;
+  onLoadMoreChats?: () => void;
 }
 
 interface RtcCallDescriptor {
@@ -138,9 +141,24 @@ export const ChatList: React.FC<ChatListProps> = ({
   onChatSelect,
   onChatsChange,
   searchQuery = '',
+  hasMoreChats = false,
+  loadingMoreChats = false,
+  onLoadMoreChats,
 }) => {
   const { i18n, t } = useTranslation();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chat: Chat } | null>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleListScroll = () => {
+    const element = listContainerRef.current;
+    if (!element || !hasMoreChats || loadingMoreChats || !onLoadMoreChats) {
+      return;
+    }
+    const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
+    if (remaining < 120) {
+      onLoadMoreChats();
+    }
+  };
 
   const handleContextMenu = (event: React.MouseEvent, chat: Chat) => {
     event.preventDefault();
@@ -269,7 +287,11 @@ export const ChatList: React.FC<ChatListProps> = ({
 
   return (
     <div className="flex w-[280px] shrink-0 flex-col bg-[#202020] border-r border-white/5 min-h-0">
-      <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+      <div
+        ref={listContainerRef}
+        className="flex-1 overflow-y-auto custom-scrollbar relative"
+        onScroll={handleListScroll}
+      >
         <AnimatePresence>
           {sortedChats.length === 0 ? (
             <motion.div
@@ -360,6 +382,18 @@ export const ChatList: React.FC<ChatListProps> = ({
             })
           )}
         </AnimatePresence>
+        {hasMoreChats && onLoadMoreChats ? (
+          <div className="px-4 py-3 border-t border-white/5">
+            <button
+              type="button"
+              className="w-full text-xs text-gray-400 hover:text-gray-200 disabled:opacity-50"
+              disabled={loadingMoreChats}
+              onClick={onLoadMoreChats}
+            >
+              {loadingMoreChats ? t('chat.list.loadingMore') : t('chat.list.loadMore')}
+            </button>
+          </div>
+        ) : null}
       </div>
       {contextMenu && (
         <ContextMenu

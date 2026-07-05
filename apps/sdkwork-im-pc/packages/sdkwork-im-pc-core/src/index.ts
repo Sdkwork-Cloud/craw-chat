@@ -1,6 +1,6 @@
 export * from './sdk/appSdkClient';
 export * from './sdk/appbaseAppSdkClient';
-export * from './sdk/aiotAppSdkClient';
+export * from './sdk/aiotPcIntegration';
 export * from './sdk/agentAppSdkClient';
 export * from './sdk/driveAppSdkClient';
 export * from './sdk/notaryAppSdkClient';
@@ -15,6 +15,7 @@ export * from './sdk/knowledgebaseAppSdkClient';
 export * from './sdk/knowledgebasePcIntegration';
 export * from './sdk/voiceAppSdkClient';
 export * from './sdk/voicePcIntegration';
+export * from './sdk/mailPcIntegration';
 export * from './sdk/agentsPcIntegration';
 export * from './sdk/appAuthService';
 export * from './sdk/appAuthRuntime';

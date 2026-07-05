@@ -2,13 +2,18 @@
 //! [`Router`] with proxy routes, OpenAPI endpoints, CORS, rate limiting, and
 //! the embedded realtime websocket router.
 
+use std::sync::Arc;
+use std::time::Duration;
+
 use axum::{Router, middleware::from_fn_with_state, routing::get};
+use tokio::sync::Semaphore;
+use crate::anomaly_detector::AnomalyDetector;
 use crate::gateway_protection::{
-    CircuitBreakerConfig, CircuitBreakerRegistry, RateLimitConfig, DashMapRateLimiter,
-    dashmap_rate_limit_middleware,
+    CircuitBreakerConfig, CircuitBreakerRegistry, HybridIpRateLimiter,
+    hybrid_rate_limit_middleware,
 };
 use sdkwork_im_api_registry::RouteRegistry;
-use session_gateway::{AppState, RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env};
+use session_gateway::{AppState, RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env, resolve_max_websocket_connections};
 use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
 
 use crate::client::build_gateway_upstream_client;
@@ -20,6 +25,25 @@ use crate::openapi::{
 use crate::registry::build_gateway_registry;
 use crate::response::gateway_proxy_routes;
 use crate::state::GatewayState;
+
+fn build_anomaly_detector() -> Arc<AnomalyDetector> {
+    let detector = Arc::new(AnomalyDetector::default());
+    schedule_anomaly_detector_cleanup(detector.clone());
+    detector
+}
+
+fn schedule_anomaly_detector_cleanup(detector: Arc<AnomalyDetector>) {
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        handle.spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(300));
+            interval.tick().await;
+            loop {
+                interval.tick().await;
+                detector.cleanup_stale_entries();
+            }
+        });
+    }
+}
 
 pub fn build_app(config: WebGatewayConfig) -> Router {
     build_app_with_registry(
@@ -116,19 +140,16 @@ async fn finish_gateway_app_from_env(
             circuit_breakers: CircuitBreakerRegistry::new(
                 CircuitBreakerConfig::from_env(),
             ),
+            anomaly_detector: build_anomaly_detector(),
+            websocket_connection_semaphore: Arc::new(Semaphore::new(
+                resolve_max_websocket_connections(),
+            )),
         });
 
-    let wrapped_business = crate::web_framework::wrap_gateway_router_from_env(business_router)
+    let business_core = crate::web_framework::wrap_gateway_router_from_env(business_router)
         .await
-        .layer(build_browser_cors_layer())
-        // P1-8 fix: Use DashMapRateLimiter for better concurrent performance
-        .layer(from_fn_with_state(
-            DashMapRateLimiter::new(
-                RateLimitConfig::from_env(),
-            ),
-            dashmap_rate_limit_middleware,
-        ));
-    mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
+        .layer(build_browser_cors_layer());
+    apply_gateway_rate_limit_and_embedded_ws(embedded_realtime_app_state, business_core)
 }
 
 fn finish_gateway_app_sync(
@@ -164,18 +185,26 @@ fn finish_gateway_app_sync(
             circuit_breakers: CircuitBreakerRegistry::new(
                 CircuitBreakerConfig::from_env(),
             ),
+            anomaly_detector: build_anomaly_detector(),
+            websocket_connection_semaphore: Arc::new(Semaphore::new(
+                resolve_max_websocket_connections(),
+            )),
         });
 
-    let wrapped_business =
-        crate::web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer())
-        // P1-8 fix: Use DashMapRateLimiter for better concurrent performance
-        .layer(from_fn_with_state(
-            DashMapRateLimiter::new(
-                RateLimitConfig::from_env(),
-            ),
-            dashmap_rate_limit_middleware,
-        ));
-    mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
+    let business_core =
+        crate::web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer());
+    apply_gateway_rate_limit_and_embedded_ws(embedded_realtime_app_state, business_core)
+}
+
+fn apply_gateway_rate_limit_and_embedded_ws(
+    embedded_realtime_app_state: Option<AppState>,
+    business_router: Router,
+) -> Router {
+    let merged = mount_embedded_realtime_websocket_router(embedded_realtime_app_state, business_router);
+    merged.layer(from_fn_with_state(
+        HybridIpRateLimiter::from_env(),
+        hybrid_rate_limit_middleware,
+    ))
 }
 
 fn mount_embedded_realtime_websocket_router(

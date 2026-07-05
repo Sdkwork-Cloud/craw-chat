@@ -913,8 +913,8 @@ fn test_postgres_realtime_disconnect_fence_sql_uses_latest_and_cas_clear() {
 fn test_postgres_realtime_checkpoint_upsert_binding_plan_matches_sql_contract_order() {
     let checkpoint = RealtimeCheckpointRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            principal_kind: "user".into(),
+        organization_id: "0".into(),
+        principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_pad".into(),
         latest_realtime_seq: 42,
@@ -957,7 +957,7 @@ fn test_postgres_realtime_checkpoint_upsert_binding_plan_matches_sql_contract_or
         bound_values(&statement),
         vec![
             RealtimePostgresBindingValue::Text("100001".into()),
-            RealtimePostgresBindingValue::Text("default".into()),
+            RealtimePostgresBindingValue::Text("0".into()),
             RealtimePostgresBindingValue::Text("6:100001|4:user|1:1|5:d_pad".into()),
             RealtimePostgresBindingValue::Text("user".into()),
             RealtimePostgresBindingValue::Text("1".into()),
@@ -1027,7 +1027,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         bound_values(&event_statement),
         vec![
             RealtimePostgresBindingValue::Text("100001".into()),
-            RealtimePostgresBindingValue::Text("default".into()),
+            RealtimePostgresBindingValue::Text("0".into()),
             RealtimePostgresBindingValue::Text("6:100001|4:user|1:1|5:d_pad".into()),
             RealtimePostgresBindingValue::BigInt(42),
             RealtimePostgresBindingValue::Text("user".into()),
@@ -1063,7 +1063,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         bound_values(&trim_statement),
         vec![
             RealtimePostgresBindingValue::Text("100001".into()),
-            RealtimePostgresBindingValue::Text("default".into()),
+            RealtimePostgresBindingValue::Text("0".into()),
             RealtimePostgresBindingValue::Text("6:100001|4:user|1:1|5:d_pad".into()),
             RealtimePostgresBindingValue::BigInt(40),
         ]
@@ -1074,8 +1074,8 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
 fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_rows() {
     let record = RealtimeSubscriptionRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            principal_kind: "user".into(),
+        organization_id: "0".into(),
+        principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_pad".into(),
         synced_at: "2026-05-01T10:00:02.000Z".into(),
@@ -1122,7 +1122,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
         bound_values(&subscription_statement),
         vec![
             RealtimePostgresBindingValue::Text("100001".into()),
-            RealtimePostgresBindingValue::Text("default".into()),
+            RealtimePostgresBindingValue::Text("0".into()),
             RealtimePostgresBindingValue::Text("6:100001|4:user|1:1|5:d_pad".into()),
             RealtimePostgresBindingValue::Text("user".into()),
             RealtimePostgresBindingValue::Text("1".into()),
@@ -1148,7 +1148,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
         bound_values(&clear_statement),
         vec![
             RealtimePostgresBindingValue::Text("100001".into()),
-            RealtimePostgresBindingValue::Text("default".into()),
+            RealtimePostgresBindingValue::Text("0".into()),
             RealtimePostgresBindingValue::Text("6:100001|4:user|1:1|5:d_pad".into()),
             RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:02.000Z".into()),
         ]
@@ -1169,7 +1169,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
         vec![
             vec![
                 RealtimePostgresBindingValue::Text("100001".into()),
-                RealtimePostgresBindingValue::Text("default".into()),
+                RealtimePostgresBindingValue::Text("0".into()),
                 RealtimePostgresBindingValue::Text("user".into()),
                 RealtimePostgresBindingValue::Text("1".into()),
                 RealtimePostgresBindingValue::Text("conversation".into()),
@@ -1183,7 +1183,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
             ],
             vec![
                 RealtimePostgresBindingValue::Text("100001".into()),
-                RealtimePostgresBindingValue::Text("default".into()),
+                RealtimePostgresBindingValue::Text("0".into()),
                 RealtimePostgresBindingValue::Text("user".into()),
                 RealtimePostgresBindingValue::Text("1".into()),
                 RealtimePostgresBindingValue::Text("conversation".into()),
@@ -1197,7 +1197,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
             ],
             vec![
                 RealtimePostgresBindingValue::Text("100001".into()),
-                RealtimePostgresBindingValue::Text("default".into()),
+                RealtimePostgresBindingValue::Text("0".into()),
                 RealtimePostgresBindingValue::Text("user".into()),
                 RealtimePostgresBindingValue::Text("1".into()),
                 RealtimePostgresBindingValue::Text("project".into()),
@@ -1217,8 +1217,8 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
 fn test_postgres_realtime_binding_plan_rejects_values_postgres_cannot_store() {
     let checkpoint = RealtimeCheckpointRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            principal_kind: "user".into(),
+        organization_id: "0".into(),
+        principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_pad".into(),
         latest_realtime_seq: i64::MAX as u64 + 1,
@@ -1287,8 +1287,8 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
     };
     let checkpoint = RealtimeCheckpointRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            principal_kind: "user".into(),
+        organization_id: "0".into(),
+        principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_pad".into(),
         latest_realtime_seq: 42,
@@ -1356,8 +1356,8 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
 fn test_postgres_realtime_subscription_save_transaction_preserves_replace_order() {
     let record = RealtimeSubscriptionRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            principal_kind: "user".into(),
+        organization_id: "0".into(),
+        principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_pad".into(),
         synced_at: "2026-05-01T10:00:02.000Z".into(),

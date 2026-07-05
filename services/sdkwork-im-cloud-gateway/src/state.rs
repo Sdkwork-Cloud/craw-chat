@@ -1,11 +1,15 @@
 //! Gateway shared state assembled into the axum [`Router`] state slot.
 
+use std::sync::Arc;
+
 use axum::Router;
+use crate::anomaly_detector::AnomalyDetector;
 use crate::gateway_protection::CircuitBreakerRegistry;
 use reqwest::Client;
 use sdkwork_im_api_registry::RouteRegistry;
 use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
 use session_gateway::RealtimeAuthContextResolver;
+use tokio::sync::Semaphore;
 
 /// Shared state cloned into every gateway handler.
 ///
@@ -20,4 +24,6 @@ pub struct GatewayState {
     pub(crate) embedded_session_gateway: Option<Router>,
     pub(crate) realtime_auth: RealtimeAuthContextResolver,
     pub(crate) circuit_breakers: CircuitBreakerRegistry,
+    pub(crate) anomaly_detector: Arc<AnomalyDetector>,
+    pub(crate) websocket_connection_semaphore: Arc<Semaphore>,
 }

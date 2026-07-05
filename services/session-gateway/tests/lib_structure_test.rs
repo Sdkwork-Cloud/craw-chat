@@ -726,9 +726,7 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
         "services/session-gateway/src/websocket_route.rs should delegate route preflight instead of calling register_client_route directly"
     );
 
-    for required_symbol in [
-        "fn prepare_active_client_route(",
-    ] {
+    for required_symbol in ["fn prepare_active_client_route("] {
         assert!(
             lib_source.contains(required_symbol),
             "services/session-gateway/src/lib.rs should expose the route preflight owner seam: {required_symbol}"

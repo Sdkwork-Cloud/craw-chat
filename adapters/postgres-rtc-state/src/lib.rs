@@ -34,7 +34,9 @@
 
 use std::sync::Arc;
 
-use im_domain_core::rtc::{RtcStateRecord, StateStore};
+use im_app_context::is_production_like_im_environment;
+use im_domain_core::retention::retention_until_from_class;
+use im_domain_core::rtc::{RtcSession, RtcStateRecord, StateStore};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 use sdkwork_communication_rtc_service::RtcContractError;
@@ -215,9 +217,9 @@ impl StateStore for PostgresRtcStateStore {
                 })?
                 .map(|row| row.get::<_, i64>(0) as u64);
 
-            // Epoch fencing: reject stale writes.
+            // Epoch fencing: reject stale or duplicate concurrent writes.
             if let Some(existing) = existing_epoch {
-                if record.session.epoch < existing {
+                if record.session.epoch <= existing {
                     return Err(RtcContractError::Conflict(format!(
                         "stale epoch rejected: existing={} incoming={}",
                         existing, record.session.epoch
@@ -262,9 +264,10 @@ impl StateStore for PostgresRtcStateStore {
             let failure_reason = record.session.failure_reason.as_deref();
             let tenant_id = record.tenant_id.as_str();
             let rtc_session_id = record.rtc_session_id.as_str();
+            let retention_until = resolve_rtc_session_retention_until(&record);
 
             // UPSERT with full structured column update.
-            tx.execute(
+            let affected = tx.execute(
                 "INSERT INTO im_rtc_sessions (
                     tenant_id, rtc_session_id, conversation_id, rtc_mode,
                     initiator_principal_kind, initiator_principal_id,
@@ -277,6 +280,7 @@ impl StateStore for PostgresRtcStateStore {
                     canceled_at, failed_at, timeout_at,
                     ended_reason, failure_reason,
                     payload_json, payload_hash,
+                    retention_until,
                     created_at, updated_at
                  ) VALUES (
                     $1, $2, $3, $4,
@@ -290,7 +294,8 @@ impl StateStore for PostgresRtcStateStore {
                     $23, $24, $25,
                     $26, $27,
                     $28, $29,
-                    $30, $30
+                    $30,
+                    $31, $31
                  )
                  ON CONFLICT (tenant_id, rtc_session_id) DO UPDATE SET
                     conversation_id = EXCLUDED.conversation_id,
@@ -320,7 +325,15 @@ impl StateStore for PostgresRtcStateStore {
                     failure_reason = EXCLUDED.failure_reason,
                     payload_json = EXCLUDED.payload_json,
                     payload_hash = EXCLUDED.payload_hash,
-                    updated_at = EXCLUDED.updated_at",
+                    retention_until = EXCLUDED.retention_until,
+                    updated_at = EXCLUDED.updated_at
+                 WHERE COALESCE(
+                    (im_rtc_sessions.payload_json::jsonb -> 'session' ->> 'epoch')::bigint,
+                    0
+                 ) < COALESCE(
+                    (EXCLUDED.payload_json::jsonb -> 'session' ->> 'epoch')::bigint,
+                    0
+                 )",
                 &[
                     &tenant_id, &rtc_session_id, &conversation_id, &rtc_mode,
                     &initiator_kind, &initiator_id,
@@ -333,12 +346,18 @@ impl StateStore for PostgresRtcStateStore {
                     &canceled_at, &failed_at, &timeout_at,
                     &ended_reason, &failure_reason,
                     &payload_json, &payload_hash,
+                    &retention_until,
                     &updated_at,
                 ],
             )
             .map_err(|err| {
                 RtcContractError::Unavailable(format!("save_state upsert failed: {err}"))
             })?;
+            if affected == 0 {
+                return Err(RtcContractError::Conflict(
+                    "concurrent rtc session save rejected by epoch fencing".into(),
+                ));
+            }
 
             tx.commit().map_err(|err| {
                 RtcContractError::Unavailable(format!("save_state commit failed: {err}"))
@@ -401,9 +420,14 @@ pub fn build_postgres_rtc_state_store_optional(
             Some(Arc::new(store))
         }
         Err(err) => {
-            tracing::error!(
+            if is_production_like_im_environment() {
+                panic!(
+                    "PostgresRtcStateStore connection failed in production-like environment: {err:?}"
+                );
+            }
+            tracing::warn!(
                 error = %format!("{err:?}"),
-                "PostgresRtcStateStore connection failed; falling back to in-memory store"
+                "PostgresRtcStateStore connection failed; durable store unavailable (development/test only)"
             );
             None
         }
@@ -445,6 +469,27 @@ fn verify_production_sslmode(database_url: &str) {
     }
 }
 
+/// Terminal RTC sessions use the canonical `ephemeral` retention class (7 days).
+/// Active sessions keep `retention_until` unset so the shared purge job never
+/// deletes in-flight calls.
+fn resolve_rtc_session_retention_until(record: &RtcStateRecord) -> Option<String> {
+    if !record.session.state.is_terminal() {
+        return None;
+    }
+    let anchor = terminal_retention_anchor(&record.session)
+        .unwrap_or(record.updated_at.as_str());
+    retention_until_from_class("ephemeral", anchor)
+}
+
+fn terminal_retention_anchor(session: &RtcSession) -> Option<&str> {
+    session
+        .ended_at
+        .as_deref()
+        .or(session.canceled_at.as_deref())
+        .or(session.failed_at.as_deref())
+        .or(session.timeout_at.as_deref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -467,5 +512,62 @@ mod tests {
         assert!(build_postgres_rtc_state_store_optional(None).is_none());
         assert!(build_postgres_rtc_state_store_optional(Some("")).is_none());
         assert!(build_postgres_rtc_state_store_optional(Some("   ")).is_none());
+    }
+
+    #[test]
+    fn resolve_rtc_retention_until_for_terminal_session_only() {
+        use im_domain_core::rtc::{
+            RtcSession, RtcSessionState, RtcStateRecord, SessionParticipants, SignalRateTracker,
+        };
+
+        let record = RtcStateRecord {
+            tenant_id: "100001".into(),
+            rtc_session_id: "rtc_demo".into(),
+            session: RtcSession {
+                tenant_id: "100001".into(),
+                rtc_session_id: "rtc_demo".into(),
+                conversation_id: None,
+                rtc_mode: "voice".into(),
+                initiator_id: "1".into(),
+                initiator_kind: "user".into(),
+                provider_plugin_id: None,
+                provider_session_id: None,
+                access_endpoint: None,
+                provider_region: None,
+                state: RtcSessionState::Ended,
+                signaling_stream_id: None,
+                artifact_message_id: None,
+                started_at: "2026-01-01T00:00:00.000Z".into(),
+                ended_at: Some("2026-01-01T00:00:00.000Z".into()),
+                initiating_at: None,
+                ringing_at: None,
+                connecting_at: None,
+                connected_at: None,
+                on_hold_since: None,
+                reconnecting_since: None,
+                canceled_at: None,
+                failed_at: None,
+                timeout_at: None,
+                ended_reason: None,
+                failure_reason: None,
+                epoch: 1,
+                version: 1,
+                participants: SessionParticipants::default(),
+                last_activity_at: None,
+                signal_rate_tracker: SignalRateTracker::default(),
+            },
+            signals: Vec::new(),
+            updated_at: "2026-01-01T00:00:00.000Z".into(),
+        };
+
+        assert_eq!(
+            resolve_rtc_session_retention_until(&record).as_deref(),
+            Some("2026-01-08T00:00:00.000Z")
+        );
+
+        let mut active = record.clone();
+        active.session.state = RtcSessionState::Connected;
+        active.session.ended_at = None;
+        assert!(resolve_rtc_session_retention_until(&active).is_none());
     }
 }

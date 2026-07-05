@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Search, Plus, MoreHorizontal, Shield, Users, MessageCircle, Settings, Filter, Lock, Globe } from 'lucide-react';
 import { cn } from '@sdkwork/im-pc-commons';
 import { groupService, Group } from './services/GroupService';
@@ -7,21 +7,28 @@ export const ConsoleGroups = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+
+  const loadGroups = useCallback(async (cursor?: string, append = false) => {
+    setLoading(true);
+    try {
+      const page = await groupService.listGroupsPage({
+        pageSize: 10,
+        cursor,
+        search: searchTerm,
+      });
+      setGroups((current) => (append ? [...current, ...page.data] : page.data));
+      setNextCursor(page.nextCursor);
+      setHasMore(page.hasMore);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm]);
 
   useEffect(() => {
-    const fetchGroups = async () => {
-      setLoading(true);
-      try {
-        const res = await groupService.getGroups({ page: 1, pageSize: 10, search: searchTerm });
-        setGroups(res.data);
-        setTotal(res.total);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchGroups();
-  }, [searchTerm]);
+    void loadGroups();
+  }, [loadGroups]);
 
   return (
     <div className="bg-console-bg-panel border border-console-border rounded-2xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -46,20 +53,20 @@ export const ConsoleGroups = () => {
       {/* Metrics Row */}
       <div className="grid grid-cols-4 divide-x divide-console-border border-b border-console-border bg-console-bg-root/50">
         <div className="p-4 flex flex-col">
-          <span className="text-xs text-console-text-muted mb-1">群组总数</span>
-          <span className="text-xl font-bold text-console-text-main">3,842</span>
+          <span className="text-xs text-console-text-muted mb-1">已加载群组</span>
+          <span className="text-xl font-bold text-console-text-main">{groups.length}</span>
         </div>
         <div className="p-4 flex flex-col">
-          <span className="text-xs text-console-text-muted mb-1">今日新建</span>
-          <span className="text-xl font-bold text-emerald-500">+12</span>
+          <span className="text-xs text-console-text-muted mb-1">分页状态</span>
+          <span className="text-xl font-bold text-emerald-500">{hasMore ? '更多可用' : '已到底'}</span>
         </div>
         <div className="p-4 flex flex-col">
-          <span className="text-xs text-console-text-muted mb-1">今日活跃群组</span>
-          <span className="text-xl font-bold text-console-text-main">845 <span className="text-xs font-normal text-console-text-muted ml-1">(22%)</span></span>
+          <span className="text-xs text-console-text-muted mb-1">数据来源</span>
+          <span className="text-xl font-bold text-console-text-main">Inbox SDK</span>
         </div>
         <div className="p-4 flex flex-col">
-          <span className="text-xs text-console-text-muted mb-1">日均消息量/群</span>
-          <span className="text-xl font-bold text-console-text-main">152</span>
+          <span className="text-xs text-console-text-muted mb-1">分页模式</span>
+          <span className="text-xl font-bold text-console-text-main">Cursor</span>
         </div>
       </div>
 
@@ -109,7 +116,7 @@ export const ConsoleGroups = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-console-border text-sm">
-            {loading ? (
+            {loading && groups.length === 0 ? (
               <tr><td colSpan={8} className="px-6 py-8 text-center text-console-text-muted">加载中...</td></tr>
             ) : groups.length === 0 ? (
               <tr><td colSpan={8} className="px-6 py-8 text-center text-console-text-muted">暂无数据</td></tr>
@@ -168,14 +175,21 @@ export const ConsoleGroups = () => {
       
       {/* Pagination */}
       <div className="p-4 border-t border-console-border flex items-center justify-between text-xs text-console-text-muted bg-console-bg-root/50">
-        <div>显示 1 到 5 条，共 3,842 条记录</div>
+        <div>已加载 {groups.length} 条群组记录</div>
         <div className="flex gap-1">
-          <button className="px-3 py-1.5 border border-console-border rounded text-console-text-muted cursor-not-allowed bg-console-bg-root">上一页</button>
-          <button className="px-3 py-1.5 border border-blue-600 rounded bg-blue-600 text-white font-medium">1</button>
-          <button className="px-3 py-1.5 border border-console-border rounded text-console-text-main hover:bg-console-bg-hover transition-colors">2</button>
-          <button className="px-3 py-1.5 border border-console-border rounded text-console-text-main hover:bg-console-bg-hover transition-colors">3</button>
-          <span className="px-2 py-1.5">...</span>
-          <button className="px-3 py-1.5 border border-console-border rounded text-console-text-main hover:bg-console-bg-hover transition-colors">下一页</button>
+          <button
+            type="button"
+            disabled={loading || !hasMore || !nextCursor}
+            onClick={() => void loadGroups(nextCursor, true)}
+            className={cn(
+              'px-3 py-1.5 border border-console-border rounded text-console-text-main transition-colors',
+              loading || !hasMore || !nextCursor
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:bg-console-bg-hover',
+            )}
+          >
+            {loading ? '加载中...' : '加载更多'}
+          </button>
         </div>
       </div>
     </div>

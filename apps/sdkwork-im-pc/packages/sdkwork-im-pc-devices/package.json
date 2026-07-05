@@ -4,14 +4,7 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
-    "@sdkwork/aiot-app-sdk": "workspace:*",
-    "@sdkwork/im-pc-core": "workspace:*",
-    "lucide-react": "catalog:",
-    "motion": "catalog:",
-    "react-i18next": "catalog:",
-    "@sdkwork/im-pc-chat": "workspace:*",
-    "@sdkwork/im-pc-commons": "workspace:*",
-    "i18next": "catalog:",
+    "@sdkwork/aiot-pc-console-device": "workspace:*",
     "react": "catalog:"
   },
   "publishConfig": {

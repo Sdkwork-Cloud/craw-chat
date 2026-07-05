@@ -168,4 +168,10 @@ for (const repoId of ['sdkwork-catalog', 'sdkwork-shop', 'sdkwork-order']) {
   assert.ok(fs.existsSync(assemblyPath), `T1 repo ${repoId} must publish .sdkwork-assembly.json for its app SDK family.`);
 }
 
+assert.match(
+  shopServiceSource,
+  /getShippingAddresses[\s\S]*PC_SHOP_SHIPPING_ADDRESS_UNAVAILABLE/u,
+  'Shop service must fail closed when shipping address contract is unavailable.',
+);
+
 console.log('commerce T1 app SDK integration contract checks passed');

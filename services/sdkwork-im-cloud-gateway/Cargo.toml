@@ -39,11 +39,13 @@ sdkwork_web_axum.workspace = true
 sdkwork_web_bootstrap.workspace = true
 sdkwork_web_store_sqlx.workspace = true
 sdkwork_web_core.workspace = true
+sdkwork_utils_rust.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork_im_database_pool = { workspace = true }
 sdkwork_iam_database_host = { workspace = true }
 sdkwork_im_iam_application_bootstrap = { workspace = true }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 session-gateway = { path = "../session-gateway" }
 sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
 sdkwork_im_realtime_api_paths.workspace = true

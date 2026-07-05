@@ -108,7 +108,11 @@ fn test_presence_state_store_isolates_organizations_for_same_principal_and_devic
         .list_states_for_principal("100001", "org_b", "user", "1")
         .expect("org_b principal list should succeed");
     assert_eq!(listed_b.len(), 2);
-    assert!(listed_b.iter().all(|record| record.organization_id == "org_b"));
+    assert!(
+        listed_b
+            .iter()
+            .all(|record| record.organization_id == "org_b")
+    );
 
     assert!(
         store

@@ -18,6 +18,7 @@ use sdkwork_im_websocket_auth_gate::{
     read_websocket_auth_init_frame, resolve_websocket_device_binding, send_websocket_auth_ok,
     should_require_auth_init_frame,
 };
+use tokio::sync::OwnedSemaphorePermit;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite,
     tungstenite::client::IntoClientRequest,
@@ -28,11 +29,109 @@ use crate::constants::{
     SDKWORK_INTERNAL_HEADER_PREFIX, WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS,
 };
 use crate::response::json_error_response;
+use crate::gateway_protection::extract_client_ip_from_headers;
 use crate::state::GatewayState;
 use crate::websocket_auth::{
     sanitized_gateway_websocket_path_and_query, should_authenticate_gateway_websocket_with_init_frame,
     websocket_auth_headers_from_query, websocket_dual_token_headers_for_auth_init,
 };
+
+fn record_websocket_auth_failure(
+    state: &GatewayState,
+    headers: &HeaderMap,
+    tenant_id: Option<&str>,
+    user_id: Option<&str>,
+) {
+    let client_ip = extract_client_ip_from_headers(headers);
+    if let Some(event) = state.anomaly_detector.check_auth_attempt(
+        user_id,
+        tenant_id.unwrap_or("gateway"),
+        client_ip,
+        false,
+    ) {
+        tracing::warn!(
+            target: "sdkwork.im.gateway.anomaly",
+            event = "im.gateway.websocket_auth_anomaly",
+            anomaly_type = event.anomaly_type.as_str(),
+            client_ip = %client_ip,
+            "websocket authentication anomaly detected"
+        );
+    }
+}
+
+#[derive(Clone)]
+struct WebsocketAnomalyMonitor {
+    state: GatewayState,
+    tenant_id: String,
+    user_id: String,
+    client_ip: std::net::IpAddr,
+}
+
+fn record_websocket_connection_established(
+    state: &GatewayState,
+    tenant_id: &str,
+    user_id: &str,
+    client_ip: std::net::IpAddr,
+) -> WebsocketAnomalyMonitor {
+    if let Some(event) = state
+        .anomaly_detector
+        .check_connection(user_id, tenant_id, client_ip)
+    {
+        tracing::warn!(
+            target: "sdkwork.im.gateway.anomaly",
+            event = "im.gateway.websocket_connection_anomaly",
+            anomaly_type = event.anomaly_type.as_str(),
+            tenant_id = %tenant_id,
+            user_id = %user_id,
+            client_ip = %client_ip,
+            "websocket connection anomaly detected"
+        );
+    }
+    WebsocketAnomalyMonitor {
+        state: state.clone(),
+        tenant_id: tenant_id.to_owned(),
+        user_id: user_id.to_owned(),
+        client_ip,
+    }
+}
+
+fn inspect_downstream_websocket_message(
+    monitor: &WebsocketAnomalyMonitor,
+    message: &Message,
+) -> bool {
+    let content = match message {
+        Message::Text(text) => text.as_str(),
+        Message::Binary(_) => "",
+        _ => return true,
+    };
+    let Some(event) = monitor.state.anomaly_detector.check_message(
+        monitor.user_id.as_str(),
+        monitor.tenant_id.as_str(),
+        monitor.client_ip,
+        content,
+    ) else {
+        return true;
+    };
+    tracing::warn!(
+        target: "sdkwork.im.gateway.anomaly",
+        event = "im.gateway.websocket_message_anomaly",
+        anomaly_type = event.anomaly_type.as_str(),
+        tenant_id = %monitor.tenant_id,
+        user_id = %monitor.user_id,
+        client_ip = %monitor.client_ip,
+        recommended_action = %event.recommended_action.as_str(),
+        "websocket downstream message anomaly detected"
+    );
+    let should_terminate = monitor
+        .state
+        .anomaly_detector
+        .should_terminate_connection(&event);
+    monitor
+        .state
+        .anomaly_detector
+        .enforce_recommended_action(event.recommended_action, monitor.client_ip);
+    !should_terminate
+}
 
 pub(crate) async fn proxy_websocket_request(
     ws: WebSocketUpgrade,
@@ -41,6 +140,28 @@ pub(crate) async fn proxy_websocket_request(
     service_id: &str,
     websocket_subprotocols: &[String],
 ) -> Response {
+    let client_ip = extract_client_ip_from_headers(request.headers());
+    if state.anomaly_detector.is_ip_blocked(client_ip) {
+        return json_error_response(
+            StatusCode::TOO_MANY_REQUESTS,
+            "client IP is temporarily blocked due to authentication abuse",
+        );
+    }
+
+    let connection_permit = match state
+        .websocket_connection_semaphore
+        .clone()
+        .try_acquire_owned()
+    {
+        Ok(permit) => permit,
+        Err(_) => {
+            return json_error_response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "gateway websocket connection capacity reached, please retry later",
+            );
+        }
+    };
+
     let Some(upstream_base_url) = websocket_upstream_base_url(state, service_id) else {
         return json_error_response(
             StatusCode::BAD_GATEWAY,
@@ -74,6 +195,7 @@ pub(crate) async fn proxy_websocket_request(
                     upstream_base_url,
                     path_and_query,
                     original_headers,
+                    connection_permit,
                 )
             })
             .into_response();
@@ -122,6 +244,7 @@ pub(crate) async fn proxy_websocket_request(
                     sanitized_path_and_query,
                     original_headers,
                     query_auth_headers,
+                    connection_permit,
                 )
             })
             .into_response();
@@ -161,7 +284,7 @@ pub(crate) async fn proxy_websocket_request(
             bounded_websocket_upgrade(ws)
             .protocols(websocket_subprotocols.to_vec())
             .on_upgrade(move |downstream_socket| {
-                proxy_websocket_streams(downstream_socket, upstream_socket)
+                proxy_websocket_streams(downstream_socket, upstream_socket, None, connection_permit)
             })
             .into_response()
         }
@@ -186,6 +309,7 @@ async fn proxy_websocket_after_query_token_auth(
     path_and_query: String,
     original_headers: HeaderMap,
     query_auth_headers: HeaderMap,
+    _connection_permit: OwnedSemaphorePermit,
 ) {
     let auth_init_device_id = websocket_query_device_id_from_path_and_query(&path_and_query);
     let upstream_auth_headers = match websocket_dual_token_headers_for_auth_init(
@@ -197,6 +321,7 @@ async fn proxy_websocket_after_query_token_auth(
     {
         Ok(headers) => headers,
         Err(_) => {
+            record_websocket_auth_failure(&state, &original_headers, None, None);
             let mut socket = downstream_socket;
             close_websocket_with_auth_error(
                 &mut socket,
@@ -241,7 +366,34 @@ async fn proxy_websocket_after_query_token_auth(
 
     match connect_upstream_websocket(upstream_request).await {
         Ok(upstream_socket) => {
-            proxy_websocket_streams(downstream_socket, upstream_socket).await;
+            let client_ip = extract_client_ip_from_headers(&original_headers);
+            if let Ok(auth_context) = state
+                .realtime_auth
+                .resolve_from_headers(&upstream_auth_headers)
+                .await
+            {
+                let monitor = record_websocket_connection_established(
+                    &state,
+                    auth_context.tenant_id.as_str(),
+                    auth_context.user_id.as_str(),
+                    client_ip,
+                );
+                proxy_websocket_streams(
+                    downstream_socket,
+                    upstream_socket,
+                    Some(monitor),
+                    _connection_permit,
+                )
+                .await;
+                return;
+            }
+            proxy_websocket_streams(
+                downstream_socket,
+                upstream_socket,
+                None,
+                _connection_permit,
+            )
+            .await;
         }
         Err(error) => {
             let mut socket = downstream_socket;
@@ -282,8 +434,10 @@ async fn proxy_websocket_after_auth_init(
     upstream_base_url: String,
     path_and_query: String,
     original_headers: HeaderMap,
+    _connection_permit: OwnedSemaphorePermit,
 ) {
     let Some(auth_init) = read_websocket_auth_init_frame(&mut downstream_socket).await else {
+        record_websocket_auth_failure(&state, &original_headers, None, None);
         close_websocket_with_auth_error(
             &mut downstream_socket,
             None,
@@ -296,6 +450,7 @@ async fn proxy_websocket_after_auth_init(
     let auth_headers = match dual_token_headers_from_auth_init_frame(&auth_init) {
         Ok(headers) => headers,
         Err(error) => {
+            record_websocket_auth_failure(&state, &original_headers, None, None);
             close_websocket_with_auth_error(
                 &mut downstream_socket,
                 auth_init.request_id.as_deref(),
@@ -320,6 +475,7 @@ async fn proxy_websocket_after_auth_init(
     {
         Ok(headers) => headers,
         Err(_) => {
+            record_websocket_auth_failure(&state, &original_headers, None, None);
             close_websocket_with_auth_error(
                 &mut downstream_socket,
                 auth_init.request_id.as_deref(),
@@ -337,6 +493,7 @@ async fn proxy_websocket_after_auth_init(
     {
         Ok(context) => context,
         Err(_) => {
+            record_websocket_auth_failure(&state, &original_headers, None, None);
             close_websocket_with_auth_error(
                 &mut downstream_socket,
                 auth_init.request_id.as_deref(),
@@ -350,6 +507,12 @@ async fn proxy_websocket_after_auth_init(
     let device_id = match resolve_websocket_device_binding(&auth_context, effective_device_id) {
         Ok(device_id) => device_id,
         Err(error) => {
+            record_websocket_auth_failure(
+                &state,
+                &original_headers,
+                Some(auth_context.tenant_id.as_str()),
+                Some(auth_context.user_id.as_str()),
+            );
             close_websocket_with_auth_error(
                 &mut downstream_socket,
                 auth_init.request_id.as_deref(),
@@ -391,6 +554,13 @@ async fn proxy_websocket_after_auth_init(
 
     match connect_upstream_websocket(upstream_request).await {
         Ok(upstream_socket) => {
+            let client_ip = extract_client_ip_from_headers(&original_headers);
+            let monitor = record_websocket_connection_established(
+                &state,
+                auth_context.tenant_id.as_str(),
+                auth_context.user_id.as_str(),
+                client_ip,
+            );
             let _ = send_websocket_auth_ok(
                 &mut downstream_socket,
                 auth_init.request_id.as_deref(),
@@ -398,7 +568,13 @@ async fn proxy_websocket_after_auth_init(
                 device_id.as_str(),
             )
             .await;
-            proxy_websocket_streams(downstream_socket, upstream_socket).await;
+            proxy_websocket_streams(
+                downstream_socket,
+                upstream_socket,
+                Some(monitor),
+                _connection_permit,
+            )
+            .await;
         }
         Err(error) => {
             close_websocket_with_auth_error(
@@ -450,6 +626,8 @@ fn websocket_upstream_base_url(state: &GatewayState, service_id: &str) -> Option
 async fn proxy_websocket_streams(
     downstream_socket: WebSocket,
     upstream_socket: WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>,
+    anomaly_monitor: Option<WebsocketAnomalyMonitor>,
+    _connection_permit: OwnedSemaphorePermit,
 ) {
     let (mut downstream_sender, mut downstream_receiver) = downstream_socket.split();
     let (mut upstream_sender, mut upstream_receiver) = upstream_socket.split();
@@ -459,6 +637,13 @@ async fn proxy_websocket_streams(
             downstream_message = downstream_receiver.next() => {
                 match downstream_message {
                     Some(Ok(message)) => {
+                        if let Some(monitor) = anomaly_monitor.as_ref()
+                            && !inspect_downstream_websocket_message(monitor, &message)
+                        {
+                            let _ = downstream_sender.send(Message::Close(None)).await;
+                            let _ = upstream_sender.close().await;
+                            break;
+                        }
                         let message = downstream_to_upstream_message(message);
                         let should_stop = matches!(message, tungstenite::Message::Close(_));
                         if upstream_sender.send(message).await.is_err() {
@@ -477,6 +662,11 @@ async fn proxy_websocket_streams(
             upstream_message = upstream_receiver.next() => {
                 match upstream_message {
                     Some(Ok(message)) => {
+                        if !upstream_websocket_message_within_bounds(&message) {
+                            let _ = downstream_sender.send(Message::Close(None)).await;
+                            let _ = upstream_sender.close().await;
+                            break;
+                        }
                         let should_stop = matches!(message, tungstenite::Message::Close(_));
                         let Some(message) = upstream_to_downstream_message(message) else {
                             continue;
@@ -495,6 +685,17 @@ async fn proxy_websocket_streams(
                 }
             }
         }
+    }
+}
+
+fn upstream_websocket_message_within_bounds(message: &tungstenite::Message) -> bool {
+    match message {
+        tungstenite::Message::Text(text) => text.len() <= GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES,
+        tungstenite::Message::Binary(bytes) => bytes.len() <= GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES,
+        tungstenite::Message::Ping(payload) | tungstenite::Message::Pong(payload) => {
+            payload.len() <= GATEWAY_MAX_WEBSOCKET_FRAME_BYTES
+        }
+        tungstenite::Message::Close(_) | tungstenite::Message::Frame(_) => true,
     }
 }
 

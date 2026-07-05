@@ -1,5 +1,7 @@
 import { HashRouter, Navigate, useLocation } from "react-router-dom";
 
+import { I18nProvider } from "@sdkwork/im-h5-commons";
+
 import { AppAuthGate } from "./AppAuthGate";
 import { ImApp } from "./ImApp";
 import { IM_APP_HOME_PATH } from "./constants/appRoutes";
@@ -26,8 +28,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <HashRouter>
-      <AppShell />
-    </HashRouter>
+    <I18nProvider>
+      <HashRouter>
+        <AppShell />
+      </HashRouter>
+    </I18nProvider>
   );
 }

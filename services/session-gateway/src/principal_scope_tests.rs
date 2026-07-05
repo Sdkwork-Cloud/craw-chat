@@ -40,9 +40,7 @@ fn test_principal_scope_keys_isolate_organizations() {
     );
     assert!(
         typed_client_route_scope_key("100001", "org_a", "1", "user", "d_pad")
-            .starts_with(
-                typed_principal_scope_key("100001", "org_a", "1", "user").as_str()
-            ),
+            .starts_with(typed_principal_scope_key("100001", "org_a", "1", "user").as_str()),
         "client route scope key must extend principal scope key prefix"
     );
 }

@@ -117,6 +117,7 @@
       "count": "共 {{count}} 个联系人",
       "addContact": "增加联系人",
       "loading": "加载中...",
+      "loadingMore": "加载更多联系人...",
       "groupLabel": "全部好友",
       "scrollTop": "顶部",
       "toast": {
@@ -414,6 +415,8 @@
       "time": {
         "yesterday": "昨天"
       },
+      "loadMore": "加载更多会话",
+      "loadingMore": "正在加载更多会话...",
       "item": {
         "openConversation": "打开与 {{name}} 的会话",
         "muted": "消息免打扰",
@@ -620,6 +623,7 @@
       },
       "toast": {
         "localVideoBindFailed": "本地视频预览绑定失败",
+        "remoteVideoBindFailed": "远端视频绑定失败",
         "acceptFailed": "接听失败",
         "muteFailed": "静音设置失败",
         "videoFailed": "视频设置失败",
@@ -784,7 +788,8 @@
         "inviting": "邀请中...",
         "sendGroupInvite": "发送群邀请消息",
         "save": "保存",
-        "publish": "发布群公告"
+        "publish": "发布群公告",
+        "loadMoreContacts": "加载更多联系人"
       },
       "label": {
         "nonContactInvite": "邀请非通讯录用户"

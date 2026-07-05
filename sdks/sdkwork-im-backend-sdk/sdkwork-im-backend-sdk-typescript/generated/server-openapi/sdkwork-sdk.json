@@ -5,6 +5,8 @@
   "language": "typescript",
   "sdkType": "backend",
   "packageName": "@sdkwork-internal/im-backend-api-generated",
+  "transportPackageName": "@sdkwork-internal/im-backend-api-generated",
+  "consumerPackageName": "@sdkwork/im-backend-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

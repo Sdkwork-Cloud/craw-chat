@@ -440,7 +440,7 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     assert_eq!(events[0].event_type, "conversation.created");
     assert_eq!(events[1].event_type, "conversation.member_joined");
     assert_eq!(events[2].event_type, "message.posted");
-    assert_eq!(events[2].ordering_seq, 1);
+    assert_eq!(events[2].ordering_seq, 2);
 }
 
 #[test]
@@ -978,6 +978,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
             render_hints: Default::default(),
             reply_to: None,
         },
+        idempotency_key: None,
     });
 
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
@@ -1034,7 +1035,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
             session_id: Some("s_demo".into()),
             metadata: Default::default(),
         },
-    });
+    idempotency_key: None,    });
 
     assert!(matches!(recall, Err(RuntimeError::PermissionDenied(_))));
 }
@@ -2131,6 +2132,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
             organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             principal_id: "1".into(),
+            device_id: None,
             read_seq: 1,
             last_read_message_id: Some("msg_c_cursor_1".into()),
         })
@@ -2149,6 +2151,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
             organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             principal_id: "1".into(),
+            device_id: None,
             read_seq: 0,
             last_read_message_id: Some("msg_c_cursor_0".into()),
         })
@@ -2166,6 +2169,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
             organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             principal_id: "1".into(),
+            device_id: None,
             read_seq: 2,
             last_read_message_id: Some("msg_c_cursor_2".into()),
         })
@@ -2337,6 +2341,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
             organization_id: "0".into(),
             conversation_id: "c_cursor_actor_kind_guard".into(),
             principal_id: "1".into(),
+            device_id: None,
             read_seq: 1,
             last_read_message_id: Some("msg_c_cursor_actor_kind_guard_1".into()),
         },
@@ -2522,6 +2527,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
                     capability_flags: None,
                     history_visibility: "joined".into(),
                     retention_policy_ref: "tenant.compliance".into(),
+                    max_members: None,
                 },
             },
             "user",
@@ -2742,24 +2748,25 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal.clone());
 
-    runtime
+    let created = runtime
         .create_agent_dialog_with_requester_kind(
             CreateAgentDialogCommand {
                 tenant_id: "100001".into(),
                 organization_id: "0".into(),
-                conversation_id: "c_agent_cursor".into(),
+                conversation_id: String::new(),
                 requester_id: "1055".into(),
                 agent_id: "agent.demo".into(),
             },
             "user",
         )
         .expect("agent dialog create should succeed");
+    let conversation_id = created.conversation_id.clone();
 
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
            organization_id: "0".into(),
-            conversation_id: "c_agent_cursor".into(),
+            conversation_id: conversation_id.clone(),
             sender: Sender {
                 id: "1055".into(),
                 kind: "user".into(),
@@ -2783,10 +2790,11 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "100001".into(),
             organization_id: "0".into(),
-            conversation_id: "c_agent_cursor".into(),
+            conversation_id: conversation_id.clone(),
             principal_id: "agent.demo".into(),
+            device_id: None,
             read_seq: 1,
-            last_read_message_id: Some("msg_c_agent_cursor_1".into()),
+            last_read_message_id: Some(format!("msg_{conversation_id}_1")),
         })
         .expect("agent read cursor update should succeed");
 
@@ -2795,7 +2803,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
         .into_iter()
         .find(|event| {
             event.event_type == "conversation.read_cursor_updated"
-                && event.aggregate_id == "c_agent_cursor"
+                && event.aggregate_id == conversation_id.as_str()
                 && event.ordering_seq == 1
         })
         .expect("read cursor update event should exist");
@@ -2861,7 +2869,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        })
+        idempotency_key: None,        })
         .expect("edit message should succeed");
 
     let recalled = runtime
@@ -2877,7 +2885,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        })
+        idempotency_key: None,        })
         .expect("recall message should succeed");
 
     assert_eq!(edited.message_id, posted.message_id);
@@ -2889,9 +2897,9 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     assert_eq!(events.len(), 5);
     assert_eq!(events[2].event_type, "message.posted");
     assert_eq!(events[3].event_type, "message.edited");
-    assert_eq!(events[3].ordering_seq, 1);
+    assert_eq!(events[3].ordering_seq, 3);
     assert_eq!(events[4].event_type, "message.recalled");
-    assert_eq!(events[4].ordering_seq, 1);
+    assert_eq!(events[4].ordering_seq, 4);
 }
 
 #[test]
@@ -2959,7 +2967,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        })
+        idempotency_key: None,        })
         .expect("generated message id should remain editable");
 
     let recalled = runtime
@@ -2975,7 +2983,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        })
+        idempotency_key: None,        })
         .expect("generated message id should remain recallable");
 
     assert_eq!(edited.message_id, posted.message_id);
@@ -3079,6 +3087,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
             render_hints: Default::default(),
             reply_to: None,
         },
+        idempotency_key: None,
     });
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
 
@@ -3094,6 +3103,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
             session_id: Some("s_intruder".into()),
             metadata: Default::default(),
         },
+        idempotency_key: None,
     });
     assert!(matches!(recall, Err(RuntimeError::PermissionDenied(_))));
 }
@@ -3167,6 +3177,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
             render_hints: Default::default(),
             reply_to: None,
         },
+        idempotency_key: None,
     });
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
 
@@ -3182,6 +3193,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
             session_id: Some("s_member".into()),
             metadata: Default::default(),
         },
+        idempotency_key: None,
     });
     assert!(matches!(recall, Err(RuntimeError::PermissionDenied(_))));
 }
@@ -3255,6 +3267,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
             render_hints: Default::default(),
             reply_to: None,
         },
+        idempotency_key: None,
     });
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
 
@@ -3271,6 +3284,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
                 session_id: Some("s_owner".into()),
                 metadata: Default::default(),
             },
+            idempotency_key: None,
         })
         .expect("owner should be able to recall member message in group conversation");
     assert_eq!(recall.conversation_id, "c_group_owner_override");
@@ -3340,7 +3354,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
             session_id: Some("s_owner".into()),
             metadata: Default::default(),
         },
-    });
+    idempotency_key: None,    });
     assert!(matches!(recall, Err(RuntimeError::PermissionDenied(_))));
 }
 
@@ -3859,6 +3873,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
         organization_id: "0".into(),
         conversation_id: "c_group_cursor_commit_fail".into(),
         principal_id: "1".into(),
+        device_id: None,
         read_seq: 1,
         last_read_message_id: Some("msg_c_group_cursor_commit_fail_1".into()),
     });
@@ -3990,6 +4005,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
             render_hints: Default::default(),
             reply_to: None,
         },
+        idempotency_key: None,
     });
     assert!(matches!(
         edit_attempt,
@@ -4061,7 +4077,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
             session_id: Some("s_owner".into()),
             metadata: Default::default(),
         },
-    });
+    idempotency_key: None,    });
     assert!(matches!(
         recall_attempt,
         Err(RuntimeError::Contract(ContractError::Unavailable(message)))
@@ -5547,6 +5563,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
             organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             principal_id: "1".into(),
+            device_id: None,
             read_seq: 1,
             last_read_message_id: Some("msg_c_cursor_time_1".into()),
         })
@@ -5560,6 +5577,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
             organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             principal_id: "1".into(),
+            device_id: None,
             read_seq: 2,
             last_read_message_id: Some("msg_c_cursor_time_2".into()),
         })
@@ -5737,7 +5755,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        })
+        idempotency_key: None,        })
         .expect("first edit should succeed");
 
     sleep(Duration::from_millis(5));
@@ -5761,7 +5779,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        })
+        idempotency_key: None,        })
         .expect("second edit should succeed");
 
     runtime
@@ -5777,7 +5795,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        })
+        idempotency_key: None,        })
         .expect("first recall should succeed");
 
     sleep(Duration::from_millis(5));
@@ -5795,7 +5813,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        })
+        idempotency_key: None,        })
         .expect("second recall should succeed");
 
     let events = journal.recorded();
@@ -6590,7 +6608,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("6#100001#4#user#1#1#13#create-thread#14#c_thread_retry")
+        Some("6#1000014#user1#113#create-thread14#c_thread_retry")
     );
 
     let duplicate = runtime
@@ -6867,6 +6885,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
                 capability_flags: None,
                 history_visibility: "shared".into(),
                 retention_policy_ref: "tenant.standard".into(),
+                max_members: None,
             },
         })
         .expect("shared history policy should apply");

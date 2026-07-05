@@ -3,17 +3,24 @@
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
+use im_adapters_social_postgres::organization_store::ChannelRecord;
 use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
+use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 
-use im_adapters_social_postgres::organization_store::ChannelRecord;
-
+use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::channel_conversation_binder::CreateSpaceChannelConversationInput;
 use crate::http::AppState;
 use crate::id::next_entity_id;
+use crate::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::space_access::{
+    actor_can_manage_space, actor_can_read_space, load_channel_in_space, load_space,
+    parse_entity_id, parse_space_id,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateChannelRequest {
@@ -62,11 +69,6 @@ pub struct UpdateChannelRequest {
     pub topic: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ListQuery {
-    pub limit: Option<i64>,
-}
-
 pub async fn create_channel(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
@@ -74,50 +76,38 @@ pub async fn create_channel(
     Path(space_id): Path<String>,
     Json(request): Json<CreateChannelRequest>,
 ) -> Response {
-    let result: ApiResult<ChannelResponse> = (|| {
-        let sid: i64 = space_id.parse().map_err(|_| {
-            tracing::warn!("invalid space_id path parameter: {space_id}");
-            ApiProblem::bad_request("invalid space_id path parameter")
-        })?;
-
-        // IDOR fix (SECURITY_SPEC §4.2): only the space owner may create
-        // channels under it. Without this check, any authenticated tenant
-        // member could inject channels into any space by ID.
-        match state.space_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            sid,
-        ) {
-            Ok(Some(space)) => {
-                if space.owner_user_id != auth.actor_id {
-                    tracing::warn!(
-                        user_id = %auth.actor_id,
-                        owner_user_id = %space.owner_user_id,
-                        space_id = sid,
-                        "space ownership check failed for create_channel"
-                    );
-                    return Err(ApiProblem::forbidden("space ownership check failed"));
-                }
-            }
-            Ok(None) => return Err(ApiProblem::not_found("space not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get space {sid} for create_channel");
-                return Err(ApiProblem::internal_server_error("failed to get space"));
-            }
-        }
+    let result: ApiResult<SdkWorkResourceData<ChannelResponse>> = (|| {
+        let space_id = parse_space_id(space_id.as_str())?;
+        let space = load_space(&state, &auth, space_id)?;
+        actor_can_manage_space(&state, &auth, &space)?;
 
         let channel_id = next_entity_id(&state.id_generator)?;
+        let conversation_id = next_entity_id(&state.id_generator)?.to_string();
         let now = chrono::Utc::now().to_rfc3339();
+
+        if let Some(binder) = state.channel_conversation_binder.as_ref() {
+            binder
+                .create_channel_conversation(CreateSpaceChannelConversationInput {
+                    tenant_id: auth.tenant_id.clone(),
+                    organization_id: auth.organization_id.clone(),
+                    conversation_id: conversation_id.clone(),
+                    creator_user_id: auth.actor_id.clone(),
+                })
+                .map_err(|error| {
+                    tracing::error!(error = %error, "failed to bind channel conversation");
+                    ApiProblem::internal_server_error("failed to bind channel conversation")
+                })?;
+        }
 
         let record = ChannelRecord {
             tenant_id: auth.tenant_id,
             organization_id: auth.organization_id,
             channel_id,
-            space_id: sid,
+            space_id,
             channel_name: request.channel_name,
             channel_type: request.channel_type.unwrap_or_else(|| "text".to_string()),
             description: request.description,
-            conversation_id: None,
+            conversation_id: Some(conversation_id),
             position: request.position.unwrap_or(0),
             is_nsfw: false,
             is_pinned: false,
@@ -127,13 +117,11 @@ pub async fn create_channel(
             updated_at: now,
         };
 
-        match state.channel_store.insert(&record) {
-            Ok(()) => Ok(ChannelResponse::from(record)),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to insert channel under space {sid}");
-                Err(ApiProblem::internal_server_error("failed to insert channel"))
-            }
-        }
+        state.channel_store.insert(&record).map_err(|error| {
+            tracing::error!(error = ?error, space_id, "failed to insert channel");
+            ApiProblem::internal_server_error("failed to insert channel")
+        })?;
+        Ok(resource_item(ChannelResponse::from(record)))
     })();
     finish_api_json(&ctx, result)
 }
@@ -145,53 +133,28 @@ pub async fn list_channels(
     Path(space_id): Path<String>,
     Query(query): Query<ListQuery>,
 ) -> Response {
-    let result: ApiResult<Vec<ChannelResponse>> = (|| {
-        let sid: i64 = space_id.parse().map_err(|_| {
-            tracing::warn!("invalid space_id path parameter: {space_id}");
-            ApiProblem::bad_request("invalid space_id path parameter")
-        })?;
-        let limit = query.limit.unwrap_or(20);
+    let result: ApiResult<SdkWorkPageData<ChannelResponse>> = (|| {
+        let space_id = parse_space_id(space_id.as_str())?;
+        let space = load_space(&state, &auth, space_id)?;
+        actor_can_read_space(&state, &auth, &space)?;
+        let paging = resolve_list_page(&query)?;
 
-        // IDOR fix (SECURITY_SPEC §4.2): only the space owner may enumerate
-        // channels under it. Without this check, any authenticated tenant
-        // member could discover channel structure of any space by ID.
-        match state.space_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            sid,
-        ) {
-            Ok(Some(space)) => {
-                if space.owner_user_id != auth.actor_id {
-                    tracing::warn!(
-                        user_id = %auth.actor_id,
-                        owner_user_id = %space.owner_user_id,
-                        space_id = sid,
-                        "space ownership check failed for list_channels"
-                    );
-                    return Err(ApiProblem::forbidden("space ownership check failed"));
-                }
-            }
-            Ok(None) => return Err(ApiProblem::not_found("space not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get space {sid} for list_channels");
-                return Err(ApiProblem::internal_server_error("failed to get space"));
-            }
-        }
+        let records = state
+            .channel_store
+            .list_by_space(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                space_id,
+                sql_fetch_limit(paging),
+                sql_fetch_offset(paging),
+            )
+            .map_err(|error| {
+                tracing::error!(error = ?error, space_id, "failed to list channels");
+                ApiProblem::internal_server_error("failed to list channels")
+            })?;
 
-        match state.channel_store.list_by_space(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            sid,
-            limit,
-        ) {
-            Ok(records) => {
-                Ok(records.into_iter().map(ChannelResponse::from).collect())
-            }
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to list channels under space {sid}");
-                Err(ApiProblem::internal_server_error("failed to list channels"))
-            }
-        }
+        let items = records.into_iter().map(ChannelResponse::from).collect();
+        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
     })();
     finish_api_json(&ctx, result)
 }
@@ -202,68 +165,13 @@ pub async fn get_channel(
     State(state): State<AppState>,
     Path((space_id, channel_id)): Path<(String, String)>,
 ) -> Response {
-    let result: ApiResult<ChannelResponse> = (|| {
-        let sid: i64 = space_id.parse().map_err(|_| {
-            tracing::warn!("invalid space_id path parameter: {space_id}");
-            ApiProblem::bad_request("invalid space_id path parameter")
-        })?;
-        let cid: i64 = channel_id.parse().map_err(|_| {
-            tracing::warn!("invalid channel_id path parameter: {channel_id}");
-            ApiProblem::bad_request("invalid channel_id path parameter")
-        })?;
-
-        // IDOR fix (SECURITY_SPEC §4.2): only the space owner may read
-        // channel metadata. ChannelRecord has no owner_user_id, so we
-        // authorize via the parent SpaceRecord.
-        match state.space_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            sid,
-        ) {
-            Ok(Some(space)) => {
-                if space.owner_user_id != auth.actor_id {
-                    tracing::warn!(
-                        user_id = %auth.actor_id,
-                        owner_user_id = %space.owner_user_id,
-                        space_id = sid,
-                        channel_id = cid,
-                        "space ownership check failed for get_channel"
-                    );
-                    return Err(ApiProblem::forbidden("space ownership check failed"));
-                }
-            }
-            Ok(None) => return Err(ApiProblem::not_found("space not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get space {sid} for get_channel");
-                return Err(ApiProblem::internal_server_error("failed to get space"));
-            }
-        }
-
-        match state.channel_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            cid,
-        ) {
-            Ok(Some(record)) => {
-                // Defense in depth: ensure the channel actually belongs to
-                // the path space_id, preventing URL tampering.
-                if record.space_id != sid {
-                    tracing::warn!(
-                        path_space_id = sid,
-                        record_space_id = record.space_id,
-                        channel_id = cid,
-                        "channel space_id mismatch in get_channel"
-                    );
-                    return Err(ApiProblem::not_found("channel not found"));
-                }
-                Ok(ChannelResponse::from(record))
-            }
-            Ok(None) => Err(ApiProblem::not_found("channel not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get channel {cid}");
-                Err(ApiProblem::internal_server_error("failed to get channel"))
-            }
-        }
+    let result: ApiResult<SdkWorkResourceData<ChannelResponse>> = (|| {
+        let space_id = parse_space_id(space_id.as_str())?;
+        let channel_id = parse_entity_id(channel_id.as_str(), "channel_id")?;
+        let space = load_space(&state, &auth, space_id)?;
+        actor_can_read_space(&state, &auth, &space)?;
+        let record = load_channel_in_space(&state, &auth, space_id, channel_id)?;
+        Ok(resource_item(ChannelResponse::from(record)))
     })();
     finish_api_json(&ctx, result)
 }
@@ -276,88 +184,32 @@ pub async fn update_channel(
     Json(request): Json<UpdateChannelRequest>,
 ) -> Response {
     let result: ApiResult<()> = (|| {
-        let sid: i64 = space_id.parse().map_err(|_| {
-            tracing::warn!("invalid space_id path parameter: {space_id}");
-            ApiProblem::bad_request("invalid space_id path parameter")
-        })?;
-        let cid: i64 = channel_id.parse().map_err(|_| {
-            tracing::warn!("invalid channel_id path parameter: {channel_id}");
-            ApiProblem::bad_request("invalid channel_id path parameter")
-        })?;
+        let space_id = parse_space_id(space_id.as_str())?;
+        let channel_id = parse_entity_id(channel_id.as_str(), "channel_id")?;
+        let space = load_space(&state, &auth, space_id)?;
+        actor_can_manage_space(&state, &auth, &space)?;
+        let mut record = load_channel_in_space(&state, &auth, space_id, channel_id)?;
         let now = chrono::Utc::now().to_rfc3339();
 
-        // IDOR fix (SECURITY_SPEC §4.2): only the space owner may mutate
-        // channel settings. ChannelRecord has no owner_user_id, so we
-        // authorize via the parent SpaceRecord.
-        match state.space_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            sid,
-        ) {
-            Ok(Some(space)) => {
-                if space.owner_user_id != auth.actor_id {
-                    tracing::warn!(
-                        user_id = %auth.actor_id,
-                        owner_user_id = %space.owner_user_id,
-                        space_id = sid,
-                        channel_id = cid,
-                        "space ownership check failed for update_channel"
-                    );
-                    return Err(ApiProblem::forbidden("space ownership check failed"));
-                }
-            }
-            Ok(None) => return Err(ApiProblem::not_found("space not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get space {sid} for update_channel");
-                return Err(ApiProblem::internal_server_error("failed to get space"));
-            }
+        if let Some(name) = request.channel_name {
+            record.channel_name = name;
         }
-
-        match state.channel_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            cid,
-        ) {
-            Ok(Some(mut record)) => {
-                // Defense in depth: ensure the channel actually belongs to
-                // the path space_id, preventing URL tampering.
-                if record.space_id != sid {
-                    tracing::warn!(
-                        path_space_id = sid,
-                        record_space_id = record.space_id,
-                        channel_id = cid,
-                        "channel space_id mismatch in update_channel"
-                    );
-                    return Err(ApiProblem::not_found("channel not found"));
-                }
-                if let Some(name) = request.channel_name {
-                    record.channel_name = name;
-                }
-                if let Some(desc) = request.description {
-                    record.description = Some(desc);
-                }
-                if let Some(pos) = request.position {
-                    record.position = pos;
-                }
-                if let Some(topic) = request.topic {
-                    record.topic = Some(topic);
-                }
-                record.updated_at = now;
-
-                match state.channel_store.update(&record) {
-                    Ok(()) => Ok(()),
-                    Err(error) => {
-                        tracing::error!(error = ?error, "failed to update channel {cid}");
-                        Err(ApiProblem::internal_server_error("failed to update channel"))
-                    }
-                }
-            }
-            Ok(None) => Err(ApiProblem::not_found("channel not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get channel {cid} for update");
-                Err(ApiProblem::internal_server_error("failed to get channel"))
-            }
+        if let Some(desc) = request.description {
+            record.description = Some(desc);
         }
+        if let Some(pos) = request.position {
+            record.position = pos;
+        }
+        if let Some(topic) = request.topic {
+            record.topic = Some(topic);
+        }
+        record.updated_at = now;
+
+        state.channel_store.update(&record).map_err(|error| {
+            tracing::error!(error = ?error, channel_id, "failed to update channel");
+            ApiProblem::internal_server_error("failed to update channel")
+        })?;
+        Ok(())
     })();
     finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
 }
@@ -369,78 +221,24 @@ pub async fn delete_channel(
     Path((space_id, channel_id)): Path<(String, String)>,
 ) -> Response {
     let result: ApiResult<()> = (|| {
-        let sid: i64 = space_id.parse().map_err(|_| {
-            tracing::warn!("invalid space_id path parameter: {space_id}");
-            ApiProblem::bad_request("invalid space_id path parameter")
-        })?;
-        let cid: i64 = channel_id.parse().map_err(|_| {
-            tracing::warn!("invalid channel_id path parameter: {channel_id}");
-            ApiProblem::bad_request("invalid channel_id path parameter")
-        })?;
+        let space_id = parse_space_id(space_id.as_str())?;
+        let channel_id = parse_entity_id(channel_id.as_str(), "channel_id")?;
+        let space = load_space(&state, &auth, space_id)?;
+        actor_can_manage_space(&state, &auth, &space)?;
+        let _record = load_channel_in_space(&state, &auth, space_id, channel_id)?;
 
-        // IDOR fix (SECURITY_SPEC §4.2): only the space owner may delete
-        // channels under it. ChannelRecord has no owner_user_id, so we
-        // authorize via the parent SpaceRecord. We also fetch the channel
-        // first to verify it actually belongs to the path space_id.
-        match state.space_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            sid,
-        ) {
-            Ok(Some(space)) => {
-                if space.owner_user_id != auth.actor_id {
-                    tracing::warn!(
-                        user_id = %auth.actor_id,
-                        owner_user_id = %space.owner_user_id,
-                        space_id = sid,
-                        channel_id = cid,
-                        "space ownership check failed for delete_channel"
-                    );
-                    return Err(ApiProblem::forbidden("space ownership check failed"));
-                }
-            }
-            Ok(None) => return Err(ApiProblem::not_found("space not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get space {sid} for delete_channel");
-                return Err(ApiProblem::internal_server_error("failed to get space"));
-            }
-        }
-
-        // Defense in depth: verify the channel actually belongs to the
-        // path space_id before deleting, preventing URL tampering.
-        match state.channel_store.get_by_id(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            cid,
-        ) {
-            Ok(Some(record)) => {
-                if record.space_id != sid {
-                    tracing::warn!(
-                        path_space_id = sid,
-                        record_space_id = record.space_id,
-                        channel_id = cid,
-                        "channel space_id mismatch in delete_channel"
-                    );
-                    return Err(ApiProblem::not_found("channel not found"));
-                }
-                match state.channel_store.delete(
-                    auth.tenant_id.as_str(),
-                    auth.organization_id.as_str(),
-                    cid,
-                ) {
-                    Ok(()) => Ok(()),
-                    Err(error) => {
-                        tracing::error!(error = ?error, "failed to delete channel {cid}");
-                        Err(ApiProblem::internal_server_error("failed to delete channel"))
-                    }
-                }
-            }
-            Ok(None) => Err(ApiProblem::not_found("channel not found")),
-            Err(error) => {
-                tracing::error!(error = ?error, "failed to get channel {cid} for delete");
-                Err(ApiProblem::internal_server_error("failed to get channel"))
-            }
-        }
+        state
+            .channel_store
+            .delete(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                channel_id,
+            )
+            .map_err(|error| {
+                tracing::error!(error = ?error, channel_id, "failed to delete channel");
+                ApiProblem::internal_server_error("failed to delete channel")
+            })?;
+        Ok(())
     })();
     finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
 }

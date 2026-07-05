@@ -36,14 +36,14 @@ const sdkworkImDevicePackage = path.resolve(
   'sdkwork-im-pc-devices',
   'package.json',
 );
-const sdkworkImDeviceService = path.resolve(
+const sdkworkImDeviceView = path.resolve(
   appRoot,
   'packages',
   'sdkwork-im-pc-devices',
   'src',
-  'services',
-  'DeviceService.ts',
+  'DevicesView.tsx',
 );
+const aiotIntegrationSource = readAppText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'aiotPcIntegration.ts');
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -51,6 +51,10 @@ function readJson(filePath) {
 
 function readText(filePath) {
   return readFileSync(filePath, 'utf8');
+}
+
+function readAppText(...segments) {
+  return readText(path.join(appRoot, ...segments));
 }
 
 function readRepoText(relativePath) {
@@ -125,8 +129,8 @@ assert.match(
 );
 assert.match(
   aiotDeviceServiceSource,
-  /\.iot\.devices\.list\s*\(/u,
-  'Canonical device service must list devices through client.iot.devices.list.',
+  /listDevicePage\s*\(/u,
+  'Canonical device service must list devices through aiot-app-core listDevicePage.',
 );
 assert.doesNotMatch(
   aiotDeviceServiceSource,
@@ -156,8 +160,8 @@ assert.match(
 );
 assert.match(
   aiotIotServiceSource,
-  /\.iot\.devices\.list\s*\(/u,
-  'Canonical IoT service must load fleet nodes through client.iot.devices.list.',
+  /listDevicePage\s*\(/u,
+  'Canonical IoT service must load fleet nodes through aiot-app-core listDevicePage.',
 );
 assert.doesNotMatch(
   aiotIotServiceSource,
@@ -166,9 +170,9 @@ assert.doesNotMatch(
 );
 
 assert.equal(
-  sdkworkImDevicePackageJson.dependencies?.['@sdkwork/aiot-app-sdk'],
+  sdkworkImDevicePackageJson.dependencies?.['@sdkwork/aiot-pc-console-device'],
   'workspace:*',
-  'Sdkwork IM device bridge must depend on @sdkwork/aiot-app-sdk for AIoT device reads.',
+  'Sdkwork IM device adapter must depend on @sdkwork/aiot-pc-console-device instead of embedding device UI.',
 );
 assert.equal(
   sdkworkImDevicePackageJson.dependencies?.['@sdkwork/aiot-backend-sdk'],
@@ -176,57 +180,32 @@ assert.equal(
   'Sdkwork IM user-facing device package must not depend on the AIoT backend SDK.',
 );
 
-const sdkworkImDeviceServiceSource = readText(sdkworkImDeviceService);
+const sdkworkImDeviceViewSource = readText(sdkworkImDeviceView);
 assert.match(
-  sdkworkImDeviceServiceSource,
-  /from\s+["']@sdkwork\/aiot-app-sdk["']/u,
-  'Sdkwork IM device bridge must consume sdkwork-aiot app SDK for user-visible reads.',
+  sdkworkImDeviceViewSource,
+  /@sdkwork\/aiot-pc-console-device/u,
+  'Sdkwork IM device adapter must render canonical AIoT device console surfaces.',
 );
 assert.doesNotMatch(
-  sdkworkImDeviceServiceSource,
-  /from\s+["']@sdkwork\/aiot-backend-sdk["']/u,
-  'Sdkwork IM user-facing device service must not import sdkwork-aiot backend SDK.',
-);
-for (const forbiddenUserFacingBackendCall of [
-  /\.iot\.devices\.create\s*\(/u,
-  /\.iot\.devices\.update\s*\(/u,
-  /\.iot\.devices\.delete\s*\(/u,
-  /\.iot\.devices\.twin\.update\s*\(/u,
-  /\.iot\.devices\.commands\.list\s*\(/u,
-  /\.iot\.devices\.commands\.cancel\s*\(/u,
-  /\/backend\/v3\/api\/iot/u,
-]) {
-  assert.doesNotMatch(
-    sdkworkImDeviceServiceSource,
-    forbiddenUserFacingBackendCall,
-    `Sdkwork IM user-facing device service must not route through AIoT backend-admin operations: ${forbiddenUserFacingBackendCall}`,
-  );
-}
-for (const requiredAppSdkCall of [
-  /\.iot\.devices\.list\s*\(/u,
-  /\.iot\.devices\.retrieve\s*\(/u,
-  /\.iot\.devices\.commands\.create\s*\(/u,
-]) {
-  assert.match(
-    sdkworkImDeviceServiceSource,
-    requiredAppSdkCall,
-    `Sdkwork IM device service must route user-visible device operations through AIoT app SDK: ${requiredAppSdkCall}`,
-  );
-}
-assert.match(
-  sdkworkImDeviceServiceSource,
-  /unsupportedAppDeviceManagementCapability/u,
-  'Sdkwork IM device service must fail closed for backend-admin device management gaps in the user-facing package.',
-);
-assert.doesNotMatch(
-  sdkworkImDeviceServiceSource,
+  sdkworkImDeviceViewSource,
   /\bfetch\s*\(/u,
-  'Sdkwork IM device bridge must not use raw fetch.',
+  'Sdkwork IM device adapter must not use raw fetch.',
 );
 assert.doesNotMatch(
-  sdkworkImDeviceServiceSource,
+  sdkworkImDeviceViewSource,
   /\/im\/v3\/api\/device|\/im\/v3\/api\/devices/u,
-  'Sdkwork IM device bridge must not call retired Sdkwork IM IM device APIs.',
+  'Sdkwork IM device adapter must not call retired Sdkwork IM device APIs.',
+);
+
+assert.match(
+  aiotIntegrationSource,
+  /syncImSessionToAiotPc/u,
+  'aiotPcIntegration must bridge IM session into AIoT PC runtime session.',
+);
+assert.match(
+  aiotIntegrationSource,
+  /getImHostedAiotAppSdkClient/u,
+  'aiotPcIntegration must expose a hosted AIoT app SDK client for IM settings flows.',
 );
 
 const rootCargoSource = readRepoText('Cargo.toml');

@@ -1,8 +1,9 @@
 //! IM social open-api routes (`/im/v3/api/social/*`).
 
-pub const OPEN_API_PREFIX: &str = "/im/v3/api/social";
+pub use paths::OPEN_API_PREFIX;
 
 mod manifest;
+mod paths;
 mod routes;
 mod web_bootstrap;
 

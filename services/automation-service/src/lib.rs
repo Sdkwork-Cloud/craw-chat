@@ -5,6 +5,7 @@
 //! and runtime state live in focused submodules re-exported below.
 
 pub mod app;
+pub mod bootstrap;
 pub mod dto;
 pub mod error;
 pub mod runtime;
@@ -31,7 +32,11 @@ pub use dto::{
 // Re-export error and state types.
 pub use error::AutomationError;
 pub use runtime::AutomationRuntime;
-pub use state::{AppState, default_app_state};
+pub use state::AppState;
+pub use bootstrap::{
+    build_runtime_from_env, default_app_state, default_automation_runtime,
+    ensure_durable_automation_runtime_from_env,
+};
 
 // Re-export app builders and router constructors.
 pub use app::{

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_app_context::AppContext;
@@ -9,6 +9,10 @@ use projection_service::TimelineProjectionService;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+use sdkwork_utils_rust::{
+    cursor_list_page_data, SdkWorkCursorListQuery, SdkWorkPageData, MAX_LIST_PAGE_SIZE,
+    DEFAULT_LIST_PAGE_SIZE,
+};
 use tokio::sync::Semaphore;
 
 use crate::dto::{
@@ -21,9 +25,11 @@ use crate::helpers::{
     automation_notification_id, automation_notification_source_event_id,
     delivery_status_from_notification_status, ensure_notification_request_access,
     fanout_notification_id, insert_notification_recipient_index, notification_matches_request,
+    insert_runtime_notification_recipient_index,
     notification_recipient_scope_key, notification_request_key, notification_scope_key,
-    notification_sort_key, notification_visible_to_actor, remove_notification_recipient_index,
-    validate_notification_request_payload_size,
+    notification_visible_to_actor, remove_notification_recipient_index,
+    remove_runtime_notification_recipient_index,
+    validate_notification_request_payload_size, NotificationRecipientIndex,
 };
 
 #[derive(Clone)]
@@ -47,7 +53,7 @@ pub struct NotificationRuntime {
 #[derive(Default)]
 pub(crate) struct NotificationRuntimeTaskState {
     tasks: HashMap<String, NotificationTask>,
-    tasks_by_recipient: HashMap<String, BTreeSet<String>>,
+    tasks_by_recipient: NotificationRecipientIndex,
 }
 
 #[derive(Default)]
@@ -397,27 +403,70 @@ impl NotificationRuntime {
         &self,
         auth: &AppContext,
     ) -> Result<Vec<NotificationTask>, NotificationError> {
+        Ok(self
+            .list_notifications_page(auth, SdkWorkCursorListQuery::default())?
+            .items)
+    }
+
+    pub fn list_notifications_page(
+        &self,
+        auth: &AppContext,
+        query: SdkWorkCursorListQuery,
+    ) -> Result<SdkWorkPageData<NotificationTask>, NotificationError> {
         self.ensure_recipient_tasks(
             auth.tenant_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
         )?;
+        let page_size = query
+            .page_size
+            .map(i64::from)
+            .unwrap_or(i64::from(DEFAULT_LIST_PAGE_SIZE))
+            .clamp(1, i64::from(MAX_LIST_PAGE_SIZE)) as usize;
+        let after_notification_id = query
+            .cursor
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
         let state = self.tasks.lock_notification();
-        let mut items: Vec<_> = notification_keys_for_recipient(
-            &state,
+        let recipient_key = notification_recipient_scope_key(
             auth.tenant_id.as_str(),
             auth.actor_kind.as_str(),
             auth.actor_id.as_str(),
-        )
-        .into_iter()
-        .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
-        .collect();
-        items.sort_by(|left, right| {
-            notification_sort_key(right)
-                .cmp(&notification_sort_key(left))
-                .then_with(|| right.notification_id.cmp(&left.notification_id))
-        });
-        Ok(items)
+        );
+        let Some(index) = state.tasks_by_recipient.get(recipient_key.as_str()) else {
+            return Ok(cursor_list_page_data(Vec::new(), page_size, None, false));
+        };
+
+        let mut past_cursor = after_notification_id.is_none();
+        let mut items = Vec::with_capacity(page_size.saturating_add(1));
+        for (sort_key, notification_key) in index.iter() {
+            if !past_cursor {
+                if after_notification_id.as_deref() == Some(sort_key.1.as_str()) {
+                    past_cursor = true;
+                }
+                continue;
+            }
+            let Some(task) = state.tasks.get(notification_key.as_str()) else {
+                continue;
+            };
+            items.push(task.clone());
+            if items.len() > page_size {
+                break;
+            }
+        }
+
+        let has_more = items.len() > page_size;
+        if has_more {
+            items.truncate(page_size);
+        }
+        let next_cursor = if has_more {
+            items.last().map(|task| task.notification_id.clone())
+        } else {
+            None
+        };
+        Ok(cursor_list_page_data(items, page_size, next_cursor, has_more))
     }
 
     pub fn get_notification(
@@ -511,7 +560,7 @@ pub(crate) struct RuntimeMemoryNotificationTaskStore {
 #[derive(Default)]
 pub(crate) struct RuntimeMemoryNotificationTaskState {
     tasks: HashMap<String, NotificationTaskRecord>,
-    tasks_by_recipient: HashMap<String, BTreeSet<String>>,
+    tasks_by_recipient: NotificationRecipientIndex,
 }
 
 impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
@@ -563,13 +612,13 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
         recipient_id: &str,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         let state = self.state.lock_notification();
-        let task_keys = state
-            .tasks_by_recipient
-            .get(notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id).as_str())
-            .cloned()
-            .unwrap_or_default();
-        Ok(task_keys
-            .into_iter()
+        let recipient_key =
+            notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id);
+        let Some(index) = state.tasks_by_recipient.get(recipient_key.as_str()) else {
+            return Ok(Vec::new());
+        };
+        Ok(index
+            .values()
             .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
     }
@@ -614,44 +663,6 @@ fn remove_runtime_notification_task(
         &removed,
     );
     Some(removed)
-}
-
-fn insert_runtime_notification_recipient_index(
-    index: &mut HashMap<String, BTreeSet<String>>,
-    notification_key: &str,
-    task: &NotificationTask,
-) {
-    index
-        .entry(runtime_notification_recipient_scope_key(task))
-        .or_default()
-        .insert(notification_key.to_owned());
-}
-
-fn remove_runtime_notification_recipient_index(
-    index: &mut HashMap<String, BTreeSet<String>>,
-    notification_key: &str,
-    task: &NotificationTask,
-) {
-    let recipient_key = runtime_notification_recipient_scope_key(task);
-    if let Some(task_keys) = index.get_mut(recipient_key.as_str()) {
-        task_keys.remove(notification_key);
-        if task_keys.is_empty() {
-            index.remove(recipient_key.as_str());
-        }
-    }
-}
-
-fn notification_keys_for_recipient(
-    state: &NotificationRuntimeTaskState,
-    tenant_id: &str,
-    recipient_kind: &str,
-    recipient_id: &str,
-) -> BTreeSet<String> {
-    state
-        .tasks_by_recipient
-        .get(notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id).as_str())
-        .cloned()
-        .unwrap_or_default()
 }
 
 trait NotificationMutexExt<T> {

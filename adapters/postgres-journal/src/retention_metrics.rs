@@ -18,6 +18,8 @@ pub struct RetentionPurgeMetrics {
     inbox_events_deleted_total: AtomicU64,
     projection_timeline_entries_deleted_total: AtomicU64,
     realtime_device_events_deleted_total: AtomicU64,
+    rtc_sessions_deleted_total: AtomicU64,
+    rtc_signals_deleted_total: AtomicU64,
     last_duration_micros: AtomicU64,
 }
 
@@ -44,6 +46,10 @@ impl RetentionPurgeMetrics {
             .fetch_add(report.projection_timeline_entries_deleted, Ordering::Relaxed);
         self.realtime_device_events_deleted_total
             .fetch_add(report.realtime_device_events_deleted, Ordering::Relaxed);
+        self.rtc_sessions_deleted_total
+            .fetch_add(report.rtc_sessions_deleted, Ordering::Relaxed);
+        self.rtc_signals_deleted_total
+            .fetch_add(report.rtc_signals_deleted, Ordering::Relaxed);
         self.last_duration_micros
             .store(duration_micros, Ordering::Relaxed);
     }
@@ -90,6 +96,8 @@ impl RetentionPurgeMetrics {
              im_retention_purge_rows_deleted_total{{{base_labels},store=\"inbox_events\"}} {}\n\
              im_retention_purge_rows_deleted_total{{{base_labels},store=\"projection_timeline\"}} {}\n\
              im_retention_purge_rows_deleted_total{{{base_labels},store=\"realtime_device_events\"}} {}\n\
+             im_retention_purge_rows_deleted_total{{{base_labels},store=\"rtc_sessions\"}} {}\n\
+             im_retention_purge_rows_deleted_total{{{base_labels},store=\"rtc_signals\"}} {}\n\
              # HELP im_retention_purge_last_duration_seconds Duration of the most recent retention purge batch in seconds.\n\
              # TYPE im_retention_purge_last_duration_seconds gauge\n\
              im_retention_purge_last_duration_seconds{{{base_labels}}} {last_duration_seconds}\n\
@@ -106,6 +114,8 @@ impl RetentionPurgeMetrics {
             self.inbox_events_deleted_total.load(Ordering::Relaxed),
             self.projection_timeline_entries_deleted_total.load(Ordering::Relaxed),
             self.realtime_device_events_deleted_total.load(Ordering::Relaxed),
+            self.rtc_sessions_deleted_total.load(Ordering::Relaxed),
+            self.rtc_signals_deleted_total.load(Ordering::Relaxed),
         )
     }
 }
@@ -134,6 +144,8 @@ mod tests {
                 inbox_events_deleted: 0,
                 projection_timeline_entries_deleted: 1,
                 realtime_device_events_deleted: 0,
+                rtc_sessions_deleted: 4,
+                rtc_signals_deleted: 0,
             },
             1_500_000,
         );

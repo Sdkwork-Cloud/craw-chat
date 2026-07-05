@@ -77,7 +77,7 @@ Options:
   --deployment-profile <standalone|cloud>           Default: standalone
   --service-layout <unified-process|split-services> Default: unified-process
   --target <browser|desktop>                        Default: browser
-  --database <postgres|sqlite>
+  --database <postgres>                             Default: postgres
   --help, -h
 `);
 }
@@ -92,13 +92,9 @@ async function main() {
   const profileId = resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout)
     || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
-  const postgresProfile = settings.database !== 'sqlite'
-    ? resolvePostgresDevProfile({ env: process.env, repoRoot: REPO_ROOT })
-    : undefined;
-  const envFile = settings.database === 'sqlite' ? '.env.sqlite' : undefined;
-  const fileEnv = settings.database === 'sqlite'
-    ? loadEnvFile(envFile)
-    : postgresProfile?.fileEnv ?? {};
+  const postgresProfile = resolvePostgresDevProfile({ env: process.env, repoRoot: REPO_ROOT });
+  const envFile = undefined;
+  const fileEnv = postgresProfile?.fileEnv ?? {};
   const childEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
     SDKWORK_IM_DEPLOYMENT_PROFILE: settings.deploymentProfile,

@@ -1,7 +1,8 @@
 use axum::Json;
-use axum::extract::{Path, State};
-use axum::http::HeaderMap;
+use axum::extract::{Extension, Path, State};
+use axum::response::Response;
 use im_app_context::AppContext;
+use sdkwork_web_core::WebRequestContext;
 use im_domain_core::social::{
     ExternalConnection, ExternalConnectionKind, ExternalConnectionStatus, ExternalMemberLink,
     ExternalMemberLinkStatus, ensure_cross_tenant_connection,
@@ -13,6 +14,8 @@ use im_domain_events::social::{
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use serde::{Deserialize, Serialize};
 
+use crate::api_payload::resource_item;
+use crate::envelope::finish_enveloped_json;
 use crate::friendship::{AppState, SocialServiceError};
 use crate::runtime::{
     SocialRuntime, SocialWritePersistence, StoredExternalConnection, StoredExternalMemberLink,
@@ -685,103 +688,111 @@ impl SocialRuntime {
 // ---------------------------------------------------------------------------
 
 pub(crate) async fn establish_external_connection(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(request): Json<EstablishExternalConnectionRequest>,
-) -> Result<Json<SocialExternalConnectionCommitResponse>, SocialServiceError> {
-    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+) -> Response {
+    let result = (|| {
+        let established = state.social_runtime.establish_external_connection(
+            auth.tenant_id.as_str(),
+            &auth,
+            request,
+        )?;
 
-    let established = state.social_runtime.establish_external_connection(
-        auth.tenant_id.as_str(),
-        &auth,
-        request,
-    )?;
-
-    Ok(Json(SocialExternalConnectionCommitResponse {
-        status: SocialExternalConnectionWriteStatus::Established,
-        external_connection: established.external_connection,
-        latest_commit: established.latest_commit.into(),
-        persistence: established.persistence,
-    }))
+        Ok(resource_item(SocialExternalConnectionCommitResponse {
+            status: SocialExternalConnectionWriteStatus::Established,
+            external_connection: established.external_connection,
+            latest_commit: established.latest_commit.into(),
+            persistence: established.persistence,
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn external_connection_snapshot(
     Path(connection_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialExternalConnectionSnapshotResponse>, SocialServiceError> {
-    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+) -> Response {
+    let result = (|| {
+        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state
+            .social_runtime
+            .refresh_state_from_authority_for_write()?;
+        let snapshot = state
+            .social_runtime
+            .external_connection_snapshot(auth.tenant_id.as_str(), connection_id.as_str())
+            .ok_or_else(|| {
+                SocialServiceError::not_found(
+                    "external_connection_not_found",
+                    format!("external connection {connection_id} was not found"),
+                )
+            })?;
 
-    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
-    state
-        .social_runtime
-        .refresh_state_from_authority_for_write()?;
-    let snapshot = state
-        .social_runtime
-        .external_connection_snapshot(auth.tenant_id.as_str(), connection_id.as_str())
-        .ok_or_else(|| {
-            SocialServiceError::not_found(
-                "external_connection_not_found",
-                format!("external connection {connection_id} was not found"),
-            )
-        })?;
-
-    Ok(Json(SocialExternalConnectionSnapshotResponse {
-        status: SocialExternalConnectionReadStatus::Snapshot,
-        external_connection: snapshot.external_connection,
-        commits: snapshot.commits.into_iter().map(Into::into).collect(),
-    }))
+        Ok(resource_item(SocialExternalConnectionSnapshotResponse {
+            status: SocialExternalConnectionReadStatus::Snapshot,
+            external_connection: snapshot.external_connection,
+            commits: snapshot.commits.into_iter().map(Into::into).collect(),
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn bind_external_member_link(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(request): Json<BindExternalMemberLinkRequest>,
-) -> Result<Json<SocialExternalMemberLinkCommitResponse>, SocialServiceError> {
-    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+) -> Response {
+    let result = (|| {
+        let bound =
+            state
+                .social_runtime
+                .bind_external_member_link(auth.tenant_id.as_str(), &auth, request)?;
 
-    let bound =
         state
             .social_runtime
-            .bind_external_member_link(auth.tenant_id.as_str(), &auth, request)?;
+            .dispatch_shared_channel_sync_requests(&bound.shared_channel_sync_requests)
+            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_failed", error))?;
 
-    state
-        .social_runtime
-        .dispatch_shared_channel_sync_requests(&bound.shared_channel_sync_requests)
-        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_failed", error))?;
-
-    Ok(Json(SocialExternalMemberLinkCommitResponse {
-        status: SocialExternalMemberLinkWriteStatus::Bound,
-        external_member_link: bound.external_member_link,
-        latest_commit: bound.latest_commit.into(),
-        persistence: bound.persistence,
-    }))
+        Ok(resource_item(SocialExternalMemberLinkCommitResponse {
+            status: SocialExternalMemberLinkWriteStatus::Bound,
+            external_member_link: bound.external_member_link,
+            latest_commit: bound.latest_commit.into(),
+            persistence: bound.persistence,
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn external_member_link_snapshot(
     Path(link_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialExternalMemberLinkSnapshotResponse>, SocialServiceError> {
-    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+) -> Response {
+    let result = (|| {
+        let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
+        state
+            .social_runtime
+            .refresh_state_from_authority_for_write()?;
+        let snapshot = state
+            .social_runtime
+            .external_member_link_snapshot(auth.tenant_id.as_str(), link_id.as_str())
+            .ok_or_else(|| {
+                SocialServiceError::not_found(
+                    "external_member_link_not_found",
+                    format!("external member link {link_id} was not found"),
+                )
+            })?;
 
-    let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
-    state
-        .social_runtime
-        .refresh_state_from_authority_for_write()?;
-    let snapshot = state
-        .social_runtime
-        .external_member_link_snapshot(auth.tenant_id.as_str(), link_id.as_str())
-        .ok_or_else(|| {
-            SocialServiceError::not_found(
-                "external_member_link_not_found",
-                format!("external member link {link_id} was not found"),
-            )
-        })?;
-
-    Ok(Json(SocialExternalMemberLinkSnapshotResponse {
-        status: SocialExternalMemberLinkReadStatus::Snapshot,
-        external_member_link: snapshot.external_member_link,
-        commits: snapshot.commits.into_iter().map(Into::into).collect(),
-    }))
+        Ok(resource_item(SocialExternalMemberLinkSnapshotResponse {
+            status: SocialExternalMemberLinkReadStatus::Snapshot,
+            external_member_link: snapshot.external_member_link,
+            commits: snapshot.commits.into_iter().map(Into::into).collect(),
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }

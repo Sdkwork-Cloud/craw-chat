@@ -89,11 +89,11 @@ mod tests {
     #[test]
     fn test_room_kind_wire_values_round_trip() {
         for kind in [RoomKind::Live, RoomKind::Chat, RoomKind::Game] {
+            assert_eq!(RoomKind::parse_wire_value(kind.as_wire_value()), Some(kind));
             assert_eq!(
-                RoomKind::parse_wire_value(kind.as_wire_value()),
+                room_kind_from_business_type(kind.business_type()),
                 Some(kind)
             );
-            assert_eq!(room_kind_from_business_type(kind.business_type()), Some(kind));
         }
     }
 

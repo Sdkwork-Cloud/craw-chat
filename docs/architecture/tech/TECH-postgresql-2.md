@@ -11,7 +11,7 @@
 - public route: `/sdkwork/chat`
 - package name: `sdkwork-chat`
 - server database default: PostgreSQL
-- desktop database default: SQLite
+- desktop local storage: browser IndexedDB / localStorage
 
 ## 1. 运行时目录
 
@@ -237,7 +237,7 @@ bash bin/start-server.sh --instance default --release
 
 Windows Service 使用 `install-service-server.ps1` 安装并注册 `SdkworkImServer`。后台启动通过 systemd、launchd 或 Windows Service 读取配置入口 `sdkwork-im-server --config <config-root>/chat.toml`。
 
-线上不要使用本地开发命令。`pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop`、`pnpm dev:browser:sqlite`、`pnpm dev:desktop:sqlite` 仅用于开发编排；线上 PostgreSQL 运行必须使用服务端配置根 `/etc/sdkwork/chat/chat.toml`。
+线上不要使用本地开发命令。`pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop` 仅用于开发编排；线上 PostgreSQL 运行必须使用服务端配置根 `/etc/sdkwork/chat/chat.toml`。
 
 ## 10. 安全与运维要点
 

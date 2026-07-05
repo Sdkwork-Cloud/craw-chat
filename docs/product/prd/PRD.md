@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: chat
-Updated: 2026-06-27
+Updated: 2026-07-05
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
@@ -90,10 +90,12 @@ Product detail lives in the linked PRD shards below.
 
 ## 6. Dependencies
 
-- **PostgreSQL**: Primary event store and projection store.
+- **PostgreSQL**: Primary event store and projection store (IM core runtime authority).
+- **Desktop local storage**: Browser IndexedDB / localStorage for gateway webstore and sibling modules; not the IM commit journal.
 - **Redis**: Cluster bus, route store, sequence allocator.
 - **Object storage (S3)**: Media file storage via Drive SDK.
 - **IAM**: Tenant and user identity via `iam_tenant`, `iam_user`.
+- **Community**: Product logic in sibling `../sdkwork-community`; IM integrates via gateway proxy and `@sdkwork/im-pc-community` host adapter.
 - **OpenTelemetry collector**: Distributed tracing and metrics.
 
 ## 7. Risks and Mitigations
@@ -112,7 +114,7 @@ As of 2026-06-30:
 ### Backend, API, and Admin
 
 - OpenAPI authorities for `/im/v3/api`, `/app/v3/api`, and `/backend/v3/api` are checked in with generated TypeScript and Flutter SDK families.
-- PostgreSQL/SQLite migrations live under `database/migrations/` with framework contract tests (`pnpm run test:database-framework-standard`).
+- PostgreSQL migrations live under `database/migrations/` with framework contract tests (`pnpm run test:database-framework-standard`). IM core durable authority is PostgreSQL-only; desktop uses browser local storage (IndexedDB / localStorage) for gateway webstore and sibling modules, with no local SQL database file.
 - Admin/console surfaces ship through `apps/sdkwork-im-pc` package families (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) with generated backend SDK integration.
 - Gateway chat routes resolve principal directories from environment (catalog path or dev/test allow-all); production forbids `SDKWORK_IM_ALLOW_ALL_PRINCIPALS`.
 - Production rejects the public dev/test JWT signing secret (`sdkwork-im-dev-jwt-secret-not-for-production-use`) at AppContext validation time (fail-closed).
@@ -127,16 +129,25 @@ As of 2026-06-30:
 
 | Surface | Root | Status | Notes |
 | --- | --- | --- | --- |
-| PC web/desktop | `apps/sdkwork-im-pc` | **Production pilot ready** | Playwright shell + authenticated chat e2e (mock IAM/IM in CI); virtualized message list with scroll-up pagination |
+| PC web/desktop | `apps/sdkwork-im-pc` | **Production pilot ready** | Core chat SDK-backed with inbox/groups/contacts pagination (`list*Page`, `getGroupById`); bounded sync via `forEachCursorPage`; shell exposes only `COMMERCIAL_RUNTIME_MODULES` with verified SDK read/write surfaces |
 | Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production pilot ready** | Admin overview wired to backend ops/audit SDKs |
-| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox + conversation REST, incremental WebSocket timeline sync, scroll-up pagination, Drive image upload; session tokens in `sessionStorage` |
+| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox pagination + virtualized timeline, incremental WebSocket sync, Drive image upload |
 | Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket timeline sync, scroll-up pagination, Drive image upload; tokens in `flutter_secure_storage` |
+
+### Commerce and Extension Modules (pre-GA boundaries)
+
+| Module | Status | Notes |
+| --- | --- | --- |
+| Orders | Merchant/consumer read + cancel/fulfill/pay via `@sdkwork/order-app-sdk` / `@sdkwork/shop-app-sdk` | No delete/create-from-console; completion follows fulfillment lifecycle |
+| Shop | Catalog, cart, checkout, `orders.pay` | Favorites and consumer shipping-address APIs not in T1 contracts |
+| Community | Feeds, comments, reactions, entry delete via `../sdkwork-community` (`@sdkwork/community-pc-community`); IM integrates through `@sdkwork/im-pc-community` host adapter + gateway proxy | Groups/news/docs/repos/resources tabs deferred until contracts ship |
+| Calendar / Mail / Approval / Attendance / Gen-AI tabs | **Contract pending** | Hidden from commercial navigation (`CONTRACT_PENDING_MODULES`) |
 
 ### Operations and Evidence
 
 - CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and split-service tests on `main`.
 - Pre-Release and Capacity tier evidence indexes both require `evidence_collected_gate_passed`; doc-captured backfill boundaries are declared in each index `boundary` field.
-- Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback.
+- Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback, and APNs HTTP/2 JWT (`SDKWORK_IM_APNS_*`) for iOS device tokens.
 - Kubernetes reference manifests cover gateway, realtime, conversation, governance, notification, projection, media, streaming, audit, automation, social, space, contact, interaction, and ops services with Ingress, PDB, HPA, ConfigMap, Secret, and NetworkPolicy templates.
 - Staging topology profile: `cloud.split-services.staging`.
 - Customer operations and data protection guides: `docs/product/compliance/`.

@@ -6,6 +6,7 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
+chrono = "0.4.44"
 sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 sdkwork-im-ccp-binding-tcp = { path = "../../crates/sdkwork-im-ccp-binding-tcp" }
@@ -31,6 +32,8 @@ im-postgres-realtime-contracts = { path = "../../crates/im-postgres-realtime-con
 im-time = { path = "../../crates/im-time" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
+sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
 serde.workspace = true

@@ -295,6 +295,18 @@ jobs:
           cargo test -p im-domain-core retention
           cargo test -p im-adapters-postgres-journal retention
 
+      - name: Test projection tier and cursor standard
+        run: node scripts/dev/sdkwork-im-projection-tier-standard.test.mjs
+
+      - name: Test social materializer transactional batch standard
+        run: node scripts/dev/sdkwork-im-social-materializer-standard.test.mjs
+
+      - name: Test space materializer transactional batch standard
+        run: node scripts/dev/sdkwork-im-space-materializer-standard.test.mjs
+
+      - name: Test monorepo frozen install standard
+        run: node scripts/dev/sdkwork-im-monorepo-frozen-install-standard.test.mjs
+
       - name: Test Rust workspace
         run: cargo test --workspace --offline
 

@@ -10,6 +10,7 @@ use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_web_core::WebRequestContext;
 use tokio::sync::Semaphore;
 
+use crate::bootstrap::default_notification_runtime;
 use crate::error::NotificationError;
 use crate::handlers::{get_notification, list_notifications, request_notification};
 use crate::openapi::{docs, openapi_json};
@@ -25,13 +26,11 @@ const NOTIFICATION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const NOTIFICATION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 
 pub fn default_app_state() -> AppState {
-    AppState {
-        runtime: Arc::new(NotificationRuntime::default()),
-    }
+    crate::bootstrap::default_app_state()
 }
 
 pub fn build_default_app() -> Router {
-    build_app(Arc::new(NotificationRuntime::default()))
+    build_app(default_notification_runtime())
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
@@ -62,9 +61,7 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 
 pub fn build_public_app() -> Router {
     mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(Arc::new(
-            NotificationRuntime::default(),
-        ))),
+        apply_public_http_guardrails(build_business_router(default_notification_runtime())),
         im_service_router_config(),
     )
 }

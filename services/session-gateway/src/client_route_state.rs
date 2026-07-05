@@ -85,6 +85,38 @@ impl ClientRouteState {
             });
     }
 
+    pub(crate) fn unregister_route_key(&self, auth: &AppContext, device_id: &str) {
+        let principal_key = typed_principal_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
+        {
+            let mut registered =
+                lock_client_route_mutex(&self.registered_route_keys, "client route key store");
+            if let Some(devices) = registered.get_mut(principal_key.as_str()) {
+                devices.remove(device_id);
+                if devices.is_empty() {
+                    registered.remove(principal_key.as_str());
+                }
+            }
+        }
+        lock_client_route_mutex(&self.latest_sync_sequences, "latest sync sequence store").remove(
+            typed_client_route_scope_key(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+            )
+            .as_str(),
+        );
+        lock_client_route_mutex(&self.route_owner_scopes, "client route owner store").remove(
+            tenant_client_route_scope_key(auth.tenant_id.as_str(), device_id).as_str(),
+        );
+    }
+
     #[cfg(test)]
     pub(crate) fn has_registered_route_key(&self, auth: &AppContext, device_id: &str) -> bool {
         lock_client_route_mutex(&self.registered_route_keys, "client route key store")

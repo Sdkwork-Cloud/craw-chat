@@ -1,10 +1,22 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use im_domain_core::rtc::SessionState;
     use crate::state::{CallingRuntime, RuntimeMemoryStateStore};
+    use im_domain_core::rtc::SessionState;
+    use std::sync::Arc;
+
+    use std::sync::Mutex;
+
+    static TEST_IM_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn pin_test_im_environment() {
+        let _guard = TEST_IM_ENV_LOCK.lock().expect("test im env lock");
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+        }
+    }
 
     fn create_test_auth() -> im_app_context::AppContext {
+        pin_test_im_environment();
         im_app_context::local_service_app_context(
             "100001",
             "user-1",
@@ -237,8 +249,18 @@ mod tests {
             .invite_session(&auth, "rtc_invite_1", invite)
             .expect("invite should succeed");
         assert_eq!(invited.participants.invited_ids.len(), 2);
-        assert!(invited.participants.invited_ids.contains(&"user-2".to_owned()));
-        assert!(invited.participants.invited_ids.contains(&"user-3".to_owned()));
+        assert!(
+            invited
+                .participants
+                .invited_ids
+                .contains(&"user-2".to_owned())
+        );
+        assert!(
+            invited
+                .participants
+                .invited_ids
+                .contains(&"user-3".to_owned())
+        );
 
         // Idempotent: re-inviting the same participants does not duplicate.
         let invite_again = crate::dto::InviteRtcSessionRequest {

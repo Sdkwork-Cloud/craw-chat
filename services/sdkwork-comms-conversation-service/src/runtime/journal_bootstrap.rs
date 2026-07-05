@@ -1,9 +1,15 @@
 use im_adapters_postgres_journal::{
-    PostgresAggregateStore, PostgresCommitJournal, PostgresJournalConfig, PostgresMessageStore,
+    PostgresAggregateStore, PostgresCommitJournal, PostgresConversationSeqAllocator,
+    PostgresDurableMessagePostWriter, PostgresJournalConfig, PostgresMessageStore,
     PostgresOutboxStore, PostgresRetentionScopeStore,
 };
+use im_adapters_redis_cache::RedisSeqAllocator;
+use im_adapters_social_postgres::user_block_store::PostgresUserBlockStore;
 use im_app_context::resolve_web_environment_from_process_env;
-use im_platform_contracts::{ConversationAggregateStore, IdGenerator, MessageStore, OutboxStore, RetentionScopeStore};
+use im_platform_contracts::{
+    ConversationAggregateStore, ConversationSeqAllocator, IdGenerator, MessageStore, OutboxStore,
+    RetentionScopeStore,
+};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
@@ -12,7 +18,10 @@ use sdkwork_web_core::WebEnvironment;
 use std::sync::Arc;
 use tracing::info;
 
-use super::{ConversationRuntime, InMemoryJournal};
+use super::{
+    ConversationRuntime, DurableMessagePostWriter, InMemoryJournal,
+    postgres_direct_message_gate::PostgresDirectMessageAccessGate,
+};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 
@@ -67,8 +76,9 @@ pub fn resolve_conversation_commit_journal_from_env() -> Result<ConversationComm
 
         let environment = resolve_web_environment_from_process_env();
         if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
-            info!(
-                "conversation-runtime using in-memory commit journal for non-postgres IM database in development"
+            sdkwork_im_database_pool::log_im_core_ephemeral_non_postgres_authority(
+                "conversation-runtime",
+                config.engine,
             );
             return Ok(ConversationCommitJournal::Memory(InMemoryJournal::default()));
         }
@@ -105,17 +115,15 @@ pub fn build_conversation_runtime_from_env() -> Result<ConversationRuntime<Conve
     if let ConversationCommitJournal::Postgres(postgres_journal) = journal {
         let pool = postgres_journal.pool().clone();
 
-        // Build Snowflake ID generator for message sequence allocation (eliminates DB hotspot).
-        // Uses the synchronous variant so this function stays callable from
-        // synchronous bootstrap paths (e.g. `build_default_app` in tests and
-        // the `bootstrap_conversation_app_state_from_env` entrypoint). Production
-        // deployments that need database-backed node_id allocation should set
-        // `SDKWORK_IM_ID_NODE_ID` explicitly or run the async
-        // `build_runtime_id_generator` from an async bootstrap path.
+        // Snowflake ID generator for message_id / event_id (not message_seq).
         let id_generator = build_runtime_id_generator_blocking("conversation-service");
+        let seq_allocator = resolve_conversation_seq_allocator_from_env(pool.clone());
 
         runtime = runtime
-            .with_message_store(Arc::new(PostgresMessageStore::with_id_generator(pool.clone(), id_generator.clone())) as Arc<dyn MessageStore>)
+            .with_message_store(
+                Arc::new(PostgresMessageStore::from_pool(pool.clone())) as Arc<dyn MessageStore>,
+            )
+            .with_seq_allocator(seq_allocator)
             .with_outbox_store(
                 Arc::new(PostgresOutboxStore::from_pool(pool.clone())) as Arc<dyn OutboxStore>
             )
@@ -125,11 +133,59 @@ pub fn build_conversation_runtime_from_env() -> Result<ConversationRuntime<Conve
             )
             .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(pool))
                 as Arc<dyn RetentionScopeStore>)
-            .with_id_generator(id_generator);
-        info!("conversation-runtime wired postgres stores with Snowflake ID generation");
+            .with_id_generator(id_generator)
+            .with_durable_message_post_writer(Arc::new(
+                PostgresDurableMessagePostWriter::from_journal(&postgres_journal),
+            ) as Arc<dyn DurableMessagePostWriter>);
+        if let Ok(shared_pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
+            let block_store = Arc::new(PostgresUserBlockStore::new(Arc::new(shared_pool)));
+            runtime = runtime.with_direct_message_access_gate(Arc::new(
+                PostgresDirectMessageAccessGate::new(block_store),
+            ));
+            info!("conversation-runtime wired postgres direct message access gate");
+        }
+        info!("conversation-runtime wired postgres stores with per-conversation seq allocation");
     }
 
     Ok(runtime)
+}
+
+const IM_REDIS_SEQ_URL_ENV: &str = "SDKWORK_IM_REALTIME_ROUTE_STORE_URL";
+const IM_CLUSTER_BUS_URL_ENV: &str = "SDKWORK_IM_REALTIME_CLUSTER_BUS_URL";
+
+fn resolve_conversation_seq_allocator_from_env(
+    pool: im_adapters_postgres_journal::PostgresJournalPool,
+) -> Arc<dyn ConversationSeqAllocator> {
+    if let Some(redis_url) = resolve_redis_seq_allocator_url_from_env() {
+        match redis::Client::open(redis_url.as_str()) {
+            Ok(client) => {
+                info!("conversation-runtime using redis conversation seq allocator");
+                return Arc::new(RedisSeqAllocator::new(client));
+            }
+            Err(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    "invalid redis url for conversation seq allocator; falling back to postgres"
+                );
+            }
+        }
+    }
+
+    info!("conversation-runtime using postgres conversation seq allocator");
+    Arc::new(PostgresConversationSeqAllocator::from_pool(pool))
+}
+
+fn resolve_redis_seq_allocator_url_from_env() -> Option<String> {
+    std::env::var(IM_REDIS_SEQ_URL_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            std::env::var(IM_CLUSTER_BUS_URL_ENV)
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty())
+        })
 }
 
 fn resolve_im_database_url_from_env() -> Option<String> {

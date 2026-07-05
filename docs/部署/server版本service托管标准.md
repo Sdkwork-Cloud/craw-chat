@@ -62,7 +62,7 @@ macOS service：
 - `SDKWORK_IM_CONFIG_FILE` 可覆盖配置路径。
 - `SDKWORK_IM_LOG_DIR` 必须指向平台 log root。
 - Server deployments default to PostgreSQL and Redis。
-- Desktop deployments default to SQLite and Redis disabled。
+- Desktop deployments use browser local storage (IndexedDB / localStorage); Redis disabled。
 - Browser-visible variables must not expose database URLs、Redis URLs 或 password files。
 
 ## Unified Gateway Contract

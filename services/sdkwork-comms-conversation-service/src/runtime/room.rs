@@ -180,7 +180,7 @@ where
         }));
 
         let owner_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, owner_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, owner_member.clone());
         upsert_read_cursor(
             &mut conversation,
             build_default_read_cursor(&owner_member),
@@ -293,12 +293,14 @@ where
             command.organization_id.as_str(),
             conversation_id.as_str(),
         );
+        let organization_id = command.organization_id.clone();
         let member = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.room.enter");
-            let conversation = state.conversations.get_mut(scope_key.as_str()).ok_or_else(|| {
-                RuntimeError::ConversationNotFound(conversation_id.clone())
-            })?;
+            let member = {
+                let conversation = state.conversations.get_mut(scope_key.as_str()).ok_or_else(|| {
+                    RuntimeError::ConversationNotFound(conversation_id.clone())
+                })?;
             let room_kind = room_kind_for_conversation(conversation)?;
             policy::ensure_room_enter_allowed(conversation, room_kind)?;
 
@@ -360,9 +362,12 @@ where
                 command.principal_kind.as_str(),
             );
             self.journal.append(envelope)?;
-            upsert_member(conversation, participant.clone());
+            upsert_roster_member(conversation, participant.clone());
             upsert_read_cursor(conversation, build_default_read_cursor(&participant));
             participant
+            };
+            state.sync_actor_inbox_member(organization_id.as_str(), &member);
+            member
         };
 
         Ok(member)

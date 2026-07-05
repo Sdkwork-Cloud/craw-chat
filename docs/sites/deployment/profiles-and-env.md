@@ -83,6 +83,17 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 | `SDKWORK_IM_REALTIME_ROUTE_STORE_URL` | Redis-backed route store (tiered with Postgres when both set). |
 | `SDKWORK_IM_REALTIME_MAX_LINK_CONNECTIONS` | Per-node link transport connection ceiling. |
 | `SDKWORK_IM_LIVE_ROOM_MESSAGE_RATE_LIMIT` | Per-user live-room message posts per second (default `5`, max `60`). |
+| `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER` | When `1`/`true`, fail closed when conversation `post_message` or social commits require realtime delivery but neither embedded fanout/publisher nor outbox enqueue is configured. |
+| `SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE` | Chunk size for durable/ephemeral scope fanout (default `256`). |
+| `SDKWORK_IM_CONVERSATION_OUTBOX_RELAY_POLL_MS` | Poll interval for conversation outbox relay on session-gateway (default `50`). |
+| `SDKWORK_IM_CONVERSATION_OUTBOX_RELAY_TENANT_ID` | Optional scope pin for conversation outbox relay tests. |
+| `SDKWORK_IM_CONVERSATION_OUTBOX_RELAY_ORGANIZATION_ID` | Optional scope pin for conversation outbox relay tests. |
+| `SDKWORK_IM_SOCIAL_OUTBOX_RELAY_POLL_MS` | Poll interval for social outbox relay on session-gateway (default `50`). |
+| `SDKWORK_IM_SOCIAL_OUTBOX_RELAY_TENANT_ID` | Optional scope pin for social outbox relay tests. |
+| `SDKWORK_IM_SOCIAL_OUTBOX_RELAY_ORGANIZATION_ID` | Optional scope pin for social outbox relay tests. |
+| `SDKWORK_IM_RTC_OUTBOX_RELAY_POLL_MS` | Poll interval for RTC outbox relay on session-gateway. |
+| `SDKWORK_IM_RTC_OUTBOX_RELAY_TENANT_ID` | Optional scope pin for RTC outbox relay tests. |
+| `SDKWORK_IM_RTC_OUTBOX_RELAY_ORGANIZATION_ID` | Optional scope pin for RTC outbox relay tests. |
 
 Development orchestration (`pnpm dev`, `gateway:run:standalone`) injects safe local defaults for
 `SDKWORK_IM_REALTIME_NODE_ID` and `SDKWORK_IM_REALTIME_CLUSTER_BUS_SECRET` when Redis route store or

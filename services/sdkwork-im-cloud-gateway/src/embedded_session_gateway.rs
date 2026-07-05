@@ -8,6 +8,7 @@ pub struct EmbeddedSessionGatewayRuntime {
     pub embedded_realtime_app_state: Option<session_gateway::AppState>,
     pub link_transport_handles: Vec<JoinHandle<()>>,
     pub cluster_subscriber: Option<std::thread::JoinHandle<()>>,
+    pub maintenance_handle: Option<JoinHandle<()>>,
 }
 
 impl EmbeddedSessionGatewayRuntime {
@@ -17,11 +18,15 @@ impl EmbeddedSessionGatewayRuntime {
             embedded_realtime_app_state: None,
             link_transport_handles: Vec::new(),
             cluster_subscriber: None,
+            maintenance_handle: None,
         }
     }
 
     pub async fn shutdown(mut self) {
         for handle in self.link_transport_handles {
+            handle.abort();
+        }
+        if let Some(handle) = self.maintenance_handle {
             handle.abort();
         }
         if let Some(handle) = self.cluster_subscriber {
@@ -73,5 +78,6 @@ pub async fn bootstrap_embedded_session_gateway_runtime(
         embedded_realtime_app_state: Some(embedded_realtime_app_state),
         link_transport_handles: embedded.link_transport_handles,
         cluster_subscriber: embedded.cluster_subscriber,
+        maintenance_handle: embedded.maintenance_handle,
     })
 }

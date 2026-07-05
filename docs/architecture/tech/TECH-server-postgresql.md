@@ -5,7 +5,7 @@
 
 `sdkwork-im-server` 是 SDKWork Chat 的 server 安装入口。当前应用 identity 为 `chat`，发布包名为 `sdkwork-chat`，对外路径为 `/sdkwork/chat`。
 
-Server 与 container 默认使用 PostgreSQL。Desktop 本地用户数据默认使用 SQLite，文件位于 `~/.sdkwork/chat/data/chat.sqlite`。
+Server 与 container 默认使用 PostgreSQL。Desktop 本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不依赖服务端 SQL 数据库。
 
 完整的线上 PostgreSQL 配置教程见 [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)。本文只补充 server 侧 `postgresql.yaml` 外部配置文件契约。
 

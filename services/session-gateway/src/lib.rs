@@ -10,69 +10,73 @@ use im_app_context::AppContext;
 use tokio::sync::Semaphore;
 
 mod api_error;
-mod rpc_dispatch;
-mod gateway_embed;
-mod link_framing;
-mod link_quic;
-mod link_business_contract;
-mod link_realtime;
-mod link_transport;
 mod assembly;
 mod auth_context;
-mod route_store_tier;
-mod runtime_bootstrap;
 mod client_route_registration;
 mod client_route_state;
 mod cluster;
 mod cluster_route_event_auth;
+mod gateway_embed;
+mod http_guardrails;
+mod http_limits;
+mod link_business_contract;
+mod link_framing;
+mod link_quic;
+mod link_realtime;
+mod link_transport;
+mod maintenance;
+mod openapi_export;
 mod presence;
 mod presence_routes;
 mod principal_scope;
 mod realtime;
+mod realtime_http_routes;
+mod route_store_tier;
+mod rpc_dispatch;
+mod runtime_bootstrap;
+mod service_readiness;
+mod scope_access_policy;
 mod websocket;
+mod websocket_auth_init;
 mod websocket_route;
 mod websocket_upgrade;
-mod websocket_auth_init;
-mod http_limits;
-mod http_guardrails;
-mod service_readiness;
-mod openapi_export;
-mod realtime_http_routes;
+mod websocket_upgrade_rate_limit;
+mod websocket_frame_rate_limit;
 
-pub use rpc_dispatch::{SessionGatewayRpcDispatcher, SESSION_GATEWAY_RPC_SERVICE_KEYS};
-pub use gateway_embed::{
-    bootstrap_gateway_embedded_realtime_plane, GatewayEmbeddedRealtimePlane,
-};
-pub use link_transport::spawn_link_transport_listeners;
-pub use auth_context::{RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env};
-pub use assembly::RealtimePlaneAssembly;
-pub use runtime_bootstrap::{
-    bootstrap_realtime_plane_from_env, spawn_cluster_route_event_subscriber, RealtimePlaneBootstrap,
-};
 pub use api_error::ApiError;
-pub use http_limits::{
-    REALTIME_ACCEPT_LEGACY_WEBSOCKET_JSON_ENV, resolve_max_websocket_connections,
-    resolve_realtime_node_id_from_env, realtime_accepts_legacy_websocket_json,
-};
+pub use assembly::RealtimePlaneAssembly;
+pub use auth_context::{RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env};
 use client_route_registration::ClientRouteRegistration;
 use client_route_state::ClientRouteState;
 pub use cluster::{
     RealtimeClientRoute, RealtimeClusterBridge, RealtimeClusterError, RealtimeNodeLifecycleView,
     RealtimeRouteDeliveryResult, RealtimeRouteMigrationResult,
 };
+pub use cluster_route_event_auth::REALTIME_CLUSTER_BUS_SECRET_ENV;
+pub use gateway_embed::{GatewayEmbeddedRealtimePlane, bootstrap_gateway_embedded_realtime_plane};
+pub use http_guardrails::apply_public_http_guardrails;
+pub use http_limits::{
+    REALTIME_ACCEPT_LEGACY_WEBSOCKET_JSON_ENV, realtime_accepts_legacy_websocket_json,
+    resolve_max_websocket_connections, resolve_max_preauth_websocket_connections,
+    resolve_realtime_node_id_from_env,
+};
+pub use link_transport::spawn_link_transport_listeners;
+pub use maintenance::spawn_realtime_maintenance_jobs;
 pub use presence::{PresenceRuntime, PresenceRuntimeError};
+pub use scope_access_policy::ConversationMemberRealtimeScopeAccessPolicy;
 pub use realtime::{
     RealtimeClientRouteStateSnapshot, RealtimeDeliveryRuntime, RealtimeInboxDiagnosticsSnapshot,
     RealtimePostgresAdapterPlan, RealtimePostgresBindingError, RealtimePostgresBindingValue,
-    RealtimePostgresBoundParameter, RealtimePostgresBoundStatement, RealtimePostgresBoundTransaction,
-    RealtimePostgresCheckpointMutation, RealtimePostgresClientRouteEventMutation,
-    RealtimePostgresMethodAtomicity, RealtimePostgresMethodPlan, RealtimePostgresMethodStep,
-    RealtimePostgresParameterBinding, RealtimePostgresRowColumn, RealtimePostgresRowMapping,
-    RealtimePostgresSqlContract, RealtimeRuntimeError, RealtimeScopeAccessPolicy,
-    RealtimeSubscriptionItemInput, StandaloneRealtimeScopeAccessPolicy,
-    SyncRealtimeSubscriptionsRequest, realtime_postgres_adapter_plan,
-    realtime_postgres_bind_ack_transaction, realtime_postgres_bind_checkpoint_upsert,
-    realtime_postgres_bind_client_route_event_upsert, realtime_postgres_bind_publish_transaction,
+    RealtimePostgresBoundParameter, RealtimePostgresBoundStatement,
+    RealtimePostgresBoundTransaction, RealtimePostgresCheckpointMutation,
+    RealtimePostgresClientRouteEventMutation, RealtimePostgresMethodAtomicity,
+    RealtimePostgresMethodPlan, RealtimePostgresMethodStep, RealtimePostgresParameterBinding,
+    RealtimePostgresRowColumn, RealtimePostgresRowMapping, RealtimePostgresSqlContract,
+    RealtimeRuntimeError, RealtimeScopeAccessPolicy, RealtimeSubscriptionItemInput,
+    StandaloneRealtimeScopeAccessPolicy, SyncRealtimeSubscriptionsRequest,
+    realtime_postgres_adapter_plan, realtime_postgres_bind_ack_transaction,
+    realtime_postgres_bind_checkpoint_upsert, realtime_postgres_bind_client_route_event_upsert,
+    realtime_postgres_bind_publish_transaction,
     realtime_postgres_bind_save_subscription_transaction,
     realtime_postgres_bind_subscription_scope_clear,
     realtime_postgres_bind_subscription_scope_replacements,
@@ -80,14 +84,16 @@ pub use realtime::{
     realtime_postgres_sql_contract_specs, realtime_postgres_sql_contracts,
     realtime_postgres_transaction_plans,
 };
-pub use cluster_route_event_auth::REALTIME_CLUSTER_BUS_SECRET_ENV;
+pub use rpc_dispatch::{SESSION_GATEWAY_RPC_SERVICE_KEYS, SessionGatewayRpcDispatcher};
+pub use runtime_bootstrap::{
+    RealtimePlaneBootstrap, bootstrap_realtime_plane_from_env, spawn_cluster_route_event_subscriber,
+};
+use service_readiness::{ServiceReadiness, healthz, readyz};
 pub use websocket::{
     CCP_WEBSOCKET_SUBPROTOCOL, REALTIME_OVERLOAD_CLOSE_CODE, REALTIME_OVERLOAD_CLOSE_REASON,
     RealtimeRouteOwner, RealtimeRouteOwnerError, RealtimeWebsocketMode,
     SESSION_DISCONNECT_CLOSE_CODE, SESSION_DISCONNECT_CLOSE_REASON, serve_realtime_websocket,
 };
-pub use http_guardrails::apply_public_http_guardrails;
-use service_readiness::{healthz, readyz, ServiceReadiness};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -96,8 +102,11 @@ pub struct AppState {
     client_route_state: ClientRouteState,
     client_route_registration: ClientRouteRegistration,
     websocket_connection_semaphore: Arc<Semaphore>,
+    preauth_websocket_connection_semaphore: Arc<Semaphore>,
     readiness: ServiceReadiness,
     auth_resolver: RealtimeAuthContextResolver,
+    websocket_upgrade_rate_limiter: websocket_upgrade_rate_limit::WebsocketUpgradeRateLimiter,
+    websocket_frame_rate_limiter: websocket_frame_rate_limit::WebsocketFrameRateLimiter,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -172,7 +181,10 @@ pub fn build_domain_http_api_router(state: AppState) -> Router {
             "/im/v3/api/realtime/events/ack",
             post(realtime_http_routes::ack_realtime_events),
         )
-        .route("/im/v3/api/realtime/events", get(realtime_http_routes::list_realtime_events))
+        .route(
+            "/im/v3/api/realtime/events",
+            get(realtime_http_routes::list_realtime_events),
+        )
         .with_state(state)
 }
 
@@ -306,6 +318,7 @@ impl AppState {
         realtime_cluster.bind_node_runtime(node_id.as_str(), realtime_runtime.clone());
         let client_route_state = ClientRouteState::default();
         let max_connections = resolve_max_websocket_connections();
+        let max_preauth_connections = resolve_max_preauth_websocket_connections(max_connections);
         Self {
             client_route_registration: ClientRouteRegistration::new(
                 node_id.clone(),
@@ -318,8 +331,13 @@ impl AppState {
             realtime_runtime,
             client_route_state,
             websocket_connection_semaphore: Arc::new(Semaphore::new(max_connections)),
+            preauth_websocket_connection_semaphore: Arc::new(Semaphore::new(max_preauth_connections)),
             readiness: ServiceReadiness::from_env(),
             auth_resolver,
+            websocket_upgrade_rate_limiter:
+                websocket_upgrade_rate_limit::WebsocketUpgradeRateLimiter::from_env(),
+            websocket_frame_rate_limiter:
+                websocket_frame_rate_limit::WebsocketFrameRateLimiter::from_env(),
         }
     }
 
@@ -417,6 +435,10 @@ impl AppState {
 
     pub(crate) fn rpc_realtime_runtime(&self) -> &Arc<RealtimeDeliveryRuntime> {
         &self.realtime_runtime
+    }
+
+    pub fn realtime_runtime(&self) -> Arc<RealtimeDeliveryRuntime> {
+        self.realtime_runtime.clone()
     }
 
     pub(crate) fn rpc_auth_resolver(&self) -> &RealtimeAuthContextResolver {

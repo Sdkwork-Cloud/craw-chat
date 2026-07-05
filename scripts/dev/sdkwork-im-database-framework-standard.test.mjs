@@ -50,9 +50,10 @@ assert.match(databaseHostCargo, /sdkwork_database_lifecycle/u);
 const specsReadme = read('specs/README.md');
 assert.match(specsReadme, /DATABASE_SPEC\.md/u);
 
-for (const engine of ['postgres', 'sqlite']) {
-  const baseline = `database/ddl/baseline/${engine}/0001_im_baseline.sql`;
-  assert.ok(fs.existsSync(path.join(repoRoot, baseline)), `${baseline} must exist for L2 lifecycle`);
-}
+const postgresBaselinePath = 'database/ddl/baseline/postgres/0001_im_baseline.sql';
+assert.ok(
+  fs.existsSync(path.join(repoRoot, postgresBaselinePath)),
+  `${postgresBaselinePath} must exist for L2 lifecycle`,
+);
 
 process.stdout.write('sdkwork-im database framework standard contract passed\n');

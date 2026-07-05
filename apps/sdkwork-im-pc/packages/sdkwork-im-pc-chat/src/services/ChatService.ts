@@ -27,6 +27,11 @@ import type {
 } from '@sdkwork/drive-app-sdk';
 import { getDriveAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/driveAppSdkClient';
 import {
+  forEachCursorPage,
+  SDKWORK_DEFAULT_PAGE_SIZE,
+  SDKWORK_MAX_PAGE_SIZE,
+} from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
+import {
   getImSdkClientWithSession,
 } from '@sdkwork/im-pc-core/sdk/imSdkClient';
 import {
@@ -87,6 +92,12 @@ export interface ChatOfflineSyncResult {
   refreshedChats: number;
 }
 
+export interface ChatListPage {
+  items: Chat[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
 interface ConversationLiveSubscription {
   handlers: Set<MessageHandler>;
   notifiedMessageVersions: Map<string, string>;
@@ -94,10 +105,11 @@ interface ConversationLiveSubscription {
 
 export interface ChatService {
   getChats(): Promise<Chat[]>;
+  listChatsPage(options?: { cursor?: string; pageSize?: number }): Promise<ChatListPage>;
   subscribeChats(handler: ChatListHandler): () => void;
-  getMessages(chatId: string, options?: { limit?: number }): Promise<Message[]>;
+  getMessages(chatId: string, options?: { pageSize?: number }): Promise<Message[]>;
   hasMoreMessages(chatId: string): boolean;
-  loadMoreMessages(chatId: string, limit?: number): Promise<Message[]>;
+  loadMoreMessages(chatId: string, pageSize?: number): Promise<Message[]>;
   subscribeMessages(chatId: string, handler: MessageHandler): () => void;
   sendMessage(
     chatId: string,
@@ -129,12 +141,16 @@ export interface ChatService {
 type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
   isHidden?: boolean;
 };
-const INBOX_PAGE_LIMIT = 100;
-const MESSAGE_PAGE_LIMIT = 50;
-const CONVERSATION_MEMBERS_PAGE_LIMIT = 100;
+const INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
+const MAX_INBOX_CONVERSATIONS = SDKWORK_MAX_PAGE_SIZE;
+const LOCAL_MESSAGES_PER_CONVERSATION_CAP = SDKWORK_MAX_PAGE_SIZE;
+const MESSAGE_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
+const MAX_CATCH_UP_MESSAGE_PAGES = 50;
+const CONVERSATION_MEMBERS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
+const MAX_CONVERSATION_MEMBERS_SYNC = SDKWORK_MAX_PAGE_SIZE;
 const CHAT_LIST_HYDRATION_CONCURRENCY = 4;
 const INTERACTION_SUMMARY_BATCH_CONCURRENCY = 8;
-const DEFAULT_MESSAGE_INITIAL_LIMIT = 50;
+const DEFAULT_MESSAGE_INITIAL_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const CHAT_LIST_REALTIME_EVENT_TYPES = [
   'message.posted',
   'conversation.updated',
@@ -1627,41 +1643,37 @@ class SdkworkChatService implements ChatService {
     ].filter((identifier): identifier is string => Boolean(identifier)));
   }
 
-  private async listAllInboxEntries(): Promise<ConversationInboxEntry[]> {
-    const items: ConversationInboxEntry[] = [];
-    let cursor: string | undefined;
-
-    do {
-      const response = await this.client().chat.inbox.retrieve({
-        limit: INBOX_PAGE_LIMIT,
-        ...(cursor ? { cursor } : {}),
-      });
-      items.push(...response.items);
-      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
-    } while (cursor);
-
-    return items;
+  private trimLocalMessages(chatId: string): void {
+    const messages = this.localMessages.get(chatId);
+    if (!messages || messages.length <= LOCAL_MESSAGES_PER_CONVERSATION_CAP) {
+      return;
+    }
+    this.localMessages.set(
+      chatId,
+      messages.slice(-LOCAL_MESSAGES_PER_CONVERSATION_CAP),
+    );
   }
 
-  private async listAllConversationMembers(conversationId: string): Promise<ConversationMember[]> {
-    const items: ConversationMember[] = [];
-    let cursor: string | undefined;
-
-    while (true) {
-      const response = await this.client().conversations.listMembers(conversationId, {
-        limit: CONVERSATION_MEMBERS_PAGE_LIMIT,
-        ...(cursor ? { cursor } : {}),
-      });
-      items.push(...response.items);
-
-      if (!response.hasMore || !response.nextCursor || response.nextCursor === cursor) {
-        break;
-      }
-
-      cursor = response.nextCursor ?? undefined;
-    }
-
-    return items;
+  private async syncConversationMembers(conversationId: string): Promise<ConversationMember[]> {
+    const members: ConversationMember[] = [];
+    await forEachCursorPage(
+      async (cursor) => {
+        const response = await this.client().conversations.listMembers(conversationId, {
+          pageSize: CONVERSATION_MEMBERS_PAGE_LIMIT,
+          ...(cursor ? { cursor } : {}),
+        });
+        return {
+          items: response.items,
+          hasMore: response.hasMore,
+          nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
+        };
+      },
+      (items) => {
+        members.push(...items);
+      },
+      { maxItems: MAX_CONVERSATION_MEMBERS_SYNC },
+    );
+    return members;
   }
 
   private isDisplayableDirectMember(member: ConversationMember): boolean {
@@ -1682,7 +1694,7 @@ class SdkworkChatService implements ChatService {
   private async resolveDirectPeerSocialProfile(peerUserId: string): Promise<SocialUserSearchResult | undefined> {
     const response = await this.client().social.users.list({
       q: peerUserId,
-      limit: 20,
+      pageSize: 20,
     });
     return response.items.find((item: SocialUserSearchResult) => {
       const itemRecord = toRecord(item);
@@ -1701,7 +1713,7 @@ class SdkworkChatService implements ChatService {
   }
 
   private async resolveDirectChatPeerProfile(conversationId: string): Promise<DirectChatPeerProfile | undefined> {
-    const members = await this.listAllConversationMembers(conversationId);
+    const members = await this.syncConversationMembers(conversationId);
     const peerMember = this.findDirectPeerMember(members);
     const peerUserId = pickString(peerMember?.principalId);
     if (!peerUserId) {
@@ -1808,8 +1820,9 @@ class SdkworkChatService implements ChatService {
     );
   }
 
-  async getChats(): Promise<Chat[]> {
-    const inboxEntries = await this.listAllInboxEntries();
+  private async hydrateInboxEntriesToChats(
+    inboxEntries: ConversationInboxEntry[],
+  ): Promise<Chat[]> {
     const chatResults = await mapWithConcurrencyLimit(
       inboxEntries,
       CHAT_LIST_HYDRATION_CONCURRENCY,
@@ -1862,7 +1875,26 @@ class SdkworkChatService implements ChatService {
         );
       },
     );
-    const chats = chatResults.filter((chat): chat is Chat => Boolean(chat));
+    return chatResults.filter((chat): chat is Chat => Boolean(chat));
+  }
+
+  async listChatsPage(options?: { cursor?: string; pageSize?: number }): Promise<ChatListPage> {
+    const pageSize = Math.min(options?.pageSize ?? INBOX_PAGE_LIMIT, INBOX_PAGE_LIMIT);
+    const response = await this.client().chat.inbox.retrieve({
+      pageSize,
+      ...(options?.cursor ? { cursor: options.cursor } : {}),
+    });
+    const items = await this.hydrateInboxEntriesToChats(response.items);
+    return {
+      items: items.sort(sortChats),
+      hasMore: Boolean(response.hasMore),
+      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
+    };
+  }
+
+  async getChats(): Promise<Chat[]> {
+    const page = await this.listChatsPage();
+    const chats = [...page.items];
 
     for (const [chatId, localMessages] of this.localMessages.entries()) {
       if (this.conversationViewState.get(chatId)?.isHidden || chats.some((chat) => chat.id === chatId)) {
@@ -1893,11 +1925,16 @@ class SdkworkChatService implements ChatService {
     };
   }
 
-  async getMessages(chatId: string, options?: { limit?: number }): Promise<Message[]> {
-    const limit = options?.limit ?? DEFAULT_MESSAGE_INITIAL_LIMIT;
+  private setLocalMessages(chatId: string, messages: Message[]): void {
+    this.localMessages.set(chatId, messages);
+    this.trimLocalMessages(chatId);
+  }
+
+  async getMessages(chatId: string, options?: { pageSize?: number }): Promise<Message[]> {
+    const pageSize = options?.pageSize ?? DEFAULT_MESSAGE_INITIAL_LIMIT;
     const response = await this.client().conversations.listMessages(chatId, {
       afterSeq: 0,
-      limit,
+      pageSize,
     });
 
     const cachedMessages = new Map(
@@ -1917,7 +1954,7 @@ class SdkworkChatService implements ChatService {
     const remoteMessages = firstPageMessages;
 
     const mergedMessages = mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
-    this.localMessages.set(chatId, mergedMessages);
+    this.setLocalMessages(chatId, mergedMessages);
     return mergedMessages;
   }
 
@@ -1925,7 +1962,7 @@ class SdkworkChatService implements ChatService {
     return this.timelinePaginationState.get(chatId)?.hasMore ?? false;
   }
 
-  async loadMoreMessages(chatId: string, limit?: number): Promise<Message[]> {
+  async loadMoreMessages(chatId: string, pageSize?: number): Promise<Message[]> {
     const state = this.timelinePaginationState.get(chatId);
     if (!state || !state.hasMore) {
       return [];
@@ -1934,7 +1971,7 @@ class SdkworkChatService implements ChatService {
     const afterSeq = state.nextAfterSeq;
     const response = await this.client().conversations.listMessages(chatId, {
       afterSeq,
-      limit: limit ?? MESSAGE_PAGE_LIMIT,
+      pageSize: pageSize ?? MESSAGE_PAGE_LIMIT,
     });
 
     const cachedMessages = new Map(
@@ -1954,7 +1991,7 @@ class SdkworkChatService implements ChatService {
     });
 
     const mergedMessages = mergeMessageLists(newMessages, this.localMessages.get(chatId) ?? []);
-    this.localMessages.set(chatId, mergedMessages);
+    this.setLocalMessages(chatId, mergedMessages);
     return newMessages;
   }
 
@@ -2529,12 +2566,14 @@ class SdkworkChatService implements ChatService {
 
     const entries: TimelineViewEntry[] = [];
     let afterSeq = checkpointSeq;
-    while (true) {
+    let pagesFetched = 0;
+    while (pagesFetched < MAX_CATCH_UP_MESSAGE_PAGES) {
       const response = await this.client().conversations.listMessages(conversationId, {
         afterSeq,
-        limit: MESSAGE_PAGE_LIMIT,
+        pageSize: MESSAGE_PAGE_LIMIT,
       });
       entries.push(...response.items.filter((entry) => entry.messageSeq > checkpointSeq));
+      pagesFetched += 1;
 
       if (
         !response.hasMore
@@ -2649,7 +2688,8 @@ class SdkworkChatService implements ChatService {
     if (this.chatListHandlers.size === 0) {
       return;
     }
-    const chats = await this.getChats();
+    const page = await this.listChatsPage();
+    const chats = page.items;
     for (const handler of this.chatListHandlers) {
       handler(chats);
     }
@@ -2704,8 +2744,8 @@ export function createSdkworkChatService(dependencies?: ChatServiceDependencies 
 
 export function resolveIncomingCallWatchConversationIds(
   chats: Array<{ id: string; conversationId?: string }>,
-  contacts: Array<{ conversationId?: string; id: string }>,
-  _currentUserId: string,
+  contacts: Array<{ conversationId?: string; id: string } | string>,
+  _currentUserId?: string,
 ): string[] {
   const conversationIds = new Set<string>();
   for (const chat of chats) {
@@ -2715,7 +2755,9 @@ export function resolveIncomingCallWatchConversationIds(
     }
   }
   for (const contact of contacts) {
-    const conversationId = contact.conversationId?.trim();
+    const conversationId = typeof contact === 'string'
+      ? contact.trim()
+      : contact.conversationId?.trim();
     if (conversationId) {
       conversationIds.add(conversationId);
     }

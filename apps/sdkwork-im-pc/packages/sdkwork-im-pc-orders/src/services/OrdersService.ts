@@ -2,7 +2,8 @@ import type { OrderAppSdkClient } from '@sdkwork/im-pc-core/sdk/orderAppSdkClien
 import type { ShopAppSdkClient } from '@sdkwork/im-pc-core/sdk/shopAppSdkClient';
 import {
   extractAppSdkPayload,
-  extractAppSdkRecordsFromResult,
+  mapAppSdkOffsetPage,
+  type OffsetListPage,
   parseMoneyAmount,
   readNumber,
   readOptionalString,
@@ -40,16 +41,20 @@ export interface OrderStats {
   monthlyRevenueCount: number;
 }
 
+export type OrdersListPage = OffsetListPage<Order>;
+
 export interface OrdersService {
-  getOrders(): Promise<Order[]>;
+  listOrdersPage(page: number, pageSize: number, status?: Order['status'] | 'ALL'): Promise<OrdersListPage>;
   getOrderById(id: string): Promise<Order | null>;
   updateOrderStatus(id: string, status: Order['status']): Promise<Order>;
+  payOrder(id: string): Promise<Order>;
   getStats(): Promise<OrderStats>;
-  createOrder(order: Partial<Order>): Promise<Order>;
-  deleteOrder(id: string): Promise<void>;
 }
 
-const PC_ORDERS_WRITE_UNAVAILABLE = 'pc orders write contract requires order command headers';
+const PC_ORDERS_CREATE_UNAVAILABLE = 'pc orders create contract is not available in merchant console';
+const PC_ORDERS_DELETE_UNAVAILABLE = 'pc orders delete contract is not available';
+const PC_ORDERS_COMPLETE_UNAVAILABLE =
+  'order completion is driven by fulfillment lifecycle; no direct completion command is exposed';
 
 const EMPTY_ORDER_STATS: OrderStats = {
   pendingPayAmount: 0,
@@ -61,6 +66,8 @@ const EMPTY_ORDER_STATS: OrderStats = {
   monthlyRevenueAmount: 0,
   monthlyRevenueCount: 0,
 };
+
+const COMMERCE_COMMAND = {};
 
 interface OrdersServiceOptions {
   orderClient?: OrderAppSdkClient;
@@ -144,6 +151,26 @@ function mapStatisticsToOrderStats(record: Record<string, unknown>): OrderStats 
   };
 }
 
+function mapWireStatusFilter(status?: Order['status'] | 'ALL'): string | undefined {
+  if (!status || status === 'ALL') {
+    return undefined;
+  }
+  switch (status) {
+    case 'PENDING_PAY':
+      return 'pending_pay';
+    case 'PENDING_SHIP':
+      return 'pending_ship';
+    case 'SHIPPED':
+      return 'shipped';
+    case 'COMPLETED':
+      return 'completed';
+    case 'CANCELLED':
+      return 'cancelled';
+    default:
+      return undefined;
+  }
+}
+
 class SdkworkOrdersService implements OrdersService {
   constructor(private readonly options: OrdersServiceOptions = {}) {}
 
@@ -155,29 +182,53 @@ class SdkworkOrdersService implements OrdersService {
     return this.options.shopClient ?? getShopAppSdkClientWithSession();
   }
 
-  private async listMerchantOrders(): Promise<Order[]> {
-    const result = await this.shopClient().shops.current.orders.list({ pageSize: 100 });
-    return extractAppSdkRecordsFromResult(result).map(mapMerchantOrder);
+  private async listMerchantOrdersPage(
+    page: number,
+    pageSize: number,
+    status?: Order['status'] | 'ALL',
+  ): Promise<OrdersListPage> {
+    const result = await this.shopClient().shops.current.orders.list({
+      page,
+      pageSize,
+      ...(mapWireStatusFilter(status) ? { status: mapWireStatusFilter(status) } : {}),
+    });
+    return mapAppSdkOffsetPage(result, mapMerchantOrder, page, pageSize);
   }
 
-  private async listConsumerOrders(): Promise<Order[]> {
-    const result = await this.orderClient().orders.list({ pageSize: 100 });
-    return extractAppSdkRecordsFromResult(result).map((record) => ({
+  private async listConsumerOrdersPage(
+    page: number,
+    pageSize: number,
+    status?: Order['status'] | 'ALL',
+  ): Promise<OrdersListPage> {
+    const result = await this.orderClient().orders.list({
+      page,
+      pageSize,
+      ...(mapWireStatusFilter(status) ? { status: mapWireStatusFilter(status) } : {}),
+    });
+    return mapAppSdkOffsetPage(result, (record) => ({
       ...mapMerchantOrder(record),
       customerName: readString(record, 'ownerUserId', 'owner_user_id') || 'Me',
-    }));
+    }), page, pageSize);
   }
 
-  async getOrders(): Promise<Order[]> {
+  async listOrdersPage(
+    page: number,
+    pageSize: number,
+    status: Order['status'] | 'ALL' = 'ALL',
+  ): Promise<OrdersListPage> {
+    const normalizedPage = Math.max(1, page);
+    const normalizedPageSize = Math.min(Math.max(pageSize, 1), 200);
+
     try {
-      const merchantOrders = await this.listMerchantOrders();
-      if (merchantOrders.length > 0) {
-        return merchantOrders;
+      const merchantPage = await this.listMerchantOrdersPage(normalizedPage, normalizedPageSize, status);
+      if (merchantPage.items.length > 0 || normalizedPage > 1) {
+        return merchantPage;
       }
     } catch {
       // Fall back to consumer-owned orders when the current principal has no shop context.
     }
-    return this.listConsumerOrders();
+
+    return this.listConsumerOrdersPage(normalizedPage, normalizedPageSize, status);
   }
 
   async getOrderById(id: string): Promise<Order | null> {
@@ -209,8 +260,47 @@ class SdkworkOrdersService implements OrdersService {
     return null;
   }
 
-  async updateOrderStatus(_id: string, _status: Order['status']): Promise<Order> {
-    throw new Error(PC_ORDERS_WRITE_UNAVAILABLE);
+  async updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
+    const normalizedId = id.trim();
+    if (!normalizedId) {
+      throw new Error('Order id is required');
+    }
+
+    switch (status) {
+      case 'CANCELLED':
+        try {
+          await this.orderClient().orders.cancel(normalizedId, COMMERCE_COMMAND);
+        } catch {
+          await this.orderClient().orders.cancellations.create(normalizedId, COMMERCE_COMMAND);
+        }
+        break;
+      case 'SHIPPED':
+        await this.shopClient().shops.current.orders.fulfillments.create(normalizedId, COMMERCE_COMMAND);
+        break;
+      case 'COMPLETED':
+        throw new Error(PC_ORDERS_COMPLETE_UNAVAILABLE);
+      default:
+        throw new Error(`Unsupported order status transition: ${status}`);
+    }
+
+    const refreshed = await this.getOrderById(normalizedId);
+    if (!refreshed) {
+      throw new Error('Order command accepted but refresh failed');
+    }
+    return refreshed;
+  }
+
+  async payOrder(id: string): Promise<Order> {
+    const normalizedId = id.trim();
+    if (!normalizedId) {
+      throw new Error('Order id is required');
+    }
+    await this.orderClient().orders.pay(normalizedId, COMMERCE_COMMAND);
+    const refreshed = await this.getOrderById(normalizedId);
+    if (!refreshed) {
+      throw new Error('Payment command accepted but refresh failed');
+    }
+    return refreshed;
   }
 
   async getStats(): Promise<OrderStats> {
@@ -236,14 +326,6 @@ class SdkworkOrdersService implements OrdersService {
 
     return { ...EMPTY_ORDER_STATS };
   }
-
-  async createOrder(_order: Partial<Order>): Promise<Order> {
-    throw new Error(PC_ORDERS_WRITE_UNAVAILABLE);
-  }
-
-  async deleteOrder(_id: string): Promise<void> {
-    throw new Error(PC_ORDERS_WRITE_UNAVAILABLE);
-  }
 }
 
 export function createOrdersService(options: OrdersServiceOptions = {}): OrdersService {
@@ -251,3 +333,9 @@ export function createOrdersService(options: OrdersServiceOptions = {}): OrdersS
 }
 
 export const ordersService = createOrdersService();
+
+export {
+  PC_ORDERS_CREATE_UNAVAILABLE,
+  PC_ORDERS_DELETE_UNAVAILABLE,
+  PC_ORDERS_COMPLETE_UNAVAILABLE,
+};

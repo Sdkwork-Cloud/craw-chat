@@ -17,7 +17,5 @@ pub(crate) struct PublicAppGuardrails {
 }
 
 pub fn default_app_state() -> AppState {
-    AppState {
-        runtime: Arc::new(AutomationRuntime::default()),
-    }
+    crate::bootstrap::default_app_state()
 }

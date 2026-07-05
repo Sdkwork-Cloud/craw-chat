@@ -44,9 +44,7 @@ export const DEFAULT_SIDEBAR_MODULES: AppModuleId[] = [
 ];
 
 /**
- * Modules with verified app/backend SDK contracts for commercial runtime.
- * Contract-pending modules stay in ALL_APP_MODULES for future enablement but
- * must not appear in production navigation until their SDK surfaces ship.
+ * Modules with verified read/write SDK contracts for commercial runtime navigation.
  */
 export const COMMERCIAL_RUNTIME_MODULES = new Set<AppModuleId>([
   "chat",
@@ -58,13 +56,9 @@ export const COMMERCIAL_RUNTIME_MODULES = new Set<AppModuleId>([
   "favorites",
   "notary",
   "voice",
+  "community",
   "shop",
   "orders",
-  "mail",
-  "community",
-  "course",
-  "devices",
-  "enterprise",
 ]);
 
 export const CONTRACT_PENDING_MODULES = new Set<AppModuleId>(
@@ -96,7 +90,9 @@ export const WORKSPACE_APP_TAB_MAP: Record<string, AppModuleId> = {
   attendance: "attendance",
   knowledge: "knowledge",
   devices: "devices",
+  enterprise: "enterprise",
   community: "community",
+  course: "course",
   videogen: "videogen",
   imagegen: "imagegen",
   voicegen: "voicegen",

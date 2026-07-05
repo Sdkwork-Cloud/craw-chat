@@ -39,15 +39,20 @@ use tokio::runtime::Handle;
 
 mod aggregate_store;
 mod message_store;
+mod message_post_persistence;
 mod outbox_store;
 mod retention_cleanup;
 mod retention_metrics;
 mod retention_reconcile;
 mod retention_scheduler;
 mod search_store;
+mod seq_allocator;
+mod stream_state_store;
 
 pub use aggregate_store::PostgresAggregateStore;
+pub use message_post_persistence::PostgresDurableMessagePostWriter;
 pub use message_store::PostgresMessageStore;
+pub use seq_allocator::PostgresConversationSeqAllocator;
 pub use outbox_store::PostgresOutboxStore;
 pub use retention_cleanup::{purge_expired_retention_batch, RetentionCleanupReport};
 pub use retention_metrics::{retention_purge_metrics, RetentionPurgeMetrics};
@@ -59,6 +64,7 @@ pub use retention_scheduler::{
     RetentionPurgeSchedulerConfig, RetentionPurgeSchedulerHandle,
 };
 pub use search_store::PostgresSearchProvider;
+pub use stream_state_store::PostgresStreamStateStore;
 
 /// Default upper bound on pooled PostgreSQL connections for the journal store.
 ///
@@ -300,6 +306,17 @@ impl PostgresCommitJournal {
         }
     }
 
+    /// Incremental journal replay cursor keyed by `(partition_key, commit_offset)`.
+    pub fn recorded_after(
+        &self,
+        cursor: Option<&JournalReplayCursor>,
+    ) -> Result<(Vec<CommitEnvelope>, Option<JournalReplayCursor>), ContractError> {
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        let cursor = cursor.cloned();
+        run_postgres_io(move || load_recorded_after(&pool, &prefix, cursor.as_ref()))
+    }
+
     pub fn with_partition_prefix(mut self, prefix: impl Into<String>) -> Self {
         self.partition_prefix = Arc::from(prefix.into());
         self
@@ -308,6 +325,16 @@ impl PostgresCommitJournal {
     pub fn pool(&self) -> &PostgresJournalPool {
         &self.pool
     }
+
+    pub fn partition_prefix(&self) -> &Arc<str> {
+        &self.partition_prefix
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct JournalReplayCursor {
+    pub partition_key: String,
+    pub commit_offset: i64,
 }
 
 impl CommitJournal for PostgresCommitJournal {
@@ -347,7 +374,7 @@ impl CommitJournal for PostgresCommitJournal {
 /// producer event is absorbed and the existing position is read back, rather
 /// than raising a constraint violation the caller cannot distinguish from a
 /// genuine write failure.
-const APPEND_EVENT_SQL: &str = r#"
+pub(crate) const APPEND_EVENT_SQL: &str = r#"
 insert into im_commit_journal (
     partition_key,
     commit_offset,
@@ -369,7 +396,7 @@ on conflict (event_id) do nothing
 returning partition_key, commit_offset
 "#;
 
-const LOAD_EVENT_BY_ID_SQL: &str = r#"
+pub(crate) const LOAD_EVENT_BY_ID_SQL: &str = r#"
 select partition_key, commit_offset
 from im_commit_journal
 where event_id = $1
@@ -380,7 +407,7 @@ where event_id = $1
 /// the primary key to determine whether the occupying row belongs to the same
 /// `event_id` (defensive idempotent replay) or to a different `event_id`
 /// (genuine position conflict that must surface as `Conflict`).
-const LOAD_EVENT_BY_POSITION_SQL: &str = r#"
+pub(crate) const LOAD_EVENT_BY_POSITION_SQL: &str = r#"
 select event_id, partition_key, commit_offset
 from im_commit_journal
 where partition_key = $1 and commit_offset = $2
@@ -395,12 +422,33 @@ select
     aggregate_type,
     aggregate_id,
     aggregate_seq,
-    occurred_at,
+    occurred_at::text,
     payload_json::text,
     idempotency_key,
-    partition_key
+    partition_key,
+    commit_offset
 from im_commit_journal
 where partition_key like $1 || '%'
+order by partition_key asc, commit_offset asc
+"#;
+
+const LOAD_RECORDED_AFTER_SQL: &str = r#"
+select
+    event_id,
+    tenant_id,
+    organization_id,
+    event_type,
+    aggregate_type,
+    aggregate_id,
+    aggregate_seq,
+    occurred_at::text,
+    payload_json::text,
+    idempotency_key,
+    partition_key,
+    commit_offset
+from im_commit_journal
+where partition_key like $1 || '%'
+  and (partition_key, commit_offset) > ($2, $3)
 order by partition_key asc, commit_offset asc
 "#;
 
@@ -425,6 +473,17 @@ pub(crate) fn postgres_timestamptz(value: &str, field: &'static str) -> Result<D
                 "postgres journal {field} must be RFC3339: {error}"
             ))
         })
+}
+
+fn journal_replay_row_get<T>(row: &postgres::Row, column: usize, field: &'static str) -> Result<T, ContractError>
+where
+    T: for<'a> postgres::types::FromSql<'a>,
+{
+    row.try_get(column).map_err(|error| {
+        ContractError::Conflict(format!(
+            "postgres journal replay failed reading {field} (column {column}): {error}"
+        ))
+    })
 }
 
 /// Outcome of an `INSERT ... ON CONFLICT (event_id) DO NOTHING` against
@@ -708,25 +767,48 @@ fn load_recorded(
     pool: &PostgresJournalPool,
     prefix: &str,
 ) -> Result<Vec<CommitEnvelope>, ContractError> {
+    load_recorded_after(pool, prefix, None).map(|(events, _cursor)| events)
+}
+
+fn load_recorded_after(
+    pool: &PostgresJournalPool,
+    prefix: &str,
+    cursor: Option<&JournalReplayCursor>,
+) -> Result<(Vec<CommitEnvelope>, Option<JournalReplayCursor>), ContractError> {
     let mut client = postgres_pool_client(pool, "journal recorded")?;
     let pattern = format!("{prefix}%");
-    let rows = client
-        .query(LOAD_RECORDED_SQL, &[&pattern])
-        .map_err(|error| postgres_unavailable("journal recorded select", error))?;
+    let rows = if let Some(cursor) = cursor {
+        client
+            .query(
+                LOAD_RECORDED_AFTER_SQL,
+                &[
+                    &pattern,
+                    &cursor.partition_key,
+                    &cursor.commit_offset,
+                ],
+            )
+            .map_err(|error| postgres_unavailable("journal recorded after select", error))?
+    } else {
+        client
+            .query(LOAD_RECORDED_SQL, &[&pattern])
+            .map_err(|error| postgres_unavailable("journal recorded select", error))?
+    };
 
     let mut envelopes = Vec::with_capacity(rows.len());
+    let mut next_cursor = cursor.cloned();
     for row in rows {
-        let event_id: String = row.get(0);
-        let tenant_id: String = row.get(1);
-        let organization_id: String = row.get(2);
-        let event_type: String = row.get(3);
-        let aggregate_type_str: String = row.get(4);
-        let aggregate_id: String = row.get(5);
-        let aggregate_seq: i64 = row.get(6);
-        let occurred_at: String = row.get(7);
-        let payload: String = row.get(8);
-        let idempotency_key: Option<String> = row.get(9);
-        let partition_key: String = row.get(10);
+        let event_id: String = journal_replay_row_get(&row, 0, "event_id")?;
+        let tenant_id: String = journal_replay_row_get(&row, 1, "tenant_id")?;
+        let organization_id: String = journal_replay_row_get(&row, 2, "organization_id")?;
+        let event_type: String = journal_replay_row_get(&row, 3, "event_type")?;
+        let aggregate_type_str: String = journal_replay_row_get(&row, 4, "aggregate_type")?;
+        let aggregate_id: String = journal_replay_row_get(&row, 5, "aggregate_id")?;
+        let aggregate_seq: i64 = journal_replay_row_get(&row, 6, "aggregate_seq")?;
+        let occurred_at: String = journal_replay_row_get(&row, 7, "occurred_at")?;
+        let payload: String = journal_replay_row_get(&row, 8, "payload_json")?;
+        let idempotency_key: Option<String> = journal_replay_row_get(&row, 9, "idempotency_key")?;
+        let partition_key: String = journal_replay_row_get(&row, 10, "partition_key")?;
+        let commit_offset: i64 = journal_replay_row_get(&row, 11, "commit_offset")?;
         let aggregate_type = parse_aggregate_type(aggregate_type_str.as_str());
         let scope = replay_scope_for_journal_row(
             &aggregate_type,
@@ -766,8 +848,12 @@ fn load_recorded(
             retention_class: "standard".into(),
             audit_class: "default".into(),
         });
+        next_cursor = Some(JournalReplayCursor {
+            partition_key,
+            commit_offset,
+        });
     }
-    Ok(envelopes)
+    Ok((envelopes, next_cursor))
 }
 
 struct ReplayJournalScope {
@@ -932,7 +1018,7 @@ fn format_postgres_db_error(error: &r2d2_postgres::postgres::Error) -> String {
 /// key collisions in `append`/`append_batch` so that replayed producer events
 /// stay idempotent alongside the existing `ON CONFLICT (event_id) DO NOTHING`
 /// path.
-fn is_unique_violation(error: &r2d2_postgres::postgres::Error) -> bool {
+pub(crate) fn is_unique_violation(error: &r2d2_postgres::postgres::Error) -> bool {
     error
         .as_db_error()
         .map(|db_error| db_error.code())
@@ -947,6 +1033,8 @@ fn is_unique_violation(error: &r2d2_postgres::postgres::Error) -> bool {
 fn parse_aggregate_type(value: &str) -> AggregateType {
     match value {
         "conversation" => AggregateType::Conversation,
+        "space" => AggregateType::Space,
+        "chat_group" => AggregateType::ChatGroup,
         "friend_request" => AggregateType::FriendRequest,
         "friendship" => AggregateType::Friendship,
         "external_connection" => AggregateType::ExternalConnection,
@@ -981,7 +1069,7 @@ fn postgres_config_error(
 /// Redact credentials from a PostgreSQL connection URL before it enters an
 /// error message or log line. If the URL cannot be parsed as `scheme://user:pass@host`,
 /// it is replaced wholesale with `<redacted>` to avoid leaking any fragment.
-fn journal_retention_until(envelope: &CommitEnvelope) -> Option<String> {
+pub(crate) fn journal_retention_until(envelope: &CommitEnvelope) -> Option<String> {
     retention_until_from_envelope(envelope.retention_class.as_str(), envelope.occurred_at.as_str())
 }
 
@@ -996,4 +1084,14 @@ fn redact_postgres_url(database_url: &str) -> String {
     let scheme = &database_url[..after_scheme];
     let host = &database_url[after_scheme + at_offset..];
     format!("{scheme}<redacted>{host}")
+}
+
+/// Build a conversation member access gate backed by projection membership rows.
+pub fn conversation_member_access_gate_from_pool(
+    pool: PostgresJournalPool,
+) -> std::sync::Arc<dyn im_platform_contracts::ConversationMemberAccessGate> {
+    use im_platform_contracts::AggregateStoreConversationMemberAccessGate;
+    std::sync::Arc::new(AggregateStoreConversationMemberAccessGate::new(
+        std::sync::Arc::new(PostgresAggregateStore::from_pool(pool)),
+    ))
 }

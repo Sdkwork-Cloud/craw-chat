@@ -104,4 +104,8 @@ export class ImConversationsModule {
   leave(conversationId: string | number): Promise<unknown> {
     return this.transportClient.chat.conversations.members.leave(conversationId);
   }
+
+  acceptInvitation(conversationId: string | number): Promise<import('@sdkwork/im-sdk-generated').ConversationMember> {
+    return this.transportClient.chat.conversations.members.acceptInvitation(conversationId);
+  }
 }

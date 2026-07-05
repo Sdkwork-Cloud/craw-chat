@@ -49,43 +49,73 @@ export const OrdersView: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<"excel" | "csv">("excel");
 
+  const loadOrders = async (page: number, filter: string) => {
+    setLoading(true);
+    try {
+      const result = await ordersService.listOrdersPage(
+        page,
+        pageSize,
+        filter as Order["status"] | "ALL",
+      );
+      setOrders(result.items);
+      setHasMore(result.hasMore);
+    } catch (error) {
+      setOrders([]);
+      setHasMore(false);
+      toast(error instanceof Error ? error.message : "订单加载失败", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    ordersService.getOrders().then(setOrders);
-  }, []);
+    void loadOrders(currentPage, statusFilter);
+  }, [currentPage, pageSize, statusFilter]);
 
   const filteredOrders = orders.filter((order) => {
-    const matchSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.productInfo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = statusFilter === "ALL" || order.status === statusFilter;
-    return matchSearch && matchStatus;
+    if (!searchTerm.trim()) {
+      return true;
+    }
+    const normalized = searchTerm.toLowerCase();
+    return (
+      order.id.toLowerCase().includes(normalized) ||
+      order.customerName.toLowerCase().includes(normalized) ||
+      order.productInfo.toLowerCase().includes(normalized)
+    );
   });
 
-  const totalPages = Math.ceil(filteredOrders.length / pageSize) || 1;
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [filteredOrders.length, pageSize, totalPages, currentPage]);
-
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
-
-  const handleAction = (
+  const handleAction = async (
     orderId: string,
     action: "CANCELLED" | "SHIPPED" | "COMPLETED",
-    message: string,
+    successMessage: string,
   ) => {
-    setOrders(
-      orders.map((o) => (o.id === orderId ? { ...o, status: action } : o)),
-    );
-    toast(message, "success");
+    try {
+      const updated = await ordersService.updateOrderStatus(orderId, action);
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)));
+      setSelectedOrder((prev) => (prev?.id === orderId ? updated : prev));
+      toast(successMessage, "success");
+      await loadOrders(currentPage, statusFilter);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "订单操作失败", "error");
+    }
+  };
+
+  const handlePay = async (orderId: string) => {
+    try {
+      const updated = await ordersService.payOrder(orderId);
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)));
+      setSelectedOrder((prev) => (prev?.id === orderId ? updated : prev));
+      toast("支付请求已提交", "success");
+      await loadOrders(currentPage, statusFilter);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "支付失败", "error");
+    }
   };
 
   if (selectedOrder) {
@@ -93,12 +123,10 @@ export const OrdersView: React.FC = () => {
       <OrderDetailView
         order={selectedOrder}
         onBack={() => setSelectedOrder(null)}
-        onAction={(id, action, msg) => {
-          handleAction(id, action as any, msg);
-          setSelectedOrder((prev) =>
-            prev ? { ...prev, status: action as any } : null,
-          );
+        onAction={async (id, action, msg) => {
+          await handleAction(id, action as "CANCELLED" | "SHIPPED" | "COMPLETED", msg);
         }}
+        onPay={handlePay}
       />
     );
   }
@@ -127,7 +155,10 @@ export const OrdersView: React.FC = () => {
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
+                onClick={() => {
+                  setStatusFilter(tab.id);
+                  setCurrentPage(1);
+                }}
                 className={`pb-4 text-sm font-medium transition-all relative ${
                   statusFilter === tab.id
                     ? "text-blue-400"
@@ -183,8 +214,10 @@ export const OrdersView: React.FC = () => {
             </div>
           </div>
 
-          {paginatedOrders.length > 0 ? (
-            paginatedOrders.map((order) => (
+          {loading ? (
+            <div className="text-center py-16 text-gray-500">加载订单中...</div>
+          ) : filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
               <div
                 key={order.id}
                 className="bg-[#2b2b2d] rounded-xl overflow-hidden border border-white/5 hover:border-blue-500/20 transition-colors shadow-lg min-w-[700px] flex-shrink-0"
@@ -287,16 +320,15 @@ export const OrdersView: React.FC = () => {
                       <div className="flex flex-col items-center gap-2.5 w-full">
                         {order.status === "PENDING_PAY" && (
                           <>
-                            <button className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded shadow-sm hover:shadow transition-all text-xs">
+                            <button
+                              onClick={() => void handlePay(order.id)}
+                              className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded shadow-sm hover:shadow transition-all text-xs"
+                            >
                               立即付款
                             </button>
                             <button
                               onClick={() =>
-                                handleAction(
-                                  order.id,
-                                  "CANCELLED",
-                                  "订单已取消",
-                                )
+                                void handleAction(order.id, "CANCELLED", "订单已取消")
                               }
                               className="w-full text-gray-400 hover:text-gray-200 text-xs transition-colors"
                             >
@@ -308,29 +340,24 @@ export const OrdersView: React.FC = () => {
                           <>
                             <button
                               onClick={() =>
-                                handleAction(order.id, "SHIPPED", "订单已发货")
+                                void handleAction(order.id, "SHIPPED", "订单已发货")
                               }
                               className="w-full py-1.5 border border-blue-500/50 text-blue-400 bg-blue-500/10 hover:bg-blue-500 hover:text-white font-medium rounded shadow-sm hover:shadow transition-all text-xs"
                             >
-                              发货处理
+                              确认发货
                             </button>
                             <button
-                              onClick={() => handleAction(order.id, "CANCELLED", "退款申请已提交，等待卖家处理")}
+                              onClick={() => void handleAction(order.id, "CANCELLED", "取消申请已提交")}
                               className="w-full text-gray-400 hover:text-gray-200 text-xs transition-colors"
                             >
-                              申请退款
+                              取消订单
                             </button>
                           </>
                         )}
                         {order.status === "SHIPPED" && (
-                          <button
-                            onClick={() =>
-                              handleAction(order.id, "COMPLETED", "交易成功")
-                            }
-                            className="w-full py-1.5 bg-green-600 hover:bg-green-500 text-white font-medium rounded shadow-sm hover:shadow transition-all text-xs"
-                          >
-                            确认完成
-                          </button>
+                          <span className="text-xs text-gray-500 text-center px-2">
+                            等待履约完成
+                          </span>
                         )}
                         {order.status === "COMPLETED" && (
                           <>
@@ -369,14 +396,10 @@ export const OrdersView: React.FC = () => {
               >
                 上一页
               </button>
-              <div className="px-4 text-gray-300">
-                {currentPage} / {totalPages}
-              </div>
+              <div className="px-4 text-gray-300">第 {currentPage} 页</div>
               <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={!hasMore}
                 className="px-3 py-1.5 border border-white/10 rounded hover:bg-white/5 disabled:opacity-50 transition-colors"
               >
                 下一页

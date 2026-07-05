@@ -1,13 +1,27 @@
 # SDKWork IM Feature Gap Analysis & Optimization Roadmap
 
-**Status**: Active
-**Updated**: 2026-06-29
-**Owner**: SDKWork IM Team
+**Status**: Active  
+**Updated**: 2026-07-05  
+**Owner**: SDKWork IM Team  
 **Priority**: P0 (Critical) → P3 (Nice-to-have)
 
 ## Executive Summary
 
-Current system achieves **production-ready baseline** with 73 tests passing, but lacks competitive features compared to WeChat/Telegram/Discord. This roadmap defines the path to **commercial competitiveness**.
+The server-side IM core (social graph, conversation write path, projection read models, session-gateway realtime, call signaling) is **production-baseline capable**. Remaining gaps versus WeChat/Telegram/Discord are primarily **product-level** (E2EE, weak-network FEC/ARQ, mega-groups) and **P2 performance** items.
+
+### Production baseline shipped (2026-07-05)
+
+| Area | Capability |
+| --- | --- |
+| Outbox relay | conversation / social / rtc: relay fail-closed；写入侧跳过无 deliverable recipients（`rtc_outbox` 共享解析） |
+| Journal ordering | Unified `commit_seq` per conversation; materialize-before-append + compensate on social/space writes |
+| WebSocket | Pre-auth budget + post-auth semaphore; frame/upgrade Redis rate limits; Ping rate-limited |
+| Social | PG materializer + multi-commit single PG transaction + terminal idempotency replay; friendship `update_status` conflict detection |
+| RTC | Ring timeout reaper; terminal evict + DB `retention_until` purge; PC 远端视频 Volcengine 绑定 |
+| Projection | HS256 keyset cursors; production rejects numeric offset; Postgres tiered timeline + `SDKWORK_IM_PROJECTION_TIMELINE_MEMORY_CAP` |
+| Presence / routes | Stale device expiry; ClientRoute cleanup on disconnect |
+
+Authoritative audit snapshot: `docs/COMMUNICATION_FEATURE_AUDIT_REPORT.md`.
 
 ---
 
@@ -15,24 +29,27 @@ Current system achieves **production-ready baseline** with 73 tests passing, but
 
 | Feature | Current | WeChat | Telegram | Discord | Priority | Effort |
 |---------|---------|--------|----------|---------|----------|--------|
-| **Weak Network Optimization** | ⚠️ Basic | ✅ Excellent | ✅ Excellent | ✅ Good | **P0** | 2 weeks |
+| **Weak Network Optimization** | ⚠️ WS 重连 + checkpoint；FEC/ARQ **库未接入运行时** | ✅ Excellent | ✅ Excellent | ✅ Good | **P1** | 2 weeks |
 | **End-to-End Encryption** | ❌ None | ❌ None | ✅ Yes | ✅ Yes | **P0** | 4 weeks |
-| **Multi-Device Sync** | ⚠️ Partial | ✅ Yes | ✅ Yes | ✅ Yes | **P0** | 2 weeks |
-| **Large Room Support** | ❌ None | ✅ 10K | ✅ 200K | ✅ 1K | **P1** | 3 weeks |
+| **Multi-Device Sync** | ✅ Per-device read cursors + max-seq inbox/receipts | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Done | - |
+| **Large Room Support** | ⚠️ Tiered timeline (Postgres + hot cache) | ✅ 10K | ✅ 200K | ✅ 1K | **P1** | 3 weeks |
 | **Message Recall** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Done | - |
-| **Read Receipts** | ⚠️ Partial | ✅ Yes | ❌ No | ✅ Yes | **P1** | 1 week |
+| **Read Receipts** | ✅ Yes (cursor-derived summary) | ✅ Yes | ❌ No | ✅ Yes | ✅ Done | - |
 | **E2E Latency** | ~200ms | ~100ms | ~150ms | ~200ms | **P1** | 2 weeks |
 | **Rich Media** | ⚠️ Basic | ✅ Full | ✅ Full | ✅ Full | **P2** | 2 weeks |
-| **Message Reactions** | ❌ No | ❌ No | ✅ Yes | ✅ Yes | **P2** | 1 week |
-| **Threads/Replies** | ❌ No | ❌ No | ✅ Yes | ✅ Yes | **P2** | 2 weeks |
+| **Message Reactions** | ✅ Yes | ❌ No | ✅ Yes | ✅ Yes | ✅ Done | - |
+| **Threads/Replies** | ✅ Yes (thread conversations) | ❌ No | ✅ Yes | ✅ Yes | ⚠️ Partial | 1 week |
+| **Per-user message hide** | ✅ Yes (visibility + durable snapshot) | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Done | - |
 
 ---
 
 ## P0: Critical Path (Must-Have for Commercial Launch)
 
+> **2026-07-05 基线说明**：IM 核心通信、PC 聊天、RTC 信令 + Volcengine 媒体已可上线。本节 P0 项为**对标 Telegram/行业顶级**的增量能力，不是当前上线的阻塞项。
+
 ### 1. Weak Network Optimization (FEC + ARQ)
 
-**Current State**: Basic reconnection logic exists, but no proactive loss recovery.
+**Current State**: WebSocket 重连与 checkpoint catch-up 已上线。`im-domain-core::network_optimization` 提供 XOR 示范级 FEC/ARQ **单元测试库**，**尚未接入** `session-gateway` 帧层。
 
 **Implementation Plan**:
 
@@ -129,53 +146,7 @@ pub struct EncryptedEnvelope {
 
 ### 3. Multi-Device Synchronization
 
-**Current State**: Basic device tracking, but no proper state sync.
-
-**Implementation Plan**:
-
-```rust
-// crates/im-domain-core/src/device_sync.rs
-
-/// Device synchronization state
-pub struct DeviceSyncState {
-    /// Device identifier
-    device_id: DeviceId,
-    /// Last sync timestamp
-    last_sync: String,
-    /// Sync vector clock (for conflict resolution)
-    vector_clock: HashMap<DeviceId, u64>,
-    /// Pending operations to sync
-    pending_ops: Vec<SyncOperation>,
-}
-
-/// Synchronization operation
-pub enum SyncOperation {
-    /// New message
-    MessageNew { message: StoredMessage },
-    /// Message read
-    MessageRead { message_id: String, read_at: String },
-    /// Message recalled
-    MessageRecall { message_id: String, recalled_at: String },
-    /// Conversation muted
-    ConversationMute { conversation_id: String, until: Option<String> },
-}
-
-/// Conflict resolution strategy
-pub enum ConflictResolution {
-    /// Last-write-wins (based on vector clock)
-    LastWriteWins,
-    /// Merge (for read states)
-    Merge,
-    /// Client wins (for local edits)
-    ClientWins,
-}
-```
-
-**Key Features**:
-- Vector clocks for causal ordering
-- Differential sync (only send changes since last sync)
-- Conflict resolution: Last-write-wins for messages, merge for read states
-- Offline queue: Store operations when offline, sync on reconnect
+**Status (2026-07-05):** Shipped per-device read cursors (`memberId#deviceId` storage keys), inbox unread aggregation via `max(readSeq)` across devices, and cursor-derived read receipts. Remaining optional work: vector-clock differential sync for offline edit conflicts (not required for launch).
 
 ---
 
@@ -235,41 +206,11 @@ pub enum DistributionStrategy {
 
 ### 5. Read Receipts Enhancement
 
-**Current State**: Basic acknowledgment, no per-user read tracking.
+**Status (2026-07-05):** Shipped cursor-derived read receipts on `GET .../interaction_summary` via `readReceipt` (`activeMemberCount`, `readCount`, `readers`). Sender is excluded from counts by default. **Per-device read cursors** are supported via optional `deviceId` on `ConversationReadCursor` / `ReadCursorView`; storage keys are `memberId#deviceId` with legacy member-only fallback. Inbox unread and read receipts aggregate `max(readSeq)` across a member's devices.
 
-**Implementation Plan**:
-
-```rust
-// crates/im-domain-core/src/read_receipts.rs
-
-/// Read receipt state
-pub struct ReadReceiptState {
-    /// Message ID
-    message_id: String,
-    /// Users who read the message
-    read_by: HashMap<UserId, ReadInfo>,
-    /// Users who delivered the message
-    delivered_to: HashMap<UserId, DeliveryInfo>,
-}
-
-/// Read information
-pub struct ReadInfo {
-    /// When the user read the message
-    read_at: String,
-    /// Device ID where read
-    device_id: DeviceId,
-}
-
-/// Receipt policy (per-conversation)
-pub enum ReceiptPolicy {
-    /// Always send receipts
-    Always,
-    /// Only send in 1-on-1 conversations
-    OneOnOneOnly,
-    /// Never send receipts (privacy mode)
-    Never,
-}
-```
+**Remaining (optional):**
+- Conversation-level `ReceiptPolicy` (always / one-on-one / never)
+- **Delivery receipts** (separate from read receipts): requires client device ack of realtime `message.posted` seq and projection of checkpoint state — not cursor-derived
 
 ---
 

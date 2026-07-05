@@ -2519,35 +2519,48 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_settings_user
 -- ============================================================
 
 -- 21. 消息搜索向量�?
-ALTER TABLE im_conversation_messages ADD COLUMN IF NOT EXISTS search_vector tsvector;
+-- ============================================================
+-- Part 5: Message search (SQLite contract parity)
+-- ============================================================
+-- IM message search runtime authority is PostgreSQL-only (tsvector + GIN).
+-- SQLite baseline keeps search_text for bootstrap parity; production IM
+-- services require PostgreSQL (see database/README.md).
 
--- 22. 消息搜索索引
-CREATE INDEX IF NOT EXISTS idx_im_messages_search
-    ON im_conversation_messages USING GIN(search_vector)
-    WHERE deleted_at IS NULL;
+ALTER TABLE im_conversation_messages ADD COLUMN search_text TEXT;
 
--- 23. 消息搜索触发�?
-CREATE OR REPLACE FUNCTION im_messages_search_trigger() RETURNS trigger AS $$
+CREATE INDEX IF NOT EXISTS idx_im_messages_search_text
+    ON im_conversation_messages (tenant_id, organization_id, conversation_id, search_text)
+    WHERE deleted_at IS NULL AND search_text IS NOT NULL;
+
+CREATE TRIGGER IF NOT EXISTS im_messages_search_text_insert
+AFTER INSERT ON im_conversation_messages
 BEGIN
-    NEW.search_vector := to_tsvector('simple',
-        COALESCE(NEW.payload_json->>'text', '') || ' ' ||
-        COALESCE(NEW.payload_json->>'caption', '') || ' ' ||
-        COALESCE(NEW.payload_json->>'description', '')
-    );
-    RETURN NEW;
+    UPDATE im_conversation_messages
+    SET search_text = trim(
+        coalesce(json_extract(NEW.payload_json, '$.text'), '') || ' ' ||
+        coalesce(json_extract(NEW.payload_json, '$.caption'), '') || ' ' ||
+        coalesce(json_extract(NEW.payload_json, '$.description'), '')
+    )
+    WHERE rowid = NEW.rowid;
 END;
-$$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS im_messages_search_update ON im_conversation_messages;
-CREATE TRIGGER im_messages_search_update
-    BEFORE INSERT OR UPDATE ON im_conversation_messages
-    FOR EACH ROW EXECUTE FUNCTION im_messages_search_trigger();
+CREATE TRIGGER IF NOT EXISTS im_messages_search_text_update
+AFTER UPDATE OF payload_json ON im_conversation_messages
+BEGIN
+    UPDATE im_conversation_messages
+    SET search_text = trim(
+        coalesce(json_extract(NEW.payload_json, '$.text'), '') || ' ' ||
+        coalesce(json_extract(NEW.payload_json, '$.caption'), '') || ' ' ||
+        coalesce(json_extract(NEW.payload_json, '$.description'), '')
+    )
+    WHERE rowid = NEW.rowid;
+END;
+
 
 -- ============================================================
--- 第六部分：邀请和封禁
+-- Part 6: Invitations and bans
 -- ============================================================
 
--- 24. 邀请表
 CREATE TABLE IF NOT EXISTS im_invitations (
     tenant_id           TEXT NOT NULL,
     organization_id     TEXT NOT NULL DEFAULT '0',
@@ -2609,121 +2622,6 @@ CREATE INDEX IF NOT EXISTS idx_im_ban_records_user
 
 -- 注册新表�?database-table-registry.json
 -- 注册新表�?database-prefix-registry.json
-
--- source: deployments/database/postgres/migrations/014_im_search_cjk.sql
--- Migration 014: Chinese / CJK Full-Text Search
--- ============================================================
--- Replaces the simple `to_tsvector('simple', ...)` trigger with
--- proper CJK tokenization using zhparser or pg_bigm extensions.
---
--- Strategy:
---   1. If zhparser is installed �?use 'chinese_zh' text search config
---   2. If pg_bigm is installed  �?use bigram-based similarity + GIN trigram index
---   3. Otherwise                  �?keep 'simple' config (no CJK support)
---
--- Risk: LOW (non-destructive �?only modifies the search trigger function)
--- ============================================================
-
--- ============================================================
--- Option A: zhparser (Chinese word segmentation)
--- ============================================================
--- zhparser provides Chinese word segmentation for PostgreSQL full-text search.
--- Installation: https://github.com/amutu/zhparser
---
--- After installing zhparser, run:
---   CREATE EXTENSION IF NOT EXISTS zhparser;
---   CREATE TEXT SEARCH CONFIGURATION chinese_zh (PARSER = zhparser);
---   ALTER TEXT SEARCH CONFIGURATION chinese_zh ADD MAPPING FOR n,v,a,i,e,l WITH simple;
-
--- ============================================================
--- Option B: pg_bigm / pg_trgm (bigram/trigram similarity)
--- ============================================================
--- pg_bigm provides 2-gram indexing for full-text search on CJK text.
--- pg_trgm ships with PostgreSQL and provides trigram matching.
---
--- After installing pg_bigm:
---   CREATE EXTENSION IF NOT EXISTS pg_bigm;
---   CREATE INDEX IF NOT EXISTS idx_im_messages_search_bigm
---       ON im_conversation_messages USING gin (payload_json_text gin_bigm_ops);
---
--- With pg_trgm (bundled with PostgreSQL):
---   CREATE EXTENSION IF NOT EXISTS pg_trgm;
---   CREATE INDEX IF NOT EXISTS idx_im_messages_search_trgm
---       ON im_conversation_messages USING gin (
---           (payload_json->>'text') gin_trgm_ops,
---           (payload_json->>'caption') gin_trgm_ops
---       );
-
--- ============================================================
--- Update the search trigger to handle Chinese text
--- ============================================================
-
-CREATE OR REPLACE FUNCTION im_messages_search_trigger() RETURNS trigger AS $$
-DECLARE
-    raw_text text;
-BEGIN
-    raw_text := COALESCE(NEW.payload_json->>'text', '') || ' ' ||
-                COALESCE(NEW.payload_json->>'caption', '') || ' ' ||
-                COALESCE(NEW.payload_json->>'description', '');
-
-    -- Use zhparser if available, otherwise fall back to simple
-    -- (zhparser must be installed and 'chinese_zh' config created)
-    BEGIN
-        NEW.search_vector := to_tsvector('chinese_zh', raw_text);
-    EXCEPTION WHEN OTHERS THEN
-        -- Fallback: simple config (no CJK segmentation, but works for ASCII)
-        NEW.search_vector := to_tsvector('simple', raw_text);
-    END;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Recreate the trigger (replace the one from migration 012)
-DROP TRIGGER IF EXISTS im_messages_search_update ON im_conversation_messages;
-CREATE TRIGGER im_messages_search_update
-    BEFORE INSERT OR UPDATE ON im_conversation_messages
-    FOR EACH ROW EXECUTE FUNCTION im_messages_search_trigger();
-
--- ============================================================
--- CJK search index using pg_trgm (bundled with PostgreSQL 9.4+)
--- ============================================================
--- Provides fuzzy search for Chinese/Japanese/Korean without zhparser.
--- Enable with: CREATE EXTENSION IF NOT EXISTS pg_trgm;
---
--- CREATE INDEX IF NOT EXISTS idx_im_messages_search_cjk
---     ON im_conversation_messages USING gin (
---         (COALESCE(payload_json->>'text', '') || ' ' ||
---          COALESCE(payload_json->>'caption', '') || ' ' ||
---          COALESCE(payload_json->>'description', '')) gin_trgm_ops
---     )
---     WHERE deleted_at IS NULL;
-
--- ============================================================
--- 搜索架构说明
--- ============================================================
--- 默认使用 PostgreSQL 原生全文搜索。后续可通过 Provider 模式
--- （参�?PushProvider / RTC adapter）扩展为可插拔的搜索后端�?
---
---   trait SearchProvider {
---       fn index_message(&self, message: &StoredMessageRecord) -> Result;
---       fn search(&self, tenant: &str, query: &str) -> Result<Vec<message_id>>;
---   }
---
--- PostgreSQL 实现即为本迁移的 search_vector + GIN 索引方案�?
--- 如需切换到其他后端（�?Elasticsearch），实现 SearchProvider �?
--- 通过 ProviderRegistry 切换即可，无需修改消息写入/查询路径�?
-
--- ============================================================
--- Migration checklist (MIGRATION_SPEC §2):
---   id: MIG-2026-0014
---   type: database
---   strategy: expand-contract (new trigger coexists with old index)
---   rollback: revert trigger to 'simple' config
---   verification:
---     - SELECT to_tsvector('chinese_zh', '你好世界') @@ to_tsquery('chinese_zh', '世界');
---     - EXPLAIN ANALYZE SELECT * FROM im_conversation_messages WHERE search_vector @@ plainto_tsquery('chinese_zh', '你好');
--- ============================================================
 
 -- source: database/migrations/postgres/0002_im_projection_metadata_snapshots.up.sql
 

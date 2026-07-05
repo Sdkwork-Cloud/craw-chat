@@ -159,6 +159,42 @@ impl ClientRouteRegistration {
             );
     }
 
+    pub(crate) fn finalize_active_client_route_disconnect(
+        &self,
+        auth: &AppContext,
+        device_id: &str,
+        runtime: &super::RealtimeDeliveryRuntime,
+    ) {
+        if self
+            .ensure_route_session_current(auth, device_id, auth.session_id.as_deref())
+            .is_err()
+        {
+            return;
+        }
+
+        let _ = self
+            .realtime_cluster
+            .mark_client_route_disconnected_for_principal_kind(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                device_id,
+                auth.session_id.as_deref(),
+                self.node_id.as_str(),
+            );
+        let _ = runtime.signal_device_disconnect_for_principal_kind(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            device_id,
+        );
+        self.release_active_client_route_if_current_session(auth, device_id);
+        self.client_route_state
+            .unregister_route_key(auth, device_id);
+    }
+
     pub(crate) fn ensure_active_client_route_current_session(
         &self,
         auth: &AppContext,

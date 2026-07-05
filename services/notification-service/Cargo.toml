@@ -27,6 +27,10 @@ sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+im-adapters-local-disk = { path = "../../adapters/local-disk" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
+sdkwork_database_config = { workspace = true }
 
 [dev-dependencies]
 http-body-util.workspace = true

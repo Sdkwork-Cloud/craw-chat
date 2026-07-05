@@ -320,20 +320,6 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   useEffect(() => {
     setCurrentUser(contactService.getCurrentUser());
-    contactService.getContacts()
-      .then(users => {
-        const map: Record<string, User> = {};
-        users.forEach(u => {
-          map[u.id] = u;
-          if (u.chatId) {
-            map[u.chatId] = u;
-          }
-        });
-        setUsersMap(map);
-      })
-      .catch(() => {
-        setUsersMap({});
-      });
   }, []);
 
   useEffect(() => {

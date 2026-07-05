@@ -17,6 +17,7 @@ pub mod realtime;
 pub mod retention;
 pub mod room;
 pub mod rtc;
+pub mod rtc_outbox;
 pub mod security;
 pub mod social;
 pub mod space;

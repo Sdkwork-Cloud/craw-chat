@@ -2,7 +2,6 @@ import React from "react";
 import {
   ChevronLeft,
   Package,
-  MapPin,
   ReceiptText,
   ShieldCheck,
   Clock,
@@ -15,7 +14,8 @@ import { toast } from "@sdkwork/im-pc-chat";
 interface OrderDetailViewProps {
   order: Order;
   onBack: () => void;
-  onAction: (orderId: string, action: string, msg: string) => void;
+  onAction: (orderId: string, action: string, msg: string) => Promise<void>;
+  onPay: (orderId: string) => Promise<void>;
 }
 
 const getStatusBadge = (status: Order["status"]) => {
@@ -75,6 +75,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   order,
   onBack,
   onAction,
+  onPay,
 }) => {
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-[#1e1e20] text-gray-200 overflow-hidden">
@@ -120,31 +121,8 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
                   <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
                   收揽信息
                 </h3>
-                <div className="bg-black/20 rounded-xl p-4 flex gap-4 border border-white/5 flex-1 items-center">
-                  <div className="mt-1 shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shadow-inner">
-                      <MapPin size={18} />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[15px] text-gray-200 mb-1 flex items-center gap-3 truncate">
-                      {order.customerName}
-                      <span className="text-[13px] font-medium text-gray-400 font-mono bg-white/5 px-2 py-0.5 rounded shrink-0">
-                        138 **** 8888
-                      </span>
-                    </div>
-                    <div className="text-[13px] font-medium text-gray-400 mt-1.5 flex items-start justify-between gap-2 group/addr">
-                      <div className="leading-relaxed line-clamp-2" title="北京市朝阳区望京街道 望京SOHO T3 A座 1502室">
-                        北京市朝阳区望京街道 望京SOHO T3 A座 1502室
-                      </div>
-                      <button
-                        className="text-blue-400 hover:text-blue-300 transition-colors shrink-0 font-bold bg-blue-500/10 px-2 py-0.5 rounded cursor-pointer text-xs opacity-0 group-hover/addr:opacity-100"
-                        onClick={() => toast("已复制收揽地址", "success")}
-                      >
-                        复制
-                      </button>
-                    </div>
-                  </div>
+                <div className="bg-black/20 rounded-xl p-4 border border-white/5 text-sm text-gray-400">
+                  收货地址由订单履约服务返回；当前订单未包含可展示的收揽明细。
                 </div>
               </div>
 
@@ -171,14 +149,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
                     <span className="text-gray-500 font-medium shrink-0">创建时间</span>
                     <span className="text-gray-300 truncate pl-4">{order.createTime}</span>
                   </div>
-                  {order.status !== "PENDING_PAY" && (
+                  {order.status !== "PENDING_PAY" && order.createTime && (
                     <div className="flex justify-between items-center px-3 py-1">
                       <span className="text-gray-500 font-medium shrink-0">付款时间</span>
-                      <span className="text-gray-300 truncate pl-4">
-                        {order.createTime
-                          .replace(" ", " 23:")
-                          .replace(/^[^-]*/, "2023")}
-                      </span>
+                      <span className="text-gray-300 truncate pl-4">{order.createTime}</span>
                     </div>
                   )}
                   {order.status === "COMPLETED" && (
@@ -299,12 +273,15 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
           {order.status === "PENDING_PAY" && (
             <>
               <button
-                onClick={() => onAction(order.id, "CANCELLED", "订单已取消")}
+                onClick={() => void onAction(order.id, "CANCELLED", "订单已取消")}
                 className="px-6 py-2 border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 font-medium rounded-lg transition-colors text-sm"
               >
                 取消订单
               </button>
-              <button className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-lg transition-all shadow-md">
+              <button
+                onClick={() => void onPay(order.id)}
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-lg transition-all shadow-md"
+              >
                 立即付款
               </button>
             </>
@@ -312,31 +289,27 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
           {order.status === "PENDING_SHIP" && (
             <>
               <button
-                onClick={() => onAction(order.id, "CANCELLED", "退款申请已提交，等待卖家处理")}
+                onClick={() => void onAction(order.id, "CANCELLED", "取消申请已提交")}
                 className="px-6 py-2 border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 font-medium rounded-lg transition-colors text-sm"
               >
-                申请退款
+                取消订单
               </button>
               <button
-                onClick={() => onAction(order.id, "SHIPPED", "订单已发货")}
+                onClick={() => void onAction(order.id, "SHIPPED", "订单已发货")}
                 className="px-6 py-2 border border-blue-500/50 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white font-bold rounded-lg transition-colors shadow-sm"
               >
-                提醒发货 / 模拟发货
+                确认发货
               </button>
             </>
           )}
           {order.status === "SHIPPED" && (
-            <>
-              <button className="px-6 py-2 border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 font-medium rounded-lg transition-colors text-sm">
-                查看物流
-              </button>
-              <button
-                onClick={() => onAction(order.id, "COMPLETED", "交易成功")}
-                className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-bold rounded-lg transition-all shadow-md"
-              >
-                确认收货
-              </button>
-            </>
+            <button
+              disabled
+              title="确认收货由履约生命周期驱动，当前无独立确认命令"
+              className="px-6 py-2 border border-white/10 text-gray-500 font-medium rounded-lg text-sm cursor-not-allowed"
+            >
+              等待履约完成
+            </button>
           )}
           {order.status === "COMPLETED" && (
             <>

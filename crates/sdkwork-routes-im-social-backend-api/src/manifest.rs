@@ -1,22 +1,250 @@
 use sdkwork_web_contract::{HttpMethod, HttpRoute};
 use sdkwork_web_core::HttpRouteManifest;
 
+use crate::paths::{
+    RUNTIME_CLAIM_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+    RUNTIME_DEAD_LETTER_SHARED_CHANNEL_SYNC, RUNTIME_DELIVERED_SHARED_CHANNEL_SYNC,
+    RUNTIME_DELIVERY_STATE_SHARED_CHANNEL_SYNC,
+    RUNTIME_RECLAIM_STALE_PENDING_SHARED_CHANNEL_SYNC, RUNTIME_REPAIR_DERIVED_SNAPSHOT,
+    RUNTIME_REPAIR_SHARED_CHANNEL_SYNC, RUNTIME_REPUBLISH_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+    RUNTIME_REQUEUE_DEAD_LETTER_SHARED_CHANNEL_SYNC,
+    RUNTIME_REQUEUE_DEAD_LETTER_SHARED_CHANNEL_SYNC_TARGETED,
+    RUNTIME_RELEASE_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+    RUNTIME_TAKEOVER_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+    RUNTIME_PENDING_SHARED_CHANNEL_SYNC,
+};
+
 /// API surface: backend-api
 pub const API_SURFACE: &str = "backend-api";
+
+const CONTROL_READ: &str = "control.read";
+const CONTROL_WRITE: &str = "control.write";
 
 const SOCIAL_BACKEND_ROUTES: &[HttpRoute] = &[
     HttpRoute::dual_token(
         HttpMethod::Get,
         "/backend/v3/api/control/social/friend_requests",
-        "control",
+        "social",
         "control.social.friendRequests.list",
-    ),
+    )
+    .with_required_permission(CONTROL_READ),
     HttpRoute::dual_token(
         HttpMethod::Post,
         "/backend/v3/api/control/social/friend_requests",
-        "control",
+        "social",
         "control.social.friendRequests.submit",
-    ),
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/friend_requests/{request_id}",
+        "social",
+        "control.social.friendRequests.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/friend_requests/{request_id}/accept",
+        "social",
+        "control.social.friendRequests.accept",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/friend_requests/{request_id}/decline",
+        "social",
+        "control.social.friendRequests.decline",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/friend_requests/{request_id}/cancel",
+        "social",
+        "control.social.friendRequests.cancel",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/friendships",
+        "social",
+        "control.social.friendships.activate",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/friendships/{friendship_id}",
+        "social",
+        "control.social.friendships.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/friendships/{friendship_id}/remove",
+        "social",
+        "control.social.friendships.remove",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/user_blocks",
+        "social",
+        "control.social.userBlocks.create",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/user_blocks/{block_id}",
+        "social",
+        "control.social.userBlocks.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/direct_chats/bindings",
+        "social",
+        "control.social.directChats.bind",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/direct_chats/{direct_chat_id}",
+        "social",
+        "control.social.directChats.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/external_connections",
+        "social",
+        "control.social.externalConnections.establish",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/external_connections/{connection_id}",
+        "social",
+        "control.social.externalConnections.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/external_member_links",
+        "social",
+        "control.social.externalMemberLinks.bind",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/external_member_links/{link_id}",
+        "social",
+        "control.social.externalMemberLinks.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/backend/v3/api/control/social/shared_channel_policies",
+        "social",
+        "control.social.sharedChannelPolicies.apply",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        "/backend/v3/api/control/social/shared_channel_policies/{policy_id}",
+        "social",
+        "control.social.sharedChannelPolicies.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        RUNTIME_PENDING_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.pendingSharedChannelSync.list",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        RUNTIME_DEAD_LETTER_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.deadLetterSharedChannelSync.list",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        RUNTIME_DELIVERED_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.deliveredSharedChannelSync.list",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        RUNTIME_DELIVERY_STATE_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.deliveryStateSharedChannelSync.retrieve",
+    )
+    .with_required_permission(CONTROL_READ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_RECLAIM_STALE_PENDING_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.pendingSharedChannelSync.reclaimStale",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_REPAIR_DERIVED_SNAPSHOT,
+        "social",
+        "control.social.runtime.repairDerivedSnapshot",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_REPAIR_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.repairSharedChannelSync",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_REQUEUE_DEAD_LETTER_SHARED_CHANNEL_SYNC,
+        "social",
+        "control.social.runtime.deadLetterSharedChannelSync.requeue",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_REQUEUE_DEAD_LETTER_SHARED_CHANNEL_SYNC_TARGETED,
+        "social",
+        "control.social.runtime.deadLetterSharedChannelSync.requeueTargeted",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_CLAIM_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+        "social",
+        "control.social.runtime.pendingSharedChannelSync.claimTargeted",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_RELEASE_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+        "social",
+        "control.social.runtime.pendingSharedChannelSync.releaseTargeted",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_TAKEOVER_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+        "social",
+        "control.social.runtime.pendingSharedChannelSync.takeoverTargeted",
+    )
+    .with_required_permission(CONTROL_WRITE),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        RUNTIME_REPUBLISH_PENDING_SHARED_CHANNEL_SYNC_TARGETED,
+        "social",
+        "control.social.runtime.pendingSharedChannelSync.republishTargeted",
+    )
+    .with_required_permission(CONTROL_WRITE),
 ];
 
 pub fn backend_routes() -> Vec<HttpRoute> {

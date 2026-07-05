@@ -6,6 +6,7 @@ version.workspace = true
 description = "PostgreSQL-backed durable state store for RTC call sessions and signals."
 
 [dependencies]
+im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 sdkwork-communication-rtc-service.workspace = true
 sdkwork_utils_rust.workspace = true

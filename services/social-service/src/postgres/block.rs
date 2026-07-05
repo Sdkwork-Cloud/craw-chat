@@ -5,15 +5,18 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
-    ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
+    ApiProblem, ApiResult, finish_api_json, finish_api_response,
 };
+use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::user_block_store::UserBlockRecord;
 
+use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::postgres::access::{ensure_block_owner, social_principal_user_id};
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::id::next_entity_id;
+use crate::postgres::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
 
 #[derive(Debug, Deserialize)]
 pub struct BlockUserRequest {
@@ -43,41 +46,14 @@ impl From<UserBlockRecord> for BlockResponse {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ListQuery {
-    pub limit: Option<i64>,
-}
-
 pub async fn block_user(
     Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
-    State(state): State<PostgresAppState>,
-    Json(request): Json<BlockUserRequest>,
+    Extension(_auth): Extension<AppContext>,
+    State(_state): State<PostgresAppState>,
+    Json(_request): Json<BlockUserRequest>,
 ) -> Response {
-    let result: ApiResult<BlockResponse> = (|| {
-        let block_id = next_entity_id(&state.id_generator)?;
-        let now = chrono::Utc::now().to_rfc3339();
-
-        let record = UserBlockRecord {
-            tenant_id: auth.tenant_id,
-            organization_id: auth.organization_id,
-            block_id,
-            blocker_user_id: auth.actor_id,
-            blocked_user_id: request.blocked_user_id,
-            scope: request.scope.unwrap_or_else(|| "all".to_string()),
-            direct_chat_id: None,
-            reason: request.reason,
-            expires_at: None,
-            created_at: now.clone(),
-            updated_at: now,
-        };
-
-        state
-            .user_block_store
-            .insert(&record)
-            .map_err(|_| ApiProblem::internal_server_error("failed to insert block record"))?;
-        Ok(BlockResponse::from(record))
-    })();
+    let result: ApiResult<SdkWorkResourceData<BlockResponse>> =
+        Err(crate::postgres::mutation_policy::supplemental_social_mutation_forbidden());
     finish_api_json(&ctx, result)
 }
 
@@ -87,18 +63,20 @@ pub async fn list_blocks(
     State(state): State<PostgresAppState>,
     Query(query): Query<ListQuery>,
 ) -> Response {
-    let result: ApiResult<Vec<BlockResponse>> = (|| {
-        let limit = query.limit.unwrap_or(20);
+    let result: ApiResult<SdkWorkPageData<BlockResponse>> = (|| {
+        let paging = resolve_list_page(&query)?;
         let records = state
             .user_block_store
             .list_by_blocker(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
-                auth.actor_id.as_str(),
-                limit,
+                social_principal_user_id(&auth),
+                sql_fetch_limit(paging),
+                sql_fetch_offset(paging),
             )
             .map_err(|_| ApiProblem::internal_server_error("failed to list block records"))?;
-        Ok(records.into_iter().map(BlockResponse::from).collect())
+        let items = records.into_iter().map(BlockResponse::from).collect();
+        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
     })();
     finish_api_json(&ctx, result)
 }
@@ -109,38 +87,26 @@ pub async fn get_block(
     State(state): State<PostgresAppState>,
     Path(block_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<BlockResponse> = (|| {
+    let result: ApiResult<SdkWorkResourceData<BlockResponse>> = (|| {
         let bid: i64 = block_id.parse().unwrap_or(0);
         let record = state
             .user_block_store
             .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), bid)
             .map_err(|_| ApiProblem::internal_server_error("failed to read block record"))?
             .ok_or_else(|| ApiProblem::not_found("block record not found"))?;
-        Ok(BlockResponse::from(record))
+        ensure_block_owner(&auth, &record)?;
+        Ok(resource_item(BlockResponse::from(record)))
     })();
     finish_api_json(&ctx, result)
 }
 
 pub async fn unblock_user(
     Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
-    State(state): State<PostgresAppState>,
-    Path(block_id): Path<String>,
+    Extension(_auth): Extension<AppContext>,
+    State(_state): State<PostgresAppState>,
+    Path(_block_id): Path<String>,
 ) -> Response {
-    let result: Result<Response, ApiProblem> = (|| {
-        let bid: i64 = block_id
-            .parse()
-            .map_err(|_| ApiProblem::bad_request("invalid block id"))?;
-        match state.user_block_store.delete_by_blocker(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            bid,
-            auth.actor_id.as_str(),
-        ) {
-            Ok(true) => no_content(&ctx),
-            Ok(false) => Err(ApiProblem::not_found("block record not found")),
-            Err(_) => Err(ApiProblem::internal_server_error("failed to delete block record")),
-        }
-    })();
+    let result: Result<Response, ApiProblem> =
+        Err(crate::postgres::mutation_policy::supplemental_social_mutation_forbidden());
     finish_api_response(&ctx, result)
 }

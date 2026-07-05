@@ -6,10 +6,29 @@ use im_platform_contracts::normalize_realtime_organization_id;
 
 use crate::model::{NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView};
 use crate::scope::{
-    client_route_feed_scope_key, client_route_principal_scope_key, registered_client_route_at,
-    scope_key, ClientRoutePrincipalScopeKey,
+    ClientRoutePrincipalScopeKey, client_route_feed_scope_key, client_route_principal_scope_key,
+    registered_client_route_at, scope_key,
 };
 use crate::{TimelineProjectionService, lock_projection_mutex};
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ClientRouteSyncCheckpoint {
+    pub latest_sync_seq: u64,
+    pub acked_through_sync_seq: u64,
+    pub trimmed_through_seq: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClientRouteSyncAckStateView {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub principal_id: String,
+    pub principal_kind: String,
+    pub device_id: String,
+    pub latest_sync_seq: u64,
+    pub acked_through_sync_seq: u64,
+    pub trimmed_through_sync_seq: u64,
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct ClientRouteSyncEntryDraft {
@@ -360,7 +379,13 @@ impl TimelineProjectionService {
         principal_id: &str,
         device_id: &str,
     ) -> RegisteredClientRouteView {
-        register_client_route_default_user(self, tenant_id, organization_id, principal_id, device_id)
+        register_client_route_default_user(
+            self,
+            tenant_id,
+            organization_id,
+            principal_id,
+            device_id,
+        )
     }
 
     pub fn register_client_route_for_principal_kind(
@@ -557,11 +582,18 @@ impl TimelineProjectionService {
             &self.client_route_sync_feeds,
             "client route sync feed store",
         );
-        let feed = feeds.entry(scope).or_default();
+        let feed = feeds.entry(scope.clone()).or_default();
         feed.insert(sync_seq, build(sync_seq));
         while feed.len() > super::PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_RETAINED_EVENTS {
             feed.pop_first();
         }
+        let trimmed_through_seq = client_route_sync_feed_trimmed_through_seq(feed);
+        touch_client_route_sync_checkpoint(
+            self,
+            &scope,
+            sync_seq,
+            trimmed_through_seq,
+        );
     }
 
     pub(crate) fn append_client_route_sync_draft(
@@ -577,6 +609,14 @@ impl TimelineProjectionService {
             target.principal_kind.as_str(),
             target.device_id.as_str(),
         );
+        let sync_seq_before = self::latest_client_route_sync_seq_for_principal_kind(
+            self,
+            draft.tenant_id.as_str(),
+            draft.organization_id.as_str(),
+            target.principal_id.as_str(),
+            principal_kind.as_str(),
+            target.device_id.as_str(),
+        );
         self.append_client_route_sync_entry(
             draft.tenant_id.as_str(),
             draft.organization_id.as_str(),
@@ -585,7 +625,129 @@ impl TimelineProjectionService {
             target.device_id.as_str(),
             |sync_seq| draft.build_for_target(target, sync_seq),
         );
+        if draft.origin_event_type == "message.posted"
+            && let (Some(conversation_id), Some(message_id)) = (
+                draft.conversation_id.as_deref(),
+                draft.message_id.as_deref(),
+            )
+        {
+            let sync_seq = self::latest_client_route_sync_seq_for_principal_kind(
+                self,
+                draft.tenant_id.as_str(),
+                draft.organization_id.as_str(),
+                target.principal_id.as_str(),
+                principal_kind.as_str(),
+                target.device_id.as_str(),
+            );
+            if sync_seq > sync_seq_before {
+                self.record_message_delivery_offer(
+                    draft.tenant_id.as_str(),
+                    draft.organization_id.as_str(),
+                    conversation_id,
+                    message_id,
+                    target.principal_id.as_str(),
+                    target.principal_kind.as_str(),
+                    target.device_id.as_str(),
+                    sync_seq,
+                );
+            }
+        }
     }
+
+    pub fn ack_client_route_sync_feed_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        acked_through_sync_seq: u64,
+    ) -> ClientRouteSyncAckStateView {
+        let organization_id = normalize_realtime_organization_id(organization_id);
+        let scope = client_route_feed_scope_key(
+            tenant_id,
+            organization_id.as_str(),
+            principal_kind,
+            principal_id,
+            device_id,
+        );
+        let latest_sync_seq = self::latest_client_route_sync_seq_for_principal_kind(
+            self,
+            tenant_id,
+            organization_id.as_str(),
+            principal_id,
+            principal_kind,
+            device_id,
+        );
+        let trimmed_through_sync_seq = lock_projection_mutex(
+            &self.client_route_sync_feeds,
+            "client route sync feed store",
+        )
+        .get(&scope)
+        .map(client_route_sync_feed_trimmed_through_seq)
+        .unwrap_or_default();
+        let acked_through_sync_seq = acked_through_sync_seq.min(latest_sync_seq);
+        let checkpoint = {
+            let mut checkpoints = lock_projection_mutex(
+                &self.client_route_sync_checkpoints,
+                "client route sync checkpoint store",
+            );
+            let entry = checkpoints.entry(scope).or_default();
+            entry.latest_sync_seq = latest_sync_seq;
+            entry.trimmed_through_seq = entry
+                .trimmed_through_seq
+                .max(trimmed_through_sync_seq);
+            entry.acked_through_sync_seq = entry
+                .acked_through_sync_seq
+                .max(acked_through_sync_seq);
+            entry.clone()
+        };
+        ClientRouteSyncAckStateView {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.clone(),
+            principal_id: principal_id.into(),
+            principal_kind: principal_kind.into(),
+            device_id: device_id.into(),
+            latest_sync_seq: checkpoint.latest_sync_seq,
+            acked_through_sync_seq: checkpoint.acked_through_sync_seq,
+            trimmed_through_sync_seq: checkpoint.trimmed_through_seq,
+        }
+    }
+
+    pub fn ack_client_route_sync_feed(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_id: &str,
+        device_id: &str,
+        acked_through_sync_seq: u64,
+    ) -> ClientRouteSyncAckStateView {
+        self.ack_client_route_sync_feed_for_principal_kind(
+            tenant_id,
+            organization_id,
+            principal_id,
+            "user",
+            device_id,
+            acked_through_sync_seq,
+        )
+    }
+}
+
+fn touch_client_route_sync_checkpoint(
+    service: &TimelineProjectionService,
+    scope: &crate::scope::ClientRouteFeedScopeKey,
+    latest_sync_seq: u64,
+    trimmed_through_sync_seq: u64,
+) {
+    let mut checkpoints = lock_projection_mutex(
+        &service.client_route_sync_checkpoints,
+        "client route sync checkpoint store",
+    );
+    let entry = checkpoints.entry(scope.clone()).or_default();
+    entry.latest_sync_seq = latest_sync_seq;
+    entry.trimmed_through_seq = entry
+        .trimmed_through_seq
+        .max(trimmed_through_sync_seq);
 }
 
 fn client_route_sync_feed_trimmed_through_seq(
@@ -639,29 +801,13 @@ mod tests {
     #[test]
     fn test_registered_client_routes_isolate_organizations() {
         let service = TimelineProjectionService::default();
-        register_client_route_for_principal_kind(
-            &service,
-            "100001",
-            "org_a",
-            "1",
-            "user",
-            "d_pad",
-        );
-        register_client_route_for_principal_kind(
-            &service,
-            "100001",
-            "org_b",
-            "1",
-            "user",
-            "d_pad",
-        );
+        register_client_route_for_principal_kind(&service, "100001", "org_a", "1", "user", "d_pad");
+        register_client_route_for_principal_kind(&service, "100001", "org_b", "1", "user", "d_pad");
 
-        let org_a_devices = registered_client_routes_for_principal_kind(
-            &service, "100001", "org_a", "1", "user",
-        );
-        let org_b_devices = registered_client_routes_for_principal_kind(
-            &service, "100001", "org_b", "1", "user",
-        );
+        let org_a_devices =
+            registered_client_routes_for_principal_kind(&service, "100001", "org_a", "1", "user");
+        let org_b_devices =
+            registered_client_routes_for_principal_kind(&service, "100001", "org_b", "1", "user");
 
         assert_eq!(org_a_devices.len(), 1);
         assert_eq!(org_b_devices.len(), 1);

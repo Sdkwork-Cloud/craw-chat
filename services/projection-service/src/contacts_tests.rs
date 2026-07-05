@@ -33,10 +33,11 @@ fn test_max_rfc3339_compares_by_instant() {
 
 #[test]
 fn test_ordered_contact_views_compares_last_interaction_by_rfc3339_instant() {
-    let ordered = ordered_contact_views(vec![
+    let ordered = ContactScopeStore::from_items(vec![
         contact("1032", "2026-05-06T00:00:00.100Z"),
         contact("1033", "2026-05-06T00:00:00Z"),
-    ]);
+    ])
+    .ordered_items();
 
     assert_eq!(
         ordered

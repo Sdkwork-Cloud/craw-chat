@@ -1,8 +1,20 @@
+use im_domain_core::message::{
+    MessageEdited, MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageRecalled,
+    MessageUnpinned,
+};
+use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
 use im_domain_core::social::normalize_actor_pair;
 use im_domain_events::normalize_commit_organization_id;
+use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::sha256_hash;
 
-use super::*;
+use super::actor_inbox::ActorInboxRuntimeStore;
+use super::governance::ConversationPolicyAppliedPayload;
+use super::{
+    AgentHandoffStatusChangedPayload, ChangeConversationMemberRolePayload, ConversationState,
+    RuntimeError, TransferConversationOwnerPayload,
+};
 
 pub(super) fn conversation_scope_key(tenant_id: &str, organization_id: &str, conversation_id: &str) -> String {
     encode_conversation_key_segments([
@@ -33,9 +45,6 @@ pub(super) fn encode_conversation_key_segments<'a>(
 ) -> String {
     let mut encoded = String::new();
     for segment in segments {
-        if !encoded.is_empty() {
-            encoded.push('#');
-        }
         encoded.push_str(segment.len().to_string().as_str());
         encoded.push('#');
         encoded.push_str(segment);
@@ -55,8 +64,48 @@ pub(super) fn conversation_retention_class(conversation: &ConversationState) -> 
         .unwrap_or_else(|| "standard".into())
 }
 
-pub(super) fn upsert_member(conversation: &mut ConversationState, member: ConversationMember) {
+pub(super) fn decode_conversation_scope_key(scope_key: &str) -> Option<(String, String, String)> {
+    let mut segments = Vec::new();
+    let mut rest = scope_key;
+    while !rest.is_empty() {
+        let (len_str, after_len) = rest.split_once('#')?;
+        let len: usize = len_str.parse().ok()?;
+        if after_len.len() < len {
+            return None;
+        }
+        let (segment, remainder) = after_len.split_at(len);
+        segments.push(segment.to_string());
+        rest = remainder.strip_prefix('#').unwrap_or(remainder);
+    }
+    if segments.len() != 3 {
+        return None;
+    }
+    Some((segments[0].clone(), segments[1].clone(), segments[2].clone()))
+}
+
+pub(in crate::runtime) fn upsert_roster_member(
+    conversation: &mut ConversationState,
+    member: ConversationMember,
+) {
     conversation.roster.upsert_member(member);
+}
+
+pub(in crate::runtime) fn deactivate_roster_member(
+    conversation: &mut ConversationState,
+    member: ConversationMember,
+) {
+    conversation.roster.deactivate_member(member);
+}
+
+pub(super) fn upsert_member(
+    actor_inbox: &mut ActorInboxRuntimeStore,
+    organization_id: &str,
+    conversation: &mut ConversationState,
+    member: ConversationMember,
+) {
+    let snapshot = member.clone();
+    conversation.roster.upsert_member(member);
+    actor_inbox.sync_member(organization_id, &snapshot);
 }
 
 pub(super) fn next_member_episode(
@@ -149,6 +198,7 @@ pub(super) fn build_member_envelope(
     let event_suffix = match event_type {
         "conversation.member_removed" => "removed",
         "conversation.member_left" => "left",
+        "conversation.member_invitation_accepted" => "invitation_accepted",
         _ => "joined",
     };
     let event_timestamp = if matches!(
@@ -405,6 +455,7 @@ pub(super) fn build_message_edited_envelope(
     message: &MessageEdited,
     organization_id: &str,
     event_id: &str,
+    ordering_seq: u64,
     retention_class: &str,
 ) -> CommitEnvelope {
     CommitEnvelope {
@@ -421,7 +472,7 @@ pub(super) fn build_message_edited_envelope(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
         ),
-        ordering_seq: message.message_seq,
+        ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
@@ -444,6 +495,7 @@ pub(super) fn build_message_recalled_envelope(
     message: &MessageRecalled,
     organization_id: &str,
     event_id: &str,
+    ordering_seq: u64,
     retention_class: &str,
 ) -> CommitEnvelope {
     CommitEnvelope {
@@ -460,7 +512,7 @@ pub(super) fn build_message_recalled_envelope(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
         ),
-        ordering_seq: message.message_seq,
+        ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
@@ -483,6 +535,7 @@ pub(super) fn build_message_reaction_added_envelope(
     message: &MessageReactionAdded,
     organization_id: &str,
     event_id: &str,
+    ordering_seq: u64,
     retention_class: &str,
 ) -> CommitEnvelope {
     CommitEnvelope {
@@ -499,7 +552,7 @@ pub(super) fn build_message_reaction_added_envelope(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
         ),
-        ordering_seq: message.message_seq,
+        ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
@@ -522,6 +575,7 @@ pub(super) fn build_message_reaction_removed_envelope(
     message: &MessageReactionRemoved,
     organization_id: &str,
     event_id: &str,
+    ordering_seq: u64,
     retention_class: &str,
 ) -> CommitEnvelope {
     CommitEnvelope {
@@ -538,7 +592,7 @@ pub(super) fn build_message_reaction_removed_envelope(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
         ),
-        ordering_seq: message.message_seq,
+        ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
@@ -561,6 +615,7 @@ pub(super) fn build_message_pinned_envelope(
     message: &MessagePinned,
     organization_id: &str,
     event_id: &str,
+    ordering_seq: u64,
     retention_class: &str,
 ) -> CommitEnvelope {
     CommitEnvelope {
@@ -577,7 +632,7 @@ pub(super) fn build_message_pinned_envelope(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
         ),
-        ordering_seq: message.message_seq,
+        ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,
@@ -600,6 +655,7 @@ pub(super) fn build_message_unpinned_envelope(
     message: &MessageUnpinned,
     organization_id: &str,
     event_id: &str,
+    ordering_seq: u64,
     retention_class: &str,
 ) -> CommitEnvelope {
     CommitEnvelope {
@@ -616,7 +672,7 @@ pub(super) fn build_message_unpinned_envelope(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
         ),
-        ordering_seq: message.message_seq,
+        ordering_seq,
         causation_id: None,
         correlation_id: None,
         idempotency_key: None,

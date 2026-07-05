@@ -142,11 +142,6 @@ assert.equal(
   'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --service-layout unified-process --database postgres',
   'root pnpm dev:desktop full profile must start PostgreSQL standalone desktop dev',
 );
-assert.equal(
-  packageJson.scripts['dev:desktop:sqlite'],
-  'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --service-layout unified-process --database sqlite',
-  'root pnpm dev:desktop:sqlite must explicitly start desktop dev with SQLite',
-);
 assert.doesNotMatch(
   packageJson.scripts['dev:desktop:postgres:unified-process:standalone'],
   / --env-file /u,
@@ -650,7 +645,6 @@ for (const packageJsonPath of packageJsonFiles) {
 
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const pnpmShell = process.platform === 'win32';
-const cargoCommand = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
 const apiGatewayWorkspaceRoot = path.resolve(repoRoot, '..', 'sdkwork-api-cloud-gateway');
 
 const browserPlan = createSdkworkChatPcDevPlan({
@@ -681,16 +675,11 @@ const browserStandaloneGatewayProcess = browserPlan.processes.find(
 );
 assert.deepEqual(browserStandaloneGatewayProcess, {
   args: [
-    'run',
-    '-p',
-    'sdkwork-im-standalone-gateway',
-    '--bin',
-    'sdkwork-im-standalone-gateway',
-    '--',
+    path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
     '--config',
     browserStandaloneGatewayProcess.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
   ],
-  command: cargoCommand,
+  command: process.execPath,
   cwd: repoRoot,
   env: browserStandaloneGatewayProcess.env,
   label: 'sdkwork-im-standalone-gateway',
@@ -962,10 +951,8 @@ assert.ok(
     && postgresDatabaseConfigIndexSource.includes('./线上环境PostgreSQL数据库配置教程.md')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
-    && postgresDatabaseConfigIndexSource.includes('pnpm dev:browser:sqlite')
     && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/chat.toml')
-    && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/database.secret')
-    && postgresDatabaseConfigIndexSource.includes('~/.sdkwork/chat/data/chat.sqlite'),
+    && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/database.secret'),
   'PostgreSQL database configuration index must link the environment-specific development and production guides',
 );
 assert.ok(
@@ -973,8 +960,6 @@ assert.ok(
     && postgresDevelopmentGuideSource.includes('pnpm dev:desktop')
     && postgresDevelopmentGuideSource.includes('pnpm dev:browser:postgres')
     && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:postgres')
-    && postgresDevelopmentGuideSource.includes('pnpm dev:browser:sqlite')
-    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:sqlite')
     && postgresDevelopmentGuideSource.includes('.env.postgres')
     && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_ENGINE=postgresql')
     && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_SSL_MODE=disable')
@@ -1029,17 +1014,6 @@ assert.equal(
   postgresEnvFilePlan.processes[0].env.SDKWORK_IM_DATABASE_MAX_CONNECTIONS,
   '15',
   'dev command must load canonical PostgreSQL max connections from --dev-env-file',
-);
-
-const sqliteBrowserPlan = createSdkworkChatPcDevPlan({
-  argv: ['--target', 'browser', '--database', 'sqlite'],
-  env: {},
-  repoRoot,
-});
-assert.match(
-  sqliteBrowserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]\.sdkwork[/\\]chat[/\\]data[/\\]chat\.sqlite$/u,
-  'pnpm dev:browser:sqlite must explicitly use the Sdkwork IM user-private SQLite database URL',
 );
 
 const desktopPlan = createSdkworkChatPcDevPlan({
@@ -1203,16 +1177,16 @@ assert.equal(
 assert.deepEqual(
   spawned[0].args,
   [
-    'run',
-    '-p',
-    'sdkwork-im-standalone-gateway',
-    '--bin',
-    'sdkwork-im-standalone-gateway',
-    '--',
+    path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
     '--config',
     spawned[0].options.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
   ],
   'dev runner must spawn the embedded standalone gateway for standalone unified-process profiles',
+);
+assert.equal(
+  spawned[0].command,
+  process.execPath,
+  'dev runner must launch the standalone gateway through the build-and-run helper',
 );
 assert.equal(
   spawned[0].options.cwd,
@@ -1228,9 +1202,14 @@ const devRunnerSource = fs.readFileSync(
   path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs'),
   'utf8',
 );
-assert.match(
-  devRunnerSource,
-  /createSdkworkImServerCargoEnv/u,
+  assert.match(
+    devRunnerSource,
+    /run-standalone-gateway-dev\.mjs/u,
+    'dev runner must launch standalone gateway through build-and-run helper',
+  );
+  assert.match(
+    devRunnerSource,
+    /createSdkworkImServerCargoEnv/u,
   'dev runner plan must use the shared cargo target isolation helper',
 );
 assert.match(

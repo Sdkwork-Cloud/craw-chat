@@ -187,21 +187,22 @@
 2. `client-route event window`
 3. 必要时重新拉取 timeline
 
-## 7. 本地最小实现映射
+## 7. 实现映射（2026-07-05）
 
-当前 `sdkwork-im-server` 的落地约束如下：
+统一进程（standalone gateway）落地路径：
 
-- `message.posted`、`message.edited`、`message.recalled` 都在写路径结束后发布 realtime 事件
-- 成员集合来自 `conversation_runtime.list_members`
-- 设备集合来自 `projection_service.registered_devices`
-- 实际写入窗口由 `realtime_runtime.publish_scope_event` 完成
+- **写路径**：`sdkwork-comms-conversation-service/src/runtime/message_realtime.rs` 在 `post_message` / `edit_message` / `recall_message` journal 提交后调用 `RealtimeEventPublisher::publish_durable_scope_event_to_recipients`
+- **成员扇出**：`ConversationRuntime::list_members` 枚举会话成员 principal
+- **设备过滤**：`session-gateway` `RealtimeDeliveryRuntime::publish_scope_event_for_principal_kind`（`delivery_class = durable`，持久化 event window + checkpoint）
+- **Ephemeral 分层**：typing / presence 走 `publish_ephemeral_scope_event_for_principal_kind`（仅内存 window + watch 通知，不写 Postgres/Redis durable store）
+- **嵌入接线**：`sdkwork-im-standalone-gateway/src/embedded_plane_wiring.rs` 注册 `register_embedded_realtime_publisher`
 
-这意味着本地最小实现已经满足：
+已满足：
 
 - 会话成员级广播
-- 设备级过滤
-- 事件类型精确过滤
-- 写路径到实时窗口的一致业务语义
+- 设备级订阅过滤
+- `message.posted` / `message.edited` / `message.recalled` 事件类型精确过滤
+- 写路径到 durable realtime window 的一致业务语义
 
 ## 8. 与后续阶段的关系
 

@@ -1,4 +1,10 @@
 import { getAppbaseAppSdkClientWithSession } from '@sdkwork/im-pc-core';
+import {
+  forEachCursorPage,
+  mapAppSdkCursorPage,
+  SDKWORK_DEFAULT_PAGE_SIZE,
+  SDKWORK_MAX_PAGE_SIZE,
+} from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
 
 export interface Role {
   id: string;
@@ -17,35 +23,6 @@ type UnknownRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): UnknownRecord {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
-}
-
-function unwrapAppbaseResult(value: unknown): unknown {
-  const record = asRecord(value);
-  if (!('code' in record) && !('data' in record)) {
-    return value;
-  }
-
-  const code = record.code;
-  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
-  if (!['0', '200', '2000'].includes(normalizedCode)) {
-    throw new Error(String(record.message || record.msg || 'Appbase backend role request failed'));
-  }
-  return record.data;
-}
-
-function readRecords(value: unknown): UnknownRecord[] {
-  const unwrapped = unwrapAppbaseResult(value);
-  if (Array.isArray(unwrapped)) {
-    return unwrapped.map(asRecord).filter((record) => Object.keys(record).length > 0);
-  }
-  const record = asRecord(unwrapped);
-  for (const key of ['items', 'records', 'data', 'list', 'rows', 'content', 'roles']) {
-    const nested = record[key];
-    if (Array.isArray(nested)) {
-      return nested.map(asRecord).filter((item) => Object.keys(item).length > 0);
-    }
-  }
-  return [];
 }
 
 function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
@@ -99,11 +76,6 @@ function readBoolean(record: UnknownRecord, keys: string[], fallback = false): b
   return fallback;
 }
 
-function readTotal(value: unknown, fallback: number): number {
-  const record = asRecord(unwrapAppbaseResult(value));
-  return readNumber(record, ['total', 'totalElements', 'totalCount', 'count'], fallback);
-}
-
 function mapRole(record: UnknownRecord): Role {
   const id = readString(record, ['roleId', 'role_id', 'id', 'code'], 'role');
   return {
@@ -125,18 +97,28 @@ function toRoleUpdateCommand(updates: Partial<Role>): Record<string, unknown> {
 
 class RoleService {
   async getRoles(): Promise<GetRolesResponse> {
-    const response = await getAppbaseAppSdkClientWithSession().iam.roleBindings.list({});
-    const records = readRecords(response);
     const roleMap = new Map<string, Role>();
-    for (const record of records) {
-      const role = mapRole(record);
-      const existing = roleMap.get(role.id);
-      roleMap.set(role.id, existing ? { ...existing, count: existing.count + Math.max(1, role.count) } : { ...role, count: Math.max(1, role.count) });
-    }
+    await forEachCursorPage(async (cursor) => {
+      const response = await getAppbaseAppSdkClientWithSession().iam.roleBindings.list({
+        pageSize: SDKWORK_DEFAULT_PAGE_SIZE,
+        ...(cursor ? { cursor } : {}),
+      });
+      return mapAppSdkCursorPage(response, mapRole);
+    }, async (items) => {
+      for (const role of items) {
+        const existing = roleMap.get(role.id);
+        roleMap.set(
+          role.id,
+          existing
+            ? { ...existing, count: existing.count + Math.max(1, role.count) }
+            : { ...role, count: Math.max(1, role.count) },
+        );
+      }
+    }, { maxItems: SDKWORK_MAX_PAGE_SIZE });
     const data = [...roleMap.values()];
     return {
       data,
-      total: readTotal(response, data.length),
+      total: data.length,
     };
   }
 

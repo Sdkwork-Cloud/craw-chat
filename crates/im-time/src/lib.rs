@@ -31,6 +31,14 @@ pub fn rfc3339_lt(left: &str, right: &str) -> bool {
     rfc3339_cmp(left, right) == Ordering::Less
 }
 
+pub fn rfc3339_add_secs(value: &str, seconds: i64) -> Option<String> {
+    let parsed = parse_rfc3339(value)?;
+    let shifted = parsed + chrono::Duration::seconds(seconds);
+    Some(format_unix_timestamp_millis(
+        shifted.timestamp_millis().max(0) as u128,
+    ))
+}
+
 pub fn rfc3339_gt(left: &str, right: &str) -> bool {
     rfc3339_cmp(left, right) == Ordering::Greater
 }
@@ -94,8 +102,8 @@ fn civil_from_days(days_since_unix_epoch: i64) -> (i32, u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_unix_timestamp_millis, max_optional_rfc3339_string, max_rfc3339_string, rfc3339_gt,
-        rfc3339_le,
+        format_unix_timestamp_millis, max_optional_rfc3339_string, max_rfc3339_string,
+        rfc3339_add_secs, rfc3339_gt, rfc3339_le,
     };
 
     #[test]
@@ -113,6 +121,14 @@ mod tests {
         let later = format_unix_timestamp_millis(1_744_635_605_456);
 
         assert!(earlier < later);
+    }
+
+    #[test]
+    fn rfc3339_add_secs_advances_timestamp() {
+        assert_eq!(
+            rfc3339_add_secs("2026-01-01T00:00:00.000Z", 86_400).as_deref(),
+            Some("2026-01-02T00:00:00.000Z")
+        );
     }
 
     #[test]

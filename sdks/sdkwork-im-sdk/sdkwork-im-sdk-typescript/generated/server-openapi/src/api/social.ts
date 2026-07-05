@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { ContactPreferencesView, ContactRecommendationView, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, FriendRequest, SdkWorkCommandData, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendshipMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
+import type { ContactPreferencesView, ContactRecommendationView, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, CreateUserBlockRequest, DeleteContactTagResponse, FriendRequest, Friendship, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendRequestPendingCountResponse, SocialFriendshipMutationResponse, SocialUserBlockMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
 
 
 export class SocialContactsPreferencesApi {
@@ -70,8 +70,8 @@ export class SocialContactsTagsApi {
   }
 
 /** Delete a contact tag */
-  async delete(tagId: string): Promise<SdkWorkCommandData> {
-    return this.client.delete<SdkWorkCommandData>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
+  async delete(tagId: string): Promise<DeleteContactTagResponse> {
+    return this.client.delete<DeleteContactTagResponse>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -90,6 +90,30 @@ export class SocialContactsApi {
 
 }
 
+export class SocialUserBlocksApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Block a user in the social graph */
+  async create(body: CreateUserBlockRequest): Promise<SocialUserBlockMutationResponse> {
+    return this.client.post<SocialUserBlockMutationResponse>(imApiPath(`/social/user_blocks`), body, undefined, undefined, 'application/json');
+  }
+
+/** Release an active user block */
+  async release(blockId: string): Promise<SocialUserBlockMutationResponse> {
+    return this.client.delete<SocialUserBlockMutationResponse>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`));
+  }
+}
+
+export interface SocialFriendshipsListParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export class SocialFriendshipsApi {
   private client: HttpClient;
 
@@ -97,6 +121,15 @@ export class SocialFriendshipsApi {
     this.client = client;
   }
 
+
+/** List friendships */
+  async list(params?: SocialFriendshipsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/friendships`), query));
+  }
 
 /** Remove a friendship */
   async remove(friendshipId: string): Promise<SocialFriendshipMutationResponse> {
@@ -133,6 +166,11 @@ export class SocialFriendRequestsApi {
 /** Create a friend request */
   async create(body: SubmitFriendRequestRequest): Promise<SocialFriendRequestMutationResponse> {
     return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests`), body, undefined, undefined, 'application/json');
+  }
+
+/** Retrieve pending incoming friend request count */
+  async pendingCount(): Promise<SocialFriendRequestPendingCountResponse> {
+    return this.client.get<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`));
   }
 
 /** Accept a friend request */
@@ -181,6 +219,7 @@ export class SocialApi {
   public readonly users: SocialUsersApi;
   public readonly friendRequests: SocialFriendRequestsApi;
   public readonly friendships: SocialFriendshipsApi;
+  public readonly userBlocks: SocialUserBlocksApi;
   public readonly contacts: SocialContactsApi;
 
   constructor(client: HttpClient) {
@@ -188,6 +227,7 @@ export class SocialApi {
     this.users = new SocialUsersApi(client);
     this.friendRequests = new SocialFriendRequestsApi(client);
     this.friendships = new SocialFriendshipsApi(client);
+    this.userBlocks = new SocialUserBlocksApi(client);
     this.contacts = new SocialContactsApi(client);
   }
 

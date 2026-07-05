@@ -3,7 +3,11 @@ use std::sync::{Mutex, MutexGuard};
 
 use im_app_context::AppContext;
 use im_domain_core::message::Sender;
-use im_domain_core::stream::{StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState};
+use im_domain_core::stream::{
+    StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
+};
+
+use sdkwork_utils_rust::MAX_LIST_PAGE_SIZE;
 
 use crate::dto::{
     AbortStreamRequest, AppendStreamFrameRequest, CheckpointStreamRequest, CompleteStreamRequest,
@@ -83,7 +87,11 @@ pub(crate) fn validate_open_stream_request_payload_size(
         request.scope_kind.as_str(),
         STREAM_MAX_SCOPE_KIND_BYTES,
     )?;
-    validate_payload_size("scopeId", request.scope_id.as_str(), STREAM_MAX_SCOPE_ID_BYTES)?;
+    validate_payload_size(
+        "scopeId",
+        request.scope_id.as_str(),
+        STREAM_MAX_SCOPE_ID_BYTES,
+    )?;
     validate_payload_size(
         "durabilityClass",
         request.durability_class.as_str(),
@@ -181,13 +189,13 @@ fn encode_stream_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -
 }
 
 pub(crate) fn stream_frame_index(frames: Vec<StreamFrame>) -> BTreeMap<u64, StreamFrame> {
-    frames
-        .into_iter()
-        .filter(|frame| frame.frame_seq > 0)
-        .fold(BTreeMap::new(), |mut index, frame| {
+    frames.into_iter().filter(|frame| frame.frame_seq > 0).fold(
+        BTreeMap::new(),
+        |mut index, frame| {
             index.insert(frame.frame_seq, frame);
             index
-        })
+        },
+    )
 }
 
 pub fn stream_open_request_key(auth: &AppContext, stream_id: &str) -> String {
@@ -356,4 +364,23 @@ pub(crate) fn resolve_stream_frame_sender(auth: &AppContext) -> Sender {
         session_id: auth.session_id.clone(),
         metadata: BTreeMap::new(),
     }
+}
+
+pub(crate) fn validate_stream_frame_page_size(page_size: usize) -> Result<usize, StreamingError> {
+    let max_page_size = MAX_LIST_PAGE_SIZE as usize;
+    if page_size == 0 {
+        return Err(StreamingError {
+            status: axum::http::StatusCode::BAD_REQUEST,
+            code: "page_size_invalid",
+            message: "pageSize must be greater than 0".into(),
+        });
+    }
+    if page_size > max_page_size {
+        return Err(StreamingError {
+            status: axum::http::StatusCode::BAD_REQUEST,
+            code: "page_size_invalid",
+            message: format!("pageSize must be less than or equal to {max_page_size}"),
+        });
+    }
+    Ok(page_size)
 }

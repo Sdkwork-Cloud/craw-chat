@@ -1,4 +1,8 @@
 import { getAppbaseAppSdkClientWithSession } from '@sdkwork/im-pc-core';
+import {
+  extractAppSdkRecordsFromResult,
+  unwrapSdkWorkApiEnvelope,
+} from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
 
 export interface User {
   id: string;
@@ -21,33 +25,8 @@ function asRecord(value: unknown): UnknownRecord {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
 }
 
-function unwrapAppbaseResult(value: unknown): unknown {
-  const record = asRecord(value);
-  if (!('code' in record) && !('data' in record)) {
-    return value;
-  }
-
-  const code = record.code;
-  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
-  if (!['0', '200', '2000'].includes(normalizedCode)) {
-    throw new Error(String(record.message || record.msg || 'Appbase backend user request failed'));
-  }
-  return record.data;
-}
-
 function readRecords(value: unknown): UnknownRecord[] {
-  const unwrapped = unwrapAppbaseResult(value);
-  if (Array.isArray(unwrapped)) {
-    return unwrapped.map(asRecord).filter((record) => Object.keys(record).length > 0);
-  }
-  const record = asRecord(unwrapped);
-  for (const key of ['items', 'records', 'data', 'list', 'rows', 'content', 'users']) {
-    const nested = record[key];
-    if (Array.isArray(nested)) {
-      return nested.map(asRecord).filter((item) => Object.keys(item).length > 0);
-    }
-  }
-  return [];
+  return extractAppSdkRecordsFromResult(value);
 }
 
 function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
@@ -80,7 +59,7 @@ function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number
 }
 
 function readTotal(value: unknown, fallback: number): number {
-  const record = asRecord(unwrapAppbaseResult(value));
+  const record = asRecord(unwrapSdkWorkApiEnvelope(value));
   return readNumber(record, ['total', 'totalElements', 'totalCount', 'count'], fallback);
 }
 

@@ -3,18 +3,21 @@
 use axum::extract::{Extension, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
+use im_domain_core::social::normalize_user_pair;
 use im_adapters_social_postgres::{postgres_pool_client, SocialPostgresPool};
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkCursorListQuery, SdkWorkPageData};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::postgres::http::PostgresAppState;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct SearchUsersQuery {
     pub q: Option<String>,
-    pub limit: Option<i64>,
-    pub cursor: Option<String>,
+    #[serde(flatten)]
+    pub paging: SdkWorkCursorListQuery,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,15 +36,6 @@ pub struct SocialUserSearchResult {
     pub phone: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SocialUserSearchResponse {
-    pub items: Vec<SocialUserSearchResult>,
-    pub has_more: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_cursor: Option<String>,
-}
-
 #[derive(Debug, Clone)]
 struct IamUserRow {
     user_id: String,
@@ -58,16 +52,18 @@ pub async fn search_users(
     Query(query): Query<SearchUsersQuery>,
 ) -> Response {
     let keyword = query.q.unwrap_or_default().trim().to_owned();
+    let page_size = query
+        .paging
+        .resolve()
+        .map(|params| params.page_size.clamp(1, 50))
+        .unwrap_or(20);
     if keyword.is_empty() {
-        let result: ApiResult<SocialUserSearchResponse> = Ok(SocialUserSearchResponse {
-            items: Vec::new(),
-            has_more: false,
-            next_cursor: None,
-        });
+        let result: ApiResult<SdkWorkPageData<SocialUserSearchResult>> =
+            Ok(cursor_list_page_data(Vec::new(), page_size, None, false));
         return finish_api_json(&ctx, result);
     }
 
-    let limit = query.limit.unwrap_or(20).clamp(1, 50);
+    let limit = page_size as i64;
     let pool = state.postgres_pool.clone();
     let tenant_id = auth.tenant_id.clone();
     let organization_id = auth.organization_id.clone();
@@ -88,57 +84,97 @@ pub async fn search_users(
     {
         Ok(Ok(rows)) => rows,
         Ok(Err(_)) => {
-            return finish_api_json::<SocialUserSearchResponse>(
+            return finish_api_json::<SdkWorkPageData<SocialUserSearchResult>>(
                 &ctx,
                 Err(ApiProblem::dependency_unavailable("iam user search failed")),
             );
         }
         Err(_) => {
-            return finish_api_json::<SocialUserSearchResponse>(
+            return finish_api_json::<SdkWorkPageData<SocialUserSearchResult>>(
                 &ctx,
                 Err(ApiProblem::internal_server_error("iam user search worker panicked")),
             );
         }
     };
 
-    let active_friend_ids = match tokio::task::spawn_blocking({
+    let user_block_store = state.user_block_store.clone();
+    let candidate_user_ids: Vec<String> = rows.iter().map(|row| row.user_id.clone()).collect();
+
+    let relationship_context = match tokio::task::spawn_blocking({
         let friendship_store = friendship_store.clone();
+        let user_block_store = user_block_store.clone();
         let tenant_id = tenant_id.clone();
         let organization_id = organization_id.clone();
         let current_user_id = current_user_id.clone();
         move || {
-            friendship_store
-                .list_by_user(
-                    tenant_id.as_str(),
-                    organization_id.as_str(),
-                    current_user_id.as_str(),
-                    "active",
-                    500,
-                )
-                .map(|records| {
-                    records
-                        .into_iter()
-                        .flat_map(|record| {
-                            if record.user_low_id == current_user_id {
-                                Some(record.user_high_id)
-                            } else if record.user_high_id == current_user_id {
-                                Some(record.user_low_id)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<std::collections::HashSet<String>>()
-                })
+            let mut active_friend_ids = std::collections::HashSet::new();
+            let mut blocked_user_ids = std::collections::HashSet::new();
+            for user_id in candidate_user_ids {
+                if user_id == current_user_id {
+                    continue;
+                }
+                if blocked_user_ids.contains(user_id.as_str()) {
+                    continue;
+                }
+                let pair = match normalize_user_pair(current_user_id.as_str(), user_id.as_str()) {
+                    Ok(pair) => pair,
+                    Err(_) => continue,
+                };
+                if user_block_store
+                    .find_active_block(
+                        tenant_id.as_str(),
+                        organization_id.as_str(),
+                        current_user_id.as_str(),
+                        user_id.as_str(),
+                        "social",
+                    )
+                    .ok()
+                    .flatten()
+                    .is_some()
+                    || user_block_store
+                        .find_active_block(
+                            tenant_id.as_str(),
+                            organization_id.as_str(),
+                            user_id.as_str(),
+                            current_user_id.as_str(),
+                            "social",
+                        )
+                        .ok()
+                        .flatten()
+                        .is_some()
+                {
+                    blocked_user_ids.insert(user_id);
+                    continue;
+                }
+                if friendship_store
+                    .find_by_pair(
+                        tenant_id.as_str(),
+                        organization_id.as_str(),
+                        pair.user_low_id.as_str(),
+                        pair.user_high_id.as_str(),
+                    )
+                    .ok()
+                    .flatten()
+                    .is_some_and(|record| record.status == "active")
+                {
+                    active_friend_ids.insert(user_id);
+                }
+            }
+            (active_friend_ids, blocked_user_ids)
         }
     })
     .await
     {
-        Ok(Ok(ids)) => ids,
-        _ => std::collections::HashSet::new(),
+        Ok(context) => context,
+        _ => (std::collections::HashSet::new(), std::collections::HashSet::new()),
     };
+    let (active_friend_ids, blocked_user_ids) = relationship_context;
 
     let mut items = Vec::with_capacity(rows.len());
     for row in rows {
+        if blocked_user_ids.contains(row.user_id.as_str()) {
+            continue;
+        }
         let relationship_state = if row.user_id == current_user_id {
             "self".to_owned()
         } else if active_friend_ids.contains(row.user_id.as_str()) {
@@ -176,11 +212,9 @@ pub async fn search_users(
         });
     }
 
-    let result: ApiResult<SocialUserSearchResponse> = Ok(SocialUserSearchResponse {
-        items,
-        has_more: false,
-        next_cursor: None,
-    });
+    let has_more = items.len() >= page_size;
+    let result: ApiResult<SdkWorkPageData<SocialUserSearchResult>> =
+        Ok(cursor_list_page_data(items, page_size, None, has_more));
     finish_api_json(&ctx, result)
 }
 

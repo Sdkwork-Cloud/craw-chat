@@ -114,6 +114,11 @@ assert.match(
   'standalone gateway must embed sibling dependency route crates in-process',
 );
 assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/main.rs'),
+  /SDKWORK_IAM_APP_API_HOST_MOUNTED/,
+  'standalone gateway must declare host-mounted IAM before embedding knowledgebase sibling assemblies',
+);
+assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
   /sdkwork_drive_gateway_assembly::assemble_application_router/,
   'standalone dependency bootstrap must mount drive through sibling gateway assembly library',

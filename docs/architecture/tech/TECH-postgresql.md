@@ -6,8 +6,7 @@
 - app code: `chat`
 - 发布访问根路径: `/sdkwork/chat`
 - 环境变量前缀: `SDKWORK_IM_*`（连接字段可与统一工作区 `SDKWORK_CLAW_DATABASE_*` 别名并存）
-- desktop 安装运行时本地数据默认数据库: SQLite
-- desktop SQLite 路径: `~/.sdkwork/chat/data/chat.sqlite`
+- desktop runtime 本地数据使用浏览器本地存储(IndexedDB / localStorage),不使用 SQL 数据库文件。
 
 ## 1. 本地启动入口
 
@@ -26,13 +25,13 @@ pnpm dev:desktop
 pnpm dev:desktop:postgres
 ```
 
-`pnpm dev:desktop 默认使用 PostgreSQL`。安装后的 desktop runtime 本地用户数据仍默认使用 SQLite，数据库文件写入 `~/.sdkwork/chat/data/chat.sqlite`，Windows 等价路径为 `%USERPROFILE%\.sdkwork\chat\data\chat.sqlite`。
+`pnpm dev:desktop 默认使用 PostgreSQL`。安装后的 desktop runtime 本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不使用 SQL 数据库文件。
 
-显式 SQLite 开发入口保留：
+显式 PostgreSQL 开发入口：
 
 ```powershell
-pnpm dev:browser:sqlite
-pnpm dev:desktop:sqlite
+pnpm dev:browser:postgres
+pnpm dev:desktop:postgres
 ```
 
 ## 2. 配置文件位置
@@ -149,5 +148,5 @@ SELECT current_database(), current_user, current_schema();
 
 ## 7. 与 production 的边界
 
-`.env.postgres` 仅用于本地开发和集成测试。server 发布包使用 `/etc/sdkwork/chat/chat.toml`、`/etc/sdkwork/chat/server.env`、`/etc/sdkwork/chat/postgresql.yaml` 与 `/etc/sdkwork/chat/database.secret`。desktop 发布包和安装运行时本地用户数据不依赖 PostgreSQL，默认 SQLite 数据文件为 `~/.sdkwork/chat/data/chat.sqlite`。
+`.env.postgres` 仅用于本地开发和集成测试。server 发布包使用 `/etc/sdkwork/chat/chat.toml`、`/etc/sdkwork/chat/server.env`、`/etc/sdkwork/chat/postgresql.yaml` 与 `/etc/sdkwork/chat/database.secret`。desktop 发布包和安装运行时本地用户数据不依赖 PostgreSQL,使用浏览器本地存储(IndexedDB / localStorage)。
 

@@ -10,25 +10,33 @@
 //! unauthenticated requests before they reach these handlers.
 
 use axum::Json;
-use axum::extract::{Extension, Path, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
+use serde::Deserialize;
+use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkPageData};
 
 use im_app_context::AppContext;
-use sdkwork_routes_web_framework_backend_api::response::{
-    finish_api_json, ApiProblem, ApiResult,
-};
+use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
 use sdkwork_web_core::WebRequestContext;
 
 use crate::dto::{
     CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest,
-    PostRtcSignalRequest, RtcParticipantCredentialResponse, SessionMutationResponse,
-    RtcSignalEventResponse, UpdateRtcSessionRequest,
+    PostRtcSignalRequest, RtcParticipantCredentialResponse, RtcSignalEventResponse,
+    SessionMutationResponse, UpdateRtcSessionRequest,
 };
 use crate::helpers::{
     rtc_session_accept_request_key, rtc_session_create_request_key, rtc_session_end_request_key,
     rtc_session_invite_request_key, rtc_session_reject_request_key,
 };
 use crate::state::AppState;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ListRtcSignalsQuery {
+    pub after_signal_seq: Option<u64>,
+    pub page_size: Option<usize>,
+    pub cursor: Option<String>,
+}
 
 pub(crate) async fn create_call_session(
     Extension(ctx): Extension<WebRequestContext>,
@@ -39,9 +47,7 @@ pub(crate) async fn create_call_session(
     let request_key =
         rtc_session_create_request_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
     let result: ApiResult<SessionMutationResponse> = (|| {
-        let outcome = state
-            .runtime
-            .create_session_with_outcome(&auth, request)?;
+        let outcome = state.runtime.create_session_with_outcome(&auth, request)?;
         Ok(SessionMutationResponse::from_outcome(outcome, request_key))
     })();
     finish_api_json(&ctx, result)
@@ -60,6 +66,32 @@ pub(crate) async fn retrieve_call_session(
     finish_api_json(&ctx, result)
 }
 
+pub(crate) async fn list_call_signals(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    Path(rtc_session_id): Path<String>,
+    Query(query): Query<ListRtcSignalsQuery>,
+    State(state): State<AppState>,
+) -> Response {
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 200);
+    let after_signal_seq = query
+        .after_signal_seq
+        .or_else(|| query.cursor.as_deref().and_then(|value| value.parse().ok()));
+    let result: ApiResult<SdkWorkPageData<im_domain_core::rtc::SignalEvent>> = (|| {
+        let (items, has_more) = state.runtime.list_signals(
+            &auth,
+            rtc_session_id.as_str(),
+            after_signal_seq,
+            Some(page_size),
+        )?;
+        let next_cursor = has_more
+            .then(|| items.last().map(|event| event.signal_seq.to_string()))
+            .flatten();
+        Ok(cursor_list_page_data(items, page_size, next_cursor, has_more))
+    })();
+    finish_api_json(&ctx, result)
+}
+
 pub(crate) async fn invite_call_session(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
@@ -73,9 +105,10 @@ pub(crate) async fn invite_call_session(
         request.signaling_stream_id.as_deref(),
     );
     let result: ApiResult<SessionMutationResponse> = (|| {
-        let outcome = state
-            .runtime
-            .invite_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+        let outcome =
+            state
+                .runtime
+                .invite_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
         Ok(SessionMutationResponse::from_outcome(outcome, request_key))
     })();
     finish_api_json(&ctx, result)
@@ -91,9 +124,10 @@ pub(crate) async fn accept_call_session(
     let request_key =
         rtc_session_accept_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str());
     let result: ApiResult<SessionMutationResponse> = (|| {
-        let outcome = state
-            .runtime
-            .accept_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+        let outcome =
+            state
+                .runtime
+                .accept_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
         Ok(SessionMutationResponse::from_outcome(outcome, request_key))
     })();
     finish_api_json(&ctx, result)
@@ -109,9 +143,10 @@ pub(crate) async fn reject_call_session(
     let request_key =
         rtc_session_reject_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str());
     let result: ApiResult<SessionMutationResponse> = (|| {
-        let outcome = state
-            .runtime
-            .reject_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+        let outcome =
+            state
+                .runtime
+                .reject_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
         Ok(SessionMutationResponse::from_outcome(outcome, request_key))
     })();
     finish_api_json(&ctx, result)
@@ -126,9 +161,10 @@ pub(crate) async fn end_call_session(
 ) -> Response {
     let request_key = rtc_session_end_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str());
     let result: ApiResult<SessionMutationResponse> = (|| {
-        let outcome = state
-            .runtime
-            .end_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
+        let outcome =
+            state
+                .runtime
+                .end_session_with_outcome(&auth, rtc_session_id.as_str(), request)?;
         Ok(SessionMutationResponse::from_outcome(outcome, request_key))
     })();
     finish_api_json(&ctx, result)
@@ -150,7 +186,11 @@ pub(crate) async fn post_call_signal(
         let event = state
             .runtime
             .post_signal(&auth, rtc_session_id.as_str(), request)?;
-        Ok(RtcSignalEventResponse::from_outcome(event, true, request_key))
+        Ok(RtcSignalEventResponse::from_outcome(
+            event,
+            true,
+            request_key,
+        ))
     })();
     finish_api_json(&ctx, result)
 }
@@ -185,12 +225,14 @@ pub(crate) async fn issue_participant_credential(
         // The previous check only verified `participant_id == auth.actor_id`,
         // which allowed any authenticated user who knew the `rtc_session_id` to
         // mint a join credential for themselves, bypassing the invite flow.
-        let is_initiator = session.initiator_id == auth.actor_id
-            && session.initiator_kind == auth.actor_kind;
+        let is_initiator =
+            session.initiator_id == auth.actor_id && session.initiator_kind == auth.actor_kind;
         let has_admin_permission = auth.has_permission("im.calls.credentials.issue");
-        let is_invited_self = request.participant_id == auth.actor_id
-            && session.participants.invited_ids.contains(&auth.actor_id);
-        if !is_initiator && !has_admin_permission && !is_invited_self {
+        let is_invited_or_accepted_self = request.participant_id == auth.actor_id
+            && (session.participants.invited_ids.contains(&auth.actor_id)
+                || session.participants.accepted_ids.contains(&auth.actor_id))
+            && (auth.actor_kind == session.initiator_kind || auth.actor_kind == "user");
+        if !is_initiator && !has_admin_permission && !is_invited_or_accepted_self {
             return Err(ApiProblem::forbidden(
                 "principal is not authorized to issue call participant credentials",
             ));

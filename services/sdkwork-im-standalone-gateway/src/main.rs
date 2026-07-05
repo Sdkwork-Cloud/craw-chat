@@ -1,6 +1,7 @@
 mod config;
 mod embedded_application_routes;
 mod embedded_dependency_routes;
+mod embedded_plane_wiring;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
@@ -93,6 +94,12 @@ async fn async_main(
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
     let mut embedded_runtime =
         bootstrap_embedded_session_gateway_runtime(&web_config).await?;
+    if let Some(session_state) = embedded_runtime.embedded_realtime_app_state.as_ref() {
+        embedded_plane_wiring::wire_embedded_realtime_plane(
+            session_state,
+            &embedded_application.social_runtime,
+        );
+    }
     let session_router = embedded_runtime.session_router.take();
     let embedded_realtime_app_state = embedded_runtime.embedded_realtime_app_state.take();
 
@@ -132,7 +139,18 @@ async fn async_main(
         ));
 
     println!("Assembling gateway router completed; binding {bind_addr}");
-    let listener = tokio::net::TcpListener::bind(bind_addr).await?;
+    let listener = tokio::net::TcpListener::bind(bind_addr).await.map_err(|error| {
+        if error.kind() == std::io::ErrorKind::AddrInUse {
+            format!(
+                "failed to bind {bind_addr}: port already in use. \
+                 Stop stale sdkwork-im-standalone-gateway processes \
+                 (Windows: taskkill /F /IM sdkwork-im-standalone-gateway.exe) \
+                 or set SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND to another host:port"
+            )
+        } else {
+            format!("failed to bind {bind_addr}: {error}")
+        }
+    })?;
     println!(
         "Listening on http://{} (healthz: http://{}/healthz)",
         display_listener_addr(bind_addr),
@@ -196,6 +214,19 @@ fn apply_gateway_process_environment(config: &ResolvedGatewayConfig) {
         // SAFETY: Called from fn main() before the Tokio runtime is created.
         unsafe {
             std::env::set_var("SDKWORK_ENV", sdkwork_env);
+        }
+    }
+    if std::env::var("SDKWORK_IAM_APP_API_HOST_MOUNTED")
+        .ok()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
+    {
+        // Unified-process hosts mount IAM once via build_sdkwork_iam_app_api_router below.
+        // Embedded sibling assemblies such as sdkwork-knowledgebase-gateway-assembly must
+        // not merge IAM routes again or axum panics on duplicate handlers.
+        // SAFETY: Called from fn main() before the Tokio runtime is created.
+        unsafe {
+            std::env::set_var("SDKWORK_IAM_APP_API_HOST_MOUNTED", "true");
         }
     }
 }

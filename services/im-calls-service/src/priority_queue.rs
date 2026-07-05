@@ -49,19 +49,21 @@ impl RtcSignalPriority {
         match signal_type {
             // SDP offer/answer - critical for call setup
             "sdp.offer" | "sdp.answer" => RtcSignalPriority::Critical,
-            
+
             // ICE candidates - critical for connectivity
             "ice.candidate" | "ice.candidate.complete" => RtcSignalPriority::Critical,
-            
+
             // Call state changes - high priority
             "call.accept" | "call.reject" | "call.end" => RtcSignalPriority::High,
-            
+
             // Media control - normal priority
-            "media.mute" | "media.unmute" | "media.pause" | "media.resume" => RtcSignalPriority::Normal,
-            
+            "media.mute" | "media.unmute" | "media.pause" | "media.resume" => {
+                RtcSignalPriority::Normal
+            }
+
             // Statistics and diagnostics - low priority
             "stats.report" | "diagnostics.ping" | "diagnostics.pong" => RtcSignalPriority::Low,
-            
+
             // Default to normal priority
             _ => RtcSignalPriority::Normal,
         }
@@ -128,7 +130,7 @@ impl PrioritySignalQueue {
     pub fn push(&mut self, signal: SignalEvent) -> bool {
         let priority = RtcSignalPriority::from_signal_type(&signal.signal_type);
         let queue_index = priority as usize;
-        
+
         // Check if queue is full
         if self.queues[queue_index].len() >= self.max_depth_per_priority {
             self.stats.messages_dropped += 1;
@@ -141,29 +143,29 @@ impl PrioritySignalQueue {
             );
             return false;
         }
-        
+
         self.queues[queue_index].push_back(signal);
         self.stats.total_enqueued += 1;
-        
+
         // Update queue depths
         self.update_queue_depths();
-        
+
         true
     }
 
     /// Push a signal with explicit priority.
     pub fn push_with_priority(&mut self, signal: SignalEvent, priority: RtcSignalPriority) -> bool {
         let queue_index = priority as usize;
-        
+
         if self.queues[queue_index].len() >= self.max_depth_per_priority {
             self.stats.messages_dropped += 1;
             return false;
         }
-        
+
         self.queues[queue_index].push_back(signal);
         self.stats.total_enqueued += 1;
         self.update_queue_depths();
-        
+
         true
     }
 
@@ -249,7 +251,7 @@ impl PrioritySignalQueue {
         for (i, queue) in self.queues.iter().enumerate() {
             self.stats.queue_depths[i] = queue.len();
         }
-        
+
         let total = self.total_depth();
         if total > self.stats.max_depth {
             self.stats.max_depth = total;
@@ -260,19 +262,19 @@ impl PrioritySignalQueue {
     /// Returns the number of messages evicted.
     pub fn rebalance(&mut self) -> usize {
         let mut evicted = 0;
-        
+
         // If critical queue is near capacity, evict from low priority
         if self.queues[0].len() > self.max_depth_per_priority * 8 / 10 {
             let low_count = self.queues[3].len();
             let evict_count = low_count / 2;
-            
+
             for _ in 0..evict_count {
                 self.queues[3].pop_back();
                 evicted += 1;
                 self.stats.messages_dropped += 1;
             }
         }
-        
+
         self.update_queue_depths();
         evicted
     }
@@ -310,27 +312,27 @@ impl BatchSignalProcessor {
     /// Pop up to batch_size signals in priority order.
     pub fn pop_batch(&mut self) -> Vec<SignalEvent> {
         let mut batch = Vec::with_capacity(self.batch_size);
-        
+
         while batch.len() < self.batch_size {
             match self.queue.pop() {
                 Some(signal) => batch.push(signal),
                 None => break,
             }
         }
-        
+
         batch
     }
 
     /// Pop all critical and high priority messages.
     pub fn pop_urgent(&mut self) -> Vec<SignalEvent> {
         let mut urgent = Vec::new();
-        
+
         // Get all critical
         urgent.extend(self.queue.drain_priority(RtcSignalPriority::Critical));
-        
+
         // Get all high
         urgent.extend(self.queue.drain_priority(RtcSignalPriority::High));
-        
+
         urgent
     }
 
@@ -348,7 +350,7 @@ impl BatchSignalProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use im_domain_core::rtc::{SignalSender, SessionState};
+    use im_domain_core::rtc::SignalSender;
 
     fn create_test_signal(signal_type: &str, seq: u64) -> SignalEvent {
         SignalEvent {
@@ -400,13 +402,13 @@ mod tests {
     #[test]
     fn queue_priority_ordering() {
         let mut queue = PrioritySignalQueue::new();
-        
+
         // Push in reverse priority order
         queue.push(create_test_signal("stats.report", 1)); // Low
         queue.push(create_test_signal("media.mute", 2)); // Normal
         queue.push(create_test_signal("call.accept", 3)); // High
         queue.push(create_test_signal("sdp.offer", 4)); // Critical
-        
+
         // Should pop in priority order
         assert_eq!(queue.pop().unwrap().signal_seq, 4); // Critical
         assert_eq!(queue.pop().unwrap().signal_seq, 3); // High
@@ -418,11 +420,11 @@ mod tests {
     #[test]
     fn queue_overflow_protection() {
         let mut queue = PrioritySignalQueue::with_max_depth(2);
-        
+
         assert!(queue.push(create_test_signal("sdp.offer", 1)));
         assert!(queue.push(create_test_signal("sdp.offer", 2)));
         assert!(!queue.push(create_test_signal("sdp.offer", 3))); // Overflow
-        
+
         assert_eq!(queue.stats().messages_dropped, 1);
     }
 
@@ -430,14 +432,14 @@ mod tests {
     fn batch_processing() {
         let queue = PrioritySignalQueue::new();
         let mut processor = BatchSignalProcessor::new(queue, 10);
-        
+
         let signals: Vec<_> = (0..20)
             .map(|i| create_test_signal("sdp.offer", i))
             .collect();
-        
+
         let accepted = processor.push_batch(signals);
         assert_eq!(accepted, 20);
-        
+
         let batch = processor.pop_batch();
         assert_eq!(batch.len(), 10);
     }
@@ -446,14 +448,22 @@ mod tests {
     fn urgent_messages_extraction() {
         let queue = PrioritySignalQueue::new();
         let mut processor = BatchSignalProcessor::new(queue, 10);
-        
-        processor.queue_mut().push(create_test_signal("stats.report", 1)); // Low
-        processor.queue_mut().push(create_test_signal("sdp.offer", 2)); // Critical
-        processor.queue_mut().push(create_test_signal("call.accept", 3)); // High
-        processor.queue_mut().push(create_test_signal("sdp.answer", 4)); // Critical
-        
+
+        processor
+            .queue_mut()
+            .push(create_test_signal("stats.report", 1)); // Low
+        processor
+            .queue_mut()
+            .push(create_test_signal("sdp.offer", 2)); // Critical
+        processor
+            .queue_mut()
+            .push(create_test_signal("call.accept", 3)); // High
+        processor
+            .queue_mut()
+            .push(create_test_signal("sdp.answer", 4)); // Critical
+
         let urgent = processor.pop_urgent();
-        
+
         // Should have all critical and high priority messages
         assert_eq!(urgent.len(), 3);
         assert!(urgent.iter().all(|s| s.signal_seq != 1)); // Low priority excluded

@@ -25,8 +25,8 @@
 
 use std::collections::BTreeMap;
 use std::ops::Bound::Excluded;
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 
 use dashmap::DashMap;
 use im_app_context::AppContext;
@@ -34,13 +34,14 @@ use im_domain_core::audit::{
     AuditActorType, AuditEmitter, AuditEvent, AuditEventType, AuditOutcome, LoggingAuditEmitter,
 };
 use im_domain_core::rtc::{
-    Session, SessionEpoch, SessionParticipants, SessionState, SignalEvent,
-    StateRecord, StateStore, SignalRateTracker,
+    Session, SessionEpoch, SessionParticipants, SessionState, SignalEvent, SignalRateTracker,
+    StateRecord, StateStore,
 };
 use im_platform_contracts::{
-    IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord, IdGenerator,
+    OutboxEventRecord, OutboxPublishStatus, OutboxStore,
 };
-use im_time::utc_now_rfc3339_millis;
+use im_time::{rfc3339_add_secs, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_communication_rtc_service::{
     RtcContractError, RtcCreateMediaSessionRequest, RtcMediaSessionMode, RtcParticipantCredential,
     RtcProviderPort, RtcSessionHandle,
@@ -49,8 +50,8 @@ use sdkwork_im_contract_core::ContractError;
 use sdkwork_utils_rust::sha256_hash;
 
 use crate::dto::{
-    CreateRtcSessionRequest, InviteRtcSessionRequest, PostRtcSignalRequest,
-    SessionMutationOutcome, UpdateRtcSessionRequest,
+    CreateRtcSessionRequest, InviteRtcSessionRequest, PostRtcSignalRequest, SessionMutationOutcome,
+    UpdateRtcSessionRequest,
 };
 use crate::error::CallingError;
 use crate::helpers::{
@@ -62,6 +63,32 @@ use crate::helpers::{
 const SIGNAL_LIST_MAX_LIMIT: usize = 1000;
 /// Aggregate type for RTC session outbox events.
 const OUTBOX_AGGREGATE_TYPE: &str = "rtc_session";
+const DEFAULT_CALL_RING_TIMEOUT_SECS: u64 = 120;
+const CALL_RING_TIMEOUT_SECS_ENV: &str = "SDKWORK_IM_CALL_RING_TIMEOUT_SECS";
+
+fn is_active_conversation_member(member: &ConversationMemberRecord) -> bool {
+    matches!(
+        member.membership_state.as_str(),
+        "joined" | "linked" | "JOINED" | "LINKED"
+    )
+}
+
+fn rtc_session_participant_ids(session: &Session, exclude: Option<&str>) -> Vec<String> {
+    use std::collections::BTreeSet;
+
+    let mut ids = BTreeSet::new();
+    ids.insert(session.initiator_id.as_str());
+    for id in &session.participants.invited_ids {
+        ids.insert(id.as_str());
+    }
+    for id in &session.participants.accepted_ids {
+        ids.insert(id.as_str());
+    }
+    if let Some(exclude) = exclude {
+        ids.remove(exclude);
+    }
+    ids.into_iter().map(str::to_owned).collect()
+}
 
 /// High-performance concurrent call signaling runtime.
 ///
@@ -121,9 +148,17 @@ pub struct CallingRuntime {
     /// Production deployments SHOULD wire `RuntimeSnowflakeIdGenerator`
     /// via `with_id_generator` for cross-process uniqueness.
     pub(crate) id_generator: Arc<dyn IdGenerator>,
+    /// Conversation membership gate for conversation-bound RTC writes (TECH-53).
+    pub(crate) conversation_member_gate: Option<Arc<dyn ConversationMemberAccessGate>>,
+    /// Optional aggregate store for deriving default invite participants from roster.
+    pub(crate) conversation_aggregate_store: Option<Arc<dyn ConversationAggregateStore>>,
     /// Global epoch counter for fencing tokens.
     /// Monotonically increasing, never reused.
     epoch_counter: AtomicU64,
+    /// Per-sender signal rate trackers keyed by `{scope}:{sender_kind}:{sender_id}`.
+    signal_rate_by_sender: DashMap<String, SignalRateTracker>,
+    /// Optional Redis-backed shared rate limiter for multi-instance deployments.
+    shared_signal_rate_limiter: Option<im_adapters_redis_cache::RedisSignalRateLimiter>,
 }
 
 impl CallingRuntime {
@@ -136,8 +171,21 @@ impl CallingRuntime {
             outbox_store: None,
             audit_emitter: Arc::new(LoggingAuditEmitter),
             id_generator: Arc::new(LocalCounterIdGenerator::default()),
+            conversation_member_gate: None,
+            conversation_aggregate_store: None,
             epoch_counter: AtomicU64::new(1),
+            signal_rate_by_sender: DashMap::new(),
+            shared_signal_rate_limiter: None,
         }
+    }
+
+    /// Wire a Redis-backed shared signal rate limiter for multi-instance deployments.
+    pub fn with_shared_signal_rate_limiter(
+        mut self,
+        limiter: im_adapters_redis_cache::RedisSignalRateLimiter,
+    ) -> Self {
+        self.shared_signal_rate_limiter = Some(limiter);
+        self
     }
 
     /// Wire a real RTC provider plugin (`sdkwork-rtc`) for media session
@@ -188,6 +236,203 @@ impl CallingRuntime {
         self
     }
 
+    pub fn with_conversation_member_gate(
+        mut self,
+        conversation_member_gate: Option<Arc<dyn ConversationMemberAccessGate>>,
+    ) -> Self {
+        self.conversation_member_gate = conversation_member_gate;
+        self
+    }
+
+    pub fn with_conversation_aggregate_store(
+        mut self,
+        conversation_aggregate_store: Option<Arc<dyn ConversationAggregateStore>>,
+    ) -> Self {
+        self.conversation_aggregate_store = conversation_aggregate_store;
+        self
+    }
+
+    fn resolve_invite_participant_ids(
+        &self,
+        auth: &AppContext,
+        session: &Session,
+        participant_ids: Vec<String>,
+    ) -> Result<Vec<String>, CallingError> {
+        let conversation_id = session
+            .conversation_id
+            .as_deref()
+            .filter(|value| !value.trim().is_empty());
+
+        let resolved = if participant_ids.is_empty() {
+            self.auto_resolve_invite_participant_ids(auth, conversation_id)?
+        } else {
+            participant_ids
+        };
+
+        if let Some(conversation_id) = conversation_id {
+            self.ensure_invite_participants_in_conversation_roster(
+                auth,
+                conversation_id,
+                resolved.as_slice(),
+            )?;
+        }
+
+        Ok(resolved)
+    }
+
+    fn auto_resolve_invite_participant_ids(
+        &self,
+        auth: &AppContext,
+        conversation_id: Option<&str>,
+    ) -> Result<Vec<String>, CallingError> {
+        let Some(conversation_id) = conversation_id else {
+            return Ok(Vec::new());
+        };
+        let Some(store) = self.conversation_aggregate_store.as_ref() else {
+            return Ok(Vec::new());
+        };
+        let members = store
+            .load_members(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                conversation_id,
+            )
+            .map_err(|error| CallingError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "conversation_roster_unavailable",
+                message: format!("failed to load conversation roster: {error:?}"),
+            })?;
+        let mut resolved = Vec::new();
+        for member in members {
+            if !is_active_conversation_member(&member) {
+                continue;
+            }
+            if member.principal_id == auth.actor_id {
+                continue;
+            }
+            if member.principal_kind != "user" {
+                continue;
+            }
+            if !resolved.iter().any(|id| id == &member.principal_id) {
+                resolved.push(member.principal_id.clone());
+            }
+        }
+        Ok(resolved)
+    }
+
+    fn ensure_invite_participants_in_conversation_roster(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+        participant_ids: &[String],
+    ) -> Result<(), CallingError> {
+        if participant_ids.is_empty() {
+            return Ok(());
+        }
+        let Some(store) = self.conversation_aggregate_store.as_ref() else {
+            if crate::helpers::is_production_like_environment() {
+                return Err(CallingError::forbidden(
+                    "conversation_roster_unavailable",
+                    format!(
+                        "conversation roster store is required to invite participants into conversation-bound RTC (conversation_id={conversation_id})"
+                    ),
+                ));
+            }
+            tracing::warn!(
+                conversation_id,
+                "conversation aggregate store is not configured; skipping RTC invitee roster validation"
+            );
+            return Ok(());
+        };
+        let members = store
+            .load_members(
+                auth.tenant_id.as_str(),
+                auth.organization_id.as_str(),
+                conversation_id,
+            )
+            .map_err(|error| CallingError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "conversation_roster_unavailable",
+                message: format!("failed to load conversation roster: {error:?}"),
+            })?;
+        let roster: std::collections::HashSet<String> = members
+            .iter()
+            .filter(|member| is_active_conversation_member(member))
+            .filter(|member| member.principal_kind == "user")
+            .map(|member| member.principal_id.clone())
+            .collect();
+        for participant_id in participant_ids {
+            if !roster.contains(participant_id) {
+                return Err(CallingError::forbidden(
+                    "participant_not_in_conversation_roster",
+                    format!(
+                        "participant {participant_id} is not an active user member of conversation {conversation_id}"
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn ensure_conversation_bound_active_member(
+        &self,
+        auth: &AppContext,
+        conversation_id: Option<&str>,
+    ) -> Result<(), CallingError> {
+        let Some(conversation_id) = conversation_id.filter(|value| !value.trim().is_empty()) else {
+            return Ok(());
+        };
+        let Some(gate) = self.conversation_member_gate.as_ref() else {
+            if crate::helpers::is_production_like_environment() {
+                return Err(CallingError::forbidden(
+                    "conversation_member_gate_unconfigured",
+                    format!(
+                        "conversation member gate is required for conversation-bound RTC in production (conversation_id={conversation_id})"
+                    ),
+                ));
+            }
+            tracing::warn!(
+                conversation_id,
+                "conversation member gate is not configured; skipping conversation-bound RTC member check"
+            );
+            return Ok(());
+        };
+        gate.ensure_active_member(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            conversation_id,
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+        )
+        .map_err(|error| {
+            CallingError::forbidden(
+                "conversation_permission_denied",
+                format!(
+                    "principal {} is not an active member of conversation {}: {error:?}",
+                    auth.actor_id, conversation_id
+                ),
+            )
+        })
+    }
+
+    fn ensure_conversation_bound_member_for_existing_session(
+        &self,
+        auth: &AppContext,
+        rtc_session_id: &str,
+    ) -> Result<(), CallingError> {
+        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
+        let conversation_id = self
+            .sessions
+            .get(scope_key.as_str())
+            .map(|session| session.conversation_id.clone())
+            .ok_or_else(|| CallingError {
+                status: axum::http::StatusCode::NOT_FOUND,
+                code: "call_session_not_found",
+                message: format!("call session not found: {rtc_session_id}"),
+            })?;
+        self.ensure_conversation_bound_active_member(auth, conversation_id.as_deref())
+    }
+
     /// Allocate a new epoch atomically.
     ///
     /// Epochs are monotonically increasing and never reused,
@@ -214,8 +459,28 @@ impl CallingRuntime {
         auth: &AppContext,
         rtc_session_id: &str,
         event_type: &str,
-        payload: serde_json::Value,
+        mut payload: serde_json::Value,
+        recipient_principal_ids: Vec<String>,
     ) {
+        if !recipient_principal_ids.is_empty() {
+            if let Some(object) = payload.as_object_mut() {
+                object.insert(
+                    "recipient_principal_ids".to_string(),
+                    serde_json::json!(recipient_principal_ids),
+                );
+            }
+        }
+
+        if im_domain_core::rtc_outbox::resolve_rtc_outbox_recipients(event_type, &payload).is_empty() {
+            tracing::warn!(
+                target: "sdkwork.im.calls.outbox",
+                event_type,
+                rtc_session_id,
+                "rtc outbox skipped because no deliverable recipients were resolved"
+            );
+            return;
+        }
+
         let Some(outbox) = self.outbox_store.as_ref() else {
             return;
         };
@@ -404,14 +669,33 @@ impl CallingRuntime {
         rtc_session_id: &str,
     ) -> Result<Session, CallingError> {
         self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        self.sessions
+        let session_ref = self
+            .sessions
             .get(rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id).as_str())
-            .map(|entry| entry.clone())
             .ok_or_else(|| CallingError {
                 status: axum::http::StatusCode::NOT_FOUND,
                 code: "call_session_not_found",
                 message: format!("call session not found: {rtc_session_id}"),
-            })
+            })?;
+        if !is_authorized_for_session(auth, &session_ref) {
+            self.emit_audit(
+                auth,
+                AuditEventType::SecurityPermissionDenied,
+                "retrieve_call_session",
+                rtc_session_id,
+                AuditOutcome::Denied,
+                Some("principal_not_authorized".into()),
+                serde_json::json!({ "initiator_id": session_ref.initiator_id }),
+            );
+            return Err(CallingError {
+                status: axum::http::StatusCode::FORBIDDEN,
+                code: "principal_not_authorized",
+                message: format!(
+                    "principal is not authorized to retrieve call session {rtc_session_id}"
+                ),
+            });
+        }
+        Ok(session_ref.clone())
     }
 
     pub fn create_session(
@@ -419,9 +703,7 @@ impl CallingRuntime {
         auth: &AppContext,
         request: CreateRtcSessionRequest,
     ) -> Result<Session, CallingError> {
-        Ok(self
-            .create_session_with_outcome(auth, request)?
-            .session)
+        Ok(self.create_session_with_outcome(auth, request)?.session)
     }
 
     pub fn create_session_with_outcome(
@@ -430,6 +712,19 @@ impl CallingRuntime {
         request: CreateRtcSessionRequest,
     ) -> Result<SessionMutationOutcome, CallingError> {
         validate_create_request_payload_size(&request)?;
+        if crate::helpers::is_production_like_environment()
+            && request
+                .conversation_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .is_none()
+        {
+            return Err(CallingError::forbidden(
+                "conversation_binding_required",
+                "conversation-bound RTC is required in production-like environments",
+            ));
+        }
 
         let scope_key =
             rtc_session_scope_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
@@ -447,6 +742,10 @@ impl CallingRuntime {
             dashmap::mapref::entry::Entry::Occupied(occupied) => {
                 let existing = occupied.get();
                 if call_session_matches_create_request(existing, auth, &request) {
+                    self.ensure_conversation_bound_active_member(
+                        auth,
+                        existing.conversation_id.as_deref(),
+                    )?;
                     let session = existing.clone();
                     drop(occupied);
                     self.signals.entry(scope_key).or_default();
@@ -473,12 +772,15 @@ impl CallingRuntime {
                 }
             }
             dashmap::mapref::entry::Entry::Vacant(vacant) => {
+                self.ensure_conversation_bound_active_member(
+                    auth,
+                    request.conversation_id.as_deref(),
+                )?;
                 // Resolve provider fields BEFORE allocating the epoch so a
                 // provider failure does not consume a fencing token. The
                 // provider call happens outside the shard lock to avoid
                 // blocking other sessions while the provider responds.
-                let provider_fields =
-                    self.resolve_provider_media_session(auth, &request)?;
+                let provider_fields = self.resolve_provider_media_session(auth, &request)?;
 
                 // Allocate the epoch only after the provider succeeds.
                 let epoch = self.allocate_epoch();
@@ -557,6 +859,7 @@ impl CallingRuntime {
                         "epoch": session.epoch,
                         "started_at": started_at,
                     }),
+                    vec![session.initiator_id.clone()],
                 );
 
                 Ok(SessionMutationOutcome {
@@ -585,19 +888,43 @@ impl CallingRuntime {
         request: InviteRtcSessionRequest,
     ) -> Result<SessionMutationOutcome, CallingError> {
         validate_invite_request_payload_size(&request)?;
-        validate_participant_ids_payload_size(&request.participant_ids)?;
-
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
 
-        let mut session_ref = self
-            .sessions
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| CallingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "call_session_not_found",
-                message: format!("call session not found: {rtc_session_id}"),
-            })?;
+        let mut session_ref =
+            self.sessions
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| CallingError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "call_session_not_found",
+                    message: format!("call session not found: {rtc_session_id}"),
+                })?;
+
+        let participant_ids =
+            self.resolve_invite_participant_ids(auth, &session_ref, request.participant_ids)?;
+        validate_participant_ids_payload_size(&participant_ids)?;
+
+        if !is_authorized_for_session(auth, &session_ref) {
+            let initiator_id = session_ref.initiator_id.clone();
+            drop(session_ref);
+            self.emit_audit(
+                auth,
+                AuditEventType::SecurityPermissionDenied,
+                "invite_call_session",
+                rtc_session_id,
+                AuditOutcome::Denied,
+                Some("principal_not_authorized".into()),
+                serde_json::json!({ "initiator_id": initiator_id }),
+            );
+            return Err(CallingError {
+                status: axum::http::StatusCode::FORBIDDEN,
+                code: "principal_not_authorized",
+                message: format!(
+                    "principal is not authorized to invite participants to call session {rtc_session_id}"
+                ),
+            });
+        }
 
         if session_ref.state != SessionState::Started {
             let invalid_state = session_ref.state.as_str().to_string();
@@ -630,8 +957,7 @@ impl CallingRuntime {
             (None, None) => true,
             _ => false,
         };
-        let all_already_invited = request
-            .participant_ids
+        let all_already_invited = participant_ids
             .iter()
             .all(|id| session_ref.participants.invited_ids.contains(id));
         if stream_id_unchanged && all_already_invited {
@@ -646,12 +972,21 @@ impl CallingRuntime {
         // Apply signaling stream id and merge new participants (deduped).
         let mut added_participant_ids: Vec<String> = Vec::new();
         session_ref.signaling_stream_id = request.signaling_stream_id.clone();
-        for participant_id in request.participant_ids {
-            if !session_ref.participants.invited_ids.contains(&participant_id) {
-                session_ref.participants.invited_ids.push(participant_id.clone());
+        for participant_id in participant_ids {
+            if !session_ref
+                .participants
+                .invited_ids
+                .contains(&participant_id)
+            {
+                session_ref
+                    .participants
+                    .invited_ids
+                    .push(participant_id.clone());
                 added_participant_ids.push(participant_id);
             }
         }
+        session_ref.epoch = self.allocate_epoch();
+        session_ref.version += 1;
         let session = session_ref.clone();
         drop(session_ref);
         self.persist_state(auth, rtc_session_id)?;
@@ -681,11 +1016,17 @@ impl CallingRuntime {
                 "rtc_session_id": session.rtc_session_id,
                 "tenant_id": session.tenant_id,
                 "organization_id": auth.organization_id,
+                "conversation_id": session.conversation_id,
+                "rtc_mode": session.rtc_mode,
+                "initiator_id": session.initiator_id,
+                "initiator_kind": session.initiator_kind,
+                "state": session.state.as_str(),
                 "signaling_stream_id": session.signaling_stream_id,
                 "added_participant_ids": added_participant_ids,
                 "invited_ids": session.participants.invited_ids,
                 "epoch": session.epoch,
             }),
+            added_participant_ids.clone(),
         );
 
         Ok(SessionMutationOutcome {
@@ -715,14 +1056,15 @@ impl CallingRuntime {
 
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut session_ref = self
-            .sessions
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| CallingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "call_session_not_found",
-                message: format!("call session not found: {rtc_session_id}"),
-            })?;
+        self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
+        let mut session_ref =
+            self.sessions
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| CallingError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "call_session_not_found",
+                    message: format!("call session not found: {rtc_session_id}"),
+                })?;
 
         // Authorization check: initiator or invited/accepted participants only
         if !is_authorized_for_session(auth, &session_ref) {
@@ -745,7 +1087,8 @@ impl CallingRuntime {
         }
 
         if session_ref.state == SessionState::Accepted {
-            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref() {
+            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref()
+            {
                 let session = session_ref.clone();
                 drop(session_ref);
                 return Ok(SessionMutationOutcome {
@@ -791,8 +1134,15 @@ impl CallingRuntime {
         // Track accepted participant (deduped; an initiator who calls accept
         // twice via different code paths should not appear twice).
         let mut newly_accepted = false;
-        if !session_ref.participants.accepted_ids.contains(&auth.actor_id) {
-            session_ref.participants.accepted_ids.push(auth.actor_id.clone());
+        if !session_ref
+            .participants
+            .accepted_ids
+            .contains(&auth.actor_id)
+        {
+            session_ref
+                .participants
+                .accepted_ids
+                .push(auth.actor_id.clone());
             newly_accepted = true;
         }
         let session = session_ref.clone();
@@ -834,6 +1184,7 @@ impl CallingRuntime {
                 "epoch": session.epoch,
                 "connecting_at": session.connecting_at,
             }),
+            rtc_session_participant_ids(&session, Some(auth.actor_id.as_str())),
         );
 
         Ok(SessionMutationOutcome {
@@ -863,14 +1214,15 @@ impl CallingRuntime {
 
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut session_ref = self
-            .sessions
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| CallingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "call_session_not_found",
-                message: format!("call session not found: {rtc_session_id}"),
-            })?;
+        self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
+        let mut session_ref =
+            self.sessions
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| CallingError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "call_session_not_found",
+                    message: format!("call session not found: {rtc_session_id}"),
+                })?;
 
         // Authorization check: initiator or invited/accepted participants only
         if !is_authorized_for_session(auth, &session_ref) {
@@ -893,7 +1245,8 @@ impl CallingRuntime {
         }
 
         if session_ref.state == SessionState::Rejected {
-            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref() {
+            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref()
+            {
                 let session = session_ref.clone();
                 drop(session_ref);
                 return Ok(SessionMutationOutcome {
@@ -975,6 +1328,7 @@ impl CallingRuntime {
                 "epoch": session.epoch,
                 "ended_at": session.ended_at,
             }),
+            rtc_session_participant_ids(&session, Some(auth.actor_id.as_str())),
         );
 
         // Revoke active media credentials by closing the provider session.
@@ -1009,14 +1363,15 @@ impl CallingRuntime {
 
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
-        let mut session_ref = self
-            .sessions
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| CallingError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "call_session_not_found",
-                message: format!("call session not found: {rtc_session_id}"),
-            })?;
+        self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
+        let mut session_ref =
+            self.sessions
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| CallingError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "call_session_not_found",
+                    message: format!("call session not found: {rtc_session_id}"),
+                })?;
 
         // Authorization check: initiator or invited/accepted participants only
         if !is_authorized_for_session(auth, &session_ref) {
@@ -1039,7 +1394,8 @@ impl CallingRuntime {
         }
 
         if session_ref.state == SessionState::Ended {
-            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref() {
+            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref()
+            {
                 let session = session_ref.clone();
                 drop(session_ref);
                 return Ok(SessionMutationOutcome {
@@ -1119,6 +1475,7 @@ impl CallingRuntime {
                 "epoch": session.epoch,
                 "ended_at": session.ended_at,
             }),
+            rtc_session_participant_ids(&session, Some(auth.actor_id.as_str())),
         );
 
         // Revoke active media credentials by closing the provider session.
@@ -1142,6 +1499,7 @@ impl CallingRuntime {
 
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
+        self.ensure_conversation_bound_member_for_existing_session(auth, rtc_session_id)?;
 
         let sender = resolve_rtc_signal_sender(auth);
         let occurred_at = utc_now_rfc3339_millis();
@@ -1209,17 +1567,36 @@ impl CallingRuntime {
             });
         }
 
+        let sender_rate_key = format!(
+            "{}:{}:{}",
+            scope_key.as_str(),
+            sender.kind,
+            sender.id
+        );
+        if !self.allow_sender_signal_rate(
+            sender_rate_key.as_str(),
+            occurred_at.as_str(),
+        ) {
+            return Err(CallingError {
+                status: axum::http::StatusCode::TOO_MANY_REQUESTS,
+                code: "call_signal_rate_limited",
+                message: "call signal rate limit exceeded for sender".into(),
+            });
+        }
+
         // Clone session fields needed for the SignalEvent while holding the
         // read lock, ensuring a consistent snapshot.
         let rtc_session_id_owned = session_ref.rtc_session_id.clone();
         let conversation_id = session_ref.conversation_id.clone();
         let rtc_mode = session_ref.rtc_mode.clone();
+        let recipient_principal_ids =
+            rtc_session_participant_ids(&session_ref, Some(auth.actor_id.as_str()));
 
         // Acquire the signals shard write lock while still holding the
         // sessions read lock. This is the critical TOCTOU fix: no concurrent
         // state transition can occur between the terminal-state check above
         // and the signal insertion below.
-        let mut signals_ref = self.signals.entry(scope_key).or_default();
+        let mut signals_ref = self.signals.entry(scope_key.clone()).or_default();
         let next_signal_seq = signals_ref
             .last_key_value()
             .map(|(seq, _)| *seq + 1)
@@ -1240,7 +1617,12 @@ impl CallingRuntime {
         };
 
         signals_ref.insert(event.signal_seq, event.clone());
+        crate::helpers::trim_session_signals(
+            &mut signals_ref,
+            crate::helpers::resolve_max_signals_per_session(),
+        );
         drop(signals_ref);
+        self.evict_signal_rate_trackers_if_needed();
         drop(session_ref);
         self.persist_state(auth, rtc_session_id)?;
 
@@ -1279,6 +1661,7 @@ impl CallingRuntime {
                 "sender_kind": auth.actor_kind,
                 "occurred_at": event.occurred_at,
             }),
+            recipient_principal_ids,
         );
 
         Ok(event)
@@ -1304,9 +1687,7 @@ impl CallingRuntime {
             return Err(CallingError {
                 status: axum::http::StatusCode::BAD_REQUEST,
                 code: "invalid_limit",
-                message: format!(
-                    "limit must be less than or equal to {SIGNAL_LIST_MAX_LIMIT}"
-                ),
+                message: format!("limit must be less than or equal to {SIGNAL_LIST_MAX_LIMIT}"),
             });
         }
 
@@ -1347,7 +1728,9 @@ impl CallingRuntime {
         let mut has_more = false;
         let mut items: Vec<SignalEvent> = Vec::new();
         if let Some(session_signals) = self.signals.get(scope_key.as_str()) {
-            for (_, event) in session_signals.range::<u64, _>((Excluded(after_signal_seq), std::ops::Bound::Unbounded)) {
+            for (_, event) in session_signals
+                .range::<u64, _>((Excluded(after_signal_seq), std::ops::Bound::Unbounded))
+            {
                 if items.len() == limit {
                     has_more = true;
                     break;
@@ -1375,6 +1758,7 @@ impl CallingRuntime {
         // arbitrary principals or sessions. Auth is checked BEFORE the
         // provider-availability check so unauthorized callers never learn
         // whether a provider is wired.
+        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         let session_ref = self
             .sessions
@@ -1477,6 +1861,47 @@ impl CallingRuntime {
             }
         };
 
+        // TOCTOU re-check: between the initial session lookup above and the
+        // call to the provider below, a concurrent `end_session` /
+        // `abort_session` may have transitioned the session into a terminal
+        // state. Re-acquire the session ref and bail out with the same
+        // `call_session_state_invalid` error if the state is now terminal,
+        // so we never invoke the provider for a session that has already
+        // ended. This mirrors the boundary re-check the
+        // streaming-service applies before delegating to its provider.
+        let session_ref_recheck =
+            self.sessions
+                .get(scope_key.as_str())
+                .ok_or_else(|| CallingError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "call_session_not_found",
+                    message: format!("call session not found: {rtc_session_id}"),
+                })?;
+        if session_ref_recheck.state.is_terminal() {
+            let terminal_state = session_ref_recheck.state.as_str().to_string();
+            drop(session_ref_recheck);
+            self.emit_audit(
+                auth,
+                AuditEventType::SecuritySessionLifecycle,
+                "issue_participant_credential",
+                rtc_session_id,
+                AuditOutcome::Failure,
+                Some("call_session_terminal_after_check".into()),
+                serde_json::json!({
+                    "participant_id": participant_id,
+                    "state": terminal_state,
+                }),
+            );
+            return Err(CallingError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "call_session_state_invalid",
+                message: format!(
+                    "call session transitioned to terminal state {terminal_state} before credential issuance: {rtc_session_id}"
+                ),
+            });
+        }
+        drop(session_ref_recheck);
+
         let result = rtc_provider
             .issue_participant_credential(
                 auth.tenant_id.as_str(),
@@ -1533,6 +1958,7 @@ impl CallingRuntime {
         rtc_session_id: &str,
         participant_id: &str,
     ) -> Result<RtcParticipantCredential, CallingError> {
+        self.ensure_rtc_state(auth.tenant_id.as_str(), rtc_session_id)?;
         let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         let session_ref = self
             .sessions
@@ -1631,6 +2057,46 @@ impl CallingRuntime {
             }
         };
 
+        // TOCTOU re-check: between the initial session lookup above and the
+        // call to the provider below, a concurrent `end_session` /
+        // `abort_session` may have transitioned the session into a terminal
+        // state. Re-acquire the session ref and bail out with the same
+        // `call_session_state_invalid` error if the state is now terminal,
+        // so we never invoke the provider for a session that has already
+        // ended. Mirrors the re-check applied in `issue_participant_credential`.
+        let session_ref_recheck =
+            self.sessions
+                .get(scope_key.as_str())
+                .ok_or_else(|| CallingError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "call_session_not_found",
+                    message: format!("call session not found: {rtc_session_id}"),
+                })?;
+        if session_ref_recheck.state.is_terminal() {
+            let terminal_state = session_ref_recheck.state.as_str().to_string();
+            drop(session_ref_recheck);
+            self.emit_audit(
+                auth,
+                AuditEventType::SecuritySessionLifecycle,
+                "refresh_participant_credential",
+                rtc_session_id,
+                AuditOutcome::Failure,
+                Some("call_session_terminal_after_check".into()),
+                serde_json::json!({
+                    "participant_id": participant_id,
+                    "state": terminal_state,
+                }),
+            );
+            return Err(CallingError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "call_session_state_invalid",
+                message: format!(
+                    "call session transitioned to terminal state {terminal_state} before credential refresh: {rtc_session_id}"
+                ),
+            });
+        }
+        drop(session_ref_recheck);
+
         let result = rtc_provider
             .refresh_participant_credential(
                 auth.tenant_id.as_str(),
@@ -1666,6 +2132,7 @@ impl CallingRuntime {
                         "participant_id": participant_id,
                         "expires_at": credential.expires_at,
                     }),
+                    vec![participant_id.to_string()],
                 );
             }
             Err(err) => {
@@ -1703,6 +2170,12 @@ impl CallingRuntime {
         let Some(rtc_provider) = self.rtc_provider.as_ref() else {
             return;
         };
+        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
+        let recipient_principal_ids = self
+            .sessions
+            .get(scope_key.as_str())
+            .map(|session| rtc_session_participant_ids(&session, None))
+            .unwrap_or_default();
         let result = rtc_provider.close_session(auth.tenant_id.as_str(), rtc_session_id);
         match result {
             Ok(closed) => {
@@ -1737,6 +2210,7 @@ impl CallingRuntime {
                         "terminal_state": terminal_state,
                         "provider_closed": closed,
                     }),
+                    recipient_principal_ids,
                 );
             }
             Err(err) => {
@@ -1826,14 +2300,21 @@ impl CallingRuntime {
         })
     }
 
-    fn persist_state(
-        &self,
-        auth: &AppContext,
-        rtc_session_id: &str,
-    ) -> Result<(), CallingError> {
+    fn persist_state(&self, auth: &AppContext, rtc_session_id: &str) -> Result<(), CallingError> {
+        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
         let record = self.state_record(auth.tenant_id.as_str(), rtc_session_id)?;
         match self.state_store.save_state(record) {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                if self
+                    .sessions
+                    .get(scope_key.as_str())
+                    .is_some_and(|session| session.state.is_terminal())
+                {
+                    self.sessions.remove(scope_key.as_str());
+                    self.signals.remove(scope_key.as_str());
+                }
+                Ok(())
+            }
             Err(err) => {
                 // Persistence failed: the in-memory mutation has already been
                 // applied to the DashMap, so the memory view now diverges from
@@ -1841,7 +2322,6 @@ impl CallingRuntime {
                 // so we can emit a `session.revoked` outbox event for
                 // downstream consumers (WebSocket gateway, notification
                 // service) to notify connected clients.
-                let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
                 let session_snapshot = self
                     .sessions
                     .get(scope_key.as_str())
@@ -1887,6 +2367,7 @@ impl CallingRuntime {
                             "version": session.version,
                             "reason": "state_persist_failed",
                         }),
+                        rtc_session_participant_ids(session, None),
                     );
                 }
 
@@ -1934,6 +2415,152 @@ impl CallingRuntime {
             signals,
             updated_at: utc_now_rfc3339_millis(),
         })
+    }
+
+    fn allow_sender_signal_rate(&self, sender_rate_key: &str, occurred_at: &str) -> bool {
+        if let Some(shared) = self.shared_signal_rate_limiter.as_ref() {
+            match shared.allow_signal(
+                sender_rate_key,
+                SignalRateTracker::DEFAULT_MAX_SIGNALS,
+                SignalRateTracker::DEFAULT_WINDOW_SECS,
+            ) {
+                Ok(allowed) => return allowed,
+                Err(error) => {
+                    if crate::helpers::is_production_like_environment() {
+                        tracing::error!(
+                            target: "sdkwork.im.calls",
+                            event = "im.calls.signal_rate_redis_unavailable",
+                            error = ?error,
+                            "redis signal rate limit unavailable in production-like environment; denying signal"
+                        );
+                        return false;
+                    }
+                    tracing::warn!(
+                        target: "sdkwork.im.calls",
+                        event = "im.calls.signal_rate_redis_fallback",
+                        error = ?error,
+                        "redis signal rate limit unavailable; falling back to in-process tracker"
+                    );
+                }
+            }
+        }
+
+        let mut tracker = self
+            .signal_rate_by_sender
+            .entry(sender_rate_key.to_owned())
+            .or_insert_with(SignalRateTracker::default);
+        if !tracker.check_rate_limit(
+            SignalRateTracker::DEFAULT_MAX_SIGNALS,
+            SignalRateTracker::DEFAULT_WINDOW_SECS,
+            occurred_at,
+        ) {
+            return false;
+        }
+        tracker.record_signal(SignalRateTracker::DEFAULT_WINDOW_SECS, occurred_at);
+        true
+    }
+
+    fn evict_signal_rate_trackers_if_needed(&self) {
+        let max_entries = crate::helpers::resolve_signal_rate_tracker_cache_max();
+        if self.signal_rate_by_sender.len() <= max_entries {
+            return;
+        }
+        let overflow = self.signal_rate_by_sender.len().saturating_sub(max_entries);
+        let keys_to_remove = self
+            .signal_rate_by_sender
+            .iter()
+            .take(overflow)
+            .map(|entry| entry.key().clone())
+            .collect::<Vec<_>>();
+        for key in keys_to_remove {
+            self.signal_rate_by_sender.remove(key.as_str());
+        }
+    }
+
+    /// Expire call sessions stuck in `started` beyond the ring timeout.
+    pub fn expire_stale_started_sessions(&self) -> usize {
+        let ring_timeout_secs = std::env::var(CALL_RING_TIMEOUT_SECS_ENV)
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(DEFAULT_CALL_RING_TIMEOUT_SECS);
+        let now = utc_now_rfc3339_millis();
+        let Some(cutoff) = rfc3339_add_secs(now.as_str(), -(ring_timeout_secs as i64)) else {
+            return 0;
+        };
+        let candidates = self
+            .sessions
+            .iter()
+            .filter(|entry| entry.state == SessionState::Started)
+            .filter(|entry| {
+                !entry.started_at.is_empty()
+                    && rfc3339_le(entry.started_at.as_str(), cutoff.as_str())
+            })
+            .map(|entry| (entry.tenant_id.clone(), entry.rtc_session_id.clone()))
+            .collect::<Vec<_>>();
+        let mut expired = 0usize;
+        for (tenant_id, rtc_session_id) in candidates {
+            if self
+                .expire_started_session_system(
+                    tenant_id.as_str(),
+                    rtc_session_id.as_str(),
+                    now.as_str(),
+                )
+                .is_ok()
+            {
+                expired += 1;
+            }
+        }
+        expired
+    }
+
+    fn expire_started_session_system(
+        &self,
+        tenant_id: &str,
+        rtc_session_id: &str,
+        ended_at: &str,
+    ) -> Result<(), CallingError> {
+        let scope_key = rtc_session_scope_key(tenant_id, rtc_session_id);
+        let Some(mut session_ref) = self.sessions.get_mut(scope_key.as_str()) else {
+            return Ok(());
+        };
+        if session_ref.state != SessionState::Started {
+            return Ok(());
+        }
+        let initiator_id = session_ref.initiator_id.clone();
+        let initiator_kind = session_ref.initiator_kind.clone();
+        session_ref.state = SessionState::Ended;
+        session_ref.ended_at = Some(ended_at.to_owned());
+        session_ref.ended_reason = Some("timeout".into());
+        session_ref.timeout_at = Some(ended_at.to_owned());
+        session_ref.epoch = session_ref.epoch.saturating_add(1);
+        session_ref.version = session_ref.version.saturating_add(1);
+        session_ref.last_activity_at = Some(ended_at.to_owned());
+        drop(session_ref);
+        self.signals.remove(scope_key.as_str());
+        let auth = AppContext {
+            tenant_id: tenant_id.to_owned(),
+            organization_id: "0".into(),
+            user_id: initiator_id.clone(),
+            actor_id: initiator_id,
+            actor_kind: initiator_kind,
+            session_id: None,
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
+            device_id: None,
+        };
+        self.persist_state(&auth, rtc_session_id)?;
+        tracing::info!(
+            rtc_session_id = rtc_session_id,
+            tenant_id = tenant_id,
+            ended_reason = "timeout",
+            "expired stale started call session"
+        );
+        Ok(())
     }
 }
 
@@ -2058,7 +2685,15 @@ pub fn default_app_state() -> AppState {
 }
 
 fn signal_index(signals: Vec<SignalEvent>) -> BTreeMap<u64, SignalEvent> {
-    signals.into_iter().map(|s| (s.signal_seq, s)).collect()
+    let mut map = signals
+        .into_iter()
+        .map(|signal| (signal.signal_seq, signal))
+        .collect::<BTreeMap<_, _>>();
+    crate::helpers::trim_session_signals(
+        &mut map,
+        crate::helpers::resolve_max_signals_per_session(),
+    );
+    map
 }
 
 /// Map the IM call's `rtc_mode` string to the RTC media session mode enum.
@@ -2079,11 +2714,9 @@ fn parse_rtc_media_session_mode(rtc_mode: &str) -> RtcMediaSessionMode {
 /// Map RTC contract errors to IM calling errors, preserving status semantics.
 fn map_rtc_contract_error(error: RtcContractError) -> CallingError {
     let (status, code, message) = match error {
-        RtcContractError::Conflict(detail) => (
-            axum::http::StatusCode::CONFLICT,
-            "rtc_conflict",
-            detail,
-        ),
+        RtcContractError::Conflict(detail) => {
+            (axum::http::StatusCode::CONFLICT, "rtc_conflict", detail)
+        }
         RtcContractError::UnsupportedCapability(detail) => (
             axum::http::StatusCode::BAD_REQUEST,
             "rtc_unsupported_capability",
@@ -2120,17 +2753,25 @@ fn is_authorized_for_session(auth: &AppContext, session: &Session) -> bool {
         return true;
     }
 
-    // Check if in invited participants
-    if session.participants.invited_ids.contains(&auth.actor_id) {
+    // Check if in invited participants (actor_kind must match RTC user principal model)
+    if session.participants.invited_ids.contains(&auth.actor_id)
+        && rtc_participant_actor_kind_allowed(auth, session)
+    {
         return true;
     }
 
     // Check if already accepted
-    if session.participants.accepted_ids.contains(&auth.actor_id) {
+    if session.participants.accepted_ids.contains(&auth.actor_id)
+        && rtc_participant_actor_kind_allowed(auth, session)
+    {
         return true;
     }
 
     false
+}
+
+fn rtc_participant_actor_kind_allowed(auth: &AppContext, session: &Session) -> bool {
+    auth.actor_kind == session.initiator_kind || auth.actor_kind == "user"
 }
 
 /// Check if a `participant_id` is a member of the session.
@@ -2144,16 +2785,24 @@ fn is_session_participant(participant_id: &str, session: &Session) -> bool {
     if participant_id == session.initiator_id {
         return true;
     }
-    if session.participants.invited_ids.iter().any(|p| p == participant_id) {
+    if session
+        .participants
+        .invited_ids
+        .iter()
+        .any(|p| p == participant_id)
+    {
         return true;
     }
-    if session.participants.accepted_ids.iter().any(|p| p == participant_id) {
+    if session
+        .participants
+        .accepted_ids
+        .iter()
+        .any(|p| p == participant_id)
+    {
         return true;
     }
     false
 }
 
 // Re-export helpers used by other modules.
-pub(crate) use crate::helpers::{
-    resolve_rtc_signal_sender, call_session_matches_create_request,
-};
+pub(crate) use crate::helpers::{call_session_matches_create_request, resolve_rtc_signal_sender};

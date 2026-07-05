@@ -454,7 +454,7 @@ async fn gateway_service_index_does_not_surface_projection_device_metadata() {
         "projection-service"
     );
     assert_eq!(index_value["services"][0]["visibility"], "public");
-    assert_eq!(index_value["services"][0]["routeCount"], 3);
+    assert_eq!(index_value["services"][0]["routeCount"], 8);
     assert_eq!(
         index_value["services"][0]["operationGroups"],
         json!(["conversations"])

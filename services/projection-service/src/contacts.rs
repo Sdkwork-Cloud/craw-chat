@@ -5,11 +5,13 @@ use im_domain_core::social::DirectChatStatus;
 use im_domain_events::CommitEnvelope;
 use im_domain_events::social::{
     DirectChatBoundPayload, FriendshipActivatedPayload, FriendshipRemovedPayload,
+    UserBlockedPayload, UserBlockReleasedPayload,
 };
 use im_time::{max_rfc3339_string, rfc3339_cmp};
 
 use im_platform_contracts::normalize_realtime_organization_id;
 
+use crate::model::ContactListCursor;
 use crate::client_route_sync::registered_client_routes_for_principal_kind;
 use crate::model::ContactDirectChatBindingView;
 use crate::{ContactView, TimelineProjectionService};
@@ -23,7 +25,8 @@ use super::scope::{
 #[derive(Default)]
 pub(crate) struct ContactDirectChatBindingRuntimeStore {
     by_direct_chat_id: HashMap<ContactDirectChatBindingKey, ContactDirectChatBindingView>,
-    direct_chat_id_by_conversation: HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>,
+    direct_chat_id_by_conversation:
+        HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -44,10 +47,12 @@ impl ContactDirectChatBindingRuntimeStore {
     pub(crate) fn insert(&mut self, binding: ContactDirectChatBindingView) {
         let binding_key = direct_chat_binding_key_for_view(&binding);
         let conversation_key = direct_chat_conversation_index_key_for_view(&binding);
-        if let Some(previous) = self.by_direct_chat_id.insert(binding_key.clone(), binding.clone()) {
-            self.direct_chat_id_by_conversation.remove(
-                &direct_chat_conversation_index_key_for_view(&previous),
-            );
+        if let Some(previous) = self
+            .by_direct_chat_id
+            .insert(binding_key.clone(), binding.clone())
+        {
+            self.direct_chat_id_by_conversation
+                .remove(&direct_chat_conversation_index_key_for_view(&previous));
         }
         self.direct_chat_id_by_conversation
             .insert(conversation_key, binding_key);
@@ -68,12 +73,11 @@ impl ContactDirectChatBindingRuntimeStore {
         organization_id: &str,
         direct_chat_id: &str,
     ) -> Option<&ContactDirectChatBindingView> {
-        self.by_direct_chat_id
-            .get(&direct_chat_binding_key(
-                tenant_id,
-                organization_id,
-                direct_chat_id,
-            ))
+        self.by_direct_chat_id.get(&direct_chat_binding_key(
+            tenant_id,
+            organization_id,
+            direct_chat_id,
+        ))
     }
 
     pub(crate) fn get_by_conversation(
@@ -82,9 +86,13 @@ impl ContactDirectChatBindingRuntimeStore {
         organization_id: &str,
         conversation_id: &str,
     ) -> Option<&ContactDirectChatBindingView> {
-        let binding_key = self.direct_chat_id_by_conversation.get(
-            &direct_chat_conversation_index_key(tenant_id, organization_id, conversation_id),
-        )?;
+        let binding_key =
+            self.direct_chat_id_by_conversation
+                .get(&direct_chat_conversation_index_key(
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                ))?;
         self.by_direct_chat_id.get(binding_key)
     }
 
@@ -115,6 +123,128 @@ impl ContactDirectChatBindingRuntimeStore {
     }
 }
 
+/// Per-owner contact index with incrementally maintained sort order for paginated reads.
+#[derive(Default, Clone)]
+pub(super) struct ContactScopeStore {
+    by_key: HashMap<String, ContactView>,
+    ordered_keys: Vec<String>,
+}
+
+impl ContactScopeStore {
+    pub fn is_empty(&self) -> bool {
+        self.by_key.is_empty()
+    }
+
+    pub fn get(&self, key: &str) -> Option<&ContactView> {
+        self.by_key.get(key)
+    }
+
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut ContactView> {
+        self.by_key.get_mut(key)
+    }
+
+    pub fn remove(&mut self, key: &str) -> Option<ContactView> {
+        let removed = self.by_key.remove(key)?;
+        self.ordered_keys.retain(|entry| entry != key);
+        Some(removed)
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &ContactView> {
+        self.by_key.values()
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut ContactView> {
+        self.by_key.values_mut()
+    }
+
+    pub fn ensure_contact<F>(&mut self, key: String, init: F) -> &mut ContactView
+    where
+        F: FnOnce() -> ContactView,
+    {
+        if !self.by_key.contains_key(key.as_str()) {
+            self.by_key.insert(key.clone(), init());
+            self.rebuild_order();
+        }
+        self.by_key
+            .get_mut(key.as_str())
+            .expect("contact entry must exist after ensure")
+    }
+
+    pub fn rebuild_order(&mut self) {
+        self.ordered_keys = self.by_key.keys().cloned().collect();
+        self.ordered_keys.sort_by(|left_key, right_key| {
+            let left = &self.by_key[left_key];
+            let right = &self.by_key[right_key];
+            rfc3339_cmp(
+                right.last_interaction_at.as_str(),
+                left.last_interaction_at.as_str(),
+            )
+            .then_with(|| left.target_user_id.cmp(&right.target_user_id))
+        });
+    }
+
+    pub fn ordered_window_with_cursor(
+        &self,
+        cursor: Option<ContactListCursor>,
+        limit: usize,
+    ) -> (Vec<ContactView>, bool) {
+        let mut window = Vec::with_capacity(limit.saturating_add(1));
+        let legacy_offset = matches!(cursor, Some(ContactListCursor::Offset(_)));
+        let offset = match cursor {
+            Some(ContactListCursor::Offset(value)) => value,
+            _ => 0,
+        };
+        let keyset_cursor = match cursor {
+            Some(ContactListCursor::Keyset {
+                last_interaction_at,
+                target_user_id,
+            }) => Some((last_interaction_at, target_user_id)),
+            _ => None,
+        };
+        let mut skipped = 0usize;
+        for key in self.ordered_keys.iter() {
+            let Some(view) = self.by_key.get(key) else {
+                continue;
+            };
+            if let Some(cursor_pair) = keyset_cursor.as_ref()
+                && !contact_entry_after_keyset_cursor(view, cursor_pair)
+            {
+                continue;
+            }
+            if legacy_offset && skipped < offset {
+                skipped += 1;
+                continue;
+            }
+            window.push(view.clone());
+            if window.len() > limit {
+                break;
+            }
+        }
+        let has_more = window.len() > limit;
+        if has_more {
+            window.truncate(limit);
+        }
+        (window, has_more)
+    }
+
+    pub fn ordered_items(&self) -> Vec<ContactView> {
+        self.ordered_keys
+            .iter()
+            .filter_map(|key| self.by_key.get(key).cloned())
+            .collect()
+    }
+
+    pub fn from_items(items: Vec<ContactView>) -> Self {
+        let mut store = Self::default();
+        for item in items {
+            let key = contact_entry_key(item.contact_type.as_str(), item.target_user_id.as_str());
+            store.by_key.insert(key, item);
+        }
+        store.rebuild_order();
+        store
+    }
+}
+
 impl TimelineProjectionService {
     pub fn contacts(
         &self,
@@ -123,12 +253,46 @@ impl TimelineProjectionService {
         owner_user_id: &str,
     ) -> Vec<ContactView> {
         let scope = contact_runtime_scope(tenant_id, organization_id, owner_user_id);
-        let items = self
-            .lock_contact_store("contacts")
+        self.lock_contact_store("contacts")
             .get(&scope)
-            .map(|scope_contacts| scope_contacts.values().cloned().collect::<Vec<_>>())
+            .map(ContactScopeStore::ordered_items)
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn contact_window(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        owner_user_id: &str,
+        limit: usize,
+        cursor: crate::model::ContactListCursor,
+    ) -> crate::ContactWindowView {
+        let scope = contact_runtime_scope(tenant_id, organization_id, owner_user_id);
+        let list_cursor = match cursor {
+            crate::model::ContactListCursor::Start => None,
+            other => Some(other),
+        };
+        let (items, has_more) = self
+            .lock_contact_store("contact_window")
+            .get(&scope)
+            .map(|scope_store| scope_store.ordered_window_with_cursor(list_cursor, limit))
             .unwrap_or_default();
-        ordered_contact_views(items)
+        let next_cursor = if has_more {
+            items.last().and_then(|contact| {
+                let payload = serde_json::json!({
+                    "lastInteractionAt": contact.last_interaction_at,
+                    "targetUserId": contact.target_user_id,
+                });
+                crate::cursor_auth::encode_signed_projection_cursor(&payload).ok()
+            })
+        } else {
+            None
+        };
+        crate::ContactWindowView {
+            items,
+            next_cursor,
+            has_more,
+        }
     }
 
     pub(super) fn apply_friendship_activated(
@@ -138,16 +302,13 @@ impl TimelineProjectionService {
         let payload: FriendshipActivatedPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let organization_id = projection_organization_id_for_event(event);
-        let binding = payload
-            .direct_chat_id
-            .as_ref()
-            .and_then(|direct_chat_id| {
-                self.direct_chat_binding(
-                    event.tenant_id.as_str(),
-                    organization_id.as_str(),
-                    direct_chat_id.as_str(),
-                )
-            });
+        let binding = payload.direct_chat_id.as_ref().and_then(|direct_chat_id| {
+            self.direct_chat_binding(
+                event.tenant_id.as_str(),
+                organization_id.as_str(),
+                direct_chat_id.as_str(),
+            )
+        });
 
         self.upsert_friendship_contact(
             event.tenant_id.as_str(),
@@ -223,10 +384,12 @@ impl TimelineProjectionService {
             .insert(binding.clone());
 
         let mut contacts = self.lock_contact_store("apply_direct_chat_bound");
+        let mut touched_scopes = Vec::new();
         for (scope, scope_contacts) in contacts.iter_mut() {
             if scope.tenant_id != event.tenant_id || scope.organization_id != organization_id {
                 continue;
             }
+            let mut touched = false;
             for contact in scope_contacts.values_mut() {
                 if contact.direct_chat_id.as_deref() == Some(payload.direct_chat_id.as_str()) {
                     contact.conversation_id = Some(payload.conversation_id.clone());
@@ -235,11 +398,100 @@ impl TimelineProjectionService {
                         payload.bound_at.as_str(),
                     )
                     .to_owned();
+                    touched = true;
                 }
+            }
+            if touched {
+                touched_scopes.push(scope.clone());
+            }
+        }
+        for scope in touched_scopes {
+            if let Some(scope_contacts) = contacts.get_mut(&scope) {
+                scope_contacts.rebuild_order();
             }
         }
 
         Ok(())
+    }
+
+    pub(super) fn apply_user_blocked(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let payload: UserBlockedPayload =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        let organization_id = projection_organization_id_for_event(event);
+        self.mark_friendship_contacts_blocked(
+            event.tenant_id.as_str(),
+            organization_id.as_str(),
+            payload.blocker_user_id.as_str(),
+            payload.blocked_user_id.as_str(),
+            payload.effective_at.as_str(),
+        );
+        Ok(())
+    }
+
+    pub(super) fn apply_user_block_released(
+        &self,
+        event: &CommitEnvelope,
+    ) -> Result<(), ProjectionError> {
+        let payload: UserBlockReleasedPayload =
+            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        let organization_id = projection_organization_id_for_event(event);
+        self.restore_friendship_contacts_after_block_release(
+            event.tenant_id.as_str(),
+            organization_id.as_str(),
+            payload.blocker_user_id.as_str(),
+            payload.blocked_user_id.as_str(),
+            payload.released_at.as_str(),
+        );
+        Ok(())
+    }
+
+    fn mark_friendship_contacts_blocked(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        blocker_user_id: &str,
+        blocked_user_id: &str,
+        blocked_at: &str,
+    ) {
+        let scope = contact_runtime_scope(tenant_id, organization_id, blocker_user_id);
+        let key = contact_entry_key("friendship", blocked_user_id);
+        let mut contacts = self.lock_contact_store("mark_friendship_contacts_blocked");
+        if let Some(scope_contacts) = contacts.get_mut(&scope) {
+            if let Some(contact) = scope_contacts.get_mut(key.as_str()) {
+                contact.relationship_state = "blocked".into();
+                contact.last_interaction_at =
+                    max_rfc3339(contact.last_interaction_at.as_str(), blocked_at).to_owned();
+                scope_contacts.rebuild_order();
+            }
+        }
+    }
+
+    fn restore_friendship_contacts_after_block_release(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        blocker_user_id: &str,
+        blocked_user_id: &str,
+        released_at: &str,
+    ) {
+        let scope = contact_runtime_scope(tenant_id, organization_id, blocker_user_id);
+        let key = contact_entry_key("friendship", blocked_user_id);
+        let mut contacts =
+            self.lock_contact_store("restore_friendship_contacts_after_block_release");
+        if let Some(scope_contacts) = contacts.get_mut(&scope) {
+            if let Some(contact) = scope_contacts.get_mut(key.as_str())
+                && contact.relationship_state == "blocked"
+                && !contact.friendship_id.trim().is_empty()
+            {
+                contact.relationship_state = "active".into();
+                contact.last_interaction_at =
+                    max_rfc3339(contact.last_interaction_at.as_str(), released_at).to_owned();
+                scope_contacts.rebuild_order();
+            }
+        }
     }
 
     fn upsert_friendship_contact(
@@ -253,14 +505,11 @@ impl TimelineProjectionService {
     ) {
         let scope = contact_runtime_scope(tenant_id, organization_id, owner_user_id);
         let key = contact_entry_key("friendship", target_user_id);
-        let normalized_organization_id =
-            normalize_realtime_organization_id(organization_id);
+        let normalized_organization_id = normalize_realtime_organization_id(organization_id);
         let mut contacts = self.lock_contact_store("upsert_friendship_contact");
-        let contact = contacts
-            .entry(scope)
-            .or_default()
-            .entry(key)
-            .or_insert_with(|| ContactView {
+        let scope_store = contacts.entry(scope).or_default();
+        {
+            let contact = scope_store.ensure_contact(key.clone(), || ContactView {
                 tenant_id: tenant_id.to_owned(),
                 organization_id: normalized_organization_id.clone(),
                 owner_user_id: owner_user_id.to_owned(),
@@ -274,30 +523,32 @@ impl TimelineProjectionService {
                 last_interaction_at: payload.established_at.clone(),
             });
 
-        contact.relationship_state = "active".into();
-        contact.friendship_id = payload.friendship_id.clone();
-        contact.direct_chat_id = payload
-            .direct_chat_id
-            .clone()
-            .or_else(|| contact.direct_chat_id.clone());
-        contact.established_at = std::cmp::min(
-            contact.established_at.clone(),
-            payload.established_at.clone(),
-        );
-        contact.last_interaction_at = max_rfc3339(
-            contact.last_interaction_at.as_str(),
-            payload.established_at.as_str(),
-        )
-        .to_owned();
-
-        if let Some(binding) = binding {
-            contact.conversation_id = Some(binding.conversation_id.clone());
+            contact.relationship_state = "active".into();
+            contact.friendship_id = payload.friendship_id.clone();
+            contact.direct_chat_id = payload
+                .direct_chat_id
+                .clone()
+                .or_else(|| contact.direct_chat_id.clone());
+            contact.established_at = std::cmp::min(
+                contact.established_at.clone(),
+                payload.established_at.clone(),
+            );
             contact.last_interaction_at = max_rfc3339(
                 contact.last_interaction_at.as_str(),
-                binding.bound_at.as_str(),
+                payload.established_at.as_str(),
             )
             .to_owned();
+
+            if let Some(binding) = binding {
+                contact.conversation_id = Some(binding.conversation_id.clone());
+                contact.last_interaction_at = max_rfc3339(
+                    contact.last_interaction_at.as_str(),
+                    binding.bound_at.as_str(),
+                )
+                .to_owned();
+            }
         }
+        scope_store.rebuild_order();
     }
 
     fn remove_friendship_contact(
@@ -475,7 +726,7 @@ impl TimelineProjectionService {
     fn lock_contact_store(
         &self,
         operation: &'static str,
-    ) -> MutexGuard<'_, HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>> {
+    ) -> MutexGuard<'_, HashMap<ContactOwnerScopeKey, ContactScopeStore>> {
         lock_contacts_mutex(&self.contacts, "contact store", operation)
     }
 
@@ -503,33 +754,12 @@ pub(super) fn contact_entry_key(contact_type: &str, target_user_id: &str) -> Str
     encode_projection_key_segments([contact_type, target_user_id])
 }
 
-pub(super) fn contact_snapshot_items(
-    scope_contacts: &HashMap<String, ContactView>,
-) -> Vec<ContactView> {
-    ordered_contact_views(scope_contacts.values().cloned().collect::<Vec<_>>())
+pub(super) fn contact_snapshot_items(scope_contacts: &ContactScopeStore) -> Vec<ContactView> {
+    scope_contacts.ordered_items()
 }
 
-pub(super) fn contact_map_from_items(items: Vec<ContactView>) -> HashMap<String, ContactView> {
-    items
-        .into_iter()
-        .map(|item| {
-            (
-                contact_entry_key(item.contact_type.as_str(), item.target_user_id.as_str()),
-                item,
-            )
-        })
-        .collect()
-}
-
-pub(super) fn ordered_contact_views(mut items: Vec<ContactView>) -> Vec<ContactView> {
-    items.sort_by(|left, right| {
-        rfc3339_cmp(
-            right.last_interaction_at.as_str(),
-            left.last_interaction_at.as_str(),
-        )
-        .then_with(|| left.target_user_id.cmp(&right.target_user_id))
-    });
-    items
+pub(super) fn contact_map_from_items(items: Vec<ContactView>) -> ContactScopeStore {
+    ContactScopeStore::from_items(items)
 }
 
 fn direct_chat_binding_key(
@@ -544,13 +774,12 @@ fn direct_chat_binding_key(
     }
 }
 
-fn direct_chat_binding_key_for_view(binding: &ContactDirectChatBindingView) -> ContactDirectChatBindingKey {
+fn direct_chat_binding_key_for_view(
+    binding: &ContactDirectChatBindingView,
+) -> ContactDirectChatBindingKey {
     direct_chat_binding_key(
         binding.tenant_id.as_deref().unwrap_or_default(),
-        binding
-            .organization_id
-            .as_deref()
-            .unwrap_or("default"),
+        binding.organization_id.as_deref().unwrap_or("default"),
         binding.direct_chat_id.as_str(),
     )
 }
@@ -572,10 +801,7 @@ fn direct_chat_conversation_index_key_for_view(
 ) -> ContactConversationIndexKey {
     direct_chat_conversation_index_key(
         binding.tenant_id.as_deref().unwrap_or_default(),
-        binding
-            .organization_id
-            .as_deref()
-            .unwrap_or("default"),
+        binding.organization_id.as_deref().unwrap_or("default"),
         binding.conversation_id.as_str(),
     )
 }
@@ -585,6 +811,19 @@ fn max_rfc3339<'a>(left: &'a str, right: &'a str) -> &'a str {
         left
     } else {
         right
+    }
+}
+
+fn contact_entry_after_keyset_cursor(
+    contact: &ContactView,
+    cursor: &(String, String),
+) -> bool {
+    use std::cmp::Ordering;
+
+    match rfc3339_cmp(cursor.0.as_str(), contact.last_interaction_at.as_str()) {
+        Ordering::Greater => true,
+        Ordering::Less => false,
+        Ordering::Equal => contact.target_user_id.as_str() > cursor.1.as_str(),
     }
 }
 
@@ -625,6 +864,31 @@ mod tests {
     }
 
     #[test]
+    fn test_contact_keyset_window_paginates_without_offset_scan() {
+        let store = ContactScopeStore::from_items(vec![
+            contact("1033", "2026-05-06T00:00:00Z"),
+            contact("1032", "2026-05-06T00:00:00.100Z"),
+            contact("1031", "2026-05-06T00:00:00.200Z"),
+        ]);
+
+        let (first_page, has_more) =
+            store.ordered_window_with_cursor(Some(ContactListCursor::Start), 2);
+        assert!(has_more);
+        assert_eq!(first_page.len(), 2);
+        assert_eq!(first_page[0].target_user_id, "1031");
+        assert_eq!(first_page[1].target_user_id, "1032");
+
+        let cursor = ContactListCursor::Keyset {
+            last_interaction_at: first_page[1].last_interaction_at.clone(),
+            target_user_id: first_page[1].target_user_id.clone(),
+        };
+        let (second_page, has_more) = store.ordered_window_with_cursor(Some(cursor), 2);
+        assert!(!has_more);
+        assert_eq!(second_page.len(), 1);
+        assert_eq!(second_page[0].target_user_id, "1033");
+    }
+
+    #[test]
     fn test_max_rfc3339_compares_by_instant() {
         assert_eq!(
             max_rfc3339("2026-05-06T00:00:00Z", "2026-05-06T00:00:00.100Z"),
@@ -634,10 +898,11 @@ mod tests {
 
     #[test]
     fn test_ordered_contact_views_compares_last_interaction_by_rfc3339_instant() {
-        let ordered = ordered_contact_views(vec![
+        let ordered = ContactScopeStore::from_items(vec![
             contact("1032", "2026-05-06T00:00:00.100Z"),
             contact("1033", "2026-05-06T00:00:00Z"),
-        ]);
+        ])
+        .ordered_items();
 
         assert_eq!(
             ordered
@@ -646,5 +911,94 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["1032", "1033"]
         );
+    }
+
+    #[test]
+    fn test_user_block_projection_marks_and_restores_friendship_contacts() {
+        use im_domain_events::social::{UserBlockedPayload, UserBlockReleasedPayload};
+
+        let service = TimelineProjectionService::default();
+        let friendship_payload = FriendshipActivatedPayload {
+            friendship_id: "fs_block".to_owned(),
+            user_low_id: "1".to_owned(),
+            user_high_id: "2".to_owned(),
+            initiator_user_id: "1".to_owned(),
+            direct_chat_id: None,
+            established_at: "2026-05-06T00:00:00Z".to_owned(),
+        };
+        let mut friendship_event = CommitEnvelope::minimal(
+            "evt_friendship",
+            "100001",
+            "friendship.activated",
+            "social",
+            "fs_block",
+            1,
+        );
+        friendship_event.payload = serde_json::to_string(&friendship_payload).expect("payload");
+        service
+            .apply_friendship_activated(&friendship_event)
+            .expect("friendship projects");
+
+        let blocked_payload = UserBlockedPayload {
+            block_id: "blk_1".to_owned(),
+            blocker_user_id: "1".to_owned(),
+            blocked_user_id: "2".to_owned(),
+            scope: "all".to_owned(),
+            direct_chat_id: None,
+            expires_at: None,
+            effective_at: "2026-05-07T00:00:00.000Z".to_owned(),
+        };
+        let mut blocked_event = CommitEnvelope::minimal(
+            "evt_block",
+            "100001",
+            "user_block.blocked",
+            "social",
+            "blk_1",
+            2,
+        );
+        blocked_event.payload = serde_json::to_string(&blocked_payload).expect("payload");
+        service
+            .apply_user_blocked(&blocked_event)
+            .expect("block projects");
+
+        let blocker_contact = service
+            .contacts("100001", "default", "1")
+            .into_iter()
+            .find(|contact| contact.target_user_id == "2")
+            .expect("blocker contact");
+        assert_eq!(blocker_contact.relationship_state, "blocked");
+
+        let blocked_user_contact = service
+            .contacts("100001", "default", "2")
+            .into_iter()
+            .find(|contact| contact.target_user_id == "1")
+            .expect("blocked user contact");
+        assert_eq!(blocked_user_contact.relationship_state, "active");
+
+        let released_payload = UserBlockReleasedPayload {
+            block_id: "blk_1".to_owned(),
+            blocker_user_id: "1".to_owned(),
+            blocked_user_id: "2".to_owned(),
+            released_at: "2026-05-08T00:00:00.000Z".to_owned(),
+        };
+        let mut released_event = CommitEnvelope::minimal(
+            "evt_release",
+            "100001",
+            "user_block.released",
+            "social",
+            "blk_1",
+            3,
+        );
+        released_event.payload = serde_json::to_string(&released_payload).expect("payload");
+        service
+            .apply_user_block_released(&released_event)
+            .expect("block release projects");
+
+        let restored_contact = service
+            .contacts("100001", "default", "1")
+            .into_iter()
+            .find(|contact| contact.target_user_id == "2")
+            .expect("restored contact");
+        assert_eq!(restored_contact.relationship_state, "active");
     }
 }

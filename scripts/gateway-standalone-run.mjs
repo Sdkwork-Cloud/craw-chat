@@ -18,15 +18,12 @@ import {
 import { resolveImProductSiteDirEnv } from './lib/im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './lib/im-realtime-cluster-dev.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from './dev/sdkwork-im-shared-database.mjs';
+import { terminateStaleDevGatewayProcesses } from './dev/terminate-stale-dev-gateway-processes.mjs';
+import { resolveSdkworkImServerBindEnv } from './dev/sdkwork-im-server-dev-runtime.mjs';
 
 const repoRoot = REPO_ROOT;
 const DEFAULT_ENVIRONMENT = 'development';
 
-function cargoCommand() {
-  return process.platform === 'win32' ? 'cargo.exe' : 'cargo';
-}
-
-function normalizeText(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
 }
@@ -176,28 +173,32 @@ async function main() {
     }),
   };
 
-  const cargoArgs = [
-    'run',
-    '-p',
-    'sdkwork-im-standalone-gateway',
-    '--bin',
-    'sdkwork-im-standalone-gateway',
-    '--',
+  terminateStaleDevGatewayProcesses({});
+  const bindEnv = await resolveSdkworkImServerBindEnv({ env: gatewayEnv });
+  if (bindEnv.portChanged) {
+    console.log(
+      `[sdkwork-im-standalone-gateway] 127.0.0.1:18079 is busy; using http://${bindEnv.bindAddr}`,
+    );
+  }
+  const gatewayEnvWithBind = bindEnv.env;
+
+  const launcherArgs = [
+    path.join(repoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
     '--config',
     configPath,
   ];
   if (settings.release) {
-    cargoArgs.splice(1, 0, '--release');
+    launcherArgs.push('--release');
   }
 
   if (settings.dryRun) {
-    console.log(`[sdkwork-im-standalone-gateway] ${cargoCommand()} ${cargoArgs.join(' ')}`);
+    console.log(`[sdkwork-im-standalone-gateway] ${process.execPath} ${launcherArgs.join(' ')}`);
     process.exit(0);
   }
 
-  const child = spawn(cargoCommand(), cargoArgs, {
+  const child = spawn(process.execPath, launcherArgs, {
     cwd: repoRoot,
-    env: gatewayEnv,
+    env: gatewayEnvWithBind,
     stdio: 'inherit',
     shell: false,
   });

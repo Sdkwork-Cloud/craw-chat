@@ -12,14 +12,22 @@
 //!
 //! ## Usage
 //!
+//! Always call [`CapacityManager::allocate`] (or `release`) directly and handle
+//! the returned `Result`. **Never** pair [`CapacityManager::can_allocate`] with
+//! `allocate` in sequence — between the check and the allocation the lock is
+//! released and another caller can push usage past the limit (TOCTOU). The
+//! `allocate` method performs the same checks atomically under the same lock.
+//!
 //! ```rust
-//! use im_domain_core::capacity::{CapacityManager, ResourceQuota, ResourceUsage};
+//! use im_domain_core::capacity::{CapacityManager, ResourceQuota};
+//! # use im_domain_core::capacity::ResourceType;
 //!
-//! let manager = CapacityManager::new(ResourceQuota::default());
+//! let mut manager = CapacityManager::new(ResourceQuota::default());
 //!
-//! // Check before accepting new connection
-//! if manager.can_allocate("tenant1", ResourceType::Connection) {
-//!     manager.allocate("tenant1", ResourceType::Connection, 1);
+//! // Atomic check-and-increment: returns Err on quota exceeded.
+//! match manager.allocate("tenant1", ResourceType::Connection, 1) {
+//!     Ok(()) => { /* connection accepted */ }
+//!     Err(error) => { /* quota exceeded; reject connection */ }
 //! }
 //!
 //! // Get current usage
@@ -27,8 +35,8 @@
 //! ```
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -43,25 +51,19 @@ pub enum CapacityError {
         current: u64,
         limit: u64,
     },
-    
+
     #[error("tenant quota exceeded: tenant={tenant}, resource={resource}, quota={quota}")]
     TenantQuotaExceeded {
         tenant: String,
         resource: String,
         quota: u64,
     },
-    
+
     #[error("resource allocation failed: resource={resource}, reason={reason}")]
-    AllocationFailed {
-        resource: String,
-        reason: String,
-    },
-    
+    AllocationFailed { resource: String, reason: String },
+
     #[error("resource release failed: resource={resource}, reason={reason}")]
-    ReleaseFailed {
-        resource: String,
-        reason: String,
-    },
+    ReleaseFailed { resource: String, reason: String },
 }
 
 /// Types of tracked resources.
@@ -209,75 +211,135 @@ impl CapacityManager {
             last_cleanup: Instant::now(),
         }
     }
-    
+
     /// Create with default quotas.
     pub fn default_quotas() -> Self {
         Self::new(ResourceQuota::default())
     }
-    
+
     /// Check if a resource can be allocated.
     pub fn can_allocate(&self, tenant_id: &str, resource_type: ResourceType, amount: u64) -> bool {
         // Check tenant quota
-        let usage = self.tenant_usage.get(tenant_id).cloned().unwrap_or_default();
+        let usage = self
+            .tenant_usage
+            .get(tenant_id)
+            .cloned()
+            .unwrap_or_default();
         if !self.check_tenant_quota(&usage, resource_type, amount) {
             return false;
         }
-        
+
         // Check global limit
         if !self.check_global_limit(resource_type, amount) {
             return false;
         }
-        
+
         true
     }
-    
+
     /// Allocate resources.
-    pub fn allocate(&mut self, tenant_id: &str, resource_type: ResourceType, amount: u64) -> Result<(), CapacityError> {
+    pub fn allocate(
+        &mut self,
+        tenant_id: &str,
+        resource_type: ResourceType,
+        amount: u64,
+    ) -> Result<(), CapacityError> {
         self.cleanup_inactive_tenants();
-        
-        // Check capacity first (without borrowing)
-        if !self.can_allocate(tenant_id, resource_type.clone(), amount) {
+
+        // Check tenant quota first (read-only, no global mutation yet).
+        let usage = self
+            .tenant_usage
+            .get(tenant_id)
+            .cloned()
+            .unwrap_or_default();
+        if !self.check_tenant_quota(&usage, resource_type.clone(), amount) {
             let limit = self.get_quota_limit(&resource_type);
-            
             return Err(CapacityError::TenantQuotaExceeded {
                 tenant: tenant_id.to_string(),
                 resource: resource_type.name().to_string(),
                 quota: limit,
             });
         }
-        
+
+        // Atomically check-and-increment the global counter (TOCTOU-safe via
+        // compare_exchange loop). Returns false if the global limit would be
+        // exceeded; in that case we never mutated global state and can bail
+        // out without rolling anything back.
+        if !self.try_increment_global(&resource_type, amount) {
+            return Err(CapacityError::TenantQuotaExceeded {
+                tenant: tenant_id.to_string(),
+                resource: resource_type.name().to_string(),
+                quota: self.get_quota_limit(&resource_type),
+            });
+        }
+
         // Get or create tenant usage and update in-place
         let now = chrono::Utc::now().to_rfc3339();
-        self.tenant_usage.entry(tenant_id.to_string()).and_modify(|usage| {
-            match &resource_type {
-                ResourceType::WebSocketConnection => usage.ws_connections += amount,
-                ResourceType::RtcSession => usage.rtc_sessions += amount,
-                ResourceType::HttpRequest => usage.http_requests += amount,
-                ResourceType::MessageQueue => usage.message_queue += amount,
-                ResourceType::StorageBytes => usage.storage_bytes += amount,
-                ResourceType::MemoryBytes => usage.memory_bytes += amount,
-                ResourceType::CpuPercent => usage.cpu_percent = (usage.cpu_percent + amount).min(100),
-            }
-            usage.last_updated = now.clone();
-        }).or_insert(ResourceUsage {
-            ws_connections: if resource_type == ResourceType::WebSocketConnection { amount } else { 0 },
-            rtc_sessions: if resource_type == ResourceType::RtcSession { amount } else { 0 },
-            http_requests: if resource_type == ResourceType::HttpRequest { amount } else { 0 },
-            message_queue: if resource_type == ResourceType::MessageQueue { amount } else { 0 },
-            storage_bytes: if resource_type == ResourceType::StorageBytes { amount } else { 0 },
-            memory_bytes: if resource_type == ResourceType::MemoryBytes { amount } else { 0 },
-            cpu_percent: if resource_type == ResourceType::CpuPercent { amount.min(100) } else { 0 },
-            last_updated: now.clone(),
-        });
-        
-        // Increment global counters (after releasing tenant_usage borrow)
-        self.increment_global(&resource_type, amount);
-        
+        self.tenant_usage
+            .entry(tenant_id.to_string())
+            .and_modify(|usage| {
+                match &resource_type {
+                    ResourceType::WebSocketConnection => usage.ws_connections += amount,
+                    ResourceType::RtcSession => usage.rtc_sessions += amount,
+                    ResourceType::HttpRequest => usage.http_requests += amount,
+                    ResourceType::MessageQueue => usage.message_queue += amount,
+                    ResourceType::StorageBytes => usage.storage_bytes += amount,
+                    ResourceType::MemoryBytes => usage.memory_bytes += amount,
+                    ResourceType::CpuPercent => {
+                        usage.cpu_percent = (usage.cpu_percent + amount).min(100)
+                    }
+                }
+                usage.last_updated = now.clone();
+            })
+            .or_insert(ResourceUsage {
+                ws_connections: if resource_type == ResourceType::WebSocketConnection {
+                    amount
+                } else {
+                    0
+                },
+                rtc_sessions: if resource_type == ResourceType::RtcSession {
+                    amount
+                } else {
+                    0
+                },
+                http_requests: if resource_type == ResourceType::HttpRequest {
+                    amount
+                } else {
+                    0
+                },
+                message_queue: if resource_type == ResourceType::MessageQueue {
+                    amount
+                } else {
+                    0
+                },
+                storage_bytes: if resource_type == ResourceType::StorageBytes {
+                    amount
+                } else {
+                    0
+                },
+                memory_bytes: if resource_type == ResourceType::MemoryBytes {
+                    amount
+                } else {
+                    0
+                },
+                cpu_percent: if resource_type == ResourceType::CpuPercent {
+                    amount.min(100)
+                } else {
+                    0
+                },
+                last_updated: now.clone(),
+            });
+
         Ok(())
     }
-    
+
     /// Release resources.
-    pub fn release(&mut self, tenant_id: &str, resource_type: ResourceType, amount: u64) -> Result<(), CapacityError> {
+    pub fn release(
+        &mut self,
+        tenant_id: &str,
+        resource_type: ResourceType,
+        amount: u64,
+    ) -> Result<(), CapacityError> {
         // Check if tenant exists
         if !self.tenant_usage.contains_key(tenant_id) {
             return Err(CapacityError::ReleaseFailed {
@@ -285,49 +347,81 @@ impl CapacityManager {
                 reason: "tenant not found".to_string(),
             });
         }
-        
+
         // Decrement tenant usage
         let now = chrono::Utc::now().to_rfc3339();
         if let Some(usage) = self.tenant_usage.get_mut(tenant_id) {
             match &resource_type {
-                ResourceType::WebSocketConnection => usage.ws_connections = usage.ws_connections.saturating_sub(amount),
-                ResourceType::RtcSession => usage.rtc_sessions = usage.rtc_sessions.saturating_sub(amount),
-                ResourceType::HttpRequest => usage.http_requests = usage.http_requests.saturating_sub(amount),
-                ResourceType::MessageQueue => usage.message_queue = usage.message_queue.saturating_sub(amount),
-                ResourceType::StorageBytes => usage.storage_bytes = usage.storage_bytes.saturating_sub(amount),
-                ResourceType::MemoryBytes => usage.memory_bytes = usage.memory_bytes.saturating_sub(amount),
-                ResourceType::CpuPercent => usage.cpu_percent = usage.cpu_percent.saturating_sub(amount),
+                ResourceType::WebSocketConnection => {
+                    usage.ws_connections = usage.ws_connections.saturating_sub(amount)
+                }
+                ResourceType::RtcSession => {
+                    usage.rtc_sessions = usage.rtc_sessions.saturating_sub(amount)
+                }
+                ResourceType::HttpRequest => {
+                    usage.http_requests = usage.http_requests.saturating_sub(amount)
+                }
+                ResourceType::MessageQueue => {
+                    usage.message_queue = usage.message_queue.saturating_sub(amount)
+                }
+                ResourceType::StorageBytes => {
+                    usage.storage_bytes = usage.storage_bytes.saturating_sub(amount)
+                }
+                ResourceType::MemoryBytes => {
+                    usage.memory_bytes = usage.memory_bytes.saturating_sub(amount)
+                }
+                ResourceType::CpuPercent => {
+                    usage.cpu_percent = usage.cpu_percent.saturating_sub(amount)
+                }
             }
             usage.last_updated = now;
         }
-        
+
         // Decrement global counters
         self.decrement_global(&resource_type, amount);
-        
+
         Ok(())
     }
-    
+
     /// Get current usage for a tenant.
     pub fn get_usage(&self, tenant_id: &str) -> ResourceUsage {
-        self.tenant_usage.get(tenant_id).cloned().unwrap_or_default()
+        self.tenant_usage
+            .get(tenant_id)
+            .cloned()
+            .unwrap_or_default()
     }
-    
+
     /// Get global usage.
     pub fn get_global_usage(&self) -> HashMap<String, u64> {
         let mut usage = HashMap::new();
-        usage.insert("ws_connections".to_string(), self.global_usage.ws_connections.load(Ordering::SeqCst));
-        usage.insert("rtc_sessions".to_string(), self.global_usage.rtc_sessions.load(Ordering::SeqCst));
-        usage.insert("http_requests".to_string(), self.global_usage.http_requests.load(Ordering::SeqCst));
-        usage.insert("storage_bytes".to_string(), self.global_usage.storage_bytes.load(Ordering::SeqCst));
-        usage.insert("memory_bytes".to_string(), self.global_usage.memory_bytes.load(Ordering::SeqCst));
+        usage.insert(
+            "ws_connections".to_string(),
+            self.global_usage.ws_connections.load(Ordering::SeqCst),
+        );
+        usage.insert(
+            "rtc_sessions".to_string(),
+            self.global_usage.rtc_sessions.load(Ordering::SeqCst),
+        );
+        usage.insert(
+            "http_requests".to_string(),
+            self.global_usage.http_requests.load(Ordering::SeqCst),
+        );
+        usage.insert(
+            "storage_bytes".to_string(),
+            self.global_usage.storage_bytes.load(Ordering::SeqCst),
+        );
+        usage.insert(
+            "memory_bytes".to_string(),
+            self.global_usage.memory_bytes.load(Ordering::SeqCst),
+        );
         usage
     }
-    
+
     /// Get capacity status for monitoring.
     pub fn get_capacity_status(&self) -> CapacityStatus {
         let total_tenants = self.tenant_usage.len();
         let global = self.get_global_usage();
-        
+
         CapacityStatus {
             total_tenants,
             global_usage: global.clone(),
@@ -336,36 +430,93 @@ impl CapacityManager {
             timestamp: chrono::Utc::now().to_rfc3339(),
         }
     }
-    
+
     /// Check tenant quota.
-    fn check_tenant_quota(&self, usage: &ResourceUsage, resource_type: ResourceType, amount: u64) -> bool {
+    fn check_tenant_quota(
+        &self,
+        usage: &ResourceUsage,
+        resource_type: ResourceType,
+        amount: u64,
+    ) -> bool {
         let current = self.get_usage_value(usage, &resource_type);
         let limit = self.get_quota_limit(&resource_type);
         current + amount <= limit
     }
-    
+
     /// Check global limit.
     fn check_global_limit(&self, resource_type: ResourceType, amount: u64) -> bool {
         match resource_type {
             ResourceType::WebSocketConnection => {
-                self.global_usage.ws_connections.load(Ordering::SeqCst) + amount <= self.quota.global_limits.max_total_ws_connections
+                self.global_usage.ws_connections.load(Ordering::SeqCst) + amount
+                    <= self.quota.global_limits.max_total_ws_connections
             }
             ResourceType::RtcSession => {
-                self.global_usage.rtc_sessions.load(Ordering::SeqCst) + amount <= self.quota.global_limits.max_total_rtc_sessions
+                self.global_usage.rtc_sessions.load(Ordering::SeqCst) + amount
+                    <= self.quota.global_limits.max_total_rtc_sessions
             }
             ResourceType::HttpRequest => {
-                self.global_usage.http_requests.load(Ordering::SeqCst) + amount <= self.quota.global_limits.max_total_http_requests
+                self.global_usage.http_requests.load(Ordering::SeqCst) + amount
+                    <= self.quota.global_limits.max_total_http_requests
             }
             ResourceType::StorageBytes => {
-                self.global_usage.storage_bytes.load(Ordering::SeqCst) + amount <= self.quota.global_limits.max_total_storage_bytes
+                self.global_usage.storage_bytes.load(Ordering::SeqCst) + amount
+                    <= self.quota.global_limits.max_total_storage_bytes
             }
             ResourceType::MemoryBytes => {
-                self.global_usage.memory_bytes.load(Ordering::SeqCst) + amount <= self.quota.global_limits.max_total_memory_bytes
+                self.global_usage.memory_bytes.load(Ordering::SeqCst) + amount
+                    <= self.quota.global_limits.max_total_memory_bytes
             }
             _ => true, // Message queue and CPU are tenant-only
         }
     }
-    
+
+    /// Atomically check the global limit and increment in a single CAS loop.
+    ///
+    /// Returns `true` when the increment succeeded (counter advanced by `amount`)
+    /// and `false` when the limit would be exceeded. The check-and-increment is
+    /// performed as a `compare_exchange` loop so concurrent allocators cannot push
+    /// usage past the global limit between the check and the increment (TOCTOU).
+    fn try_increment_global(&self, resource_type: &ResourceType, amount: u64) -> bool {
+        let (limit, counter): (u64, &AtomicU64) = match resource_type {
+            ResourceType::WebSocketConnection => (
+                self.quota.global_limits.max_total_ws_connections,
+                &self.global_usage.ws_connections,
+            ),
+            ResourceType::RtcSession => (
+                self.quota.global_limits.max_total_rtc_sessions,
+                &self.global_usage.rtc_sessions,
+            ),
+            ResourceType::HttpRequest => (
+                self.quota.global_limits.max_total_http_requests,
+                &self.global_usage.http_requests,
+            ),
+            ResourceType::StorageBytes => (
+                self.quota.global_limits.max_total_storage_bytes,
+                &self.global_usage.storage_bytes,
+            ),
+            ResourceType::MemoryBytes => (
+                self.quota.global_limits.max_total_memory_bytes,
+                &self.global_usage.memory_bytes,
+            ),
+            // Message queue and CPU are tenant-only; treat as always allowed.
+            _ => return true,
+        };
+        loop {
+            let current = counter.load(Ordering::SeqCst);
+            let next = match current.checked_add(amount) {
+                Some(value) => value,
+                None => return false,
+            };
+            if next > limit {
+                return false;
+            }
+            match counter.compare_exchange(current, next, Ordering::SeqCst, Ordering::SeqCst) {
+                Ok(_) => return true,
+                Err(_) => continue,
+            }
+        }
+    }
+
     /// Get usage value by resource type.
     fn get_usage_value(&self, usage: &ResourceUsage, resource_type: &ResourceType) -> u64 {
         match resource_type {
@@ -378,7 +529,7 @@ impl CapacityManager {
             ResourceType::CpuPercent => usage.cpu_percent,
         }
     }
-    
+
     /// Get quota limit by resource type.
     fn get_quota_limit(&self, resource_type: &ResourceType) -> u64 {
         match resource_type {
@@ -391,64 +542,81 @@ impl CapacityManager {
             ResourceType::CpuPercent => self.quota.max_cpu_percent,
         }
     }
-    
-    /// Increment global counter.
-    fn increment_global(&self, resource_type: &ResourceType, amount: u64) {
-        match resource_type {
-            ResourceType::WebSocketConnection => self.global_usage.ws_connections.fetch_add(amount, Ordering::SeqCst),
-            ResourceType::RtcSession => self.global_usage.rtc_sessions.fetch_add(amount, Ordering::SeqCst),
-            ResourceType::HttpRequest => self.global_usage.http_requests.fetch_add(amount, Ordering::SeqCst),
-            ResourceType::StorageBytes => self.global_usage.storage_bytes.fetch_add(amount, Ordering::SeqCst),
-            ResourceType::MemoryBytes => self.global_usage.memory_bytes.fetch_add(amount, Ordering::SeqCst),
-            _ => 0,
-        };
-    }
-    
+
     /// Decrement global counter.
     fn decrement_global(&self, resource_type: &ResourceType, amount: u64) {
         match resource_type {
-            ResourceType::WebSocketConnection => self.global_usage.ws_connections.fetch_sub(amount, Ordering::SeqCst),
-            ResourceType::RtcSession => self.global_usage.rtc_sessions.fetch_sub(amount, Ordering::SeqCst),
-            ResourceType::HttpRequest => self.global_usage.http_requests.fetch_sub(amount, Ordering::SeqCst),
-            ResourceType::StorageBytes => self.global_usage.storage_bytes.fetch_sub(amount, Ordering::SeqCst),
-            ResourceType::MemoryBytes => self.global_usage.memory_bytes.fetch_sub(amount, Ordering::SeqCst),
+            ResourceType::WebSocketConnection => self
+                .global_usage
+                .ws_connections
+                .fetch_sub(amount, Ordering::SeqCst),
+            ResourceType::RtcSession => self
+                .global_usage
+                .rtc_sessions
+                .fetch_sub(amount, Ordering::SeqCst),
+            ResourceType::HttpRequest => self
+                .global_usage
+                .http_requests
+                .fetch_sub(amount, Ordering::SeqCst),
+            ResourceType::StorageBytes => self
+                .global_usage
+                .storage_bytes
+                .fetch_sub(amount, Ordering::SeqCst),
+            ResourceType::MemoryBytes => self
+                .global_usage
+                .memory_bytes
+                .fetch_sub(amount, Ordering::SeqCst),
             _ => 0,
         };
     }
-    
+
     /// Calculate utilization percentages.
     fn calculate_utilization(&self, global: &HashMap<String, u64>) -> HashMap<String, f64> {
         let mut utilization = HashMap::new();
-        
+
         let ws = global.get("ws_connections").unwrap_or(&0);
-        utilization.insert("ws_connections".to_string(), (*ws as f64 / self.quota.global_limits.max_total_ws_connections as f64) * 100.0);
-        
+        utilization.insert(
+            "ws_connections".to_string(),
+            (*ws as f64 / self.quota.global_limits.max_total_ws_connections as f64) * 100.0,
+        );
+
         let rtc = global.get("rtc_sessions").unwrap_or(&0);
-        utilization.insert("rtc_sessions".to_string(), (*rtc as f64 / self.quota.global_limits.max_total_rtc_sessions as f64) * 100.0);
-        
+        utilization.insert(
+            "rtc_sessions".to_string(),
+            (*rtc as f64 / self.quota.global_limits.max_total_rtc_sessions as f64) * 100.0,
+        );
+
         let http = global.get("http_requests").unwrap_or(&0);
-        utilization.insert("http_requests".to_string(), (*http as f64 / self.quota.global_limits.max_total_http_requests as f64) * 100.0);
-        
+        utilization.insert(
+            "http_requests".to_string(),
+            (*http as f64 / self.quota.global_limits.max_total_http_requests as f64) * 100.0,
+        );
+
         let storage = global.get("storage_bytes").unwrap_or(&0);
-        utilization.insert("storage_bytes".to_string(), (*storage as f64 / self.quota.global_limits.max_total_storage_bytes as f64) * 100.0);
-        
+        utilization.insert(
+            "storage_bytes".to_string(),
+            (*storage as f64 / self.quota.global_limits.max_total_storage_bytes as f64) * 100.0,
+        );
+
         let memory = global.get("memory_bytes").unwrap_or(&0);
-        utilization.insert("memory_bytes".to_string(), (*memory as f64 / self.quota.global_limits.max_total_memory_bytes as f64) * 100.0);
-        
+        utilization.insert(
+            "memory_bytes".to_string(),
+            (*memory as f64 / self.quota.global_limits.max_total_memory_bytes as f64) * 100.0,
+        );
+
         utilization
     }
-    
+
     /// Clean up inactive tenants.
     fn cleanup_inactive_tenants(&mut self) {
         let now = Instant::now();
         if now.duration_since(self.last_cleanup) > self.cleanup_interval {
             let cutoff = chrono::Utc::now() - chrono::Duration::seconds(300);
             let cutoff_str = cutoff.to_rfc3339();
-            
-            self.tenant_usage.retain(|_, usage| {
-                usage.last_updated > cutoff_str
-            });
-            
+
+            self.tenant_usage
+                .retain(|_, usage| usage.last_updated > cutoff_str);
+
             self.last_cleanup = now;
         }
     }
@@ -467,13 +635,13 @@ pub struct CapacityStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn resource_type_names() {
         assert_eq!(ResourceType::WebSocketConnection.name(), "ws_connections");
         assert_eq!(ResourceType::RtcSession.name(), "rtc_sessions");
     }
-    
+
     #[test]
     fn capacity_manager_initial_state() {
         let manager = CapacityManager::default_quotas();
@@ -481,18 +649,18 @@ mod tests {
         assert_eq!(usage.ws_connections, 0);
         assert_eq!(usage.rtc_sessions, 0);
     }
-    
+
     #[test]
     fn capacity_allocate_success() {
         let mut manager = CapacityManager::default_quotas();
-        
+
         let result = manager.allocate("t1", ResourceType::WebSocketConnection, 10);
         assert!(result.is_ok());
-        
+
         let usage = manager.get_usage("t1");
         assert_eq!(usage.ws_connections, 10);
     }
-    
+
     #[test]
     fn capacity_allocate_exceeds_quota() {
         let quota = ResourceQuota {
@@ -500,37 +668,48 @@ mod tests {
             ..ResourceQuota::default()
         };
         let mut manager = CapacityManager::new(quota);
-        
+
         // Allocate up to limit
-        manager.allocate("t1", ResourceType::WebSocketConnection, 5).unwrap();
-        
+        manager
+            .allocate("t1", ResourceType::WebSocketConnection, 5)
+            .unwrap();
+
         // Should fail
         let result = manager.allocate("t1", ResourceType::WebSocketConnection, 1);
-        assert!(matches!(result, Err(CapacityError::TenantQuotaExceeded { .. })));
+        assert!(matches!(
+            result,
+            Err(CapacityError::TenantQuotaExceeded { .. })
+        ));
     }
-    
+
     #[test]
     fn capacity_release() {
         let mut manager = CapacityManager::default_quotas();
-        
-        manager.allocate("t1", ResourceType::WebSocketConnection, 10).unwrap();
-        manager.release("t1", ResourceType::WebSocketConnection, 5).unwrap();
-        
+
+        manager
+            .allocate("t1", ResourceType::WebSocketConnection, 10)
+            .unwrap();
+        manager
+            .release("t1", ResourceType::WebSocketConnection, 5)
+            .unwrap();
+
         let usage = manager.get_usage("t1");
         assert_eq!(usage.ws_connections, 5);
     }
-    
+
     #[test]
     fn capacity_tenant_isolation() {
         let mut manager = CapacityManager::default_quotas();
-        
+
         // Tenant 1 uses resources
-        manager.allocate("t1", ResourceType::WebSocketConnection, 50).unwrap();
-        
+        manager
+            .allocate("t1", ResourceType::WebSocketConnection, 50)
+            .unwrap();
+
         // Tenant 2 should still have quota
         assert!(manager.can_allocate("t2", ResourceType::WebSocketConnection, 50));
     }
-    
+
     #[test]
     fn capacity_global_limit() {
         let quota = ResourceQuota {
@@ -542,28 +721,37 @@ mod tests {
             ..ResourceQuota::default()
         };
         let mut manager = CapacityManager::new(quota);
-        
+
         // Exhaust global limit
-        manager.allocate("t1", ResourceType::WebSocketConnection, 50).unwrap();
-        manager.allocate("t2", ResourceType::WebSocketConnection, 50).unwrap();
-        
+        manager
+            .allocate("t1", ResourceType::WebSocketConnection, 50)
+            .unwrap();
+        manager
+            .allocate("t2", ResourceType::WebSocketConnection, 50)
+            .unwrap();
+
         // Should fail at global limit
         let result = manager.allocate("t3", ResourceType::WebSocketConnection, 1);
-        assert!(matches!(result, Err(CapacityError::TenantQuotaExceeded { .. })));
+        assert!(matches!(
+            result,
+            Err(CapacityError::TenantQuotaExceeded { .. })
+        ));
     }
-    
+
     #[test]
     fn capacity_status() {
         let mut manager = CapacityManager::default_quotas();
-        
-        manager.allocate("t1", ResourceType::WebSocketConnection, 10).unwrap();
+
+        manager
+            .allocate("t1", ResourceType::WebSocketConnection, 10)
+            .unwrap();
         manager.allocate("t2", ResourceType::RtcSession, 5).unwrap();
-        
+
         let status = manager.get_capacity_status();
         assert_eq!(status.total_tenants, 2);
         assert!(status.utilization.contains_key("ws_connections"));
     }
-    
+
     #[test]
     fn capacity_can_allocate_check() {
         let quota = ResourceQuota {
@@ -571,14 +759,67 @@ mod tests {
             ..ResourceQuota::default()
         };
         let mut manager = CapacityManager::new(quota);
-        
+
         // Check before allocation
         assert!(manager.can_allocate("t1", ResourceType::WebSocketConnection, 10));
-        
+
         // Allocate
-        manager.allocate("t1", ResourceType::WebSocketConnection, 10).unwrap();
-        
+        manager
+            .allocate("t1", ResourceType::WebSocketConnection, 10)
+            .unwrap();
+
         // Check should fail now
         assert!(!manager.can_allocate("t1", ResourceType::WebSocketConnection, 1));
+    }
+
+    /// Verify the global counter CAS loop never overshoots the configured
+    /// limit, even when many tenants race to allocate the same resource type
+    /// against a shared [`CapacityManager`].
+    #[test]
+    fn capacity_global_cas_loop_never_overshoots_limit() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let quota = ResourceQuota {
+            max_ws_connections: 1_000,
+            global_limits: GlobalLimits {
+                max_total_ws_connections: 1_000,
+                ..GlobalLimits::default()
+            },
+            ..ResourceQuota::default()
+        };
+        let manager = Arc::new(std::sync::Mutex::new(CapacityManager::new(quota)));
+        let tenant_count = 20usize;
+        let per_tenant = 60u64;
+        let mut handles = Vec::with_capacity(tenant_count);
+        for index in 0..tenant_count {
+            let manager = Arc::clone(&manager);
+            handles.push(thread::spawn(move || {
+                let tenant = format!("t{index}");
+                let mut allocated = 0u64;
+                for _ in 0..per_tenant {
+                    let mut guard = manager.lock().expect("manager lock poisoned");
+                    if guard
+                        .allocate(tenant.as_str(), ResourceType::WebSocketConnection, 1)
+                        .is_ok()
+                    {
+                        allocated += 1;
+                    }
+                }
+                allocated
+            }));
+        }
+        let total_allocated: u64 = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("thread panicked"))
+            .sum();
+        // No tenant can push the global counter past the configured limit,
+        // regardless of how many threads race on the shared manager.
+        assert!(
+            total_allocated <= 1_000,
+            "global counter overshot limit: {total_allocated}"
+        );
+        // Sanity check: at least some allocations should succeed.
+        assert!(total_allocated > 0, "no allocations succeeded");
     }
 }

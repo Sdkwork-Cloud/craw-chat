@@ -2,10 +2,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use session_gateway::RealtimePlaneBootstrap;
 use tokio::net::TcpListener;
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::client::ClientRequestBuilder,
-};
+use tokio_tungstenite::{connect_async, tungstenite::client::ClientRequestBuilder};
 use tower::ServiceExt;
 
 async fn spawn_server(app: axum::Router) -> (String, tokio::task::JoinHandle<()>) {
@@ -42,9 +39,8 @@ fn default_bootstrap() -> RealtimePlaneBootstrap {
 async fn wrapped_realtime_open_api_router_preserves_websocket_upgrade_state() {
     ensure_dev_environment();
     let bootstrap = default_bootstrap();
-    let app = sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
-        &bootstrap,
-    );
+    let app =
+        sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(&bootstrap);
     let (address, handle) = spawn_server(app).await;
 
     let request = ClientRequestBuilder::new(
@@ -67,9 +63,8 @@ async fn wrapped_realtime_open_api_router_preserves_websocket_upgrade_state() {
 async fn embedded_realtime_http_router_oneshot_dispatch_still_serves_healthz() {
     ensure_dev_environment();
     let bootstrap = default_bootstrap();
-    let app = sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
-        &bootstrap,
-    );
+    let app =
+        sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(&bootstrap);
 
     let request = Request::builder()
         .method("GET")

@@ -1,20 +1,17 @@
 //! HTTP operator surfaces for shared-channel sync runtime control.
 
-use axum::extract::State;
+use axum::extract::{Extension, State};
+use axum::response::Response;
 use axum::{Json, Router};
+use im_app_context::AppContext;
+use sdkwork_web_core::WebRequestContext;
 use serde::Deserialize;
 
+use crate::api_payload::{full_inventory_page, resource_item};
+use crate::control_access::{ensure_control_read_access, ensure_control_write_access};
+use crate::envelope::finish_enveloped_json;
 use crate::friendship::{AppState, SocialServiceError};
-use crate::runtime::SocialRuntimeRepairResponse;
-use crate::shared_channel_sync_runtime::{
-    SharedChannelSyncOwnerConflict, SocialSharedChannelSyncDeadLetterInventoryResponse,
-    SocialSharedChannelSyncDeadLetterRequeueResponse,
-    SocialSharedChannelSyncDeliveredInventoryResponse,
-    SocialSharedChannelSyncDeliveryStateInventoryResponse,
-    SocialSharedChannelSyncPendingInventoryResponse,
-    SocialSharedChannelSyncPendingStaleReclaimResponse, SocialSharedChannelSyncRepairResponse,
-    SocialSharedChannelSyncRepublishResponse, SocialSharedChannelSyncTargetedMutationResponse,
-};
+use crate::shared_channel_sync_runtime::SharedChannelSyncOwnerConflict;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,149 +84,229 @@ pub fn build_runtime_control_routes() -> Router<AppState> {
 }
 
 async fn list_pending_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncPendingInventoryResponse>, SocialServiceError> {
-    Ok(Json(
-        state
-            .social_runtime
-            .pending_shared_channel_sync_inventory("system", "system"),
-    ))
+) -> Response {
+    let result = (|| {
+        ensure_control_read_access(&auth)?;
+        let inventory = state.social_runtime.pending_shared_channel_sync_inventory(
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
+        Ok(full_inventory_page(inventory.items))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn list_dead_letter_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncDeadLetterInventoryResponse>, SocialServiceError> {
-    Ok(Json(
-        state
-            .social_runtime
-            .dead_letter_shared_channel_sync_inventory("system", "system"),
-    ))
+) -> Response {
+    let result = (|| {
+        ensure_control_read_access(&auth)?;
+        let inventory = state.social_runtime.dead_letter_shared_channel_sync_inventory(
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
+        Ok(full_inventory_page(inventory.items))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn list_delivered_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncDeliveredInventoryResponse>, SocialServiceError> {
-    Ok(Json(
-        state.social_runtime.delivered_shared_channel_sync_inventory(),
-    ))
+) -> Response {
+    let result = (|| {
+        ensure_control_read_access(&auth)?;
+        let inventory = state.social_runtime.delivered_shared_channel_sync_inventory();
+        Ok(full_inventory_page(inventory.items))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn list_delivery_state_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncDeliveryStateInventoryResponse>, SocialServiceError> {
-    Ok(Json(
-        state
+) -> Response {
+    let result = (|| {
+        ensure_control_read_access(&auth)?;
+        let inventory = state
             .social_runtime
-            .delivery_state_shared_channel_sync_inventory(),
-    ))
+            .delivery_state_shared_channel_sync_inventory();
+        Ok(resource_item(inventory))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn reclaim_stale_pending_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncPendingStaleReclaimResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .reclaim_stale_pending_shared_channel_sync_claims_persisted()
-        .map(Json)
-        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_reclaim_failed", error))
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .reclaim_stale_pending_shared_channel_sync_claims_persisted()
+            .map(resource_item)
+            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_reclaim_failed", error))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn repair_derived_snapshot(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialRuntimeRepairResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .repair_derived_snapshot()
-        .map(Json)
-        .map_err(|error| SocialServiceError::invalid("social_runtime_repair_failed", error))
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .repair_derived_snapshot()
+            .map(resource_item)
+            .map_err(|error| SocialServiceError::invalid("social_runtime_repair_failed", error))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn repair_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncRepairResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .repair_shared_channel_sync()
-        .map(Json)
-        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_repair_failed", error))
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .repair_shared_channel_sync()
+            .map(resource_item)
+            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_repair_failed", error))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn requeue_dead_letter_shared_channel_sync(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
-) -> Result<Json<SocialSharedChannelSyncDeadLetterRequeueResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .requeue_dead_letter_shared_channel_sync_persisted(None)
-        .map(Json)
-        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_requeue_failed", error))
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .requeue_dead_letter_shared_channel_sync_persisted(None)
+            .map(resource_item)
+            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_requeue_failed", error))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn requeue_dead_letter_shared_channel_sync_targeted(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
-) -> Result<Json<SocialSharedChannelSyncDeadLetterRequeueResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .requeue_dead_letter_shared_channel_sync_persisted(Some(body.request_keys.as_slice()))
-        .map(Json)
-        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_requeue_failed", error))
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .requeue_dead_letter_shared_channel_sync_persisted(Some(body.request_keys.as_slice()))
+            .map(resource_item)
+            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_requeue_failed", error))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn claim_pending_shared_channel_sync_targeted(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
-) -> Result<Json<SocialSharedChannelSyncTargetedMutationResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .claim_pending_shared_channel_sync_targeted_persisted(
-            body.request_keys.as_slice(),
-            "system",
-            "system",
-        )
-        .map(Json)
-        .map_err(owner_conflict_into_service_error)
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .claim_pending_shared_channel_sync_targeted_persisted(
+                body.request_keys.as_slice(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+            )
+            .map(resource_item)
+            .map_err(owner_conflict_into_service_error)
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn release_pending_shared_channel_sync_targeted(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
-) -> Result<Json<SocialSharedChannelSyncTargetedMutationResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .release_pending_shared_channel_sync_targeted_persisted(
-            body.request_keys.as_slice(),
-            "system",
-            "system",
-        )
-        .map(Json)
-        .map_err(owner_conflict_into_service_error)
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .release_pending_shared_channel_sync_targeted_persisted(
+                body.request_keys.as_slice(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+            )
+            .map(resource_item)
+            .map_err(owner_conflict_into_service_error)
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn takeover_pending_shared_channel_sync_targeted(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(body): Json<TargetedTakeoverBody>,
-) -> Result<Json<SocialSharedChannelSyncTargetedMutationResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .takeover_pending_shared_channel_sync_targeted_persisted(
-            body.request_keys.as_slice(),
-            "system",
-            "system",
-            body.legacy_override,
-        )
-        .map(Json)
-        .map_err(owner_conflict_into_service_error)
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .takeover_pending_shared_channel_sync_targeted_persisted(
+                body.request_keys.as_slice(),
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                body.legacy_override,
+            )
+            .map(resource_item)
+            .map_err(owner_conflict_into_service_error)
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn republish_pending_shared_channel_sync_targeted(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
-) -> Result<Json<SocialSharedChannelSyncRepublishResponse>, SocialServiceError> {
-    state
-        .social_runtime
-        .republish_pending_shared_channel_sync_targeted("system", "system", body.request_keys)
-        .map(Json)
-        .map_err(owner_conflict_into_service_error)
+) -> Response {
+    let result = (|| {
+        ensure_control_write_access(&auth)?;
+        state
+            .social_runtime
+            .republish_pending_shared_channel_sync_targeted(
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+                body.request_keys,
+            )
+            .map(resource_item)
+            .map_err(owner_conflict_into_service_error)
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 fn owner_conflict_into_service_error(error: SharedChannelSyncOwnerConflict) -> SocialServiceError {

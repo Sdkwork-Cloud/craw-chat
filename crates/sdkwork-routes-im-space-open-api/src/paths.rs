@@ -6,6 +6,8 @@ pub const SPACE_MEMBERS: &str = "/im/v3/api/spaces/{spaceId}/members";
 pub const SPACE_MEMBER: &str = "/im/v3/api/spaces/{spaceId}/members/{userId}";
 pub const SPACE_GROUPS: &str = "/im/v3/api/spaces/{spaceId}/groups";
 pub const SPACE_GROUP: &str = "/im/v3/api/spaces/{spaceId}/groups/{groupId}";
+pub const SPACE_GROUP_TRANSFER_OWNER: &str =
+    "/im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner";
 pub const SPACE_GROUP_MEMBERS: &str = "/im/v3/api/spaces/{spaceId}/groups/{groupId}/members";
 pub const SPACE_GROUP_MEMBER: &str =
     "/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}";

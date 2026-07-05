@@ -175,7 +175,7 @@ assert.match(
 );
 assert.match(
   read('services/projection-service/src/scope.rs'),
-  /pub\(super\) fn scope_key\([\s\S]*organization_id: &str,\s*\n\s*conversation_id: &str,/,
+  /pub\(super\) fn scope_key\([\s\S]*organization_id: &str,[\s\S]*conversation_id: &str,/,
   'projection conversation scope keys must include organization_id',
 );
 assert.match(

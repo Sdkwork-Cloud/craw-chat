@@ -4,13 +4,11 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
-    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/community-pc-community": "workspace:*",
+    "@sdkwork/community-runtime": "workspace:*",
+    "@sdkwork/community-sdk-ports": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
-    "lucide-react": "catalog:",
-    "motion": "catalog:",
-    "react-i18next": "catalog:",
-    "@sdkwork/im-pc-chat": "workspace:*",
-    "i18next": "catalog:",
+    "@sdkwork/im-pc-core": "workspace:*",
     "react": "catalog:"
   },
   "publishConfig": {

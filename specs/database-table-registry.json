@@ -8,6 +8,10 @@
     "postgresql",
     "sqlite"
   ],
+  "databaseProfilesNotes": {
+    "postgresql": "IM core durable runtime authority (journal, projection, social materializer, search).",
+    "sqlite": "Desktop gateway webstore and sibling module files only; IM journal does not persist to sqlite."
+  },
   "tables": [
     {
       "tableName": "im_commit_journal",
@@ -337,6 +341,33 @@
     },
     {
       "tableName": "im_user_blocks",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
+    },
+    {
+      "tableName": "im_contact_tags",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
+    },
+    {
+      "tableName": "im_contact_preferences",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
+    },
+    {
+      "tableName": "im_contact_recommendations",
       "modulePrefix": "im",
       "boundedContext": "social",
       "tableProfile": "tenant_entity",

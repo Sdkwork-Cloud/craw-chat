@@ -556,7 +556,7 @@ Use the live domain streams this way:
 ### Durable Catch-Up
 
 ```ts
-const batch = await sdk.sync.catchUp({ limit: 50 });
+const batch = await sdk.sync.catchUp({ pageSize: 50 });
 
 for (const item of batch.items) {
   if (item.kind === 'message') {
@@ -695,7 +695,7 @@ const sdk = new ImSdkClient({
 
 await sdk.transport.presence.heartbeat.create({ clientRouteId: 'web-chrome-01' });
 await sdk.transport.presence.me.retrieve();
-await sdk.transport.realtime.events.list({ limit: 20 });
+await sdk.transport.realtime.events.list({ pageSize: 20 });
 await sdk.conversations.listMessages('conversation-1');
 await sdk.transport.chat.inbox.retrieve();
 await sdk.transport.streams.create({

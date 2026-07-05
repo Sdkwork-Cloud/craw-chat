@@ -661,3 +661,17 @@ fn local_service_app_context_uses_iam_default_tenant_and_organization_scope() {
     assert_eq!(resolved.organization_id, "0");
     assert_eq!(resolved.user_id, "30");
 }
+
+#[test]
+fn is_production_like_im_environment_tracks_header_only_fallback_gate() {
+    let _guard = lock_test_env();
+    unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+    }
+    assert!(!im_app_context::is_production_like_im_environment());
+    unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
+    }
+    assert!(im_app_context::is_production_like_im_environment());
+    ensure_test_dev_environment();
+}

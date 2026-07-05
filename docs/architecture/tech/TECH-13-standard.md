@@ -97,7 +97,7 @@
 
 ### 4.3 查询帧窗口
 
-`GET /im/v3/api/streams/{stream_id}/frames?afterFrameSeq=0&limit=100`
+`GET /im/v3/api/streams/{stream_id}/frames?pageSize=100`
 
 响应示例：
 

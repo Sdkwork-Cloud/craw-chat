@@ -758,7 +758,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
 }
 
 #[tokio::test]
-async fn test_list_messages_http_returns_bounded_cursor_window() {
+async fn test_post_message_http_is_served_and_get_timeline_is_not() {
     let app = conversation_runtime::build_default_app();
 
     let create_response = app
@@ -783,33 +783,30 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
         .expect("create conversation should succeed");
     assert_eq!(create_response.status(), StatusCode::OK);
 
-    for seq in 1..=2 {
-        let post_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/im/v3/api/chat/conversations/c_history_page_http/messages")
-                    .with_dual_token_tenant("100001")
-                    .with_dual_token_user("1")
-                    .with_dual_token_actor_kind("user")
-                    .header("content-type", "application/json")
-                    .body(Body::from(format!(
-                        r#"{{
-                            "clientMsgId":"client_history_page_{seq}",
-                            "summary":"message {seq}",
-                            "text":"message {seq}"
-                        }}"#
-                    )))
-                    .unwrap(),
-            )
-            .await
-            .expect("post message should succeed");
-        assert_eq!(post_response.status(), StatusCode::OK);
-    }
-
-    let first_page = app
+    let post_response = app
         .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_history_page_http/messages")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_history_page_1",
+                        "summary":"message 1",
+                        "text":"message 1"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message should succeed");
+    assert_eq!(post_response.status(), StatusCode::OK);
+
+    let timeline_response = app
         .oneshot(
             Request::builder()
                 .uri(
@@ -822,76 +819,8 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
                 .unwrap(),
         )
         .await
-        .expect("first page request should complete");
-    assert_eq!(first_page.status(), StatusCode::OK);
-    let first_body = first_page
-        .into_body()
-        .collect()
-        .await
-        .expect("first page body should collect")
-        .to_bytes();
-    let first_json: serde_json::Value =
-        serde_json::from_slice(&first_body).expect("first page should be valid json");
-    assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 1);
-    assert_eq!(first_json["data"]["items"][0]["message"]["messageSeq"], 1);
-    assert_eq!(first_json["data"]["highWatermark"], 2);
-    assert_eq!(first_json["data"]["nextAfterSeq"], 1);
-    assert_eq!(first_json["data"]["hasMore"], true);
-
-    let second_page = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(
-                    "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=1&limit=1",
-                )
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("second page request should complete");
-    assert_eq!(second_page.status(), StatusCode::OK);
-    let second_body = second_page
-        .into_body()
-        .collect()
-        .await
-        .expect("second page body should collect")
-        .to_bytes();
-    let second_json: serde_json::Value =
-        serde_json::from_slice(&second_body).expect("second page should be valid json");
-    assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_json["data"]["items"][0]["message"]["messageSeq"], 2);
-    assert_eq!(second_json["data"]["highWatermark"], 2);
-    assert_eq!(second_json["data"]["nextAfterSeq"], 2);
-    assert_eq!(second_json["data"]["hasMore"], false);
-
-    let invalid_limit = app
-        .oneshot(
-            Request::builder()
-                .uri(
-                    "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=0&limit=0",
-                )
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("invalid limit request should complete");
-    assert_eq!(invalid_limit.status(), StatusCode::BAD_REQUEST);
-    let invalid_body = invalid_limit
-        .into_body()
-        .collect()
-        .await
-        .expect("invalid limit body should collect")
-        .to_bytes();
-    let invalid_json: serde_json::Value =
-        serde_json::from_slice(&invalid_body).expect("invalid limit should be valid json");
-    assert_eq!(invalid_json["code"], 40001);
+        .expect("timeline read request should complete");
+    assert_eq!(timeline_response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[tokio::test]
@@ -4852,7 +4781,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
     );
     assert_eq!(
         first_create_json["data"]["requestKey"],
-        "6#100001#4#user#1#1#13#create-thread#19#c_thread_retry_http"
+        "6#1000014#user1#113#create-thread19#c_thread_retry_http"
     );
 
     let duplicate_create = app

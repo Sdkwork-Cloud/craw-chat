@@ -154,7 +154,7 @@ realtime window 的所有权属于 `tenantId + principalId + clientRouteId`，�
   "type": "events.pull",
   "requestId": "req_pull_1",
   "afterSeq": 0,
-  "limit": 100
+  "pageSize": 100
 }
 ```
 
@@ -178,7 +178,7 @@ realtime window 的所有权属于 `tenantId + principalId + clientRouteId`，�
 
 规则：
 
-- `limit` 语义与 HTTP 完全一致，必须大于 0
+- `pageSize` 语义与 HTTP 完全一致，必须大于 0
 - 若 `afterSeq` 为空，服务端可按当前连接的已发送游标继续拉取
 - `events.pull` 允许与 `push` 并存，属于显式拉取而非隐式 ack
 
@@ -261,14 +261,14 @@ realtime window 的所有权属于 `tenantId + principalId + clientRouteId`，�
 
 ### 6.2 `error`
 
-当客户端发送非法帧、未知类型、`limit=0` 等错误时，服务端返回：
+当客户端发送非法帧、未知类型、`pageSize=0` 等错误时，服务端返回：
 
 ```json
 {
   "type": "error",
   "requestId": "req_x",
-  "code": "limit_invalid",
-  "message": "limit must be greater than 0"
+  "code": "page_size_invalid",
+  "message": "pageSize must be greater than 0"
 }
 ```
 

@@ -4,9 +4,9 @@ use super::model::{
     ConversationPreferencesView, ConversationProfileView, UpdateConversationPreferencesRequest,
     UpdateConversationProfileRequest,
 };
-use super::{lock_projection_mutex, scope::scope_key, TimelineProjectionService};
+use super::{TimelineProjectionService, lock_projection_mutex, scope::scope_key};
 
-fn conversation_preferences_key(
+pub(super) fn conversation_preferences_key(
     tenant_id: &str,
     organization_id: &str,
     conversation_id: &str,
@@ -152,17 +152,14 @@ impl TimelineProjectionService {
             &self.conversation_preferences,
             "conversation preferences store",
         );
-        let mut view = preferences
-            .get(key.as_str())
-            .cloned()
-            .unwrap_or_else(|| {
-                default_conversation_preferences(
-                    tenant_id,
-                    conversation_id,
-                    principal_kind,
-                    principal_id,
-                )
-            });
+        let mut view = preferences.get(key.as_str()).cloned().unwrap_or_else(|| {
+            default_conversation_preferences(
+                tenant_id,
+                conversation_id,
+                principal_kind,
+                principal_id,
+            )
+        });
 
         if let Some(is_pinned) = update.is_pinned {
             view.is_pinned = is_pinned;
@@ -205,11 +202,8 @@ mod tests {
         assert_eq!(profile.display_name, "SdkWork Assistant");
         assert_eq!(profile.avatar_url, "https://example.test/assistant.png");
 
-        let loaded = service.conversation_profile(
-            "100001",
-            "default",
-            "c_agent_e7f6182d320811b42f4484f9",
-        );
+        let loaded =
+            service.conversation_profile("100001", "default", "c_agent_e7f6182d320811b42f4484f9");
         assert_eq!(loaded.display_name, "SdkWork Assistant");
 
         let preferences = service.update_conversation_preferences(

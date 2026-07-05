@@ -6,6 +6,7 @@
 //! pool and MUST NOT open independent pools against the same DSN.
 
 use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -96,8 +97,8 @@ fn im_database_url_configured() -> bool {
 }
 
 /// Bootstraps IM pools when PostgreSQL is configured; otherwise no-op.
-pub async fn try_bootstrap_im_process_database_pools_from_env(
-) -> Result<Option<&'static ImProcessDatabasePools>, String> {
+pub async fn try_bootstrap_im_process_database_pools_from_env()
+-> Result<Option<&'static ImProcessDatabasePools>, String> {
     if !im_database_url_configured() {
         return Ok(None);
     }
@@ -114,8 +115,8 @@ pub async fn try_bootstrap_im_process_database_pools_from_env(
 }
 
 /// Bootstrap IM lifecycle (sqlx) plus one shared r2d2 pool for all modules in this process.
-pub async fn bootstrap_im_process_database_pools_from_env(
-) -> Result<&'static ImProcessDatabasePools, String> {
+pub async fn bootstrap_im_process_database_pools_from_env()
+-> Result<&'static ImProcessDatabasePools, String> {
     if let Some(pools) = im_process_database_pools() {
         return Ok(pools);
     }
@@ -139,11 +140,21 @@ pub async fn bootstrap_im_process_database_pools_from_env(
         .set(pools)
         .map_err(|_| "IM process database pools already installed in this process".to_owned())?;
 
+    let pool_tuning = read_im_postgres_pool_tuning();
     info!(
         target: "sdkwork.im",
         event = "im.database.process_pools_installed",
         max_connections = config.max_connections,
         min_connections = config.min_connections,
+        pool_connection_timeout_secs = pool_tuning.connection_timeout.as_secs(),
+        pool_max_lifetime_secs = pool_tuning
+            .max_lifetime
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+        pool_idle_timeout_secs = pool_tuning
+            .idle_timeout
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
         database_url = %redact_postgres_url(config.url.as_str()),
         "installed shared IM sqlx lifecycle host and single postgres r2d2 pool"
     );
@@ -152,9 +163,91 @@ pub async fn bootstrap_im_process_database_pools_from_env(
 }
 
 /// Deprecated alias retained for callers migrating from the unified-process name.
-pub async fn bootstrap_im_unified_process_pools_from_env(
-) -> Result<&'static ImProcessDatabasePools, String> {
+pub async fn bootstrap_im_unified_process_pools_from_env()
+-> Result<&'static ImProcessDatabasePools, String> {
     bootstrap_im_process_database_pools_from_env().await
+}
+
+/// Tuning parameters for the shared r2d2 PostgreSQL pool. Defaults follow r2d2
+/// best practices for a long-lived server process: short acquire timeout so
+/// callers fail fast under pool exhaustion, bounded connection lifetime so
+/// load balancers and PG `max_connections` see churn, and bounded idle timeout
+/// so quiet workers release their connections back to PostgreSQL.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ImPostgresPoolTuning {
+    pub connection_timeout: Duration,
+    pub max_lifetime: Option<Duration>,
+    pub idle_timeout: Option<Duration>,
+}
+
+impl ImPostgresPoolTuning {
+    /// Defaults applied when the corresponding env var is unset. Operators
+    /// can override via the env vars documented below.
+    const DEFAULT_CONNECTION_TIMEOUT_SECS: u64 = 10;
+    const DEFAULT_MAX_LIFETIME_SECS: u64 = 1800;
+    const DEFAULT_IDLE_TIMEOUT_SECS: u64 = 600;
+}
+
+fn parse_duration_env(var: &str, default_secs: u64) -> Result<Duration, String> {
+    let raw = std::env::var(var).unwrap_or_default();
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(Duration::from_secs(default_secs));
+    }
+    let parsed: u64 = trimmed
+        .parse()
+        .map_err(|error| format!("invalid {var} value {trimmed:?}: {error}"))?;
+    if parsed == 0 {
+        return Err(format!(
+            "{var} must be > 0 (use a very large value to effectively disable the limit)"
+        ));
+    }
+    Ok(Duration::from_secs(parsed))
+}
+
+fn parse_optional_duration_env(var: &str, default_secs: u64) -> Result<Option<Duration>, String> {
+    let raw = std::env::var(var).unwrap_or_default();
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(Some(Duration::from_secs(default_secs)));
+    }
+    // Operators may set `0` (or `disabled`/`none`) to explicitly disable the
+    // lifetime/idle timeout — useful for environments where the connection
+    // lifetime is managed externally (e.g. PgBouncer transaction pooling).
+    let lowered = trimmed.to_ascii_lowercase();
+    if lowered == "0" || lowered == "disabled" || lowered == "none" || lowered == "off" {
+        return Ok(None);
+    }
+    let parsed: u64 = trimmed
+        .parse()
+        .map_err(|error| format!("invalid {var} value {trimmed:?}: {error}"))?;
+    if parsed == 0 {
+        return Ok(None);
+    }
+    Ok(Some(Duration::from_secs(parsed)))
+}
+
+fn read_im_postgres_pool_tuning() -> ImPostgresPoolTuning {
+    let connection_timeout = parse_duration_env(
+        "SDKWORK_IM_DATABASE_POOL_CONNECTION_TIMEOUT_SECONDS",
+        ImPostgresPoolTuning::DEFAULT_CONNECTION_TIMEOUT_SECS,
+    )
+    .expect("invalid SDKWORK_IM_DATABASE_POOL_CONNECTION_TIMEOUT_SECONDS");
+    let max_lifetime = parse_optional_duration_env(
+        "SDKWORK_IM_DATABASE_POOL_MAX_LIFETIME_SECONDS",
+        ImPostgresPoolTuning::DEFAULT_MAX_LIFETIME_SECS,
+    )
+    .expect("invalid SDKWORK_IM_DATABASE_POOL_MAX_LIFETIME_SECONDS");
+    let idle_timeout = parse_optional_duration_env(
+        "SDKWORK_IM_DATABASE_POOL_IDLE_TIMEOUT_SECONDS",
+        ImPostgresPoolTuning::DEFAULT_IDLE_TIMEOUT_SECS,
+    )
+    .expect("invalid SDKWORK_IM_DATABASE_POOL_IDLE_TIMEOUT_SECONDS");
+    ImPostgresPoolTuning {
+        connection_timeout,
+        max_lifetime,
+        idle_timeout,
+    }
 }
 
 pub(crate) fn build_im_postgres_r2d2_pool(
@@ -171,9 +264,13 @@ pub(crate) fn build_im_postgres_r2d2_pool(
         .map_err(|error| format!("postgres TLS connector build failed: {error}"))?;
     let manager = PostgresConnectionManager::new(pg_config, tls);
     let min_idle = config.min_connections.min(config.max_connections);
+    let tuning = read_im_postgres_pool_tuning();
     Pool::builder()
         .max_size(config.max_connections)
         .min_idle(Some(min_idle))
+        .connection_timeout(tuning.connection_timeout)
+        .max_lifetime(tuning.max_lifetime)
+        .idle_timeout(tuning.idle_timeout)
         .build(manager)
         .map_err(|error| {
             format!(
@@ -193,8 +290,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production =
-        !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }

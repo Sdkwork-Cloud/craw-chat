@@ -97,12 +97,8 @@ const result = await client.calls.sessions.create(body);
 ### social
 
 ```typescript
-// List contact tags
-const params = {
-  limit: 1,
-  cursor: 'cursor',
-};
-const result = await client.social.contacts.tags.list(params);
+// Retrieve pending incoming friend request count
+const result = await client.social.friendRequests.pendingCount();
 ```
 
 ### chat
@@ -131,7 +127,11 @@ const result = await client.streams.create(body);
 
 ```typescript
 // List spaces
-const result = await client.spaces.list();
+const params = {
+  limit: 1,
+  cursor: 'cursor',
+};
+const result = await client.spaces.list(params);
 ```
 
 ## Error Handling

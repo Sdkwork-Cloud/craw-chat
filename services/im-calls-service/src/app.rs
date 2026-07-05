@@ -6,23 +6,24 @@ use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use im_app_context::allows_header_only_app_context_fallback;
 use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
-use sdkwork_utils_rust::parse_bool;
 use im_adapters_postgres_rtc_state::build_postgres_rtc_state_store_optional;
 use im_adapters_redis_cache::rtc_state_store::build_redis_rtc_state_store_optional;
+use im_adapters_redis_cache::RedisSignalRateLimiter;
+use im_app_context::allows_header_only_app_context_fallback;
 use im_domain_core::audit::{AuditEmitter, LoggingAuditEmitter};
 use im_domain_core::rtc::StateStore;
 use im_platform_contracts::{IdGenerator, OutboxStore};
 use sdkwork_communication_rtc_service::RtcProviderPort;
 use sdkwork_rtc_adapter_volcengine::VolcengineRtcProvider;
+use sdkwork_utils_rust::parse_bool;
 use tokio::sync::Semaphore;
 
 use crate::error::CallingError;
 use crate::handlers::{
     accept_call_session, create_call_session, end_call_session, invite_call_session,
-    issue_participant_credential, post_call_signal, refresh_participant_credential,
-    reject_call_session, retrieve_call_session,
+    issue_participant_credential, list_call_signals, post_call_signal,
+    refresh_participant_credential, reject_call_session, retrieve_call_session,
 };
 use crate::helpers::{resolve_max_http_request_body_bytes, resolve_max_in_flight_requests};
 use crate::openapi::{docs, openapi_json};
@@ -48,9 +49,13 @@ const ENV_RTC_REQUIRE_PROVIDER: &str = "SDKWORK_RTC_REQUIRE_PROVIDER";
 /// Environment variable for the PostgreSQL outbox database URL (durable
 /// event publishing). When unset, lifecycle events are not enqueued.
 const ENV_RTC_OUTBOX_DATABASE_URL: &str = "SDKWORK_RTC_OUTBOX_DATABASE_URL";
+const ENV_IM_DATABASE_URL: &str = "SDKWORK_IM_DATABASE_URL";
 /// Environment variable to require a wired outbox store in production.
 /// When `true` or `1`, missing outbox configuration aborts startup.
 const ENV_RTC_REQUIRE_OUTBOX: &str = "SDKWORK_RTC_REQUIRE_OUTBOX";
+/// When `true` or `1`, missing Redis signal rate limiter aborts startup in production-like envs.
+const ENV_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT: &str =
+    "SDKWORK_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT";
 
 #[derive(Clone)]
 struct PublicAppGuardrails {
@@ -201,7 +206,15 @@ fn build_default_state_store() -> Arc<dyn StateStore> {
 /// (development mode). Production deployments SHOULD set
 /// `SDKWORK_RTC_REQUIRE_OUTBOX=true` to fail-closed on missing outbox.
 fn build_default_outbox_store_optional() -> Option<Arc<dyn OutboxStore>> {
-    let pg_url = std::env::var(ENV_RTC_OUTBOX_DATABASE_URL).ok()?;
+    let pg_url = std::env::var(ENV_RTC_OUTBOX_DATABASE_URL)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            std::env::var(ENV_IM_DATABASE_URL)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        });
+    let pg_url = pg_url?;
     let config = PostgresJournalConfig::new(pg_url);
     let pool = match config.connect_pool() {
         Ok(pool) => pool,
@@ -264,6 +277,25 @@ fn enforce_require_outbox(outbox: Option<Arc<dyn OutboxStore>>) -> Option<Arc<dy
     outbox
 }
 
+/// Fail-closed check for shared Redis signal rate limiting in production deployments.
+fn enforce_require_redis_signal_rate_limit(
+    redis_url: Option<&str>,
+) -> Option<RedisSignalRateLimiter> {
+    let require_redis = std::env::var(ENV_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT)
+        .ok()
+        .and_then(|value| parse_bool(value.as_str()))
+        .unwrap_or(!allows_header_only_app_context_fallback());
+    let limiter = redis_url.and_then(RedisSignalRateLimiter::try_from_url);
+    if limiter.is_none() && require_redis {
+        panic!(
+            "{ENV_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT}=true but Redis signal rate limiter is unavailable. \
+             Set {ENV_RTC_STATE_REDIS_URL} to a valid Redis connection string. \
+             Aborting startup to prevent per-process RTC signal rate limit bypass in production."
+        );
+    }
+    limiter
+}
+
 /// Build a `CallingRuntime` wired with the environment-resolved state
 /// store, RTC provider, outbox store, audit emitter, and ID generator.
 ///
@@ -285,10 +317,22 @@ fn enforce_require_outbox(outbox: Option<Arc<dyn OutboxStore>>) -> Option<Arc<dy
 /// (development mode). Production deployments SHOULD set
 /// `SDKWORK_RTC_REQUIRE_OUTBOX=true` to fail-closed on missing outbox.
 pub fn build_default_calling_runtime() -> CallingRuntime {
-    let runtime = CallingRuntime::with_store(build_default_state_store())
+    let redis_url = std::env::var(ENV_RTC_STATE_REDIS_URL).ok();
+    let shared_signal_rate_limiter = enforce_require_redis_signal_rate_limit(redis_url.as_deref());
+    let mut runtime = CallingRuntime::with_store(build_default_state_store())
         .with_outbox_store(enforce_require_outbox(build_default_outbox_store_optional()))
         .with_audit_emitter(build_default_audit_emitter())
-        .with_id_generator(build_default_id_generator());
+        .with_id_generator(build_default_id_generator())
+        .with_conversation_member_gate(crate::conversation_access::build_conversation_member_access_gate_from_env())
+        .with_conversation_aggregate_store(crate::conversation_access::build_conversation_aggregate_store_from_env());
+    if let Some(limiter) = shared_signal_rate_limiter {
+        tracing::info!(
+            target: "sdkwork.im.calls",
+            event = "im.calls.signal_rate_redis_enabled",
+            "shared Redis signal rate limiter enabled for multi-instance deployments"
+        );
+        runtime = runtime.with_shared_signal_rate_limiter(limiter);
+    }
     match build_default_rtc_provider() {
         Some(provider) => runtime.with_rtc_provider(provider),
         None => runtime,
@@ -320,7 +364,7 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         )
         .route(
             "/im/v3/api/calls/sessions/{rtc_session_id}/signals",
-            post(post_call_signal),
+            get(list_call_signals).post(post_call_signal),
         )
         .route(
             "/im/v3/api/calls/sessions/{rtc_session_id}/credentials",
@@ -346,11 +390,33 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_business_router(runtime: Arc<CallingRuntime>) -> Router {
+    let _maintenance = spawn_call_session_maintenance(runtime.clone());
     let state = AppState { runtime };
     Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
         .merge(build_domain_api_router(state))
+}
+
+const CALL_SESSION_MAINTENANCE_INTERVAL_SECS: u64 = 60;
+
+/// Background reaper for call sessions stuck in `started` beyond ring timeout.
+pub fn spawn_call_session_maintenance(runtime: Arc<CallingRuntime>) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut interval =
+            tokio::time::interval(std::time::Duration::from_secs(CALL_SESSION_MAINTENANCE_INTERVAL_SECS));
+        interval.tick().await;
+        loop {
+            interval.tick().await;
+            let expired = runtime.expire_stale_started_sessions();
+            if expired > 0 {
+                tracing::info!(
+                    expired_count = expired,
+                    "expired stale started RTC call sessions"
+                );
+            }
+        }
+    })
 }
 
 async fn enforce_in_flight_gate(
@@ -370,14 +436,17 @@ async fn enforce_in_flight_gate(
             let problem = sdkwork_routes_web_framework_backend_api::response::ApiProblem::dependency_unavailable(
                 "server is at maximum in-flight request capacity, please retry later",
             );
-            if let Some(ctx) = request.extensions().get::<sdkwork_web_core::WebRequestContext>() {
+            if let Some(ctx) = request
+                .extensions()
+                .get::<sdkwork_web_core::WebRequestContext>()
+            {
                 return problem.into_response_for(ctx);
             }
             return CallingError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
             }
             .into_response();
         }

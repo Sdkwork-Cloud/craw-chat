@@ -3,14 +3,40 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_adapters_local_memory::MemoryStreamStateStore;
 use im_app_context::DualTokenRequestBuilderExt;
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 use std::thread::sleep;
 use std::time::Duration;
 use tower::ServiceExt;
 
+use sdkwork_im_web_bootstrap::wrap_im_service_router_with_manifest;
+use sdkwork_routes_im_stream_app_api::route_manifest;
+use streaming_service::state::{AppState, StreamingRuntime};
+
+static INIT_STREAM_LIFECYCLE_TEST_ENV: Once = Once::new();
+
+fn init_stream_lifecycle_test_env() {
+    INIT_STREAM_LIFECYCLE_TEST_ENV.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+    });
+}
+
+fn stream_test_app() -> axum::Router {
+    init_stream_lifecycle_test_env();
+    sdkwork_routes_im_stream_app_api::build_public_app()
+}
+
+fn stream_test_app_with_runtime(runtime: Arc<StreamingRuntime>) -> axum::Router {
+    wrap_im_service_router_with_manifest(
+        streaming_service::apply_public_http_guardrails(
+            streaming_service::build_domain_api_router(AppState::new(runtime)),
+        ),
+        route_manifest(),
+    )
+}
+
 #[tokio::test]
 async fn test_stream_checkpoint_and_complete_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -107,7 +133,7 @@ async fn test_stream_checkpoint_and_complete_over_http() {
 
 #[tokio::test]
 async fn test_stream_abort_over_http_closes_stream_without_result_message() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -168,7 +194,10 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
         serde_json::from_slice(&abort_body).expect("abort should be valid json");
     assert_eq!(abort_json["data"]["state"], "aborted");
     assert_eq!(abort_json["data"]["lastFrameSeq"], 2);
-    assert_eq!(abort_json["data"]["resultMessageId"], serde_json::Value::Null);
+    assert_eq!(
+        abort_json["data"]["resultMessageId"],
+        serde_json::Value::Null
+    );
     assert!(abort_json["data"]["closedAt"].is_string());
 
     let complete_after_abort = app
@@ -196,7 +225,7 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
 
 #[tokio::test]
 async fn test_stream_append_and_list_frames_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -298,7 +327,7 @@ async fn test_stream_append_and_list_frames_over_http() {
     let list_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_frames/frames?afterFrameSeq=0&limit=10")
+                .uri("/im/v3/api/streams/st_frames/frames?pageSize=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -320,13 +349,14 @@ async fn test_stream_append_and_list_frames_over_http() {
     assert_eq!(list_json["data"]["items"].as_array().unwrap().len(), 2);
     assert_eq!(list_json["data"]["items"][0]["frameSeq"], 1);
     assert_eq!(list_json["data"]["items"][1]["frameSeq"], 2);
-    assert_eq!(list_json["data"]["nextAfterFrameSeq"], 2);
-    assert_eq!(list_json["data"]["hasMore"], false);
+    assert_eq!(list_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(list_json["data"]["pageInfo"]["hasMore"], false);
+    assert!(list_json["data"]["pageInfo"]["nextCursor"].is_null());
 }
 
 #[tokio::test]
 async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -392,7 +422,7 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
 
 #[tokio::test]
 async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -556,7 +586,7 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
 
 #[tokio::test]
 async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -742,7 +772,7 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
 
 #[tokio::test]
 async fn test_stream_append_rejects_closed_stream() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_response = app
         .clone()
@@ -832,7 +862,7 @@ async fn test_stream_append_rejects_closed_stream() {
 
 #[tokio::test]
 async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let first_open = app
         .clone()
@@ -953,7 +983,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_open_idempotent/frames?afterFrameSeq=0&limit=10")
+                .uri("/im/v3/api/streams/st_open_idempotent/frames?pageSize=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -1013,7 +1043,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
 
 #[tokio::test]
 async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let first_open = app
         .clone()
@@ -1093,7 +1123,7 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
 
 #[tokio::test]
 async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_stream = app
         .clone()
@@ -1216,7 +1246,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
     let duplicate_complete_json: serde_json::Value =
         serde_json::from_slice(&duplicate_complete_body)
             .expect("duplicate complete should be valid json");
-    assert_eq!(duplicate_complete_json["data"]["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_complete_json["data"]["deliveryStatus"],
+        "replayed"
+    );
     assert_eq!(
         duplicate_complete_json["data"]["requestKey"],
         first_complete_json["data"]["requestKey"]
@@ -1261,7 +1294,7 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
 
 #[tokio::test]
 async fn test_duplicate_complete_stream_request_with_different_actor_is_not_found() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_stream = app
         .clone()
@@ -1386,7 +1419,7 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
 
 #[tokio::test]
 async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_stream = app
         .clone()
@@ -1558,7 +1591,7 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
 
 #[tokio::test]
 async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_stream = app
         .clone()
@@ -1683,7 +1716,7 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
 
 #[tokio::test]
 async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_stream = app
         .clone()
@@ -1802,7 +1835,10 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
         serde_json::from_slice(&duplicate_checkpoint_body)
             .expect("duplicate checkpoint should be valid json");
     assert_eq!(duplicate_checkpoint_json["data"]["state"], "completed");
-    assert_eq!(duplicate_checkpoint_json["data"]["deliveryStatus"], "replayed");
+    assert_eq!(
+        duplicate_checkpoint_json["data"]["deliveryStatus"],
+        "replayed"
+    );
     assert_eq!(
         duplicate_checkpoint_json["data"]["requestKey"],
         first_checkpoint_json["data"]["requestKey"]
@@ -1815,7 +1851,7 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
 
 #[tokio::test]
 async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_found() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
 
     let open_stream = app
         .clone()
@@ -1913,7 +1949,7 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
 #[tokio::test]
 async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
     let stream_store = Arc::new(MemoryStreamStateStore::default());
-    let app_before = streaming_service::build_app(Arc::new(
+    let app_before = stream_test_app_with_runtime(Arc::new(
         streaming_service::StreamingRuntime::with_store(stream_store.clone()),
     ));
 
@@ -1972,7 +2008,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .expect("append frame request should succeed");
     assert_eq!(append_response.status(), StatusCode::OK);
 
-    let app_after = streaming_service::build_app(Arc::new(
+    let app_after = stream_test_app_with_runtime(Arc::new(
         streaming_service::StreamingRuntime::with_store(stream_store),
     ));
 
@@ -1980,7 +2016,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_rebuild/frames?afterFrameSeq=0&limit=10")
+                .uri("/im/v3/api/streams/st_rebuild/frames?pageSize=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -2030,7 +2066,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
 
 #[tokio::test]
 async fn test_stream_append_rejects_oversized_payload_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
     let open_response = app
         .clone()
         .oneshot(
@@ -2089,7 +2125,7 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
 
 #[tokio::test]
 async fn test_stream_append_rejects_oversized_attributes_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
     let open_response = app
         .clone()
         .oneshot(
@@ -2150,7 +2186,7 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
 
 #[tokio::test]
 async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
     let open_response = app
         .clone()
         .oneshot(
@@ -2219,7 +2255,7 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
 
 #[tokio::test]
 async fn test_stream_abort_rejects_oversized_reason_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
     let open_response = app
         .clone()
         .oneshot(
@@ -2287,8 +2323,8 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
 }
 
 #[tokio::test]
-async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
-    let app = streaming_service::build_default_app();
+async fn test_stream_list_rejects_page_size_above_guardrail_over_http() {
+    let app = stream_test_app();
     let open_response = app
         .clone()
         .oneshot(
@@ -2319,7 +2355,7 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_limit_guardrail/frames?afterFrameSeq=0&limit=1001")
+                .uri("/im/v3/api/streams/st_limit_guardrail/frames?pageSize=201")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -2343,14 +2379,14 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
 
 #[tokio::test]
 async fn test_stream_list_rejects_oversized_stream_id_over_http() {
-    let app = streaming_service::build_default_app();
+    let app = stream_test_app();
     let oversized_stream_id = "s".repeat(257);
 
     let response = app
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/im/v3/api/streams/{oversized_stream_id}/frames?afterFrameSeq=0&limit=10"
+                    "/im/v3/api/streams/{oversized_stream_id}/frames?pageSize=10"
                 ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")

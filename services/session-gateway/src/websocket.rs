@@ -14,9 +14,9 @@ use sdkwork_im_ccp_core::{CcpEnvelope, CcpRoute, ProtocolVersion, TransportBindi
 use sdkwork_im_runtime_link::{
     LINK_WEBSOCKET_SUBPROTOCOL, LinkBufferedPushDrainDriver, LinkBufferedPushDrainStatus,
     LinkBufferedPushFetchedWindow, LinkBufferedPushPlan, LinkGoAwayDirective,
-    LinkOutboundQueueState, LinkSession, OutboundQueuePolicy, ResumeWindow,
+    LinkOutboundQueueState, LinkSession, OutboundQueuePolicy,
     REALTIME_OVERLOAD_CLOSE_CODE as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_CODE,
-    REALTIME_OVERLOAD_CLOSE_REASON as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON,
+    REALTIME_OVERLOAD_CLOSE_REASON as RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON, ResumeWindow,
     SESSION_DISCONNECT_CLOSE_CODE as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_CODE,
     SESSION_DISCONNECT_CLOSE_REASON as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON,
     session_disconnect_goaway,
@@ -24,12 +24,12 @@ use sdkwork_im_runtime_link::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::watch;
-use tokio::time::{timeout, interval};
+use tokio::time::{interval, timeout};
 
 use crate::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
     client_route_registration::ClientRouteRegistration,
-    link_business_contract::{validate_link_client_business_envelope, LinkClientBusinessFrame},
+    link_business_contract::{LinkClientBusinessFrame, validate_link_client_business_envelope},
     realtime::RealtimeWindowCheckpoint,
 };
 
@@ -354,6 +354,7 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     runtime: Arc<RealtimeDeliveryRuntime>,
     route_owner: R,
     wire_mode: RealtimeWebsocketMode,
+    frame_rate_limiter: crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter,
 ) {
     let tenant_id = auth.tenant_id.clone();
     let principal_id = auth.actor_id.clone();
@@ -666,6 +667,7 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                     wire_mode,
                     &ccp_runtime,
                     &route,
+                    &frame_rate_limiter,
                 )
                 .await
                 {
@@ -752,14 +754,15 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 }
             }
             message = socket.next() => {
-                // Reset activity timer on any client message
-                last_activity = tokio::time::Instant::now();
                 let Some(message) = message else {
                     break;
                 };
                 let Ok(message) = message else {
                     break;
                 };
+                if matches!(message, Message::Text(_) | Message::Binary(_)) {
+                    last_activity = tokio::time::Instant::now();
+                }
                 let current_disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
                     auth.tenant_id.as_str(),
                     auth.organization_id.as_str(),
@@ -818,6 +821,7 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                     wire_mode,
                     &ccp_runtime,
                     &route,
+                    &frame_rate_limiter,
                 )
                 .await;
                 if !keep_open {
@@ -853,6 +857,7 @@ async fn handle_route_epoch_change(
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
+    frame_rate_limiter: &crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter,
 ) -> bool {
     match timeout(
         Duration::from_millis(ROUTE_CHANGE_CLOSE_GRACE_MS),
@@ -876,6 +881,7 @@ async fn handle_route_epoch_change(
                 wire_mode,
                 ccp_runtime,
                 route,
+                frame_rate_limiter,
             )
             .await;
             if !keep_open {
@@ -1383,9 +1389,27 @@ async fn handle_client_message(
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
+    frame_rate_limiter: &crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter,
 ) -> bool {
     match message {
         Message::Text(_) | Message::Binary(_) => {
+            let principal_key = format!("{tenant_id}:{principal_kind}:{principal_id}");
+            if let Err(error) = frame_rate_limiter.check_frame(principal_key.as_str()) {
+                let runtime_error = RealtimeRuntimeError {
+                    code: error.code,
+                    message: error.message,
+                };
+                let _ = send_runtime_error(
+                    socket,
+                    wire_mode,
+                    ccp_runtime,
+                    route,
+                    None,
+                    &runtime_error,
+                )
+                .await;
+                return false;
+            }
             let decoded = match decode_client_frame(message, wire_mode, ccp_runtime) {
                 Ok(frame) => frame,
                 Err(error) => {
@@ -1652,7 +1676,13 @@ async fn handle_client_message(
                 }
             }
         }
-        Message::Ping(payload) => socket.send(Message::Pong(payload)).await.is_ok(),
+        Message::Ping(payload) => {
+            let principal_key = format!("{tenant_id}:{principal_kind}:{principal_id}");
+            if frame_rate_limiter.check_frame(principal_key.as_str()).is_err() {
+                return false;
+            }
+            socket.send(Message::Pong(payload)).await.is_ok()
+        }
         Message::Pong(_) => true,
         Message::Close(frame) => {
             let _ = socket.send(Message::Close(frame)).await;

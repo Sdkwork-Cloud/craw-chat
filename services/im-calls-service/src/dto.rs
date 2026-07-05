@@ -53,11 +53,7 @@ pub struct RtcSignalEventResponse {
 }
 
 impl RtcSignalEventResponse {
-    pub fn from_outcome(
-        event: RtcSignalEvent,
-        applied: bool,
-        request_key: String,
-    ) -> Self {
+    pub fn from_outcome(event: RtcSignalEvent, applied: bool, request_key: String) -> Self {
         Self {
             event,
             request_key,

@@ -12,10 +12,12 @@ import type {
   CreateConversationRequest,
   CreateConversationResult,
   CreateRoomRequest,
+  CreateUserBlockRequest,
   EnterRoomResponse,
   RoomView,
   EditMessageRequest,
   FavoriteMessageRequest,
+  SocialUserBlockMutationResponse,
 } from '@sdkwork/im-sdk-generated';
 import type {
   ContactTagsResponse,
@@ -89,6 +91,7 @@ export interface ImTransportClientLike {
         add(conversationId: string | number, body: AddConversationMemberRequest): Promise<unknown>;
         remove(conversationId: string | number, body: unknown): Promise<unknown>;
         leave(conversationId: string | number): Promise<unknown>;
+        acceptInvitation(conversationId: string | number): Promise<import('@sdkwork/im-sdk-generated').ConversationMember>;
       };
       messages: {
         list(conversationId: string | number, params?: QueryParams): Promise<TimelineResponse>;
@@ -143,6 +146,10 @@ export interface ImTransportClientLike {
       end(rtcSessionId: string | number, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse>;
       signals: {
         create(rtcSessionId: string | number, body: PostRtcSignalRequest): Promise<RtcSignalEvent>;
+        list(
+          rtcSessionId: string | number,
+          query?: { afterSignalSeq?: number; pageSize?: number; cursor?: string },
+        ): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: string; hasMore?: boolean; nextCursor?: string | null } }>;
       };
       credentials: {
         create(rtcSessionId: string | number, body: IssueRtcParticipantCredentialRequest): Promise<RtcParticipantCredential>;
@@ -151,7 +158,7 @@ export interface ImTransportClientLike {
   };
   social: {
     users: {
-      list(params?: { q?: string; limit?: number; cursor?: string; }): Promise<SocialUserSearchResponse>;
+      list(params?: { q?: string; pageSize?: number; cursor?: string; }): Promise<SocialUserSearchResponse>;
     };
     friendRequests: {
       list(params?: QueryParams & { direction?: string; status?: string }): Promise<SocialFriendRequestListResponse>;
@@ -159,9 +166,14 @@ export interface ImTransportClientLike {
       accept(requestId: string | number): Promise<SocialFriendRequestAcceptanceResponse>;
       decline(requestId: string | number): Promise<SocialFriendRequestMutationResponse>;
       cancel(requestId: string | number): Promise<SocialFriendRequestMutationResponse>;
+      pendingCount(): Promise<{ count: number }>;
     };
     friendships: {
       remove(friendshipId: string | number): Promise<SocialFriendshipMutationResponse>;
+    };
+    userBlocks: {
+      create(body: CreateUserBlockRequest): Promise<SocialUserBlockMutationResponse>;
+      release(blockId: string): Promise<SocialUserBlockMutationResponse>;
     };
     contacts: {
       list(params?: QueryParams): Promise<ContactsResponse>;

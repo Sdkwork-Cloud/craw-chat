@@ -12,6 +12,9 @@ export const ShopHome = ({
   onAddToCart,
   activeCategoryId,
   setActiveCategoryId,
+  hasMoreProducts = false,
+  loadingMoreProducts = false,
+  onLoadMoreProducts,
 }: {
   categories: ShopCategory[];
   products: ShopProduct[];
@@ -19,6 +22,9 @@ export const ShopHome = ({
   onAddToCart: (product: ShopProduct, skuId?: string) => void;
   activeCategoryId: string | null;
   setActiveCategoryId: (id: string | null) => void;
+  hasMoreProducts?: boolean;
+  loadingMoreProducts?: boolean;
+  onLoadMoreProducts?: () => void;
 }) => {
   const { t } = useTranslation(["shop"]);
   const displayProducts = activeCategoryId
@@ -181,6 +187,17 @@ export const ShopHome = ({
               <p>没有找到该分类下的商品</p>
             </div>
           )}
+
+          {hasMoreProducts && onLoadMoreProducts ? (
+            <button
+              type="button"
+              onClick={onLoadMoreProducts}
+              disabled={loadingMoreProducts}
+              className="mt-6 w-full py-3 text-sm text-pink-400 hover:text-pink-300 disabled:opacity-50"
+            >
+              {loadingMoreProducts ? '加载中…' : '加载更多'}
+            </button>
+          ) : null}
         </div>
       </div>
     </motion.div>

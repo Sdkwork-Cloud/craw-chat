@@ -23,15 +23,22 @@ pub async fn docs() -> Html<String> {
 }
 
 pub fn build_session_gateway_openapi_document() -> Result<serde_json::Value, String> {
-    let routes = extract_routes_from_function(
+    let websocket_routes = [sdkwork_im_openapi::WebsocketRouteMetadata {
+        path: REALTIME_WS.to_owned(),
+        subprotocols: vec![CCP_WEBSOCKET_SUBPROTOCOL.to_owned()],
+    }];
+    let mut routes = extract_routes_from_function(
         include_str!("lib.rs"),
-        "build_domain_api_router",
-        &[sdkwork_im_openapi::WebsocketRouteMetadata {
-            path: REALTIME_WS.to_owned(),
-            subprotocols: vec![CCP_WEBSOCKET_SUBPROTOCOL.to_owned()],
-        }],
+        "build_domain_http_api_router",
+        &websocket_routes,
         &["/openapi.json", "/docs"],
     )?;
+    routes.extend(extract_routes_from_function(
+        include_str!("lib.rs"),
+        "build_realtime_websocket_router",
+        &websocket_routes,
+        &[],
+    )?);
 
     Ok(build_openapi_document(
         &session_gateway_openapi_spec(),
@@ -68,21 +75,11 @@ fn session_gateway_requires_app_context(path: &str, _method: HttpMethod) -> bool
 fn session_gateway_summary(path: &str, method: HttpMethod) -> String {
     match (path, method) {
         ("/healthz", HttpMethod::Get) => "Check session gateway health".to_owned(),
-        (PRESENCE_HEARTBEAT, HttpMethod::Post) => {
-            "Refresh device presence heartbeat".to_owned()
-        }
-        (PRESENCE_ME, HttpMethod::Get) => {
-            "Get current device presence snapshot".to_owned()
-        }
-        (REALTIME_SUBSCRIPTIONS_SYNC, HttpMethod::Post) => {
-            "Sync realtime subscriptions".to_owned()
-        }
-        (REALTIME_WS, HttpMethod::Get) => {
-            "Open realtime websocket client route".to_owned()
-        }
-        (REALTIME_EVENTS_ACK, HttpMethod::Post) => {
-            "Acknowledge realtime events".to_owned()
-        }
+        (PRESENCE_HEARTBEAT, HttpMethod::Post) => "Refresh device presence heartbeat".to_owned(),
+        (PRESENCE_ME, HttpMethod::Get) => "Get current device presence snapshot".to_owned(),
+        (REALTIME_SUBSCRIPTIONS_SYNC, HttpMethod::Post) => "Sync realtime subscriptions".to_owned(),
+        (REALTIME_WS, HttpMethod::Get) => "Open realtime websocket client route".to_owned(),
+        (REALTIME_EVENTS_ACK, HttpMethod::Post) => "Acknowledge realtime events".to_owned(),
         (REALTIME_EVENTS, HttpMethod::Get) => "Pull realtime event window".to_owned(),
         _ => format!("{:?} {}", method, path),
     }

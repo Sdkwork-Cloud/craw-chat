@@ -3,13 +3,16 @@
 //! RTC call session lifecycle and signal relay flows for the IM platform.
 
 pub mod app;
+pub mod conversation_access;
 pub mod dto;
 pub mod error;
 pub mod handlers;
 pub mod helpers;
 pub mod openapi;
-pub mod priority_queue;
-pub mod quality_monitor;
+#[cfg(test)]
+mod priority_queue;
+#[cfg(test)]
+mod quality_monitor;
 pub mod state;
 
 #[cfg(test)]

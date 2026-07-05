@@ -7,6 +7,7 @@
 //! focused modules re-exported from here.
 
 pub mod app;
+pub mod bootstrap;
 pub mod dto;
 pub mod error;
 pub mod state;
@@ -19,7 +20,11 @@ mod tests;
 
 pub use app::{
     apply_public_http_guardrails, build_app, build_default_app, build_domain_api_router,
-    build_public_app, default_app_state,
+    build_public_app,
+};
+pub use bootstrap::{
+    build_runtime_from_env, default_app_state, default_notification_runtime,
+    ensure_durable_notification_runtime_from_env,
 };
 pub use dto::{
     NotificationRecipient, NotificationRequestDeliveryStatus, NotificationRequestResponse,

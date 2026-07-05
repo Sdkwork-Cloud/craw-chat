@@ -9,6 +9,7 @@
     "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
     "@sdkwork/im-sdk": "workspace:*",
+    "@tanstack/react-virtual": "catalog:",
     "react": "catalog:"
   },
   "exports": {

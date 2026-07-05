@@ -60,7 +60,11 @@ fn test_permission_required_for_operation() {
         permission_scope: vec!["rtc.sessions.write".into()],
         ..create_minimal_context()
     };
-    assert!(validator.validate_operation(&ctx, "rtc.session.create").is_ok());
+    assert!(
+        validator
+            .validate_operation(&ctx, "rtc.session.create")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -96,9 +100,16 @@ fn test_signal_replay_rejects_stale_sequences() {
 #[test]
 fn test_signal_replay_rejects_duplicate_hash() {
     let protector = SignalReplayProtector::new();
-    assert!(protector.validate_signal_sequence("s1", 1, "same_hash").is_ok());
+    assert!(
+        protector
+            .validate_signal_sequence("s1", 1, "same_hash")
+            .is_ok()
+    );
     let err = protector.validate_signal_sequence("s1", 2, "same_hash");
-    assert!(matches!(err, Err(SignalReplayError::DuplicateSignal { .. })));
+    assert!(matches!(
+        err,
+        Err(SignalReplayError::DuplicateSignal { .. })
+    ));
 }
 
 #[test]

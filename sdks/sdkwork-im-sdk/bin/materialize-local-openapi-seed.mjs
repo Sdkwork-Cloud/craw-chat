@@ -564,11 +564,6 @@ const schemas = {
     createdAt: stringSchema({ format: 'date-time' }),
     updatedAt: stringSchema({ format: 'date-time' }),
   }, ['tenantId', 'ownerUserId', 'tagId', 'name', 'color', 'count', 'bg', 'border', 'createdAt', 'updatedAt']),
-  ContactTagsResponse: objectSchema({
-    items: arrayOf(ref('ContactTagView')),
-    nextCursor: nullable(stringSchema()),
-    hasMore: boolSchema(),
-  }, ['items', 'hasMore']),
   CreateContactTagRequest: objectSchema({
     name: stringSchema({ maxLength: 128 }),
     color: stringSchema({ maxLength: 64 }),
@@ -648,10 +643,9 @@ const schemas = {
   SocialFriendRequestMutationResponse: objectSchema({
     friendRequest: ref('FriendRequest'),
   }, ['friendRequest']),
-  SocialFriendRequestListResponse: objectSchema({
-    items: arrayOf(ref('FriendRequest')),
-    nextCursor: nullable(stringSchema()),
-  }, ['items']),
+  SocialFriendRequestPendingCountResponse: objectSchema({
+    count: int32Schema({ minimum: 0 }),
+  }, ['count']),
   SocialFriendRequestAcceptanceResponse: objectSchema({
     friendRequest: ref('FriendRequest'),
     friendship: ref('Friendship'),
@@ -834,8 +828,11 @@ const paths = Object.fromEntries([
     get: operation({ tag: 'social', operationId: 'social.users.list', summary: 'Search social users', parameters: [p('QQuery'), p('LimitQuery'), p('CursorQuery')], response: 'SocialUserSearchResponse', statuses: ['400', '401', '403', '503'] }),
   }),
   pathItem('/social/friend_requests', {
-    get: operation({ tag: 'social', operationId: 'social.friendRequests.list', summary: 'List friend requests', parameters: [p('DirectionQuery'), p('StatusQuery'), p('LimitQuery'), p('CursorQuery')], response: 'SocialFriendRequestListResponse' }),
+    get: operation({ tag: 'social', operationId: 'social.friendRequests.list', summary: 'List friend requests', parameters: [p('DirectionQuery'), p('StatusQuery'), p('LimitQuery'), p('CursorQuery')], response: 'SdkWorkListResponse' }),
     post: operation({ tag: 'social', operationId: 'social.friendRequests.create', summary: 'Create a friend request', request: 'SubmitFriendRequestRequest', response: 'SocialFriendRequestMutationResponse' }),
+  }),
+  pathItem('/social/friend_requests/pending/count', {
+    get: operation({ tag: 'social', operationId: 'social.friendRequests.pendingCount', summary: 'Retrieve pending incoming friend request count', response: 'SocialFriendRequestPendingCountResponse' }),
   }),
   pathItem('/social/friend_requests/{requestId}/accept', {
     parameters: [p('RequestIdPath')],
@@ -854,7 +851,7 @@ const paths = Object.fromEntries([
     post: operation({ tag: 'social', operationId: 'social.friendships.remove', summary: 'Remove a friendship', parameters: [p('FriendshipIdPath')], response: 'SocialFriendshipMutationResponse' }),
   }),
   pathItem('/social/contacts/tags', {
-    get: operation({ tag: 'social', operationId: 'social.contacts.tags.list', summary: 'List contact tags', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'ContactTagsResponse' }),
+    get: operation({ tag: 'social', operationId: 'social.contacts.tags.list', summary: 'List contact tags', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'SdkWorkListResponse' }),
     post: operation({ tag: 'social', operationId: 'social.contacts.tags.create', summary: 'Create a contact tag', request: 'CreateContactTagRequest', response: 'ContactTagView' }),
   }),
   pathItem('/social/contacts/tags/{tagId}', {
@@ -938,6 +935,10 @@ const paths = Object.fromEntries([
   pathItem('/chat/conversations/{conversationId}/members/leave', {
     parameters: [p('ConversationIdPath')],
     post: operation({ tag: 'chat', operationId: 'conversations.members.leave', summary: 'Leave a conversation', parameters: [p('ConversationIdPath')], response: 'AckResponse' }),
+  }),
+  pathItem('/chat/conversations/{conversationId}/members/accept_invitation', {
+    parameters: [p('ConversationIdPath')],
+    post: operation({ tag: 'chat', operationId: 'conversations.members.acceptInvitation', summary: 'Accept a conversation invitation', parameters: [p('ConversationIdPath')], response: 'ConversationMember' }),
   }),
   pathItem('/chat/conversations/{conversationId}/preferences', {
     parameters: [p('ConversationIdPath')],

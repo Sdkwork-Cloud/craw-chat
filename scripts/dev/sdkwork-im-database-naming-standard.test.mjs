@@ -85,7 +85,6 @@ assert.match(
 assert.equal(tableRegistry.appCode, 'chat');
 assert.equal(tableRegistry.prefixRegistry, './database-prefix-registry.json');
 assert.ok(tableRegistry.databaseProfiles.includes('postgresql'));
-assert.ok(tableRegistry.databaseProfiles.includes('sqlite'));
 
 const registeredTables = tableRegistry.tables.map((entry) => entry.tableName);
 assert.equal(
@@ -250,7 +249,6 @@ for (const required of [
   'database-prefix-registry.json',
   'database-table-registry.json',
   'im_',
-  '~/.sdkwork/chat/data/chat.sqlite',
 ]) {
   assert.ok(namingDoc.includes(required), `database naming documentation must mention ${required}`);
 }

@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationInboxEntry, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostedMessageResponse, PostMessageRequest, ReadCursorView, RemoveConversationMemberRequest, RoomView, SdkWorkCommandData, TimelineViewEntry, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
+import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationInboxEntry, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, MessageSearchHitView, PageInfo, PostedMessageResponse, PostMessageRequest, ReadCursorView, RemoveConversationMemberRequest, RoomView, SdkWorkCommandData, TimelineViewEntry, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
 
 
 export class ChatRoomsApi {
@@ -122,6 +122,13 @@ export class ChatMessagesFavoritesApi {
   }
 }
 
+export interface ChatMessagesSearchParams {
+  q?: string;
+  conversationId?: string;
+  limit?: number;
+  cursor?: string;
+}
+
 export class ChatMessagesApi {
   private client: HttpClient;
   public readonly favorites: ChatMessagesFavoritesApi;
@@ -147,6 +154,22 @@ export class ChatMessagesApi {
   async recall(messageId: string): Promise<PostedMessageResponse> {
     return this.client.post<PostedMessageResponse>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/recall`));
   }
+
+/** Search messages visible to the authenticated principal */
+  async search(params?: ChatMessagesSearchParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
+      { name: 'conversationId', value: params?.conversationId, style: 'form', explode: true, allowReserved: false },
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/messages/search`), query));
+  }
+}
+
+export interface ChatConversationsPinsListParams {
+  limit?: number;
+  cursor?: string;
 }
 
 export class ChatConversationsPinsApi {
@@ -158,8 +181,12 @@ export class ChatConversationsPinsApi {
 
 
 /** List pinned messages */
-  async list(conversationId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`));
+  async list(conversationId: string, params?: ChatConversationsPinsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/pins`), query));
   }
 }
 
@@ -207,6 +234,11 @@ export class ChatConversationsMessagesApi {
   }
 }
 
+export interface ChatConversationsMemberDirectoryListParams {
+  limit?: number;
+  cursor?: string;
+}
+
 export class ChatConversationsMemberDirectoryApi {
   private client: HttpClient;
 
@@ -216,8 +248,12 @@ export class ChatConversationsMemberDirectoryApi {
 
 
 /** List member directory */
-  async list(conversationId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`));
+  async list(conversationId: string, params?: ChatConversationsMemberDirectoryListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/member_directory`), query));
   }
 }
 
@@ -323,6 +359,11 @@ export class ChatConversationsMembersApi {
 /** Leave a conversation */
   async leave(conversationId: string): Promise<AckResponse> {
     return this.client.post<AckResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/leave`));
+  }
+
+/** Accept a conversation invitation */
+  async acceptInvitation(conversationId: string): Promise<ConversationMember> {
+    return this.client.post<ConversationMember>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/members/accept_invitation`));
   }
 }
 

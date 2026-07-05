@@ -41,7 +41,7 @@
         "../../../sdkwork-utils/packages/sdkwork-utils-typescript/src/index.ts"
       ],
       "@sdkwork/agents-app-sdk": [
-        "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/aiot-app-sdk": [
         "../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts"
@@ -90,6 +90,12 @@
       ],
       "sdkwork-community-app-sdk-generated-typescript": [
         "../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/community-pc-community": [
+        "../../../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/index.ts"
+      ],
+      "@sdkwork/community-runtime": [
+        "../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-runtime/src/index.ts"
       ],
       "sdkwork-mail-app-sdk-generated-typescript": [
         "../../../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/generated/server-openapi/src/index.ts"

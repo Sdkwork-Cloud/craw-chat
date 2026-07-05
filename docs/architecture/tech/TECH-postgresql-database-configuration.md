@@ -14,11 +14,11 @@ Canonical application identity:
 - Linux server config: `/etc/sdkwork/chat/chat.toml`
 - Linux PostgreSQL password file: `/etc/sdkwork/chat/database.secret`
 - Linux PostgreSQL helper config: `/etc/sdkwork/chat/postgresql.yaml`
-- Desktop SQLite file: `~/.sdkwork/chat/data/chat.sqlite`
 
 Server, container, browser development, and desktop development orchestration
 default to PostgreSQL. Installed desktop deployments and desktop local runtime
-user data keep SQLite by default.
+user data use browser local storage (IndexedDB / localStorage) and do not
+depend on a server-side SQL database.
 
 ## Environment-specific guides
 
@@ -34,8 +34,8 @@ user data keep SQLite by default.
   - Uses split `SDKWORK_IM_DATABASE_*` host/engine/ssl fields plus unified `SDKWORK_CLAW_DATABASE_*` workspace identity (`NAME`, `SCHEMA`, `USERNAME`, `PASSWORD`), and `SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD` for bootstrap.
   - `pnpm dev` and `pnpm dev:browser` use PostgreSQL for integrated browser/server development.
   - `pnpm dev:desktop` uses PostgreSQL for standalone desktop development orchestration.
-  - Installed desktop runtime local user data remains SQLite.
-  - `pnpm dev:browser:sqlite` and `pnpm dev:desktop:sqlite` are explicit SQLite development entries.
+  - Installed desktop runtime local user data uses browser local storage (IndexedDB / localStorage).
+  - `pnpm dev:browser:postgres` and `pnpm dev:desktop:postgres` are explicit PostgreSQL development entries.
 
 - [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)
   - Production and private deployment workflow.

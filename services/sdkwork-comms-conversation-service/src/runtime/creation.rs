@@ -139,7 +139,7 @@ where
             ..ConversationState::default()
         };
         let creator_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, creator_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, creator_member.clone());
         upsert_read_cursor(
             &mut conversation,
             build_default_read_cursor(&creator_member),
@@ -414,7 +414,7 @@ where
             .replace_business_binding(Some(business_binding.clone()));
         let mut thread_members = Vec::new();
         let owner_ordering_seq = thread_conversation.aggregate.next_member_epoch();
-        upsert_member(&mut thread_conversation, thread_owner.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut thread_conversation, thread_owner.clone());
         upsert_read_cursor(
             &mut thread_conversation,
             build_default_read_cursor(&thread_owner),
@@ -450,7 +450,7 @@ where
                 root_author_attributes,
             );
             let root_author_ordering_seq = thread_conversation.aggregate.next_member_epoch();
-            upsert_member(&mut thread_conversation, root_author_member.clone());
+            upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut thread_conversation, root_author_member.clone());
             upsert_read_cursor(
                 &mut thread_conversation,
                 build_default_read_cursor(&root_author_member),
@@ -756,10 +756,10 @@ where
             .aggregate
             .replace_business_binding(Some(business_binding.clone()));
         let anchor_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, anchor_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, anchor_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&anchor_member));
         let peer_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, peer_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, peer_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&peer_member));
         let creation_members = vec![
             (anchor_member.clone(), anchor_ordering_seq),
@@ -1025,13 +1025,13 @@ where
             .aggregate
             .replace_business_binding(Some(business_binding.clone()));
         let requester_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, requester_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, requester_member.clone());
         upsert_read_cursor(
             &mut conversation,
             build_default_read_cursor(&requester_member),
         );
         let agent_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, agent_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, agent_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&agent_member));
         let creation_members = vec![
             (requester_member.clone(), requester_ordering_seq),
@@ -1265,13 +1265,13 @@ where
             ..ConversationState::default()
         };
         let publisher_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, publisher_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, publisher_member.clone());
         upsert_read_cursor(
             &mut conversation,
             build_default_read_cursor(&publisher_member),
         );
         let subscriber_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, subscriber_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, subscriber_member.clone());
         upsert_read_cursor(
             &mut conversation,
             build_default_read_cursor(&subscriber_member),
@@ -1574,10 +1574,10 @@ where
             ..ConversationState::default()
         };
         let source_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, source_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, source_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&source_member));
         let target_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut conversation, target_member.clone());
+        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, target_member.clone());
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&target_member));
         let creation_members = vec![
             (source_member.clone(), source_ordering_seq),

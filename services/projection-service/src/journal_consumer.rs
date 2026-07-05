@@ -1,11 +1,12 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
-use im_adapters_postgres_journal::{PostgresCommitJournal, PostgresJournalConfig};
+use im_adapters_postgres_journal::{
+    JournalReplayCursor, PostgresCommitJournal, PostgresJournalConfig,
+};
 use im_domain_events::CommitEnvelope;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
-use sdkwork_im_contract_message::CommitJournal;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
@@ -37,14 +38,8 @@ pub fn spawn_projection_journal_consumer_from_env(
     let (shutdown_tx, shutdown_rx) = watch::channel(());
     let service = runtime.service();
     let task = tokio::spawn(async move {
-        run_projection_journal_consumer(
-            journal,
-            service,
-            runtime,
-            poll_interval,
-            shutdown_rx,
-        )
-        .await;
+        run_projection_journal_consumer(journal, service, runtime, poll_interval, shutdown_rx)
+            .await;
     });
     info!("projection journal consumer started");
     Some(ProjectionJournalConsumerHandle {
@@ -58,7 +53,9 @@ fn resolve_projection_commit_journal_from_env() -> Result<PostgresCommitJournal,
         if config.engine == DatabaseEngine::Postgres {
             return PostgresJournalConfig::from_database_config(&config)
                 .connect()
-                .map_err(|error| format!("postgres projection journal bootstrap failed: {error:?}"));
+                .map_err(|error| {
+                    format!("postgres projection journal bootstrap failed: {error:?}")
+                });
         }
     }
 
@@ -86,6 +83,44 @@ fn resolve_projection_journal_consumer_poll_interval() -> Duration {
     Duration::from_millis(millis)
 }
 
+const PROJECTION_JOURNAL_APPLIED_EVENT_DEDUP_CAPACITY: usize = 50_000;
+
+struct BoundedAppliedEventDedup {
+    order: VecDeque<String>,
+    seen: HashSet<String>,
+}
+
+impl BoundedAppliedEventDedup {
+    fn new() -> Self {
+        Self {
+            order: VecDeque::with_capacity(PROJECTION_JOURNAL_APPLIED_EVENT_DEDUP_CAPACITY),
+            seen: HashSet::with_capacity(PROJECTION_JOURNAL_APPLIED_EVENT_DEDUP_CAPACITY),
+        }
+    }
+
+    fn insert(&mut self, event_id: String) -> bool {
+        if self.seen.contains(&event_id) {
+            return false;
+        }
+        while self.order.len() >= PROJECTION_JOURNAL_APPLIED_EVENT_DEDUP_CAPACITY {
+            let Some(evicted) = self.order.pop_front() else {
+                break;
+            };
+            self.seen.remove(evicted.as_str());
+        }
+        self.seen.insert(event_id.clone());
+        self.order.push_back(event_id);
+        true
+    }
+
+    fn remove(&mut self, event_id: &str) {
+        if !self.seen.remove(event_id) {
+            return;
+        }
+        self.order.retain(|candidate| candidate != event_id);
+    }
+}
+
 async fn run_projection_journal_consumer(
     journal: PostgresCommitJournal,
     service: Arc<TimelineProjectionService>,
@@ -93,19 +128,24 @@ async fn run_projection_journal_consumer(
     poll_interval: Duration,
     mut shutdown: watch::Receiver<()>,
 ) {
-    let mut applied_event_ids = HashSet::new();
+    let mut applied_event_ids = BoundedAppliedEventDedup::new();
+    let mut replay_cursor: Option<JournalReplayCursor> = None;
     loop {
         if shutdown.has_changed().unwrap_or(true) {
             break;
         }
 
-        match journal.recorded() {
-            Ok(events) => apply_journal_events(
-                events.as_slice(),
-                service.as_ref(),
-                runtime.as_ref(),
-                &mut applied_event_ids,
-            ),
+        match journal.recorded_after(replay_cursor.as_ref()) {
+            Ok((events, next_cursor)) if !events.is_empty() => {
+                apply_journal_events(
+                    &events,
+                    service.as_ref(),
+                    runtime.as_ref(),
+                    &mut applied_event_ids,
+                );
+                replay_cursor = next_cursor;
+            }
+            Ok(_) => {}
             Err(error) => {
                 warn!(error = ?error, "projection journal consumer replay failed");
             }
@@ -122,7 +162,7 @@ fn apply_journal_events(
     events: &[CommitEnvelope],
     service: &TimelineProjectionService,
     runtime: &ProjectionRuntime,
-    applied_event_ids: &mut HashSet<String>,
+    applied_event_ids: &mut BoundedAppliedEventDedup,
 ) {
     let mut applied_new = false;
     for event in events {

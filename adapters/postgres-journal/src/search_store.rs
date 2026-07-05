@@ -5,7 +5,10 @@
 //! `im_messages_search_update` trigger on INSERT/UPDATE, so `index_message`
 //! is a no-op for the PostgreSQL backend.
 
-use im_platform_contracts::{ContractError, SearchProvider, SearchResult, SearchableMessage};
+use im_platform_contracts::{
+    ContractError, MessageSearchHit, SearchProvider, SearchResult, SearchableMessage,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool};
 
@@ -69,6 +72,145 @@ where tenant_id = $1
   and search_vector @@ to_tsquery('simple', $4)
 "#;
 
+const COUNT_MEMBER_SQL: &str = r#"
+select count(*) as total
+from im_conversation_messages m
+inner join im_projection_conversation_members mem
+  on mem.tenant_id = m.tenant_id
+ and mem.organization_id = m.organization_id
+ and mem.conversation_id = m.conversation_id
+ and mem.principal_kind = $5
+ and mem.principal_id = $6
+ and mem.membership_state in ('invited', 'joined', 'linked')
+where m.tenant_id = $1
+  and m.organization_id = $2
+  and m.deleted_at is null
+  and ($3::text is null or m.conversation_id = $3::text)
+  and m.search_vector @@ to_tsquery('simple', $4)
+"#;
+
+const SEARCH_MEMBER_SQL: &str = r#"
+select m.message_id, m.conversation_id, m.message_seq
+from im_conversation_messages m
+inner join im_projection_conversation_members mem
+  on mem.tenant_id = m.tenant_id
+ and mem.organization_id = m.organization_id
+ and mem.conversation_id = m.conversation_id
+ and mem.principal_kind = $7
+ and mem.principal_id = $8
+ and mem.membership_state in ('invited', 'joined', 'linked')
+where m.tenant_id = $1
+  and m.organization_id = $2
+  and m.deleted_at is null
+  and ($4::text is null or m.conversation_id = $4::text)
+  and m.search_vector @@ to_tsquery('simple', $3)
+order by m.created_at desc
+limit $5
+offset $6
+"#;
+
+const SEARCH_MEMBER_PLAIN_SQL: &str = r#"
+select m.message_id, m.conversation_id, m.message_seq
+from im_conversation_messages m
+inner join im_projection_conversation_members mem
+  on mem.tenant_id = m.tenant_id
+ and mem.organization_id = m.organization_id
+ and mem.conversation_id = m.conversation_id
+ and mem.principal_kind = $7
+ and mem.principal_id = $8
+ and mem.membership_state in ('invited', 'joined', 'linked')
+where m.tenant_id = $1
+  and m.organization_id = $2
+  and m.deleted_at is null
+  and ($4::text is null or m.conversation_id = $4::text)
+  and m.search_vector @@ plainto_tsquery('simple', $3)
+order by m.created_at desc
+limit $5
+offset $6
+"#;
+
+const SEARCH_MEMBER_KEYSET_SQL: &str = r#"
+select m.message_id, m.conversation_id, m.message_seq, m.created_at
+from im_conversation_messages m
+inner join im_projection_conversation_members mem
+  on mem.tenant_id = m.tenant_id
+ and mem.organization_id = m.organization_id
+ and mem.conversation_id = m.conversation_id
+ and mem.principal_kind = $6
+ and mem.principal_id = $7
+ and mem.membership_state in ('invited', 'joined', 'linked')
+where m.tenant_id = $1
+  and m.organization_id = $2
+  and m.deleted_at is null
+  and ($4::text is null or m.conversation_id = $4::text)
+  and m.search_vector @@ to_tsquery('simple', $3)
+  and (
+    $8::timestamptz is null
+    or m.created_at < $8::timestamptz
+    or (m.created_at = $8::timestamptz and m.message_id > $9::bigint)
+  )
+order by m.created_at desc, m.message_id asc
+limit $5
+"#;
+
+const SEARCH_MEMBER_KEYSET_PLAIN_SQL: &str = r#"
+select m.message_id, m.conversation_id, m.message_seq, m.created_at
+from im_conversation_messages m
+inner join im_projection_conversation_members mem
+  on mem.tenant_id = m.tenant_id
+ and mem.organization_id = m.organization_id
+ and mem.conversation_id = m.conversation_id
+ and mem.principal_kind = $6
+ and mem.principal_id = $7
+ and mem.membership_state in ('invited', 'joined', 'linked')
+where m.tenant_id = $1
+  and m.organization_id = $2
+  and m.deleted_at is null
+  and ($4::text is null or m.conversation_id = $4::text)
+  and m.search_vector @@ plainto_tsquery('simple', $3)
+  and (
+    $8::timestamptz is null
+    or m.created_at < $8::timestamptz
+    or (m.created_at = $8::timestamptz and m.message_id > $9::bigint)
+  )
+order by m.created_at desc, m.message_id asc
+limit $5
+"#;
+
+const SEARCH_KEYSET_SQL: &str = r#"
+select message_id, conversation_id, message_seq, created_at
+from im_conversation_messages
+where tenant_id = $1
+  and organization_id = $2
+  and deleted_at is null
+  and ($4::text is null or conversation_id = $4::text)
+  and search_vector @@ to_tsquery('simple', $3)
+  and (
+    $6::timestamptz is null
+    or created_at < $6::timestamptz
+    or (created_at = $6::timestamptz and message_id > $7::bigint)
+  )
+order by created_at desc, message_id asc
+limit $5
+"#;
+
+const SEARCH_KEYSET_PLAIN_SQL: &str = r#"
+select message_id, conversation_id, message_seq, created_at
+from im_conversation_messages
+where tenant_id = $1
+  and organization_id = $2
+  and deleted_at is null
+  and ($4::text is null or conversation_id = $4::text)
+  and search_vector @@ plainto_tsquery('simple', $3)
+  and (
+    $6::timestamptz is null
+    or created_at < $6::timestamptz
+    or (created_at = $6::timestamptz and message_id > $7::bigint)
+  )
+order by created_at desc, message_id asc
+limit $5
+"#;
+
 const REMOVE_SQL: &str = r#"
 update im_conversation_messages
 set search_vector = null
@@ -87,6 +229,62 @@ fn escape_tsquery(query: &str) -> String {
         .join(" & ")
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SearchListCursor {
+    Start,
+    Offset(usize),
+    Keyset {
+        created_at: String,
+        message_id: i64,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchKeysetCursorWire {
+    created_at: String,
+    message_id: i64,
+}
+
+fn parse_search_cursor(cursor: Option<&str>) -> SearchListCursor {
+    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
+        return SearchListCursor::Start;
+    };
+    if cursor.chars().all(|ch| ch.is_ascii_digit()) {
+        return SearchListCursor::Offset(cursor.parse::<usize>().unwrap_or(0));
+    }
+    if let Ok(wire) = serde_json::from_str::<SearchKeysetCursorWire>(cursor)
+        && !wire.created_at.trim().is_empty()
+        && wire.message_id > 0
+    {
+        return SearchListCursor::Keyset {
+            created_at: wire.created_at,
+            message_id: wire.message_id,
+        };
+    }
+    SearchListCursor::Start
+}
+
+fn search_keyset_next_cursor(
+    rows: &[(MessageSearchHit, String)],
+    limit: usize,
+) -> Option<String> {
+    if rows.len() <= limit {
+        return None;
+    }
+    let (hit, created_at) = rows.get(limit.saturating_sub(1))?;
+    serde_json::to_string(&SearchKeysetCursorWire {
+        created_at: created_at.clone(),
+        message_id: hit.message_id,
+    })
+    .ok()
+}
+
+fn row_created_at_rfc3339(row: &postgres::Row, index: usize) -> String {
+    row.get::<_, chrono::DateTime<chrono::Utc>>(index)
+        .to_rfc3339()
+}
+
 impl SearchProvider for PostgresSearchProvider {
     fn index_message(&self, _message: &SearchableMessage) -> Result<(), ContractError> {
         // No-op: the im_messages_search_update trigger handles indexing.
@@ -103,14 +301,14 @@ impl SearchProvider for PostgresSearchProvider {
         limit: usize,
         cursor: Option<&str>,
     ) -> Result<SearchResult, ContractError> {
-        let offset: usize = cursor.and_then(|c| c.parse::<usize>().ok()).unwrap_or(0);
+        let list_cursor = parse_search_cursor(cursor);
         let limit = limit.clamp(1, 1000);
         let conversation_filter: Option<&str> = conversation_id;
 
         let tsquery = escape_tsquery(query);
         if tsquery.is_empty() {
             return Ok(SearchResult {
-                message_ids: Vec::new(),
+                hits: Vec::new(),
                 total_count: 0,
                 next_cursor: None,
             });
@@ -124,22 +322,10 @@ impl SearchProvider for PostgresSearchProvider {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "search")?;
 
-            // Try tsquery first, fall back to plainto_tsquery if it fails
-            let rows = match client.query(
-                SEARCH_SQL,
-                &[
-                    &tenant,
-                    &org,
-                    &tsquery,
-                    &conv.as_deref(),
-                    &(limit as i64),
-                    &(offset as i64),
-                ],
-            ) {
-                Ok(rows) => rows,
-                Err(_) => client
-                    .query(
-                        SEARCH_PLAIN_SQL,
+            match list_cursor {
+                SearchListCursor::Offset(offset) => {
+                    let rows = match client.query(
+                        SEARCH_SQL,
                         &[
                             &tenant,
                             &org,
@@ -148,32 +334,118 @@ impl SearchProvider for PostgresSearchProvider {
                             &(limit as i64),
                             &(offset as i64),
                         ],
-                    )
-                    .map_err(|e| postgres_unavailable("search", e))?,
-            };
+                    ) {
+                        Ok(rows) => rows,
+                        Err(_) => client
+                            .query(
+                                SEARCH_PLAIN_SQL,
+                                &[
+                                    &tenant,
+                                    &org,
+                                    &tsquery,
+                                    &conv.as_deref(),
+                                    &(limit as i64),
+                                    &(offset as i64),
+                                ],
+                            )
+                            .map_err(|e| postgres_unavailable("search", e))?,
+                    };
 
-            let mut message_ids = Vec::with_capacity(rows.len());
-            for row in &rows {
-                let msg_id: i64 = row.get(0);
-                message_ids.push(msg_id);
+                    let hits = rows
+                        .iter()
+                        .map(|row| MessageSearchHit {
+                            message_id: row.get(0),
+                            conversation_id: row.get(1),
+                            message_seq: row.get::<_, i64>(2) as u64,
+                        })
+                        .collect::<Vec<_>>();
+
+                    let total_count: i64 = client
+                        .query_one(COUNT_SQL, &[&tenant, &org, &conv.as_deref(), &tsquery])
+                        .map(|row| row.get(0))
+                        .unwrap_or(0);
+
+                    let next_cursor = if hits.len() == limit {
+                        Some((offset + limit).to_string())
+                    } else {
+                        None
+                    };
+
+                    Ok(SearchResult {
+                        hits,
+                        total_count: total_count as u64,
+                        next_cursor,
+                    })
+                }
+                SearchListCursor::Start | SearchListCursor::Keyset { .. } => {
+                    let fetch_limit = (limit + 1) as i64;
+                    let (keyset_created_at, keyset_message_id) = match list_cursor {
+                        SearchListCursor::Keyset {
+                            created_at,
+                            message_id,
+                        } => (Some(created_at), Some(message_id)),
+                        _ => (None, None),
+                    };
+                    let rows = match client.query(
+                        SEARCH_KEYSET_SQL,
+                        &[
+                            &tenant,
+                            &org,
+                            &tsquery,
+                            &conv.as_deref(),
+                            &fetch_limit,
+                            &keyset_created_at.as_deref(),
+                            &keyset_message_id,
+                        ],
+                    ) {
+                        Ok(rows) => rows,
+                        Err(_) => client
+                            .query(
+                                SEARCH_KEYSET_PLAIN_SQL,
+                                &[
+                                    &tenant,
+                                    &org,
+                                    &tsquery,
+                                    &conv.as_deref(),
+                                    &fetch_limit,
+                                    &keyset_created_at.as_deref(),
+                                    &keyset_message_id,
+                                ],
+                            )
+                            .map_err(|e| postgres_unavailable("search", e))?,
+                    };
+
+                    let mut collected = Vec::with_capacity(rows.len());
+                    for row in &rows {
+                        collected.push((
+                            MessageSearchHit {
+                                message_id: row.get(0),
+                                conversation_id: row.get(1),
+                                message_seq: row.get::<_, i64>(2) as u64,
+                            },
+                            row_created_at_rfc3339(row, 3),
+                        ));
+                    }
+
+                    let total_count: i64 = client
+                        .query_one(COUNT_SQL, &[&tenant, &org, &conv.as_deref(), &tsquery])
+                        .map(|row| row.get(0))
+                        .unwrap_or(0);
+
+                    let next_cursor = search_keyset_next_cursor(&collected, limit);
+                    let hits = collected
+                        .into_iter()
+                        .take(limit)
+                        .map(|(hit, _)| hit)
+                        .collect();
+
+                    Ok(SearchResult {
+                        hits,
+                        total_count: total_count as u64,
+                        next_cursor,
+                    })
+                }
             }
-
-            let total_count: i64 = client
-                .query_one(COUNT_SQL, &[&tenant, &org, &conv.as_deref(), &tsquery])
-                .map(|row| row.get(0))
-                .unwrap_or(0);
-
-            let next_cursor = if message_ids.len() == limit {
-                Some((offset + limit).to_string())
-            } else {
-                None
-            };
-
-            Ok(SearchResult {
-                message_ids,
-                total_count: total_count as u64,
-                next_cursor,
-            })
         })
     }
 
@@ -191,6 +463,196 @@ impl SearchProvider for PostgresSearchProvider {
 
     fn plugin_id(&self) -> &'static str {
         self.plugin_id
+    }
+}
+
+impl PostgresSearchProvider {
+    /// Membership-scoped search for interactive principals.
+    pub fn search_for_member(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        query: &str,
+        conversation_id: Option<&str>,
+        limit: usize,
+        cursor: Option<&str>,
+    ) -> Result<SearchResult, ContractError> {
+        let list_cursor = parse_search_cursor(cursor);
+        let limit = limit.clamp(1, 200);
+        let conversation_filter: Option<&str> = conversation_id;
+        let tsquery = escape_tsquery(query);
+        if tsquery.is_empty() {
+            return Ok(SearchResult {
+                hits: Vec::new(),
+                total_count: 0,
+                next_cursor: None,
+            });
+        }
+
+        let pool = self.pool.clone();
+        let tenant = tenant_id.to_owned();
+        let org = organization_id.to_owned();
+        let principal_kind = principal_kind.to_owned();
+        let principal_id = principal_id.to_owned();
+        let conv = conversation_filter.map(|s| s.to_owned());
+
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "search_for_member")?;
+            match list_cursor {
+                SearchListCursor::Offset(offset) => {
+                    let rows = match client.query(
+                        SEARCH_MEMBER_SQL,
+                        &[
+                            &tenant,
+                            &org,
+                            &tsquery,
+                            &conv.as_deref(),
+                            &(limit as i64),
+                            &(offset as i64),
+                            &principal_kind,
+                            &principal_id,
+                        ],
+                    ) {
+                        Ok(rows) => rows,
+                        Err(_) => client
+                            .query(
+                                SEARCH_MEMBER_PLAIN_SQL,
+                                &[
+                                    &tenant,
+                                    &org,
+                                    &tsquery,
+                                    &conv.as_deref(),
+                                    &(limit as i64),
+                                    &(offset as i64),
+                                    &principal_kind,
+                                    &principal_id,
+                                ],
+                            )
+                            .map_err(|e| postgres_unavailable("search_for_member", e))?,
+                    };
+
+                    let hits = rows
+                        .iter()
+                        .map(|row| MessageSearchHit {
+                            message_id: row.get(0),
+                            conversation_id: row.get(1),
+                            message_seq: row.get::<_, i64>(2) as u64,
+                        })
+                        .collect::<Vec<_>>();
+
+                    let total_count: i64 = client
+                        .query_one(
+                            COUNT_MEMBER_SQL,
+                            &[
+                                &tenant,
+                                &org,
+                                &conv.as_deref(),
+                                &tsquery,
+                                &principal_kind,
+                                &principal_id,
+                            ],
+                        )
+                        .map(|row| row.get(0))
+                        .unwrap_or(0);
+
+                    let next_cursor = if hits.len() == limit {
+                        Some((offset + limit).to_string())
+                    } else {
+                        None
+                    };
+
+                    Ok(SearchResult {
+                        hits,
+                        total_count: total_count as u64,
+                        next_cursor,
+                    })
+                }
+                SearchListCursor::Start | SearchListCursor::Keyset { .. } => {
+                    let fetch_limit = (limit + 1) as i64;
+                    let (keyset_created_at, keyset_message_id) = match list_cursor {
+                        SearchListCursor::Keyset {
+                            created_at,
+                            message_id,
+                        } => (Some(created_at), Some(message_id)),
+                        _ => (None, None),
+                    };
+                    let rows = match client.query(
+                        SEARCH_MEMBER_KEYSET_SQL,
+                        &[
+                            &tenant,
+                            &org,
+                            &tsquery,
+                            &conv.as_deref(),
+                            &fetch_limit,
+                            &principal_kind,
+                            &principal_id,
+                            &keyset_created_at.as_deref(),
+                            &keyset_message_id,
+                        ],
+                    ) {
+                        Ok(rows) => rows,
+                        Err(_) => client
+                            .query(
+                                SEARCH_MEMBER_KEYSET_PLAIN_SQL,
+                                &[
+                                    &tenant,
+                                    &org,
+                                    &tsquery,
+                                    &conv.as_deref(),
+                                    &fetch_limit,
+                                    &principal_kind,
+                                    &principal_id,
+                                    &keyset_created_at.as_deref(),
+                                    &keyset_message_id,
+                                ],
+                            )
+                            .map_err(|e| postgres_unavailable("search_for_member", e))?,
+                    };
+
+                    let mut collected = Vec::with_capacity(rows.len());
+                    for row in &rows {
+                        collected.push((
+                            MessageSearchHit {
+                                message_id: row.get(0),
+                                conversation_id: row.get(1),
+                                message_seq: row.get::<_, i64>(2) as u64,
+                            },
+                            row_created_at_rfc3339(row, 3),
+                        ));
+                    }
+
+                    let total_count: i64 = client
+                        .query_one(
+                            COUNT_MEMBER_SQL,
+                            &[
+                                &tenant,
+                                &org,
+                                &conv.as_deref(),
+                                &tsquery,
+                                &principal_kind,
+                                &principal_id,
+                            ],
+                        )
+                        .map(|row| row.get(0))
+                        .unwrap_or(0);
+
+                    let next_cursor = search_keyset_next_cursor(&collected, limit);
+                    let hits = collected
+                        .into_iter()
+                        .take(limit)
+                        .map(|(hit, _)| hit)
+                        .collect();
+
+                    Ok(SearchResult {
+                        hits,
+                        total_count: total_count as u64,
+                        next_cursor,
+                    })
+                }
+            }
+        })
     }
 }
 
@@ -224,6 +686,28 @@ mod tests {
         let result = escape_tsquery("hello world");
         assert!(result.contains("hello:*"));
         assert!(result.contains("world:*"));
+    }
+
+    #[test]
+    fn test_parse_search_cursor_accepts_keyset_json() {
+        let cursor = parse_search_cursor(Some(
+            r#"{"createdAt":"2026-05-06T00:00:00Z","messageId":42}"#,
+        ));
+        assert_eq!(
+            cursor,
+            SearchListCursor::Keyset {
+                created_at: "2026-05-06T00:00:00Z".to_owned(),
+                message_id: 42,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_search_cursor_accepts_legacy_offset() {
+        assert_eq!(
+            parse_search_cursor(Some("40")),
+            SearchListCursor::Offset(40)
+        );
     }
 
     #[test]

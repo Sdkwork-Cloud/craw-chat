@@ -10,10 +10,12 @@ sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
 sdkwork-im-contract-stream = { path = "../../crates/sdkwork-im-contract-stream" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+im-adapters-postgres-journal.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
+sdkwork_database_config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

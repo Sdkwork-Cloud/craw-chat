@@ -1,7 +1,8 @@
 use axum::http::StatusCode;
 use im_app_context::AppContext;
 use im_domain_core::conversation::{
-    history_read_allowed, ConversationInboxEntry, ConversationMember, ConversationReadCursorView,
+    ConversationInboxEntry, ConversationMember, ConversationReadCursorView, MembershipRole,
+    history_read_allowed,
 };
 use im_domain_core::social::DirectChatStatus;
 use im_platform_contracts::normalize_realtime_organization_id;
@@ -11,17 +12,21 @@ use super::{
     ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
     ConversationSummaryView, DeleteMessageFavoriteResponse, FavoriteMessageRequest,
     FavoriteMessagesWindowView, MessageFavoriteView, MessageInteractionSummaryView,
-    NotificationRecipientView, PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT,
-    PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT, PROJECTION_LIST_DEFAULT_LIMIT,
-    PROJECTION_LIST_MAX_LIMIT, PROJECTION_TIMELINE_DEFAULT_LIMIT, PROJECTION_TIMELINE_MAX_LIMIT,
-    RealtimeFanoutTarget, RegisteredClientRouteView, TimelineProjectionService, TimelineWindowView,
-    UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
+    MessageSearchHitView, MessageSearchWindowView, MessageVisibilityMutationResult,
+    NotificationRecipientView,
+    PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT, PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT,
+    PROJECTION_LIST_DEFAULT_LIMIT, PROJECTION_LIST_MAX_LIMIT, PROJECTION_TIMELINE_DEFAULT_LIMIT,
+    PROJECTION_TIMELINE_MAX_LIMIT, RealtimeFanoutTarget, RegisteredClientRouteView,
+    TimelineProjectionService, TimelineWindowView, UpdateConversationPreferencesRequest,
+    UpdateConversationProfileRequest,
 };
-use super::message_favorites::filter_message_favorites;
 
 const PROJECTION_MAX_DEVICE_ID_BYTES: usize = 256;
 const PROJECTION_MAX_CONVERSATION_ID_BYTES: usize = 256;
 const PROJECTION_MAX_MESSAGE_ID_BYTES: usize = 256;
+const PROJECTION_MAX_SEARCH_QUERY_BYTES: usize = 512;
+const PROJECTION_SEARCH_DEFAULT_LIMIT: usize = 20;
+const PROJECTION_SEARCH_MAX_LIMIT: usize = 200;
 
 #[derive(Debug)]
 pub struct ProjectionAccessError {
@@ -80,6 +85,14 @@ impl ProjectionAccessError {
             message: format!(
                 "payload too large for {field}: max={max_bytes} bytes, actual={actual_bytes} bytes"
             ),
+        }
+    }
+
+    fn store_unavailable(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            code: "projection_store_unavailable",
+            message: message.into(),
         }
     }
 }
@@ -197,7 +210,7 @@ impl TimelineProjectionService {
         conversation_id: &str,
         update: UpdateConversationProfileRequest,
     ) -> Result<ConversationProfileView, ProjectionAccessError> {
-        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        self.ensure_conversation_profile_mutation_allowed(auth, conversation_id)?;
         Ok(self.update_conversation_profile(
             auth.tenant_id.as_str(),
             Self::auth_organization_id(auth).as_str(),
@@ -206,6 +219,48 @@ impl TimelineProjectionService {
             auth.actor_id.as_str(),
             update,
         ))
+    }
+
+    fn ensure_conversation_profile_mutation_allowed(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+    ) -> Result<(), ProjectionAccessError> {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        let organization_id = Self::auth_organization_id(auth);
+        let scope = super::scope::scope_key(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
+            conversation_id,
+        );
+        let conversation_type = super::lock_projection_mutex(&self.conversations, "conversation catalog")
+            .get(scope.as_str())
+            .map(|entry| entry.conversation_type.clone())
+            .unwrap_or_else(|| "unknown".into());
+        let Some(member) = self.member_snapshot_for_principal_kind(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
+            conversation_id,
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        ) else {
+            return Err(ProjectionAccessError::forbidden(
+                "conversation_permission_denied",
+                format!(
+                    "principal is not active conversation member: {}",
+                    auth.actor_id
+                ),
+            ));
+        };
+        if matches!(conversation_type.as_str(), "group" | "thread" | "room")
+            && !matches!(member.role, MembershipRole::Owner | MembershipRole::Admin)
+        {
+            return Err(ProjectionAccessError::forbidden(
+                "conversation_profile_mutation_denied",
+                "only owner or admin can update group conversation profile",
+            ));
+        }
+        Ok(())
     }
 
     pub fn conversation_preferences_from_auth_context(
@@ -471,6 +526,24 @@ impl TimelineProjectionService {
         ))
     }
 
+    pub fn ack_client_route_sync_feed_from_auth_context(
+        &self,
+        auth: &AppContext,
+        device_id: &str,
+        acked_through_sync_seq: u64,
+    ) -> Result<super::ClientRouteSyncAckStateView, ProjectionAccessError> {
+        validate_device_scope(auth, device_id)?;
+        ensure_client_route_owned_by_auth_kind(self, auth, device_id)?;
+        Ok(self.ack_client_route_sync_feed_for_principal_kind(
+            auth.tenant_id.as_str(),
+            normalize_realtime_organization_id(auth.organization_id.as_str()).as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            device_id,
+            acked_through_sync_seq,
+        ))
+    }
+
     pub fn inbox_from_auth_context(&self, auth: &AppContext) -> Vec<ConversationInboxEntry> {
         self.inbox_for_principal_kind(
             auth.tenant_id.as_str(),
@@ -495,13 +568,21 @@ impl TimelineProjectionService {
         cursor: Option<&str>,
     ) -> Result<super::InboxWindowView, ProjectionAccessError> {
         let limit = validate_list_limit(limit)?;
-        list_window(self.inbox_from_auth_context(auth), limit, cursor).map(|window| {
-            super::InboxWindowView {
-                items: window.items,
-                next_cursor: window.next_cursor,
-                has_more: window.has_more,
-            }
-        })
+        let list_cursor = parse_inbox_list_cursor(cursor)?;
+        Ok(self.inbox_window_for_principal_kind_filtered(
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+            limit,
+            list_cursor,
+            |entry| {
+                !self.is_archived_direct_chat_conversation(
+                    auth.tenant_id.as_str(),
+                    Self::auth_organization_id(auth).as_str(),
+                    entry.conversation_id.as_str(),
+                )
+            },
+        ))
     }
 
     pub fn contacts_from_auth_context(
@@ -512,7 +593,7 @@ impl TimelineProjectionService {
         Ok(self.contacts(
             auth.tenant_id.as_str(),
             Self::auth_organization_id(auth).as_str(),
-            auth.actor_id.as_str(),
+            projection_social_principal(auth)?,
         ))
     }
 
@@ -522,13 +603,16 @@ impl TimelineProjectionService {
         limit: Option<usize>,
         cursor: Option<&str>,
     ) -> Result<ContactWindowView, ProjectionAccessError> {
+        ensure_user_contact_owner(auth)?;
         let limit = validate_list_limit(limit)?;
-        let contacts = self.contacts_from_auth_context(auth)?;
-        list_window(contacts, limit, cursor).map(|window| ContactWindowView {
-            items: window.items,
-            next_cursor: window.next_cursor,
-            has_more: window.has_more,
-        })
+        let list_cursor = parse_contact_list_cursor(cursor)?;
+        Ok(self.contact_window(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            projection_social_principal(auth)?,
+            limit,
+            list_cursor,
+        ))
     }
 
     pub fn timeline_window_from_auth_context(
@@ -541,13 +625,16 @@ impl TimelineProjectionService {
         self.ensure_history_reader_from_auth_context(auth, conversation_id)?;
         let limit = validate_timeline_limit(limit)?;
         let organization_id = Self::auth_organization_id(auth);
-        Ok(self.timeline_window(
+        Ok(self.timeline_window_for_principal(
             auth.tenant_id.as_str(),
             organization_id.as_str(),
             conversation_id,
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
             after_seq,
             limit,
-        ))
+        )
+        .map_err(|error| ProjectionAccessError::store_unavailable(error.to_string()))?)
     }
 
     pub fn conversation_summary_from_auth_context(
@@ -580,17 +667,52 @@ impl TimelineProjectionService {
         ))
     }
 
+    pub fn pinned_messages_window_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<sdkwork_utils_rust::SdkWorkPageData<MessageInteractionSummaryView>, ProjectionAccessError>
+    {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        let limit = validate_list_limit(limit)?;
+        let list_cursor = parse_pinned_messages_list_cursor(cursor)?;
+        let window = self.pinned_messages_window(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            conversation_id,
+            limit,
+            list_cursor,
+        );
+        Ok(sdkwork_utils_rust::SdkWorkPageData {
+            items: window
+                .items
+                .into_iter()
+                .map(|view| {
+                    let message_id = view.message_id.clone();
+                    self.enrich_interaction_summary_with_read_receipt(
+                        view,
+                        auth.tenant_id.as_str(),
+                        Self::auth_organization_id(auth).as_str(),
+                        conversation_id,
+                        message_id.as_str(),
+                    )
+                })
+                .collect(),
+            page_info: window.page_info,
+        })
+    }
+
     pub fn pinned_messages_from_auth_context(
         &self,
         auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<MessageInteractionSummaryView>, ProjectionAccessError> {
-        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
-        Ok(self.pinned_messages(
-            auth.tenant_id.as_str(),
-            Self::auth_organization_id(auth).as_str(),
-            conversation_id,
-        ))
+        let limit = validate_list_limit(None)?;
+        Ok(self
+            .pinned_messages_window_from_auth_context(auth, conversation_id, Some(limit), None)?
+            .items)
     }
 
     pub fn read_cursor_from_auth_context(
@@ -599,12 +721,33 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Result<Option<ConversationReadCursorView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
-        Ok(self.read_cursor_for_principal_kind(
+        Ok(self.read_cursor_for_principal_kind_and_device(
             auth.tenant_id.as_str(),
             Self::auth_organization_id(auth).as_str(),
             conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
+            auth.device_id.as_deref(),
+        ))
+    }
+
+    pub fn member_directory_window_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<sdkwork_utils_rust::SdkWorkPageData<ConversationMemberDirectoryEntry>, ProjectionAccessError>
+    {
+        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        let limit = validate_list_limit(limit)?;
+        let list_cursor = parse_member_directory_list_cursor(cursor)?;
+        Ok(self.member_directory_window(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            conversation_id,
+            limit,
+            list_cursor,
         ))
     }
 
@@ -613,12 +756,10 @@ impl TimelineProjectionService {
         auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<ConversationMemberDirectoryEntry>, ProjectionAccessError> {
-        self.ensure_active_member_from_auth_context(auth, conversation_id)?;
-        Ok(self.member_directory(
-            auth.tenant_id.as_str(),
-            Self::auth_organization_id(auth).as_str(),
-            conversation_id,
-        ))
+        let limit = validate_list_limit(None)?;
+        Ok(self
+            .member_directory_window_from_auth_context(auth, conversation_id, Some(limit), None)?
+            .items)
     }
 
     pub fn message_favorites_window_from_auth_context(
@@ -630,21 +771,17 @@ impl TimelineProjectionService {
         query: Option<&str>,
     ) -> Result<FavoriteMessagesWindowView, ProjectionAccessError> {
         let limit = validate_list_limit(limit)?;
-        let favorites = filter_message_favorites(
-            self.message_favorites_for_principal(
-                auth.tenant_id.as_str(),
-                Self::auth_organization_id(auth).as_str(),
-                auth.actor_kind.as_str(),
-                auth.actor_id.as_str(),
-            ),
+        let list_cursor = parse_favorite_messages_list_cursor(cursor)?;
+        Ok(self.message_favorites_window_for_principal(
+            auth.tenant_id.as_str(),
+            Self::auth_organization_id(auth).as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            limit,
+            list_cursor,
             favorite_type,
             query,
-        );
-        list_window(favorites, limit, cursor).map(|window| FavoriteMessagesWindowView {
-            items: window.items,
-            next_cursor: window.next_cursor,
-            has_more: window.has_more,
-        })
+        ))
     }
 
     pub fn create_message_favorite_from_auth_context(
@@ -694,6 +831,139 @@ impl TimelineProjectionService {
         Ok(DeleteMessageFavoriteResponse {
             favorite_id: favorite_id.to_owned(),
             deleted: true,
+        })
+    }
+
+    /// Soft-delete (hide) a message from the current principal's view.
+    ///
+    /// Implements `DELETE /im/v3/api/chat/messages/{messageId}/visibility`
+    /// (operationId `messages.visibility.delete`). The mutation is idempotent
+    /// and scoped to the calling principal. Membership is required; unprojected
+    /// messages return `404 message_not_found`.
+    pub fn delete_message_visibility_from_auth_context(
+        &self,
+        auth: &AppContext,
+        message_id: &str,
+    ) -> Result<MessageVisibilityMutationResult, ProjectionAccessError> {
+        validate_message_id(message_id)?;
+        // Locate the conversation that owns the message so we can enforce
+        // membership. When the message is not currently projected we cannot
+        // enforce membership and surface 404 instead of silently accepting.
+        let organization_id = Self::auth_organization_id(auth);
+        let conversation_id = self
+            .conversation_id_for_message(
+                auth.tenant_id.as_str(),
+                organization_id.as_str(),
+                message_id,
+            )
+            .ok_or_else(|| ProjectionAccessError {
+                status: StatusCode::NOT_FOUND,
+                code: "message_not_found",
+                message: format!("message not found: {message_id}"),
+            })?;
+        self.ensure_active_member_from_auth_context(auth, conversation_id.as_str())?;
+        Ok(self.delete_message_visibility(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+            message_id,
+            Some(conversation_id.as_str()),
+        ))
+    }
+
+    pub fn search_messages_from_auth_context(
+        &self,
+        auth: &AppContext,
+        query: &str,
+        conversation_id: Option<&str>,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<MessageSearchWindowView, ProjectionAccessError> {
+        let query = query.trim();
+        if query.is_empty() {
+            return Err(ProjectionAccessError::bad_request(
+                "search_query_required",
+                "search query q is required",
+            ));
+        }
+        if query.len() > PROJECTION_MAX_SEARCH_QUERY_BYTES {
+            return Err(ProjectionAccessError::payload_too_large(
+                "q",
+                PROJECTION_MAX_SEARCH_QUERY_BYTES,
+                query.len(),
+            ));
+        }
+        if let Some(conversation_id) = conversation_id {
+            validate_conversation_id(conversation_id)?;
+            self.ensure_active_member_from_auth_context(auth, conversation_id)?;
+        }
+        let limit = validate_search_limit(limit)?;
+        let search_provider = crate::bootstrap::shared_projection_runtime()
+            .search_provider()
+            .ok_or_else(|| {
+                if crate::bootstrap::allows_in_memory_projection_fallback() {
+                    ProjectionAccessError {
+                        status: StatusCode::SERVICE_UNAVAILABLE,
+                        code: "message_search_unavailable",
+                        message: "message search requires postgres configuration".into(),
+                    }
+                } else {
+                    ProjectionAccessError {
+                        status: StatusCode::SERVICE_UNAVAILABLE,
+                        code: "message_search_unconfigured",
+                        message: "message search provider is not configured".into(),
+                    }
+                }
+            })?;
+        let organization_id = Self::auth_organization_id(auth);
+        let principal_kind = auth.actor_kind.as_str();
+        let principal_id = auth.social_principal_user_id();
+        let result = search_provider
+            .search_for_member(
+                auth.tenant_id.as_str(),
+                organization_id.as_str(),
+                principal_kind,
+                principal_id,
+                query,
+                conversation_id,
+                limit,
+                cursor,
+            )
+            .map_err(|error| ProjectionAccessError {
+                status: StatusCode::SERVICE_UNAVAILABLE,
+                code: "message_search_failed",
+                message: format!("message search failed: {error:?}"),
+            })?;
+        let hits = result
+            .hits
+            .into_iter()
+            .filter(|hit| {
+                let message_id = hit.message_id.to_string();
+                !self
+                    .message_visibility_for_principal(
+                        auth.tenant_id.as_str(),
+                        organization_id.as_str(),
+                        principal_kind,
+                        principal_id,
+                        message_id.as_str(),
+                    )
+                    .is_some_and(|visibility| visibility.is_deleted)
+            })
+            .collect::<Vec<_>>();
+        let has_more = result.next_cursor.is_some();
+        Ok(MessageSearchWindowView {
+            items: hits
+                .into_iter()
+                .map(|hit| MessageSearchHitView {
+                    conversation_id: hit.conversation_id,
+                    message_id: hit.message_id.to_string(),
+                    message_seq: hit.message_seq,
+                })
+                .collect(),
+            next_cursor: result.next_cursor,
+            has_more,
+            total_count: result.total_count,
         })
     }
 }
@@ -808,18 +1078,14 @@ fn ensure_client_route_owned_by_auth_kind(
     ))
 }
 
-fn ensure_user_contact_owner(auth: &AppContext) -> Result<(), ProjectionAccessError> {
-    if auth.actor_kind == "user" {
-        return Ok(());
-    }
+fn ensure_user_contact_owner(auth: &AppContext) -> Result<&str, ProjectionAccessError> {
+    auth.ensure_user_actor_principal().map_err(|error| {
+        ProjectionAccessError::forbidden("contact_scope_forbidden", error.message())
+    })
+}
 
-    Err(ProjectionAccessError::forbidden(
-        "contact_scope_forbidden",
-        format!(
-            "contact scope forbidden for actor kind: {}",
-            auth.actor_kind
-        ),
-    ))
+fn projection_social_principal(auth: &AppContext) -> Result<&str, ProjectionAccessError> {
+    ensure_user_contact_owner(auth)
 }
 
 fn validate_device_id(device_id: &str) -> Result<(), ProjectionAccessError> {
@@ -864,6 +1130,19 @@ fn validate_message_id(message_id: &str) -> Result<(), ProjectionAccessError> {
     Ok(())
 }
 
+fn validate_search_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessError> {
+    let limit = limit.unwrap_or(PROJECTION_SEARCH_DEFAULT_LIMIT);
+    if limit == 0 || limit > PROJECTION_SEARCH_MAX_LIMIT {
+        return Err(ProjectionAccessError::bad_request(
+            "limit_invalid",
+            format!(
+                "search limit must be between 1 and {PROJECTION_SEARCH_MAX_LIMIT}: {limit}"
+            ),
+        ));
+    }
+    Ok(limit)
+}
+
 fn validate_timeline_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessError> {
     let limit = limit.unwrap_or(PROJECTION_TIMELINE_DEFAULT_LIMIT);
     if limit == 0 || limit > PROJECTION_TIMELINE_MAX_LIMIT {
@@ -903,45 +1182,6 @@ fn validate_list_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessEr
     Ok(limit)
 }
 
-#[derive(Debug)]
-struct ProjectionListWindow<T> {
-    items: Vec<T>,
-    next_cursor: Option<String>,
-    has_more: bool,
-}
-
-fn list_window<T>(
-    items: Vec<T>,
-    limit: usize,
-    cursor: Option<&str>,
-) -> Result<ProjectionListWindow<T>, ProjectionAccessError> {
-    let offset = parse_list_cursor(cursor)?;
-    if offset > items.len() {
-        return Ok(ProjectionListWindow {
-            items: Vec::new(),
-            next_cursor: None,
-            has_more: false,
-        });
-    }
-
-    let mut window = items
-        .into_iter()
-        .skip(offset)
-        .take(limit + 1)
-        .collect::<Vec<_>>();
-    let has_more = window.len() > limit;
-    if has_more {
-        window.truncate(limit);
-    }
-    let next_cursor = has_more.then(|| (offset + window.len()).to_string());
-
-    Ok(ProjectionListWindow {
-        items: window,
-        next_cursor,
-        has_more,
-    })
-}
-
 fn parse_list_cursor(cursor: Option<&str>) -> Result<usize, ProjectionAccessError> {
     let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
         return Ok(0);
@@ -952,4 +1192,253 @@ fn parse_list_cursor(cursor: Option<&str>) -> Result<usize, ProjectionAccessErro
             format!("list cursor is invalid: {cursor}"),
         )
     })
+}
+
+fn parse_contact_list_cursor(
+    cursor: Option<&str>,
+) -> Result<super::model::ContactListCursor, ProjectionAccessError> {
+    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(super::model::ContactListCursor::Start);
+    };
+    if cursor.chars().all(|ch| ch.is_ascii_digit()) {
+        if crate::bootstrap::is_production_like_im_environment() {
+            return Err(ProjectionAccessError::bad_request(
+                "cursor_deprecated",
+                "numeric offset contact cursors are deprecated; use signed keyset cursors from data.pageInfo.nextCursor",
+            ));
+        }
+        return Ok(super::model::ContactListCursor::Offset(parse_list_cursor(Some(
+            cursor,
+        ))?));
+    }
+    let wire: super::model::ContactKeysetCursorWire = if cursor.contains('.') {
+        let payload = crate::cursor_auth::decode_signed_projection_cursor(cursor).map_err(|error| {
+            ProjectionAccessError::bad_request("cursor_invalid", error)
+        })?;
+        serde_json::from_value(payload).map_err(|_| {
+            ProjectionAccessError::bad_request(
+                "cursor_invalid",
+                format!("contact cursor is invalid: {cursor}"),
+            )
+        })?
+    } else {
+        serde_json::from_str(cursor).map_err(|_| {
+            ProjectionAccessError::bad_request(
+                "cursor_invalid",
+                format!("contact cursor is invalid: {cursor}"),
+            )
+        })?
+    };
+    if wire.last_interaction_at.trim().is_empty() || wire.target_user_id.trim().is_empty() {
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "contact cursor must include lastInteractionAt and targetUserId",
+        ));
+    }
+    Ok(super::model::ContactListCursor::Keyset {
+        last_interaction_at: wire.last_interaction_at,
+        target_user_id: wire.target_user_id,
+    })
+}
+
+fn parse_inbox_list_cursor(
+    cursor: Option<&str>,
+) -> Result<super::model::InboxListCursor, ProjectionAccessError> {
+    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(super::model::InboxListCursor::Start);
+    };
+    if cursor.chars().all(|ch| ch.is_ascii_digit()) {
+        if crate::bootstrap::is_production_like_im_environment() {
+            return Err(ProjectionAccessError::bad_request(
+                "cursor_deprecated",
+                "numeric offset inbox cursors are deprecated; use signed keyset cursors from data.pageInfo.nextCursor",
+            ));
+        }
+        return Ok(super::model::InboxListCursor::Offset(parse_list_cursor(Some(cursor))?));
+    }
+    let wire: super::model::InboxKeysetCursorWire = if cursor.contains('.') {
+        let payload = crate::cursor_auth::decode_signed_projection_cursor(cursor).map_err(|error| {
+            ProjectionAccessError::bad_request("cursor_invalid", error)
+        })?;
+        serde_json::from_value(payload).map_err(|_| {
+            ProjectionAccessError::bad_request(
+                "cursor_invalid",
+                format!("inbox cursor is invalid: {cursor}"),
+            )
+        })?
+    } else {
+        serde_json::from_str(cursor).map_err(|_| {
+            ProjectionAccessError::bad_request(
+                "cursor_invalid",
+                format!("inbox cursor is invalid: {cursor}"),
+            )
+        })?
+    };
+    if wire.activity_at.trim().is_empty() || wire.scope.trim().is_empty() {
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "inbox cursor must include activityAt and scope",
+        ));
+    }
+    Ok(super::model::InboxListCursor::Keyset {
+        activity_at: wire.activity_at,
+        scope: wire.scope,
+    })
+}
+
+fn parse_member_directory_list_cursor(
+    cursor: Option<&str>,
+) -> Result<super::model::MemberDirectoryListCursor, ProjectionAccessError> {
+    parse_projection_keyset_cursor(
+        cursor,
+        "member directory",
+        decode_member_directory_keyset_cursor,
+    )
+}
+
+fn decode_member_directory_keyset_cursor(
+    wire: super::model::MemberDirectoryKeysetCursorWire,
+) -> Result<super::model::MemberDirectoryListCursor, ProjectionAccessError> {
+    if wire.joined_at.trim().is_empty() || wire.principal_id.trim().is_empty() {
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "member directory cursor must include joinedAt and principalId",
+        ));
+    }
+    Ok(super::model::MemberDirectoryListCursor::Keyset {
+        role_rank: wire.role_rank,
+        joined_at: wire.joined_at,
+        principal_id: wire.principal_id,
+    })
+}
+
+fn parse_pinned_messages_list_cursor(
+    cursor: Option<&str>,
+) -> Result<super::model::PinnedMessagesListCursor, ProjectionAccessError> {
+    parse_projection_keyset_cursor(
+        cursor,
+        "pinned messages",
+        decode_pinned_messages_keyset_cursor,
+    )
+}
+
+fn decode_pinned_messages_keyset_cursor(
+    wire: super::model::PinnedMessagesKeysetCursorWire,
+) -> Result<super::model::PinnedMessagesListCursor, ProjectionAccessError> {
+    if wire.pinned_at.trim().is_empty() || wire.message_id.trim().is_empty() {
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "pinned messages cursor must include pinnedAt and messageId",
+        ));
+    }
+    Ok(super::model::PinnedMessagesListCursor::Keyset {
+        pinned_at: wire.pinned_at,
+        message_seq: wire.message_seq,
+        message_id: wire.message_id,
+    })
+}
+
+fn parse_favorite_messages_list_cursor(
+    cursor: Option<&str>,
+) -> Result<super::model::FavoriteMessagesListCursor, ProjectionAccessError> {
+    parse_projection_keyset_cursor(
+        cursor,
+        "favorite messages",
+        decode_favorite_messages_keyset_cursor,
+    )
+}
+
+fn decode_favorite_messages_keyset_cursor(
+    wire: super::model::FavoriteMessagesKeysetCursorWire,
+) -> Result<super::model::FavoriteMessagesListCursor, ProjectionAccessError> {
+    if wire.favorited_at.trim().is_empty() || wire.favorite_id.trim().is_empty() {
+        return Err(ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            "favorite messages cursor must include favoritedAt and favoriteId",
+        ));
+    }
+    Ok(super::model::FavoriteMessagesListCursor::Keyset {
+        favorited_at: wire.favorited_at,
+        favorite_id: wire.favorite_id,
+    })
+}
+
+fn parse_projection_keyset_cursor<Wire, Cursor, F>(
+    cursor: Option<&str>,
+    label: &str,
+    decode_keyset: F,
+) -> Result<Cursor, ProjectionAccessError>
+where
+    Wire: serde::de::DeserializeOwned,
+    Cursor: FromStartCursor,
+    F: FnOnce(Wire) -> Result<Cursor, ProjectionAccessError>,
+{
+    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(Cursor::start());
+    };
+    if cursor.chars().all(|ch| ch.is_ascii_digit()) {
+        if crate::bootstrap::is_production_like_im_environment() {
+            return Err(ProjectionAccessError::bad_request(
+                "cursor_deprecated",
+                format!(
+                    "numeric offset {label} cursors are deprecated; use signed keyset cursors from data.pageInfo.nextCursor"
+                ),
+            ));
+        }
+        return Ok(Cursor::offset(parse_list_cursor(Some(cursor))?));
+    }
+    let wire: Wire = if cursor.contains('.') {
+        let payload = crate::cursor_auth::decode_signed_projection_cursor(cursor).map_err(|error| {
+            ProjectionAccessError::bad_request("cursor_invalid", error)
+        })?;
+        serde_json::from_value(payload).map_err(|_| {
+            ProjectionAccessError::bad_request(
+                "cursor_invalid",
+                format!("{label} cursor is invalid: {cursor}"),
+            )
+        })?
+    } else {
+        serde_json::from_str(cursor).map_err(|_| {
+            ProjectionAccessError::bad_request(
+                "cursor_invalid",
+                format!("{label} cursor is invalid: {cursor}"),
+            )
+        })?
+    };
+    decode_keyset(wire)
+}
+
+trait FromStartCursor {
+    fn start() -> Self;
+    fn offset(value: usize) -> Self;
+}
+
+impl FromStartCursor for super::model::MemberDirectoryListCursor {
+    fn start() -> Self {
+        Self::Start
+    }
+
+    fn offset(value: usize) -> Self {
+        Self::Offset(value)
+    }
+}
+
+impl FromStartCursor for super::model::PinnedMessagesListCursor {
+    fn start() -> Self {
+        Self::Start
+    }
+
+    fn offset(value: usize) -> Self {
+        Self::Offset(value)
+    }
+}
+
+impl FromStartCursor for super::model::FavoriteMessagesListCursor {
+    fn start() -> Self {
+        Self::Start
+    }
+
+    fn offset(value: usize) -> Self {
+        Self::Offset(value)
+    }
 }

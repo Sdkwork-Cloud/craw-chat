@@ -3,15 +3,15 @@ use std::sync::Arc;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::WebSocket;
 use axum::extract::{Extension, Query, State};
-use axum::http::header;
 use axum::http::HeaderMap;
+use axum::http::header;
 use axum::response::{IntoResponse, Response};
-use im_app_context::{has_websocket_upgrade_auth_headers, AppContext};
-use serde::Deserialize;
+use im_app_context::{AppContext, has_websocket_upgrade_auth_headers};
 use sdkwork_im_runtime_link::{
     LinkWebsocketMode, LinkWebsocketUpgradeHandoff, prepare_websocket_upgrade,
     supported_websocket_subprotocols,
 };
+use serde::Deserialize;
 use tokio::sync::OwnedSemaphorePermit;
 use tracing::warn;
 
@@ -34,6 +34,36 @@ pub(crate) struct RealtimeWebsocketUpgradeContext {
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
     route_owner: ClientRouteRegistration,
+    frame_rate_limiter: crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter,
+}
+
+pub(crate) fn acquire_preauth_websocket_connection_permit(
+    state: &AppState,
+) -> Result<OwnedSemaphorePermit, ApiError> {
+    state
+        .preauth_websocket_connection_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| ApiError {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "websocket_preauth_overloaded",
+            message: "server is at maximum pre-authentication websocket capacity, please retry later"
+                .to_owned(),
+        })
+}
+
+pub(crate) fn acquire_websocket_connection_permit(
+    state: &AppState,
+) -> Result<OwnedSemaphorePermit, ApiError> {
+    state
+        .websocket_connection_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| ApiError {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "websocket_overloaded",
+            message: "server is at maximum websocket capacity, please retry later".to_owned(),
+        })
 }
 
 pub(crate) async fn realtime_websocket(
@@ -43,17 +73,14 @@ pub(crate) async fn realtime_websocket(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    let permit = state
-        .websocket_connection_semaphore
-        .clone()
-        .try_acquire_owned()
-        .map_err(|_| ApiError {
-            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            code: "websocket_overloaded",
-            message: "server is at maximum websocket capacity, please retry later".to_owned(),
-        })?;
+    let client_ip =
+        crate::websocket_upgrade_rate_limit::extract_client_ip_from_headers(&headers);
+    state
+        .websocket_upgrade_rate_limiter
+        .check_upgrade(client_ip)?;
 
     if auth.is_none() && !has_websocket_upgrade_auth_headers(&headers) {
+        let preauth_permit = acquire_preauth_websocket_connection_permit(&state)?;
         let requested_protocol = requested_websocket_subprotocol(&headers).map(str::to_owned);
         let state = state.clone();
         return Ok(ws
@@ -66,11 +93,13 @@ pub(crate) async fn realtime_websocket(
                     state,
                     requested_protocol,
                     query.device_id,
-                    permit,
+                    preauth_permit,
                 )
             })
             .into_response());
     }
+
+    let permit = acquire_websocket_connection_permit(&state)?;
 
     let context =
         websocket_route::prepare_realtime_websocket_route(auth, &headers, &state, query.device_id)
@@ -83,20 +112,18 @@ pub(crate) async fn realtime_websocket(
         context.device_id,
         context.runtime,
         context.route_owner,
+        state.websocket_frame_rate_limiter.clone(),
         permit,
     ))
 }
 
 fn requested_websocket_subprotocol(headers: &HeaderMap) -> Option<&str> {
     let header_value = headers.get(header::SEC_WEBSOCKET_PROTOCOL)?.to_str().ok()?;
-    header_value
-        .split(',')
-        .map(str::trim)
-        .find(|candidate| {
-            realtime_websocket_subprotocols()
-                .iter()
-                .any(|supported| supported == candidate)
-        })
+    header_value.split(',').map(str::trim).find(|candidate| {
+        realtime_websocket_subprotocols()
+            .iter()
+            .any(|supported| supported == candidate)
+    })
 }
 
 pub(crate) fn upgrade_realtime_websocket(
@@ -106,6 +133,7 @@ pub(crate) fn upgrade_realtime_websocket(
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
     route_owner: ClientRouteRegistration,
+    frame_rate_limiter: crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter,
     semaphore_permit: OwnedSemaphorePermit,
 ) -> Response {
     let mode = sdkwork_im_runtime_link::select_websocket_mode(requested_protocol);
@@ -127,6 +155,7 @@ pub(crate) fn upgrade_realtime_websocket(
         device_id,
         runtime,
         route_owner,
+        frame_rate_limiter,
     );
     ws.on_upgrade(move |socket| {
         upgrade.execute(socket, move |socket, context, mode| {
@@ -162,6 +191,7 @@ pub(crate) fn prepare_realtime_websocket_upgrade(
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
     route_owner: ClientRouteRegistration,
+    frame_rate_limiter: crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter,
 ) -> LinkWebsocketUpgradeHandoff<RealtimeWebsocketUpgradeContext> {
     prepare_websocket_upgrade(
         selected_protocol,
@@ -170,6 +200,7 @@ pub(crate) fn prepare_realtime_websocket_upgrade(
             device_id,
             runtime,
             route_owner,
+            frame_rate_limiter,
         },
     )
 }
@@ -185,6 +216,7 @@ pub(crate) async fn serve_realtime_websocket_upgrade(
         device_id,
         runtime,
         route_owner,
+        frame_rate_limiter,
     } = context;
     if mode == LinkWebsocketMode::LegacyJson {
         warn!(
@@ -197,6 +229,7 @@ pub(crate) async fn serve_realtime_websocket_upgrade(
     }
     let cleanup_auth = auth.clone();
     let cleanup_device_id = device_id.clone();
+    let cleanup_runtime = runtime.clone();
     serve_realtime_websocket(
         socket,
         auth,
@@ -204,10 +237,14 @@ pub(crate) async fn serve_realtime_websocket_upgrade(
         runtime,
         route_owner.clone(),
         map_runtime_link_websocket_mode(mode),
+        frame_rate_limiter,
     )
     .await;
-    route_owner
-        .release_active_client_route_if_current_session(&cleanup_auth, cleanup_device_id.as_str());
+    route_owner.finalize_active_client_route_disconnect(
+        &cleanup_auth,
+        cleanup_device_id.as_str(),
+        cleanup_runtime.as_ref(),
+    );
 }
 
 #[cfg(test)]
@@ -272,6 +309,7 @@ mod tests {
                 runtime,
                 crate::client_route_state::ClientRouteState::default(),
             ),
+            crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter::from_env(),
         );
 
         assert_eq!(handoff.mode(), LinkWebsocketMode::CcpJson);

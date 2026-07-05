@@ -96,6 +96,8 @@ pub(super) enum ProjectionSnapshotOperation {
     ConversationSnapshotRestore,
     ClientRouteSyncSnapshotPersist,
     ClientRouteSyncSnapshotRestore,
+    PersonalizationSnapshotPersist,
+    PersonalizationSnapshotRestore,
 }
 
 #[derive(Default)]
@@ -366,6 +368,8 @@ impl ProjectionSnapshotOperation {
             Self::ConversationSnapshotRestore => "conversation_snapshot.restore",
             Self::ClientRouteSyncSnapshotPersist => "client_route_sync_snapshot.persist",
             Self::ClientRouteSyncSnapshotRestore => "client_route_sync_snapshot.restore",
+            Self::PersonalizationSnapshotPersist => "personalization_snapshot.persist",
+            Self::PersonalizationSnapshotRestore => "personalization_snapshot.restore",
         }
     }
 
@@ -375,6 +379,8 @@ impl ProjectionSnapshotOperation {
             Self::ConversationSnapshotRestore => "projection_snapshot_restore_succeeded",
             Self::ClientRouteSyncSnapshotPersist => "client_route_sync_snapshot_persist_succeeded",
             Self::ClientRouteSyncSnapshotRestore => "client_route_sync_snapshot_restore_succeeded",
+            Self::PersonalizationSnapshotPersist => "personalization_snapshot_persist_succeeded",
+            Self::PersonalizationSnapshotRestore => "personalization_snapshot_restore_succeeded",
         }
     }
 
@@ -384,6 +390,8 @@ impl ProjectionSnapshotOperation {
             Self::ConversationSnapshotRestore => "projection_snapshot_restore_failed",
             Self::ClientRouteSyncSnapshotPersist => "client_route_sync_snapshot_persist_failed",
             Self::ClientRouteSyncSnapshotRestore => "client_route_sync_snapshot_restore_failed",
+            Self::PersonalizationSnapshotPersist => "personalization_snapshot_persist_failed",
+            Self::PersonalizationSnapshotRestore => "personalization_snapshot_restore_failed",
         }
     }
 
@@ -396,6 +404,8 @@ impl ProjectionSnapshotOperation {
             Self::ConversationSnapshotRestore => &mut metrics.conversation_snapshot_restore,
             Self::ClientRouteSyncSnapshotPersist => &mut metrics.client_route_sync_snapshot_persist,
             Self::ClientRouteSyncSnapshotRestore => &mut metrics.client_route_sync_snapshot_restore,
+            Self::PersonalizationSnapshotPersist => &mut metrics.conversation_snapshot_persist,
+            Self::PersonalizationSnapshotRestore => &mut metrics.conversation_snapshot_restore,
         }
     }
 }

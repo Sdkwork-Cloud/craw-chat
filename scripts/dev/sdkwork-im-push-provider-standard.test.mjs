@@ -41,8 +41,13 @@ assert.match(
 );
 assert.match(
   apnsSource,
-  /status:\s*"degraded"/u,
-  'APNs adapter must report degraded health until HTTP/2 transport ships',
+  /http2_jwt/u,
+  'APNs adapter must report HTTP/2 JWT transport in provider health',
+);
+assert.match(
+  apnsSource,
+  /make_request/u,
+  'APNs adapter must implement HTTP/2 delivery transport',
 );
 
 console.log('sdkwork-im push provider standard contract passed');

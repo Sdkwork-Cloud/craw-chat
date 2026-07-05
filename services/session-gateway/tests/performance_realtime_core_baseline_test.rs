@@ -213,8 +213,8 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
     for device_id in ["d_primary", "d_mobile", "d_tablet"] {
         expect_ok(runtime.sync_subscriptions_for_principal_kind(
             TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
+            "default",
+            PRINCIPAL_ID,
             PRINCIPAL_KIND,
             device_id,
             subscription(CONVERSATION_ID),
@@ -262,7 +262,13 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
         .into_iter()
         .map(|device_id| {
             checkpoint_store
-                .checkpoint(TENANT_ID, "default", PRINCIPAL_KIND, PRINCIPAL_ID, device_id)
+                .checkpoint(
+                    TENANT_ID,
+                    "default",
+                    PRINCIPAL_KIND,
+                    PRINCIPAL_ID,
+                    device_id,
+                )
                 .expect("trimmed checkpoint should persist")
                 .capacity_trimmed_event_count
         })
@@ -275,8 +281,8 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
     for device_id in ["d_primary", "d_mobile", "d_tablet"] {
         let window = expect_ok(runtime.list_events_for_principal_kind(
             TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
+            "default",
+            PRINCIPAL_ID,
             PRINCIPAL_KIND,
             device_id,
             0,
@@ -299,8 +305,8 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
         let started = Instant::now();
         let ack = expect_ok(runtime.ack_events_for_principal_kind(
             TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
+            "default",
+            PRINCIPAL_ID,
             PRINCIPAL_KIND,
             device_id,
             ack_seq,
@@ -345,7 +351,14 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
     failing_checkpoint_store.fail_saves();
     let compensation_started = Instant::now();
     let error = failure_runtime
-        .ack_events_for_principal_kind(TENANT_ID, "default", PRINCIPAL_ID, PRINCIPAL_KIND, "d_mobile", 900)
+        .ack_events_for_principal_kind(
+            TENANT_ID,
+            "default",
+            PRINCIPAL_ID,
+            PRINCIPAL_KIND,
+            "d_mobile",
+            900,
+        )
         .expect_err("failed checkpoint persistence should reject ack");
     let compensation_rollback_ms = compensation_started.elapsed().as_secs_f64() * 1000.0;
     assert_eq!(error.code, "checkpoint_store_unavailable");
@@ -469,8 +482,8 @@ fn run_cluster_handoff_drill_ms() -> f64 {
         assert_eq!(
             expect_ok(runtime_a.publish_scope_event_for_principal_kind(
                 TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
+                "default",
+                PRINCIPAL_ID,
                 PRINCIPAL_KIND,
                 "conversation",
                 CONVERSATION_ID,
@@ -556,8 +569,13 @@ impl RealtimeCheckpointStore for ToggleRealtimeCheckpointStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
-        self.seed
-            .load_checkpoint(tenant_id, "default", principal_kind, principal_id, device_id)
+        self.seed.load_checkpoint(
+            tenant_id,
+            "default",
+            principal_kind,
+            principal_id,
+            device_id,
+        )
     }
 
     fn save_checkpoints(

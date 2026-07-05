@@ -3,10 +3,12 @@ import type { OrderAppSdkClient } from '@sdkwork/im-pc-core/sdk/orderAppSdkClien
 import {
   extractAppSdkPayload,
   extractAppSdkRecordsFromResult,
+  mapAppSdkCursorPage,
   parseMoneyAmount,
   readNumber,
   readOptionalString,
   readString,
+  SDKWORK_DEFAULT_PAGE_SIZE,
 } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
 import { getCatalogAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/catalogAppSdkClient';
 import { getOrderAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/orderAppSdkClient';
@@ -73,8 +75,15 @@ export interface ShopShippingAddress {
   isDefault: boolean;
 }
 
+export interface ShopProductListPage {
+  items: ShopProduct[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
 export interface ShopService {
   getCategories(): Promise<ShopCategory[]>;
+  listProductsPage(categoryId?: string, options?: { cursor?: string; pageSize?: number }): Promise<ShopProductListPage>;
   getProducts(categoryId?: string): Promise<ShopProduct[]>;
   getProductById(id: string): Promise<ShopProduct | null>;
   getCart(): Promise<CartItem[]>;
@@ -209,17 +218,33 @@ class SdkworkShopService implements ShopService {
   }
 
   async getCategories(): Promise<ShopCategory[]> {
-    const result = await this.catalogClient().catalog.categories.list({ pageSize: 100 });
-    return extractAppSdkRecordsFromResult(result).map(mapCategory);
+    const result = await this.catalogClient().catalog.categories.list({
+      pageSize: SDKWORK_DEFAULT_PAGE_SIZE,
+    });
+    return mapAppSdkCursorPage(result, mapCategory).items;
+  }
+
+  async listProductsPage(
+    categoryId?: string,
+    options?: { cursor?: string; pageSize?: number },
+  ): Promise<ShopProductListPage> {
+    const result = await this.catalogClient().catalog.products.list({
+      categoryId,
+      pageSize: options?.pageSize ?? SDKWORK_DEFAULT_PAGE_SIZE,
+      status: 'active',
+      ...(options?.cursor ? { cursor: options.cursor } : {}),
+    });
+    const page = mapAppSdkCursorPage(result, mapSpuToProduct);
+    return {
+      items: page.items,
+      hasMore: page.hasMore === true,
+      nextCursor: page.nextCursor ?? undefined,
+    };
   }
 
   async getProducts(categoryId?: string): Promise<ShopProduct[]> {
-    const result = await this.catalogClient().catalog.products.list({
-      categoryId,
-      pageSize: 100,
-      status: 'active',
-    });
-    return extractAppSdkRecordsFromResult(result).map(mapSpuToProduct);
+    const page = await this.listProductsPage(categoryId);
+    return page.items;
   }
 
   async getProductById(id: string): Promise<ShopProduct | null> {
@@ -377,12 +402,14 @@ class SdkworkShopService implements ShopService {
   }
 
   async getOrders(): Promise<ShopOrder[]> {
-    const result = await this.orderClient().orders.list({ pageSize: 100 });
-    return extractAppSdkRecordsFromResult(result).map(mapConsumerOrder);
+    const result = await this.orderClient().orders.list({
+      pageSize: SDKWORK_DEFAULT_PAGE_SIZE,
+    });
+    return mapAppSdkCursorPage(result, mapConsumerOrder).items;
   }
 
   async getShippingAddresses(): Promise<ShopShippingAddress[]> {
-    return [];
+    throw new Error(PC_SHOP_SHIPPING_ADDRESS_UNAVAILABLE);
   }
 
   async saveShippingAddress(
@@ -395,8 +422,12 @@ class SdkworkShopService implements ShopService {
     throw new Error(PC_SHOP_SHIPPING_ADDRESS_UNAVAILABLE);
   }
 
-  async initiatePayment(_orderId: string, _method: string): Promise<void> {
-    throw new Error(PC_SHOP_PAYMENT_CONTRACT_UNAVAILABLE);
+  async initiatePayment(orderId: string, _method: string): Promise<void> {
+    const normalizedId = orderId.trim();
+    if (!normalizedId) {
+      throw new Error('Order id is required.');
+    }
+    await this.orderClient().orders.pay(normalizedId, {});
   }
 }
 

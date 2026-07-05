@@ -2,7 +2,7 @@
 
 本文用于在 Ubuntu 或 WSL Ubuntu 中为 SDKWork Chat 准备本地 PostgreSQL。当前应用 app code 为 `chat`，开发数据库使用 `sdkwork_ai_dev`，生产示例使用 `sdkwork`。
 
-desktop 开发编排默认使用 PostgreSQL：`pnpm dev:desktop 默认使用 PostgreSQL`。安装后的 desktop runtime 本地数据默认保留 SQLite，文件位于 `~/.sdkwork/chat/data/chat.sqlite`。本文的 PostgreSQL profile 用于 `pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop`、server 集成测试和数据库迁移验证。
+desktop 开发编排默认使用 PostgreSQL：`pnpm dev:desktop 默认使用 PostgreSQL`。安装后的 desktop runtime 本地数据使用浏览器本地存储(IndexedDB / localStorage),不使用 SQL 数据库文件。本文的 PostgreSQL profile 用于 `pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop`、server 集成测试和数据库迁移验证。
 
 ## 1. 安装 PostgreSQL
 
@@ -165,8 +165,6 @@ database/ddl/baseline/postgres/0001_im_baseline.sql
 pnpm dev
 pnpm dev:browser
 pnpm dev:desktop
-pnpm dev:browser:sqlite
-pnpm dev:desktop:sqlite
 ```
 
 显式 PostgreSQL desktop 诊断：
@@ -251,4 +249,4 @@ schema:
 - 密码不要提交 Git。
 - 线上环境使用 `/etc/sdkwork/chat/database.secret` 或平台密钥管理系统。
 - Server 与 container 默认 PostgreSQL。
-- Desktop 默认 SQLite，除非用户显式配置外部数据库。
+- Desktop 默认使用浏览器本地存储(IndexedDB / localStorage),除非用户显式配置外部 PostgreSQL 数据库。

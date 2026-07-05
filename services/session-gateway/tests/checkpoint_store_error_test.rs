@@ -85,7 +85,7 @@ async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(value["code"], "checkpoint_store_unavailable");
+    assert_eq!(value["code"], 50301);
     assert!(
         cluster
             .resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_pad")
@@ -136,7 +136,7 @@ async fn test_realtime_ack_returns_503_when_checkpoint_store_save_fails() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
-    assert_eq!(value["code"], "checkpoint_store_unavailable");
+    assert_eq!(value["code"], 50301);
     assert!(
         cluster
             .resolve_client_route_for_principal_kind("100001", "default", "1", "user", "d_pad")
@@ -160,7 +160,10 @@ async fn test_realtime_ack_preserves_existing_route_when_checkpoint_store_save_f
     let app = session_gateway::build_app_with_cluster_and_runtime(cluster.clone(), runtime);
 
     cluster
-        .bind_client_route_for_principal_kind(            "100001",            "default",            "1",
+        .bind_client_route_for_principal_kind(
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             "session_gateway_local_1",

@@ -13,6 +13,7 @@ import {
   COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS,
 } from '../dev/commerce-t1-capabilities.mjs';
 import { ensurePostgresDevDatabaseReady } from '../dev/ensure-postgres-dev-database.mjs';
+import { terminateStaleDevGatewayProcesses } from '../dev/terminate-stale-dev-gateway-processes.mjs';
 import { resolvePostgresDevProfile } from '../dev/sdkwork-im-postgres-dev-profile.mjs';
 import { mergeSdkworkImBootstrapAccessTokenEnv } from '../dev/sdkwork-im-bootstrap-access-token.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from '../dev/sdkwork-im-shared-database.mjs';
@@ -356,16 +357,11 @@ export function createStandaloneGatewayProcess({
 
   return {
     args: [
-      'run',
-      '-p',
-      'sdkwork-im-standalone-gateway',
-      '--bin',
-      'sdkwork-im-standalone-gateway',
-      '--',
+      path.join(resolvedRepoRoot, 'scripts/dev/run-standalone-gateway-dev.mjs'),
       '--config',
       configPath,
     ],
-    command: cargoCommand(),
+    command: process.execPath,
     cwd: resolvedRepoRoot,
     env: gatewayEnv,
     label: 'sdkwork-im-standalone-gateway',
@@ -949,12 +945,21 @@ export async function runSdkworkChatPcDev({
     repoRoot: resolvedRepoRoot,
   });
   const serverBindGateway = serverPortPlan.processes[0];
-  const resolvedServerBind = serverBindGateway?.label === 'sdkwork-im-server'
-    || serverBindGateway?.label === 'sdkwork-im-standalone-gateway'
+  const shouldResolveServerBind = serverBindGateway?.label === 'sdkwork-im-server'
+    || serverBindGateway?.label === 'sdkwork-im-standalone-gateway';
+  if (shouldResolveServerBind) {
+    terminateStaleDevGatewayProcesses({ stdout });
+  }
+  const resolvedServerBind = shouldResolveServerBind
     ? await resolveServerBindEnv({
       env: serverBindGateway.env,
     })
     : { env: {} };
+  if (resolvedServerBind.portChanged) {
+    stdout.write(
+      `[sdkwork-im-pc-dev] 127.0.0.1:18079 is busy; using http://${resolvedServerBind.bindAddr}\n`,
+    );
+  }
   const plan = createSdkworkChatPcDevPlan({
     argv,
     devServerHost: initialPlan.devServer.host,
