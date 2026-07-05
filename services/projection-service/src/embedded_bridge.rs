@@ -1,13 +1,28 @@
+use std::sync::Arc;
+
 use im_domain_events::CommitEnvelope;
 
-use crate::http::default_projection_service;
+use crate::bootstrap::{shared_projection_runtime, try_init_embedded_projection_runtime};
+use crate::TimelineProjectionService;
+
+/// Resolve the embedded projection service without panicking when Postgres is unavailable.
+///
+/// Unified-process journal append paths call this helper; HTTP handlers continue to use
+/// [`crate::bootstrap::shared_projection_runtime`] which fail-closes in production.
+pub fn resolve_embedded_projection_service() -> Option<Arc<TimelineProjectionService>> {
+    let _ = try_init_embedded_projection_runtime()?;
+    Some(shared_projection_runtime().service())
+}
 
 /// Apply a committed domain event to the embedded projection runtime.
 ///
 /// Unified-process hosts call this immediately after journal append so
 /// projection read models stay consistent without waiting for replay polling.
 pub fn try_apply_commit_envelope(envelope: &CommitEnvelope) {
-    match default_projection_service().apply(envelope) {
+    let Some(service) = resolve_embedded_projection_service() else {
+        return;
+    };
+    match service.apply(envelope) {
         Ok(()) => {}
         Err(error) => {
             tracing::warn!(
@@ -19,4 +34,39 @@ pub fn try_apply_commit_envelope(envelope: &CommitEnvelope) {
             );
         }
     }
+}
+
+/// Structured result variant for callers that need explicit apply status.
+pub fn apply_embedded_projection_event(envelope: &CommitEnvelope) -> Result<(), String> {
+    let Some(service) = resolve_embedded_projection_service() else {
+        return Ok(());
+    };
+    service
+        .apply(envelope)
+        .map_err(|error| format!("embedded projection apply failed: {error}"))
+}
+
+/// Acknowledge client-route sync feed progress for embedded/unified hosts.
+///
+/// Session-gateway realtime ack remains authoritative for push delivery; this
+/// checkpoint drives projection-side delivery receipts on `MessageInteractionSummaryView`.
+pub fn try_ack_client_route_sync_feed_for_principal(
+    tenant_id: &str,
+    organization_id: &str,
+    principal_id: &str,
+    principal_kind: &str,
+    device_id: &str,
+    acked_through_sync_seq: u64,
+) -> Option<crate::ClientRouteSyncAckStateView> {
+    let Some(service) = resolve_embedded_projection_service() else {
+        return None;
+    };
+    Some(service.ack_client_route_sync_feed_for_principal_kind(
+        tenant_id,
+        organization_id,
+        principal_id,
+        principal_kind,
+        device_id,
+        acked_through_sync_seq,
+    ))
 }

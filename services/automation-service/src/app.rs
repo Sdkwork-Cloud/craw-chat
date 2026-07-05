@@ -22,7 +22,7 @@ use crate::runtime::AutomationRuntime;
 use crate::state::{AppState, PublicAppGuardrails};
 
 pub fn build_default_app() -> Router {
-    build_app(Arc::new(AutomationRuntime::default()))
+    build_app(crate::bootstrap::default_automation_runtime())
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
@@ -70,9 +70,7 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 
 pub fn build_public_app() -> Router {
     mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(Arc::new(
-            AutomationRuntime::default(),
-        ))),
+        apply_public_http_guardrails(build_business_router(crate::bootstrap::default_automation_runtime())),
         im_service_router_config(),
     )
 }

@@ -117,6 +117,7 @@
       "count": "{{count}} contacts",
       "addContact": "Add contact",
       "loading": "Loading...",
+      "loadingMore": "Loading more contacts...",
       "groupLabel": "All contacts",
       "scrollTop": "Top",
       "toast": {
@@ -414,6 +415,8 @@
       "time": {
         "yesterday": "Yesterday"
       },
+      "loadMore": "Load more conversations",
+      "loadingMore": "Loading more conversations...",
       "item": {
         "openConversation": "Open conversation with {{name}}",
         "muted": "Notifications muted",
@@ -620,6 +623,7 @@
       },
       "toast": {
         "localVideoBindFailed": "Failed to bind local video preview",
+        "remoteVideoBindFailed": "Failed to bind remote video",
         "acceptFailed": "Failed to accept call",
         "muteFailed": "Failed to update mute setting",
         "videoFailed": "Failed to update video setting",
@@ -784,7 +788,8 @@
         "inviting": "Inviting...",
         "sendGroupInvite": "Send group invite message",
         "save": "Save",
-        "publish": "Publish notice"
+        "publish": "Publish notice",
+        "loadMoreContacts": "Load more contacts"
       },
       "label": {
         "nonContactInvite": "Invite a non-contact user"

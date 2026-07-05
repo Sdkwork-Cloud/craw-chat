@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Loader2, Search, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
@@ -31,7 +31,10 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [contacts, setContacts] = useState<User[]>([]);
+  const [contactsCursor, setContactsCursor] = useState<string | undefined>();
+  const [hasMoreContacts, setHasMoreContacts] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMoreContacts, setIsLoadingMoreContacts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearchingNonContacts, setIsSearchingNonContacts] = useState(false);
   const [isInvitingNonContact, setIsInvitingNonContact] = useState(false);
@@ -45,6 +48,9 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setContacts([]);
+      setContactsCursor(undefined);
+      setHasMoreContacts(false);
+      setIsLoadingMoreContacts(false);
       setActiveTab('contacts');
       setSearchQuery('');
       setNonContactSearchQuery('');
@@ -62,16 +68,37 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
     }
 
     setIsLoading(true);
-    contactService.getContacts()
-      .then((items) => {
-        setContacts(items);
+    contactService.listContactsPage()
+      .then((page) => {
+        setContacts(page.items);
+        setContactsCursor(page.nextCursor);
+        setHasMoreContacts(page.hasMore);
       })
       .catch(() => {
         setContacts([]);
+        setContactsCursor(undefined);
+        setHasMoreContacts(false);
         toast(t('chat.modal.toast.contactsLoadFailed'), 'error');
       })
       .finally(() => setIsLoading(false));
   }, [activeTab, isOpen, t]);
+
+  const loadMoreContacts = useCallback(() => {
+    if (!hasMoreContacts || isLoadingMoreContacts) {
+      return;
+    }
+    setIsLoadingMoreContacts(true);
+    void contactService.listContactsPage({ cursor: contactsCursor })
+      .then((page) => {
+        setContacts((previousContacts) => [...previousContacts, ...page.items]);
+        setContactsCursor(page.nextCursor);
+        setHasMoreContacts(page.hasMore);
+      })
+      .catch(() => {
+        toast(t('chat.modal.toast.contactsLoadFailed'), 'error');
+      })
+      .finally(() => setIsLoadingMoreContacts(false));
+  }, [contactsCursor, hasMoreContacts, isLoadingMoreContacts, t]);
 
   const existingMemberIds = useMemo(() => {
     if (!chat) {
@@ -181,7 +208,10 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
       disabledContactIds={disabledContactIds}
       disabledReason={t('chat.modal.selection.alreadyInGroup')}
       emptyText={t('chat.modal.state.noContactsToInvite')}
+      hasMoreContacts={hasMoreContacts}
       isLoading={isLoading}
+      isLoadingMoreContacts={isLoadingMoreContacts}
+      onLoadMoreContacts={loadMoreContacts}
       searchPlaceholder={t('chat.modal.placeholder.memberSearch')}
       searchQuery={searchQuery}
       onSearchQueryChange={setSearchQuery}

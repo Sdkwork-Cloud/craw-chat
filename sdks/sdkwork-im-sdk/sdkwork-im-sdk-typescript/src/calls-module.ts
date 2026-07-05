@@ -25,6 +25,13 @@ export interface ImCallStartOptions {
 
 export interface ImCallInviteOptions {
   signalingStreamId?: string;
+  participantIds?: string[];
+}
+
+export interface ImCallListSignalsOptions {
+  afterSignalSeq?: number;
+  pageSize?: number;
+  cursor?: string;
 }
 
 export interface ImCallUpdateOptions {
@@ -46,6 +53,7 @@ export interface ImCallWatchIncomingOptions {
   connection?: ImLiveConnection;
   conversationIds?: string[];
   deviceId?: string;
+  principalId?: string;
 }
 
 interface ImCallsModuleOptions {
@@ -77,6 +85,36 @@ function pickString(...values: unknown[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function parseUserScopeRtcSession(
+  envelope: Record<string, unknown>,
+  cachedSession?: RtcSession,
+): RtcSession | null {
+  const inner = isRecord(envelope.payload) ? envelope.payload : envelope;
+  const rtcSessionId = pickString(inner.rtc_session_id, inner.rtcSessionId, cachedSession?.rtcSessionId);
+  const conversationId = pickString(inner.conversation_id, inner.conversationId, cachedSession?.conversationId);
+  const rtcMode = pickString(inner.rtc_mode, inner.rtcMode, cachedSession?.rtcMode);
+  const tenantId = pickString(inner.tenant_id, inner.tenantId, cachedSession?.tenantId) ?? '';
+  const state = pickString(inner.state, cachedSession?.state) ?? 'started';
+  if (!rtcSessionId || !rtcMode) {
+    return null;
+  }
+  return {
+    tenantId,
+    rtcSessionId,
+    conversationId: conversationId ?? null,
+    rtcMode,
+    initiatorId: pickString(inner.initiator_id, inner.initiatorId, cachedSession?.initiatorId) ?? '',
+    initiatorKind: pickString(inner.initiator_kind, inner.initiatorKind, cachedSession?.initiatorKind) ?? 'user',
+    state,
+    signalingStreamId: pickString(inner.signaling_stream_id, inner.signalingStreamId, cachedSession?.signalingStreamId) ?? null,
+    artifactMessageId: cachedSession?.artifactMessageId ?? null,
+    startedAt: pickString(inner.started_at, inner.startedAt, cachedSession?.startedAt) ?? '',
+    ...(pickString(inner.ended_at, inner.endedAt, cachedSession?.endedAt)
+      ? { endedAt: pickString(inner.ended_at, inner.endedAt, cachedSession?.endedAt) }
+      : {}),
+  };
 }
 
 function normalizeConversationIds(values: string[] | undefined): string[] {
@@ -276,6 +314,13 @@ export class ImCallsModule {
     }));
   }
 
+  listSignals(
+    rtcSessionId: string | number,
+    options: ImCallListSignalsOptions = {},
+  ): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: string; hasMore?: boolean; nextCursor?: string | null } }> {
+    return this.transportClient.calls.sessions.signals.list(String(rtcSessionId), options);
+  }
+
   accept(
     rtcSessionId: string | number,
     options: ImCallUpdateOptions = {},
@@ -328,9 +373,18 @@ export class ImCallsModule {
     const watchOptions = Array.isArray(options) ? { conversationIds: options } : options;
     const conversationIds = normalizeConversationIds(watchOptions.conversationIds);
     if (watchOptions.connection) {
-      this.bindIncomingConnection(watchOptions.connection, conversationIds, false);
-    } else if (this.connect && conversationIds.length > 0) {
-      await this.ensureIncomingWatchConnection(conversationIds, watchOptions.deviceId);
+      this.bindIncomingConnection(
+        watchOptions.connection,
+        conversationIds,
+        false,
+        watchOptions.principalId,
+      );
+    } else if (this.connect && (conversationIds.length > 0 || watchOptions.principalId)) {
+      await this.ensureIncomingWatchConnection(
+        conversationIds,
+        watchOptions.deviceId,
+        watchOptions.principalId,
+      );
     } else if (conversationIds.length > 0) {
       this.pruneIncomingSessions(conversationIds);
     }
@@ -347,8 +401,9 @@ export class ImCallsModule {
   private async ensureIncomingWatchConnection(
     conversationIds: string[],
     deviceId: string | undefined,
+    principalId: string | undefined,
   ): Promise<void> {
-    const conversationIdsKey = conversationIds.join('\n');
+    const conversationIdsKey = [conversationIds.join('\n'), principalId ?? ''].join('|');
     if (this.watchConnection && this.watchConversationIdsKey === conversationIdsKey) {
       return;
     }
@@ -357,6 +412,7 @@ export class ImCallsModule {
       ...(deviceId ? { deviceId } : {}),
       subscriptions: {
         conversations: conversationIds,
+        ...(principalId ? { scopes: [{ scopeType: 'user', scopeId: principalId }] } : {}),
       },
     });
     if (!connection) {
@@ -364,13 +420,14 @@ export class ImCallsModule {
     }
     this.watchConnection = connection;
     this.watchConversationIdsKey = conversationIdsKey;
-    this.bindIncomingConnection(connection, conversationIds, true);
+    this.bindIncomingConnection(connection, conversationIds, true, principalId);
   }
 
   private bindIncomingConnection(
     connection: ImLiveConnection,
     conversationIds: string[],
     closeWithModule: boolean,
+    principalId?: string,
   ): void {
     this.watchUnsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.pruneIncomingSessions(conversationIds);
@@ -379,6 +436,15 @@ export class ImCallsModule {
         connection.events.onConversation(conversationId, (_event, context) => {
           if (context.payload) {
             this.consumeRealtimePayload(context.payload, context);
+          }
+        }),
+      );
+    }
+    if (principalId) {
+      this.watchUnsubscribers.push(
+        connection.events.onScope('user', principalId, (_event, context) => {
+          if (context.payload) {
+            this.consumeUserScopeRtcEnvelope(context.payload);
           }
         }),
       );
@@ -394,6 +460,29 @@ export class ImCallsModule {
     this.watchUnsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.watchConnection = undefined;
     this.watchConversationIdsKey = '';
+  }
+
+  private consumeUserScopeRtcEnvelope(messagePayload: Record<string, unknown>): void {
+    const eventType = pickString(messagePayload.eventType);
+    if (!eventType?.startsWith('rtc.session.')) {
+      return;
+    }
+    const inner = isRecord(messagePayload.payload) ? messagePayload.payload : messagePayload;
+    const rtcSessionId = pickString(inner.rtc_session_id, inner.rtcSessionId);
+    const cachedSession = rtcSessionId ? this.incomingSessions.get(rtcSessionId) : undefined;
+    const session = parseUserScopeRtcSession(messagePayload, cachedSession);
+    if (!session) {
+      return;
+    }
+    if (eventType === 'rtc.session.ended' || eventType === 'rtc.session.rejected') {
+      this.emitIncoming(session);
+      this.incomingSessions.delete(session.rtcSessionId);
+      return;
+    }
+    if (eventType === 'rtc.session.invited' || eventType === 'rtc.session.created') {
+      this.incomingSessions.set(session.rtcSessionId, session);
+      this.emitIncoming(session);
+    }
   }
 
   private consumeRealtimePayload(

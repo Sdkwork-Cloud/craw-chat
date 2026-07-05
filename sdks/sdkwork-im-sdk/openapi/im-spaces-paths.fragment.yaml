@@ -27,13 +27,24 @@
     tags: [spaces]
     operationId: spaces.list
     summary: List spaces
+    parameters:
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -102,13 +113,23 @@
     operationId: spaces.members.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceMemberListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceMemberView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -200,13 +221,23 @@
     operationId: spaces.groups.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceGroupView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -299,13 +330,23 @@
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/GroupIdPath'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceGroupMemberListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceGroupMemberView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -397,13 +438,23 @@
     operationId: spaces.channels.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceChannelListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceChannelView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -496,13 +547,23 @@
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/ChannelIdPath'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceChannelAccessRuleListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceChannelAccessRuleView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -554,13 +615,24 @@
     operationId: spaces.invites.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/StatusQuery'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceInviteListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceInviteView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -643,13 +715,23 @@
     operationId: spaces.bans.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
+      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
         description: OK
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SpaceBanListResponse'
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SpaceBanView'
     security:
       - AuthToken: []
         AccessToken: []

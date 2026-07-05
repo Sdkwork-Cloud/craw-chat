@@ -10,7 +10,7 @@ use axum::Router;
 use im_platform_contracts::{ProviderRegistry, RuntimeProviderRegistry};
 use ops_service::OpsRuntime;
 use sdkwork_im_ccp_registry::CcpRegistry;
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes, wrap_im_service_router};
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_web_core::WebRequestContext;
 use session_gateway::RealtimeClusterBridge;
@@ -202,7 +202,10 @@ fn build_business_router_with_cluster(realtime_cluster: Arc<RealtimeClusterBridg
 }
 
 fn build_app_with_state(state: AppState) -> Router {
-    mount_im_infra_routes(build_business_router_with_state(state), im_service_router_config())
+    wrap_im_service_router(mount_im_infra_routes(
+        build_business_router_with_state(state),
+        im_service_router_config(),
+    ))
 }
 
 fn build_control_surface_with_state(state: AppState) -> Router {

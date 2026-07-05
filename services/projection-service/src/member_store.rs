@@ -1,17 +1,41 @@
 use std::collections::{BTreeSet, HashMap};
+use std::cmp::Ordering;
 
 use im_domain_core::conversation::{ConversationMember, principal_member_key};
+
+#[derive(Clone, Eq, PartialEq)]
+struct InboxActivityEntry {
+    activity_at: String,
+    scope: String,
+}
+
+impl Ord for InboxActivityEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other
+            .activity_at
+            .cmp(&self.activity_at)
+            .then_with(|| self.scope.cmp(&other.scope))
+    }
+}
+
+impl PartialOrd for InboxActivityEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 #[derive(Default)]
 pub(crate) struct ProjectionMemberRuntimeStore {
     by_conversation: HashMap<String, HashMap<String, ConversationMember>>,
     conversation_members_by_typed_principal: HashMap<String, BTreeSet<String>>,
+    inbox_activity_by_principal: HashMap<String, BTreeSet<InboxActivityEntry>>,
 }
 
 impl ProjectionMemberRuntimeStore {
     pub(crate) fn clear(&mut self) {
         self.by_conversation.clear();
         self.conversation_members_by_typed_principal.clear();
+        self.inbox_activity_by_principal.clear();
     }
 
     pub(crate) fn get(&self, scope: &str) -> Option<&HashMap<String, ConversationMember>> {
@@ -123,10 +147,136 @@ impl ProjectionMemberRuntimeStore {
         principal_kind: &str,
         principal_id: &str,
     ) -> Vec<String> {
-        self.conversation_members_by_typed_principal
-            .get(member_typed_principal_index_key(tenant_id, principal_kind, principal_id).as_str())
-            .map(|scopes| scopes.iter().cloned().collect())
-            .unwrap_or_default()
+        self.inbox_scopes_ordered_for_principal(tenant_id, principal_kind, principal_id)
+    }
+
+    pub(crate) fn inbox_scopes_ordered_for_principal(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+    ) -> Vec<String> {
+        self.inbox_scope_entries_after_cursor(tenant_id, principal_kind, principal_id, None)
+    }
+
+    pub(crate) fn inbox_scope_entries_after_cursor(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        cursor: Option<(String, String)>,
+    ) -> Vec<String> {
+        let mut scopes = Vec::new();
+        self.for_each_inbox_scope_after_cursor(
+            tenant_id,
+            principal_kind,
+            principal_id,
+            cursor,
+            |scope| {
+                scopes.push(scope.to_owned());
+                true
+            },
+        );
+        scopes
+    }
+
+    /// Iterate inbox scopes in activity order without materializing the full principal inbox.
+    ///
+    /// The visitor returns `false` to stop early. Returns `true` when every remaining scope was
+    /// visited, `false` when iteration stopped early.
+    pub(crate) fn for_each_inbox_scope_after_cursor(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        cursor: Option<(String, String)>,
+        mut visitor: impl FnMut(&str) -> bool,
+    ) -> bool {
+        use std::collections::Bound::{Excluded, Unbounded};
+
+        let typed_index_key =
+            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
+        let Some(entries) = self.inbox_activity_by_principal.get(typed_index_key.as_str()) else {
+            return true;
+        };
+
+        if let Some((activity_at, scope)) = cursor {
+            let cursor_entry = InboxActivityEntry { activity_at, scope };
+            for entry in entries.range((Excluded(cursor_entry), Unbounded)) {
+                if !visitor(entry.scope.as_str()) {
+                    return false;
+                }
+            }
+        } else {
+            for entry in entries.iter() {
+                if !visitor(entry.scope.as_str()) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    pub(crate) fn refresh_inbox_activity_for_scope(&mut self, scope: &str, activity_at: &str) {
+        let Some(scope_members) = self.by_conversation.get(scope) else {
+            return;
+        };
+        let active_members = scope_members
+            .values()
+            .filter(|member| member.is_active())
+            .cloned()
+            .collect::<Vec<_>>();
+        for member in active_members {
+            self.upsert_inbox_activity(
+                member.tenant_id.as_str(),
+                member.principal_kind.as_str(),
+                member.principal_id.as_str(),
+                scope,
+                activity_at,
+            );
+        }
+    }
+
+    fn upsert_inbox_activity(
+        &mut self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        scope: &str,
+        activity_at: &str,
+    ) {
+        let typed_index_key =
+            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
+        let entries = self
+            .inbox_activity_by_principal
+            .entry(typed_index_key)
+            .or_default();
+        entries.retain(|entry| entry.scope != scope);
+        entries.insert(InboxActivityEntry {
+            activity_at: activity_at.to_owned(),
+            scope: scope.to_owned(),
+        });
+    }
+
+    fn remove_inbox_activity(
+        &mut self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        scope: &str,
+    ) {
+        let typed_index_key =
+            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
+        let Some(entries) = self.inbox_activity_by_principal.get_mut(typed_index_key.as_str())
+        else {
+            return;
+        };
+        entries.retain(|entry| entry.scope != scope);
+        if entries.is_empty() {
+            self.inbox_activity_by_principal
+                .remove(typed_index_key.as_str());
+        }
     }
 
     fn refresh_principal_scope(
@@ -151,9 +301,26 @@ impl ProjectionMemberRuntimeStore {
             member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
         if has_active_member {
             self.conversation_members_by_typed_principal
-                .entry(typed_index_key)
+                .entry(typed_index_key.clone())
                 .or_default()
                 .insert(scope.to_owned());
+            let joined_at = self
+                .by_conversation
+                .get(scope)
+                .and_then(|scope_members| {
+                    scope_members
+                        .get(principal_member_key(principal_id, principal_kind).as_str())
+                })
+                .map(|member| member.joined_at.as_str())
+                .unwrap_or("1970-01-01T00:00:00.000Z")
+                .to_owned();
+            self.upsert_inbox_activity(
+                tenant_id,
+                principal_kind,
+                principal_id,
+                scope,
+                joined_at.as_str(),
+            );
             return;
         }
 
@@ -167,6 +334,7 @@ impl ProjectionMemberRuntimeStore {
                     .remove(typed_index_key.as_str());
             }
         }
+        self.remove_inbox_activity(tenant_id, principal_kind, principal_id, scope);
     }
 }
 

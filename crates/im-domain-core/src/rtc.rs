@@ -113,10 +113,7 @@ impl RtcSessionState {
 
     /// States that represent a connected media flow (call in progress).
     pub fn is_media_connected(&self) -> bool {
-        matches!(
-            self,
-            Self::Connected | Self::OnHold | Self::Reconnecting
-        )
+        matches!(self, Self::Connected | Self::OnHold | Self::Reconnecting)
     }
 }
 
@@ -164,12 +161,12 @@ impl SignalRateTracker {
     pub const DEFAULT_WINDOW_SECS: u64 = 60;
     /// Default maximum signals per window (100 signals per minute).
     pub const DEFAULT_MAX_SIGNALS: u32 = 100;
-    
+
     /// Create a new rate tracker with default settings.
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Check if a new signal is allowed within the rate limit.
     ///
     /// # Arguments
@@ -181,16 +178,11 @@ impl SignalRateTracker {
     /// # Returns
     ///
     /// `true` if the signal is allowed, `false` if rate limit exceeded
-    pub fn check_rate_limit(
-        &self,
-        max_signals: u32,
-        window_secs: u64,
-        current_time: &str,
-    ) -> bool {
+    pub fn check_rate_limit(&self, max_signals: u32, window_secs: u64, current_time: &str) -> bool {
         let current_count = self.calculate_sliding_count(window_secs, current_time);
         current_count < max_signals
     }
-    
+
     /// Record a signal event, updating the sliding window counters.
     ///
     /// # Arguments
@@ -203,18 +195,20 @@ impl SignalRateTracker {
     /// The new signal count after recording
     pub fn record_signal(&mut self, window_secs: u64, current_time: &str) -> u32 {
         // Parse current window start time
-        let current_window_start = self.window_start.as_deref()
+        let current_window_start = self
+            .window_start
+            .as_deref()
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.timestamp());
-        
+
         let now_ts = chrono::DateTime::parse_from_rfc3339(current_time)
             .map(|dt| dt.timestamp())
             .unwrap_or(0);
-        
+
         // Check if we need to slide the window
         if let Some(window_ts) = current_window_start {
             let elapsed_secs = now_ts.saturating_sub(window_ts) as u64;
-            
+
             if elapsed_secs >= window_secs * 2 {
                 // Window completely expired - reset counters
                 self.previous_count = 0;
@@ -236,10 +230,10 @@ impl SignalRateTracker {
             self.signal_count = 1;
             self.window_start = Some(current_time.to_owned());
         }
-        
+
         self.signal_count
     }
-    
+
     /// Calculate the sliding window count using the standard algorithm.
     ///
     /// This provides accurate rate limiting that doesn't suffer from the
@@ -248,24 +242,28 @@ impl SignalRateTracker {
         let now_ts = chrono::DateTime::parse_from_rfc3339(current_time)
             .map(|dt| dt.timestamp())
             .unwrap_or(0);
-        
+
         // Get current window start time
-        let current_window_ts = self.window_start.as_deref()
+        let current_window_ts = self
+            .window_start
+            .as_deref()
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.timestamp())
             .unwrap_or(now_ts);
-        
+
         // Get previous window start time
-        let previous_window_ts = self.previous_window_start.as_deref()
+        let previous_window_ts = self
+            .previous_window_start
+            .as_deref()
             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
             .map(|dt| dt.timestamp());
-        
+
         let elapsed_in_window = now_ts.saturating_sub(current_window_ts) as u64;
-        
+
         // If previous window exists and is within 2x window size, use sliding calculation
         if let Some(prev_ts) = previous_window_ts {
             let window_gap = now_ts.saturating_sub(prev_ts) as u64;
-            
+
             if window_gap < window_secs * 2 {
                 // Calculate weight for previous window based on overlap
                 let prev_elapsed = now_ts.saturating_sub(prev_ts) as u64;
@@ -276,12 +274,13 @@ impl SignalRateTracker {
                 } else {
                     1.0 // Previous window still active
                 };
-                
-                let weighted_previous = (self.previous_count as f64 * prev_weight.max(0.0).min(1.0)) as u32;
+
+                let weighted_previous =
+                    (self.previous_count as f64 * prev_weight.max(0.0).min(1.0)) as u32;
                 return self.signal_count.saturating_add(weighted_previous);
             }
         }
-        
+
         // Only current window counts
         if elapsed_in_window < window_secs {
             self.signal_count
@@ -289,7 +288,7 @@ impl SignalRateTracker {
             0 // Window expired
         }
     }
-    
+
     /// Reset the rate tracker.
     pub fn reset(&mut self) {
         self.signal_count = 0;
@@ -297,7 +296,7 @@ impl SignalRateTracker {
         self.previous_count = 0;
         self.previous_window_start = None;
     }
-    
+
     /// Get the current signal count in the active window.
     pub fn current_count(&self) -> u32 {
         self.signal_count

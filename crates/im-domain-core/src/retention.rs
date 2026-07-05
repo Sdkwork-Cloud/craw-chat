@@ -61,7 +61,10 @@ pub fn canonical_retention_classes() -> &'static [&'static str] {
 }
 
 pub fn is_retention_expired(retention_until: Option<&str>, now: &str) -> bool {
-    let Some(until) = retention_until.map(str::trim).filter(|value| !value.is_empty()) else {
+    let Some(until) = retention_until
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
         return false;
     };
     match (parse_rfc3339(now), parse_rfc3339(until)) {
@@ -71,19 +74,20 @@ pub fn is_retention_expired(retention_until: Option<&str>, now: &str) -> bool {
 }
 
 fn parse_rfc3339(value: &str) -> Option<DateTime<FixedOffset>> {
-    DateTime::parse_from_rfc3339(value.trim())
-        .ok()
-        .or_else(|| {
-            value
-                .trim()
-                .parse::<DateTime<Utc>>()
-                .ok()
-                .map(|instant| instant.fixed_offset())
-        })
+    DateTime::parse_from_rfc3339(value.trim()).ok().or_else(|| {
+        value
+            .trim()
+            .parse::<DateTime<Utc>>()
+            .ok()
+            .map(|instant| instant.fixed_offset())
+    })
 }
 
 fn format_rfc3339(value: DateTime<FixedOffset>) -> String {
-    value.with_timezone(&Utc).format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
+    value
+        .with_timezone(&Utc)
+        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        .to_string()
 }
 
 #[cfg(test)]

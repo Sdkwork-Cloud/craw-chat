@@ -33,8 +33,20 @@ const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const moduleRegistrySource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
-const communityServiceSource = readText('packages', 'sdkwork-im-pc-community', 'src', 'services', 'CommunityService.ts');
+const imCommunityAdapterSource = readText('packages', 'sdkwork-im-pc-community', 'src', 'createImCommunityPcHostAdapter.tsx');
+const communityServiceSource = readRepoText(
+  '..',
+  'sdkwork-community',
+  'apps',
+  'sdkwork-community-pc',
+  'packages',
+  'sdkwork-community-pc-community',
+  'src',
+  'services',
+  'CommunityService.ts',
+);
 const communityClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'communityAppSdkClient.ts');
+const communityBootstrapSource = readText('src', 'bootstrap', 'communityPc.ts');
 const viteConfigSource = readText('vite.config.ts');
 const tsconfig = readJson('tsconfig.json');
 
@@ -45,9 +57,9 @@ assert.equal(
 );
 
 assert.equal(
-  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['sdkwork-community-app-sdk-generated-typescript'],
+  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['@sdkwork/community-app-sdk'],
   'workspace:*',
-  'Chat PC core must consume sdkwork-community through the sibling generated app SDK workspace package.',
+  'Chat PC core must consume sdkwork-community through the composed @sdkwork/community-app-sdk facade.',
 );
 
 assert.match(
@@ -148,31 +160,46 @@ assert.match(
 );
 
 assert.match(
-  communityServiceSource,
+  imCommunityAdapterSource,
   /getCommunityAppSdkClientWithSession/u,
-  'CommunityService must consume the generated community app SDK client instead of fail-closed stubs.',
+  'IM community host adapter must consume the generated community app SDK client instead of fail-closed stubs.',
+);
+assert.match(
+  imCommunityAdapterSource,
+  /createGeneratedCommunityAppSdkPort/u,
+  'IM community host adapter must bridge the generated community app SDK through community-runtime ports.',
+);
+assert.match(
+  communityServiceSource,
+  /getCommunityPcHost\(\)\.createAppSdkPort\(\)/u,
+  'Canonical community service must consume the host-injected community app SDK port.',
 );
 assert.doesNotMatch(
   communityServiceSource,
   /pc community contract is not available/u,
-  'CommunityService must not keep the legacy contract-unavailable fail-closed stub.',
+  'Canonical community service must not keep the legacy contract-unavailable fail-closed stub.',
+);
+assert.match(
+  communityBootstrapSource,
+  /bootstrapImCommunityPcHost/u,
+  'IM PC bootstrap must wire the thin community host adapter before rendering community UI.',
 );
 
 assert.match(
   communityClientSource,
-  /sdkwork-community-app-sdk-generated-typescript/u,
-  'Community app SDK client wrapper must import the sibling generated community app SDK package.',
+  /@sdkwork\/community-app-sdk/u,
+  'Community app SDK client wrapper must import the composed community app SDK facade.',
 );
 
 assert.match(
   viteConfigSource,
-  /sdkwork-community-app-sdk-generated-typescript/u,
-  'Vite config must alias sdkwork-community-app-sdk-generated-typescript for PC community integration.',
+  /@sdkwork\/community-app-sdk/u,
+  'Vite config must alias @sdkwork/community-app-sdk for PC community integration.',
 );
 
 assert.ok(
-  tsconfig.compilerOptions?.paths?.['sdkwork-community-app-sdk-generated-typescript'],
-  'tsconfig must map sdkwork-community-app-sdk-generated-typescript for PC community integration.',
+  tsconfig.compilerOptions?.paths?.['@sdkwork/community-app-sdk'],
+  'tsconfig must map @sdkwork/community-app-sdk for PC community integration.',
 );
 
 console.log('community app SDK integration contract checks passed');

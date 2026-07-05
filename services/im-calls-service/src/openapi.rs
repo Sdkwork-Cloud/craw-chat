@@ -80,14 +80,12 @@ fn calling_service_summary(path: &str, method: HttpMethod) -> String {
         ("/im/v3/api/calls/sessions/{rtc_session_id}/signals", HttpMethod::Post) => {
             "Post an IM call signaling event".to_owned()
         }
-        (
-            "/im/v3/api/calls/sessions/{rtc_session_id}/credentials",
-            HttpMethod::Post,
-        ) => "Issue an RTC media participant credential for an IM call".to_owned(),
-        (
-            "/im/v3/api/calls/sessions/{rtc_session_id}/credentials/refresh",
-            HttpMethod::Post,
-        ) => "Refresh an expiring RTC media participant credential".to_owned(),
+        ("/im/v3/api/calls/sessions/{rtc_session_id}/credentials", HttpMethod::Post) => {
+            "Issue an RTC media participant credential for an IM call".to_owned()
+        }
+        ("/im/v3/api/calls/sessions/{rtc_session_id}/credentials/refresh", HttpMethod::Post) => {
+            "Refresh an expiring RTC media participant credential".to_owned()
+        }
         _ => format!("{method:?} {path}"),
     }
 }

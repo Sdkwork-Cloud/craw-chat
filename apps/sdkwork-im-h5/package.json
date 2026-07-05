@@ -15,6 +15,7 @@
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/iam-contracts": "workspace:*",
     "@sdkwork/im-h5-chat": "workspace:*",
+    "@sdkwork/im-h5-commons": "workspace:*",
     "@sdkwork/im-h5-core": "workspace:*",
     "@sdkwork/im-h5-shell": "workspace:*",
     "@sdkwork/sdk-common": "catalog:",

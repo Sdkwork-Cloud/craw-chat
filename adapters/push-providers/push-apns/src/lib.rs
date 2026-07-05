@@ -10,15 +10,22 @@
 //! - `SDKWORK_IM_APNS_BUNDLE_ID`: App bundle identifier
 //! - `SDKWORK_IM_APNS_SANDBOX`: Set to "true" for development environment
 
+use std::fs;
+use std::path::PathBuf;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use im_platform_contracts::{
     ProviderHealthSnapshot, PushDeliveryResult, PushMessage, PushProvider,
 };
 use im_time::utc_now_rfc3339_millis;
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use sdkwork_im_contract_core::ContractError;
-use std::path::PathBuf;
+use serde::Serialize;
 
 const APNS_DEVELOPMENT_HOST: &str = "api.sandbox.push.apple.com";
 const APNS_PRODUCTION_HOST: &str = "api.push.apple.com";
+const APNS_REQUEST_TIMEOUT_SECONDS: u64 = 30;
+const APNS_JWT_TTL_SECONDS: u64 = 3_500;
 
 /// APNs adapter configuration.
 #[derive(Clone, Debug)]
@@ -58,6 +65,12 @@ impl ApnsConfig {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct ApnsJwtClaims {
+    iss: String,
+    iat: u64,
+}
+
 /// APNs push notification adapter.
 pub struct ApnsPushProvider {
     config: ApnsConfig,
@@ -72,13 +85,36 @@ impl ApnsPushProvider {
         }
     }
 
+    fn sign_jwt(&self) -> Result<String, ContractError> {
+        let key_pem = fs::read_to_string(&self.config.key_path).map_err(|error| {
+            ContractError::Unavailable(format!(
+                "failed to read APNs key at {}: {error}",
+                self.config.key_path.display()
+            ))
+        })?;
+        let encoding_key = EncodingKey::from_ec_pem(key_pem.as_bytes()).map_err(|error| {
+            ContractError::Unavailable(format!("invalid APNs P8 private key: {error}"))
+        })?;
+        let issued_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| ContractError::Unavailable(format!("system clock error: {error}")))?
+            .as_secs();
+        let claims = ApnsJwtClaims {
+            iss: self.config.team_id.clone(),
+            iat: issued_at,
+        };
+        let mut header = Header::new(Algorithm::ES256);
+        header.kid = Some(self.config.key_id.clone());
+        encode(&header, &claims, &encoding_key)
+            .map_err(|error| ContractError::Unavailable(format!("APNs JWT signing failed: {error}")))
+    }
+
     fn make_request(
         &self,
         device_token: &str,
-        _payload: &serde_json::Value,
-        _message_id: &str,
+        payload: &serde_json::Value,
+        message_id: &str,
     ) -> Result<PushDeliveryResult, ContractError> {
-        // Validate device token is hexadecimal
         if !device_token.chars().all(|c| c.is_ascii_hexdigit()) {
             return Ok(PushDeliveryResult {
                 accepted: false,
@@ -88,35 +124,79 @@ impl ApnsPushProvider {
             });
         }
 
-        let _topic = format!("{}.voip", self.config.bundle_id);
-        let _path = format!("/3/device/{}", device_token);
-        let _host = self.config.host();
+        let jwt = self.sign_jwt()?;
+        let url = format!(
+            "https://{}/3/device/{}",
+            self.config.host(),
+            device_token
+        );
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(APNS_REQUEST_TIMEOUT_SECONDS))
+            .build()
+            .map_err(|error| {
+                ContractError::Unavailable(format!("APNs HTTP client initialization failed: {error}"))
+            })?;
+        let response = client
+            .post(url)
+            .header("authorization", format!("bearer {jwt}"))
+            .header("apns-topic", self.config.bundle_id.as_str())
+            .header("apns-push-type", "alert")
+            .header("apns-id", message_id)
+            .header("content-type", "application/json")
+            .json(payload)
+            .send()
+            .map_err(|error| {
+                ContractError::Unavailable(format!("APNs HTTP/2 request failed: {error}"))
+            })?;
 
-        // APNs requires HTTP/2 with JWT bearer token in the authorization header.
-        // JWT is signed with ES256 using the P8 private key.
-        //
-        // Full implementation requires:
-        // 1. JWT signing (ES256) with {team_id}.{key_id} claims
-        // 2. HTTP/2 connection to api.push.apple.com:443
-        // 3. POST with :path, :method, authorization, apns-topic, apns-push-type headers
-        // 4. Parse apns-id from response headers
-        //
-        // When APNs credentials are configured, replace this stub with:
-        //   let jwt = sign_jwt(&self.config)?;
-        //   let response = send_apns_request(&self.config, device_token, &jwt, payload).await?;
-        //   parse_apns_response(response)
-
-        // APNs HTTP/2 + JWT transport is not wired in this adapter yet.
-        Ok(PushDeliveryResult {
-            accepted: false,
-            provider_message_id: None,
-            error: Some(
-                "APNs HTTP/2 JWT transport is not configured; push delivery is unavailable"
-                    .into(),
-            ),
-            token_invalid: false,
-        })
+        let status_code = response.status().as_u16();
+        let headers = response.headers().clone();
+        let body = response.text().ok();
+        parse_apns_response(status_code, &headers, body)
     }
+}
+
+fn parse_apns_response(
+    status_code: u16,
+    headers: &reqwest::header::HeaderMap,
+    body: Option<String>,
+) -> Result<PushDeliveryResult, ContractError> {
+    let provider_message_id = headers
+        .get("apns-id")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+
+    if (200..300).contains(&status_code) {
+        return Ok(PushDeliveryResult {
+            accepted: true,
+            provider_message_id,
+            error: None,
+            token_invalid: false,
+        });
+    }
+
+    let reason = body
+        .as_deref()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
+        .and_then(|payload| {
+            payload
+                .get("reason")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| format!("HTTP {status_code}"));
+
+    let token_invalid = matches!(
+        reason.as_str(),
+        "BadDeviceToken" | "DeviceTokenNotForTopic" | "Unregistered" | "ExpiredToken"
+    ) || status_code == 410;
+
+    Ok(PushDeliveryResult {
+        accepted: false,
+        provider_message_id,
+        error: Some(format!("apns delivery failed: {reason}")),
+        token_invalid,
+    })
 }
 
 impl PushProvider for ApnsPushProvider {
@@ -140,10 +220,16 @@ impl PushProvider for ApnsPushProvider {
 
     fn provider_health(&self) -> ProviderHealthSnapshot {
         let mut details = std::collections::BTreeMap::new();
-        details.insert("transport".into(), "http2_jwt_pending".into());
+        details.insert("transport".into(), "http2_jwt".into());
+        details.insert("host".into(), self.config.host().into());
+        let status = if self.config.key_path.is_file() {
+            "healthy"
+        } else {
+            "degraded"
+        };
         ProviderHealthSnapshot {
             plugin_id: self.plugin_id.to_owned(),
-            status: "degraded".into(),
+            status: status.into(),
             checked_at: utc_now_rfc3339_millis(),
             details,
         }
@@ -158,16 +244,19 @@ impl PushProvider for ApnsPushProvider {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_apns_rejects_non_hex_token() {
-        let config = ApnsConfig {
+    fn sample_config() -> ApnsConfig {
+        ApnsConfig {
             team_id: "TEAM123".into(),
             key_id: "KEY123".into(),
             key_path: PathBuf::from("/tmp/key.p8"),
             bundle_id: "com.example.app".into(),
             sandbox: true,
-        };
-        let provider = ApnsPushProvider::new(config);
+        }
+    }
+
+    #[test]
+    fn test_apns_rejects_non_hex_token() {
+        let provider = ApnsPushProvider::new(sample_config());
         let msg = PushMessage {
             device_token: "not-hex-token!".into(),
             title: Some("Hello".into()),
@@ -181,52 +270,46 @@ mod tests {
     }
 
     #[test]
-    fn test_apns_fails_closed_for_valid_hex_token_without_transport() {
-        let config = ApnsConfig {
-            team_id: "TEAM123".into(),
-            key_id: "KEY123".into(),
-            key_path: PathBuf::from("/tmp/key.p8"),
-            bundle_id: "com.example.app".into(),
-            sandbox: true,
-        };
-        let provider = ApnsPushProvider::new(config);
-        let msg = PushMessage {
-            device_token: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into(),
-            title: Some("Hello".into()),
-            body: Some("World".into()),
-            payload: None,
-            category: "message.new".into(),
-            content_available: false,
-        };
-        let result = provider.send(&msg).expect("send should not error");
-        assert!(!result.accepted);
-        assert!(result.error.is_some());
+    fn test_parse_apns_response_success() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            "apns-id",
+            reqwest::header::HeaderValue::from_static("abc-123"),
+        );
+        let result =
+            parse_apns_response(200, &headers, None).expect("success response should parse");
+        assert!(result.accepted);
+        assert_eq!(result.provider_message_id.as_deref(), Some("abc-123"));
     }
 
     #[test]
-    fn test_provider_health_is_degraded_without_transport() {
-        let config = ApnsConfig {
-            team_id: "TEAM123".into(),
-            key_id: "KEY123".into(),
-            key_path: PathBuf::from("/tmp/key.p8"),
-            bundle_id: "com.example.app".into(),
-            sandbox: true,
-        };
-        let provider = ApnsPushProvider::new(config);
+    fn test_parse_apns_response_unregistered() {
+        let headers = reqwest::header::HeaderMap::new();
+        let result = parse_apns_response(
+            410,
+            &headers,
+            Some(r#"{"reason":"Unregistered"}"#.into()),
+        )
+        .expect("error response should parse");
+        assert!(!result.accepted);
+        assert!(result.token_invalid);
+    }
+
+    #[test]
+    fn test_provider_health_reports_http2_transport() {
+        let provider = ApnsPushProvider::new(sample_config());
         let health = provider.provider_health();
-        assert_eq!(health.status, "degraded");
+        assert_eq!(health.details.get("transport").map(String::as_str), Some("http2_jwt"));
     }
 
     #[test]
     fn test_plugin_id_matches_expected() {
-        let config = ApnsConfig {
-            team_id: "TEAM123".into(),
-            key_id: "KEY123".into(),
-            key_path: PathBuf::from("/tmp/key.p8"),
-            bundle_id: "com.example.app".into(),
-            sandbox: true,
-        };
-        let provider = ApnsPushProvider::new(config);
+        let provider = ApnsPushProvider::new(sample_config());
         assert_eq!(provider.plugin_id(), "push-apns");
+    }
+
+    #[test]
+    fn test_jwt_ttl_constant_is_below_apns_one_hour_limit() {
+        assert!(APNS_JWT_TTL_SECONDS <= 3_600);
     }
 }

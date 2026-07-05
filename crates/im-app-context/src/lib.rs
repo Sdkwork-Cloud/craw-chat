@@ -422,6 +422,41 @@ impl AppContext {
             CcpActor::new(self.actor_id.clone(), self.actor_kind.clone()),
         )
     }
+
+    /// Canonical social-graph principal id for list/read/write routes.
+    ///
+    /// User tokens set both `user_id` and `actor_id`; service tokens may only populate `actor_id`.
+    pub fn social_principal_user_id(&self) -> &str {
+        if self.user_id.trim().is_empty() {
+            self.actor_id.as_str()
+        } else {
+            self.user_id.as_str()
+        }
+    }
+
+    /// Validates that the authenticated context represents a single user principal.
+    pub fn ensure_user_actor_principal(&self) -> Result<&str, AppContextError> {
+        if self.actor_kind.trim() != "user" {
+            return Err(AppContextError::invalid(
+                "social routes require an authenticated user actor",
+            ));
+        }
+        let principal = self.social_principal_user_id();
+        if principal.trim().is_empty() {
+            return Err(AppContextError::invalid(
+                "social routes require a non-empty user principal id",
+            ));
+        }
+        if !self.user_id.trim().is_empty()
+            && !self.actor_id.trim().is_empty()
+            && self.user_id != self.actor_id
+        {
+            return Err(AppContextError::invalid(
+                "user_id and actor_id must match for social user principals",
+            ));
+        }
+        Ok(principal)
+    }
 }
 
 /// Maps a framework-resolved [`WebRequestContext`] into the IM domain [`AppContext`].
@@ -1533,6 +1568,11 @@ pub fn allows_header_only_app_context_fallback() -> bool {
         resolve_web_environment_from_process_env(),
         WebEnvironment::Dev | WebEnvironment::Test
     )
+}
+
+/// Whether `SDKWORK_IM_ENVIRONMENT` indicates production-like deployment (prod/staging/default).
+pub fn is_production_like_im_environment() -> bool {
+    !allows_header_only_app_context_fallback()
 }
 
 fn parse_deployment_mode(value: Option<String>) -> WebDeploymentMode {

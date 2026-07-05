@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -18,15 +17,6 @@ function normalizeDatabaseUrl(value) {
 function normalizeDatabaseField(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
-}
-
-function userPrivateChatRoot() {
-  return path.join(os.homedir(), '.sdkwork', APP_CODE);
-}
-
-function defaultSharedSqliteUrl() {
-  const sqlitePath = path.join(userPrivateChatRoot(), 'data', `${APP_CODE}.sqlite`);
-  return `sqlite://${sqlitePath.replaceAll('\\', '/')}`;
 }
 
 function appendPostgresQueryParam(params, name, value) {
@@ -131,33 +121,6 @@ function resolvePostgresDatabaseUrlFromFields(env) {
   return `postgresql://${authority}/${encodePostgresPath(database)}${query ? `?${query}` : ''}`;
 }
 
-function resolveConfiguredSqliteUrl(env) {
-  assertNoCanonicalLegacyAliases(env);
-  const engine = envValue(
-    env,
-    'SDKWORK_IM_DATABASE_ENGINE',
-    'SDKWORK_CLAW_DATABASE_ENGINE',
-    'SDKWORK_CLAW_DATABASE_PROVIDER',
-  );
-  const deploymentMode = normalizeDatabaseField(env.SDKWORK_IM_DEPLOYMENT_MODE)
-    ?? normalizeDatabaseField(env.SDKWORK_CLAW_DEPLOYMENT_MODE);
-  if (engine && engine.toLowerCase() !== 'sqlite') {
-    return undefined;
-  }
-  if (engine?.toLowerCase() === 'sqlite' || deploymentMode?.toLowerCase() === 'desktop') {
-    const sqliteFile = envValue(
-      env,
-      'SDKWORK_IM_DATABASE_FILE',
-      'SDKWORK_CLAW_DATABASE_FILE',
-    );
-    if (sqliteFile) {
-      return `sqlite://${path.resolve(sqliteFile).replaceAll('\\', '/')}`;
-    }
-    return defaultSharedSqliteUrl();
-  }
-  return undefined;
-}
-
 const AGENTS_DATABASE_ENV_KEYS = [
   'SDKWORK_AGENTS_DATABASE_URL',
   'SDKWORK_AGENTS_STORE_DATABASE_URL',
@@ -242,9 +205,13 @@ export function resolveSdkworkImSharedDatabaseConfig({
   assertNoCanonicalLegacyAliases(env);
   const databaseUrl = normalizeDatabaseUrl(env.SDKWORK_IM_DATABASE_URL)
     ?? normalizeDatabaseUrl(env.SDKWORK_CLAW_DATABASE_URL)
-    ?? resolveConfiguredSqliteUrl(env)
-    ?? resolvePostgresDatabaseUrlFromFields(env)
-    ?? defaultSharedSqliteUrl();
+    ?? resolvePostgresDatabaseUrlFromFields(env);
+
+  if (!databaseUrl) {
+    throw new Error(
+      'SDKWORK_IM_DATABASE_URL or SDKWORK_IM_DATABASE_ENGINE=postgresql configuration is required; IM SQLite default has been removed',
+    );
+  }
 
   if (/^sqlite:\/\//iu.test(databaseUrl)) {
     const sqlitePath = databaseUrl.replace(/^sqlite:\/\//iu, '');

@@ -11,18 +11,26 @@ tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+im-adapters-local-disk = { path = "../../adapters/local-disk" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_database_config.workspace = true
+sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
 im-domain-core = { path = "../../crates/im-domain-core" }
+im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-app-context = { path = "../../crates/im-app-context" }
 sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 sdkwork_im_service_readiness = { workspace = true }
+im-time = { path = "../../crates/im-time" }
 sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 
 [dev-dependencies]
 http-body-util.workspace = true

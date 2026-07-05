@@ -3882,7 +3882,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4066,7 +4084,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4309,7 +4345,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4406,7 +4460,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4503,7 +4575,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4878,7 +4968,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -4975,7 +5083,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -5072,7 +5198,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -5446,7 +5590,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - accepted
+                        properties:
+                          accepted:
+                            type: boolean
+                            const: true
+                          resourceId:
+                            type: string
+                          status:
+                            type: string
         '204':
           description: Delete succeeded and no payload is returned
         '401':
@@ -6628,19 +6790,6 @@ components:
             additionalProperties: true
         pageInfo:
           $ref: '#/components/schemas/PageInfo'
-    SdkWorkCommandData:
-      type: object
-      additionalProperties: false
-      required:
-        - accepted
-      properties:
-        accepted:
-          type: boolean
-          const: true
-        resourceId:
-          type: string
-        status:
-          type: string
     PageInfo:
       type: object
       additionalProperties: false
@@ -6702,33 +6851,5 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/SdkWorkPageData'
-    SdkWorkCommandResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkCommandData'
-    SdkWorkResourceData:
-      type: object
-      additionalProperties: false
-      required:
-        - item
-      properties:
-        item:
-          type: object
-          additionalProperties: true
-          description: Typed domain resource for the operation.
-    SdkWorkResourceResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkResourceData'
 x-sdkwork-owner: sdkwork-im
 x-sdkwork-api-authority: sdkwork-im.backend

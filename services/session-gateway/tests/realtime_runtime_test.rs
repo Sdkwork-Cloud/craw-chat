@@ -29,8 +29,8 @@ fn test_default_runtime_rejects_scope_subscriptions_without_access_policy() {
     let error = runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![RealtimeSubscriptionItemInput {
@@ -49,8 +49,8 @@ fn test_ack_events_trims_window_and_tracks_checkpoint() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -62,8 +62,8 @@ fn test_ack_events_trims_window_and_tracks_checkpoint() {
 
     let delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -73,8 +73,9 @@ fn test_ack_events_trims_window_and_tracks_checkpoint() {
     ));
     assert_eq!(delivered, 1);
 
-    let ack =
-        expect_ok(runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 1));
+    let ack = expect_ok(
+        runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 1),
+    );
     assert_eq!(ack.acked_through_seq, 1);
     assert_eq!(ack.trimmed_through_seq, 1);
     assert_eq!(ack.retained_event_count, 0);
@@ -93,8 +94,8 @@ fn test_ack_events_is_monotonic_and_clamped_to_latest_sequence() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -106,8 +107,8 @@ fn test_ack_events_is_monotonic_and_clamped_to_latest_sequence() {
 
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -116,13 +117,15 @@ fn test_ack_events_is_monotonic_and_clamped_to_latest_sequence() {
         vec!["d_pad".into()],
     ));
 
-    let first_ack =
-        expect_ok(runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 99));
+    let first_ack = expect_ok(
+        runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 99),
+    );
     assert_eq!(first_ack.acked_through_seq, 1);
     assert_eq!(first_ack.trimmed_through_seq, 1);
 
-    let second_ack =
-        expect_ok(runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0));
+    let second_ack = expect_ok(
+        runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0),
+    );
     assert_eq!(second_ack.acked_through_seq, 1);
     assert_eq!(second_ack.trimmed_through_seq, 1);
 }
@@ -135,8 +138,8 @@ fn test_failed_ack_checkpoint_persistence_does_not_commit_runtime_ack_state() {
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -147,8 +150,8 @@ fn test_failed_ack_checkpoint_persistence_does_not_commit_runtime_ack_state() {
     ));
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -184,8 +187,8 @@ fn test_runtime_persists_checkpoint_and_recovers_on_rebuild() {
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -197,8 +200,8 @@ fn test_runtime_persists_checkpoint_and_recovers_on_rebuild() {
 
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -218,7 +221,8 @@ fn test_runtime_persists_checkpoint_and_recovers_on_rebuild() {
     let rebuilt_runtime =
         RealtimeDeliveryRuntime::with_checkpoint_store_permissive_for_tests(checkpoint_store);
     let restored = expect_ok(
-        rebuilt_runtime.window_checkpoint_for_principal_kind("100001", "default", "1", "user", "d_pad"),
+        rebuilt_runtime
+            .window_checkpoint_for_principal_kind("100001", "default", "1", "user", "d_pad"),
     );
     assert_eq!(restored.latest_realtime_seq, 1);
     assert_eq!(restored.acked_through_seq, 1);
@@ -226,8 +230,8 @@ fn test_runtime_persists_checkpoint_and_recovers_on_rebuild() {
 
     expect_ok(rebuilt_runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -238,8 +242,8 @@ fn test_runtime_persists_checkpoint_and_recovers_on_rebuild() {
     ));
     let delivered = expect_ok(rebuilt_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -250,7 +254,8 @@ fn test_runtime_persists_checkpoint_and_recovers_on_rebuild() {
     assert_eq!(delivered, 1);
 
     let after_rebuild = expect_ok(
-        rebuilt_runtime.window_checkpoint_for_principal_kind("100001", "default", "1", "user", "d_pad"),
+        rebuilt_runtime
+            .window_checkpoint_for_principal_kind("100001", "default", "1", "user", "d_pad"),
     );
     assert_eq!(after_rebuild.latest_realtime_seq, 2);
 }
@@ -265,8 +270,8 @@ fn test_runtime_restores_persisted_subscriptions_on_rebuild_without_resync() {
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -281,14 +286,15 @@ fn test_runtime_restores_persisted_subscriptions_on_rebuild_without_resync() {
         subscription_store,
     );
     expect_ok(
-        rebuilt_runtime
-            .ensure_client_route_state_for_principal_kind("100001", "default", "1", "user", "d_pad"),
+        rebuilt_runtime.ensure_client_route_state_for_principal_kind(
+            "100001", "default", "1", "user", "d_pad",
+        ),
     );
 
     let delivered = expect_ok(rebuilt_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -311,8 +317,8 @@ fn test_runtime_restores_unacked_events_from_durable_window_store_after_rebuild(
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -323,8 +329,8 @@ fn test_runtime_restores_unacked_events_from_durable_window_store_after_rebuild(
     ));
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -339,7 +345,8 @@ fn test_runtime_restores_unacked_events_from_durable_window_store_after_rebuild(
         event_window_store.clone(),
     );
     let restored = expect_ok(
-        rebuilt_runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        rebuilt_runtime
+            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
     );
 
     assert_eq!(restored.items.len(), 1);
@@ -371,8 +378,8 @@ fn test_publish_restores_persisted_subscriptions_for_registered_client_routes_af
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -389,8 +396,8 @@ fn test_publish_restores_persisted_subscriptions_for_registered_client_routes_af
 
     let delivered = expect_ok(rebuilt_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -404,7 +411,8 @@ fn test_publish_restores_persisted_subscriptions_for_registered_client_routes_af
     );
 
     let window = expect_ok(
-        rebuilt_runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        rebuilt_runtime
+            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
     );
     assert_eq!(window.items.len(), 1);
     assert_eq!(
@@ -422,8 +430,8 @@ fn test_publish_does_not_restore_unmatched_registered_client_routes() {
     );
     expect_ok(seed_runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_match",
         vec![RealtimeSubscriptionItemInput {
@@ -440,8 +448,8 @@ fn test_publish_does_not_restore_unmatched_registered_client_routes() {
 
     let delivered = expect_ok(rebuilt_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -742,8 +750,8 @@ fn test_failed_subscription_persistence_does_not_install_runtime_subscription() 
     let error = runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![RealtimeSubscriptionItemInput {
@@ -757,8 +765,8 @@ fn test_failed_subscription_persistence_does_not_install_runtime_subscription() 
 
     let delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -783,8 +791,8 @@ fn test_failed_subscription_persistence_restores_previous_runtime_subscription()
 
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -798,8 +806,8 @@ fn test_failed_subscription_persistence_restores_previous_runtime_subscription()
     let error = runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![RealtimeSubscriptionItemInput {
@@ -813,8 +821,8 @@ fn test_failed_subscription_persistence_restores_previous_runtime_subscription()
 
     let old_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_old",
@@ -824,8 +832,8 @@ fn test_failed_subscription_persistence_restores_previous_runtime_subscription()
     ));
     let new_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_new",
@@ -847,8 +855,8 @@ fn test_failed_subscription_clear_preserves_runtime_subscription() {
 
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -859,14 +867,16 @@ fn test_failed_subscription_clear_preserves_runtime_subscription() {
     ));
 
     let error = runtime
-        .clear_client_route_subscriptions_for_principal_kind("100001", "default", "1", "user", "d_pad")
+        .clear_client_route_subscriptions_for_principal_kind(
+            "100001", "default", "1", "user", "d_pad",
+        )
         .expect_err("subscription store clear failure should reject the clear request");
     assert_eq!(error.code, "subscription_store_unavailable");
 
     let delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -890,8 +900,8 @@ fn test_failed_checkpoint_persistence_rolls_back_published_runtime_event() {
 
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -905,8 +915,8 @@ fn test_failed_checkpoint_persistence_rolls_back_published_runtime_event() {
     let error = runtime
         .publish_scope_event_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "conversation",
             "c_demo",
@@ -936,8 +946,8 @@ fn test_runtime_realtime_inbox_diagnostics_tracks_unacked_and_trimmed_windows() 
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -948,8 +958,8 @@ fn test_runtime_realtime_inbox_diagnostics_tracks_unacked_and_trimmed_windows() 
     ));
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -984,8 +994,9 @@ fn test_runtime_realtime_inbox_diagnostics_tracks_unacked_and_trimmed_windows() 
         "oldest pending timestamp should be present while realtime inbox has backlog"
     );
 
-    let ack =
-        expect_ok(runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 1));
+    let ack = expect_ok(
+        runtime.ack_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 1),
+    );
     assert_eq!(ack.acked_through_seq, 1);
     assert_eq!(ack.trimmed_through_seq, 1);
 
@@ -1015,8 +1026,8 @@ fn test_failed_publish_checkpoint_persistence_rolls_back_durable_event_window() 
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1030,8 +1041,8 @@ fn test_failed_publish_checkpoint_persistence_rolls_back_durable_event_window() 
     let error = runtime
         .publish_scope_event_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "conversation",
             "c_demo",
@@ -1062,8 +1073,8 @@ fn test_failed_multi_client_route_checkpoint_persistence_does_not_partially_comm
     for device_id in ["d_pad", "d_phone"] {
         expect_ok(runtime.sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             device_id,
             vec![RealtimeSubscriptionItemInput {
@@ -1077,8 +1088,8 @@ fn test_failed_multi_client_route_checkpoint_persistence_does_not_partially_comm
     let error = runtime
         .publish_scope_event_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "conversation",
             "c_demo",
@@ -1100,7 +1111,8 @@ fn test_failed_multi_client_route_checkpoint_persistence_does_not_partially_comm
 
     for device_id in ["d_pad", "d_phone"] {
         let window = expect_ok(
-            runtime.list_events_for_principal_kind("100001", "default", "1", "user", device_id, 0, 10),
+            runtime
+                .list_events_for_principal_kind("100001", "default", "1", "user", device_id, 0, 10),
         );
         assert_eq!(window.items.len(), 0);
     }
@@ -1194,8 +1206,8 @@ fn test_sync_subscriptions_rejects_oversized_event_types_payload() {
     let error = runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![RealtimeSubscriptionItemInput {
@@ -1226,7 +1238,14 @@ fn test_sync_subscriptions_rejects_too_many_subscription_items() {
         .collect::<Vec<_>>();
 
     let error = runtime
-        .sync_subscriptions_for_principal_kind("100001", "default", "1", "user", "d_pad", oversized_items)
+        .sync_subscriptions_for_principal_kind(
+            "100001",
+            "default",
+            "1",
+            "user",
+            "d_pad",
+            oversized_items,
+        )
         .expect_err("too many subscription items should be rejected");
 
     assert_eq!(error.code, "payload_too_large");
@@ -1251,7 +1270,14 @@ fn test_sync_subscriptions_rejects_oversized_total_subscription_payload() {
         .collect::<Vec<_>>();
 
     let error = runtime
-        .sync_subscriptions_for_principal_kind("100001", "default", "1", "user", "d_pad", oversized_items)
+        .sync_subscriptions_for_principal_kind(
+            "100001",
+            "default",
+            "1",
+            "user",
+            "d_pad",
+            oversized_items,
+        )
         .expect_err("oversized total subscription payload should be rejected");
 
     assert_eq!(error.code, "payload_too_large");
@@ -1269,8 +1295,8 @@ fn test_sync_subscriptions_rejects_duplicate_scope_entries() {
     let error = runtime
         .sync_subscriptions_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "d_pad",
             vec![
@@ -1302,8 +1328,8 @@ fn test_sync_subscriptions_does_not_collapse_delimiter_shaped_scope_segments() {
 
     let snapshot = expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![
@@ -1323,8 +1349,8 @@ fn test_sync_subscriptions_does_not_collapse_delimiter_shaped_scope_segments() {
 
     let left_delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation:a",
         "b",
@@ -1334,8 +1360,8 @@ fn test_sync_subscriptions_does_not_collapse_delimiter_shaped_scope_segments() {
     ));
     let right_delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "a:b",
@@ -1362,8 +1388,8 @@ fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1374,8 +1400,8 @@ fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
     ));
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "agent",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1387,8 +1413,8 @@ fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
 
     let user_delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_user",
@@ -1398,8 +1424,8 @@ fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
     ));
     let agent_delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "agent",
         "conversation",
         "c_agent",
@@ -1472,8 +1498,8 @@ fn test_failed_checkpoint_normalization_restore_retries_durable_repair() {
     let checkpoint_store = Arc::new(FailAfterRealtimeCheckpointStore::new(0));
     checkpoint_store.insert_checkpoint(RealtimeCheckpointRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
-            principal_kind: "user".into(),
+        organization_id: "0".into(),
+        principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_pad".into(),
         latest_realtime_seq: 3,
@@ -1575,13 +1601,7 @@ fn test_restore_client_route_state_checkpoint_failure_does_not_install_runtime_s
                 event_types: vec!["message.posted".into()],
                 subscribed_at: "2026-04-05T12:30:00Z".into(),
             }],
-            events: vec![realtime_event(
-                "100001",
-                "1",
-                "d_pad",
-                1,
-                "msg_restored",
-            )],
+            events: vec![realtime_event("100001", "1", "d_pad", 1, "msg_restored")],
             latest_realtime_seq: 1,
             acked_through_seq: 0,
             trimmed_through_seq: 0,
@@ -1595,8 +1615,8 @@ fn test_restore_client_route_state_checkpoint_failure_does_not_install_runtime_s
 
     let delivered = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -1682,8 +1702,8 @@ fn test_restore_client_route_state_checkpoint_failure_restores_previous_durable_
 
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1789,7 +1809,9 @@ fn test_restore_client_route_state_normalizes_event_order_for_monotonic_paginati
 fn test_list_events_rejects_zero_limit_at_runtime_boundary() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(
-        runtime.ensure_client_route_state_for_principal_kind("100001", "default", "1", "user", "d_pad"),
+        runtime.ensure_client_route_state_for_principal_kind(
+            "100001", "default", "1", "user", "d_pad",
+        ),
     );
 
     let error = runtime
@@ -1885,8 +1907,9 @@ fn test_restore_client_route_state_discards_events_at_or_below_trimmed_boundary(
 fn test_take_restore_client_route_state_transfers_disconnect_generation() {
     let source_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(
-        source_runtime
-            .ensure_client_route_state_for_principal_kind("100001", "default", "1", "user", "d_pad"),
+        source_runtime.ensure_client_route_state_for_principal_kind(
+            "100001", "default", "1", "user", "d_pad",
+        ),
     );
     expect_ok(
         source_runtime
@@ -1898,8 +1921,9 @@ fn test_take_restore_client_route_state_transfers_disconnect_generation() {
     );
     assert_eq!(
         expect_ok(
-            source_runtime
-                .disconnect_generation_for_principal_kind("100001", "default", "1", "user", "d_pad")
+            source_runtime.disconnect_generation_for_principal_kind(
+                "100001", "default", "1", "user", "d_pad"
+            )
         ),
         2
     );
@@ -1910,8 +1934,9 @@ fn test_take_restore_client_route_state_transfers_disconnect_generation() {
     );
     assert_eq!(
         expect_ok(
-            source_runtime
-                .disconnect_generation_for_principal_kind("100001", "default", "1", "user", "d_pad")
+            source_runtime.disconnect_generation_for_principal_kind(
+                "100001", "default", "1", "user", "d_pad"
+            )
         ),
         0,
         "taking client route state must remove stale source disconnect generation state"
@@ -1921,8 +1946,9 @@ fn test_take_restore_client_route_state_transfers_disconnect_generation() {
     expect_ok(target_runtime.restore_client_route_state(snapshot));
     assert_eq!(
         expect_ok(
-            target_runtime
-                .disconnect_generation_for_principal_kind("100001", "default", "1", "user", "d_pad")
+            target_runtime.disconnect_generation_for_principal_kind(
+                "100001", "default", "1", "user", "d_pad"
+            )
         ),
         2,
         "restored client route state must preserve disconnect signal generation"
@@ -1935,8 +1961,8 @@ fn test_sync_subscriptions_advances_sync_timestamps_between_calls() {
 
     let first = expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1950,8 +1976,8 @@ fn test_sync_subscriptions_advances_sync_timestamps_between_calls() {
 
     let second = expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1976,8 +2002,8 @@ fn test_clearing_client_route_subscriptions_stops_future_realtime_delivery() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -1989,8 +2015,8 @@ fn test_clearing_client_route_subscriptions_stops_future_realtime_delivery() {
 
     let first_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2000,16 +2026,14 @@ fn test_clearing_client_route_subscriptions_stops_future_realtime_delivery() {
     ));
     assert_eq!(first_delivery, 1);
 
-    expect_ok(
-        runtime.clear_client_route_subscriptions_for_principal_kind(
-            "100001", "default", "1", "user", "d_pad",
-        ),
-    );
+    expect_ok(runtime.clear_client_route_subscriptions_for_principal_kind(
+        "100001", "default", "1", "user", "d_pad",
+    ));
 
     let second_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2032,8 +2056,8 @@ fn test_resyncing_client_route_subscriptions_removes_stale_scope_fanout_index() 
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2044,8 +2068,8 @@ fn test_resyncing_client_route_subscriptions_removes_stale_scope_fanout_index() 
     ));
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2057,8 +2081,8 @@ fn test_resyncing_client_route_subscriptions_removes_stale_scope_fanout_index() 
 
     let old_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_old",
@@ -2068,8 +2092,8 @@ fn test_resyncing_client_route_subscriptions_removes_stale_scope_fanout_index() 
     ));
     let new_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_new",
@@ -2092,8 +2116,8 @@ fn test_restored_client_route_state_rebuilds_scope_fanout_index() {
     let source_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2112,8 +2136,8 @@ fn test_restored_client_route_state_rebuilds_scope_fanout_index() {
 
     let delivered = expect_ok(target_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2124,7 +2148,8 @@ fn test_restored_client_route_state_rebuilds_scope_fanout_index() {
 
     assert_eq!(delivered, 1);
     let window = expect_ok(
-        target_runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        target_runtime
+            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
     );
     assert_eq!(window.items.len(), 1);
     assert_eq!(window.items[0].payload, r#"{"messageId":"msg_restored"}"#);
@@ -2148,8 +2173,8 @@ fn test_take_client_route_state_clears_source_durable_subscriptions_before_lazy_
 
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2165,13 +2190,14 @@ fn test_take_client_route_state_clears_source_durable_subscriptions_before_lazy_
     expect_ok(target_runtime.restore_client_route_state(snapshot));
 
     expect_ok(
-        source_runtime
-            .ensure_client_route_state_for_principal_kind("100001", "default", "1", "user", "d_pad"),
+        source_runtime.ensure_client_route_state_for_principal_kind(
+            "100001", "default", "1", "user", "d_pad",
+        ),
     );
     let source_delivery = expect_ok(source_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2181,8 +2207,8 @@ fn test_take_client_route_state_clears_source_durable_subscriptions_before_lazy_
     ));
     let target_delivery = expect_ok(target_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2207,8 +2233,8 @@ fn test_sync_subscriptions_after_take_client_route_state_reclaims_migrated_out_s
     let source_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2224,8 +2250,8 @@ fn test_sync_subscriptions_after_take_client_route_state_reclaims_migrated_out_s
 
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2236,8 +2262,8 @@ fn test_sync_subscriptions_after_take_client_route_state_reclaims_migrated_out_s
     ));
     let delivered = expect_ok(source_runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2254,8 +2280,8 @@ fn test_publish_scope_event_advances_occurred_at_between_events() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2267,8 +2293,8 @@ fn test_publish_scope_event_advances_occurred_at_between_events() {
 
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2281,8 +2307,8 @@ fn test_publish_scope_event_advances_occurred_at_between_events() {
 
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2309,8 +2335,8 @@ fn test_checkpoint_updated_at_advances_after_new_persisted_mutation() {
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2322,8 +2348,8 @@ fn test_checkpoint_updated_at_advances_after_new_persisted_mutation() {
 
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2339,8 +2365,8 @@ fn test_checkpoint_updated_at_advances_after_new_persisted_mutation() {
 
     expect_ok(runtime.publish_scope_event_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "conversation",
         "c_demo",
@@ -2366,8 +2392,8 @@ fn test_publish_scope_event_enforces_bounded_client_route_window_and_persists_tr
     );
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "100001",
-                "default",
-                "1",
+        "default",
+        "1",
         "user",
         "d_pad",
         vec![RealtimeSubscriptionItemInput {
@@ -2380,8 +2406,8 @@ fn test_publish_scope_event_enforces_bounded_client_route_window_and_persists_tr
     for index in 1..=1100 {
         expect_ok(runtime.publish_scope_event_for_principal_kind(
             "100001",
-                "default",
-                "1",
+            "default",
+            "1",
             "user",
             "conversation",
             "c_demo",

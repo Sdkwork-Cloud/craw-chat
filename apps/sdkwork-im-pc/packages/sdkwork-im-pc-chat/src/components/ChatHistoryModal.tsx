@@ -139,10 +139,10 @@ export const ChatHistoryModal: React.FC<ChatHistoryModalProps> = ({
     }
 
     let isStale = false;
-    contactService.getContacts()
-      .then((contacts) => {
+    contactService.listContactsPage()
+      .then((page) => {
         if (!isStale) {
-          setContactProfiles(contacts);
+          setContactProfiles(page.items);
         }
       })
       .catch(() => {

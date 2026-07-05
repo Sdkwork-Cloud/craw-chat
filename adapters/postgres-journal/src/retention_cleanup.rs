@@ -94,6 +94,30 @@ WHERE ctid IN (
 )
 "#;
 
+const PURGE_RTC_SESSIONS_SQL: &str = r#"
+DELETE FROM im_rtc_sessions
+WHERE ctid IN (
+    SELECT ctid
+    FROM im_rtc_sessions
+    WHERE retention_until IS NOT NULL
+      AND retention_until <= NOW()
+    ORDER BY retention_until ASC
+    LIMIT $1
+)
+"#;
+
+const PURGE_RTC_SIGNALS_SQL: &str = r#"
+DELETE FROM im_rtc_signals
+WHERE ctid IN (
+    SELECT ctid
+    FROM im_rtc_signals
+    WHERE retention_until IS NOT NULL
+      AND retention_until <= NOW()
+    ORDER BY retention_until ASC
+    LIMIT $1
+)
+"#;
+
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct RetentionCleanupReport {
     pub commit_journal_deleted: u64,
@@ -103,6 +127,8 @@ pub struct RetentionCleanupReport {
     pub inbox_events_deleted: u64,
     pub projection_timeline_entries_deleted: u64,
     pub realtime_device_events_deleted: u64,
+    pub rtc_sessions_deleted: u64,
+    pub rtc_signals_deleted: u64,
 }
 
 pub fn purge_expired_retention_batch(
@@ -134,6 +160,10 @@ fn purge_batch(pool: &PostgresJournalPool, limit: i64) -> Result<RetentionCleanu
         execute_retention_delete(&mut txn, PURGE_PROJECTION_TIMELINE_SQL, limit)?;
     let realtime_device_events_deleted =
         execute_retention_delete(&mut txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
+    let rtc_sessions_deleted =
+        execute_retention_delete(&mut txn, PURGE_RTC_SESSIONS_SQL, limit)?;
+    let rtc_signals_deleted =
+        execute_retention_delete(&mut txn, PURGE_RTC_SIGNALS_SQL, limit)?;
 
     txn.commit()
         .map_err(|error| postgres_unavailable("journal retention purge commit", error))?;
@@ -146,6 +176,8 @@ fn purge_batch(pool: &PostgresJournalPool, limit: i64) -> Result<RetentionCleanu
         inbox_events_deleted,
         projection_timeline_entries_deleted,
         realtime_device_events_deleted,
+        rtc_sessions_deleted,
+        rtc_signals_deleted,
     })
 }
 
@@ -173,6 +205,8 @@ mod tests {
             PURGE_INBOX_EVENTS_SQL,
             PURGE_PROJECTION_TIMELINE_SQL,
             PURGE_REALTIME_DEVICE_EVENTS_SQL,
+            PURGE_RTC_SESSIONS_SQL,
+            PURGE_RTC_SIGNALS_SQL,
         ] {
             assert!(
                 sql.contains("retention_until IS NOT NULL"),

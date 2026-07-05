@@ -9,6 +9,7 @@ use axum::{
     routing::get,
 };
 use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_web_core::{ProblemCorrelation, WebFrameworkError, problem_response};
 
 use crate::client::resolve_max_upstream_response_body_bytes;
 use crate::constants::SDKWORK_CONTEXT_PROJECTION_HEADERS;
@@ -95,17 +96,15 @@ pub(crate) fn gateway_proxy_routes() -> axum::routing::MethodRouter<GatewayState
 }
 
 pub(crate) fn json_error_response(status: StatusCode, message: &str) -> Response {
-    Response::builder()
-        .status(status)
-        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .body(Body::from(
-            serde_json::json!({
-                "code": "gateway_proxy_error",
-                "message": message
-            })
-            .to_string(),
-        ))
-        .expect("gateway json error response should build")
+    let error = match status {
+        StatusCode::BAD_GATEWAY | StatusCode::SERVICE_UNAVAILABLE => {
+            WebFrameworkError::dependency_unavailable(message)
+        }
+        StatusCode::PAYLOAD_TOO_LARGE => WebFrameworkError::payload_too_large(message),
+        StatusCode::REQUEST_TIMEOUT => WebFrameworkError::request_timeout(message),
+        _ => WebFrameworkError::internal_server_error(message),
+    };
+    problem_response(&error, ProblemCorrelation::from(None))
 }
 
 pub(crate) fn request_base_url(request: &Request) -> String {

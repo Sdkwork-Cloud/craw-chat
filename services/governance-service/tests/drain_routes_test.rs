@@ -1,13 +1,16 @@
-use im_app_context::DualTokenRequestBuilderExt;
+mod common;
+
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use session_gateway::{
     RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeSubscriptionItemInput,
 };
 use tower::ServiceExt;
+
+use common::{control_plane_json_body, control_plane_write_request};
 
 #[tokio::test]
 async fn test_control_plane_can_drain_and_migrate_routes() {
@@ -47,16 +50,14 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
     let drain_response = app
         .clone()
         .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/backend/v3/api/control/nodes/node_a/drain")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("control.write")
-                .body(Body::empty())
-                .unwrap(),
+            control_plane_write_request(
+                "POST",
+                "/backend/v3/api/control/nodes/node_a/drain",
+                "1",
+                "user",
+            )
+            .body(Body::empty())
+            .unwrap(),
         )
         .await
         .expect("drain request should succeed");
@@ -76,17 +77,15 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
 
     let migrate_response = app
         .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/backend/v3/api/control/nodes/node_a/routes/migrate")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("control.write")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"targetNodeId":"node_b"}"#))
-                .unwrap(),
+            control_plane_write_request(
+                "POST",
+                "/backend/v3/api/control/nodes/node_a/routes/migrate",
+                "1",
+                "user",
+            )
+            .header("content-type", "application/json")
+            .body(control_plane_json_body(r#"{"targetNodeId":"node_b"}"#))
+            .unwrap(),
         )
         .await
         .expect("migrate request should succeed");
@@ -119,16 +118,14 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
     let drain_response = app
         .clone()
         .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/backend/v3/api/control/nodes/node_missing/drain")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("control.write")
-                .body(Body::empty())
-                .unwrap(),
+            control_plane_write_request(
+                "POST",
+                "/backend/v3/api/control/nodes/node_missing/drain",
+                "1",
+                "user",
+            )
+            .body(Body::empty())
+            .unwrap(),
         )
         .await
         .expect("unknown-node drain request should return response");
@@ -145,16 +142,14 @@ async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
 
     let activate_response = app
         .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/backend/v3/api/control/nodes/node_missing/activate")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("control.write")
-                .body(Body::empty())
-                .unwrap(),
+            control_plane_write_request(
+                "POST",
+                "/backend/v3/api/control/nodes/node_missing/activate",
+                "1",
+                "user",
+            )
+            .body(Body::empty())
+            .unwrap(),
         )
         .await
         .expect("unknown-node activate request should return response");
@@ -182,17 +177,15 @@ async fn test_control_plane_rejects_migrate_when_source_node_is_not_draining() {
 
     let migrate_response = app
         .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/backend/v3/api/control/nodes/node_a/routes/migrate")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("control.write")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"targetNodeId":"node_b"}"#))
-                .unwrap(),
+            control_plane_write_request(
+                "POST",
+                "/backend/v3/api/control/nodes/node_a/routes/migrate",
+                "1",
+                "user",
+            )
+            .header("content-type", "application/json")
+            .body(control_plane_json_body(r#"{"targetNodeId":"node_b"}"#))
+            .unwrap(),
         )
         .await
         .expect("migrate request should return response");

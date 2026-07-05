@@ -33,10 +33,10 @@ impl RealtimeAuthContextResolver {
         headers: &HeaderMap,
     ) -> Result<AppContext, AppContextError> {
         if let Some(pool) = self.iam_pool.as_deref() {
-            let auth_token = extract_bearer_token(headers)
-                .ok_or_else(AppContextError::auth_token_missing)?;
-            let access_token = extract_access_token(headers)
-                .ok_or_else(AppContextError::access_token_missing)?;
+            let auth_token =
+                extract_bearer_token(headers).ok_or_else(AppContextError::auth_token_missing)?;
+            let access_token =
+                extract_access_token(headers).ok_or_else(AppContextError::access_token_missing)?;
             if let Some(iam_context) =
                 resolve_iam_app_context_from_dual_tokens(pool, &auth_token, &access_token).await
             {
@@ -96,8 +96,8 @@ mod tests {
     use std::sync::Mutex;
 
     use axum::http::{HeaderMap, HeaderValue, header};
-    use serde_json::json;
     use sdkwork_utils_rust::base64url_encode;
+    use serde_json::json;
 
     use super::*;
 

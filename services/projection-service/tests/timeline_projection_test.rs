@@ -165,7 +165,9 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
         service.apply(&event).expect("projection should succeed");
     }
 
-    let first = service.timeline_window("100001", "default", "c_page", Some(0), 2);
+    let first = service
+        .timeline_window("100001", "default", "c_page", Some(0), 2)
+        .expect("timeline window");
     assert_eq!(
         first
             .items
@@ -177,7 +179,9 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
     assert_eq!(first.next_after_seq, Some(2));
     assert!(first.has_more);
 
-    let second = service.timeline_window("100001", "default", "c_page", Some(2), 2);
+    let second = service
+        .timeline_window("100001", "default", "c_page", Some(2), 2)
+        .expect("timeline window");
     assert_eq!(
         second
             .items
@@ -321,7 +325,9 @@ fn test_same_conversation_id_is_isolated_per_tenant_in_projection() {
     );
     assert_eq!(service.timeline("t_beta", "default", "c_shared").len(), 1);
     assert_eq!(
-        service.timeline("t_beta", "default", "c_shared")[0].summary.as_deref(),
+        service.timeline("t_beta", "default", "c_shared")[0]
+            .summary
+            .as_deref(),
         Some("beta")
     );
 }
@@ -670,7 +676,13 @@ fn test_member_role_changed_event_updates_member_snapshot() {
         .expect("role changed projection should succeed");
 
     let member = service
-        .member_snapshot_for_principal_kind("100001", "default", "c_role_projection", "1014", "user")
+        .member_snapshot_for_principal_kind(
+            "100001",
+            "default",
+            "c_role_projection",
+            "1014",
+            "user",
+        )
         .expect("member snapshot should exist");
     assert_eq!(member.role, MembershipRole::Admin);
 }
@@ -1054,7 +1066,13 @@ fn test_inbox_unread_count_excludes_messages_sent_by_current_principal() {
     );
 
     let owner_cursor = service
-        .read_cursor_for_principal_kind("100001", "default", "c_received_unread_projection", "1", "user")
+        .read_cursor_for_principal_kind(
+            "100001",
+            "default",
+            "c_received_unread_projection",
+            "1",
+            "user",
+        )
         .expect("owner cursor should exist");
     assert_eq!(
         owner_cursor.unread_count, 1,
@@ -1146,13 +1164,7 @@ fn test_inbox_from_auth_context_isolates_same_actor_id_by_principal_kind() {
     }
 
     let user_auth = app_context("100001", "1018", "user", Some("s_typed_inbox_user"), None);
-    let agent_auth = app_context(
-        "100001",
-        "1018",
-        "agent",
-        Some("s_typed_inbox_agent"),
-        None,
-    );
+    let agent_auth = app_context("100001", "1018", "agent", Some("s_typed_inbox_agent"), None);
 
     let user_inbox = service.inbox_from_auth_context(&user_auth);
     assert_eq!(user_inbox.len(), 1);
@@ -1258,7 +1270,9 @@ fn test_client_route_sync_feed_projects_registered_client_routes_for_message_and
 
     let feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1",
+            "100001",
+            "default",
+            "1",
             "user",
             "d_pad",
             Some(0),
@@ -1358,7 +1372,9 @@ fn test_rtc_signal_message_client_route_sync_feed_preserves_message_payload_for_
 
     let feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1016",
+            "100001",
+            "default",
+            "1016",
             "user",
             "d_pad",
             Some(0),
@@ -1495,7 +1511,9 @@ fn test_media_message_client_route_sync_feed_preserves_message_payload_for_state
 
     let feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1016",
+            "100001",
+            "default",
+            "1016",
             "user",
             "d_pad",
             Some(0),
@@ -1560,8 +1578,10 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
             ),
         )
         .expect("agent member should project");
-    service.register_client_route_for_principal_kind("100001", "default", "bot", "agent", "d_agent");
-    service.register_client_route_for_principal_kind("100001", "default", "bot", "system", "d_system");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "bot", "agent", "d_agent");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "bot", "system", "d_system");
 
     let cursor_updated = im_domain_events::CommitEnvelope::minimal(
         "evt_cursor_actor_kind_fanout_update",
@@ -1590,7 +1610,9 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
 
     let agent_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "bot",
+            "100001",
+            "default",
+            "bot",
             "agent",
             "d_agent",
             Some(0),
@@ -1604,7 +1626,9 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
 
     let system_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "bot",
+            "100001",
+            "default",
+            "bot",
             "system",
             "d_system",
             Some(0),
@@ -1652,13 +1676,7 @@ fn test_client_route_sync_feed_window_is_bounded_and_reports_trimmed_boundary() 
     service.register_client_route_for_principal_kind("100001", "default", "1", "user", "d_owner");
     service.register_client_route_for_principal_kind("100001", "default", "1", "user", "d_pad");
 
-    let auth = app_context(
-        "100001",
-        "1",
-        "user",
-        Some("s_bounded_sync"),
-        Some("d_pad"),
-    );
+    let auth = app_context("100001", "1", "user", Some("s_bounded_sync"), Some("d_pad"));
 
     for message_seq in 1..=1002 {
         service
@@ -1913,7 +1931,9 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
 
     let owner_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1",
+            "100001",
+            "default",
+            "1",
             "user",
             "d_owner",
             Some(0),
@@ -1992,7 +2012,9 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
 
     let removed_principal_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1013",
+            "100001",
+            "default",
+            "1013",
             "user",
             "d_other",
             Some(0),
@@ -2017,7 +2039,9 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
 
     let leave_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1019",
+            "100001",
+            "default",
+            "1019",
             "user",
             "d_leave",
             Some(0),
@@ -2181,10 +2205,9 @@ fn test_friendship_events_project_to_contact_client_route_sync_feeds_for_both_us
         .apply(&friendship_removed)
         .expect("friendship removal projection should succeed");
 
-    for (user_id, device_id, expected_peer_id) in [
-        ("1016", "d_alice", "1020"),
-        ("1020", "d_bob", "1016"),
-    ] {
+    for (user_id, device_id, expected_peer_id) in
+        [("1016", "d_alice", "1020"), ("1020", "d_bob", "1016")]
+    {
         let feed = service
             .client_route_sync_feed_window_for_principal_kind(
                 "100001",
@@ -2270,6 +2293,11 @@ fn test_realtime_fanout_targets_for_recipients_return_registered_principal_devic
         targets,
         vec![
             RealtimeFanoutTarget {
+                principal_id: "1021".into(),
+                principal_kind: "user".into(),
+                device_id: "d_phone".into(),
+            },
+            RealtimeFanoutTarget {
                 principal_id: "1022".into(),
                 principal_kind: "user".into(),
                 device_id: "d_pad".into(),
@@ -2278,11 +2306,6 @@ fn test_realtime_fanout_targets_for_recipients_return_registered_principal_devic
                 principal_id: "1022".into(),
                 principal_kind: "user".into(),
                 device_id: "d_watch".into(),
-            },
-            RealtimeFanoutTarget {
-                principal_id: "1021".into(),
-                principal_kind: "user".into(),
-                device_id: "d_phone".into(),
             },
         ]
     );
@@ -2368,11 +2391,6 @@ fn test_client_route_sync_fanout_targets_for_conversation_include_active_members
         targets,
         vec![
             RealtimeFanoutTarget {
-                principal_id: "1014".into(),
-                principal_kind: "user".into(),
-                device_id: "d_watch".into(),
-            },
-            RealtimeFanoutTarget {
                 principal_id: "1".into(),
                 principal_kind: "user".into(),
                 device_id: "d_pad".into(),
@@ -2381,6 +2399,11 @@ fn test_client_route_sync_fanout_targets_for_conversation_include_active_members
                 principal_id: "1".into(),
                 principal_kind: "user".into(),
                 device_id: "d_phone".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "1014".into(),
+                principal_kind: "user".into(),
+                device_id: "d_watch".into(),
             },
             RealtimeFanoutTarget {
                 principal_id: "1024".into(),
@@ -2475,13 +2498,7 @@ fn test_active_conversation_principal_recipients_from_auth_context_returns_curre
             .expect("member projection should succeed");
     }
 
-    let auth = app_context(
-        "100001",
-        "1",
-        "user",
-        Some("s_owner"),
-        Some("d_owner"),
-    );
+    let auth = app_context("100001", "1", "user", Some("s_owner"), Some("d_owner"));
 
     assert_eq!(
         service
@@ -2605,13 +2622,7 @@ fn test_message_posted_notification_recipients_from_auth_context_include_shared_
         .apply(&policy_applied)
         .expect("shared history policy should project");
 
-    let auth = app_context(
-        "100001",
-        "1",
-        "user",
-        Some("s_owner"),
-        Some("d_owner"),
-    );
+    let auth = app_context("100001", "1", "user", Some("s_owner"), Some("d_owner"));
 
     assert_eq!(
         service
@@ -2622,11 +2633,11 @@ fn test_message_posted_notification_recipients_from_auth_context_include_shared_
             .expect("active member should still resolve active principal recipients"),
         vec![
             NotificationRecipientView {
-                principal_id: "1014".into(),
+                principal_id: "1".into(),
                 principal_kind: "user".into(),
             },
             NotificationRecipientView {
-                principal_id: "1".into(),
+                principal_id: "1014".into(),
                 principal_kind: "user".into(),
             }
         ]
@@ -2640,11 +2651,11 @@ fn test_message_posted_notification_recipients_from_auth_context_include_shared_
             .expect("active member should resolve shared notification principal ids"),
         vec![
             projection_service::NotificationRecipientView {
-                principal_id: "1014".into(),
+                principal_id: "1".into(),
                 principal_kind: "user".into(),
             },
             projection_service::NotificationRecipientView {
-                principal_id: "1".into(),
+                principal_id: "1014".into(),
                 principal_kind: "user".into(),
             },
             projection_service::NotificationRecipientView {
@@ -2841,7 +2852,9 @@ fn test_timeline_window_filters_expired_retention_entries() {
             .expect("retention filter projection setup should succeed");
     }
 
-    let window = service.timeline_window("100001", "default", "c_retention_filter", None, 10);
+    let window = service
+        .timeline_window("100001", "default", "c_retention_filter", None, 10)
+        .expect("timeline window");
     assert_eq!(window.items.len(), 1);
     assert_eq!(window.items[0].message_id, "m_fresh");
 }
@@ -2922,7 +2935,9 @@ fn test_legal_hold_policy_clears_timeline_retention_until() {
             .expect("legal hold projection setup should succeed");
     }
 
-    let window = service.timeline_window("100001", "default", "c_legal_hold", None, 10);
+    let window = service
+        .timeline_window("100001", "default", "c_legal_hold", None, 10)
+        .expect("timeline window");
     assert_eq!(window.items.len(), 1);
     assert_eq!(window.items[0].message_id, "m_hold");
     assert!(window.items[0].retention_until.is_none());
@@ -3091,16 +3106,22 @@ fn test_typed_realtime_recipients_exclude_non_member_devices_sharing_same_actor_
     }
 
     service.register_client_route_for_principal_kind("100001", "default", "1", "user", "d_owner");
-    service.register_client_route_for_principal_kind("100001", "default", "1018", "user", "d_dual_user");
-    service.register_client_route_for_principal_kind("100001", "default", "1018", "agent", "d_dual_agent");
-
-    let auth = app_context(
+    service.register_client_route_for_principal_kind(
         "100001",
-        "1",
+        "default",
+        "1018",
         "user",
-        Some("s_owner"),
-        Some("d_owner"),
+        "d_dual_user",
     );
+    service.register_client_route_for_principal_kind(
+        "100001",
+        "default",
+        "1018",
+        "agent",
+        "d_dual_agent",
+    );
+
+    let auth = app_context("100001", "1", "user", Some("s_owner"), Some("d_owner"));
 
     let recipients = service
         .active_conversation_principal_recipients_from_auth_context(
@@ -3112,11 +3133,11 @@ fn test_typed_realtime_recipients_exclude_non_member_devices_sharing_same_actor_
         recipients,
         vec![
             NotificationRecipientView {
-                principal_id: "1018".into(),
+                principal_id: "1".into(),
                 principal_kind: "user".into(),
             },
             NotificationRecipientView {
-                principal_id: "1".into(),
+                principal_id: "1018".into(),
                 principal_kind: "user".into(),
             }
         ]
@@ -3126,14 +3147,14 @@ fn test_typed_realtime_recipients_exclude_non_member_devices_sharing_same_actor_
         service.realtime_fanout_targets_for_recipients_from_auth_context(&auth, recipients),
         vec![
             RealtimeFanoutTarget {
-                principal_id: "1018".into(),
-                principal_kind: "user".into(),
-                device_id: "d_dual_user".into(),
-            },
-            RealtimeFanoutTarget {
                 principal_id: "1".into(),
                 principal_kind: "user".into(),
                 device_id: "d_owner".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "1018".into(),
+                principal_kind: "user".into(),
+                device_id: "d_dual_user".into(),
             }
         ]
     );
@@ -3199,8 +3220,10 @@ fn test_client_route_sync_state_isolated_for_same_actor_and_device_across_princi
     }
 
     service.register_client_route_for_principal_kind("100001", "default", "1", "user", "d_owner");
-    service.register_client_route_for_principal_kind("100001", "default", "1018", "user", "d_shared");
-    service.register_client_route_for_principal_kind("100001", "default", "1018", "agent", "d_shared");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "1018", "user", "d_shared");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "1018", "agent", "d_shared");
 
     let user_auth = app_context(
         "100001",
@@ -3236,14 +3259,14 @@ fn test_client_route_sync_state_isolated_for_same_actor_and_device_across_princi
         ),
         vec![
             RealtimeFanoutTarget {
-                principal_id: "1018".into(),
-                principal_kind: "user".into(),
-                device_id: "d_shared".into(),
-            },
-            RealtimeFanoutTarget {
                 principal_id: "1".into(),
                 principal_kind: "user".into(),
                 device_id: "d_owner".into(),
+            },
+            RealtimeFanoutTarget {
+                principal_id: "1018".into(),
+                principal_kind: "user".into(),
+                device_id: "d_shared".into(),
             },
         ]
     );
@@ -3319,7 +3342,8 @@ fn test_client_route_sync_state_isolated_for_same_actor_and_device_across_princi
 fn test_default_client_route_registration_does_not_leak_across_principal_kinds() {
     let service = TimelineProjectionService::default();
 
-    let default_client_route = service.register_client_route("100001", "default", "1018", "d_legacy");
+    let default_client_route =
+        service.register_client_route("100001", "default", "1018", "d_legacy");
     assert_eq!(default_client_route.principal_kind, "user");
 
     let user_client_routes =
@@ -3341,7 +3365,8 @@ fn test_default_client_route_queries_default_to_user_principal_kind() {
     let service = TimelineProjectionService::default();
 
     service.register_client_route_for_principal_kind("100001", "default", "1018", "user", "d_user");
-    service.register_client_route_for_principal_kind("100001", "default", "1018", "agent", "d_agent");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "1018", "agent", "d_agent");
 
     let default_client_routes = service.registered_client_routes("100001", "default", "1018");
     assert_eq!(default_client_routes.len(), 1);
@@ -3486,8 +3511,10 @@ fn test_message_mutation_client_route_sync_fanout_uses_payload_actor_kind() {
             ),
         )
         .expect("agent member should project");
-    service.register_client_route_for_principal_kind("100001", "default", "bot", "agent", "d_agent");
-    service.register_client_route_for_principal_kind("100001", "default", "bot", "system", "d_system");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "bot", "agent", "d_agent");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "bot", "system", "d_system");
 
     let edited = im_domain_events::CommitEnvelope::minimal(
         "evt_mutation_fanout_agent_edit",
@@ -3513,7 +3540,9 @@ fn test_message_mutation_client_route_sync_fanout_uses_payload_actor_kind() {
 
     let agent_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "bot",
+            "100001",
+            "default",
+            "bot",
             "agent",
             "d_agent",
             Some(0),
@@ -3526,7 +3555,9 @@ fn test_message_mutation_client_route_sync_fanout_uses_payload_actor_kind() {
 
     let system_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "bot",
+            "100001",
+            "default",
+            "bot",
             "system",
             "d_system",
             Some(0),
@@ -3782,7 +3813,10 @@ fn test_message_interaction_reactions_are_isolated_by_actor_kind() {
         .expect("agent reaction should project");
 
     let summary = service
-        .message_interaction_summary("100001", "default", "c_interaction_typed_actor",
+        .message_interaction_summary(
+            "100001",
+            "default",
+            "c_interaction_typed_actor",
             "msg_c_interaction_typed_actor_1",
         )
         .expect("interaction summary should exist");
@@ -3800,7 +3834,10 @@ fn test_message_interaction_reactions_are_isolated_by_actor_kind() {
         .expect("user reaction removal should project");
 
     let summary = service
-        .message_interaction_summary("100001", "default", "c_interaction_typed_actor",
+        .message_interaction_summary(
+            "100001",
+            "default",
+            "c_interaction_typed_actor",
             "msg_c_interaction_typed_actor_1",
         )
         .expect("agent reaction should remain after removing same-id user reaction");
@@ -3846,8 +3883,10 @@ fn test_message_interaction_client_route_sync_fanout_uses_payload_actor_kind() {
             ),
         )
         .expect("agent member should project");
-    service.register_client_route_for_principal_kind("100001", "default", "bot", "agent", "d_agent");
-    service.register_client_route_for_principal_kind("100001", "default", "bot", "system", "d_system");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "bot", "agent", "d_agent");
+    service
+        .register_client_route_for_principal_kind("100001", "default", "bot", "system", "d_system");
 
     let reaction_added = im_domain_events::CommitEnvelope::minimal(
         "evt_interaction_fanout_agent_reaction",
@@ -3875,7 +3914,9 @@ fn test_message_interaction_client_route_sync_fanout_uses_payload_actor_kind() {
 
     let agent_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "bot",
+            "100001",
+            "default",
+            "bot",
             "agent",
             "d_agent",
             Some(0),
@@ -3888,7 +3929,9 @@ fn test_message_interaction_client_route_sync_fanout_uses_payload_actor_kind() {
 
     let system_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "bot",
+            "100001",
+            "default",
+            "bot",
             "system",
             "d_system",
             Some(0),
@@ -4182,14 +4225,22 @@ fn test_agent_handoff_status_change_projects_client_route_sync_entries_for_activ
         .apply(&target_member_joined)
         .expect("target member projection should succeed");
     service.register_client_route("100001", "default", "1014", "d_pad");
-    service.register_client_route_for_principal_kind("100001", "default", "ag_source", "agent", "d_agent");
+    service.register_client_route_for_principal_kind(
+        "100001",
+        "default",
+        "ag_source",
+        "agent",
+        "d_agent",
+    );
     service
         .apply(&handoff_accepted)
         .expect("handoff accepted projection should succeed");
 
     let target_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "1014",
+            "100001",
+            "default",
+            "1014",
             "user",
             "d_pad",
             Some(0),
@@ -4228,7 +4279,9 @@ fn test_agent_handoff_status_change_projects_client_route_sync_entries_for_activ
 
     let source_feed = service
         .client_route_sync_feed_window_for_principal_kind(
-            "100001", "default", "ag_source",
+            "100001",
+            "default",
+            "ag_source",
             "agent",
             "d_agent",
             Some(0),

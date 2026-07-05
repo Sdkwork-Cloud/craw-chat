@@ -161,16 +161,20 @@ fn test_step11_ha_dr_drain_rebalance_emits_metrics() {
     let baseline = load_drill_baseline();
     let started = Instant::now();
     let cluster = RealtimeClusterBridge::default();
-    let runtime_a = Arc::new(RealtimeDeliveryRuntime::with_durable_stores_for_standalone_gateway(
-        Arc::new(MemoryRealtimeCheckpointStore::default()),
-        Arc::new(MemoryRealtimeSubscriptionStore::default()),
-        Arc::new(MemoryRealtimeEventWindowStore::default()),
-    ));
-    let runtime_b = Arc::new(RealtimeDeliveryRuntime::with_durable_stores_for_standalone_gateway(
-        Arc::new(MemoryRealtimeCheckpointStore::default()),
-        Arc::new(MemoryRealtimeSubscriptionStore::default()),
-        Arc::new(MemoryRealtimeEventWindowStore::default()),
-    ));
+    let runtime_a = Arc::new(
+        RealtimeDeliveryRuntime::with_durable_stores_for_standalone_gateway(
+            Arc::new(MemoryRealtimeCheckpointStore::default()),
+            Arc::new(MemoryRealtimeSubscriptionStore::default()),
+            Arc::new(MemoryRealtimeEventWindowStore::default()),
+        ),
+    );
+    let runtime_b = Arc::new(
+        RealtimeDeliveryRuntime::with_durable_stores_for_standalone_gateway(
+            Arc::new(MemoryRealtimeCheckpointStore::default()),
+            Arc::new(MemoryRealtimeSubscriptionStore::default()),
+            Arc::new(MemoryRealtimeEventWindowStore::default()),
+        ),
+    );
     cluster.bind_node_runtime("node_a", runtime_a);
     cluster.bind_node_runtime("node_b", runtime_b.clone());
 
@@ -226,8 +230,7 @@ fn test_step11_ha_dr_drain_rebalance_emits_metrics() {
     assert_eq!(publish.route_state, "resolved");
     assert_eq!(publish.delivered, 1);
     assert_eq!(
-        baseline.drain_rebalance.expected_route_count,
-        1,
+        baseline.drain_rebalance.expected_route_count, 1,
         "drain-rebalance baseline route count must match migrated route evidence"
     );
 
@@ -347,9 +350,8 @@ fn test_step11_ha_dr_stale_session_fence_emits_metrics() {
 #[test]
 fn test_step11_ha_dr_restore_recovery_artifact_contract_is_materialized() {
     let baseline = load_drill_baseline();
-    let artifact_path = workspace_root().join(
-        "artifacts/perf/step-11/pre-release/restore-recovery/drill.json",
-    );
+    let artifact_path =
+        workspace_root().join("artifacts/perf/step-11/pre-release/restore-recovery/drill.json");
     let raw = fs::read_to_string(&artifact_path).unwrap_or_else(|err| {
         panic!(
             "missing restore-recovery drill artifact: {} ({err})",
@@ -379,9 +381,8 @@ fn test_step11_ha_dr_restore_recovery_artifact_contract_is_materialized() {
 #[test]
 fn test_step11_ha_dr_upgrade_rollback_artifact_contract_is_materialized() {
     let baseline = load_drill_baseline();
-    let artifact_path = workspace_root().join(
-        "artifacts/perf/step-11/pre-release/upgrade-rollback/drill.json",
-    );
+    let artifact_path =
+        workspace_root().join("artifacts/perf/step-11/pre-release/upgrade-rollback/drill.json");
     let raw = fs::read_to_string(&artifact_path).unwrap_or_else(|err| {
         panic!(
             "missing upgrade-rollback drill artifact: {} ({err})",
@@ -401,7 +402,12 @@ fn test_step11_ha_dr_upgrade_rollback_artifact_contract_is_materialized() {
     );
     assert_eq!(
         artifact["disabledCapability"].as_str(),
-        Some(baseline.upgrade_rollback.expected_disabled_capability.as_str())
+        Some(
+            baseline
+                .upgrade_rollback
+                .expected_disabled_capability
+                .as_str()
+        )
     );
 
     print_metric(json!({

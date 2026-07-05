@@ -10,6 +10,8 @@ use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_web_core::WebRequestContext;
 use tokio::sync::Semaphore;
 
+use crate::bootstrap::default_streaming_runtime;
+
 use crate::error::StreamingError;
 use crate::handlers::{
     abort_stream, append_stream_frame, checkpoint_stream, complete_stream, list_stream_frames,
@@ -25,7 +27,7 @@ struct PublicAppGuardrails {
 }
 
 pub fn build_default_app() -> Router {
-    build_app(Arc::new(StreamingRuntime::default()))
+    build_app(default_streaming_runtime())
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
@@ -61,9 +63,7 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 
 pub fn build_public_app() -> Router {
     mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(Arc::new(
-            StreamingRuntime::default(),
-        ))),
+        apply_public_http_guardrails(build_business_router(default_streaming_runtime())),
         im_service_router_config(),
     )
 }

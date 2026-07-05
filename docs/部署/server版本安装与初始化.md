@@ -69,17 +69,17 @@ Linux archive：
 
 macOS service 与 Windows Service 路径矩阵见 [server版本service托管标准.md](./server版本service托管标准.md)。
 
-Desktop user data 与 server data 分离。Desktop 默认 SQLite 位于 `~/.sdkwork/chat/data/chat.sqlite`。
+Desktop user data 与 server data 分离。Desktop 本地用户数据使用浏览器本地存储(IndexedDB / localStorage)。
 
 ## Release payload contract
 
 Server archives must include `bin/sdkwork-im-server`、`config/*.example`、lifecycle scripts、service templates、`web/sdkwork-im-pc/dist`、`INSTALL.md`、`install-manifest.json`。
 
-Packages must not include secrets、`.env*`、本地 SQLite、generated runtime state、`node_modules` 或 Git metadata。
+Packages must not include secrets、`.env*`、generated runtime state、`node_modules` 或 Git metadata。
 
 ## Database contract
 
-Server release packages default to PostgreSQL。Desktop packages default to SQLite at `~/.sdkwork/chat/data/chat.sqlite`。
+Server release packages default to PostgreSQL。Desktop packages 使用浏览器本地存储(IndexedDB / localStorage),不携带 SQL 数据库文件。
 
 数据库 schema 由 `database/` 生命周期模块管理，规范基线为 `database/ddl/baseline/postgres/0001_im_baseline.sql`。
 

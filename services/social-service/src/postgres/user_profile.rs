@@ -7,10 +7,13 @@ use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
+use sdkwork_utils_rust::SdkWorkResourceData;
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::user_profile_store::UserProfileRecord;
+
+use crate::api_payload::resource_item;
 
 use crate::postgres::http::PostgresAppState;
 
@@ -50,7 +53,7 @@ pub async fn get_user_profile(
     State(state): State<PostgresAppState>,
     Path(user_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<UserProfileResponse> = (|| {
+    let result: ApiResult<SdkWorkResourceData<UserProfileResponse>> = (|| {
         let record = state
             .user_profile_store
             .get_by_user_id(
@@ -60,7 +63,7 @@ pub async fn get_user_profile(
             )
             .map_err(|_| ApiProblem::internal_server_error("failed to read user profile"))?
             .ok_or_else(|| ApiProblem::not_found("user profile not found"))?;
-        Ok(UserProfileResponse::from(record))
+        Ok(resource_item(UserProfileResponse::from(record)))
     })();
     finish_api_json(&ctx, result)
 }

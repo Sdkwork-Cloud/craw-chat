@@ -4,7 +4,7 @@ import { getImSdkClient } from "@sdkwork/im-h5-core";
 import { uploadChatMediaFile } from "./chatMediaUploadService";
 
 export interface FetchTimelineOptions {
-  limit?: number;
+  pageSize?: number;
   afterSeq?: number;
 }
 
@@ -40,7 +40,7 @@ export async function fetchConversationTimeline(
   options?: FetchTimelineOptions,
 ): Promise<TimelineResponse> {
   return getImSdkClient().conversations.listMessages(conversationId, {
-    limit: options?.limit ?? 50,
+    pageSize: options?.pageSize ?? 20,
     afterSeq: options?.afterSeq ?? 0,
   });
 }
@@ -48,11 +48,11 @@ export async function fetchConversationTimeline(
 export async function fetchConversationTimelineDelta(
   conversationId: string,
   afterSeq: number,
-  limit = 50,
+  pageSize = 20,
 ): Promise<TimelineResponse> {
   return getImSdkClient().conversations.listMessages(conversationId, {
     afterSeq,
-    limit,
+    pageSize,
   });
 }
 

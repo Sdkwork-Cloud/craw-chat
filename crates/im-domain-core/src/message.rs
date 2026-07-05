@@ -190,6 +190,7 @@ pub struct ConversationMessageLog {
     high_watermark: u64,
     messages: HashMap<String, StoredMessage>,
     message_ids_by_seq: BTreeMap<u64, String>,
+    pinned_message_ids_by_seq: BTreeMap<u64, String>,
 }
 
 impl ConversationMessageLog {
@@ -223,6 +224,35 @@ impl ConversationMessageLog {
                     || stored.message.sender.kind != principal_kind
             })
             .count() as u64
+    }
+
+    pub fn pinned_message_ids_page(&self, offset: usize, limit: usize) -> (Vec<String>, bool) {
+        let limit = limit.max(1);
+        let mut window = if !self.pinned_message_ids_by_seq.is_empty() {
+            self.pinned_message_ids_by_seq
+                .values()
+                .skip(offset)
+                .take(limit + 1)
+                .cloned()
+                .collect::<Vec<_>>()
+        } else {
+            self.message_ids_by_seq
+                .values()
+                .filter_map(|message_id| {
+                    self.messages
+                        .get(message_id.as_str())
+                        .filter(|stored| stored.pin.is_some())
+                        .map(|_| message_id.clone())
+                })
+                .skip(offset)
+                .take(limit + 1)
+                .collect::<Vec<_>>()
+        };
+        let has_more = window.len() > limit;
+        if has_more {
+            window.truncate(limit);
+        }
+        (window, has_more)
     }
 
     pub fn message(&self, message_id: &str) -> Option<&StoredMessage> {
@@ -317,6 +347,7 @@ impl ConversationMessageLog {
                 // Remove the message
                 self.messages.remove(message_id.as_str());
                 self.message_ids_by_seq.remove(&seq);
+                self.pinned_message_ids_by_seq.remove(&seq);
             }
         }
     }
@@ -366,12 +397,19 @@ impl ConversationMessageLog {
             pinned_by: pinned.pinned_by.clone(),
             pinned_at: pinned.pinned_at.clone(),
         });
+        self.pinned_message_ids_by_seq
+            .insert(stored.message.message_seq, pinned.message_id.clone());
         Some(true)
     }
 
     pub fn apply_unpinned(&mut self, unpinned: &MessageUnpinned) -> Option<bool> {
         let stored = self.messages.get_mut(unpinned.message_id.as_str())?;
-        Some(stored.pin.take().is_some())
+        let message_seq = stored.message.message_seq;
+        let changed = stored.pin.take().is_some();
+        if changed {
+            self.pinned_message_ids_by_seq.remove(&message_seq);
+        }
+        Some(changed)
     }
 }
 

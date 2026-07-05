@@ -1,3 +1,4 @@
+use super::support::upsert_roster_member;
 use super::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,6 +218,9 @@ where
                 self.apply_recovered_conversation_policy_applied(envelope)
             }
             "conversation.member_joined" => self.apply_recovered_member_joined(envelope),
+            "conversation.member_invitation_accepted" => {
+                self.apply_recovered_member_joined(envelope)
+            }
             "conversation.member_removed" | "conversation.member_left" => {
                 self.apply_recovered_member_deactivated(envelope)
             }
@@ -463,20 +467,25 @@ where
         let scope_key =
             conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
-        let conversation = state
-            .conversations
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| {
-                RuntimeError::Conflict(format!(
-                    "cannot replay event without conversation {}",
-                    envelope.scope_id
-                ))
-            })?;
-        conversation
-            .aggregate
-            .observe_member_epoch(envelope.ordering_seq);
-        upsert_member(conversation, member.clone());
-        conversation.roster.ensure_default_read_cursor(&member);
+        let organization_id =
+            im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
+        {
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(format!(
+                        "cannot replay event without conversation {}",
+                        envelope.scope_id
+                    ))
+                })?;
+            conversation
+                .aggregate
+                .observe_member_epoch(envelope.ordering_seq);
+            upsert_roster_member(conversation, member.clone());
+            conversation.roster.ensure_default_read_cursor(&member);
+        }
+        state.sync_actor_inbox_member(organization_id.as_str(), &member);
         Ok(())
     }
 
@@ -494,19 +503,24 @@ where
         let scope_key =
             conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
-        let conversation = state
-            .conversations
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| {
-                RuntimeError::Conflict(format!(
-                    "cannot replay event without conversation {}",
-                    envelope.scope_id
-                ))
-            })?;
-        conversation
-            .aggregate
-            .observe_member_epoch(envelope.ordering_seq);
-        conversation.roster.deactivate_member(member);
+        let organization_id =
+            im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
+        {
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(format!(
+                        "cannot replay event without conversation {}",
+                        envelope.scope_id
+                    ))
+                })?;
+            conversation
+                .aggregate
+                .observe_member_epoch(envelope.ordering_seq);
+            deactivate_roster_member(conversation, member.clone());
+        }
+        state.sync_actor_inbox_member(organization_id.as_str(), &member);
         Ok(())
     }
 
@@ -548,20 +562,26 @@ where
         let scope_key =
             conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
-        let conversation = state
-            .conversations
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| {
-                RuntimeError::Conflict(format!(
-                    "cannot replay event without conversation {}",
-                    envelope.scope_id
-                ))
-            })?;
-        conversation
-            .aggregate
-            .observe_member_epoch(envelope.ordering_seq);
-        upsert_member(conversation, payload.previous_owner);
-        upsert_member(conversation, payload.new_owner);
+        let organization_id =
+            im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
+        let members_to_sync = {
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(format!(
+                        "cannot replay event without conversation {}",
+                        envelope.scope_id
+                    ))
+                })?;
+            conversation
+                .aggregate
+                .observe_member_epoch(envelope.ordering_seq);
+            upsert_roster_member(conversation, payload.previous_owner.clone());
+            upsert_roster_member(conversation, payload.new_owner.clone());
+            vec![payload.previous_owner, payload.new_owner]
+        };
+        state.sync_actor_inbox_members(organization_id.as_str(), members_to_sync.as_slice());
         Ok(())
     }
 
@@ -579,19 +599,25 @@ where
         let scope_key =
             conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
-        let conversation = state
-            .conversations
-            .get_mut(scope_key.as_str())
-            .ok_or_else(|| {
-                RuntimeError::Conflict(format!(
-                    "cannot replay event without conversation {}",
-                    envelope.scope_id
-                ))
-            })?;
-        conversation
-            .aggregate
-            .observe_member_epoch(envelope.ordering_seq);
-        upsert_member(conversation, payload.updated_member);
+        let organization_id =
+            im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
+        let updated_member = {
+            let conversation = state
+                .conversations
+                .get_mut(scope_key.as_str())
+                .ok_or_else(|| {
+                    RuntimeError::Conflict(format!(
+                        "cannot replay event without conversation {}",
+                        envelope.scope_id
+                    ))
+                })?;
+            conversation
+                .aggregate
+                .observe_member_epoch(envelope.ordering_seq);
+            upsert_roster_member(conversation, payload.updated_member.clone());
+            payload.updated_member
+        };
+        state.sync_actor_inbox_member(organization_id.as_str(), &updated_member);
         Ok(())
     }
 
@@ -653,6 +679,9 @@ where
                         ))
                     })?;
             conversation.message_log.store_posted(message.clone());
+            conversation
+                .aggregate
+                .observe_commit_seq(envelope.ordering_seq);
             if let Some(request_key) = post_message_request_key_from_message(&message) {
                 let replay_record = PostedMessageReplayRecord {
                     sender_id: message.sender.id.clone(),
@@ -713,6 +742,9 @@ where
                     edited.message_id
                 ))
             })?;
+        conversation
+            .aggregate
+            .observe_commit_seq(envelope.ordering_seq);
         Ok(())
     }
 
@@ -748,6 +780,9 @@ where
                     recalled.message_id
                 ))
             })?;
+        conversation
+            .aggregate
+            .observe_commit_seq(envelope.ordering_seq);
         Ok(())
     }
 

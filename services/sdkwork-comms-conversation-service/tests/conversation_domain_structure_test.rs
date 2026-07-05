@@ -117,8 +117,7 @@ fn test_conversation_runtime_state_uses_rwlock_and_query_read_guards() {
         "pub fn list_members(",
         "pub fn read_cursor_view(",
         "pub fn read_cursor_view_with_actor_kind(",
-        "pub fn list_messages_window(",
-        "pub fn list_messages_with_actor_kind(",
+        "fn list_messages_history_window(",
     ] {
         let method = membership_source
             .split(required_symbol)

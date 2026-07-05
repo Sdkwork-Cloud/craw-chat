@@ -216,7 +216,9 @@ impl RouteStore for RedisPostgresTieredRouteStore {
         expected_current: &RouteBinding,
         restore_to: RouteBinding,
     ) -> Option<RouteBinding> {
-        let restored = self.redis.restore_if_current(expected_current, restore_to)?;
+        let restored = self
+            .redis
+            .restore_if_current(expected_current, restore_to)?;
         self.mirror_persist_with_retry(&restored);
         Some(restored)
     }

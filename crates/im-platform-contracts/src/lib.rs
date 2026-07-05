@@ -1,10 +1,12 @@
 mod cluster_bus;
 mod conversation_aggregate_store;
+mod conversation_member_access_gate;
 mod id_generator;
 mod message_store;
 mod outbox_store;
 mod provider;
 mod push_provider;
+mod realtime_publisher;
 mod retention_scope_store;
 mod search_provider;
 mod seq_allocator;
@@ -38,7 +40,9 @@ pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 pub use cluster_bus::ClusterEventBus;
 pub use push_provider::{PushDeliveryResult, PushMessage, PushProvider};
 pub use retention_scope_store::RetentionScopeStore;
-pub use search_provider::{SearchProvider, SearchResult, SearchableMessage};
+pub use search_provider::{
+    MessageSearchHit, SearchProvider, SearchResult, SearchableMessage,
+};
 pub use seq_allocator::ConversationSeqAllocator;
 
 // 新增：消息真值存储契约
@@ -46,9 +50,14 @@ pub use conversation_aggregate_store::{
     ConversationAggregateState, ConversationAggregateStore, ConversationMemberRecord,
     ReadCursorRecord,
 };
+pub use conversation_member_access_gate::{
+    AggregateStoreConversationMemberAccessGate, ConversationMemberAccessGate,
+    DenyConversationMemberAccessGate,
+};
 pub use id_generator::{IdGenerator, IdGeneratorConfig};
 pub use message_store::{MessageStore, MessageWindow, StoredMessageRecord};
 pub use outbox_store::{OutboxEventRecord, OutboxPublishStatus, OutboxStore};
+pub use realtime_publisher::{RealtimeEventPublisher, RealtimeEventRecipient};
 
 pub use sdkwork_communication_rtc_service::{
     RtcContractError, RtcCreateMediaSessionRequest, RtcMediaSessionMode, RtcParticipantCredential,

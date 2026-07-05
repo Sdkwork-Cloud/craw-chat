@@ -1,7 +1,8 @@
 use im_app_context::AppContext;
 use im_platform_contracts::{
     ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
-    MessageStore, OutboxStore, ReadCursorRecord, RetentionScopeStore, StoredMessageRecord,
+    MessageStore, OutboxStore, ReadCursorRecord, RealtimeEventPublisher, RetentionScopeStore,
+    StoredMessageRecord,
 };
 use im_domain_core::retention::retention_until_from_envelope;
 use sdkwork_im_contract_core::ContractError;
@@ -30,8 +31,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 use sdkwork_utils_rust::sha256_hash;
 
+mod actor_inbox;
 mod binding;
 mod creation;
+mod direct_message_access;
+mod durable_message_post;
+mod postgres_direct_message_gate;
 mod governance;
 mod handoff;
 pub mod http;
@@ -39,6 +44,7 @@ mod journal_bootstrap;
 pub mod internal_rpc_dispatch;
 pub mod rpc_dispatch;
 mod membership;
+mod message_realtime;
 mod policy;
 mod recovery;
 mod room;
@@ -56,7 +62,7 @@ use self::support::{
     conversation_scope_key_for_envelope, conversation_timestamp, encode_conversation_key_segments,
     event_id_component, next_member_episode, resolve_active_member, resolve_active_member_id,
     resolve_active_member_id_with_kind, resolve_active_member_with_kind,
-    resolve_agent_dialog_conversation_id, resolve_direct_chat_binding_ids, upsert_member,
+    deactivate_roster_member, upsert_member, upsert_roster_member,
     upsert_read_cursor,
 };
 pub use http::{
@@ -65,6 +71,8 @@ pub use http::{
     build_default_app_with_principal_directory, build_public_app,
     build_public_app_with_allow_all_principals, build_public_app_with_principal_directory,
 };
+pub use direct_message_access::DirectMessageAccessGate;
+pub use durable_message_post::DurableMessagePostWriter;
 pub use journal_bootstrap::{
     ConversationCommitJournal, build_conversation_runtime_from_env,
     resolve_conversation_commit_journal_from_env,
@@ -555,6 +563,8 @@ pub struct UpdateReadCursorCommand {
     pub organization_id: String,
     pub conversation_id: String,
     pub principal_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
     pub read_seq: u64,
     pub last_read_message_id: Option<String>,
 }
@@ -666,6 +676,20 @@ struct PostedMessageReplayRecord {
     message_id: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct MessageMutationReplayRecord {
+    result: MessageMutationResult,
+}
+
+fn message_mutation_request_key(sender: &Sender, idempotency_key: &str) -> String {
+    format!(
+        "{}:{}:{}",
+        sender.kind.as_str(),
+        sender.id.as_str(),
+        idempotency_key.trim()
+    )
+}
+
 #[allow(clippy::large_enum_variant)]
 enum PostMessageMutation {
     Applied {
@@ -684,6 +708,8 @@ pub struct EditMessageCommand {
     pub message_id: String,
     pub editor: Sender,
     pub body: MessageBody,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -694,6 +720,8 @@ pub struct RecallMessageCommand {
     pub organization_id: String,
     pub message_id: String,
     pub recalled_by: Sender,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1052,6 +1080,7 @@ impl UpdateReadCursorCommand {
             organization_id: organization_id_from_auth_context(auth),
             conversation_id,
             principal_id: auth.actor_id.clone(),
+            device_id: auth.device_id.clone(),
             read_seq,
             last_read_message_id,
         }
@@ -1150,6 +1179,7 @@ impl EditMessageCommand {
             message_id,
             editor: sender_from_auth_context(auth),
             body,
+            idempotency_key: None,
         }
     }
 }
@@ -1161,6 +1191,7 @@ impl RecallMessageCommand {
             organization_id: organization_id_from_auth_context(auth),
             message_id,
             recalled_by: sender_from_auth_context(auth),
+            idempotency_key: None,
         }
     }
 }
@@ -1305,6 +1336,40 @@ impl RuntimeError {
     }
 }
 
+impl std::fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuntimeError::ConversationAlreadyExists(id) => {
+                write!(f, "conversation already exists: {id}")
+            }
+            RuntimeError::ConversationTypeInvalid(value) => {
+                write!(f, "conversation type invalid: {value}")
+            }
+            RuntimeError::AgentIdInvalid(value) => write!(f, "agent id invalid: {value}"),
+            RuntimeError::InvalidInput(message) => write!(f, "invalid input: {message}"),
+            RuntimeError::PayloadTooLarge(message) => write!(f, "{message}"),
+            RuntimeError::ConversationNotFound(id) => write!(f, "conversation not found: {id}"),
+            RuntimeError::ConversationBindingNotFound(id) => {
+                write!(f, "conversation binding not found: {id}")
+            }
+            RuntimeError::MessageNotFound(id) => write!(f, "message not found: {id}"),
+            RuntimeError::MessageAlreadyRecalled(id) => {
+                write!(f, "message already recalled: {id}")
+            }
+            RuntimeError::MemberAlreadyExists(id) => write!(f, "member already exists: {id}"),
+            RuntimeError::MemberNotFound(id) => write!(f, "member not found: {id}"),
+            RuntimeError::PermissionDenied(message) => write!(f, "permission denied: {message}"),
+            RuntimeError::Conflict(message) => write!(f, "conflict: {message}"),
+            RuntimeError::ReadCursorInvalid(message) => {
+                write!(f, "read cursor invalid: {message}")
+            }
+            RuntimeError::Contract(error) => write!(f, "contract error: {error:?}"),
+        }
+    }
+}
+
+impl std::error::Error for RuntimeError {}
+
 fn runtime_json_string<T: serde::Serialize>(value: &T) -> Result<String, RuntimeError> {
     serde_json::to_string(value).map_err(|error| {
         RuntimeError::InvalidInput(format!("failed to serialize runtime payload: {error}"))
@@ -1324,6 +1389,7 @@ struct ConversationState {
     room_create_request: Option<RoomCreateReplayRecord>,
     direct_chat_binding_request: Option<DirectChatBindingReplayRecord>,
     posted_message_requests: HashMap<String, PostedMessageReplayRecord>,
+    message_mutation_requests: HashMap<String, MessageMutationReplayRecord>,
     last_accessed_at_ms: u64,
 }
 
@@ -1332,9 +1398,10 @@ struct RuntimeState {
     conversations: HashMap<String, ConversationState>,
     business_index: HashMap<String, String>,
     message_locator: MessageLocatorIndex,
+    actor_inbox: actor_inbox::ActorInboxRuntimeStore,
 }
 
-fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
+pub(super) fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
@@ -2105,6 +2172,12 @@ pub struct ConversationRuntime<J> {
     seq_allocator: Option<Arc<dyn ConversationSeqAllocator>>,
     /// 可选的保留期协调存储。注入后在 indefinite retention 策略下清除过期标记。
     retention_scope_store: Option<Arc<dyn RetentionScopeStore>>,
+    /// 可选的会话范围 durable realtime 发布器（TECH-16 message fanout）。
+    realtime_publisher: Option<Arc<dyn RealtimeEventPublisher>>,
+    /// 可选的私信访问门禁（social user block enforcement）。
+    direct_message_access_gate: Option<Arc<dyn DirectMessageAccessGate>>,
+    /// 可选的原子消息写入器（Postgres journal + message + outbox 单事务）。
+    durable_message_post_writer: Option<Arc<dyn DurableMessagePostWriter>>,
 }
 
 impl<J> ConversationRuntime<J>
@@ -2121,6 +2194,9 @@ where
             aggregate_store: None,
             seq_allocator: None,
             retention_scope_store: None,
+            realtime_publisher: None,
+            direct_message_access_gate: None,
+            durable_message_post_writer: None,
         }
     }
 
@@ -2160,6 +2236,15 @@ where
         self
     }
 
+    /// 注入 Postgres 原子消息写入器（journal + message + outbox 单事务）。
+    pub fn with_durable_message_post_writer(
+        mut self,
+        writer: Arc<dyn DurableMessagePostWriter>,
+    ) -> Self {
+        self.durable_message_post_writer = Some(writer);
+        self
+    }
+
     /// 运行时是否已配置 DB 真值存储路径。
     pub fn has_message_store(&self) -> bool {
         self.message_store.is_some()
@@ -2175,6 +2260,10 @@ where
         for envelope in &snapshot {
             self.apply_recovered_envelope(envelope)?;
             recovered_count = recovered_count.saturating_add(1);
+        }
+        {
+            let mut state = write_runtime_state(&self.state, "runtime.state.rebuild-actor-inbox");
+            state.rebuild_all_actor_inboxes();
         }
         Ok(recovered_count)
     }
@@ -2202,6 +2291,10 @@ where
             return Err(RuntimeError::ConversationNotFound(
                 conversation_id.to_owned(),
             ));
+        }
+        {
+            let mut state = write_runtime_state(&self.state, "runtime.state.rebuild-actor-inbox");
+            state.rebuild_all_actor_inboxes();
         }
         Ok(recovered)
     }
@@ -2244,16 +2337,10 @@ where
             state.conversations.insert(scope_key, conversation_state);
             return Ok(());
         }
-        // 优先路径 2：如果有 MessageStore 但从 journal 重放太昂贵，
-        // 初始化空状态（消息真值已在 im_conversation_messages 中）。
+        // 优先路径 2：有 MessageStore 时从 journal 重放成员/策略状态；
+        // 消息真值已在 im_conversation_messages 中，禁止插入空 roster。
         if self.message_store.is_some() {
-            let mut state =
-                write_runtime_state(&self.state, "ensure_conversation_loaded.store_path");
-            let conversation_state = ConversationState {
-                last_accessed_at_ms: now_ms(),
-                ..Default::default()
-            };
-            state.conversations.insert(scope_key, conversation_state);
+            self.recover_single_conversation(tenant_id, conversation_id)?;
             return Ok(());
         }
         // Fallback 路径：无 store 时从 journal 重放（仅用于测试/单机模式）
@@ -2295,6 +2382,27 @@ where
                 .map_err(RuntimeError::from)?;
         }
         Ok(())
+    }
+
+    fn best_effort_persist_aggregate_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) {
+        if self.aggregate_store.is_none() {
+            return;
+        }
+        if let Err(error) = self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
+        {
+            tracing::warn!(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                error = ?error,
+                "failed to persist conversation aggregate state"
+            );
+        }
     }
 
     pub fn post_message(
@@ -2383,6 +2491,32 @@ where
                         Some(request_key.clone()),
                     ))
                 } else {
+                    'post_new: {
+                        if let (Some(store), Some(client_msg_id)) = (
+                            self.message_store.as_ref(),
+                            command
+                                .client_msg_id
+                                .as_deref()
+                                .filter(|value| !value.trim().is_empty()),
+                        ) {
+                            if let Some(stored) = store.read_message_by_client_id(
+                                command.tenant_id.as_str(),
+                                command.organization_id.as_str(),
+                                command.conversation_id.as_str(),
+                                command.sender.kind.as_str(),
+                                command.sender.id.as_str(),
+                                client_msg_id,
+                            )? {
+                                break 'post_new PostMessageMutation::Replayed(
+                                    PostMessageResult::replayed(
+                                        stored.message_id.to_string(),
+                                        stored.message_seq,
+                                        format!("evt_{}_posted", stored.message_id),
+                                        request_key.clone(),
+                                    ),
+                                );
+                            }
+                        }
                     let sender_member = resolve_active_member_with_kind(
                         conversation,
                         command.sender.id.as_str(),
@@ -2396,6 +2530,13 @@ where
                         MessagePostPolicy::GenericPost => {
                             policy::ensure_message_post_allowed(conversation, &sender_member)?;
                             policy::ensure_room_message_post_allowed(conversation, &sender_member)?;
+                            direct_message_access::ensure_direct_message_post_allowed(
+                                command.tenant_id.as_str(),
+                                command.organization_id.as_str(),
+                                conversation,
+                                &sender_member,
+                                self.resolve_direct_message_access_gate().as_deref(),
+                            )?;
                         }
                         MessagePostPolicy::SystemChannelPublish => {
                             policy::ensure_system_channel_publish_command_allowed(
@@ -2404,8 +2545,16 @@ where
                             )?
                         }
                     }
-                    // 序号分配：优先使用 DB 原子分配器，fallback 到内存 high_watermark
-                    let message_seq = if let Some(store) = &self.message_store {
+                    // Per-conversation ordinal seq: Redis batch prefetch or Postgres counter.
+                    let message_seq = if let Some(allocator) = &self.seq_allocator {
+                        allocator
+                            .allocate_seq(
+                                command.tenant_id.as_str(),
+                                command.organization_id.as_str(),
+                                command.conversation_id.as_str(),
+                            )
+                            .map_err(RuntimeError::from)?
+                    } else if let Some(store) = &self.message_store {
                         store
                             .allocate_message_seq(
                                 command.tenant_id.as_str(),
@@ -2456,6 +2605,7 @@ where
                         retention_class.as_str(),
                         message.occurred_at.as_str(),
                     );
+                    let journal_ordering_seq = conversation.aggregate.next_commit_seq();
                     let envelope = CommitEnvelope {
                         event_id: event_id.clone(),
                         tenant_id: command.tenant_id.clone(),
@@ -2470,7 +2620,7 @@ where
                             command.tenant_id.as_str(),
                             command.conversation_id.as_str(),
                         ),
-                        ordering_seq: message.message_seq,
+                        ordering_seq: journal_ordering_seq,
                         causation_id: None,
                         correlation_id: None,
                         idempotency_key: command.client_msg_id.clone(),
@@ -2490,31 +2640,42 @@ where
                         audit_class: "default".into(),
                     };
 
-                    self.journal.append(envelope)?;
+                    let stored_record = StoredMessageRecord {
+                        tenant_id: message.tenant_id.clone(),
+                        organization_id: command.organization_id.clone(),
+                        conversation_id: message.conversation_id.clone(),
+                        message_id: message.message_id.parse::<i64>().unwrap_or(0),
+                        message_seq: message.message_seq,
+                        sender_principal_kind: message.sender.kind.clone(),
+                        sender_principal_id: message.sender.id.clone(),
+                        sender_device_id: message.sender.device_id.clone(),
+                        client_msg_id: message.client_msg_id.clone(),
+                        message_type: message.message_type.as_wire_value().to_owned(),
+                        payload_json: runtime_json_string(&message.body)?,
+                        payload_hash: sha256_message_hash(&message.body),
+                        created_at: message.occurred_at.clone(),
+                        updated_at: message.occurred_at.clone(),
+                        deleted_at: None,
+                        retention_until,
+                    };
 
-                    // 真值写入：如果有 MessageStore，写入 im_conversation_messages（消息真值表）
-                    if let Some(store) = &self.message_store {
-                        let stored_record = StoredMessageRecord {
-                            tenant_id: message.tenant_id.clone(),
-                            organization_id: command.organization_id.clone(),
-                            conversation_id: message.conversation_id.clone(),
-                            message_id: message.message_id.parse::<i64>().unwrap_or(0),
-                            message_seq: message.message_seq,
-                            sender_principal_kind: message.sender.kind.clone(),
-                            sender_principal_id: message.sender.id.clone(),
-                            sender_device_id: message.sender.device_id.clone(),
-                            client_msg_id: message.client_msg_id.clone(),
-                            message_type: message.message_type.as_wire_value().to_owned(),
-                            payload_json: runtime_json_string(&message.body)?,
-                            payload_hash: sha256_message_hash(&message.body),
-                            created_at: message.occurred_at.clone(),
-                            updated_at: message.occurred_at.clone(),
-                            deleted_at: None,
-                            retention_until,
-                        };
-                        store
-                            .insert_message(stored_record)
+                    if let Some(writer) = &self.durable_message_post_writer {
+                        let outbox = self.build_message_posted_outbox_record(
+                            command.tenant_id.as_str(),
+                            command.organization_id.as_str(),
+                            &message,
+                        )?;
+                        writer
+                            .persist_message_post(envelope, stored_record, outbox)
                             .map_err(RuntimeError::from)?;
+                    } else {
+                        self.journal.append(envelope)?;
+
+                        if let Some(store) = &self.message_store {
+                            store
+                                .insert_message(stored_record)
+                                .map_err(RuntimeError::from)?;
+                        }
                     }
 
                     conversation.message_log.store_posted(message.clone());
@@ -2539,6 +2700,7 @@ where
                         ),
                         message,
                     }
+                    }
                 }
             };
 
@@ -2551,7 +2713,12 @@ where
 
         match mutation {
             PostMessageMutation::Replayed(result) => Ok(result),
-            PostMessageMutation::Applied { result, .. } => {
+            PostMessageMutation::Applied { result, message } => {
+                self.publish_message_posted_realtime(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    &message,
+                )?;
                 self.maybe_evict_after_write();
                 Ok(result)
             }
@@ -2614,6 +2781,24 @@ where
                 handoff_closed,
                 &stored.message,
             )?;
+            if let Some(idempotency_key) = command
+                .idempotency_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                let request_key =
+                    message_mutation_request_key(&command.editor, idempotency_key);
+                if let Some(existing) = conversation.message_mutation_requests.get(&request_key)
+                {
+                    if existing.result.message_id == command.message_id {
+                        return Ok(existing.result.clone());
+                    }
+                    return Err(RuntimeError::Conflict(format!(
+                        "message edit request conflicts with existing idempotency key: {request_key}"
+                    )));
+                }
+            }
             let conversation_id = stored.message.conversation_id.clone();
             let message_id = stored.message.message_id.clone();
             let message_seq = stored.message.message_seq;
@@ -2634,21 +2819,57 @@ where
                 edited_at,
             };
             let retention_class = conversation_retention_class(conversation);
+            let ordering_seq = conversation.aggregate.next_commit_seq();
+            let event_id = format!("evt_{}_edited_{ordering_seq}", edited.message_id);
             self.journal.append(build_message_edited_envelope(
                 &edited,
                 command.organization_id.as_str(),
-                format!("evt_{}_edited", edited.message_id).as_str(),
+                event_id.as_str(),
+                ordering_seq,
                 retention_class.as_str(),
             ))?;
             conversation
                 .message_log
                 .apply_edited(&edited)
                 .ok_or_else(|| RuntimeError::MessageNotFound(edited.message_id.clone()))?;
-            edited
+            (edited, event_id)
         };
 
-        let event_id = format!("evt_{}_edited", edited.message_id);
+        let (edited, event_id) = edited;
 
+        self.publish_message_edited_realtime(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            &edited,
+            event_id.as_str(),
+        )?;
+        if let Some(idempotency_key) = command
+            .idempotency_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let mut state =
+                write_runtime_state(&self.state, "conversation-runtime.state.edit_message.idempotency");
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                edited.conversation_id.as_str(),
+            );
+            if let Some(conversation) = state.conversations.get_mut(scope_key.as_str()) {
+                conversation.message_mutation_requests.insert(
+                    message_mutation_request_key(&command.editor, idempotency_key),
+                    MessageMutationReplayRecord {
+                        result: MessageMutationResult {
+                            conversation_id: edited.conversation_id.clone(),
+                            message_id: edited.message_id.clone(),
+                            message_seq: edited.message_seq,
+                            event_id: event_id.clone(),
+                        },
+                    },
+                );
+            }
+        }
         self.maybe_evict_after_write();
         Ok(MessageMutationResult {
             conversation_id: edited.conversation_id,
@@ -2706,6 +2927,24 @@ where
                 .message_log
                 .message(command.message_id.as_str())
                 .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+            if let Some(idempotency_key) = command
+                .idempotency_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                let request_key =
+                    message_mutation_request_key(&command.recalled_by, idempotency_key);
+                if let Some(existing) = conversation.message_mutation_requests.get(&request_key)
+                {
+                    if existing.result.message_id == command.message_id {
+                        return Ok(existing.result.clone());
+                    }
+                    return Err(RuntimeError::Conflict(format!(
+                        "message recall request conflicts with existing idempotency key: {request_key}"
+                    )));
+                }
+            }
             if stored.recalled {
                 return Err(RuntimeError::MessageAlreadyRecalled(command.message_id));
             }
@@ -2735,21 +2974,59 @@ where
                 recalled_at,
             };
             let retention_class = conversation_retention_class(conversation);
+            let ordering_seq = conversation.aggregate.next_commit_seq();
+            let event_id = format!("evt_{}_recalled_{ordering_seq}", recalled.message_id);
             self.journal.append(build_message_recalled_envelope(
                 &recalled,
                 command.organization_id.as_str(),
-                format!("evt_{}_recalled", recalled.message_id).as_str(),
+                event_id.as_str(),
+                ordering_seq,
                 retention_class.as_str(),
             ))?;
             conversation
                 .message_log
                 .apply_recalled(&recalled)
                 .ok_or_else(|| RuntimeError::MessageNotFound(recalled.message_id.clone()))?;
-            recalled
+            (recalled, event_id)
         };
 
-        let event_id = format!("evt_{}_recalled", recalled.message_id);
+        let (recalled, event_id) = recalled;
 
+        self.publish_message_recalled_realtime(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            &recalled,
+            event_id.as_str(),
+        )?;
+        if let Some(idempotency_key) = command
+            .idempotency_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let mut state = write_runtime_state(
+                &self.state,
+                "conversation-runtime.state.recall_message.idempotency",
+            );
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                recalled.conversation_id.as_str(),
+            );
+            if let Some(conversation) = state.conversations.get_mut(scope_key.as_str()) {
+                conversation.message_mutation_requests.insert(
+                    message_mutation_request_key(&command.recalled_by, idempotency_key),
+                    MessageMutationReplayRecord {
+                        result: MessageMutationResult {
+                            conversation_id: recalled.conversation_id.clone(),
+                            message_id: recalled.message_id.clone(),
+                            message_seq: recalled.message_seq,
+                            event_id: event_id.clone(),
+                        },
+                    },
+                );
+            }
+        }
         self.maybe_evict_after_write();
         Ok(MessageMutationResult {
             conversation_id: recalled.conversation_id,
@@ -2843,6 +3120,7 @@ where
                 });
             if changed {
                 let retention_class = conversation_retention_class(conversation);
+                let ordering_seq = conversation.aggregate.next_commit_seq();
                 self.journal.append(build_message_reaction_added_envelope(
                     &reaction,
                     command.organization_id.as_str(),
@@ -2854,6 +3132,7 @@ where
                         event_id_component(reaction.reacted_at.as_str())
                     )
                     .as_str(),
+                    ordering_seq,
                     retention_class.as_str(),
                 ))?;
                 conversation
@@ -2971,6 +3250,7 @@ where
                 });
             if changed {
                 let retention_class = conversation_retention_class(conversation);
+                let ordering_seq = conversation.aggregate.next_commit_seq();
                 self.journal
                     .append(build_message_reaction_removed_envelope(
                         &reaction,
@@ -2983,6 +3263,7 @@ where
                             event_id_component(reaction.removed_at.as_str())
                         )
                         .as_str(),
+                        ordering_seq,
                         retention_class.as_str(),
                     ))?;
                 conversation
@@ -3086,6 +3367,7 @@ where
             let changed = stored.pin.is_none();
             if changed {
                 let retention_class = conversation_retention_class(conversation);
+                let ordering_seq = conversation.aggregate.next_commit_seq();
                 self.journal.append(build_message_pinned_envelope(
                     &pin,
                     command.organization_id.as_str(),
@@ -3096,6 +3378,7 @@ where
                         event_id_component(pin.pinned_at.as_str())
                     )
                     .as_str(),
+                    ordering_seq,
                     retention_class.as_str(),
                 ))?;
                 conversation
@@ -3197,6 +3480,7 @@ where
             let changed = stored.pin.is_some();
             if changed {
                 let retention_class = conversation_retention_class(conversation);
+                let ordering_seq = conversation.aggregate.next_commit_seq();
                 self.journal.append(build_message_unpinned_envelope(
                     &pin,
                     command.organization_id.as_str(),
@@ -3207,6 +3491,7 @@ where
                         event_id_component(pin.unpinned_at.as_str())
                     )
                     .as_str(),
+                    ordering_seq,
                     retention_class.as_str(),
                 ))?;
                 conversation
@@ -3248,7 +3533,11 @@ where
         auth: &AppContext,
         conversation_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
-        self.require_active_member_with_kind(auth.tenant_id.as_str(), "default", conversation_id,
+        let organization_id = organization_id_from_auth_context(auth);
+        self.require_active_member_with_kind(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
+            conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
         )
@@ -3260,7 +3549,11 @@ where
         conversation_id: &str,
         capability: &str,
     ) -> Result<(), RuntimeError> {
-        self.ensure_conversation_bound_write_allowed_with_actor_kind(auth.tenant_id.as_str(), "default", conversation_id,
+        let organization_id = organization_id_from_auth_context(auth);
+        self.ensure_conversation_bound_write_allowed_with_actor_kind(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
+            conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
             capability,
@@ -3429,6 +3722,7 @@ fn read_cursor_from_record(record: &ReadCursorRecord) -> ConversationReadCursor 
         member_id: record.member_id.to_string(),
         principal_id: record.principal_id.clone(),
         principal_kind: record.principal_kind.clone(),
+        device_id: (!record.device_id.is_empty()).then(|| record.device_id.clone()),
         read_seq: record.read_seq,
         last_read_message_id: record.last_read_message_id.map(|id| id.to_string()),
         updated_at: record.updated_at.clone(),
@@ -3481,6 +3775,7 @@ fn cursor_to_record(
         organization_id: organization_id.to_owned(),
         conversation_id: conversation_id.to_owned(),
         member_id: cursor.member_id.parse::<i64>().unwrap_or(0),
+        device_id: cursor.device_id.clone().unwrap_or_default(),
         principal_kind: cursor.principal_kind.clone(),
         principal_id: cursor.principal_id.clone(),
         read_seq: cursor.read_seq,

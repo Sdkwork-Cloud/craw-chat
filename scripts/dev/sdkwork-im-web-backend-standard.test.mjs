@@ -68,6 +68,23 @@ for (const entry of IM_ROUTE_CRATES) {
   const lib = read(`${entry.crateDir}/src/lib.rs`);
   assert.match(
     lib,
+    /\bmod paths;/u,
+    `${entry.crateDir}/src/lib.rs must declare mod paths`,
+  );
+  if (manifest.includes('crate::paths')) {
+    assert.match(
+      manifest,
+      /use crate::paths/u,
+      `${entry.crateDir}/src/manifest.rs must import path constants from crate::paths`,
+    );
+    assert.doesNotMatch(
+      manifest,
+      /^\s*mod paths;/mu,
+      `${entry.crateDir}/src/manifest.rs must not declare mod paths inline`,
+    );
+  }
+  assert.match(
+    lib,
     new RegExp(`pub fn ${entry.buildFn}`, 'u'),
     `${entry.crateDir} must export ${entry.buildFn}`,
   );

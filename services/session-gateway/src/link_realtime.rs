@@ -6,21 +6,24 @@ use im_domain_core::realtime::RealtimeEventWindow;
 use sdkwork_im_ccp_control::{ControlFrame, ErrorFrame, HeartbeatFrame};
 use sdkwork_im_ccp_core::{CcpEnvelope, CcpRoute, TransportBinding};
 use sdkwork_im_runtime_link::{
-    link_idle_timeout_goaway, session_disconnect_goaway, LinkBufferedPushDrainDriver,
-    LinkBufferedPushDrainStatus, LinkBufferedPushFetchedWindow, LinkBufferedPushPlan,
-    LinkGoAwayDirective, LinkOutboundQueueState, LinkSession, OutboundQueuePolicy, ResumeWindow,
+    LinkBufferedPushDrainDriver, LinkBufferedPushDrainStatus, LinkBufferedPushFetchedWindow,
+    LinkBufferedPushPlan, LinkGoAwayDirective, LinkOutboundQueueState, LinkSession,
+    OutboundQueuePolicy, ResumeWindow, link_idle_timeout_goaway, session_disconnect_goaway,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
-use crate::client_route_registration::ClientRouteRegistration;
-use crate::link_business_contract::{validate_link_client_business_envelope, LinkClientBusinessFrame};
-use crate::link_framing::{
-    read_framed_envelope, write_framed_bytes, FramedStreamCcpCodec,
-};
-use crate::realtime::{RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput, RealtimeWindowCheckpoint};
 use crate::ApiError;
+use crate::client_route_registration::ClientRouteRegistration;
+use crate::link_business_contract::{
+    LinkClientBusinessFrame, validate_link_client_business_envelope,
+};
+use crate::link_framing::{FramedStreamCcpCodec, read_framed_envelope, write_framed_bytes};
+use crate::realtime::{
+    RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
+    RealtimeWindowCheckpoint,
+};
 
 const REALTIME_HEARTBEAT_INTERVAL_SECS_ENV: &str = "SDKWORK_IM_REALTIME_HEARTBEAT_INTERVAL_SECS";
 const REALTIME_HEARTBEAT_INTERVAL_DEFAULT_SECS: u64 = 30;
@@ -134,8 +137,8 @@ where
     let setup_principal = principal_id.clone();
     let setup_kind = principal_kind.clone();
     let setup_device = device_id.clone();
-    let (checkpoint, disconnect_generation) = tokio::task::spawn_blocking(
-        move || -> Result<(RealtimeWindowCheckpoint, u64), String> {
+    let (checkpoint, disconnect_generation) =
+        tokio::task::spawn_blocking(move || -> Result<(RealtimeWindowCheckpoint, u64), String> {
             setup_runtime
                 .ensure_client_route_state_for_principal_kind(
                     setup_tenant.as_str(),
@@ -164,10 +167,9 @@ where
                 )
                 .map_err(|error| error.message)?;
             Ok((checkpoint, disconnect_generation))
-        },
-    )
-    .await
-    .map_err(|join_error| format!("session setup blocking task failed: {join_error}"))??;
+        })
+        .await
+        .map_err(|join_error| format!("session setup blocking task failed: {join_error}"))??;
 
     let mut link_session = build_link_session(&auth, device_id.as_str());
     link_session.mark_authenticated();
@@ -264,14 +266,7 @@ where
         .map_err(|error| error.message)?;
         if !catchup.items.is_empty() {
             let next_after_seq = catchup.next_after_seq;
-            send_framed_event_window(
-                &mut writer,
-                &ccp,
-                &route,
-                "catchup",
-                catchup,
-            )
-            .await?;
+            send_framed_event_window(&mut writer, &ccp, &route, "catchup", catchup).await?;
             let _ = outbound_queue.record_window_sent(catchup_plan.after_seq, next_after_seq);
         }
     }
@@ -424,8 +419,13 @@ where
     // during connection teardown.
     let cleanup_auth = auth.clone();
     let cleanup_device_id = device_id.clone();
+    let cleanup_runtime = runtime.clone();
     let _ = tokio::task::spawn_blocking(move || {
-        route_owner.release_active_client_route_if_current_session(&cleanup_auth, cleanup_device_id.as_str());
+        route_owner.finalize_active_client_route_disconnect(
+            &cleanup_auth,
+            cleanup_device_id.as_str(),
+            cleanup_runtime.as_ref(),
+        );
     })
     .await;
     Ok(())
@@ -449,7 +449,8 @@ where
     let blocking_auth = auth.clone();
     let blocking_device_id = device_id.to_string();
     let result = tokio::task::spawn_blocking(move || {
-        blocking_owner.ensure_active_client_route_current_session(&blocking_auth, &blocking_device_id)
+        blocking_owner
+            .ensure_active_client_route_current_session(&blocking_auth, &blocking_device_id)
     })
     .await;
 
@@ -463,7 +464,9 @@ where
             });
             let _ = write_framed_bytes(
                 writer,
-                ccp.encode_control(route, &frame).unwrap_or_default().as_slice(),
+                ccp.encode_control(route, &frame)
+                    .unwrap_or_default()
+                    .as_slice(),
             )
             .await;
             false
@@ -476,7 +479,9 @@ where
             });
             let _ = write_framed_bytes(
                 writer,
-                ccp.encode_control(route, &frame).unwrap_or_default().as_slice(),
+                ccp.encode_control(route, &frame)
+                    .unwrap_or_default()
+                    .as_slice(),
             )
             .await;
             false
@@ -494,11 +499,7 @@ where
     W: AsyncWrite + Unpin,
 {
     let frame = ControlFrame::Heartbeat(HeartbeatFrame { sequence });
-    write_framed_bytes(
-        writer,
-        ccp.encode_control(route, &frame)?.as_slice(),
-    )
-    .await
+    write_framed_bytes(writer, ccp.encode_control(route, &frame)?.as_slice()).await
 }
 
 async fn send_framed_realtime_connected<W>(
@@ -756,11 +757,7 @@ where
     W: AsyncWrite + Unpin,
 {
     let frame = ControlFrame::GoAway(directive.frame.clone());
-    write_framed_bytes(
-        writer,
-        ccp.encode_control(route, &frame)?.as_slice(),
-    )
-    .await
+    write_framed_bytes(writer, ccp.encode_control(route, &frame)?.as_slice()).await
 }
 
 async fn send_framed_runtime_error<W>(
@@ -953,7 +950,11 @@ where
         }
         "events.pull" => {
             let limit = frame.limit.unwrap_or(100).clamp(1, 500);
-            let plan = outbound_queue.plan_pull(frame.after_seq, limit, outbound_queue.latest_realtime_seq());
+            let plan = outbound_queue.plan_pull(
+                frame.after_seq,
+                limit,
+                outbound_queue.latest_realtime_seq(),
+            );
             // list_events_for_principal_kind performs blocking Postgres IO.
             let blocking_runtime = Arc::clone(runtime);
             let blocking_tenant = tenant_id.to_string();

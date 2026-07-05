@@ -1,8 +1,8 @@
 import {
   createClient as createCommunityAppSdkClient,
-  type SdkworkAppClient,
+  type SdkworkCommunityAppClient,
   type SdkworkAppConfig,
-} from 'sdkwork-community-app-sdk-generated-typescript';
+} from '@sdkwork/community-app-sdk';
 import type { Interceptors } from '@sdkwork/sdk-common';
 import { resolveAppSdkBaseUrl } from './appSdkClient';
 import {
@@ -14,7 +14,7 @@ import {
   type SdkworkChatSession,
 } from './session';
 
-export type CommunityAppSdkClient = SdkworkAppClient;
+export type CommunityAppSdkClient = SdkworkCommunityAppClient;
 export type { SdkworkAppConfig };
 export type CommunityAppSdkClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;

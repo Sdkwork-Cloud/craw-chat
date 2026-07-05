@@ -65,8 +65,8 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
     for device_id in ["d_primary", "d_mobile", "d_tablet"] {
         expect_ok(runtime.sync_subscriptions_for_principal_kind(
             TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
+            "default",
+            PRINCIPAL_ID,
             PRINCIPAL_KIND,
             device_id,
             subscription(CONVERSATION_ID),
@@ -109,7 +109,13 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
         assert_eq!(checkpoint.trimmed_through_seq, 50);
 
         let persisted_checkpoint = checkpoint_store
-            .checkpoint(TENANT_ID, "default", PRINCIPAL_KIND, PRINCIPAL_ID, device_id)
+            .checkpoint(
+                TENANT_ID,
+                "default",
+                PRINCIPAL_KIND,
+                PRINCIPAL_ID,
+                device_id,
+            )
             .expect("trimmed checkpoint should persist commercial diagnostics metadata");
         assert_eq!(persisted_checkpoint.capacity_trimmed_event_count, 50);
         assert_eq!(persisted_checkpoint.capacity_trimmed_through_seq, 50);
@@ -120,8 +126,8 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
 
         let window = expect_ok(runtime.list_events_for_principal_kind(
             TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
+            "default",
+            PRINCIPAL_ID,
             PRINCIPAL_KIND,
             device_id,
             0,
@@ -223,7 +229,14 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
     );
     failing_checkpoint_store.fail_saves();
     let error = failure_runtime
-        .ack_events_for_principal_kind(TENANT_ID, "default", PRINCIPAL_ID, PRINCIPAL_KIND, "d_mobile", 900)
+        .ack_events_for_principal_kind(
+            TENANT_ID,
+            "default",
+            PRINCIPAL_ID,
+            PRINCIPAL_KIND,
+            "d_mobile",
+            900,
+        )
         .expect_err("failed checkpoint persistence should reject ack");
     assert_eq!(error.code, "checkpoint_store_unavailable");
 
@@ -399,8 +412,13 @@ impl RealtimeCheckpointStore for ToggleRealtimeCheckpointStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
-        self.seed
-            .load_checkpoint(tenant_id, "default", principal_kind, principal_id, device_id)
+        self.seed.load_checkpoint(
+            tenant_id,
+            "default",
+            principal_kind,
+            principal_id,
+            device_id,
+        )
     }
 
     fn save_checkpoints(

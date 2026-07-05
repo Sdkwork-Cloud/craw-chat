@@ -1,11 +1,7 @@
-# Component Specs
+# Local Component Specs
 
 This directory is the local SDKWork component contract for `@sdkwork/im-pc-community`.
 
 - Component root: `sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-community`
-- Canonical standards: `../../../../../sdkwork-specs/README.md`
-- Machine-readable contract: `specs/component.spec.json`
-
-Read `specs/component.spec.json` before changing this component's public exports, runtime entrypoints, SDK clients, generated artifacts, config keys, or verification commands.
-
-Do not copy root standards into this directory. Link to files under `../../../../../sdkwork-specs/` instead.
+- Canonical Community product: `sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community`
+- Integration pattern: thin host adapter only; no duplicate UI or service logic in IM

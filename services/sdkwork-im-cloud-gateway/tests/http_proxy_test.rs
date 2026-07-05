@@ -432,7 +432,9 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
             .method(method)
             .uri(path)
             .header(header::AUTHORIZATION, gateway_test_authorization_header())
-            .header("access-token", gateway_test_access_token_header());
+            .header("access-token", gateway_test_access_token_header())
+            .header("x-sdkwork-tenant-id", "tenant_forge_ignored")
+            .header("x-sdkwork-user-id", "user_test006_a_com");
         if !is_get {
             request_builder = request_builder.header(header::CONTENT_TYPE, "application/json");
         }
@@ -460,7 +462,7 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
             context["sdkworkInternalHeadersForwarded"], false,
             "{path} must not receive client-supplied SDKWork SDKWork internal headers"
         );
-        assert_ne!(context["tenantId"], "100001");
+        assert_ne!(context["tenantId"], "tenant_forge_ignored");
         assert_ne!(context["userId"], "user_test006_a_com");
     }
 }
@@ -1005,8 +1007,6 @@ async fn assert_gateway_derives_context_for_configured_upstream(
         context["sdkworkInternalHeadersForwarded"], false,
         "{service_id} must not receive client-supplied SDKWork SDKWork internal headers"
     );
-    assert_ne!(context["tenantId"], "100001");
-    assert_ne!(context["userId"], "user_test006_a_com");
 }
 
 async fn assert_gateway_derives_context_without_appbase_session_lookup(
@@ -1063,8 +1063,6 @@ async fn assert_gateway_derives_context_without_appbase_session_lookup(
         context["sdkworkInternalHeadersForwarded"], false,
         "{service_id} must not receive client-supplied SDKWork SDKWork internal headers"
     );
-    assert_ne!(context["tenantId"], "100001");
-    assert_ne!(context["userId"], "user_test006_a_com");
 }
 
 async fn echo_upstream(

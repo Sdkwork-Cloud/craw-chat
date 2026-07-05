@@ -80,7 +80,14 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
             .fences
             .lock_cluster_disconnect_fences()
             .remove(
-                client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id).as_str(),
+                client_route_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                )
+                .as_str(),
             )
             .is_some())
     }
@@ -94,7 +101,13 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
         device_id: &str,
         cutoff_disconnected_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let mut fences = self.fences.lock_cluster_disconnect_fences();
         let should_clear = fences
             .get(key.as_str())
@@ -148,21 +161,21 @@ impl ClusterMemoryDisconnectFenceStore {
     pub fn expire_fences_older_than(&self, cutoff_timestamp: &str) -> Result<usize, ContractError> {
         let mut fences = self.fences.lock_cluster_disconnect_fences();
         let mut expired_keys = Vec::new();
-        
+
         for (key, record) in fences.iter() {
             if rfc3339_le(record.disconnected_at.as_str(), cutoff_timestamp) {
                 expired_keys.push(key.clone());
             }
         }
-        
+
         let removed_count = expired_keys.len();
         for key in expired_keys {
             fences.remove(key.as_str());
         }
-        
+
         Ok(removed_count)
     }
-    
+
     /// Get the count of stored disconnect fences.
     #[allow(dead_code)]
     pub fn fence_count(&self) -> usize {
@@ -202,7 +215,13 @@ impl RealtimeClusterBridge {
         session_id: Option<&str>,
         owner_node_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let disconnected_at = cluster_timestamp();
         let fence = RealtimeDisconnectFence {
             tenant_id: tenant_id.into(),
@@ -282,7 +301,14 @@ impl RealtimeClusterBridge {
             .disconnect_fences
             .lock_cluster_disconnect_fence_cache()
             .remove(
-                client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id).as_str(),
+                client_route_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                )
+                .as_str(),
             )
             .map(|fence| fence.to_record());
         let persisted_removed = if let Some(expected) = removed_fence.as_ref() {
@@ -293,7 +319,13 @@ impl RealtimeClusterBridge {
                 })?
         } else {
             self.disconnect_fence_store
-                .clear_fence(tenant_id, organization_id, principal_kind, principal_id, device_id)
+                .clear_fence(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
                 .map_err(|error| {
                     self.disconnect_fence_store_error("clear disconnect fence", "storage", error)
                 })?
@@ -310,14 +342,13 @@ impl RealtimeClusterBridge {
         device_id: &str,
         current_session_id: Option<&str>,
     ) -> Result<bool, RealtimeClusterError> {
-        let Some(fence) =
-            self.load_disconnect_fence(
-                tenant_id,
-                organization_id,
-                principal_id,
-                principal_kind,
-                device_id,
-            )?
+        let Some(fence) = self.load_disconnect_fence(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?
         else {
             return Ok(false);
         };
@@ -325,7 +356,13 @@ impl RealtimeClusterBridge {
             return Ok(false);
         }
 
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         let expected = fence.to_record();
         let persisted_removed = self
             .disconnect_fence_store
@@ -372,14 +409,13 @@ impl RealtimeClusterBridge {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        let Some(fence) =
-            self.load_disconnect_fence(
-                tenant_id,
-                organization_id,
-                principal_id,
-                principal_kind,
-                device_id,
-            )?
+        let Some(fence) = self.load_disconnect_fence(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?
         else {
             return Ok(());
         };
@@ -442,7 +478,13 @@ impl RealtimeClusterBridge {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeDisconnectFence>, RealtimeClusterError> {
-        let scope_key = client_route_scope_key(tenant_id, organization_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        );
         if let Some(fence) = self
             .disconnect_fences
             .lock_cluster_disconnect_fence_cache()
@@ -454,7 +496,13 @@ impl RealtimeClusterBridge {
 
         let restored = self
             .disconnect_fence_store
-            .load_fence(tenant_id, organization_id, principal_kind, principal_id, device_id)
+            .load_fence(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
             .map_err(|error| {
                 self.disconnect_fence_store_error("load disconnect fence", "storage", error)
             })?

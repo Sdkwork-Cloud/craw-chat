@@ -1,40 +1,17 @@
 # @sdkwork/im-pc-devices
 
-Domain: communication
 Capability: im-pc-devices
-Package type: node-package
-Status: standard
 
-This README is the SDKWork module entrypoint for `@sdkwork/im-pc-devices`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../../../sdkwork-specs/`.
+Thin IM host adapter over canonical `@sdkwork/aiot-pc-console-device` in `../sdkwork-aiot`.
 
-## Public API
+## Ownership
 
-- `.`
+| Concern | Owner |
+| --- | --- |
+| Device console UI and AIoT app SDK integration | `sdkwork-aiot` |
+| IM session bridge into AIoT PC runtime | `@sdkwork/im-pc-core` (`aiotPcIntegration`) |
+| Gateway upstream `/app/v3/api/iot/*` | `sdkwork-api-cloud-gateway` |
 
-## Required SDK Surface
+Bootstrap: `apps/sdkwork-im-pc/src/bootstrap/aiotPc.ts` calls `bootstrapAiotPcForIm()` before render.
 
-- None declared in `specs/component.spec.json`.
-
-## Configuration
-
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
-
-## SaaS/Private/Local Behavior
-
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
-
-## Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
-
-## Extension Points
-
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
-
-## Verification
-
-- `powershell -NoProfile -Command "Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null"`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+Authority: sibling `sdkwork-aiot` PC packages (`@sdkwork/aiot-pc-core`, `@sdkwork/aiot-pc-console-device`).

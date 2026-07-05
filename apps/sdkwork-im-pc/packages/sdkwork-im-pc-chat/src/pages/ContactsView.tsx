@@ -80,12 +80,11 @@ export const ContactsView: React.FC<{
         if (!current) {
           return null;
         }
-        void contactService.getContacts()
-          .then((contacts) => {
+        void contactService.getUserById(current.user.id)
+          .then((updated) => {
             if (!isMounted) {
               return;
             }
-            const updated = contacts.find((contact) => contact.id === current.user.id);
             if (!updated) {
               setSelectedUser(null);
               return;

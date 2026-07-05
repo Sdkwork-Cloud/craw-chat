@@ -12,9 +12,9 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     AckRealtimeEventsRequest, AckRealtimeEventsResponse, CreatePresenceHeartbeatRequest,
     CreatePresenceHeartbeatResponse, ListRealtimeEventsRequest, ListRealtimeEventsResponse,
     PresenceView, RealtimeEventView, RealtimeSubscription, RetrieveMyPresenceRequest,
-    RetrieveMyPresenceResponse, SyncRealtimeSubscriptionsRequest, SyncRealtimeSubscriptionsResponse,
-    WatchPresenceRequest, WatchPresenceResponse, WatchRealtimeEventsRequest,
-    WatchRealtimeEventsResponse,
+    RetrieveMyPresenceResponse, SyncRealtimeSubscriptionsRequest,
+    SyncRealtimeSubscriptionsResponse, WatchPresenceRequest, WatchPresenceResponse,
+    WatchRealtimeEventsRequest, WatchRealtimeEventsResponse,
 };
 use sdkwork_im_rpc_service_rust::{
     ImRpcBoxFuture, ImRpcBoxStream, ImRpcError, ImRpcRuntimeDispatcher, ImRpcStreamRequest,
@@ -68,11 +68,13 @@ impl ImRpcRuntimeDispatcher for SessionGatewayRpcDispatcher {
             let auth = resolve_auth(&state, &request.metadata).await?;
             match request.binding.operation_id {
                 "presence.heartbeat.create" => {
-                    let payload = CreatePresenceHeartbeatRequest::decode(request.request_bytes.as_slice())?;
+                    let payload =
+                        CreatePresenceHeartbeatRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_presence_heartbeat(&state, &auth, payload).await
                 }
                 "presence.me.retrieve" => {
-                    let payload = RetrieveMyPresenceRequest::decode(request.request_bytes.as_slice())?;
+                    let payload =
+                        RetrieveMyPresenceRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_presence_me(&state, &auth, payload).await
                 }
                 "realtime.subscriptions.sync" => {
@@ -81,11 +83,13 @@ impl ImRpcRuntimeDispatcher for SessionGatewayRpcDispatcher {
                     dispatch_sync_subscriptions(&state, &auth, payload).await
                 }
                 "realtime.events.list" => {
-                    let payload = ListRealtimeEventsRequest::decode(request.request_bytes.as_slice())?;
+                    let payload =
+                        ListRealtimeEventsRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_list_events(&state, &auth, payload).await
                 }
                 "realtime.events.ack" => {
-                    let payload = AckRealtimeEventsRequest::decode(request.request_bytes.as_slice())?;
+                    let payload =
+                        AckRealtimeEventsRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_ack_events(&state, &auth, payload).await
                 }
                 other => Err(ImRpcError::unimplemented(format!(
@@ -110,7 +114,8 @@ impl ImRpcRuntimeDispatcher for SessionGatewayRpcDispatcher {
                     dispatch_watch_presence(&state, &auth, payload).await
                 }
                 "realtime.events.watch" => {
-                    let payload = WatchRealtimeEventsRequest::decode(request.request_bytes.as_slice())?;
+                    let payload =
+                        WatchRealtimeEventsRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_watch_realtime_events(&state, &auth, payload).await
                 }
                 other => Err(ImRpcError::unimplemented(format!(
@@ -285,7 +290,10 @@ async fn dispatch_ack_events(
                     state.rpc_restore_active_client_route_if_current(&bound_route, previous_route);
                 }
                 (None, _) => {
-                    state.rpc_release_active_client_route_if_current_session(auth, device_id.as_str());
+                    state.rpc_release_active_client_route_if_current_session(
+                        auth,
+                        device_id.as_str(),
+                    );
                 }
                 _ => {}
             }
@@ -307,8 +315,8 @@ async fn dispatch_watch_presence(
     let watched_user_ids = request.user_ids;
     let state = state.clone();
     let auth = auth.clone();
-    let stream = IntervalStream::new(tokio::time::interval(PRESENCE_WATCH_POLL_INTERVAL))
-        .then(move |_| {
+    let stream =
+        IntervalStream::new(tokio::time::interval(PRESENCE_WATCH_POLL_INTERVAL)).then(move |_| {
             let state = state.clone();
             let auth = auth.clone();
             let watched_user_ids = watched_user_ids.clone();
@@ -318,10 +326,16 @@ async fn dispatch_watch_presence(
                     .map_err(map_runtime_error)?;
                 let snapshot = state
                     .rpc_presence_runtime()
-                    .presence_snapshot(&auth, auth.device_id.clone(), sync_state.registered_route_keys)
+                    .presence_snapshot(
+                        &auth,
+                        auth.device_id.clone(),
+                        sync_state.registered_route_keys,
+                    )
                     .map_err(map_runtime_error)?;
                 let presence = if watched_user_ids.is_empty()
-                    || watched_user_ids.iter().any(|user_id| user_id == &auth.actor_id)
+                    || watched_user_ids
+                        .iter()
+                        .any(|user_id| user_id == &auth.actor_id)
                 {
                     presence_view_from_snapshot(&snapshot, snapshot.current_device_id.as_deref())
                 } else {
@@ -346,8 +360,8 @@ async fn dispatch_watch_realtime_events(
     let device_id = resolve_requested_device_id(auth, None).map_err(map_api_error)?;
     let state = state.clone();
     let auth = auth.clone();
-    let stream = IntervalStream::new(tokio::time::interval(REALTIME_WATCH_POLL_INTERVAL)).then(
-        move |_| {
+    let stream =
+        IntervalStream::new(tokio::time::interval(REALTIME_WATCH_POLL_INTERVAL)).then(move |_| {
             let state = state.clone();
             let auth = auth.clone();
             let device_id = device_id.clone();
@@ -387,8 +401,7 @@ async fn dispatch_watch_realtime_events(
                 };
                 ImRpcStreamResponse::from_message(response)
             }
-        },
-    );
+        });
     Ok(Box::pin(stream))
 }
 
@@ -421,12 +434,14 @@ fn parse_cursor_u64(cursor: &str) -> Result<u64, ImRpcError> {
     if trimmed.is_empty() {
         return Ok(0);
     }
-    trimmed
-        .parse::<u64>()
-        .map_err(|error| ImRpcError::invalid_argument(format!("invalid realtime cursor `{cursor}`: {error}")))
+    trimmed.parse::<u64>().map_err(|error| {
+        ImRpcError::invalid_argument(format!("invalid realtime cursor `{cursor}`: {error}"))
+    })
 }
 
-fn proto_subscriptions_to_items(subscriptions: Vec<RealtimeSubscription>) -> Vec<RealtimeSubscriptionItemInput> {
+fn proto_subscriptions_to_items(
+    subscriptions: Vec<RealtimeSubscription>,
+) -> Vec<RealtimeSubscriptionItemInput> {
     subscriptions
         .into_iter()
         .map(|subscription| {
@@ -446,7 +461,9 @@ fn proto_subscriptions_to_items(subscriptions: Vec<RealtimeSubscription>) -> Vec
         .collect()
 }
 
-fn snapshot_to_proto_subscriptions(snapshot: &RealtimeSubscriptionSnapshot) -> Vec<RealtimeSubscription> {
+fn snapshot_to_proto_subscriptions(
+    snapshot: &RealtimeSubscriptionSnapshot,
+) -> Vec<RealtimeSubscription> {
     snapshot
         .items
         .iter()
@@ -467,7 +484,10 @@ fn snapshot_to_proto_subscriptions(snapshot: &RealtimeSubscriptionSnapshot) -> V
         .collect()
 }
 
-fn presence_view_from_snapshot(snapshot: &PresenceSnapshotView, device_id: Option<&str>) -> PresenceView {
+fn presence_view_from_snapshot(
+    snapshot: &PresenceSnapshotView,
+    device_id: Option<&str>,
+) -> PresenceView {
     let selected_device = device_id
         .and_then(|device_id| {
             snapshot
@@ -528,12 +548,16 @@ mod tests {
     #[test]
     fn session_gateway_rpc_service_keys_cover_realtime_surfaces() {
         assert_eq!(SESSION_GATEWAY_RPC_SERVICE_KEYS.len(), 2);
-        assert!(SESSION_GATEWAY_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("PresenceService")));
-        assert!(SESSION_GATEWAY_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("RealtimeService")));
+        assert!(
+            SESSION_GATEWAY_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("PresenceService"))
+        );
+        assert!(
+            SESSION_GATEWAY_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("RealtimeService"))
+        );
     }
 
     #[test]

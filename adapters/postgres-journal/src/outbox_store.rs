@@ -50,10 +50,31 @@ where tenant_id = $1 and organization_id = $2 and outbox_id = $3
 "#;
 
 const MARK_FAILED_SQL: &str = r#"
-update im_outbox_events
-set publish_status = 'failed', attempt_count = attempt_count + 1, updated_at = $4
-where tenant_id = $1 and organization_id = $2 and outbox_id = $3
+UPDATE im_outbox_events
+SET
+    attempt_count = attempt_count + 1,
+    publish_status = CASE
+        WHEN attempt_count + 1 >= $5 THEN 'failed'
+        ELSE 'pending'
+    END,
+    available_at = CASE
+        WHEN attempt_count + 1 >= $5 THEN available_at
+        ELSE NOW() + make_interval(secs => LEAST(300, POWER(2, LEAST(attempt_count, 8)::int))::int)
+    END,
+    updated_at = $4
+WHERE tenant_id = $1 AND organization_id = $2 AND outbox_id = $3
 "#;
+
+const OUTBOX_MAX_ATTEMPTS_ENV: &str = "SDKWORK_IM_OUTBOX_MAX_ATTEMPTS";
+const OUTBOX_MAX_ATTEMPTS_DEFAULT: i32 = 10;
+
+fn resolve_outbox_max_attempts() -> i32 {
+    std::env::var(OUTBOX_MAX_ATTEMPTS_ENV)
+        .ok()
+        .and_then(|value| value.parse::<i32>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(OUTBOX_MAX_ATTEMPTS_DEFAULT)
+}
 
 const READ_BY_EVENT_ID_SQL: &str = r#"
 select tenant_id, organization_id, outbox_id, aggregate_type, aggregate_id,
@@ -66,6 +87,15 @@ where tenant_id = $1 and organization_id = $2 and event_id = $3
 const COUNT_PENDING_SQL: &str = r#"
 select count(*) from im_outbox_events
 where tenant_id = $1 and organization_id = $2 and publish_status = 'pending'
+"#;
+
+const LIST_PENDING_SCOPES_SQL: &str = r#"
+select tenant_id, organization_id
+from im_outbox_events
+where publish_status = 'pending' and available_at <= $1
+group by tenant_id, organization_id
+order by min(available_at), tenant_id, organization_id
+limit $2
 "#;
 
 fn row_to_record(row: &postgres::Row) -> OutboxEventRecord {
@@ -185,12 +215,13 @@ impl OutboxStore for PostgresOutboxStore {
         let organization_id = organization_id.to_owned();
         let outbox_id = outbox_id.to_owned();
         let now = now_rfc3339();
+        let max_attempts = resolve_outbox_max_attempts();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "mark_failed")?;
             client
                 .execute(
                     MARK_FAILED_SQL,
-                    &[&tenant_id, &organization_id, &outbox_id, &now],
+                    &[&tenant_id, &organization_id, &outbox_id, &now, &max_attempts],
                 )
                 .map_err(|error| postgres_unavailable("mark_failed", error))?;
             Ok(())
@@ -253,6 +284,22 @@ impl OutboxStore for PostgresOutboxStore {
                 )
                 .map_err(|error| postgres_unavailable("retry_failed", error))?;
             Ok(())
+        })
+    }
+
+    fn list_pending_scopes(&self, limit: usize) -> Result<Vec<(String, String)>, ContractError> {
+        let pool = self.pool.clone();
+        let now = now_rfc3339();
+        let limit = limit as i32;
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "list_pending_scopes")?;
+            let rows = client
+                .query(LIST_PENDING_SCOPES_SQL, &[&now, &limit])
+                .map_err(|error| postgres_unavailable("list_pending_scopes", error))?;
+            Ok(rows
+                .iter()
+                .map(|row| (row.get::<_, String>(0), row.get::<_, String>(1)))
+                .collect())
         })
     }
 }

@@ -43,7 +43,7 @@ function readJson(relativePath) {
 
 const manifest = readJson('sdkwork.app.config.json');
 assert.equal(manifest.app.key, 'chat', 'SDKWork app key must be the canonical app code chat');
-assert.equal(manifest.app.name, 'chat', 'PlusApp identity name must be the stable app code chat');
+assert.equal(manifest.app.name, 'chat', 'platform_app identity name must be the stable app code chat');
 assert.equal(manifest.app.displayName, 'Sdkwork IM', 'display name may carry the product label');
 assert.equal(manifest.publish.config.workspaceRoot, 'apps/sdkwork-im-pc');
 assert.equal(manifest.devApp.sourceRoot, 'apps/sdkwork-im-pc');
@@ -142,56 +142,6 @@ assert.throws(
   'new app config must reject legacy DATABASE_SSLMODE spelling',
 );
 
-const canonicalSqlite = sharedDbModule.resolveSdkworkImSharedDatabaseConfig({
-  env: {
-    SDKWORK_IM_DEPLOYMENT_MODE: 'desktop',
-  },
-  repoRoot,
-});
-assert.equal(canonicalSqlite.kind, 'sqlite');
-assert.match(
-  canonicalSqlite.databaseUrl,
-  /sqlite:\/\/.*[/\\]\.sdkwork[/\\]chat[/\\]data[/\\]chat\.sqlite$/u,
-  'desktop/local default SQLite must live under the SDKWork user-private chat data directory',
-);
-assert.equal(canonicalSqlite.env.SDKWORK_IM_DATABASE_ENGINE, 'sqlite');
-assert.equal(canonicalSqlite.env.SDKWORK_IM_DATABASE_MAX_CONNECTIONS, '1');
-assert.equal(
-  canonicalSqlite.env.SDKWORK_CLAW_DATABASE_URL,
-  canonicalSqlite.env.SDKWORK_IM_DATABASE_URL,
-  'desktop SQLite config must be bridged to the current Rust-compatible env name',
-);
-assert.match(
-  canonicalSqlite.env.SDKWORK_DRIVE_DATABASE_SQLITE_URL,
-  /sqlite:\/\/.*[/\\]drive\.sqlite$/u,
-  'shared SQLite bridge must isolate Drive persistence from IM chat.sqlite',
-);
-assert.match(
-  canonicalSqlite.env.SDKWORK_KNOWLEDGEBASE_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]knowledgebase\.db\?mode=rwc$/u,
-  'shared SQLite bridge must isolate Knowledgebase persistence from IM chat.sqlite',
-);
-assert.match(
-  canonicalSqlite.env.SDKWORK_CATALOG_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]catalog\.sqlite$/u,
-  'shared SQLite bridge must isolate catalog persistence from IM chat.sqlite',
-);
-assert.match(
-  canonicalSqlite.env.SDKWORK_ORDER_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]order\.sqlite$/u,
-  'shared SQLite bridge must isolate order persistence from IM chat.sqlite',
-);
-assert.match(
-  canonicalSqlite.env.SDKWORK_SHOP_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]shop\.sqlite$/u,
-  'shared SQLite bridge must isolate shop persistence from IM chat.sqlite',
-);
-assert.match(
-  canonicalSqlite.env.SDKWORK_MAIL_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]mail\.sqlite$/u,
-  'shared SQLite bridge must isolate Mail persistence from IM chat.sqlite',
-);
-
 const planModule = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/release/plan-sdkwork-im-install-packages.mjs')).href
 );
@@ -225,13 +175,10 @@ assert.deepEqual(windowsServer.runtimePaths, {
 });
 
 const linuxDesktop = plan.packages.find((item) => item.id === 'linux-x64-desktop');
-assert.equal(linuxDesktop.databasePolicy.defaultEngine, 'sqlite');
 assert.equal(linuxDesktop.databasePolicy.requiresExternalDatabase, false);
 assert.equal(linuxDesktop.databasePolicy.configFile.path, '~/.sdkwork/chat/config/chat.toml');
 assert.equal(linuxDesktop.databasePolicy.dataDirectory.path, '~/.sdkwork/chat/data');
-assert.equal(linuxDesktop.databasePolicy.defaultSqlitePath, '~/.sdkwork/chat/data/chat.sqlite');
 assert.ok(linuxDesktop.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_URL'));
-assert.ok(linuxDesktop.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_FILE'));
 
 const serverEnvTemplate = read('deployments/templates/server.env.example');
 for (const required of [
@@ -283,9 +230,8 @@ const desktopConfigTemplate = read('deployments/templates/desktop.toml.example')
 for (const required of [
   'deployment_mode = "desktop"',
   'app_code = "chat"',
-  'engine = "sqlite"',
-  'file = "~/.sdkwork/chat/data/chat.sqlite"',
-  'max_connections = 1',
+  'engine = "postgres"',
+  'max_connections = 8',
 ]) {
   assert.ok(desktopConfigTemplate.includes(required), `desktop.toml.example must document ${required}`);
 }
@@ -327,9 +273,7 @@ for (const required of [
   '/etc/sdkwork/chat/chat.toml',
   '/etc/sdkwork/chat/database.secret',
   '/sdkwork/chat',
-  '~/.sdkwork/chat/data/chat.sqlite',
   'desktop',
-  'SQLite',
   'im_',
   'Non-IM',
 ]) {

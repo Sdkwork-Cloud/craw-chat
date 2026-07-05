@@ -9,11 +9,12 @@ use im_domain_core::stream::{
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
+use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkPageData};
 
 use crate::dto::{
     AbortStreamRequest, AppendStreamFrameOutcome, AppendStreamFrameRequest,
-    CheckpointStreamRequest, CompleteStreamRequest, ListStreamFramesQuery, OpenStreamRequest,
-    StreamFrameWindow, StreamSessionMutationOutcome,
+    CheckpointStreamRequest, CompleteStreamRequest, OpenStreamRequest,
+    StreamSessionMutationOutcome,
 };
 use crate::error::StreamingError;
 use crate::helpers::{
@@ -22,20 +23,46 @@ use crate::helpers::{
     stream_completion_matches_request, stream_frame_index, stream_scope_key,
     stream_session_matches_open_request, validate_abort_stream_request_payload_size,
     validate_append_frame_request_payload_size, validate_complete_stream_request_payload_size,
-    validate_open_stream_request_payload_size, validate_stream_id,
+    validate_open_stream_request_payload_size, validate_stream_frame_page_size,
+    validate_stream_id,
 };
 
-const STREAM_FRAME_LIST_MAX_LIMIT: usize = 1000;
+/// Maximum number of concurrently active (non-terminal) streams a single
+/// tenant may own before new `open_stream` requests are rejected with
+/// `stream_capacity_exceeded`. This protects the runtime from a single
+/// noisy tenant exhausting memory by opening unbounded streams.
+///
+/// The limit counts only streams whose state is not yet `Completed`,
+/// `Aborted`, or `Expired` — terminated streams release their slot so the
+/// tenant can continue to open new streams. The default is intentionally
+/// generous for normal IM streaming (typing indicators, ephemeral frames,
+/// durable session logs); tenants needing a higher limit should be
+/// provisioned through dedicated capacity planning rather than a global
+/// bump.
+const MAX_ACTIVE_STREAMS_PER_TENANT: u64 = 1000;
 
 #[derive(Clone)]
 pub struct AppState {
     pub(crate) runtime: Arc<StreamingRuntime>,
 }
 
+impl AppState {
+    pub fn new(runtime: Arc<StreamingRuntime>) -> Self {
+        Self { runtime }
+    }
+}
+
 pub struct StreamingRuntime {
     pub(crate) sessions: Mutex<HashMap<String, StreamSession>>,
     pub(crate) frames: Mutex<HashMap<String, BTreeMap<u64, StreamFrame>>>,
     pub(crate) state_store: Arc<dyn StreamStateStore>,
+    /// Per-tenant count of currently active (non-terminal) streams.
+    /// Incremented on `open_stream` (new session only, not idempotent
+    /// replay); decremented when a stream transitions to a terminal
+    /// state (`Completed` / `Aborted` / `Expired`). Lock order is
+    /// `sessions` -> `tenant_active_stream_counts`; no inverse acquisition
+    /// exists, so this cannot deadlock.
+    pub(crate) tenant_active_stream_counts: Mutex<HashMap<String, u64>>,
 }
 
 impl StreamingRuntime {
@@ -44,6 +71,7 @@ impl StreamingRuntime {
             sessions: Mutex::new(HashMap::new()),
             frames: Mutex::new(HashMap::new()),
             state_store,
+            tenant_active_stream_counts: Mutex::new(HashMap::new()),
         }
     }
 
@@ -68,10 +96,18 @@ impl StreamingRuntime {
             .load_state(tenant_id, stream_id)
             .map_err(StreamingError::stream_store)?;
         if let Some(record) = restored {
+            // TOCTOU-safe restore: between the `contains_key` check above and
+            // here, a concurrent `open_stream_with_outcome` may have already
+            // inserted a fresh session. Use `entry().or_insert()` so we never
+            // overwrite the in-memory session a concurrent opener just created.
+            // Mirrors the fix already applied in
+            // `im-calls-service/src/state.rs::ensure_rtc_state`.
             lock_stream_mutex(&self.sessions, "stream runtime")
-                .insert(scope_key.clone(), record.session);
+                .entry(scope_key.clone())
+                .or_insert(record.session);
             lock_stream_mutex(&self.frames, "stream runtime")
-                .insert(scope_key, stream_frame_index(record.frames));
+                .entry(scope_key)
+                .or_insert_with(|| stream_frame_index(record.frames));
         }
 
         Ok(())
@@ -138,6 +174,34 @@ impl StreamingRuntime {
             }
 
             return Err(StreamingError::conflict(request.stream_id.as_str()));
+        }
+
+        // Per-tenant capacity guard: count currently active (non-terminal)
+        // streams owned by this tenant and reject new opens once the limit
+        // is reached. This runs under the `sessions` write lock so the
+        // count-and-increment is atomic against concurrent open/complete/
+        // abort for the same tenant. The count is maintained separately in
+        // `tenant_active_stream_counts` to avoid an O(n) scan of the
+        // sessions HashMap on every open; the nested `sessions` ->
+        // `tenant_active_stream_counts` acquisition is safe because no
+        // caller acquires them in the reverse order.
+        {
+            let mut counts = lock_stream_mutex(
+                &self.tenant_active_stream_counts,
+                "stream tenant capacity counts",
+            );
+            let current = counts.get(auth.tenant_id.as_str()).copied().unwrap_or(0);
+            if current >= MAX_ACTIVE_STREAMS_PER_TENANT {
+                return Err(StreamingError {
+                    status: axum::http::StatusCode::TOO_MANY_REQUESTS,
+                    code: "stream_capacity_exceeded",
+                    message: format!(
+                        "tenant {} already has {} active streams; limit is {}",
+                        auth.tenant_id, current, MAX_ACTIVE_STREAMS_PER_TENANT
+                    ),
+                });
+            }
+            counts.insert(auth.tenant_id.clone(), current + 1);
         }
 
         let opened_at = utc_now_rfc3339_millis();
@@ -416,6 +480,21 @@ impl StreamingRuntime {
         session.closed_at = Some(utc_now_rfc3339_millis());
         let session = session.clone();
         drop(sessions);
+        // Release the per-tenant capacity slot now that the stream has
+        // transitioned to a terminal state. Saturating subtraction guards
+        // against any drift caused by recovery replays or count corruption.
+        {
+            let mut counts = lock_stream_mutex(
+                &self.tenant_active_stream_counts,
+                "stream tenant capacity counts",
+            );
+            if let Some(count) = counts.get_mut(auth.tenant_id.as_str()) {
+                *count = count.saturating_sub(1);
+                if *count == 0 {
+                    counts.remove(auth.tenant_id.as_str());
+                }
+            }
+        }
         self.persist_state(auth.tenant_id.as_str(), stream_id)?;
 
         Ok(StreamSessionMutationOutcome {
@@ -480,6 +559,21 @@ impl StreamingRuntime {
         session.closed_at = Some(utc_now_rfc3339_millis());
         let session = session.clone();
         drop(sessions);
+        // Release the per-tenant capacity slot now that the stream has
+        // transitioned to a terminal state. See `complete_stream_with_outcome`
+        // for the rationale on saturating subtraction.
+        {
+            let mut counts = lock_stream_mutex(
+                &self.tenant_active_stream_counts,
+                "stream tenant capacity counts",
+            );
+            if let Some(count) = counts.get_mut(auth.tenant_id.as_str()) {
+                *count = count.saturating_sub(1);
+                if *count == 0 {
+                    counts.remove(auth.tenant_id.as_str());
+                }
+            }
+        }
         self.persist_state(auth.tenant_id.as_str(), stream_id)?;
 
         Ok(StreamSessionMutationOutcome {
@@ -492,27 +586,11 @@ impl StreamingRuntime {
         &self,
         auth: &AppContext,
         stream_id: &str,
-        query: ListStreamFramesQuery,
-    ) -> Result<StreamFrameWindow, StreamingError> {
+        after_frame_seq: u64,
+        page_size: usize,
+    ) -> Result<SdkWorkPageData<StreamFrame>, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
-        let after_frame_seq = query.after_frame_seq.unwrap_or(0);
-        let limit = query.limit.unwrap_or(100);
-        if limit == 0 {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "invalid_limit",
-                message: "limit must be greater than 0".into(),
-            });
-        }
-        if limit > STREAM_FRAME_LIST_MAX_LIMIT {
-            return Err(StreamingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "invalid_limit",
-                message: format!(
-                    "limit must be less than or equal to {STREAM_FRAME_LIST_MAX_LIMIT}"
-                ),
-            });
-        }
+        let page_size = validate_stream_frame_page_size(page_size)?;
 
         let scope_key = stream_scope_key(auth.tenant_id.as_str(), stream_id);
         let sessions = lock_stream_mutex(&self.sessions, "stream runtime");
@@ -531,20 +609,20 @@ impl StreamingRuntime {
         let mut items = Vec::new();
         if let Some(stream_frames) = frames.get(scope_key.as_str()) {
             for (_, frame) in stream_frames.range((Excluded(after_frame_seq), Unbounded)) {
-                if items.len() == limit {
+                if items.len() == page_size {
                     has_more = true;
                     break;
                 }
                 items.push(frame.clone());
             }
         }
-        let next_after_frame_seq = items.last().map(|frame| frame.frame_seq);
+        let next_cursor = if has_more {
+            items.last().map(|frame| frame.frame_seq.to_string())
+        } else {
+            None
+        };
 
-        Ok(StreamFrameWindow {
-            items,
-            next_after_frame_seq,
-            has_more,
-        })
+        Ok(cursor_list_page_data(items, page_size, next_cursor, has_more))
     }
 
     fn persist_state(&self, tenant_id: &str, stream_id: &str) -> Result<(), StreamingError> {
@@ -623,11 +701,5 @@ impl StreamStateStore for RuntimeMemoryStreamStateStore {
 impl Default for StreamingRuntime {
     fn default() -> Self {
         Self::with_store(Arc::new(RuntimeMemoryStreamStateStore::default()))
-    }
-}
-
-pub fn default_app_state() -> AppState {
-    AppState {
-        runtime: Arc::new(StreamingRuntime::default()),
     }
 }

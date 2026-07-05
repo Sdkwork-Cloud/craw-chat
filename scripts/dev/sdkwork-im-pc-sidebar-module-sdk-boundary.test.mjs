@@ -20,7 +20,10 @@ const shopServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/services/ShopService.ts',
 );
 const communityServiceSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/services/CommunityService.ts',
+  '../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/services/CommunityService.ts',
+);
+const imCommunityAdapterSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/createImCommunityPcHostAdapter.tsx',
 );
 const calendarServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-calendar/src/services/CalendarService.ts',
@@ -29,10 +32,10 @@ const courseServiceSource = read(
   '../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/services/CourseService.ts',
 );
 const communityViewSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/components/CommunityView.tsx',
+  '../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunityView.tsx',
 );
 const communitySettingsSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/components/CommunitySettings.tsx',
+  '../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunitySettings.tsx',
 );
 const shopHomeSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/ShopHome.tsx',
@@ -114,8 +117,13 @@ assert.match(
 );
 assert.match(
   ordersServiceSource,
-  /pc orders write contract requires order command headers/u,
-  'pc orders write mutations must fail closed until order command headers are wired through the SDK.',
+  /orders\.cancel\(|orders\.pay\(|fulfillments\.create/u,
+  'pc orders write mutations must route cancel, pay, and fulfillment through generated order/shop app SDKs.',
+);
+assert.match(
+  ordersServiceSource,
+  /COMMERCE_COMMAND/u,
+  'pc orders write mutations must pass commerce command payloads through the SDK.',
 );
 assert.match(
   shopServiceSource,
@@ -139,18 +147,33 @@ assert.match(
 );
 assert.match(
   communityServiceSource,
-  /getCommunityAppSdkClientWithSession/u,
-  'pc community service must consume the generated community app SDK wrapper.',
+  /getCommunityPcHost\(\)\.createAppSdkPort\(\)/u,
+  'pc community service must consume the host-injected community app SDK port.',
 );
 assert.match(
+  imCommunityAdapterSource,
+  /getCommunityAppSdkClientWithSession/u,
+  'im pc community adapter must consume the generated community app SDK wrapper.',
+);
+assert.match(
+  imCommunityAdapterSource,
+  /createGeneratedCommunityAppSdkPort/u,
+  'im pc community adapter must bridge the generated community app SDK through community-runtime ports.',
+);
+assert.doesNotMatch(
+  imCommunityAdapterSource,
+  /CommunityView|CommunitySettings/u,
+  'im pc community adapter must not duplicate community UI surfaces.',
+);
+assert.doesNotMatch(
   communityServiceSource,
   /pc community groups contract is not available/u,
-  'pc community group mutations must fail closed until the community groups contract exists.',
+  'community product service must not keep legacy IM-local group fail-closed stubs.',
 );
-assert.match(
+assert.doesNotMatch(
   communityServiceSource,
   /pc community comments contract is not available/u,
-  'pc community comment mutations must fail closed until the community comments contract exists.',
+  'community product service must not keep legacy IM-local comment fail-closed stubs.',
 );
 assert.match(
   calendarServiceSource,

@@ -43,14 +43,15 @@ dashmap.workspace = true
 # in-memory store for development only. Production deployments MUST set
 # SDKWORK_RTC_STATE_DATABASE_URL (and optionally SDKWORK_RTC_STATE_REDIS_URL)
 # and SDKWORK_RTC_STATE_REQUIRE_DURABLE=true to fail-closed on data loss.
+im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-postgres-rtc-state = { path = "../../adapters/postgres-rtc-state" }
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
 # Transactional outbox for durable RTC lifecycle event publishing
 # (FOR UPDATE SKIP LOCKED pattern). When SDKWORK_RTC_OUTBOX_DATABASE_URL is
 # unset, the runtime skips outbox emission (development only). Production
 # deployments SHOULD set SDKWORK_RTC_OUTBOX_DATABASE_URL and
 # SDKWORK_RTC_REQUIRE_OUTBOX=true to fail-closed on missing outbox.
-im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 
 [dev-dependencies]
 http-body-util.workspace = true

@@ -9,7 +9,10 @@ export interface ContactMemberPickerPanelProps {
   disabledContactIds?: Set<string>;
   disabledReason?: string;
   emptyText: string;
+  hasMoreContacts?: boolean;
   isLoading: boolean;
+  isLoadingMoreContacts?: boolean;
+  onLoadMoreContacts?: () => void;
   onSearchQueryChange: (query: string) => void;
   onToggleContact: (contactId: string) => void;
   searchPlaceholder: string;
@@ -73,7 +76,10 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
   disabledContactIds = new Set<string>(),
   disabledReason,
   emptyText,
+  hasMoreContacts = false,
   isLoading,
+  isLoadingMoreContacts = false,
+  onLoadMoreContacts,
   onSearchQueryChange,
   onToggleContact,
   searchPlaceholder,
@@ -179,6 +185,19 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
               ) : (
                 <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-500">
                   {normalizedQuery ? t('chat.modal.selection.noSearchResults') : emptyText}
+                </div>
+              )}
+              {!isLoading && hasMoreContacts && onLoadMoreContacts && (
+                <div className="border-t border-white/5 px-4 py-3">
+                  <button
+                    type="button"
+                    disabled={isLoadingMoreContacts}
+                    onClick={onLoadMoreContacts}
+                    className="flex w-full items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isLoadingMoreContacts && <Loader2 size={14} className="animate-spin" />}
+                    <span>{t('chat.modal.actions.loadMoreContacts')}</span>
+                  </button>
                 </div>
               )}
             </div>

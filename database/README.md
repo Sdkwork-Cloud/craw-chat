@@ -47,9 +47,10 @@ pnpm test:contract:database
 
 This module is in **initialization state** for greenfield deployments:
 
-1. **Baseline** — `database/ddl/baseline/{engine}/0001_im_baseline.sql` contains the full DDL snapshot.
-2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
-3. **Drift** — run `pnpm db:drift:check` before release.
+1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the **runtime authority** for IM core (journal, projection, social materializer, search).
+2. **SQLite baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists for lifecycle contract parity and desktop gateway co-location checks. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases (Drive, Commerce, etc.), not the IM event log.
+3. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
+4. **Drift** — run `pnpm db:drift:check` before release.
 
 ## Commands
 

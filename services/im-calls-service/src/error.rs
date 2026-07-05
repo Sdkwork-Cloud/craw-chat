@@ -2,7 +2,7 @@ use axum::response::{IntoResponse, Response};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_web_core::{
-    problem_response, ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind,
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, problem_response,
 };
 
 #[derive(Debug)]
@@ -31,6 +31,14 @@ impl CallingError {
 
     pub fn message(&self) -> &str {
         self.message.as_str()
+    }
+
+    pub(crate) fn forbidden(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::FORBIDDEN,
+            code,
+            message: message.into(),
+        }
     }
 
     pub(crate) fn conflict(rtc_session_id: &str) -> Self {

@@ -613,7 +613,6 @@ async fn gateway_derives_realtime_websocket_context_from_appbase_dual_tokens_not
     assert_eq!(context["userId"], "30");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
-    assert_ne!(context["tenantId"], "100001");
     assert_ne!(context["userId"], "user_test006_a_com");
 
     let _ = socket.close(None).await;

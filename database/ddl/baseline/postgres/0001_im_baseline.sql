@@ -209,10 +209,6 @@ CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- Drop legacy realtime tables before recreate so bootstrap survives pre-route-scope schemas.
-DROP TABLE IF EXISTS im_realtime_subscription_scopes CASCADE;
-DROP TABLE IF EXISTS im_realtime_device_events CASCADE;
-DROP TABLE IF EXISTS im_realtime_subscriptions CASCADE;
-DROP TABLE IF EXISTS im_realtime_checkpoints CASCADE;
 
 CREATE TABLE IF NOT EXISTS im_realtime_device_events (
     tenant_id TEXT NOT NULL,
@@ -815,6 +811,7 @@ CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_checkpoints (
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
     latest_sync_seq BIGINT NOT NULL DEFAULT 0 CHECK (latest_sync_seq >= 0),
+    acked_through_sync_seq BIGINT NOT NULL DEFAULT 0 CHECK (acked_through_sync_seq >= 0),
     trimmed_through_seq BIGINT NOT NULL DEFAULT 0 CHECK (trimmed_through_seq >= 0),
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
@@ -822,7 +819,10 @@ CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_checkpoints (
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_projection_client_route_sync_checkpoints PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id),
-    CONSTRAINT chk_im_projection_client_route_sync_checkpoints_order CHECK (trimmed_through_seq <= latest_sync_seq)
+    CONSTRAINT chk_im_projection_client_route_sync_checkpoints_order CHECK (
+        trimmed_through_seq <= latest_sync_seq
+        AND acked_through_sync_seq <= latest_sync_seq
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_checkpoints_retention_until
@@ -963,8 +963,7 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_frames_retention_until
 
 -- 重建 im_conversation_messages（消息真值表）
 -- 主键改为 Snowflake message_id，但保留 message_seq 作为会话内序号
-DROP TABLE IF EXISTS im_conversation_messages CASCADE;
-CREATE TABLE im_conversation_messages (
+CREATE TABLE IF NOT EXISTS im_conversation_messages (
     tenant_id           TEXT NOT NULL,
     organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
@@ -1008,8 +1007,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_messages_retention_until
 -- 2. 消息序号分配器（会话级原子）
 -- ============================================================
 
-DROP TABLE IF EXISTS im_conversation_seq_counters CASCADE;
-CREATE TABLE im_conversation_seq_counters (
+CREATE TABLE IF NOT EXISTS im_conversation_seq_counters (
     tenant_id       TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -1023,8 +1021,7 @@ CREATE TABLE im_conversation_seq_counters (
 -- 3. 消息媒体引用
 -- ============================================================
 
-DROP TABLE IF EXISTS im_message_media_refs CASCADE;
-CREATE TABLE im_message_media_refs (
+CREATE TABLE IF NOT EXISTS im_message_media_refs (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -1078,8 +1075,7 @@ CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_retention_until
 -- 4. Outbox 事件表（重建，支持 FOR UPDATE SKIP LOCKED）
 -- ============================================================
 
-DROP TABLE IF EXISTS im_outbox_events CASCADE;
-CREATE TABLE im_outbox_events (
+CREATE TABLE IF NOT EXISTS im_outbox_events (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     outbox_id TEXT NOT NULL,              -- Snowflake ID
@@ -1113,8 +1109,7 @@ CREATE INDEX IF NOT EXISTS idx_im_outbox_events_retention_until
 -- 5. Inbox 事件表（消费幂等性）
 -- ============================================================
 
-DROP TABLE IF EXISTS im_inbox_events CASCADE;
-CREATE TABLE im_inbox_events (
+CREATE TABLE IF NOT EXISTS im_inbox_events (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     inbox_id TEXT NOT NULL,
@@ -1146,8 +1141,7 @@ CREATE INDEX IF NOT EXISTS idx_im_inbox_events_retention_until
 -- 6. Commit Journal（重建，offset 独立于 aggregate_seq）
 -- ============================================================
 
-DROP TABLE IF EXISTS im_commit_journal CASCADE;
-CREATE TABLE im_commit_journal (
+CREATE TABLE IF NOT EXISTS im_commit_journal (
     partition_key TEXT NOT NULL,           -- (tenant_id:organization_id:aggregate_type:aggregate_id)
     commit_offset BIGINT NOT NULL,         -- Snowflake ID，全局唯一，非业务序号
     event_id TEXT NOT NULL,                -- Snowflake ID
@@ -1181,8 +1175,7 @@ CREATE INDEX IF NOT EXISTS idx_im_commit_journal_retention_until
 -- 7. 幂等键表
 -- ============================================================
 
-DROP TABLE IF EXISTS im_idempotency_keys CASCADE;
-CREATE TABLE im_idempotency_keys (
+CREATE TABLE IF NOT EXISTS im_idempotency_keys (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     request_scope TEXT NOT NULL,
@@ -1204,8 +1197,7 @@ CREATE INDEX IF NOT EXISTS idx_im_idempotency_keys_expires
 -- 8. 实时设备事件
 -- ============================================================
 
-DROP TABLE IF EXISTS im_realtime_device_events CASCADE;
-CREATE TABLE im_realtime_device_events (
+CREATE TABLE IF NOT EXISTS im_realtime_device_events (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     client_route_scope_key TEXT NOT NULL,
@@ -1239,8 +1231,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_retention_until
 -- 9. 实时检查点
 -- ============================================================
 
-DROP TABLE IF EXISTS im_realtime_checkpoints CASCADE;
-CREATE TABLE im_realtime_checkpoints (
+CREATE TABLE IF NOT EXISTS im_realtime_checkpoints (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     client_route_scope_key TEXT NOT NULL,
@@ -1289,8 +1280,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_checkpoints_capacity_trimmed
 -- 10. 实时订阅
 -- ============================================================
 
-DROP TABLE IF EXISTS im_realtime_subscriptions CASCADE;
-CREATE TABLE im_realtime_subscriptions (
+CREATE TABLE IF NOT EXISTS im_realtime_subscriptions (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     client_route_scope_key TEXT NOT NULL,
@@ -1323,8 +1313,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_retention_until
 -- 11. 实时订阅范围
 -- ============================================================
 
-DROP TABLE IF EXISTS im_realtime_subscription_scopes CASCADE;
-CREATE TABLE im_realtime_subscription_scopes (
+CREATE TABLE IF NOT EXISTS im_realtime_subscription_scopes (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1372,8 +1361,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_subscription_scopes_device
 -- 12. Presence 状态
 -- ============================================================
 
-DROP TABLE IF EXISTS im_presence_states CASCADE;
-CREATE TABLE im_presence_states (
+CREATE TABLE IF NOT EXISTS im_presence_states (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1416,8 +1404,7 @@ CREATE INDEX IF NOT EXISTS idx_im_presence_states_retention_until
 -- 13. 路由绑定
 -- ============================================================
 
-DROP TABLE IF EXISTS im_route_bindings CASCADE;
-CREATE TABLE im_route_bindings (
+CREATE TABLE IF NOT EXISTS im_route_bindings (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1450,8 +1437,7 @@ CREATE INDEX IF NOT EXISTS idx_im_route_bindings_owner_node
 -- 14. 断线围栏
 -- ============================================================
 
-DROP TABLE IF EXISTS im_realtime_disconnect_fences CASCADE;
-CREATE TABLE im_realtime_disconnect_fences (
+CREATE TABLE IF NOT EXISTS im_realtime_disconnect_fences (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1485,8 +1471,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_disconnect_fences_retention_until
 -- 15. RTC 会话
 -- ============================================================
 
-DROP TABLE IF EXISTS im_rtc_sessions CASCADE;
-CREATE TABLE im_rtc_sessions (
+CREATE TABLE IF NOT EXISTS im_rtc_sessions (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     rtc_session_id TEXT NOT NULL,
@@ -1572,8 +1557,7 @@ COMMENT ON COLUMN im_rtc_sessions.ended_reason IS
 -- 16. RTC 信令
 -- ============================================================
 
-DROP TABLE IF EXISTS im_rtc_signals CASCADE;
-CREATE TABLE im_rtc_signals (
+CREATE TABLE IF NOT EXISTS im_rtc_signals (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     rtc_session_id TEXT NOT NULL,
@@ -1614,8 +1598,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_im_rtc_signals_client_signal_id
 -- 17. 审计记录
 -- ============================================================
 
-DROP TABLE IF EXISTS im_audit_records CASCADE;
-CREATE TABLE im_audit_records (
+CREATE TABLE IF NOT EXISTS im_audit_records (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     audit_seq BIGINT NOT NULL CHECK (audit_seq > 0),
@@ -1679,8 +1662,7 @@ COMMENT ON TABLE im_audit_records IS
 -- 18. 通知任务
 -- ============================================================
 
-DROP TABLE IF EXISTS im_notification_tasks CASCADE;
-CREATE TABLE im_notification_tasks (
+CREATE TABLE IF NOT EXISTS im_notification_tasks (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     notification_id TEXT NOT NULL,
@@ -1720,8 +1702,7 @@ CREATE INDEX IF NOT EXISTS idx_im_notification_tasks_retention_until
 -- 19. 自动化执行
 -- ============================================================
 
-DROP TABLE IF EXISTS im_automation_executions CASCADE;
-CREATE TABLE im_automation_executions (
+CREATE TABLE IF NOT EXISTS im_automation_executions (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1764,8 +1745,7 @@ CREATE INDEX IF NOT EXISTS idx_im_automation_executions_retention_until
 -- 20. 投影：Timeline 条目
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_timeline_entries CASCADE;
-CREATE TABLE im_projection_timeline_entries (
+CREATE TABLE IF NOT EXISTS im_projection_timeline_entries (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -1792,8 +1772,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_timeline_entries_retention_until
 -- 21. 投影：会话摘要
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_conversation_summaries CASCADE;
-CREATE TABLE im_projection_conversation_summaries (
+CREATE TABLE IF NOT EXISTS im_projection_conversation_summaries (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -1826,8 +1805,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_summaries_retention_un
 -- 22. 投影：会话成员
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_conversation_members CASCADE;
-CREATE TABLE im_projection_conversation_members (
+CREATE TABLE IF NOT EXISTS im_projection_conversation_members (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
@@ -1865,12 +1843,12 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_retention_unti
 -- 23. 投影：已读游标
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_read_cursors CASCADE;
-CREATE TABLE im_projection_read_cursors (
+CREATE TABLE IF NOT EXISTS im_projection_read_cursors (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     member_id BIGINT NOT NULL,
+    device_id TEXT NOT NULL DEFAULT '',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     read_seq BIGINT NOT NULL DEFAULT 0 CHECK (read_seq >= 0),
@@ -1880,7 +1858,7 @@ CREATE TABLE im_projection_read_cursors (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_read_cursors PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id)
+    CONSTRAINT pk_im_projection_read_cursors PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id, device_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_principal
@@ -1894,8 +1872,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_retention_until
 -- 24. 投影：注册客户端路由
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_registered_client_routes CASCADE;
-CREATE TABLE im_projection_registered_client_routes (
+CREATE TABLE IF NOT EXISTS im_projection_registered_client_routes (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1918,8 +1895,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_registered_client_routes_retention_
 -- 25. 投影：客户端路由同步 Feed
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_client_route_sync_feeds CASCADE;
-CREATE TABLE im_projection_client_route_sync_feeds (
+CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_feeds (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
@@ -1961,14 +1937,14 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_retention_u
 -- 26. 投影：客户端路由同步检查点
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_client_route_sync_checkpoints CASCADE;
-CREATE TABLE im_projection_client_route_sync_checkpoints (
+CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_checkpoints (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
     latest_sync_seq BIGINT NOT NULL DEFAULT 0 CHECK (latest_sync_seq >= 0),
+    acked_through_sync_seq BIGINT NOT NULL DEFAULT 0 CHECK (acked_through_sync_seq >= 0),
     trimmed_through_seq BIGINT NOT NULL DEFAULT 0 CHECK (trimmed_through_seq >= 0),
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
@@ -1976,7 +1952,10 @@ CREATE TABLE im_projection_client_route_sync_checkpoints (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_projection_client_route_sync_checkpoints PRIMARY KEY (tenant_id, organization_id, principal_kind, principal_id, device_id),
-    CONSTRAINT chk_im_projection_client_route_sync_checkpoints_order CHECK (trimmed_through_seq <= latest_sync_seq)
+    CONSTRAINT chk_im_projection_client_route_sync_checkpoints_order CHECK (
+        trimmed_through_seq <= latest_sync_seq
+        AND acked_through_sync_seq <= latest_sync_seq
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_checkpoints_retention_until
@@ -1987,8 +1966,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_checkpoints_reten
 -- 27. 投影：联系人
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_contacts CASCADE;
-CREATE TABLE im_projection_contacts (
+CREATE TABLE IF NOT EXISTS im_projection_contacts (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     owner_user_id TEXT NOT NULL,
@@ -2019,8 +1997,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_contacts_retention_until
 -- 28. 投影：直接聊天绑定
 -- ============================================================
 
-DROP TABLE IF EXISTS im_projection_direct_chat_bindings CASCADE;
-CREATE TABLE im_projection_direct_chat_bindings (
+CREATE TABLE IF NOT EXISTS im_projection_direct_chat_bindings (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     direct_chat_id TEXT NOT NULL,
@@ -2048,8 +2025,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_direct_chat_bindings_retention_unti
 -- 29. Stream Sessions
 -- ============================================================
 
-DROP TABLE IF EXISTS im_stream_sessions CASCADE;
-CREATE TABLE im_stream_sessions (
+CREATE TABLE IF NOT EXISTS im_stream_sessions (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     stream_id TEXT NOT NULL,
@@ -2099,8 +2075,7 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_retention_until
 -- 30. Stream Frames
 -- ============================================================
 
-DROP TABLE IF EXISTS im_stream_frames CASCADE;
-CREATE TABLE im_stream_frames (
+CREATE TABLE IF NOT EXISTS im_stream_frames (
     tenant_id TEXT NOT NULL,
     organization_id TEXT NOT NULL DEFAULT '0',
     stream_id TEXT NOT NULL,
@@ -2169,6 +2144,12 @@ CREATE INDEX IF NOT EXISTS idx_im_friend_requests_expired
     ON im_friend_requests (tenant_id, organization_id, expired_at)
     WHERE expired_at IS NOT NULL AND status = 'pending';
 
+CREATE INDEX IF NOT EXISTS idx_im_friend_requests_target_inventory
+    ON im_friend_requests (tenant_id, organization_id, target_user_id, status, updated_at DESC, created_at DESC, request_id ASC);
+
+CREATE INDEX IF NOT EXISTS idx_im_friend_requests_requester_inventory
+    ON im_friend_requests (tenant_id, organization_id, requester_user_id, status, updated_at DESC, created_at DESC, request_id ASC);
+
 -- 2. 好友关系表
 CREATE TABLE IF NOT EXISTS im_friendships (
     tenant_id           TEXT NOT NULL,
@@ -2191,6 +2172,12 @@ CREATE INDEX IF NOT EXISTS idx_im_friendships_user_low
 
 CREATE INDEX IF NOT EXISTS idx_im_friendships_user_high
     ON im_friendships (tenant_id, organization_id, user_high_id, status, established_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_friendships_user_low_inventory
+    ON im_friendships (tenant_id, organization_id, user_low_id, status, updated_at DESC, friendship_id ASC);
+
+CREATE INDEX IF NOT EXISTS idx_im_friendships_user_high_inventory
+    ON im_friendships (tenant_id, organization_id, user_high_id, status, updated_at DESC, friendship_id ASC);
 
 -- 3. 用户屏蔽表
 CREATE TABLE IF NOT EXISTS im_user_blocks (
@@ -2341,6 +2328,56 @@ CREATE INDEX IF NOT EXISTS idx_im_spaces_owner
 
 CREATE INDEX IF NOT EXISTS idx_im_spaces_type
     ON im_spaces (tenant_id, organization_id, space_type, created_at DESC);
+
+-- 8a. 联系人标签表
+CREATE TABLE IF NOT EXISTS im_contact_tags (
+    tenant_id           TEXT NOT NULL,
+    organization_id     TEXT NOT NULL DEFAULT '0',
+    owner_user_id       TEXT NOT NULL,
+    tag_id              BIGINT NOT NULL,
+    name                TEXT NOT NULL,
+    color               TEXT NOT NULL,
+    count               INTEGER NOT NULL DEFAULT 0,
+    bg                  TEXT NOT NULL DEFAULT '',
+    border              TEXT NOT NULL DEFAULT '',
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_contact_tags PRIMARY KEY (tenant_id, organization_id, owner_user_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_contact_tags_owner
+    ON im_contact_tags (tenant_id, organization_id, owner_user_id, updated_at DESC, tag_id DESC);
+
+-- 8b. 联系人偏好表
+CREATE TABLE IF NOT EXISTS im_contact_preferences (
+    tenant_id           TEXT NOT NULL,
+    organization_id     TEXT NOT NULL DEFAULT '0',
+    owner_user_id       TEXT NOT NULL,
+    target_user_id      TEXT NOT NULL,
+    is_starred          BOOLEAN NOT NULL DEFAULT FALSE,
+    is_blocked          BOOLEAN NOT NULL DEFAULT FALSE,
+    remark              TEXT,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_contact_preferences PRIMARY KEY (tenant_id, organization_id, owner_user_id, target_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_contact_preferences_owner
+    ON im_contact_preferences (tenant_id, organization_id, owner_user_id, updated_at DESC);
+
+-- 8c. 联系人推荐表
+CREATE TABLE IF NOT EXISTS im_contact_recommendations (
+    tenant_id               TEXT NOT NULL,
+    organization_id         TEXT NOT NULL DEFAULT '0',
+    owner_user_id           TEXT NOT NULL,
+    target_user_id          TEXT NOT NULL,
+    recommendation_id       BIGINT NOT NULL,
+    target_conversation_id  TEXT,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_im_contact_recommendations PRIMARY KEY (tenant_id, organization_id, recommendation_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_contact_recommendations_owner_target
+    ON im_contact_recommendations (tenant_id, organization_id, owner_user_id, target_user_id, created_at DESC);
 
 -- 9. 空间成员表
 CREATE TABLE IF NOT EXISTS im_space_members (
@@ -3566,3 +3603,31 @@ COMMENT ON COLUMN im_audit_records.retention_class IS
 -- DDL script that creates a dedicated `im_audit_writer` role with INSERT/SELECT
 -- only (no UPDATE/DELETE/TRUNCATE). See deployments/database/postgres/roles.sql.
 -- This migration only adds the schema; role-based enforcement is deployment-time.
+
+-- ============================================================
+-- Snowflake node registry (shared with sdkwork-database-id)
+-- ============================================================
+-- Used by SnowflakeNodeAllocator to allocate stable, collision-free
+-- node IDs (0..1023) for Snowflake ID generation. Lease-based with
+-- heartbeat renewal; expired leases are reclaimed automatically.
+-- Definition mirrors the runtime DDL in sdkwork-database-id/src/node_allocator.rs
+-- to keep drift checks clean. Table is NOT prefixed with im_ because it
+-- is a shared SDKWork platform table, not an IM business table.
+CREATE TABLE IF NOT EXISTS sdkwork_node_registry (
+    node_id INTEGER PRIMARY KEY,
+    service_name TEXT NOT NULL,
+    instance_identity TEXT NOT NULL,
+    hostname TEXT NOT NULL,
+    pid INTEGER NOT NULL,
+    started_at_ms INTEGER NOT NULL,
+    last_heartbeat_at_ms INTEGER NOT NULL,
+    expires_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sdkwork_node_registry_identity
+    ON sdkwork_node_registry (instance_identity, expires_at_ms);
+
+CREATE INDEX IF NOT EXISTS idx_sdkwork_node_registry_expires
+    ON sdkwork_node_registry (expires_at_ms)
+    WHERE expires_at_ms > 0;
+

@@ -69,6 +69,9 @@ const ChatLayoutComponent: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("chat");
   const [chats, setChats] = useState<Chat[]>([]);
+  const [inboxHasMore, setInboxHasMore] = useState(false);
+  const [inboxNextCursor, setInboxNextCursor] = useState<string | undefined>(undefined);
+  const [loadingMoreInboxChats, setLoadingMoreInboxChats] = useState(false);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [isChatStartupLoading, setIsChatStartupLoading] = useState(true);
   const [chatStartupError, setChatStartupError] = useState<string | null>(null);
@@ -237,33 +240,34 @@ const ChatLayoutComponent: React.FC = () => {
     ...(update.notice !== undefined ? { notice: update.notice } : {}),
   });
 
-  const needsGroupProjectionMerge = (sourceChats: Chat[]): boolean => sourceChats.some((chat) => (
+  const needsGroupProjection = (chat: Chat): boolean => (
     chat.type === "group"
     && (
       !chat.name.trim()
       || chat.name === chat.id
       || /^Group\s+c_/u.test(chat.name)
     )
-  ));
+  );
 
-  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => {
-    if (!needsGroupProjectionMerge(sourceChats)) {
-      return sourceChats;
-    }
-    const groups = await groupService.getGroups();
-    if (groups.length === 0) {
-      return sourceChats;
-    }
+  const needsGroupProjectionMerge = (sourceChats: Chat[]): boolean => sourceChats.some(needsGroupProjection);
 
-    const groupsById = new Map(groups.map((group) => [group.id, group]));
-    return sourceChats.map((chat) => {
-      const group = groupsById.get(chat.id);
+  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => Promise.all(
+    sourceChats.map(async (chat) => {
+      if (!needsGroupProjection(chat)) {
+        return chat;
+      }
+      const group = await groupService.getGroupById(chat.id);
       return group ? { ...chat, ...group } : chat;
-    });
-  };
+    }),
+  );
 
   const refreshChats = async (shouldApply: () => boolean = () => true): Promise<Chat[]> => {
-    const data = await chatService.getChats();
+    const page = await chatService.listChatsPage();
+    const data = page.items;
+    if (shouldApply()) {
+      setInboxHasMore(page.hasMore);
+      setInboxNextCursor(page.nextCursor);
+    }
     const knownAssistantChat = chats.find((chat) => systemAssistantService.isSystemAssistantChat(chat));
     const assistantLookupChats = knownAssistantChat && !data.some((chat) => chat.id === knownAssistantChat.id)
       ? [knownAssistantChat, ...data]
@@ -291,16 +295,41 @@ const ChatLayoutComponent: React.FC = () => {
     return nextChats;
   };
 
+  const loadMoreInboxChats = async (): Promise<void> => {
+    if (!inboxHasMore || !inboxNextCursor || loadingMoreInboxChats) {
+      return;
+    }
+    setLoadingMoreInboxChats(true);
+    try {
+      const page = await chatService.listChatsPage({ cursor: inboxNextCursor });
+      setInboxHasMore(page.hasMore);
+      setInboxNextCursor(page.nextCursor);
+      setChats((previousChats) => {
+        const byId = new Map(previousChats.map((chat) => [chat.id, chat]));
+        for (const chat of page.items) {
+          byId.set(chat.id, { ...byId.get(chat.id), ...chat });
+        }
+        return Array.from(byId.values()).sort((left, right) => {
+          if (left.isPinned !== right.isPinned) {
+            return left.isPinned ? -1 : 1;
+          }
+          return right.updatedAt - left.updatedAt;
+        });
+      });
+    } finally {
+      setLoadingMoreInboxChats(false);
+    }
+  };
+
   const openHydratedChat = async (chat: Chat): Promise<void> => {
-    const refreshedChats = await chatService.getChats().catch(() => []);
-    const nextChat = refreshedChats.find((item) => item.id === chat.id) ?? chat;
-    setChats((previousChats) => mergeChatIntoList(previousChats, nextChat));
+    setChats((previousChats) => mergeChatIntoList(previousChats, chat));
     setActiveChat((previousActiveChat) =>
-      previousActiveChat?.id === nextChat.id
-        ? { ...previousActiveChat, ...nextChat }
-        : nextChat,
+      previousActiveChat?.id === chat.id
+        ? { ...previousActiveChat, ...chat }
+        : chat,
     );
     setActiveTab("chat");
+    void refreshChats().catch(() => undefined);
   };
 
   const openConversationById = async (conversationId: string): Promise<void> => {
@@ -309,7 +338,7 @@ const ChatLayoutComponent: React.FC = () => {
       await openHydratedChat(knownChat);
       return;
     }
-    const refreshedChats = await chatService.getChats().catch(() => []);
+    const refreshedChats = await refreshChats().catch(() => []);
     const refreshedChat = refreshedChats.find((chat) => chat.id === conversationId);
     if (refreshedChat) {
       await openHydratedChat(refreshedChat);
@@ -417,8 +446,7 @@ const ChatLayoutComponent: React.FC = () => {
   };
 
   const handleOpenGroupInvite = async (groupId: string): Promise<void> => {
-    const groups = await groupService.getGroups();
-    const group = groups.find((item) => item.id === groupId) ?? {
+    const group = await groupService.getGroupById(groupId) ?? {
       id: groupId,
       name: t("chat.fallback.groupName"),
       type: "group" as const,
@@ -446,10 +474,10 @@ const ChatLayoutComponent: React.FC = () => {
       await refreshChats(shouldApply);
       if (shouldApply()) {
         try {
-          const contacts = await contactService.getContacts();
+          const contactConversationIds = await contactService.listContactConversationIds();
           const conversationIds = resolveIncomingCallWatchConversationIds(
             chatsRef.current,
-            contacts,
+            contactConversationIds,
             contactService.getCurrentUser().id,
           );
           const recoveredCallSnapshot = await callService.watchIncomingCalls(conversationIds);
@@ -592,13 +620,16 @@ const ChatLayoutComponent: React.FC = () => {
     );
     const currentUserProfiles = isGroupMemberProfile(currentUser) ? [currentUser] : [];
 
-    void contactService.getContacts()
-      .then((contacts) => {
+    void Promise.all(Array.from(memberIds, (memberId) => contactService.getUserById(memberId)))
+      .then((users) => {
         if (!isMounted) {
           return;
         }
         const profilesById = new Map<string, User>();
-        for (const profile of [...currentUserProfiles, ...contacts.filter(isGroupMemberProfile)]) {
+        for (const profile of [
+          ...currentUserProfiles,
+          ...users.filter((user): user is User => Boolean(user)).filter(isGroupMemberProfile),
+        ]) {
           profilesById.set(profile.id, profile);
           if (profile.chatId) {
             profilesById.set(profile.chatId, profile);
@@ -763,7 +794,7 @@ const ChatLayoutComponent: React.FC = () => {
     try {
       const chatTarget = await resolveContactChatTarget(user);
       const directChat = await chatService.startDirectChat(chatTarget);
-      const refreshedChats = await chatService.getChats().catch(() => chats);
+      const refreshedChats = await refreshChats().catch(() => chats);
       const nextChats = refreshedChats.some((chat) => chat.id === directChat.id)
         ? refreshedChats.map((chat) => chat.id === directChat.id ? { ...chat, ...directChat } : chat)
         : [directChat, ...refreshedChats];
@@ -788,13 +819,13 @@ const ChatLayoutComponent: React.FC = () => {
 
     const syncIncomingCallWatch = async () => {
       try {
-        const contacts = await contactService.getContacts();
+        const contactConversationIds = await contactService.listContactConversationIds();
         if (cancelled) {
           return;
         }
         const conversationIds = resolveIncomingCallWatchConversationIds(
           chatsRef.current,
-          contacts,
+          contactConversationIds,
           contactService.getCurrentUser().id,
         );
         await callService.watchIncomingCalls(conversationIds);
@@ -905,7 +936,7 @@ const ChatLayoutComponent: React.FC = () => {
   const handleStartAgentChat = async (agent: Agent) => {
     try {
       const agentChat = await chatService.startAgentChat(agent);
-      const refreshedChats = await chatService.getChats().catch(() => chats);
+      const refreshedChats = await refreshChats().catch(() => chats);
       const nextChats = refreshedChats.some((chat) => chat.id === agentChat.id)
         ? refreshedChats.map((chat) => chat.id === agentChat.id ? { ...chat, ...agentChat } : chat)
         : [agentChat, ...refreshedChats];
@@ -944,8 +975,8 @@ const ChatLayoutComponent: React.FC = () => {
     if (hydratedUser?.conversationId) {
       return { ...user, ...hydratedUser };
     }
-    const projectedContact = await contactService.getContacts()
-      .then((contacts) => contacts.find((contact) => contact.id === user.id || contact.chatId === user.chatId))
+    const projectedContact = await contactService.listContactsPage()
+      .then((page) => page.items.find((contact) => contact.id === user.id || contact.chatId === user.chatId))
       .catch(() => null);
     return {
       ...user,
@@ -1133,7 +1164,7 @@ const ChatLayoutComponent: React.FC = () => {
             id: enterpriseId,
             name: enterpriseName,
           });
-          const refreshedChats = await chatService.getChats().catch(() => chats);
+          const refreshedChats = await refreshChats().catch(() => chats);
           const nextChats = refreshedChats.some((chat) => chat.id === enterpriseChat.id)
             ? refreshedChats.map((chat) =>
                 chat.id === enterpriseChat.id ? { ...chat, ...enterpriseChat } : chat,
@@ -1153,7 +1184,7 @@ const ChatLayoutComponent: React.FC = () => {
         try {
           const chatTarget = await resolveContactChatTarget(user);
           const directChat = await chatService.startDirectChat(chatTarget);
-          const refreshedChats = await chatService.getChats().catch(() => chats);
+          const refreshedChats = await refreshChats().catch(() => chats);
           const nextChats = refreshedChats.some((chat) => chat.id === directChat.id)
             ? refreshedChats.map((chat) =>
                 chat.id === directChat.id ? { ...chat, ...directChat } : chat,
@@ -1213,6 +1244,11 @@ const ChatLayoutComponent: React.FC = () => {
                   activeChatId={activeChat?.id}
                   onChatSelect={(chat) => setActiveChat(chats.find((item) => item.id === chat.id) ?? chat)}
                   searchQuery={searchQuery}
+                  hasMoreChats={inboxHasMore}
+                  loadingMoreChats={loadingMoreInboxChats}
+                  onLoadMoreChats={() => {
+                    void loadMoreInboxChats();
+                  }}
                   onChatsChange={() => {
                     void refreshChats();
                   }}
@@ -1325,8 +1361,7 @@ const ChatLayoutComponent: React.FC = () => {
 
                     try {
                       await groupService.removeMember(activeChat.id, memberId);
-                      const refreshedGroups = await groupService.getGroups();
-                      const refreshedChat = refreshedGroups.find((group) => group.id === activeChat.id);
+                      const refreshedChat = await groupService.getGroupById(activeChat.id);
                       const nextMembers = activeChat.members?.filter((id) => id !== memberId);
                       const nextMemberCount = Math.max(
                         (activeChat.memberCount ?? activeChat.members?.length ?? 1) - 1,
@@ -1391,8 +1426,7 @@ const ChatLayoutComponent: React.FC = () => {
             if (!activeChat) {
               return;
             }
-            const refreshedGroups = await groupService.getGroups();
-            const refreshedChat = refreshedGroups.find((group) => group.id === activeChat.id);
+            const refreshedChat = await groupService.getGroupById(activeChat.id);
             const nextChat = refreshedChat ?? activeChat;
             setChats((previousChats) =>
               previousChats.map((chat) =>

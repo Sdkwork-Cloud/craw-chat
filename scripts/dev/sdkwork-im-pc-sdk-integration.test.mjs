@@ -2024,7 +2024,7 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /users:\s*\{[\s\S]*list\(params\?:\s*\{[\s\S]*q\?: string;[\s\S]*limit\?: number;[\s\S]*cursor\?: string;[\s\S]*\}\): Promise<SocialUserSearchResponse>;/u,
+  /users:\s*\{[\s\S]*list\(params\?:\s*\{[\s\S]*q\?: string;[\s\S]*pageSize\?: number;[\s\S]*cursor\?: string;[\s\S]*\}\): Promise<SocialUserSearchResponse>;/u,
   'IM transport client type must expose generated social.users.list for add-friend search',
 );
 assert.match(
@@ -2243,12 +2243,12 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /getContacts\s*\([\s\S]*?this\.listAllContacts\s*\(/u,
+  /getContacts\s*\([\s\S]*?this\.listContactsPage\s*\(/u,
   'contact service getContacts must list contacts through the generated IM chat contacts SDK',
 );
 assert.match(
   contactServiceSource,
-  /syncContacts\s*\([\s\S]*?this\.listAllContacts\s*\(/u,
+  /syncContacts\s*\([\s\S]*?this\.syncContactsFromServer\s*\(/u,
   'contact service syncContacts must list contacts through the generated IM chat contacts SDK',
 );
 assert.match(
@@ -2313,17 +2313,17 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /listAllFriendRequests/u,
+  /syncFriendRequestsFromServer/u,
   'contact service getFriendRequests must page through incoming and outgoing friend requests',
 );
 assert.match(
   contactServiceSource,
-  /listAllFriendRequests\(\s*['"]incoming['"],\s*['"]pending['"]\s*\)/u,
+  /syncFriendRequestsFromServer\(\s*['"]incoming['"],\s*['"]pending['"]\s*\)/u,
   'contact service getFriendRequests must list only pending incoming friend requests',
 );
 assert.match(
   contactServiceSource,
-  /listAllFriendRequests\(\s*['"]outgoing['"],\s*['"]pending['"]\s*\)/u,
+  /syncFriendRequestsFromServer\(\s*['"]outgoing['"],\s*['"]pending['"]\s*\)/u,
   'contact service getFriendRequests must list only pending outgoing friend requests',
 );
 assert.match(
@@ -2352,6 +2352,16 @@ assert.match(
   'contact service cancelFriendRequest must cancel friend requests through the generated IM SDK',
 );
 assert.match(
+  imTransportClientLikeSource,
+  /userBlocks:\s*\{/u,
+  'IM transport client type must expose generated social.userBlocks resource',
+);
+assert.match(
+  contactServiceSource,
+  /\.social\.userBlocks\.create\s*\(/u,
+  'contact service addToBlacklist must route through social.userBlocks.create',
+);
+assert.match(
   contactServiceSource,
   /direction:\s*isOutgoing\s*\?\s*['"]outgoing['"]\s*:\s*['"]incoming['"]/u,
   'contact service must expose friend request direction for incoming versus outgoing UI actions',
@@ -2378,8 +2388,8 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /listAllContactTags/u,
-  'contact service getTags must page through contact tags from the generated IM SDK',
+  /CONTACT_TAGS_PAGE_LIMIT/u,
+  'contact service getTags must request contact tags with a bounded SDK page size',
 );
 assert.match(
   contactServiceSource,
@@ -2474,7 +2484,7 @@ assert.match(
 assertNoImDeviceApiUsage(contactServiceSource, 'contact service');
 assert.match(
   contactServiceSource,
-  /syncContacts\s*\([\s\S]*?this\.listAllContacts\s*\(/u,
+  /syncContacts\s*\([\s\S]*?this\.syncContactsFromServer\s*\(/u,
   'contact service sync must refresh contacts through the generated IM chat contacts SDK',
 );
 assert.match(
@@ -2690,7 +2700,7 @@ assert.match(
 );
 assert.match(
   createGroupModalSource,
-  /contactService\.getContacts\s*\(\s*\)[\s\S]*?\.catch\s*\(/u,
+  /contactService\.listContactsPage\s*\(\s*\)[\s\S]*?\.catch\s*\(/u,
   'create group modal must load selectable members from the address book and fail closed',
 );
 assert.match(
@@ -2782,6 +2792,11 @@ assert.doesNotMatch(
 const groupsContainerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/GroupsContainer.tsx');
 assert.match(
   groupsContainerSource,
+  /groupService\.listGroupsPage\s*\(/u,
+  'groups contacts container must load groups through paginated SDK inbox reads',
+);
+assert.match(
+  groupsContainerSource,
   /onOpenGroup\?:\s*\(group:\s*Chat\)\s*=>\s*void/u,
   'groups contacts container must expose selected backend group chats to the parent flow',
 );
@@ -2792,7 +2807,7 @@ assert.match(
 );
 assert.match(
   groupsContainerSource,
-  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?setGroups\(\s*\(\s*previousGroups\s*\)\s*=>\s*\[group,\s*\.\.\.previousGroups\]\s*\)[\s\S]*?onOpenGroup\?\.\(\s*group\s*\)/u,
+  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?setGroups\(\s*\(\s*previousGroups\s*\)\s*=>\s*\[group,\s*\.\.\.previousGroups(?:\.filter\([\s\S]*?\))?\]\s*\)[\s\S]*?onOpenGroup\?\.\(\s*group\s*\)/u,
   'groups contacts container must reuse the address-book create-group modal and open the real backend-created group chat without stale group-list closures',
 );
 assert.doesNotMatch(
@@ -2871,8 +2886,18 @@ assert.match(
 );
 assert.match(
   groupServiceSource,
-  /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.listAllInboxGroups\(\)[\s\S]*?this\.listAllConversationEntries\(\)\.catch\(\(\)\s*=>\s*\[\]\)[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
-  'group service getGroups must read SDK inbox group projections directly and merge conversation-list groups so invitees can see newly joined or empty groups without hydrating unrelated single chats',
+  /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.listGroupsPage\s*\(/u,
+  'group service getGroups must read SDK inbox group projections through listGroupsPage',
+);
+assert.match(
+  groupServiceSource,
+  /async\s+getGroupById\s*\(/u,
+  'group service must hydrate a single group by conversation id without scanning the full inbox',
+);
+assert.match(
+  groupServiceSource,
+  /async\s+listGroupsPage\s*\([\s\S]*?chat\?\.inbox\?\.retrieve[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
+  'group service listGroupsPage must hydrate inbox group projections and merge member state so invitees can see newly joined or empty groups without hydrating unrelated single chats',
 );
 assert.doesNotMatch(
   groupServiceSource,
@@ -3153,8 +3178,8 @@ assert.match(
 );
 assert.match(
   createAgentViewSource,
-  /agentService\.getAgents\s*\(\s*\)\.then\s*\(\s*\(\s*myAgents\s*\)/u,
-  'create agent edit mode must load editable targets from the current user owned agent list',
+  /agentService\.getAgent\s*\(\s*initialAgentId\s*\)\.then\s*\(\s*\(\s*agent\s*\)/u,
+  'create agent edit mode must load editable targets from the current user owned agent record',
 );
 assert.doesNotMatch(
   createAgentViewSource,
@@ -3304,7 +3329,7 @@ assert.match(
 );
 assert.match(
   chatLayoutSource,
-  /contactService\.getContacts\s*\(\s*\)/u,
+  /contactService\.listContactsPage\s*\(\s*\)/u,
   'chat layout contacts send-message flow must fall back to the contact projection list when a cached user lacks conversation ids',
 );
 assert.match(
@@ -3319,7 +3344,7 @@ assert.match(
 );
 assert.match(
   contactsSendMessageSource,
-  /chatService\.getChats\s*\(\s*\)/u,
+  /refreshChats\s*\(\s*\)/u,
   'chat layout contacts send-message flow must hydrate from backend conversations after direct chat binding',
 );
 assert.match(
@@ -3384,7 +3409,7 @@ assert.match(
 );
 assert.match(
   enterpriseStartChatSource,
-  /chatService\.getChats\s*\(\s*\)/u,
+  /refreshChats\s*\(\s*\)/u,
   'chat layout enterprise start flow must hydrate from backend conversations after enterprise binding',
 );
 assert.doesNotMatch(
@@ -3479,8 +3504,8 @@ assert.match(
   /COMMERCIAL_RUNTIME_MODULES[\s\S]*["']enterprise["']/u,
   'Commercial runtime modules must include enterprise after SDK-backed enterprise catalog integration',
 );
-const communityViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/components/CommunityView.tsx');
-const communitySettingsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/components/CommunitySettings.tsx');
+const communityViewSource = read('../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunityView.tsx');
+const communitySettingsSource = read('../sdkwork-community/apps/sdkwork-community-pc/packages/sdkwork-community-pc-community/src/components/CommunitySettings.tsx');
 const shopHomeSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/ShopHome.tsx');
 const checkoutViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CheckoutView.tsx');
 const cashierViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CashierView.tsx');
@@ -3671,13 +3696,13 @@ assert.doesNotMatch(
 );
 assert.match(
   chatLayoutSource,
-  /<AddGroupMembersModal[\s\S]*?chat=\{activeChat\}[\s\S]*?onAdded=\{async\s*\(\)\s*=>\s*\{[\s\S]*?groupService\.getGroups\s*\(\s*\)/u,
+  /<AddGroupMembersModal[\s\S]*?chat=\{activeChat\}[\s\S]*?onAdded=\{async\s*\(\)\s*=>\s*\{[\s\S]*?groupService\.getGroupById\s*\(/u,
   'chat layout add-member flow must render the contact-picker modal and refresh SDK-backed group projection after invites',
 );
 assert.match(
   openHydratedChatSource,
-  /chatService\.getChats\s*\(\s*\)[\s\S]*?const\s+nextChat\s*=[\s\S]*?setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*mergeChatIntoList\(previousChats,\s*nextChat\)[\s\S]*?setActiveChat\s*\(\s*\(\s*previousActiveChat\s*\)\s*=>/u,
-  'chat layout create-group flow must hydrate backend conversations and merge the SDK-backed group into the latest chat list state instead of overwriting realtime updates with a stale closure',
+  /mergeChatIntoList\(previousChats,\s*chat\)[\s\S]*?setActiveTab\s*\(\s*["']chat["']\s*\)[\s\S]*?refreshChats\s*\(\s*\)/u,
+  'chat layout backend-hydrated chat opening helper must optimistically merge the target chat, switch to chat tab, and refresh inbox projection from the server',
 );
 assert.match(
   chatLayoutSource,
@@ -3686,7 +3711,7 @@ assert.match(
 );
 assert.match(
   addGroupMembersModalSource,
-  /contactService\.getContacts\s*\(\s*\)[\s\S]*?\.catch\s*\(/u,
+  /contactService\.listContactsPage\s*\(\s*\)[\s\S]*?\.catch\s*\(/u,
   'group add-member modal must load selectable members from the address book and fail closed',
 );
 assert.match(
@@ -3711,7 +3736,7 @@ assert.match(
 );
 assert.match(
   addGroupMembersModalSource,
-  /if\s*\(\s*activeTab\s*!==\s*['"]contacts['"]\s*\)\s*\{[\s\S]*?return;[\s\S]*?contactService\.getContacts/u,
+  /if\s*\(\s*activeTab\s*!==\s*['"]contacts['"]\s*\)\s*\{[\s\S]*?return;[\s\S]*?contactService\.listContactsPage/u,
   'group add-member modal must keep address-book contact loading inside the contacts tab flow',
 );
 assert.match(
@@ -3841,8 +3866,8 @@ assert.doesNotMatch(
 );
 assert.match(
   chatLayoutSource,
-  /contactService\.getContacts\s*\(\s*\)[\s\S]*setGroupMemberProfiles/u,
-  'chat layout must hydrate group member display profiles from the address book for the right-panel member list',
+  /contactService\.getUserById\s*\(\s*memberId\s*\)[\s\S]*setGroupMemberProfiles/u,
+  'chat layout must hydrate group member display profiles from contact projections for the right-panel member list',
 );
 assert.match(
   chatLayoutSource,
@@ -3951,7 +3976,7 @@ assert.match(
 );
 assert.match(
   chatLayoutSource,
-  /onRemoveGroupMember=\{async\s*\(memberId\)\s*=>\s*\{[\s\S]*?await\s+groupService\.removeMember\s*\(\s*activeChat\.id,\s*memberId\s*\)[\s\S]*?groupService\.getGroups\s*\(\s*\)/u,
+  /onRemoveGroupMember=\{async\s*\(memberId\)\s*=>\s*\{[\s\S]*?await\s+groupService\.removeMember\s*\(\s*activeChat\.id,\s*memberId\s*\)[\s\S]*?groupService\.getGroupById\s*\(/u,
   'chat layout right-panel group member removal flow must await the SDK mutation and refresh group projection',
 );
 assert.match(
@@ -4028,13 +4053,13 @@ assert.match(
 );
 assert.match(
   mergeGroupProjectionsSource,
-  /groupService\.getGroups\s*\(\s*\)[\s\S]*?groupsById[\s\S]*?\{\s*\.\.\.chat,\s*\.\.\.group\s*\}/u,
+  /groupService\.getGroupById\s*\([\s\S]*?\{\s*\.\.\.chat,\s*\.\.\.group\s*\}/u,
   'chat layout group projection merge helper must hydrate group management data from GroupService',
 );
 assert.match(
   openHydratedChatSource,
-  /chatService\.getChats\s*\(\s*\)[\s\S]*?const\s+nextChat\s*=[\s\S]*?setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*mergeChatIntoList\(previousChats,\s*nextChat\)/u,
-  'chat layout backend-hydrated chat opening helper must merge hydrated conversations into the latest chat list state',
+  /mergeChatIntoList\(previousChats,\s*chat\)[\s\S]*?refreshChats\s*\(\s*\)/u,
+  'chat layout backend-hydrated chat opening helper must merge hydrated conversations into the latest chat list state and refresh from the server',
 );
 assert.match(
   openHydratedChatSource,
@@ -4107,7 +4132,7 @@ assert.match(
 );
 assert.match(
   chatLayoutSource,
-  /const\s+handleOpenGroupInvite\s*=\s*async\s*\(groupId:\s*string\)[\s\S]*?groupService\.getGroups\s*\(\s*\)[\s\S]*?openHydratedChat/u,
+  /const\s+handleOpenGroupInvite\s*=\s*async\s*\(groupId:\s*string\)[\s\S]*?groupService\.getGroupById\s*\([\s\S]*?openHydratedChat/u,
   'chat layout group invite click handler must hydrate SDK-backed groups and open the invited group chat',
 );
 assert.doesNotMatch(

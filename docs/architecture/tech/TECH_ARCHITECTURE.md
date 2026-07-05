@@ -38,7 +38,7 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
             │                     │                     │
             ▼                     ▼                     ▼
    ┌──────────────────────────────────────────────────────────────┐
-   │                     PostgreSQL / SQLite                       │
+   │                        PostgreSQL                             │
    │  im_commit_journal · im_outbox_events · im_inbox_events      │
    │  im_conversation_messages · im_conversation_seq_counters     │
    └──────────────────────────────────────────────────────────────┘
@@ -58,7 +58,7 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
 1. **Trusted-Proxy IP Extraction** (`SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`): Only honours `X-Forwarded-For` / `X-Real-IP` when the direct TCP peer (via `ConnectInfo<SocketAddr>`) is in the configured trusted-proxy list. Prevents IP-spoofing bypass of rate limits. When no trusted proxies are configured, the direct peer IP is used exclusively.
 
 2. **Rate Limiting (two layers)**:
-   - **Layer 1 — per-IP token bucket** (default 600 RPM / 50 burst): Runs pre-auth, before IAM context resolution. Uses `DashMap` for lock-free concurrent access (P1-8 fix). Retry-after is dynamically calculated based on actual RPM: `ceil(60 / max_rpm)` seconds (P0-5 fix). Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs. When real client IP cannot be determined (no trusted proxies, no ConnectInfo), a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket (P1-9 fix).
+   - **Layer 1 — per-IP token bucket** (default 600 RPM / 50 burst): Runs pre-auth, before IAM context resolution. Uses `DashMap` for lock-free concurrent access. Retry-after is dynamically calculated based on actual RPM: `ceil(60 / max_rpm)` seconds. Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs. When real client IP cannot be determined (no trusted proxies, no ConnectInfo), a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket.
    - **Layer 2 — per-tenant token bucket** (default 60 000 RPM / 2 000 burst): Runs post-auth, after `AppContext` is resolved by the IAM interceptor chain. Each authenticated tenant has an independent bucket so that a noisy tenant on a shared NAT egress IP cannot exhaust the IP-level budget for other tenants. Configurable via `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_RPM`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_BURST`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_MAX_ENTRIES` (default 10 000). Unauthenticated public routes are governed solely by Layer 1.
 
 3. **Per-Service Circuit Breaker** (`CircuitBreakerRegistry`): Each upstream service has an independent circuit breaker. Failures in one service do not trip the breaker for others. HalfOpen state allows only a single probe request at a time. Configurable via `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` (default 10) and `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` (default 30).
@@ -74,9 +74,9 @@ Manages WebSocket lifecycle, presence, and cluster routing:
 - **CCP Protocol**: Dual-protocol WebSocket with `auth.init` frame authentication. Tokens are passed via `Authorization` and `Access-Token` headers in the auth frame, never in query parameters. Query-token mode is rejected in production.
 - **Connection Limiting**: Semaphore-based concurrent WebSocket connection cap (`SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS`). Max message size 512 KB, max frame size 256 KB.
 - **Cluster Bus**: Inter-node presence sync via `SDKWORK_IM_REALTIME_CLUSTER_BUS_*` env vars. Redis-backed in HA; in-memory fallback for single-node dev.
-- **Disconnect Fence**: Prevents stale session takeover during network partitions. Storage backend is configurable — Redis for HA, in-memory for dev. **P1-7 fix**: Added `expire_fences_older_than()` method to clean up fences older than N days, preventing storage膨胀 from long-term offline devices.
-- **Heartbeat Mechanism**: Server-initiated heartbeat at configurable interval (default 30s) detects silent disconnects and enforces idle timeout (default 90s). This prevents zombie connections that would otherwise occupy route slots indefinitely (P0-2 fix). Configurable via `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` and `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS`.
-- **Route Epoch Change Grace**: Increased from 25ms to 250ms to give clients more time to handle route migrations without missing state changes (P2-3 fix).
+- **Disconnect Fence**: Prevents stale session takeover during network partitions. Storage backend is configurable — Redis for HA, in-memory for dev. The `expire_fences_older_than()` method cleans up fences older than N days, preventing storage 膨胀 from long-term offline devices.
+- **Heartbeat Mechanism**: Server-initiated heartbeat at configurable interval (default 30s) detects silent disconnects and enforces idle timeout (default 90s). This prevents zombie connections that would otherwise occupy route slots indefinitely. Configurable via `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` and `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS`.
+- **Route Epoch Change Grace**: 250ms grace window gives clients time to handle route migrations without missing state changes.
 
 ### 2.3 Comms Conversation Service
 
@@ -149,7 +149,7 @@ All organization-scoped tables enforce:
 3. Server validates token via IAM auth pool, resolves tenant + organization
 4. Server sends `auth.ok` confirmation
 5. Bidirectional message stream begins (CCP protocol)
-6. Server-initiated heartbeat maintains connection liveness (P0-2 fix)
+6. Server-initiated heartbeat maintains connection liveness
 
 ### 4.2 Token Handling
 
@@ -174,6 +174,103 @@ This prevents zombie connections that would otherwise occupy route slots and cau
 ### 4.4 Cluster Routing
 
 In HA deployments, session gateway nodes share presence state via Redis cluster bus. The disconnect fence ensures that when a client reconnects to a different node, the old connection is properly closed before the new one is established.
+
+**Realtime scope access (production):** When shared IM PostgreSQL pools are installed, the embedded realtime plane wires `ConversationMemberRealtimeScopeAccessPolicy`. Conversation scopes require active membership in `im_projection_conversation_members`; user scopes are limited to the authenticated principal. Development-only bypass: `SDKWORK_IM_REALTIME_PERMISSIVE_SCOPE_ACCESS=true`.
+
+**Maintenance jobs** (embedded session-gateway): `spawn_realtime_maintenance_jobs` runs every 5 minutes to reclaim stale route-epoch notifiers and in-memory disconnect-fence cache entries. Disable with `SDKWORK_IM_REALTIME_MAINTENANCE_DISABLED=true`.
+
+### 4.5 Typing Indicators
+
+Typing is ephemeral — not journal-backed and not replayed on reconnect.
+
+| Surface | Path / Event | Behavior |
+|---|---|---|
+| HTTP signal | `POST /im/v3/api/chat/conversations/{conversationId}/typing` | Validates membership, refreshes Redis typing hash (`SDKWORK_IM_REDIS_URL`), fans out `conversation.typing` via embedded realtime publisher |
+| HTTP query | `GET /im/v3/api/chat/conversations/{conversationId}/typing` | Lists live typists (within 5s TTL), excludes caller |
+| Realtime push | `conversation.typing` on scope `conversation/{conversationId}` | Payload: `{ conversationId, userId, userKind, occurredAt }` |
+
+Unified-process wiring: standalone gateway registers `RealtimeDeliveryRuntime` as the process-wide `RealtimeEventPublisher` after embedded session-gateway bootstrap so conversation-service can resolve it lazily via `register_embedded_realtime_publisher`.
+
+### 4.6 Social Realtime Fanout
+
+Social domain commits (friend requests, friendships, blocks, direct-chat binding) fan out to connected clients after durable persistence.
+
+| Surface | Scope / Event | Behavior |
+|---|---|---|
+| Embedded wiring | `wire_social_runtime_embedded_plane` | Registers `SessionGatewaySocialRealtimeFanout` on `SocialRuntime` and optional `ConversationServiceDirectChatBinder` |
+| Realtime push | `user/{principalId}` scope | Event type mirrors commit (`friend_request.submitted`, `friendship.activated`, `direct_chat.bound`, …) |
+| Fanout batching | `publish_durable_user_scope_events_to_principals` | Recipient dedupe + shared payload + chunked delivery (`SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE`) |
+| Split-deploy outbox | `build_social_realtime_outbox_record` + `spawn_social_outbox_relay_from_env` | Social process enqueues `aggregate_type=social`; session-gateway relay publishes to `user` scopes |
+| Direct chat bind | `DirectChatConversationBinder` | On friendship activation, provisions conversation membership through conversation-service |
+
+### 4.6.1 Social Outbox Relay
+
+Split-deploy social processes enqueue social domain commits to `im_outbox_events` (`aggregate_type=social`) when no in-process `SocialRealtimeFanout` is wired. Unified-process skips outbox enqueue and uses embedded `SessionGatewaySocialRealtimeFanout` instead.
+
+| Surface | Event examples | Behavior |
+|---|---|---|
+| Outbox enqueue | `friend_request.submitted`, `friendship.activated`, `user_block.blocked`, … | Payload includes `recipientPrincipalIds` for targeted fanout |
+| Relay worker | `spawn_social_outbox_relay_from_env` | Drains `aggregate_type=social` rows; publishes to `user` scope via `RealtimeDeliveryRuntime` |
+| Config | `SDKWORK_IM_SOCIAL_OUTBOX_RELAY_*` | Same scope-pin pattern as conversation/RTC relay |
+
+### 4.7 RTC Outbox Relay
+
+RTC lifecycle and custom signal events are enqueued to `im_outbox_events` (`aggregate_type=rtc_session`) from `im-calls-service`. The embedded standalone gateway drains pending rows and publishes to user scopes.
+
+| Surface | Event examples | Behavior |
+|---|---|---|
+| Outbox enqueue | `rtc.session.invited`, `rtc.signal.posted`, … | Payload includes `recipient_principal_ids` for targeted fanout |
+| Relay worker | `spawn_rtc_outbox_relay_from_env` | Discovers pending `(tenantId, organizationId)` scopes via `OutboxStore.list_pending_scopes`, drains each scope, publishes via `RealtimeDeliveryRuntime` |
+| Config | `SDKWORK_IM_RTC_OUTBOX_RELAY_TENANT_ID`, `SDKWORK_IM_RTC_OUTBOX_RELAY_ORGANIZATION_ID` | Optional pin to a single scope for tests; omit to auto-discover all pending scopes |
+
+### 4.7.1 Conversation Message Outbox Relay
+
+Split-deploy conversation processes enqueue `message.posted` to `im_outbox_events` (`aggregate_type=conversation`) inside `PostgresDurableMessagePostWriter` when no in-process `RealtimeEventPublisher` is wired. Unified-process skips outbox enqueue and uses embedded `publish_message_posted_realtime` instead.
+
+| Surface | Event examples | Behavior |
+|---|---|---|
+| Atomic write | `message.posted` journal commit | `PostgresDurableMessagePostWriter`: journal + `im_conversation_messages` + optional outbox in one Postgres transaction |
+| Outbox payload | `message.posted` | Includes `recipientPrincipalIds` for targeted fanout |
+| Relay worker | `spawn_conversation_outbox_relay_from_env` | Drains `aggregate_type=conversation` rows; publishes to `conversation` scope via `RealtimeDeliveryRuntime` |
+| Config | `SDKWORK_IM_CONVERSATION_OUTBOX_RELAY_*` | Same scope-pin pattern as RTC relay |
+
+Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when neither embedded publisher/fanout nor outbox store is configured; `post_message` and social commits that require realtime delivery return unavailable.
+
+When a session is bound to `conversationId`, signal projection into IM timeline remains the primary multi-device sync path; the outbox relay covers pure RTC sessions and low-latency participant notification.
+
+### 4.8 Space Conversation Binding
+
+Space groups and channels provision backing conversations through conversation-service when the embedded postgres plane is active.
+
+| Surface | Trigger | Behavior |
+|---|---|---|
+| Group create | `POST /im/v3/api/spaces/{spaceId}/groups` | Allocates `conversation_id`, calls `SpaceGroupConversationBinder.create_group_conversation`, persists linkage |
+| Channel create | `POST /im/v3/api/spaces/{spaceId}/channels` | Allocates `conversation_id`, calls `SpaceChannelConversationBinder.create_channel_conversation` (system channel) |
+| Gateway wiring | `wire_space_conversation_binders` in `assemble_application_router` | Applied after chat routes register `resolve_embedded_conversation_runtime()` |
+| Group members | `POST/GET/PATCH/DELETE .../groups/{groupId}/members` | Persisted in `im_group_members`; add/remove syncs conversation roster via binder; owner seeded on group create; members may self-leave (`DELETE` when `userId == actor`); owner must transfer before leaving |
+| Group owner transfer | `POST .../groups/{groupId}/transfer_owner` | Transactional PG owner swap + conversation ownership sync via binder |
+
+### 4.9 Space Governance APIs
+
+Space membership, invitations, bans, and channel access rules are persisted in social-postgres governance tables and enforced with shared `space_access` helpers (owner/admin/member checks, ban gate on join).
+
+| Surface | Routes | Persistence / behavior |
+|---|---|---|
+| Space members | `POST/GET/PATCH/DELETE .../spaces/{spaceId}/members` | `im_space_members`; member limit enforced; owner row immutable |
+| Invitations | `POST/GET .../invites`, `POST .../accept`, `DELETE .../revoke` | `im_invitations`; `inviteCode` = snowflake `invitation_id`; accept adds space member and marks invitation accepted |
+| Bans | `POST/GET/DELETE .../bans` | `im_ban_records` scoped to `target_type=space`; active ban blocks add-member and invitation accept |
+| Channel access rules | `POST/GET/DELETE .../channels/{channelId}/access_rules` | `im_channel_access_rules`; channel must belong to path `spaceId` |
+| Channel auth | All channel routes | `actor_can_read_space` / `actor_can_manage_space` via `space_access` (not owner-only) |
+
+### 4.10 Projection Personalization Durability
+
+Conversation preferences and message favorites are hot-path in-memory projections with durable metadata snapshots:
+
+| Component | Role |
+|---|---|
+| `personalization_snapshot.rs` | Persists/restores per-principal preferences + favorites under metadata catalog `projection-personalization` |
+| `persist_all_durable_snapshots` / `restore_all_durable_snapshots` | Includes personalization on bootstrap and periodic snapshot commits when Postgres projection stores are configured |
+| Production bootstrap | `projection-service` fail-closed when Postgres metadata/timeline stores are unavailable (no silent in-memory fallback) |
 
 ## 5. Security Architecture
 
@@ -200,12 +297,12 @@ In HA deployments, session gateway nodes share presence state via Redis cluster 
 
 ### 5.4 Network Security
 
-- **Trusted-Proxy IP Extraction**: `X-Forwarded-For` only honoured from trusted proxy IPs (configurable via `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`). When no trusted proxies are configured and no `ConnectInfo` is available, a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket (P1-9 fix).
-- **Rate limiting**: Per-IP token bucket at gateway layer with bounded memory. Uses `DashMap` for lock-free concurrent access (P1-8 fix). Dynamic retry-after calculation based on actual RPM (P0-5 fix).
+- **Trusted-Proxy IP Extraction**: `X-Forwarded-For` only honoured from trusted proxy IPs (configurable via `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`). When no trusted proxies are configured and no `ConnectInfo` is available, a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket.
+- **Rate limiting**: Per-IP token bucket at gateway layer with bounded memory. Uses `DashMap` for lock-free concurrent access. Dynamic retry-after calculation based on actual RPM.
 - **Circuit breaker**: Per-upstream-service consecutive failure detection prevents cascade failures
 - **CORS**: Explicit origin allowlist in production; `allow_any_origin` rejected in production
 - **WebSocket auth**: `auth.init` frame-based authentication; query-token auth rejected in production
-- **Anomaly Detection**: Configuration errors are handled gracefully with safe defaults rather than panics (P0-4 fix). Invalid `message_rate_threshold`, `failed_auth_threshold`, or `max_log_entries` values are logged as warnings and replaced with sensible defaults, ensuring service availability even with misconfiguration.
+- **Anomaly Detection**: Configuration errors are handled gracefully with safe defaults rather than panics. Invalid `message_rate_threshold`, `failed_auth_threshold`, or `max_log_entries` values are logged as warnings and replaced with sensible defaults, ensuring service availability even with misconfiguration.
 - **Idempotency**: Lock timeout enforcement ensures stale reservations are cleared after configured timeout (default 30s), preventing indefinite lockouts on retry failures.
 
 ## 6. Deployment Architecture
@@ -223,8 +320,7 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 
 ### 6.3 Database
 
-- **PostgreSQL**: Production (schema in `database/ddl/baseline/postgres/`)
-- **SQLite**: Development (`database/ddl/baseline/sqlite/`)
+- **PostgreSQL**: Production and development (schema in `database/ddl/baseline/postgres/`)
 - Migrations in `database/migrations/postgres/` (0001–0005)
 - All migrations are idempotent and safe to re-execute
 
@@ -268,12 +364,12 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 | `SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS` | `false` | Allow WebSocket query-token auth (non-production only) |
 | `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET_FILE` | _(empty)_ | Path to file containing HMAC signing secret |
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE` | _(empty)_ | Path to file containing JWT signing secret |
-| `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` | `30` | WebSocket heartbeat interval (P0-2 fix) |
-| `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS` | `90` | WebSocket idle timeout before disconnect (P0-2 fix) |
-| `SDKWORK_IM_GATEWAY_POOL_MAX_IDLE_PER_HOST` | `50` | HTTP connection pool max idle per host (P1-10 fix) |
-| `SDKWORK_IM_GATEWAY_POOL_IDLE_TIMEOUT_SECS` | `90` | HTTP connection pool idle timeout (P1-10 fix) |
+| `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` | `30` | WebSocket heartbeat interval |
+| `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS` | `90` | WebSocket idle timeout before disconnect |
+| `SDKWORK_IM_GATEWAY_POOL_MAX_IDLE_PER_HOST` | `50` | HTTP connection pool max idle per host |
+| `SDKWORK_IM_GATEWAY_POOL_IDLE_TIMEOUT_SECS` | `90` | HTTP connection pool idle timeout |
 
-## 11. Domain Core Modules (v0.3+)
+## 11. Domain Core Modules
 
 The `im-domain-core` crate provides foundational domain logic with full test coverage (73 tests passing).
 
@@ -300,19 +396,19 @@ The `im-domain-core` crate provides foundational domain logic with full test cov
 |--------|---------|-----------|
 | `retention` | Data retention policies | `RetentionClass`, `RetentionPolicy` |
 
-### 11.4 Connection Quality (v0.4+)
+### 11.4 Connection Quality
 
 | Module | Purpose | Key Types |
 |--------|---------|-----------|
 | `connection_quality` | Adaptive heartbeat, network metrics, reconnect backoff with jitter | `NetworkMetrics`, `ConnectionQuality`, `AdaptiveHeartbeatPolicy`, `AtomicNetworkMetrics` |
 
 **Key Features**:
-- **Jitter-based Reconnect Backoff**: Decorrelated jitter algorithm prevents thundering herd effect when multiple clients disconnect simultaneously (P1-1 fix). Formula: `delay = base * random(1, 2^attempt)` with 60s cap.
+- **Jitter-based Reconnect Backoff**: Decorrelated jitter algorithm prevents thundering herd effect when multiple clients disconnect simultaneously. Formula: `delay = base * random(1, 2^attempt)` with 60s cap.
 - **Adaptive Heartbeat**: Dynamically adjusts interval based on network quality (RTT, loss rate, jitter)
 - **Quality Score Calculation**: Composite score from RTT (40%), loss rate (40%), jitter (20%)
 - **Connection Quality Levels**: Excellent (>0.9), Good (0.7-0.9), Poor (0.5-0.7), Critical (<0.5)
 
-### 11.5 Presence System (v0.4+)
+### 11.5 Presence System
 
 Extended presence status beyond simple Online/Offline:
 
@@ -324,7 +420,7 @@ Extended presence status beyond simple Online/Offline:
 | `Invisible` | Appears offline but connected | 2 (normal push) |
 | `Offline` | Disconnected | 0 (queue for later) |
 
-### 11.6 RTC Signaling (v0.4+)
+### 11.6 RTC Signaling
 
 | Module | Purpose | Key Types |
 |--------|---------|-----------|

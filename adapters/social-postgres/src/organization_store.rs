@@ -6,6 +6,7 @@ use im_domain_core::space::*;
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
+use crate::member_capacity::MemberInsertOutcome;
 use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 // ---------------------------------------------------------------------------
@@ -156,6 +157,14 @@ pub trait SpaceStore: Send + Sync {
         owner_user_id: &str,
         limit: i64,
     ) -> Result<Vec<SpaceRecord>, ContractError>;
+    fn list_accessible_by_user(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<SpaceRecord>, ContractError>;
     fn update(&self, record: &SpaceRecord) -> Result<(), ContractError>;
     fn delete(&self, tenant_id: &str, org_id: &str, space_id: i64) -> Result<(), ContractError>;
 }
@@ -174,6 +183,23 @@ FROM im_spaces WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
 const SPACE_LIST_BY_OWNER_SQL: &str = r#"
 SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at, updated_at
 FROM im_spaces WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3 ORDER BY created_at DESC LIMIT $4
+"#;
+
+const SPACE_LIST_ACCESSIBLE_BY_USER_SQL: &str = r#"
+SELECT s.tenant_id, s.organization_id, s.space_id, s.space_name, s.space_type, s.owner_user_id, s.description, s.avatar_url, s.max_members, s.settings_json, s.created_at, s.updated_at
+FROM im_spaces s
+WHERE s.tenant_id = $1
+  AND s.organization_id = $2
+  AND (
+    s.owner_user_id = $3
+    OR s.space_id IN (
+      SELECT m.space_id
+      FROM im_space_members m
+      WHERE m.tenant_id = $1 AND m.organization_id = $2 AND m.user_id = $3
+    )
+  )
+ORDER BY s.created_at DESC
+LIMIT $4 OFFSET $5
 "#;
 
 const SPACE_UPDATE_SQL: &str = r#"
@@ -281,6 +307,30 @@ impl SpaceStore for PostgresSpaceStore {
         })
     }
 
+    fn list_accessible_by_user(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<SpaceRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let uid = user_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "list_spaces_accessible_by_user")?;
+            let rows = client
+                .query(
+                    SPACE_LIST_ACCESSIBLE_BY_USER_SQL,
+                    &[&tid, &oid, &uid, &limit, &offset],
+                )
+                .map_err(|e| postgres_unavailable("list_spaces_accessible_by_user", e))?;
+            Ok(rows.iter().map(row_to_space_record).collect())
+        })
+    }
+
     fn update(&self, record: &SpaceRecord) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let r = record.clone();
@@ -326,6 +376,11 @@ impl SpaceStore for PostgresSpaceStore {
 
 pub trait GroupStore: Send + Sync {
     fn insert(&self, record: &GroupRecord) -> Result<(), ContractError>;
+    fn insert_with_owner_member(
+        &self,
+        group: &GroupRecord,
+        owner_member: &GroupMemberRecord,
+    ) -> Result<(), ContractError>;
     fn get_by_id(
         &self,
         tenant_id: &str,
@@ -338,6 +393,7 @@ pub trait GroupStore: Send + Sync {
         org_id: &str,
         space_id: i64,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<GroupRecord>, ContractError>;
     fn list_by_owner(
         &self,
@@ -347,6 +403,15 @@ pub trait GroupStore: Send + Sync {
         limit: i64,
     ) -> Result<Vec<GroupRecord>, ContractError>;
     fn update(&self, record: &GroupRecord) -> Result<(), ContractError>;
+    fn transfer_owner(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        current_owner_user_id: &str,
+        new_owner_user_id: &str,
+        updated_at: &str,
+    ) -> Result<GroupRecord, ContractError>;
     fn delete(&self, tenant_id: &str, org_id: &str, group_id: i64) -> Result<(), ContractError>;
 }
 
@@ -363,7 +428,7 @@ FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND group_id =
 
 const GROUP_LIST_BY_SPACE_SQL: &str = r#"
 SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at, updated_at
-FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3 ORDER BY created_at DESC LIMIT $4
+FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5
 "#;
 
 const GROUP_LIST_BY_OWNER_SQL: &str = r#"
@@ -376,8 +441,31 @@ UPDATE im_chat_groups SET group_name = $4, description = $5, avatar_url = $6, an
 WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
 "#;
 
+const GROUP_TRANSFER_OWNER_SQL: &str = r#"
+UPDATE im_chat_groups
+SET owner_user_id = $4, updated_at = $5
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND owner_user_id = $6
+"#;
+
+const GROUP_MEMBER_DEMOTE_OWNER_SQL: &str = r#"
+UPDATE im_group_members
+SET role = 'admin', updated_at = $5
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4 AND role = 'owner'
+"#;
+
+const GROUP_MEMBER_PROMOTE_OWNER_SQL: &str = r#"
+UPDATE im_group_members
+SET role = 'owner', updated_at = $5
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
+"#;
+
 const GROUP_DELETE_SQL: &str = r#"
 DELETE FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
+"#;
+
+const GROUP_DELETE_MEMBERS_BY_GROUP_SQL: &str = r#"
+DELETE FROM im_group_members
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
 "#;
 
 fn row_to_group_record(row: &postgres::Row) -> GroupRecord {
@@ -444,6 +532,64 @@ impl GroupStore for PostgresGroupStore {
         })
     }
 
+    fn insert_with_owner_member(
+        &self,
+        group: &GroupRecord,
+        owner_member: &GroupMemberRecord,
+    ) -> Result<(), ContractError> {
+        let pool = self.pool.clone();
+        let group_record = group.clone();
+        let member_record = owner_member.clone();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "insert_group_with_owner")?;
+            let mut transaction = client
+                .transaction()
+                .map_err(|e| postgres_unavailable("insert_group_with_owner_begin", e))?;
+            transaction
+                .execute(
+                    GROUP_INSERT_SQL,
+                    &[
+                        &group_record.tenant_id,
+                        &group_record.organization_id,
+                        &group_record.group_id,
+                        &group_record.space_id,
+                        &group_record.group_name,
+                        &group_record.group_type,
+                        &group_record.owner_user_id,
+                        &group_record.conversation_id,
+                        &group_record.max_members,
+                        &group_record.description,
+                        &group_record.avatar_url,
+                        &group_record.announcement,
+                        &group_record.settings_json,
+                        &group_record.created_at,
+                        &group_record.updated_at,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("insert_group_with_owner_group", e))?;
+            transaction
+                .execute(
+                    GROUP_MEMBER_INSERT_SQL,
+                    &[
+                        &member_record.tenant_id,
+                        &member_record.organization_id,
+                        &member_record.group_id,
+                        &member_record.user_id,
+                        &member_record.role,
+                        &member_record.nickname,
+                        &member_record.mute_until,
+                        &member_record.joined_at,
+                        &member_record.updated_at,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("insert_group_with_owner_member", e))?;
+            transaction
+                .commit()
+                .map_err(|e| postgres_unavailable("insert_group_with_owner_commit", e))?;
+            Ok(())
+        })
+    }
+
     fn get_by_id(
         &self,
         tenant_id: &str,
@@ -468,6 +614,7 @@ impl GroupStore for PostgresGroupStore {
         org_id: &str,
         space_id: i64,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<GroupRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
@@ -475,7 +622,10 @@ impl GroupStore for PostgresGroupStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_groups_by_space")?;
             let rows = client
-                .query(GROUP_LIST_BY_SPACE_SQL, &[&tid, &oid, &space_id, &limit])
+                .query(
+                    GROUP_LIST_BY_SPACE_SQL,
+                    &[&tid, &oid, &space_id, &limit, &offset],
+                )
                 .map_err(|e| postgres_unavailable("list_groups_by_space", e))?;
             Ok(rows.iter().map(row_to_group_record).collect())
         })
@@ -527,15 +677,95 @@ impl GroupStore for PostgresGroupStore {
         })
     }
 
+    fn transfer_owner(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        current_owner_user_id: &str,
+        new_owner_user_id: &str,
+        updated_at: &str,
+    ) -> Result<GroupRecord, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let current_owner = current_owner_user_id.to_string();
+        let new_owner = new_owner_user_id.to_string();
+        let updated = updated_at.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "transfer_group_owner")?;
+            let mut transaction = client
+                .transaction()
+                .map_err(|e| postgres_unavailable("transfer_group_owner_begin", e))?;
+            let updated_rows = transaction
+                .execute(
+                    GROUP_TRANSFER_OWNER_SQL,
+                    &[
+                        &tid,
+                        &oid,
+                        &group_id,
+                        &new_owner,
+                        &updated,
+                        &current_owner,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("transfer_group_owner_update", e))?;
+            if updated_rows == 0 {
+                return Err(ContractError::Conflict(
+                    "group owner mismatch or group not found".to_owned(),
+                ));
+            }
+            transaction
+                .execute(
+                    GROUP_MEMBER_DEMOTE_OWNER_SQL,
+                    &[&tid, &oid, &group_id, &current_owner, &updated],
+                )
+                .map_err(|e| postgres_unavailable("transfer_group_owner_demote", e))?;
+            let promoted_rows = transaction
+                .execute(
+                    GROUP_MEMBER_PROMOTE_OWNER_SQL,
+                    &[&tid, &oid, &group_id, &new_owner, &updated],
+                )
+                .map_err(|e| postgres_unavailable("transfer_group_owner_promote", e))?;
+            if promoted_rows == 0 {
+                return Err(ContractError::Invalid(
+                    "new owner must be an existing group member".to_owned(),
+                ));
+            }
+            transaction
+                .commit()
+                .map_err(|e| postgres_unavailable("transfer_group_owner_commit", e))?;
+            let row = client
+                .query_opt(GROUP_GET_BY_ID_SQL, &[&tid, &oid, &group_id])
+                .map_err(|e| postgres_unavailable("transfer_group_owner_reload", e))?
+                .ok_or_else(|| {
+                    ContractError::Unavailable("group missing after owner transfer".to_owned())
+                })?;
+            Ok(row_to_group_record(&row))
+        })
+    }
+
     fn delete(&self, tenant_id: &str, org_id: &str, group_id: i64) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "delete_group")?;
-            client
+            let mut transaction = client
+                .transaction()
+                .map_err(|e| postgres_unavailable("delete_group_begin", e))?;
+            transaction
+                .execute(
+                    GROUP_DELETE_MEMBERS_BY_GROUP_SQL,
+                    &[&tid, &oid, &group_id],
+                )
+                .map_err(|e| postgres_unavailable("delete_group_members", e))?;
+            transaction
                 .execute(GROUP_DELETE_SQL, &[&tid, &oid, &group_id])
                 .map_err(|e| postgres_unavailable("delete_group", e))?;
+            transaction
+                .commit()
+                .map_err(|e| postgres_unavailable("delete_group_commit", e))?;
             Ok(())
         })
     }
@@ -559,6 +789,7 @@ pub trait ChannelStore: Send + Sync {
         org_id: &str,
         space_id: i64,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<ChannelRecord>, ContractError>;
     fn update(&self, record: &ChannelRecord) -> Result<(), ContractError>;
     fn delete(&self, tenant_id: &str, org_id: &str, channel_id: i64) -> Result<(), ContractError>;
@@ -577,7 +808,7 @@ FROM im_chat_channels WHERE tenant_id = $1 AND organization_id = $2 AND channel_
 
 const CHANNEL_LIST_BY_SPACE_SQL: &str = r#"
 SELECT tenant_id, organization_id, channel_id, space_id, channel_name, channel_type, description, conversation_id, position, is_nsfw, is_pinned, topic, settings_json, created_at, updated_at
-FROM im_chat_channels WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3 ORDER BY position, channel_name LIMIT $4
+FROM im_chat_channels WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3 ORDER BY position, channel_name LIMIT $4 OFFSET $5
 "#;
 
 const CHANNEL_UPDATE_SQL: &str = r#"
@@ -677,6 +908,7 @@ impl ChannelStore for PostgresChannelStore {
         org_id: &str,
         space_id: i64,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<ChannelRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
@@ -684,7 +916,10 @@ impl ChannelStore for PostgresChannelStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_channels_by_space")?;
             let rows = client
-                .query(CHANNEL_LIST_BY_SPACE_SQL, &[&tid, &oid, &space_id, &limit])
+                .query(
+                    CHANNEL_LIST_BY_SPACE_SQL,
+                    &[&tid, &oid, &space_id, &limit, &offset],
+                )
                 .map_err(|e| postgres_unavailable("list_channels_by_space", e))?;
             Ok(rows.iter().map(row_to_channel_record).collect())
         })
@@ -726,6 +961,357 @@ impl ChannelStore for PostgresChannelStore {
             client
                 .execute(CHANNEL_DELETE_SQL, &[&tid, &oid, &channel_id])
                 .map_err(|e| postgres_unavailable("delete_channel", e))?;
+            Ok(())
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Group Member Record / Store
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+pub struct GroupMemberRecord {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub group_id: i64,
+    pub user_id: String,
+    pub role: String,
+    pub nickname: Option<String>,
+    pub mute_until: Option<String>,
+    pub joined_at: String,
+    pub updated_at: String,
+}
+
+pub trait GroupMemberStore: Send + Sync {
+    fn insert(&self, record: &GroupMemberRecord) -> Result<(), ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        user_id: &str,
+    ) -> Result<Option<GroupMemberRecord>, ContractError>;
+    fn list_by_group(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<GroupMemberRecord>, ContractError>;
+    fn count_by_group(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+    ) -> Result<i64, ContractError>;
+    fn insert_within_capacity(
+        &self,
+        record: &GroupMemberRecord,
+        max_members: i32,
+    ) -> Result<MemberInsertOutcome, ContractError>;
+    fn update(&self, record: &GroupMemberRecord) -> Result<(), ContractError>;
+    fn delete(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        user_id: &str,
+    ) -> Result<(), ContractError>;
+}
+
+const GROUP_MEMBER_INSERT_SQL: &str = r#"
+INSERT INTO im_group_members (
+    tenant_id, organization_id, group_id, user_id, role, nickname, mute_until, joined_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (tenant_id, organization_id, group_id, user_id) DO NOTHING
+"#;
+
+const GROUP_MEMBER_RESERVE_CAPACITY_SQL: &str = r#"
+WITH locked_group AS (
+    SELECT max_members
+    FROM im_chat_groups
+    WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
+    FOR UPDATE
+),
+member_count AS (
+    SELECT COUNT(*)::bigint AS current_count
+    FROM im_group_members
+    WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
+)
+SELECT lg.max_members, mc.current_count
+FROM locked_group lg, member_count mc
+"#;
+
+const GROUP_MEMBER_GET_SQL: &str = r#"
+SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at, updated_at
+FROM im_group_members
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
+"#;
+
+const GROUP_MEMBER_LIST_SQL: &str = r#"
+SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at, updated_at
+FROM im_group_members
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
+ORDER BY joined_at ASC
+LIMIT $4 OFFSET $5
+"#;
+
+const GROUP_MEMBER_COUNT_SQL: &str = r#"
+SELECT COUNT(*) FROM im_group_members
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
+"#;
+
+const GROUP_MEMBER_UPDATE_SQL: &str = r#"
+UPDATE im_group_members
+SET role = $5, nickname = $6, mute_until = $7, updated_at = $8
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
+"#;
+
+const GROUP_MEMBER_DELETE_SQL: &str = r#"
+DELETE FROM im_group_members
+WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
+"#;
+
+fn row_to_group_member_record(row: &postgres::Row) -> GroupMemberRecord {
+    GroupMemberRecord {
+        tenant_id: row.get("tenant_id"),
+        organization_id: row.get("organization_id"),
+        group_id: row.get("group_id"),
+        user_id: row.get("user_id"),
+        role: row.get("role"),
+        nickname: row.get("nickname"),
+        mute_until: row.get("mute_until"),
+        joined_at: row.get("joined_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+#[derive(Clone)]
+pub struct PostgresGroupMemberStore {
+    pool: Arc<Pool<SocialPostgresConnectionManager>>,
+}
+
+impl PostgresGroupMemberStore {
+    pub fn new(pool: Arc<Pool<SocialPostgresConnectionManager>>) -> Self {
+        Self { pool }
+    }
+}
+
+impl GroupMemberStore for PostgresGroupMemberStore {
+    fn insert(&self, record: &GroupMemberRecord) -> Result<(), ContractError> {
+        let pool = self.pool.clone();
+        let r = record.clone();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "insert_group_member")?;
+            client
+                .execute(
+                    GROUP_MEMBER_INSERT_SQL,
+                    &[
+                        &r.tenant_id,
+                        &r.organization_id,
+                        &r.group_id,
+                        &r.user_id,
+                        &r.role,
+                        &r.nickname,
+                        &r.mute_until,
+                        &r.joined_at,
+                        &r.updated_at,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("insert_group_member", e))?;
+            Ok(())
+        })
+    }
+
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        user_id: &str,
+    ) -> Result<Option<GroupMemberRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let uid = user_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "get_group_member")?;
+            let row = client
+                .query_opt(
+                    GROUP_MEMBER_GET_SQL,
+                    &[&tid, &oid, &group_id, &uid],
+                )
+                .map_err(|e| postgres_unavailable("get_group_member", e))?;
+            Ok(row.map(|row| row_to_group_member_record(&row)))
+        })
+    }
+
+    fn list_by_group(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<GroupMemberRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "list_group_members")?;
+            let rows = client
+                .query(
+                    GROUP_MEMBER_LIST_SQL,
+                    &[&tid, &oid, &group_id, &limit, &offset],
+                )
+                .map_err(|e| postgres_unavailable("list_group_members", e))?;
+            Ok(rows.iter().map(row_to_group_member_record).collect())
+        })
+    }
+
+    fn count_by_group(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+    ) -> Result<i64, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "count_group_members")?;
+            let row = client
+                .query_one(GROUP_MEMBER_COUNT_SQL, &[&tid, &oid, &group_id])
+                .map_err(|e| postgres_unavailable("count_group_members", e))?;
+            Ok(row.get::<_, i64>(0))
+        })
+    }
+
+    fn insert_within_capacity(
+        &self,
+        record: &GroupMemberRecord,
+        max_members: i32,
+    ) -> Result<MemberInsertOutcome, ContractError> {
+        let pool = self.pool.clone();
+        let record = record.clone();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "insert_group_member_within_capacity")?;
+            let mut transaction = client
+                .transaction()
+                .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+
+            let existing = transaction
+                .query_opt(
+                    GROUP_MEMBER_GET_SQL,
+                    &[
+                        &record.tenant_id,
+                        &record.organization_id,
+                        &record.group_id,
+                        &record.user_id,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+            if existing.is_some() {
+                transaction
+                    .rollback()
+                    .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+                return Ok(MemberInsertOutcome::AlreadyExists);
+            }
+
+            let capacity_row = transaction
+                .query_opt(
+                    GROUP_MEMBER_RESERVE_CAPACITY_SQL,
+                    &[
+                        &record.tenant_id,
+                        &record.organization_id,
+                        &record.group_id,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+            let Some(capacity_row) = capacity_row else {
+                transaction
+                    .rollback()
+                    .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+                return Err(ContractError::Invalid("group not found".to_owned()));
+            };
+            let group_max: i32 = capacity_row.get("max_members");
+            let current_count: i64 = capacity_row.get("current_count");
+            let effective_max = i32::min(group_max, max_members);
+            if current_count >= i64::from(effective_max) {
+                transaction
+                    .rollback()
+                    .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+                return Ok(MemberInsertOutcome::CapacityFull);
+            }
+
+            transaction
+                .execute(
+                    GROUP_MEMBER_INSERT_SQL,
+                    &[
+                        &record.tenant_id,
+                        &record.organization_id,
+                        &record.group_id,
+                        &record.user_id,
+                        &record.role,
+                        &record.nickname,
+                        &record.mute_until,
+                        &record.joined_at,
+                        &record.updated_at,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+            transaction
+                .commit()
+                .map_err(|error| postgres_unavailable("insert_group_member_within_capacity", error))?;
+            Ok(MemberInsertOutcome::Inserted)
+        })
+    }
+
+    fn update(&self, record: &GroupMemberRecord) -> Result<(), ContractError> {
+        let pool = self.pool.clone();
+        let r = record.clone();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "update_group_member")?;
+            client
+                .execute(
+                    GROUP_MEMBER_UPDATE_SQL,
+                    &[
+                        &r.tenant_id,
+                        &r.organization_id,
+                        &r.group_id,
+                        &r.user_id,
+                        &r.role,
+                        &r.nickname,
+                        &r.mute_until,
+                        &r.updated_at,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("update_group_member", e))?;
+            Ok(())
+        })
+    }
+
+    fn delete(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        group_id: i64,
+        user_id: &str,
+    ) -> Result<(), ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let uid = user_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "delete_group_member")?;
+            client
+                .execute(
+                    GROUP_MEMBER_DELETE_SQL,
+                    &[&tid, &oid, &group_id, &uid],
+                )
+                .map_err(|e| postgres_unavailable("delete_group_member", e))?;
             Ok(())
         })
     }

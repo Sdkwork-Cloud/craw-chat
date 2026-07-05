@@ -130,4 +130,7 @@ pub trait OutboxStore: Send + Sync {
 
     /// 统计待投递事件数量（监控用）
     fn count_pending(&self, tenant_id: &str, organization_id: &str) -> Result<u64, ContractError>;
+
+    /// 列出存在待投递事件的租户/组织作用域（relay worker 多租户轮询）
+    fn list_pending_scopes(&self, limit: usize) -> Result<Vec<(String, String)>, ContractError>;
 }

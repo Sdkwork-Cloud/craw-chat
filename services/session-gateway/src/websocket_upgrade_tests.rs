@@ -65,6 +65,7 @@ fn test_realtime_websocket_upgrade_prepares_runtime_link_handoff_owner() {
             runtime,
             crate::client_route_state::ClientRouteState::default(),
         ),
+        crate::websocket_frame_rate_limit::WebsocketFrameRateLimiter::from_env(),
     );
 
     assert_eq!(handoff.mode(), LinkWebsocketMode::CcpJson);

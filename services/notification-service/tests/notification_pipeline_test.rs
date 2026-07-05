@@ -356,7 +356,7 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
     assert_eq!(member_a_notifications.len(), 1);
     assert_eq!(
         member_a_notifications[0].notification_id,
-        "ntf_msg_c_demo_1_user_u_member_a"
+        "ntf_msg_c_demo_1_user_1102"
     );
 
     let member_b_auth = AppContext {
@@ -370,7 +370,7 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
     assert_eq!(member_b_notifications.len(), 1);
     assert_eq!(
         member_b_notifications[0].notification_id,
-        "ntf_msg_c_demo_1_user_u_member_b"
+        "ntf_msg_c_demo_1_user_1103"
     );
 
     let events = journal.recorded();
@@ -509,7 +509,7 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
 
     assert_eq!(tasks.len(), 1);
     let task = &tasks[0];
-    assert_eq!(task.notification_id, "ntf_msg_c_demo_1_user_u_member");
+    assert_eq!(task.notification_id, "ntf_msg_c_demo_1_user_1108");
     assert_eq!(task.source_event_id, "evt_message_1");
     assert_eq!(task.source_event_type, "message.posted");
     assert_eq!(task.category, "message.new");
@@ -620,6 +620,26 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
             .apply(&event)
             .expect("projection should accept shared notification membership event");
     }
+    let policy_applied = CommitEnvelope::minimal(
+        "evt_notification_shared_policy",
+        "100001",
+        "conversation.policy_applied",
+        "conversation",
+        "c_shared_notification",
+        4,
+    )
+    .with_payload(
+        "conversation.policy_applied.v1",
+        r#"{
+            "conversationId":"c_shared_notification",
+            "policyVersion":"shared.policy.v1",
+            "historyVisibility":"shared",
+            "retentionPolicyRef":"tenant.standard"
+        }"#,
+    );
+    projection_service
+        .apply(&policy_applied)
+        .expect("shared history policy should project");
     let auth = auth_context("1", "user", "s_owner");
 
     let tasks = runtime

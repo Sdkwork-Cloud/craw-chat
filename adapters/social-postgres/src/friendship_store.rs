@@ -48,6 +48,8 @@ fn friendship_status_to_str(status: &FriendshipStatus) -> &'static str {
 /// Trait for friendship persistence.
 pub trait FriendshipStore: Send + Sync {
     fn insert(&self, record: &FriendshipRecord) -> Result<(), ContractError>;
+    /// Upsert friendship row keyed by normalized user pair, reactivating removed rows.
+    fn upsert_active(&self, record: &FriendshipRecord) -> Result<(), ContractError>;
     fn get_by_id(
         &self,
         tenant_id: &str,
@@ -69,6 +71,17 @@ pub trait FriendshipStore: Send + Sync {
         status: &str,
         limit: i64,
     ) -> Result<Vec<FriendshipRecord>, ContractError>;
+    /// Keyset page ordered by `updated_at DESC`, `friendship_id ASC`.
+    fn list_by_user_inventory(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        status: &str,
+        cursor_updated_at: Option<&str>,
+        cursor_friendship_id: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<FriendshipRecord>, ContractError>;
     fn update_status(
         &self,
         tenant_id: &str,
@@ -85,6 +98,20 @@ INSERT INTO im_friendships (
     initiator_user_id, status, established_at, updated_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (tenant_id, organization_id, friendship_id) DO NOTHING
+"#;
+
+const UPSERT_ACTIVE_PAIR_SQL: &str = r#"
+INSERT INTO im_friendships (
+    tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
+    initiator_user_id, status, established_at, updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (tenant_id, organization_id, user_low_id, user_high_id)
+DO UPDATE SET
+    friendship_id = EXCLUDED.friendship_id,
+    initiator_user_id = EXCLUDED.initiator_user_id,
+    status = EXCLUDED.status,
+    established_at = EXCLUDED.established_at,
+    updated_at = EXCLUDED.updated_at
 "#;
 
 const GET_BY_ID_SQL: &str = r#"
@@ -111,6 +138,22 @@ WHERE tenant_id = $1 AND organization_id = $2
   AND status = $4
 ORDER BY established_at DESC
 LIMIT $5
+"#;
+
+const LIST_BY_USER_INVENTORY_SQL: &str = r#"
+SELECT tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
+       initiator_user_id, status, established_at, updated_at
+FROM im_friendships
+WHERE tenant_id = $1 AND organization_id = $2
+  AND (user_low_id = $3 OR user_high_id = $3)
+  AND status = $4
+  AND (
+    $5::text IS NULL
+    OR updated_at < $5::text
+    OR (updated_at = $5::text AND friendship_id > $6)
+  )
+ORDER BY updated_at DESC, friendship_id ASC
+LIMIT $7
 "#;
 
 const UPDATE_STATUS_SQL: &str = r#"
@@ -167,6 +210,31 @@ impl FriendshipStore for PostgresFriendshipStore {
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_friendship", e))?;
+            Ok(())
+        })
+    }
+
+    fn upsert_active(&self, record: &FriendshipRecord) -> Result<(), ContractError> {
+        let pool = self.pool.clone();
+        let r = record.clone();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "upsert_active_friendship")?;
+            client
+                .execute(
+                    UPSERT_ACTIVE_PAIR_SQL,
+                    &[
+                        &r.tenant_id,
+                        &r.organization_id,
+                        &r.friendship_id,
+                        &r.user_low_id,
+                        &r.user_high_id,
+                        &r.initiator_user_id,
+                        &r.status,
+                        &r.established_at,
+                        &r.updated_at,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("upsert_active_friendship", e))?;
             Ok(())
         })
     }
@@ -232,6 +300,42 @@ impl FriendshipStore for PostgresFriendshipStore {
         })
     }
 
+    fn list_by_user_inventory(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        status: &str,
+        cursor_updated_at: Option<&str>,
+        cursor_friendship_id: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<FriendshipRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let uid = user_id.to_string();
+        let st = status.to_string();
+        let cursor_updated_at = cursor_updated_at.map(str::to_owned);
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "list_friendships_by_user_inventory")?;
+            let rows = client
+                .query(
+                    LIST_BY_USER_INVENTORY_SQL,
+                    &[
+                        &tid,
+                        &oid,
+                        &uid,
+                        &st,
+                        &cursor_updated_at,
+                        &cursor_friendship_id,
+                        &limit,
+                    ],
+                )
+                .map_err(|e| postgres_unavailable("list_friendships_by_user_inventory", e))?;
+            Ok(rows.iter().map(row_to_record).collect())
+        })
+    }
+
     fn update_status(
         &self,
         tenant_id: &str,
@@ -247,9 +351,14 @@ impl FriendshipStore for PostgresFriendshipStore {
         let ua = updated_at.to_string();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "update_friendship_status")?;
-            client
+            let updated = client
                 .execute(UPDATE_STATUS_SQL, &[&tid, &oid, &friendship_id, &st, &ua])
                 .map_err(|e| postgres_unavailable("update_friendship_status", e))?;
+            if updated == 0 {
+                return Err(ContractError::Conflict(
+                    "friendship does not exist in tenant scope".to_owned(),
+                ));
+            }
             Ok(())
         })
     }

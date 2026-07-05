@@ -9,6 +9,8 @@ pub(super) struct ConversationPolicyAppliedPayload {
     pub capability_flags: Option<Vec<String>>,
     pub history_visibility: String,
     pub retention_policy_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_members: Option<i32>,
 }
 
 impl ConversationPolicyAppliedPayload {
@@ -18,6 +20,7 @@ impl ConversationPolicyAppliedPayload {
             capability_flags: self.capability_flags,
             history_visibility: self.history_visibility,
             retention_policy_ref: self.retention_policy_ref,
+            max_members: self.max_members,
         }
     }
 }
@@ -107,6 +110,7 @@ where
                     capability_flags: normalized.capability_flags.clone(),
                     history_visibility: normalized.history_visibility.clone(),
                     retention_policy_ref: normalized.retention_policy_ref.clone(),
+                    max_members: normalized.max_members,
                 },
                 ordering_seq,
                 actor_member.principal_kind.clone(),

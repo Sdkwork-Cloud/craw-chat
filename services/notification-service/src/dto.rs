@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use im_domain_core::notification::NotificationTask;
+use sdkwork_utils_rust::SdkWorkPageData;
 use serde::{Deserialize, Serialize};
 
 pub(crate) const NOTIFICATION_REQUEST_DELIVERY_PROOF_VERSION: &str =
@@ -111,4 +112,14 @@ impl From<NotificationRequestResult> for NotificationRequestResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct NotificationListResponse {
     pub(crate) items: Vec<NotificationTask>,
+    pub(crate) page_info: sdkwork_utils_rust::PageInfo,
+}
+
+impl From<SdkWorkPageData<NotificationTask>> for NotificationListResponse {
+    fn from(page: SdkWorkPageData<NotificationTask>) -> Self {
+        Self {
+            items: page.items,
+            page_info: page.page_info,
+        }
+    }
 }

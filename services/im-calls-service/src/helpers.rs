@@ -4,8 +4,7 @@ use im_app_context::AppContext;
 use im_domain_core::rtc::SignalSender;
 
 use crate::dto::{
-    CreateRtcSessionRequest, InviteRtcSessionRequest, PostRtcSignalRequest,
-    UpdateRtcSessionRequest,
+    CreateRtcSessionRequest, InviteRtcSessionRequest, PostRtcSignalRequest, UpdateRtcSessionRequest,
 };
 use crate::error::CallingError;
 
@@ -28,6 +27,16 @@ const CALLING_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
 const CALLING_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_CALLING_MAX_REQUEST_BODY_BYTES";
 const CALLING_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 1024 * 1024;
 const CALLING_MAX_REQUEST_BODY_BYTES_MAX: usize = 10 * 1024 * 1024;
+const CALLING_MAX_SIGNALS_PER_SESSION_ENV: &str = "SDKWORK_IM_CALLING_MAX_SIGNALS_PER_SESSION";
+const CALLING_MAX_SIGNALS_PER_SESSION_DEFAULT: usize = 1_024;
+const CALLING_MAX_SIGNALS_PER_SESSION_MAX: usize = 10_000;
+const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_ENV: &str = "SDKWORK_IM_CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX";
+const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_DEFAULT: usize = 4_096;
+const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_LIMIT: usize = 100_000;
+
+pub(crate) fn is_production_like_environment() -> bool {
+    im_app_context::is_production_like_im_environment()
+}
 
 /// Cached max in-flight requests. Reading `std::env::var` on every request
 /// is unnecessary filesystem work under load; the value is process-static
@@ -58,6 +67,38 @@ pub(crate) fn resolve_max_http_request_body_bytes() -> usize {
     })
 }
 
+/// Maximum in-memory RTC signals retained per session before oldest entries are trimmed.
+pub(crate) fn resolve_max_signals_per_session() -> usize {
+    static CACHED: OnceLock<usize> = OnceLock::new();
+    *CACHED.get_or_init(|| {
+        std::env::var(CALLING_MAX_SIGNALS_PER_SESSION_ENV)
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|&parsed| parsed > 0)
+            .unwrap_or(CALLING_MAX_SIGNALS_PER_SESSION_DEFAULT)
+            .min(CALLING_MAX_SIGNALS_PER_SESSION_MAX)
+    })
+}
+
+/// Upper bound for per-sender signal rate tracker entries kept in memory.
+pub(crate) fn resolve_signal_rate_tracker_cache_max() -> usize {
+    static CACHED: OnceLock<usize> = OnceLock::new();
+    *CACHED.get_or_init(|| {
+        std::env::var(CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_ENV)
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|&parsed| parsed > 0)
+            .unwrap_or(CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_DEFAULT)
+            .min(CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_LIMIT)
+    })
+}
+
+pub(crate) fn trim_session_signals<T>(signals: &mut std::collections::BTreeMap<u64, T>, max_signals: usize) {
+    while signals.len() > max_signals {
+        signals.pop_first();
+    }
+}
+
 pub(crate) fn rtc_session_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
     im_domain_core::rtc::encode_im_call_key_segments([tenant_id, rtc_session_id])
 }
@@ -69,13 +110,21 @@ fn validate_payload_size(
 ) -> Result<(), CallingError> {
     let payload_len = payload.len();
     if payload_len > max_bytes {
-        return Err(CallingError::payload_too_large(field, max_bytes, payload_len));
+        return Err(CallingError::payload_too_large(
+            field,
+            max_bytes,
+            payload_len,
+        ));
     }
     Ok(())
 }
 
 pub(crate) fn validate_rtc_session_id(rtc_session_id: &str) -> Result<(), CallingError> {
-    validate_payload_size("rtcSessionId", rtc_session_id, CALL_MAX_RTC_SESSION_ID_BYTES)
+    validate_payload_size(
+        "rtcSessionId",
+        rtc_session_id,
+        CALL_MAX_RTC_SESSION_ID_BYTES,
+    )
 }
 
 pub(crate) fn validate_create_request_payload_size(
@@ -89,7 +138,11 @@ pub(crate) fn validate_create_request_payload_size(
             CALL_MAX_CONVERSATION_ID_BYTES,
         )?;
     }
-    validate_payload_size("rtcMode", request.rtc_mode.as_str(), CALL_MAX_RTC_MODE_BYTES)
+    validate_payload_size(
+        "rtcMode",
+        request.rtc_mode.as_str(),
+        CALL_MAX_RTC_MODE_BYTES,
+    )
 }
 
 pub(crate) fn validate_invite_request_payload_size(
@@ -179,11 +232,7 @@ pub(crate) fn resolve_rtc_signal_sender(auth: &AppContext) -> SignalSender {
 }
 
 pub fn rtc_session_create_request_key(tenant_id: &str, rtc_session_id: &str) -> String {
-    im_domain_core::rtc::encode_im_call_key_segments([
-        tenant_id,
-        "call.create",
-        rtc_session_id,
-    ])
+    im_domain_core::rtc::encode_im_call_key_segments([tenant_id, "call.create", rtc_session_id])
 }
 
 pub fn rtc_session_invite_request_key(

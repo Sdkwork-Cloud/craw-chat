@@ -27,7 +27,7 @@ redis-cli -h "$SDKWORK_IM_REDIS_HOST" -p "$SDKWORK_IM_REDIS_PORT" ping
 ### 2. Assess service impact
 
 - session-gateway: Realtime delivery disrupted if Redis is down
-- projection-service: Reads degraded if Postgres is down; falls back to in-memory hot path
+- projection-service: **Production bootstrap fails closed** when Postgres metadata/timeline stores are unavailable; reads are unavailable until Postgres is restored (no silent in-memory fallback)
 - audit-service: In-memory ledger continues; durability at risk if Postgres is down
 
 ### 3. Enable degraded mode (if applicable)

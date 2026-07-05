@@ -74,6 +74,64 @@ pub struct MessagePinView {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MessageReadReceiptReaderView {
+    pub principal_id: String,
+    pub principal_kind: String,
+    pub member_id: String,
+    pub read_seq: u64,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageReadReceiptSummaryView {
+    pub active_member_count: u64,
+    pub read_count: u64,
+    pub readers: Vec<MessageReadReceiptReaderView>,
+}
+
+impl Default for MessageReadReceiptSummaryView {
+    fn default() -> Self {
+        Self {
+            active_member_count: 0,
+            read_count: 0,
+            readers: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageDeliveryReceiptDeviceView {
+    pub principal_id: String,
+    pub principal_kind: String,
+    pub member_id: String,
+    pub device_id: String,
+    pub sync_seq: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageDeliveryReceiptSummaryView {
+    pub active_member_count: u64,
+    pub offered_count: u64,
+    pub delivered_count: u64,
+    pub delivered_devices: Vec<MessageDeliveryReceiptDeviceView>,
+}
+
+impl Default for MessageDeliveryReceiptSummaryView {
+    fn default() -> Self {
+        Self {
+            active_member_count: 0,
+            offered_count: 0,
+            delivered_count: 0,
+            delivered_devices: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageInteractionSummaryView {
     pub tenant_id: String,
     pub conversation_id: String,
@@ -82,6 +140,10 @@ pub struct MessageInteractionSummaryView {
     pub total_reaction_count: u64,
     pub reaction_counts: Vec<MessageReactionCountView>,
     pub pin: Option<MessagePinView>,
+    #[serde(default)]
+    pub read_receipt: MessageReadReceiptSummaryView,
+    #[serde(default)]
+    pub delivery_receipt: MessageDeliveryReceiptSummaryView,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -168,6 +230,23 @@ pub struct InboxWindowView {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum InboxListCursor {
+    Start,
+    Offset(usize),
+    Keyset {
+        activity_at: String,
+        scope: String,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct InboxKeysetCursorWire {
+    pub activity_at: String,
+    pub scope: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeFanoutTarget {
     pub principal_id: String,
     pub principal_kind: String,
@@ -204,6 +283,78 @@ pub struct ContactWindowView {
     pub items: Vec<ContactView>,
     pub next_cursor: Option<String>,
     pub has_more: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ContactListCursor {
+    Start,
+    Offset(usize),
+    Keyset {
+        last_interaction_at: String,
+        target_user_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ContactKeysetCursorWire {
+    pub last_interaction_at: String,
+    pub target_user_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum MemberDirectoryListCursor {
+    Start,
+    Offset(usize),
+    Keyset {
+        role_rank: u8,
+        joined_at: String,
+        principal_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MemberDirectoryKeysetCursorWire {
+    pub role_rank: u8,
+    pub joined_at: String,
+    pub principal_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum PinnedMessagesListCursor {
+    Start,
+    Offset(usize),
+    Keyset {
+        pinned_at: String,
+        message_seq: u64,
+        message_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PinnedMessagesKeysetCursorWire {
+    pub pinned_at: String,
+    pub message_seq: u64,
+    pub message_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum FavoriteMessagesListCursor {
+    Start,
+    Offset(usize),
+    Keyset {
+        favorited_at: String,
+        favorite_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FavoriteMessagesKeysetCursorWire {
+    pub favorited_at: String,
+    pub favorite_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -360,7 +511,43 @@ pub struct FavoriteMessagesWindowView {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MessageSearchHitView {
+    pub conversation_id: String,
+    pub message_id: String,
+    pub message_seq: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageSearchWindowView {
+    pub items: Vec<MessageSearchHitView>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+    pub total_count: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeleteMessageFavoriteResponse {
     pub favorite_id: String,
     pub deleted: bool,
+}
+
+/// Per-principal message visibility mutation result.
+///
+/// Mirrors `MessageVisibilityMutationResult` in
+/// `apis/open-api/im/sdkwork-im-im.openapi.yaml`. `is_deleted = true` indicates
+/// the principal has soft-deleted (hidden) the message from their own view; the
+/// underlying message record and other principals' visibility are unaffected.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageVisibilityMutationResult {
+    pub tenant_id: String,
+    pub conversation_id: String,
+    pub message_id: String,
+    pub message_seq: i32,
+    pub principal_kind: String,
+    pub principal_id: String,
+    pub is_deleted: bool,
+    pub updated_at: String,
 }

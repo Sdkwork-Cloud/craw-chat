@@ -5,12 +5,10 @@
   "types": "./src/index.tsx",
   "dependencies": {
     "@sdkwork/im-pc-core": "workspace:*",
-    "@sdkwork/im-pc-chat": "workspace:*",
-    "@sdkwork/im-pc-commons": "workspace:*",
-    "i18next": "catalog:",
+    "@sdkwork/mail-pc-core": "workspace:*",
+    "@sdkwork/mail-pc-mail": "workspace:*",
     "lucide-react": "catalog:",
-    "react": "catalog:",
-    "react-i18next": "catalog:"
+    "react": "catalog:"
   },
   "publishConfig": {
     "access": "public",

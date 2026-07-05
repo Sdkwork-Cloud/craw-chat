@@ -1,39 +1,45 @@
-use std::collections::{BTreeMap, HashMap};
-use std::ops::Bound::{Excluded, Unbounded};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::{
     ClientRouteSyncFeedEntry, ConversationMember, ConversationReadCursor,
-    ConversationReadCursorView,
+    ConversationReadCursorView, read_cursor_storage_key,
 };
-use im_domain_core::message::{ContentPart, Message, MessageEdited, MessageRecalled};
-use im_domain_core::retention::{is_retention_expired, retention_until_from_envelope};
+use im_domain_core::message::{Message, MessageEdited, MessageRecalled};
+use im_domain_core::retention::retention_until_from_envelope;
 use im_domain_events::CommitEnvelope;
-use im_time::utc_now_rfc3339_millis;
 
 mod access;
 mod bootstrap;
-pub mod embedded_bridge;
 mod client_route_sync;
-mod journal_consumer;
 mod contacts;
 mod conversation_personalization;
+mod cursor_auth;
+pub mod embedded_bridge;
 pub mod http;
+pub use http::build_integration_test_app;
+mod delivery_receipts;
+mod event_fanout;
 mod inbox;
 mod interactions;
+mod journal_consumer;
 mod member_directory;
 mod member_store;
+mod message_delivery_index;
 mod message_favorites;
+mod personalization_snapshot;
+mod message_visibilities;
 mod model;
 mod observability;
 mod projection;
+mod read_receipts;
 mod received_message_index;
 mod scope;
 mod snapshot;
 mod summary_updates;
+mod timeline_tier;
 mod update_delay;
 
-use client_route_sync::ClientRouteSyncEntryDraft;
 use member_store::ProjectionMemberRuntimeStore;
 use model::ConversationCatalogEntry;
 use observability::ProjectionObservabilityState;
@@ -50,25 +56,28 @@ use scope::{
 };
 
 pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
-pub use bootstrap::{build_projection_runtime_from_env, ProjectionRuntime};
+pub use bootstrap::{ProjectionRuntime, build_projection_runtime_from_env, try_init_embedded_projection_runtime};
 pub use embedded_bridge::try_apply_commit_envelope;
-pub use journal_consumer::{
-    spawn_projection_journal_consumer_from_env, ProjectionJournalConsumerHandle,
-};
 pub use http::{
     build_app, build_default_app, build_public_app, build_public_app_with_service,
     default_projection_runtime, default_projection_service,
+};
+pub use journal_consumer::{
+    ProjectionJournalConsumerHandle, spawn_projection_journal_consumer_from_env,
 };
 pub use model::{
     ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
     ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
     ConversationSummaryView, DeleteMessageFavoriteResponse, FavoriteMessageRequest,
-    FavoriteMessagesWindowView, InboxWindowView, InteractionActorView,
-    MessageFavoriteView, MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
-    NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView,
-    TimelineViewEntry, TimelineWindowView, UpdateConversationPreferencesRequest,
-    UpdateConversationProfileRequest,
+    FavoriteMessagesWindowView, InboxWindowView, InteractionActorView, MessageFavoriteView,
+    MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView,
+    MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
+    MessageReadReceiptReaderView, MessageReadReceiptSummaryView, MessageSearchHitView,
+    MessageSearchWindowView, MessageVisibilityMutationResult, NotificationRecipientView,
+    RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView, TimelineViewEntry,
+    TimelineWindowView, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
+pub use client_route_sync::ClientRouteSyncAckStateView;
 pub use observability::{
     ProjectionLagItemView, ProjectionLogView, ProjectionOperationMetricView,
     ProjectionPlaneMetricsView, ProjectionPlaneObservabilityView, ProjectionReplayMetricsView,
@@ -79,39 +88,73 @@ pub use projection::ProjectionError;
 pub const PROJECTION_TIMELINE_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_TIMELINE_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_LIST_DEFAULT_LIMIT: usize = 100;
-pub const PROJECTION_LIST_MAX_LIMIT: usize = 1000;
+pub const PROJECTION_LIST_MAX_LIMIT: usize = sdkwork_utils_rust::http_api::MAX_LIST_PAGE_SIZE as usize;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
     PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT;
 
+pub use timeline_tier::{
+    resolve_memory_timeline_cap_from_env, PROJECTION_TIMELINE_MEMORY_CAP_DEFAULT,
+    PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED,
+};
+
 #[derive(Default)]
 pub struct TimelineProjectionService {
     entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>,
+    /// O(1) lookup: `tenant:org:msg:message_id` → `conversation_id`.
+    message_conversation_index: Mutex<HashMap<String, String>>,
     summaries: Mutex<HashMap<String, ConversationSummaryView>>,
     members: Mutex<ProjectionMemberRuntimeStore>,
     read_cursors: Mutex<HashMap<String, HashMap<String, ConversationReadCursor>>>,
     received_messages: Mutex<ReceivedMessageIndex>,
     conversations: Mutex<HashMap<String, ConversationCatalogEntry>>,
-    contacts: Mutex<HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>>,
+    contacts: Mutex<HashMap<ContactOwnerScopeKey, contacts::ContactScopeStore>>,
     direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>,
     message_interactions:
         Mutex<HashMap<String, HashMap<String, interactions::StoredMessageInteractionSummary>>>,
+    pinned_messages_index:
+        Mutex<HashMap<String, BTreeSet<interactions::PinnedMessageIndexKey>>>,
     registered_client_routes:
         Mutex<HashMap<ClientRoutePrincipalScopeKey, HashMap<String, RegisteredClientRouteView>>>,
     client_route_sync_feeds:
         Mutex<HashMap<ClientRouteFeedScopeKey, BTreeMap<u64, ClientRouteSyncFeedEntry>>>,
     client_route_sync_sequences: Mutex<HashMap<ClientRouteFeedScopeKey, u64>>,
+    client_route_sync_checkpoints:
+        Mutex<HashMap<ClientRouteFeedScopeKey, client_route_sync::ClientRouteSyncCheckpoint>>,
+    message_delivery_offers:
+        Mutex<HashMap<String, Vec<message_delivery_index::MessageDeliveryDeviceOffer>>>,
     conversation_profiles: Mutex<HashMap<String, model::ConversationProfileView>>,
     conversation_preferences: Mutex<HashMap<String, model::ConversationPreferencesView>>,
-    message_favorites:
-        Mutex<HashMap<String, HashMap<String, model::MessageFavoriteView>>>,
+    message_favorites: Mutex<HashMap<String, HashMap<String, model::MessageFavoriteView>>>,
+    message_visibilities:
+        Mutex<HashMap<String, HashMap<String, model::MessageVisibilityMutationResult>>>,
     observability: Mutex<ProjectionObservabilityState>,
+    timeline_tier: timeline_tier::TimelineTierConfig,
+}
+
+impl TimelineProjectionService {
+    pub fn configure_durable_timeline(
+        &self,
+        store: std::sync::Arc<dyn sdkwork_im_contract_message::TimelineProjectionStore + Send + Sync>,
+        memory_cap: usize,
+    ) {
+        self.timeline_tier.configure_durable_timeline(store, memory_cap);
+    }
+
+    pub fn set_memory_timeline_cap(&self, memory_cap: usize) {
+        self.timeline_tier.set_memory_timeline_cap(memory_cap);
+    }
+
+    pub fn memory_timeline_cap(&self) -> usize {
+        self.timeline_tier.memory_timeline_cap()
+    }
 }
 
 impl TimelineProjectionService {
     pub fn reset_for_recovery(&self) {
         lock_projection_mutex(&self.entries, "projection store").clear();
+        lock_projection_mutex(&self.message_conversation_index, "message conversation index").clear();
         lock_projection_mutex(&self.summaries, "summary store").clear();
         lock_projection_mutex(&self.members, "member store").clear();
         lock_projection_mutex(&self.read_cursors, "cursor store").clear();
@@ -124,6 +167,7 @@ impl TimelineProjectionService {
         )
         .clear();
         lock_projection_mutex(&self.message_interactions, "message interaction store").clear();
+        lock_projection_mutex(&self.pinned_messages_index, "pinned message index").clear();
         lock_projection_mutex(
             &self.registered_client_routes,
             "registered client route store",
@@ -139,6 +183,16 @@ impl TimelineProjectionService {
             "client route sync sequence store",
         )
         .clear();
+        lock_projection_mutex(
+            &self.client_route_sync_checkpoints,
+            "client route sync checkpoint store",
+        )
+        .clear();
+        lock_projection_mutex(
+            &self.message_delivery_offers,
+            "message delivery offer store",
+        )
+        .clear();
         lock_projection_mutex(&self.conversation_profiles, "conversation profile store").clear();
         lock_projection_mutex(
             &self.conversation_preferences,
@@ -146,6 +200,7 @@ impl TimelineProjectionService {
         )
         .clear();
         lock_projection_mutex(&self.message_favorites, "message favorites store").clear();
+        lock_projection_mutex(&self.message_visibilities, "message visibility store").clear();
         *lock_projection_mutex(&self.observability, "projection observability store") =
             ProjectionObservabilityState::default();
     }
@@ -188,12 +243,15 @@ impl TimelineProjectionService {
             "message.pin_added" => self.apply_message_pinned(event),
             "message.pin_removed" => self.apply_message_unpinned(event),
             "conversation.member_joined" => self.apply_member_joined(event),
+            "conversation.member_invitation_accepted" => self.apply_member_joined(event),
             "conversation.member_role_changed" => self.apply_member_role_changed(event),
             "conversation.member_removed" => self.apply_member_removed(event),
             "conversation.member_left" => self.apply_member_left(event),
             "conversation.read_cursor_updated" => self.apply_read_cursor_updated(event),
             "friendship.activated" => self.apply_friendship_activated(event),
             "friendship.removed" => self.apply_friendship_removed(event),
+            "user_block.blocked" => self.apply_user_blocked(event),
+            "user_block.released" => self.apply_user_block_released(event),
             "direct_chat.bound" => self.apply_direct_chat_bound(event),
             _ => Ok(()),
         };
@@ -268,11 +326,13 @@ impl TimelineProjectionService {
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key_for_event(event);
         let mut conversations = lock_projection_mutex(&self.conversations, "conversation store");
-        let entry = conversations.entry(key.clone()).or_insert_with(|| ConversationCatalogEntry {
-            conversation_type: "unknown".into(),
-            created_at: event.committed_at.clone(),
-            history_visibility: payload.history_visibility.clone(),
-        });
+        let entry = conversations
+            .entry(key.clone())
+            .or_insert_with(|| ConversationCatalogEntry {
+                conversation_type: "unknown".into(),
+                created_at: event.committed_at.clone(),
+                history_visibility: payload.history_visibility.clone(),
+            });
         entry.history_visibility = payload.history_visibility;
         if im_domain_core::retention::retention_is_indefinite(
             im_domain_core::retention::retention_class_from_policy_ref(
@@ -374,8 +434,18 @@ impl TimelineProjectionService {
         };
 
         let mut entries = lock_projection_mutex(&self.entries, "projection store");
-        entries.entry(key.clone()).or_default().insert(message_seq, entry);
+        let timeline = entries.entry(key.clone()).or_default();
+        timeline.insert(message_seq, entry);
+        timeline_tier::trim_timeline_to_cap(timeline, self.memory_timeline_cap());
         drop(entries);
+        lock_projection_mutex(&self.message_conversation_index, "message conversation index").insert(
+            scope::message_lookup_scope_key(
+                tenant_id.as_str(),
+                organization_id.as_str(),
+                message_id.as_str(),
+            ),
+            conversation_id.clone(),
+        );
         lock_projection_mutex(&self.received_messages, "received message index").append_message(
             key.as_str(),
             message_seq,
@@ -402,11 +472,21 @@ impl TimelineProjectionService {
                     kind: sender_kind,
                 }),
                 last_summary: summary,
-                last_message_at: Some(last_message_at),
+                last_message_at: Some(last_message_at.clone()),
                 agent_handoff: existing_handoff,
             },
         );
         drop(summaries);
+
+        lock_projection_mutex(&self.members, "member store").refresh_inbox_activity_for_scope(
+            scope_key(
+                message.tenant_id.as_str(),
+                organization_id.as_str(),
+                message.conversation_id.as_str(),
+            )
+            .as_str(),
+            last_message_at.as_str(),
+        );
 
         self.fan_out_message_to_client_route_sync_feeds(event, &message);
         self.record_projection_update_delay_for_scope(
@@ -511,15 +591,16 @@ impl TimelineProjectionService {
 
         let mut cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
         cursors
-            .entry(key)
+            .entry(key.clone())
             .or_default()
-            .entry(member.member_id.clone())
+            .entry(read_cursor_storage_key(member.member_id.as_str(), None))
             .or_insert_with(|| ConversationReadCursor {
                 tenant_id: member.tenant_id.clone(),
                 conversation_id: member.conversation_id.clone(),
                 member_id: member.member_id.clone(),
                 principal_id: member.principal_id.clone(),
                 principal_kind: member.principal_kind.clone(),
+                device_id: None,
                 read_seq: 0,
                 last_read_message_id: None,
                 updated_at: member.joined_at.clone(),
@@ -536,6 +617,12 @@ impl TimelineProjectionService {
             false,
             member.joined_at.as_str(),
         );
+        if member.is_active() {
+            lock_projection_mutex(&self.members, "member store").refresh_inbox_activity_for_scope(
+                key.as_str(),
+                member.joined_at.as_str(),
+            );
+        }
         Ok(())
     }
 
@@ -615,11 +702,13 @@ impl TimelineProjectionService {
         let cursor: ConversationReadCursor =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let key = scope_key_for_event_conversation(event, cursor.conversation_id.as_str());
+        let storage_key =
+            read_cursor_storage_key(cursor.member_id.as_str(), cursor.device_id.as_deref());
         let mut cursors = lock_projection_mutex(&self.read_cursors, "cursor store");
         cursors
             .entry(key)
             .or_default()
-            .insert(cursor.member_id.clone(), cursor.clone());
+            .insert(storage_key, cursor.clone());
         drop(cursors);
 
         self.fan_out_read_cursor_to_client_route_sync_feeds(event, &cursor);
@@ -645,34 +734,43 @@ impl TimelineProjectionService {
         conversation_id: &str,
         after_seq: Option<u64>,
         limit: usize,
-    ) -> TimelineWindowView {
+    ) -> Result<TimelineWindowView, crate::projection::ProjectionError> {
         let after_seq = after_seq.unwrap_or_default();
-        let now = utc_now_rfc3339_millis();
-        let entries = lock_projection_mutex(&self.entries, "projection store");
-        let Some(timeline) = entries.get(scope_key(tenant_id, organization_id, conversation_id).as_str()) else {
-            return TimelineWindowView {
-                items: Vec::new(),
-                next_after_seq: None,
-                has_more: false,
-            };
-        };
-        let mut window = timeline
-            .range((Excluded(after_seq), Unbounded))
-            .map(|(_, entry)| entry)
-            .filter(|entry| !is_retention_expired(entry.retention_until.as_deref(), now.as_str()))
-            .take(limit.saturating_add(1))
-            .cloned()
-            .collect::<Vec<_>>();
-        let has_more = window.len() > limit;
-        if has_more {
-            window.truncate(limit);
-        }
-        let next_after_seq = window.last().map(|entry| entry.message_seq);
-
-        TimelineWindowView {
-            items: window,
-            next_after_seq,
-            has_more,
+        let scope = scope_key(tenant_id, organization_id, conversation_id);
+        let memory_timeline = lock_projection_mutex(&self.entries, "projection store")
+            .get(scope.as_str())
+            .cloned();
+        match timeline_tier::resolve_timeline_window(
+            &self.timeline_tier,
+            memory_timeline.as_ref(),
+            tenant_id,
+            conversation_id,
+            after_seq,
+            limit,
+        ) {
+            Ok(window) => Ok(window),
+            Err(error) if crate::bootstrap::allows_in_memory_projection_fallback() => {
+                tracing::warn!(
+                    target: "sdkwork.im.projection.timeline",
+                    event = "im.projection.timeline_durable_read_failed",
+                    tenant_id = %tenant_id,
+                    conversation_id = %conversation_id,
+                    after_seq,
+                    ?error,
+                    "durable timeline read failed; falling back to in-memory window (development/test only)"
+                );
+                Ok(memory_timeline
+                    .as_ref()
+                    .map(|timeline| {
+                        timeline_tier::timeline_window_from_memory(timeline, after_seq, limit)
+                    })
+                    .unwrap_or(TimelineWindowView {
+                        items: Vec::new(),
+                        next_after_seq: None,
+                        has_more: false,
+                    }))
+            }
+            Err(error) => Err(error),
         }
     }
 
@@ -695,6 +793,25 @@ impl TimelineProjectionService {
         principal_id: &str,
         principal_kind: &str,
     ) -> Option<ConversationReadCursorView> {
+        self.read_cursor_for_principal_kind_and_device(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            principal_kind,
+            None,
+        )
+    }
+
+    pub fn read_cursor_for_principal_kind_and_device(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: Option<&str>,
+    ) -> Option<ConversationReadCursorView> {
         let member = self.member_snapshot_for_principal_kind(
             tenant_id,
             organization_id,
@@ -703,9 +820,20 @@ impl TimelineProjectionService {
             principal_kind,
         )?;
         let key = scope_key(tenant_id, organization_id, conversation_id);
-        let cursor = lock_projection_mutex(&self.read_cursors, "cursor store")
+        let scope_cursors = lock_projection_mutex(&self.read_cursors, "cursor store")
             .get(key.as_str())
-            .and_then(|scope_cursors| scope_cursors.get(member.member_id.as_str()))
+            .cloned()?;
+        let storage_key =
+            read_cursor_storage_key(member.member_id.as_str(), device_id);
+        let cursor = scope_cursors
+            .get(storage_key.as_str())
+            .or_else(|| {
+                if device_id.is_some() {
+                    scope_cursors.get(member.member_id.as_str())
+                } else {
+                    None
+                }
+            })
             .cloned()?;
 
         let unread_count = lock_projection_mutex(&self.received_messages, "received message index")
@@ -738,259 +866,6 @@ impl TimelineProjectionService {
             )
             .cloned()
     }
-
-    fn fan_out_message_to_client_route_sync_feeds(
-        &self,
-        event: &CommitEnvelope,
-        message: &Message,
-    ) {
-        let (payload_schema, payload) = message_client_route_sync_payload(event, message);
-        let draft = ClientRouteSyncEntryDraft {
-            tenant_id: message.tenant_id.clone(),
-            organization_id: scope::projection_organization_id_for_event(event),
-            origin_event_id: event.event_id.clone(),
-            origin_event_type: event.event_type.clone(),
-            conversation_id: Some(message.conversation_id.clone()),
-            message_id: Some(message.message_id.clone()),
-            message_seq: Some(message.message_seq),
-            member_id: message.sender.member_id.clone(),
-            read_seq: None,
-            last_read_message_id: None,
-            actor_id: Some(message.sender.id.clone()),
-            actor_kind: Some(message.sender.kind.clone()),
-            actor_device_id: message.sender.device_id.clone(),
-            summary: message.body.summary.clone(),
-            payload_schema,
-            payload,
-            occurred_at: message
-                .committed_at
-                .clone()
-                .unwrap_or_else(|| message.occurred_at.clone()),
-        };
-
-        for target in self.client_route_sync_fanout_targets_for_conversation(
-            message.tenant_id.as_str(),
-            scope::projection_organization_id_for_event(event).as_str(),
-            message.conversation_id.as_str(),
-            vec![NotificationRecipientView {
-                principal_id: message.sender.id.clone(),
-                principal_kind: message.sender.kind.clone(),
-            }],
-        ) {
-            self.append_client_route_sync_draft(&target, &draft);
-        }
-    }
-
-    // These fanout helpers keep event and conversation identity fields explicit
-    // because they bridge journal payloads into client-route-sync artifacts.
-    #[allow(clippy::too_many_arguments)]
-    fn fan_out_message_mutation_to_client_route_sync_feeds(
-        &self,
-        event: &CommitEnvelope,
-        tenant_id: &str,
-        conversation_id: &str,
-        message_id: &str,
-        message_seq: u64,
-        actor_id: &str,
-        actor_kind: &str,
-        actor_device_id: Option<String>,
-        summary: Option<String>,
-    ) {
-        let draft = ClientRouteSyncEntryDraft {
-            tenant_id: tenant_id.into(),
-            organization_id: scope::projection_organization_id_for_event(event),
-            origin_event_id: event.event_id.clone(),
-            origin_event_type: event.event_type.clone(),
-            conversation_id: Some(conversation_id.into()),
-            message_id: Some(message_id.into()),
-            message_seq: Some(message_seq),
-            member_id: None,
-            read_seq: None,
-            last_read_message_id: None,
-            actor_id: Some(actor_id.into()),
-            actor_kind: Some(actor_kind.into()),
-            actor_device_id,
-            summary,
-            payload_schema: None,
-            payload: None,
-            occurred_at: event.committed_at.clone(),
-        };
-
-        for target in self.client_route_sync_fanout_targets_for_conversation(
-            tenant_id,
-            scope::projection_organization_id_for_event(event).as_str(),
-            conversation_id,
-            vec![NotificationRecipientView {
-                principal_id: actor_id.into(),
-                principal_kind: actor_kind.into(),
-            }],
-        ) {
-            self.append_client_route_sync_draft(&target, &draft);
-        }
-    }
-
-    fn fan_out_read_cursor_to_client_route_sync_feeds(
-        &self,
-        event: &CommitEnvelope,
-        cursor: &ConversationReadCursor,
-    ) {
-        let draft = ClientRouteSyncEntryDraft {
-            tenant_id: cursor.tenant_id.clone(),
-            organization_id: scope::projection_organization_id_for_event(event),
-            origin_event_id: event.event_id.clone(),
-            origin_event_type: event.event_type.clone(),
-            conversation_id: Some(cursor.conversation_id.clone()),
-            message_id: None,
-            message_seq: None,
-            member_id: Some(cursor.member_id.clone()),
-            read_seq: Some(cursor.read_seq),
-            last_read_message_id: cursor.last_read_message_id.clone(),
-            actor_id: Some(cursor.principal_id.clone()),
-            actor_kind: Some(cursor.principal_kind.clone()),
-            actor_device_id: None,
-            summary: None,
-            payload_schema: None,
-            payload: None,
-            occurred_at: cursor.updated_at.clone(),
-        };
-
-        for target in client_route_sync::realtime_fanout_targets_for_recipients(
-            self,
-            cursor.tenant_id.as_str(),
-            scope::projection_organization_id_for_event(event).as_str(),
-            vec![NotificationRecipientView {
-                principal_id: cursor.principal_id.clone(),
-                principal_kind: cursor.principal_kind.clone(),
-            }],
-        ) {
-            self.append_client_route_sync_draft(&target, &draft);
-        }
-    }
-
-    fn fan_out_agent_handoff_status_to_client_route_sync_feeds(
-        &self,
-        event: &CommitEnvelope,
-        payload: &AgentHandoffStatusChangedProjectionPayload,
-    ) {
-        let draft = ClientRouteSyncEntryDraft {
-            tenant_id: event.tenant_id.clone(),
-            organization_id: scope::projection_organization_id_for_event(event),
-            origin_event_id: event.event_id.clone(),
-            origin_event_type: event.event_type.clone(),
-            conversation_id: Some(payload.state.conversation_id.clone()),
-            message_id: None,
-            message_seq: None,
-            member_id: None,
-            read_seq: None,
-            last_read_message_id: None,
-            actor_id: Some(payload.changed_by.id.clone()),
-            actor_kind: Some(payload.changed_by.kind.clone()),
-            actor_device_id: None,
-            summary: Some(payload.state.status.clone()),
-            payload_schema: event.payload_schema.clone(),
-            payload: Some(event.payload.clone()),
-            occurred_at: payload.changed_at.clone(),
-        };
-
-        for target in self.client_route_sync_fanout_targets_for_conversation(
-            event.tenant_id.as_str(),
-            scope::projection_organization_id_for_event(event).as_str(),
-            payload.state.conversation_id.as_str(),
-            vec![NotificationRecipientView {
-                principal_id: payload.changed_by.id.clone(),
-                principal_kind: payload.changed_by.kind.clone(),
-            }],
-        ) {
-            self.append_client_route_sync_draft(&target, &draft);
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn fan_out_member_governance_to_client_route_sync_feeds(
-        &self,
-        event: &CommitEnvelope,
-        tenant_id: &str,
-        conversation_id: &str,
-        member_id: &str,
-        affected_principal_id: &str,
-        affected_principal_kind: &str,
-        include_affected_principal_fallback: bool,
-        occurred_at: &str,
-    ) {
-        let organization_id = scope::projection_organization_id_for_event(event);
-        let include_fallback = include_affected_principal_fallback
-            || client_route_sync::active_conversation_principal_recipients(
-                self,
-                tenant_id,
-                organization_id.as_str(),
-                conversation_id,
-            )
-            .is_empty();
-        let fallback_recipients = if include_fallback {
-            vec![NotificationRecipientView {
-                principal_id: affected_principal_id.into(),
-                principal_kind: affected_principal_kind.into(),
-            }]
-        } else {
-            Vec::new()
-        };
-        let draft = ClientRouteSyncEntryDraft {
-            tenant_id: tenant_id.into(),
-            organization_id: scope::projection_organization_id_for_event(event),
-            origin_event_id: event.event_id.clone(),
-            origin_event_type: event.event_type.clone(),
-            conversation_id: Some(conversation_id.into()),
-            message_id: None,
-            message_seq: None,
-            member_id: Some(member_id.into()),
-            read_seq: None,
-            last_read_message_id: None,
-            actor_id: Some(event.actor.actor_id.clone()),
-            actor_kind: Some(event.actor.actor_kind.clone()),
-            actor_device_id: None,
-            summary: None,
-            payload_schema: event.payload_schema.clone(),
-            payload: Some(event.payload.clone()),
-            occurred_at: occurred_at.into(),
-        };
-
-        for target in self.client_route_sync_fanout_targets_for_conversation(
-            tenant_id,
-            scope::projection_organization_id_for_event(event).as_str(),
-            conversation_id,
-            fallback_recipients,
-        ) {
-            self.append_client_route_sync_draft(&target, &draft);
-        }
-    }
-}
-
-fn message_client_route_sync_payload(
-    event: &CommitEnvelope,
-    message: &Message,
-) -> (Option<String>, Option<String>) {
-    if !message_requires_client_route_sync_payload(message) {
-        return (None, None);
-    }
-
-    (event.payload_schema.clone(), Some(event.payload.clone()))
-}
-
-fn message_requires_client_route_sync_payload(message: &Message) -> bool {
-    message.rtc_session_id.is_some()
-        || message.message_type == im_domain_core::message::MessageType::Signal
-        || message
-            .body
-            .render_hints
-            .get("channel")
-            .is_some_and(|channel| channel == "rtc")
-        || message.body.reply_to.is_some()
-        || !message.body.render_hints.is_empty()
-        || message
-            .body
-            .parts
-            .iter()
-            .any(|part| !matches!(part, ContentPart::Text(_)))
 }
 
 fn lock_projection_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {

@@ -83,37 +83,19 @@
     {
       "table_name": "im_rtc_sessions",
       "owner": "im-platform",
-      "compliance_level": "L3",
+      "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
       "table_name": "im_rtc_signals",
       "owner": "im-platform",
-      "compliance_level": "L3",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_rtc_outbox_events",
-      "owner": "im-platform",
-      "compliance_level": "L3",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_rtc_quality_reports",
-      "owner": "im-platform",
-      "compliance_level": "L3",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_rtc_participant_credentials",
-      "owner": "im-platform",
-      "compliance_level": "L3",
+      "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
       "table_name": "im_audit_records",
       "owner": "im-platform",
-      "compliance_level": "L3",
+      "compliance_level": "L2",
       "lifecycle_status": "active"
     },
     {
@@ -130,12 +112,6 @@
     },
     {
       "table_name": "im_projection_timeline_entries",
-      "owner": "im-platform",
-      "compliance_level": "L2",
-      "lifecycle_status": "active"
-    },
-    {
-      "table_name": "im_projection_metadata_snapshots",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
@@ -255,6 +231,24 @@
       "lifecycle_status": "active"
     },
     {
+      "table_name": "im_contact_tags",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_contact_preferences",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_contact_recommendations",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
       "table_name": "im_space_members",
       "owner": "im-platform",
       "compliance_level": "L2",
@@ -334,6 +328,36 @@
     },
     {
       "table_name": "im_ban_records",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_projection_metadata_snapshots",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_rtc_outbox_events",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_rtc_quality_reports",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "im_rtc_participant_credentials",
+      "owner": "im-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "sdkwork_node_registry",
       "owner": "im-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"

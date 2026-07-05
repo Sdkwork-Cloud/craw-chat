@@ -71,16 +71,29 @@ function readText(relativePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function stripUtf8Bom(text) {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
 function readJson(relativePath) {
   const text = readText(relativePath);
   if (!text) {
     return {};
   }
   try {
-    return JSON.parse(text);
+    return JSON.parse(stripUtf8Bom(text));
   } catch (error) {
     failures.push(`${relativePath} must contain valid JSON: ${error.message}`);
     return {};
+  }
+}
+
+function assertAppManifestJsonWithoutBom() {
+  const manifestPaths = gitLsFiles('sdkwork.app.config.json');
+  for (const relativePath of manifestPaths) {
+    const bytes = fs.readFileSync(absolutePath(relativePath));
+    const hasBom = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    assert(!hasBom, `${relativePath} must be UTF-8 without BOM so governance JSON.parse contracts stay stable`);
   }
 }
 
@@ -438,6 +451,7 @@ function assertRepositoryRootRtcSdkVerifierCommand() {
 
 assertRepositoryRootDictionary();
 assertPcAppRootDictionary();
+assertAppManifestJsonWithoutBom();
 assertAppManifestWorkspaceRoots();
 assertPnpmWorkspaceAuthority();
 assertPcPackageNamingCompatibilityIsDocumented();

@@ -30,13 +30,7 @@ fn ensure_dev_environment() {
 }
 
 fn test_app_context() -> AppContext {
-    let mut context = local_service_app_context(
-        "100001",
-        "30",
-        "user",
-        Some("device_real"),
-        ["*"],
-    );
+    let mut context = local_service_app_context("100001", "30", "user", Some("device_real"), ["*"]);
     context.session_id = Some("session_real".to_owned());
     context
 }
@@ -114,4 +108,3 @@ async fn session_gateway_accepts_browser_auth_init_frame_before_ccp_handshake() 
     let _ = socket.close(None).await;
     handle.abort();
 }
-

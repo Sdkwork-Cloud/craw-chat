@@ -174,7 +174,12 @@ RTC 相关能力拆成两层：
 
 ## 8. 存储与可靠性标准
 
-当前 `standalone.split-services.development` 实现使用内存存储，定位是本地可运行基线，不代表生产最终形态。
+当前 unified-process（standalone gateway）实现：
+
+- RTC 会话状态：内存 + Postgres 持久化（`im-calls-service`）
+- 生命周期与自定义信令：写入 `im_outbox_events`（`aggregate_type=rtc_session`），由 `sdkwork-im-gateway-assembly::rtc_outbox_relay` 轮询并推送到 embedded `RealtimeDeliveryRuntime`（user scope）
+- Outbox payload 携带 `recipient_principal_ids`，保证无会话绑定时仍能定向通知参与者
+- 绑定 `conversationId` 时，自定义信令仍投影为 IM `signal` 消息（会话 scope 同步）
 
 生产版标准建议如下：
 

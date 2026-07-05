@@ -60,8 +60,6 @@ for (const required of [
   'pnpm dev',
   'pnpm dev:browser',
   'pnpm dev:desktop',
-  'pnpm dev:browser:sqlite',
-  'pnpm dev:desktop:sqlite',
   'pnpm dev:desktop \u9ed8\u8ba4\u4f7f\u7528 PostgreSQL',
   'host    sdkwork_ai_dev    sdkwork_ai_dev    127.0.0.1/32',
   'host    sdkwork_ai_dev    postgres          127.0.0.1/32',

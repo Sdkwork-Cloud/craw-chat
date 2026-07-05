@@ -55,10 +55,7 @@ The local registry artifacts are the source of truth for this app:
   PostgreSQL migration and Rust SQL contracts so new IM tables cannot drift away
   from `im_` or skip registry registration.
 
-Desktop SQLite keeps the same logical table prefix policy when it materializes
-IM tables locally. This does not change the desktop database file policy:
-desktop data remains in `~/.sdkwork/chat/data/chat.sqlite` or the Windows
-equivalent `%USERPROFILE%/.sdkwork/chat/data/chat.sqlite`.
+Desktop 本地用户数据使用浏览器本地存储(IndexedDB / localStorage),不在本地物化 IM 表;服务端表前缀策略仅在 PostgreSQL 中生效。
 
 ## Temporary checks
 

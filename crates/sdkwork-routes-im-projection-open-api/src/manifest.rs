@@ -15,6 +15,12 @@ pub const ROUTES: &[HttpRoute] = &[
     ),
     HttpRoute::dual_token(
         HttpMethod::Get,
+        paths::MESSAGE_SEARCH,
+        "chat",
+        "messages.search",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
         paths::MESSAGE_FAVORITES,
         "chat",
         "messages.favorites.list",

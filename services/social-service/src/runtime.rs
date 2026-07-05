@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::{Path as StdPath, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use std::time::UNIX_EPOCH;
 
 use getrandom::fill as fill_random;
 use im_adapters_local_disk::{FileCommitJournal, read_commit_journal_file};
@@ -29,6 +30,21 @@ const SOCIAL_COMMIT_JOURNAL_FILE_NAME: &str = "social-commit-journal.json";
 const SOCIAL_TRANSACTION_MARKER_FILE_NAME: &str = "social-transaction-marker.json";
 const SOCIAL_WRITE_LOCK_FILE_NAME: &str = "social-write.lock";
 const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
+const SOCIAL_MAX_COMMITS_PER_RECORD_DEFAULT: usize = 256;
+const SOCIAL_MAX_COMMITS_PER_RECORD_ENV: &str = "SDKWORK_IM_SOCIAL_MAX_COMMITS_PER_RECORD";
+
+fn append_bounded_social_commit(commits: &mut Vec<CommitEnvelope>, commit: CommitEnvelope) {
+    commits.push(commit);
+    let max = std::env::var(SOCIAL_MAX_COMMITS_PER_RECORD_ENV)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(SOCIAL_MAX_COMMITS_PER_RECORD_DEFAULT);
+    if commits.len() > max {
+        let overflow = commits.len() - max;
+        commits.drain(0..overflow);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // SocialStateStore
@@ -138,7 +154,7 @@ impl SocialStateStore {
 // Index key types
 // ---------------------------------------------------------------------------
 
-fn organization_id_from_commits(commits: &[CommitEnvelope]) -> String {
+pub(crate) fn organization_id_from_commits(commits: &[CommitEnvelope]) -> String {
     commits
         .last()
         .map(|commit| normalize_commit_organization_id(commit.organization_id.as_str()))
@@ -968,9 +984,11 @@ impl SocialControlState {
             "friend_request.accepted" => self.apply_friend_request_accepted_commit(commit),
             "friend_request.declined" => self.apply_friend_request_declined_commit(commit),
             "friend_request.canceled" => self.apply_friend_request_canceled_commit(commit),
+            "friend_request.expired" => self.apply_friend_request_expired_commit(commit),
             "friendship.activated" => self.apply_friendship_commit(commit),
             "friendship.removed" => self.apply_friendship_removed_commit(commit),
             "user_block.blocked" => self.apply_user_block_commit(commit),
+            "user_block.released" => self.apply_user_block_released_commit(commit),
             "direct_chat.bound" => self.apply_direct_chat_commit(commit),
             "external_connection.established" => self.apply_external_connection_commit(commit),
             "external_member_link.bound" => self.apply_external_member_link_commit(commit),
@@ -1013,7 +1031,13 @@ impl SocialControlState {
             target_user_id: payload.target_user_id,
             status: FriendRequestStatus::Pending,
             request_message: payload.request_message,
-            expired_at: None,
+            expired_at: payload
+                .expires_at
+                .or_else(|| {
+                    crate::friend_request_expiration::resolve_friend_request_expires_at(
+                        payload.requested_at.as_str(),
+                    )
+                }),
             created_at: payload.requested_at.clone(),
             updated_at: payload.requested_at,
         };
@@ -1027,7 +1051,7 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.friend_request = friend_request;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friend_request_record(request_id, record);
         Ok(())
     }
@@ -1073,7 +1097,7 @@ impl SocialControlState {
         let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Accepted;
         record.friend_request.updated_at = payload.accepted_at;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friend_request_record(request_id, record);
         Ok(())
     }
@@ -1122,7 +1146,7 @@ impl SocialControlState {
         let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Declined;
         record.friend_request.updated_at = payload.declined_at;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friend_request_record(request_id, record);
         Ok(())
     }
@@ -1162,7 +1186,51 @@ impl SocialControlState {
         let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Canceled;
         record.friend_request.updated_at = payload.canceled_at;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
+        self.insert_friend_request_record(request_id, record);
+        Ok(())
+    }
+
+    fn apply_friend_request_expired_commit(
+        &mut self,
+        commit: CommitEnvelope,
+    ) -> Result<(), String> {
+        let payload: im_domain_events::social::FriendRequestExpiredPayload =
+            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
+                format!(
+                    "failed to parse friend request expiration replay payload for {}: {error}",
+                    commit.event_id
+                )
+            })?;
+        validate_social_commit_target_envelope(
+            &commit,
+            "friend_request",
+            payload.request_id.as_str(),
+        )?;
+        let mut record = self
+            .friend_requests
+            .get(payload.request_id.as_str())
+            .cloned()
+            .ok_or_else(|| {
+                format!(
+                    "friend request expiration replay payload for {} references missing request {}",
+                    commit.event_id, payload.request_id
+                )
+            })?;
+        if !matches!(
+            record.friend_request.status,
+            FriendRequestStatus::Pending | FriendRequestStatus::Expired
+        ) {
+            return Err(format!(
+                "friend request expiration replay payload for {} cannot transition request {} from {:?}",
+                commit.event_id, payload.request_id, record.friend_request.status
+            ));
+        }
+        let request_id = record.friend_request.request_id.clone();
+        record.friend_request.status = FriendRequestStatus::Expired;
+        record.friend_request.updated_at = payload.expired_at.clone();
+        record.friend_request.expired_at = Some(payload.expired_at);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friend_request_record(request_id, record);
         Ok(())
     }
@@ -1207,7 +1275,7 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.friendship = friendship;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friendship_record(friendship_id, record);
         Ok(())
     }
@@ -1252,7 +1320,7 @@ impl SocialControlState {
         let friendship_id = record.friendship.friendship_id.clone();
         record.friendship.status = FriendshipStatus::Removed;
         record.friendship.updated_at = payload.removed_at;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friendship_record(friendship_id, record);
         Ok(())
     }
@@ -1295,7 +1363,43 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.user_block = user_block;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
+        self.insert_user_block_record(block_id, record);
+        Ok(())
+    }
+
+    fn apply_user_block_released_commit(&mut self, commit: CommitEnvelope) -> Result<(), String> {
+        let payload: im_domain_events::social::UserBlockReleasedPayload =
+            serde_json::from_str(commit.payload.as_str()).map_err(|error| {
+                format!(
+                    "failed to parse user block release replay payload for {}: {error}",
+                    commit.event_id
+                )
+            })?;
+        validate_social_commit_target_envelope(&commit, "user_block", payload.block_id.as_str())?;
+        let mut record = self
+            .user_blocks
+            .get(payload.block_id.as_str())
+            .cloned()
+            .ok_or_else(|| {
+                format!(
+                    "user block release replay payload for {} references missing block {}",
+                    commit.event_id, payload.block_id
+                )
+            })?;
+        if !matches!(
+            record.user_block.status,
+            UserBlockStatus::Active | UserBlockStatus::Released
+        ) {
+            return Err(format!(
+                "user block release replay payload for {} cannot transition block {} from {:?}",
+                commit.event_id, payload.block_id, record.user_block.status
+            ));
+        }
+        let block_id = record.user_block.block_id.clone();
+        record.user_block.status = UserBlockStatus::Released;
+        record.user_block.updated_at = payload.released_at;
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_user_block_record(block_id, record);
         Ok(())
     }
@@ -1334,7 +1438,7 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.direct_chat = direct_chat;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_direct_chat_record(direct_chat_id, record);
         Ok(())
     }
@@ -1379,7 +1483,7 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.external_connection = external_connection;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_external_connection_record(connection_id, record);
         Ok(())
     }
@@ -1419,7 +1523,7 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.external_member_link = external_member_link;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_external_member_link_record(link_id, record);
         Ok(())
     }
@@ -1459,7 +1563,7 @@ impl SocialControlState {
                 commits: Vec::new(),
             });
         record.shared_channel_policy = shared_channel_policy;
-        record.commits.push(commit);
+        append_bounded_social_commit(&mut record.commits, commit);
         self.insert_shared_channel_policy_record(policy_id, record);
         Ok(())
     }
@@ -1896,10 +2000,19 @@ pub struct SocialRuntime {
     tx_marker_path: Option<Arc<PathBuf>>,
     write_lock_path: Option<Arc<PathBuf>>,
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
+    journal_authority: bool,
+    postgres_materializer: Option<Arc<crate::commit_materializer::SocialPostgresMaterializer>>,
+    outbox_store: Option<Arc<dyn im_platform_contracts::OutboxStore>>,
+    id_generator: Option<Arc<dyn im_platform_contracts::IdGenerator>>,
+    realtime_fanout: RwLock<Option<Arc<dyn crate::social_realtime::SocialRealtimeFanout>>>,
+    direct_chat_binder: RwLock<Option<Arc<dyn crate::direct_chat_binder::DirectChatConversationBinder>>>,
     shared_channel_sync_trigger:
         RwLock<Option<Arc<dyn crate::SharedChannelLinkedMemberSyncTrigger>>>,
     #[allow(dead_code)]
     pub(crate) shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool,
+    pub(crate) friend_request_expiration_scheduler_started: AtomicBool,
+    authority_journal_fingerprint: RwLock<Option<(u64, u64)>>,
+    user_directory: Option<Arc<dyn crate::user_directory::SocialUserDirectory>>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -1934,6 +2047,7 @@ impl SocialRuntime {
             &state_store,
             "failed to load social state during runtime bootstrap",
         );
+        let journal_authority = matches!(&state_store, SocialStateStore::File { .. });
         Self {
             state_store,
             commit_journal,
@@ -1943,8 +2057,226 @@ impl SocialRuntime {
             tx_marker_path: None,
             write_lock_path: None,
             snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
+            journal_authority,
+            postgres_materializer: None,
+            outbox_store: None,
+            id_generator: None,
+            realtime_fanout: RwLock::new(None),
+            direct_chat_binder: RwLock::new(None),
             shared_channel_sync_trigger: RwLock::new(None),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
+            friend_request_expiration_scheduler_started: AtomicBool::new(false),
+            authority_journal_fingerprint: RwLock::new(None),
+            user_directory: None,
+        }
+    }
+
+    pub fn new_with_journal_authority(
+        state_store: SocialStateStore,
+        commit_journal: Arc<dyn CommitJournal + Send + Sync>,
+        journal_authority: bool,
+    ) -> Self {
+        let mut runtime = Self::new_with_snapshot_failpoint(state_store, commit_journal, None);
+        runtime.journal_authority = journal_authority;
+        runtime
+    }
+
+    pub fn with_postgres_materializer(
+        mut self,
+        pool: im_adapters_social_postgres::SocialPostgresPool,
+    ) -> Self {
+        self.postgres_materializer = Some(Arc::new(
+            crate::commit_materializer::SocialPostgresMaterializer::from_pool(pool),
+        ));
+        self
+    }
+
+    pub fn with_outbox_store(mut self, store: Arc<dyn im_platform_contracts::OutboxStore>) -> Self {
+        self.outbox_store = Some(store);
+        self
+    }
+
+    pub fn with_id_generator(
+        mut self,
+        id_generator: Arc<dyn im_platform_contracts::IdGenerator>,
+    ) -> Self {
+        self.id_generator = Some(id_generator);
+        self
+    }
+
+    pub(crate) fn friend_request_rate_limit_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>> {
+        self.postgres_materializer
+            .as_ref()
+            .map(|materializer| materializer.friend_request_store())
+    }
+
+    pub(crate) fn friendship_inventory_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>> {
+        self.postgres_materializer
+            .as_ref()
+            .map(|materializer| materializer.friendship_store())
+    }
+
+    pub(crate) fn postgres_materializer(
+        &self,
+    ) -> Option<Arc<crate::commit_materializer::SocialPostgresMaterializer>> {
+        self.postgres_materializer.clone()
+    }
+
+    pub fn recorded_commits(&self) -> Result<Vec<CommitEnvelope>, String> {
+        self.commit_journal
+            .recorded()
+            .map_err(contract_error_message)
+    }
+
+    pub fn set_realtime_fanout(&self, fanout: Arc<dyn crate::social_realtime::SocialRealtimeFanout>) {
+        *self
+            .realtime_fanout
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = Some(fanout);
+    }
+
+    pub fn set_direct_chat_conversation_binder(
+        &self,
+        binder: Arc<dyn crate::direct_chat_binder::DirectChatConversationBinder>,
+    ) {
+        *self
+            .direct_chat_binder
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = Some(binder);
+    }
+
+    pub(crate) fn bind_direct_chat_conversation_if_configured(
+        &self,
+        input: crate::direct_chat_binder::BindDirectChatConversationInput,
+    ) -> Result<(), String> {
+        let binder = self
+            .direct_chat_binder
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone();
+        let Some(binder) = binder else {
+            return Ok(());
+        };
+        binder.bind_direct_chat_conversation(input)
+    }
+
+    fn resolve_social_realtime_delivery(&self) -> (bool, bool) {
+        let has_fanout = self
+            .realtime_fanout
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .is_some();
+        let has_outbox = self.outbox_store.is_some() && self.id_generator.is_some();
+        (has_fanout, has_outbox)
+    }
+
+    fn ensure_social_realtime_delivery(&self, commits: &[CommitEnvelope]) -> Result<(), String> {
+        let (has_fanout, has_outbox) = self.resolve_social_realtime_delivery();
+        crate::social_realtime::ensure_realtime_delivery_configured(
+            has_fanout,
+            has_outbox,
+            commits,
+        )
+    }
+
+    fn materialize_postgres_before_journal(
+        &self,
+        commits: &[CommitEnvelope],
+    ) -> Result<bool, String> {
+        let Some(materializer) = self.postgres_materializer.as_ref() else {
+            return Ok(false);
+        };
+        materializer.materialize_commits(commits).map_err(|error| {
+            crate::social_materializer_metrics::record_postgres_materialization_failures(
+                commits.len() as u64,
+            );
+            tracing::error!(
+                error = %error,
+                commit_count = commits.len(),
+                "social postgres materialization failed before journal append"
+            );
+            error
+        })?;
+        Ok(true)
+    }
+
+    fn compensate_postgres_after_journal_failure(&self, commits: &[CommitEnvelope], materialized: bool) {
+        if !materialized {
+            return;
+        }
+        crate::social_materializer_metrics::record_postgres_journal_append_failures_after_materialize(
+            commits.len() as u64,
+        );
+        if let Some(materializer) = self.postgres_materializer.as_ref() {
+            if let Err(error) = materializer.compensate_commits(commits) {
+                tracing::error!(
+                    error = %error,
+                    commit_count = commits.len(),
+                    "social postgres compensation failed after journal append failure"
+                );
+            }
+        }
+    }
+
+    fn finalize_persisted_commits(&self, commits: &[CommitEnvelope], postgres_already_materialized: bool) {
+        if commits.is_empty() {
+            return;
+        }
+        let fanout = self
+            .realtime_fanout
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone();
+        if let Some(fanout) = fanout.as_ref() {
+            crate::social_realtime::try_publish_social_commits(Some(fanout.as_ref()), commits);
+        } else if let (Some(outbox_store), Some(id_generator)) =
+            (self.outbox_store.as_ref(), self.id_generator.as_ref())
+        {
+            for commit in commits {
+                match crate::social_realtime::build_social_realtime_outbox_record(
+                    commit,
+                    id_generator.as_ref(),
+                ) {
+                    Ok(Some(record)) => {
+                        if let Err(error) = outbox_store.enqueue(record) {
+                            tracing::warn!(
+                                event_id = commit.event_id.as_str(),
+                                event_type = commit.event_type.as_str(),
+                                error = ?error,
+                                "social outbox enqueue failed"
+                            );
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(error) => {
+                        tracing::warn!(
+                            event_id = commit.event_id.as_str(),
+                            event_type = commit.event_type.as_str(),
+                            error = %error,
+                            "social outbox record build failed"
+                        );
+                    }
+                }
+            }
+        }
+        if !postgres_already_materialized {
+            if let Some(materializer) = self.postgres_materializer.as_ref() {
+                let failures = materializer.try_materialize_commits(commits);
+                if failures > 0 {
+                    crate::social_materializer_metrics::record_postgres_materialization_failures(
+                        failures as u64,
+                    );
+                    tracing::error!(
+                        failure_count = failures,
+                        commit_count = commits.len(),
+                        "social postgres materialization completed with failures during replay finalize"
+                    );
+                }
+            }
         }
     }
 
@@ -1963,6 +2295,7 @@ impl SocialRuntime {
             journal_path.as_path(),
             Some(tx_marker_path.as_path()),
         );
+        let initial_journal_fingerprint = social_commit_journal_fingerprint(journal_path.as_path());
         Self {
             state_store,
             commit_journal,
@@ -1972,9 +2305,48 @@ impl SocialRuntime {
             tx_marker_path: Some(Arc::new(tx_marker_path)),
             write_lock_path: Some(Arc::new(write_lock_path)),
             snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
+            journal_authority: true,
+            postgres_materializer: None,
+            outbox_store: None,
+            id_generator: None,
+            realtime_fanout: RwLock::new(None),
+            direct_chat_binder: RwLock::new(None),
             shared_channel_sync_trigger: RwLock::new(None),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
+            friend_request_expiration_scheduler_started: AtomicBool::new(false),
+            authority_journal_fingerprint: RwLock::new(initial_journal_fingerprint),
+            user_directory: None,
         }
+    }
+
+    pub fn with_user_directory(
+        mut self,
+        user_directory: Arc<dyn crate::user_directory::SocialUserDirectory>,
+    ) -> Self {
+        self.user_directory = Some(user_directory);
+        self
+    }
+
+    pub(crate) fn validate_friend_request_target(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        target_user_id: &str,
+    ) -> Result<(), crate::friendship::SocialServiceError> {
+        if let Some(directory) = self.user_directory.as_ref() {
+            return directory.validate_friend_request_target(
+                tenant_id,
+                organization_id,
+                target_user_id,
+            );
+        }
+        if crate::friend_request_rate_limit::is_production_like_environment() {
+            return Err(crate::friendship::SocialServiceError::dependency_unavailable(
+                "social_user_directory_unconfigured",
+                "social user directory is not configured",
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn shared_channel_linked_member_sync_trigger(
@@ -2241,6 +2613,51 @@ impl SocialRuntime {
         active_friendship_scoped_user_block(&state, tenant_id, organization_id, user_a, user_b)
     }
 
+    /// Returns an active user block that prevents direct messaging between two users.
+    pub fn active_direct_message_block_for_pair(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        sender_user_id: &str,
+        peer_user_id: &str,
+    ) -> Option<UserBlock> {
+        let state = self
+            .state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+        active_direct_message_block_for_pair(
+            &state,
+            tenant_id,
+            organization_id,
+            sender_user_id,
+            peer_user_id,
+        )
+    }
+
+    /// Refreshes social authority and rejects direct messaging when an active block exists.
+    pub fn ensure_direct_message_allowed(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        sender_user_id: &str,
+        peer_user_id: &str,
+    ) -> Result<(), String> {
+        let _read_lock = self.acquire_cross_instance_read_lock()?;
+        self.refresh_state_from_authority_for_write()?;
+        if let Some(user_block) = self.active_direct_message_block_for_pair(
+            tenant_id,
+            organization_id,
+            sender_user_id,
+            peer_user_id,
+        ) {
+            return Err(format!(
+                "direct message blocked by user block {}",
+                user_block.block_id
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn user_block_snapshot(
         &self,
         tenant_id: &str,
@@ -2340,7 +2757,7 @@ impl SocialRuntime {
         snapshot_status: SocialDerivedSnapshotStatus,
     ) -> SocialWritePersistence {
         SocialWritePersistence {
-            journal_authority: matches!(self.state_store, SocialStateStore::File { .. }),
+            journal_authority: self.journal_authority,
             snapshot_status,
         }
     }
@@ -2416,14 +2833,16 @@ impl SocialRuntime {
         next: &SocialControlState,
         commit: &CommitEnvelope,
     ) -> Result<SocialWritePersistence, String> {
-        self.commit_journal
-            .append(commit.clone())
-            .map_err(|error| {
-                format!(
-                    "failed to append social commit journal before state write: {}",
-                    contract_error_message(error)
-                )
-            })?;
+        self.ensure_social_realtime_delivery(std::slice::from_ref(commit))?;
+        let materialized = self.materialize_postgres_before_journal(std::slice::from_ref(commit))?;
+        if let Err(error) = self.commit_journal.append(commit.clone()) {
+            self.compensate_postgres_after_journal_failure(std::slice::from_ref(commit), materialized);
+            return Err(format!(
+                "failed to append social commit journal before state write: {}",
+                contract_error_message(error)
+            ));
+        }
+        self.finalize_persisted_commits(std::slice::from_ref(commit), materialized);
         self.write_pending_tx_marker(commit.event_id.as_str())?;
         if self.consume_fail_next_snapshot_save()? {
             return Ok(self.repair_required_persistence());
@@ -2445,14 +2864,16 @@ impl SocialRuntime {
         let Some(marker_event_id) = commits.first().map(|commit| commit.event_id.as_str()) else {
             return Ok(self.current_persistence());
         };
-        self.commit_journal
-            .append_batch(commits.to_vec())
-            .map_err(|error| {
-                format!(
-                    "failed to append social commit journal batch before state write: {}",
-                    contract_error_message(error)
-                )
-            })?;
+        self.ensure_social_realtime_delivery(commits)?;
+        let materialized = self.materialize_postgres_before_journal(commits)?;
+        if let Err(error) = self.commit_journal.append_batch(commits.to_vec()) {
+            self.compensate_postgres_after_journal_failure(commits, materialized);
+            return Err(format!(
+                "failed to append social commit journal batch before state write: {}",
+                contract_error_message(error)
+            ));
+        }
+        self.finalize_persisted_commits(commits, materialized);
         self.write_pending_tx_marker(marker_event_id)?;
         if self.consume_fail_next_snapshot_save()? {
             return Ok(self.repair_required_persistence());
@@ -2474,6 +2895,12 @@ impl SocialRuntime {
         &self,
     ) -> Result<Option<SocialWriteLockGuard>, String> {
         let Some(path) = self.write_lock_path.as_deref() else {
+            if crate::friend_request_rate_limit::is_production_like_environment() {
+                return Err(
+                    "social cross-instance write lock path is required in production-like environments"
+                        .into(),
+                );
+            }
             return Ok(None);
         };
         if let Some(parent) = path.parent() {
@@ -2545,48 +2972,53 @@ impl SocialRuntime {
     // -----------------------------------------------------------------------
 
     pub(crate) fn refresh_state_from_authority_for_write(&self) -> Result<(), String> {
+        let result = self.merge_state_from_authority();
+        if result.is_ok() {
+            if let Some(journal_path) = self.journal_path.as_deref() {
+                *self
+                    .authority_journal_fingerprint
+                    .write()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                    social_commit_journal_fingerprint(journal_path);
+            }
+        }
+        result
+    }
+
+    /// Refreshes in-memory social state from the commit journal only when the
+    /// journal file changed since the last successful refresh. Read endpoints
+    /// should prefer this over [`Self::refresh_state_from_authority_for_write`]
+    /// to avoid replaying an unchanged journal on every list/count request.
+    pub(crate) fn refresh_state_from_authority_for_read(&self) -> Result<(), String> {
+        let Some(journal_path) = self.journal_path.as_deref() else {
+            return self.ensure_social_authority_available();
+        };
+        if !journal_path.exists() {
+            return self.ensure_social_authority_available();
+        }
+        let current_fingerprint = social_commit_journal_fingerprint(journal_path);
+        let cached_fingerprint = self
+            .authority_journal_fingerprint
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        if current_fingerprint.is_some() && current_fingerprint == cached_fingerprint {
+            return self.ensure_social_authority_available();
+        }
+        self.refresh_state_from_authority_for_write()
+    }
+
+    fn merge_state_from_authority(&self) -> Result<(), String> {
         let Some(journal_path) = self.journal_path.as_deref() else {
             self.ensure_social_authority_available()?;
             return Ok(());
         };
 
-        let mut authoritative_state = if journal_path.exists() {
-            match Self::replay_state_from_commit_journal(journal_path) {
-                Ok(replayed) => replayed,
-                Err(error) => {
-                    let replay_error = format!(
-                        "failed to replay social commit journal {} during cross-instance refresh: {error}",
-                        journal_path.display()
-                    );
-                    *self
-                        .authority_replay_error
-                        .write()
-                        .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
-                        Some(replay_error.clone());
-                    return Err(replay_error);
-                }
-            }
-        } else {
-            match self.state_store.load() {
-                Ok(snapshot_state) => snapshot_state,
-                Err(error) => {
-                    let replay_error = format!(
-                        "failed to load social snapshot during cross-instance write refresh without commit journal: {error}"
-                    );
-                    *self
-                        .authority_replay_error
-                        .write()
-                        .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
-                        Some(replay_error.clone());
-                    return Err(replay_error);
-                }
-            }
-        };
         let snapshot_state = match self.state_store.load() {
             Ok(snapshot_state) => snapshot_state,
             Err(error) if journal_path.exists() => {
                 tracing::warn!(
-                    "failed to load social snapshot during cross-instance write refresh: {error}. continuing from commit journal authority"
+                    "failed to load social snapshot during cross-instance write refresh: {error}. continuing from in-memory authority"
                 );
                 SocialControlState::default()
             }
@@ -2602,16 +3034,36 @@ impl SocialRuntime {
                 return Err(replay_error);
             }
         };
-        authoritative_state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
-        authoritative_state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
-        authoritative_state.merge_delivered_shared_channel_sync_requests_from(&snapshot_state);
-        authoritative_state
-            .merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
-        authoritative_state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
-        *self
+
+        let mut state = self
             .state
             .write()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = authoritative_state;
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+
+        if journal_path.exists() {
+            if let Err(error) = state.replay_commit_journal_file(journal_path) {
+                let replay_error = format!(
+                    "failed to replay social commit journal {} during cross-instance refresh: {error}",
+                    journal_path.display()
+                );
+                *self
+                    .authority_replay_error
+                    .write()
+                    .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) =
+                    Some(replay_error.clone());
+                return Err(replay_error);
+            }
+            state.rebuild_social_indexes();
+        } else {
+            *state = snapshot_state.clone();
+        }
+
+        state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
+        state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
+        state.merge_delivered_shared_channel_sync_requests_from(&snapshot_state);
+        state
+            .merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
+        state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
         *self
             .authority_replay_error
             .write()
@@ -2679,7 +3131,7 @@ impl SocialRuntime {
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = repaired_state.clone();
         Ok(SocialRuntimeRepairResponse {
             status: SocialRuntimeRepairStatus::Repaired,
-            journal_authority: matches!(self.state_store, SocialStateStore::File { .. }),
+            journal_authority: self.journal_authority,
             snapshot_updated: true,
             transaction_marker_cleared,
             aggregate_counts: repaired_state.aggregate_counts(),
@@ -3579,11 +4031,92 @@ fn active_direct_chat_scoped_user_block(
 }
 
 fn active_user_block_by_id(state: &SocialControlState, block_id: &str) -> Option<UserBlock> {
-    state
-        .user_blocks
-        .get(block_id)
-        .filter(|record| record.user_block.status.is_active())
-        .map(|record| record.user_block.clone())
+    let record = state.user_blocks.get(block_id)?;
+    if !record.user_block.status.is_active() {
+        return None;
+    }
+    if user_block_is_expired(record.user_block.expires_at.as_deref()) {
+        return None;
+    }
+    Some(record.user_block.clone())
+}
+
+fn user_block_is_expired(expires_at: Option<&str>) -> bool {
+    let Some(expires_at) = expires_at.map(str::trim).filter(|value| !value.is_empty()) else {
+        return false;
+    };
+    let Ok(expiry) = chrono::DateTime::parse_from_rfc3339(expires_at) else {
+        return false;
+    };
+    expiry.with_timezone(&chrono::Utc) <= chrono::Utc::now()
+}
+
+pub(crate) fn active_friend_request_block_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    organization_id: &str,
+    requester_user_id: &str,
+    target_user_id: &str,
+) -> Option<UserBlock> {
+    active_friendship_scoped_user_block(
+        state,
+        tenant_id,
+        organization_id,
+        requester_user_id,
+        target_user_id,
+    )
+    .or_else(|| {
+        active_direct_message_block_for_pair(
+            state,
+            tenant_id,
+            organization_id,
+            requester_user_id,
+            target_user_id,
+        )
+    })
+}
+
+fn active_direct_message_block_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    organization_id: &str,
+    sender_user_id: &str,
+    peer_user_id: &str,
+) -> Option<UserBlock> {
+    if let Ok(pair) = normalize_user_pair(sender_user_id, peer_user_id) {
+        let pair_key = SocialPairIndexKey::new(
+            tenant_id,
+            organization_id,
+            pair.user_low_id.as_str(),
+            pair.user_high_id.as_str(),
+        );
+        if let Some(block_id) = state.active_direct_chat_block_pair_index.get(&pair_key)
+            && let Some(user_block) = active_user_block_by_id(state, block_id.as_str())
+        {
+            return Some(user_block);
+        }
+    }
+    for scope in [BlockScope::All, BlockScope::DirectChat] {
+        if let Some(record) = active_user_block_for_scope(
+            state,
+            tenant_id,
+            peer_user_id,
+            sender_user_id,
+            &scope,
+            None,
+        ) {
+            return Some(record.user_block);
+        }
+    }
+    active_user_block_for_scope(
+        state,
+        tenant_id,
+        sender_user_id,
+        peer_user_id,
+        &BlockScope::All,
+        None,
+    )
+    .map(|record| record.user_block)
 }
 
 pub(crate) fn active_user_block_for_scope(
@@ -3614,6 +4147,7 @@ pub(crate) fn active_user_block_for_scope(
                 .get(&SocialUserBlockScopeIndexKey::new(&probe))?,
         )
         .filter(|record| record.user_block.status.is_active())
+        .filter(|record| !user_block_is_expired(record.user_block.expires_at.as_deref()))
         .cloned()
 }
 
@@ -3678,6 +4212,29 @@ fn first_indexed_friend_request_record_for_pair(
     })
 }
 
+pub(crate) fn pending_friend_request_records_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    organization_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+) -> Vec<StoredFriendRequest> {
+    let key = SocialPairIndexKey::new(tenant_id, organization_id, user_low_id, user_high_id);
+    state
+        .pending_friend_request_pair_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|request_ids| request_ids.iter())
+        .filter_map(|request_id| {
+            state
+                .friend_requests
+                .get(request_id)
+                .filter(|record| record.friend_request.status == FriendRequestStatus::Pending)
+                .cloned()
+        })
+        .collect()
+}
+
 pub(crate) fn open_friend_request_record_for_pair(
     state: &SocialControlState,
     tenant_id: &str,
@@ -3697,14 +4254,31 @@ pub(crate) fn open_friend_request_record_for_pair(
         if pair_has_materialized_friendship {
             None
         } else {
-            first_indexed_friend_request_record_for_pair(
+            accepted_friend_request_record_for_pair(
                 state,
-                &state.accepted_friend_request_pair_index,
-                &key,
-                FriendRequestStatus::Accepted,
+                tenant_id,
+                organization_id,
+                user_low_id,
+                user_high_id,
             )
         }
     })
+}
+
+pub(crate) fn accepted_friend_request_record_for_pair(
+    state: &SocialControlState,
+    tenant_id: &str,
+    organization_id: &str,
+    user_low_id: &str,
+    user_high_id: &str,
+) -> Option<StoredFriendRequest> {
+    let key = SocialPairIndexKey::new(tenant_id, organization_id, user_low_id, user_high_id);
+    first_indexed_friend_request_record_for_pair(
+        state,
+        &state.accepted_friend_request_pair_index,
+        &key,
+        FriendRequestStatus::Accepted,
+    )
 }
 
 pub(crate) fn friend_request_records_for_user(
@@ -3806,6 +4380,17 @@ pub(crate) fn archive_active_direct_chats_for_pair(
         record.direct_chat.updated_at = archived_at.to_owned();
         state.insert_direct_chat_record(direct_chat_id, record);
     }
+}
+
+fn social_commit_journal_fingerprint(journal_path: &StdPath) -> Option<(u64, u64)> {
+    let metadata = fs::metadata(journal_path).ok()?;
+    let modified_ms = metadata
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()?
+        .as_millis() as u64;
+    Some((metadata.len(), modified_ms))
 }
 
 // ---------------------------------------------------------------------------

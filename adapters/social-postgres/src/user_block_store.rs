@@ -73,6 +73,7 @@ pub trait UserBlockStore: Send + Sync {
         org_id: &str,
         blocker_id: &str,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<UserBlockRecord>, ContractError>;
     fn list_by_blocked(
         &self,
@@ -121,7 +122,7 @@ SELECT tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
 FROM im_user_blocks
 WHERE tenant_id = $1 AND organization_id = $2 AND blocker_user_id = $3
 ORDER BY created_at DESC
-LIMIT $4
+LIMIT $4 OFFSET $5
 "#;
 
 const LIST_BY_BLOCKED_SQL: &str = r#"
@@ -241,6 +242,7 @@ impl UserBlockStore for PostgresUserBlockStore {
         org_id: &str,
         blocker_id: &str,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<UserBlockRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
@@ -249,7 +251,7 @@ impl UserBlockStore for PostgresUserBlockStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_user_blocks_by_blocker")?;
             let rows = client
-                .query(LIST_BY_BLOCKER_SQL, &[&tid, &oid, &bid, &limit])
+                .query(LIST_BY_BLOCKER_SQL, &[&tid, &oid, &bid, &limit, &offset])
                 .map_err(|e| postgres_unavailable("list_user_blocks_by_blocker", e))?;
             Ok(rows.iter().map(row_to_record).collect())
         })

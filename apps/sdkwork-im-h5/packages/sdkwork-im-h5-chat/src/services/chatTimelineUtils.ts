@@ -1,5 +1,7 @@
 import type { TimelineViewEntry } from "@sdkwork/im-sdk";
 
+export const MAX_TIMELINE_ENTRIES = 500;
+
 export interface TimelinePaginationState {
   hasMore: boolean;
   nextAfterSeq: number;
@@ -20,7 +22,9 @@ export function mergeTimelineEntries(
   for (const entry of incoming) {
     byId.set(entry.messageId, entry);
   }
-  return Array.from(byId.values()).sort((left, right) => left.messageSeq - right.messageSeq);
+  return Array.from(byId.values())
+    .sort((left, right) => left.messageSeq - right.messageSeq)
+    .slice(-MAX_TIMELINE_ENTRIES);
 }
 
 export function pickTimelinePagination(response: {

@@ -1,22 +1,33 @@
 //! Open API contact tags, preferences, and recommendations (`/im/v3/api/social/contacts/*`).
 
-use std::collections::HashMap;
-use std::sync::{OnceLock, RwLock};
+use std::sync::OnceLock;
 
-use axum::Json;
-use axum::extract::{Path, Query, State};
-use axum::http::HeaderMap;
+use axum::extract::{Extension, Path, Query, State};
+use axum::response::Response;
 use axum::routing::{get, patch, post};
-use axum::Router;
+use axum::{Json, Router};
 use im_app_context::AppContext;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator;
+use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkCursorListQuery};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
-use crate::friendship::{self, AppState, SocialServiceError};
+use crate::api_payload::resource_item;
+use crate::contact_open_api_backend::{
+    create_contact_recommendation as backend_create_contact_recommendation,
+    delete_contact_tag as backend_delete_contact_tag,
+    get_contact_preferences as backend_get_contact_preferences,
+    get_contact_tag as backend_get_contact_tag,
+    list_contact_tags as backend_list_contact_tags,
+    shared_contact_store, upsert_contact_preferences as backend_upsert_contact_preferences,
+    upsert_contact_tag as backend_upsert_contact_tag, ContactPreferencesRecord,
+    ContactRecommendationRecord, ContactTagRecord,
+};
+use crate::friendship::{AppState, SocialServiceError};
+use crate::envelope::finish_enveloped_json;
 
 static CONTACT_OPEN_API_ID_GENERATOR: OnceLock<RuntimeSnowflakeIdGenerator> = OnceLock::new();
-static CONTACT_OPEN_API_STORE: OnceLock<RwLock<ContactOpenApiStore>> = OnceLock::new();
 
 /// Initialize the contact open-api ID generator from the database.
 ///
@@ -43,15 +54,10 @@ pub async fn init_contact_open_api_id_generator() {
 
 fn id_generator() -> &'static RuntimeSnowflakeIdGenerator {
     CONTACT_OPEN_API_ID_GENERATOR.get_or_init(|| {
-        // Fallback for lazy init (e.g., in tests without database)
         RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|_| {
             RuntimeSnowflakeIdGenerator::with_node_id(0).expect("snowflake node 0 must initialize")
         })
     })
-}
-
-fn store() -> &'static RwLock<ContactOpenApiStore> {
-    CONTACT_OPEN_API_STORE.get_or_init(|| RwLock::new(ContactOpenApiStore::default()))
 }
 
 fn next_entity_id() -> Result<String, SocialServiceError> {
@@ -66,56 +72,11 @@ fn next_entity_id() -> Result<String, SocialServiceError> {
         })
 }
 
-#[derive(Default)]
-struct ContactOpenApiStore {
-    tags: HashMap<TagKey, ContactTagRecord>,
-    preferences: HashMap<PreferenceKey, ContactPreferencesRecord>,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct TagKey {
-    tenant_id: String,
-    owner_user_id: String,
-    tag_id: String,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct PreferenceKey {
-    tenant_id: String,
-    owner_user_id: String,
-    target_user_id: String,
-}
-
-#[derive(Clone, Debug)]
-struct ContactTagRecord {
-    tenant_id: String,
-    owner_user_id: String,
-    tag_id: String,
-    name: String,
-    color: String,
-    count: i32,
-    bg: String,
-    border: String,
-    created_at: String,
-    updated_at: String,
-}
-
-#[derive(Clone, Debug)]
-struct ContactPreferencesRecord {
-    tenant_id: String,
-    owner_user_id: String,
-    target_user_id: String,
-    is_starred: bool,
-    remark: String,
-    is_blocked: bool,
-    updated_at: String,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ContactTagsListQuery {
-    limit: Option<i64>,
-    cursor: Option<String>,
+    #[serde(flatten)]
+    paging: SdkWorkCursorListQuery,
 }
 
 #[derive(Debug, Deserialize)]
@@ -165,15 +126,6 @@ struct ContactTagView {
     border: String,
     created_at: String,
     updated_at: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ContactTagsResponse {
-    items: Vec<ContactTagView>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    next_cursor: Option<String>,
-    has_more: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -228,212 +180,214 @@ pub fn routes() -> Router<AppState> {
 }
 
 async fn list_contact_tags(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     Query(query): Query<ContactTagsListQuery>,
     State(_state): State<AppState>,
-) -> Result<Json<ContactTagsResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let limit = query.limit.unwrap_or(100).clamp(1, 200) as usize;
-    let mut items = store()
-        .read()
-        .map_err(|_| store_lock_error())?
-        .tags
-        .values()
-        .filter(|tag| tag.tenant_id == auth.tenant_id && tag.owner_user_id == auth.user_id)
-        .cloned()
-        .map(ContactTagView::from)
-        .collect::<Vec<_>>();
-    items.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
-    let has_more = items.len() > limit;
-    items.truncate(limit);
-    Ok(Json(ContactTagsResponse {
-        items,
-        next_cursor: query.cursor,
-        has_more,
-    }))
+) -> Response {
+    let result = (|| {
+        let paging = query.paging.resolve().map_err(|_| {
+            SocialServiceError::invalid("cursor_invalid", "contact tag list cursor is invalid")
+        })?;
+        let contact_store = shared_contact_store();
+        let store = contact_store.as_ref();
+        let (items, has_more) = backend_list_contact_tags(
+            store,
+            &auth,
+            paging.page_size,
+            paging.offset,
+        )?;
+        let next_cursor = if has_more {
+            Some((paging.offset + paging.page_size).to_string())
+        } else {
+            None
+        };
+        let views = items.into_iter().map(ContactTagView::from).collect();
+        Ok(cursor_list_page_data(
+            views,
+            paging.page_size,
+            next_cursor,
+            has_more,
+        ))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn create_contact_tag(
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Json(request): Json<CreateContactTagRequest>,
-) -> Result<Json<ContactTagView>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    validate_tag_name(request.name.as_str())?;
-    let now = utc_now_rfc3339_millis();
-    let tag_id = next_entity_id()?;
-    let record = ContactTagRecord {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        tag_id: tag_id.clone(),
-        name: request.name,
-        color: request.color,
-        count: request.count.unwrap_or(0),
-        bg: request.bg.unwrap_or_default(),
-        border: request.border.unwrap_or_default(),
-        created_at: now.clone(),
-        updated_at: now,
-    };
-    store()
-        .write()
-        .map_err(|_| store_lock_error())?
-        .tags
-        .insert(
-            TagKey {
-                tenant_id: auth.tenant_id.clone(),
-                owner_user_id: auth.user_id.clone(),
-                tag_id,
-            },
-            record.clone(),
-        );
-    Ok(Json(ContactTagView::from(record)))
+) -> Response {
+    let result = (|| {
+        validate_tag_name(request.name.as_str())?;
+        let now = utc_now_rfc3339_millis();
+        let tag_id = next_entity_id()?;
+        let owner_user_id = auth
+            .ensure_user_actor_principal()
+            .map_err(|error| SocialServiceError::invalid("social_principal_invalid", error.message()))?
+            .to_owned();
+        let record = ContactTagRecord {
+            tenant_id: auth.tenant_id.clone(),
+            owner_user_id,
+            tag_id: tag_id.clone(),
+            name: request.name,
+            color: request.color,
+            count: request.count.unwrap_or(0),
+            bg: request.bg.unwrap_or_default(),
+            border: request.border.unwrap_or_default(),
+            created_at: now.clone(),
+            updated_at: now,
+        };
+        let contact_store = shared_contact_store();
+        backend_upsert_contact_tag(contact_store.as_ref(), &auth, record.clone())?;
+        Ok(resource_item(ContactTagView::from(record)))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn update_contact_tag(
     Path(tag_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Json(request): Json<UpdateContactTagRequest>,
-) -> Result<Json<ContactTagView>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    if let Some(name) = request.name.as_deref() {
-        validate_tag_name(name)?;
-    }
-    let key = TagKey {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        tag_id: tag_id.clone(),
-    };
-    let mut guard = store().write().map_err(|_| store_lock_error())?;
-    let record = guard.tags.get_mut(&key).ok_or_else(|| {
-        SocialServiceError::not_found("contact_tag_not_found", format!("contact tag {tag_id} was not found"))
-    })?;
-    if let Some(name) = request.name {
-        record.name = name;
-    }
-    if let Some(color) = request.color {
-        record.color = color;
-    }
-    if let Some(count) = request.count {
-        record.count = count;
-    }
-    if let Some(bg) = request.bg {
-        record.bg = bg;
-    }
-    if let Some(border) = request.border {
-        record.border = border;
-    }
-    record.updated_at = utc_now_rfc3339_millis();
-    Ok(Json(ContactTagView::from(record.clone())))
+) -> Response {
+    let result = (|| {
+        if let Some(name) = request.name.as_deref() {
+            validate_tag_name(name)?;
+        }
+        let contact_store = shared_contact_store();
+        let store = contact_store.as_ref();
+        let mut record = backend_get_contact_tag(store, &auth, tag_id.as_str())?.ok_or_else(|| {
+            SocialServiceError::not_found(
+                "contact_tag_not_found",
+                format!("contact tag {tag_id} was not found"),
+            )
+        })?;
+        if let Some(name) = request.name {
+            record.name = name;
+        }
+        if let Some(color) = request.color {
+            record.color = color;
+        }
+        if let Some(count) = request.count {
+            record.count = count;
+        }
+        if let Some(bg) = request.bg {
+            record.bg = bg;
+        }
+        if let Some(border) = request.border {
+            record.border = border;
+        }
+        record.updated_at = utc_now_rfc3339_millis();
+        backend_upsert_contact_tag(store, &auth, record.clone())?;
+        Ok(resource_item(ContactTagView::from(record)))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn delete_contact_tag(
     Path(tag_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(_state): State<AppState>,
-) -> Result<Json<DeleteContactTagResponse>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let key = TagKey {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        tag_id: tag_id.clone(),
-    };
-    let removed = store()
-        .write()
-        .map_err(|_| store_lock_error())?
-        .tags
-        .remove(&key)
-        .is_some();
-    if !removed {
-        return Err(SocialServiceError::not_found(
-            "contact_tag_not_found",
-            format!("contact tag {tag_id} was not found"),
-        ));
-    }
-    Ok(Json(DeleteContactTagResponse {
-        tag_id,
-        deleted: true,
-    }))
+) -> Response {
+    let result = (|| {
+        let store_handle = shared_contact_store();
+        let deleted =
+            backend_delete_contact_tag(store_handle.as_ref(), &auth, tag_id.as_str())?;
+        if !deleted {
+            return Err(SocialServiceError::not_found(
+                "contact_tag_not_found",
+                format!("contact tag {tag_id} was not found"),
+            ));
+        }
+        Ok(resource_item(DeleteContactTagResponse {
+            tag_id,
+            deleted: true,
+        }))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn retrieve_contact_preferences(
     Path(target_user_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(_state): State<AppState>,
-) -> Result<Json<ContactPreferencesView>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let key = PreferenceKey {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        target_user_id: target_user_id.clone(),
-    };
-    let record = store()
-        .read()
-        .map_err(|_| store_lock_error())?
-        .preferences
-        .get(&key)
-        .cloned()
-        .unwrap_or_else(|| default_preferences(&auth, target_user_id.as_str()));
-    Ok(Json(ContactPreferencesView::from(record)))
+) -> Response {
+    let result = (|| {
+        let store_handle = shared_contact_store();
+        let record = backend_get_contact_preferences(
+            store_handle.as_ref(),
+            &auth,
+            target_user_id.as_str(),
+        )?;
+        Ok(resource_item(ContactPreferencesView::from(record)))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn update_contact_preferences(
     Path(target_user_id): Path<String>,
-    headers: HeaderMap,
-    State(_state): State<AppState>,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
     Json(request): Json<UpdateContactPreferencesRequest>,
-) -> Result<Json<ContactPreferencesView>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    let key = PreferenceKey {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        target_user_id: target_user_id.clone(),
-    };
-    let mut guard = store().write().map_err(|_| store_lock_error())?;
-    let record = guard
-        .preferences
-        .entry(key)
-        .or_insert_with(|| default_preferences(&auth, target_user_id.as_str()));
-    if let Some(is_starred) = request.is_starred {
-        record.is_starred = is_starred;
-    }
-    if let Some(remark) = request.remark {
-        record.remark = remark;
-    }
-    if let Some(is_blocked) = request.is_blocked {
-        record.is_blocked = is_blocked;
-    }
-    record.updated_at = utc_now_rfc3339_millis();
-    Ok(Json(ContactPreferencesView::from(record.clone())))
+) -> Response {
+    let result = (|| {
+        let contact_store = shared_contact_store();
+        let store = contact_store.as_ref();
+        let mut record =
+            backend_get_contact_preferences(store, &auth, target_user_id.as_str())?;
+        if let Some(is_starred) = request.is_starred {
+            record.is_starred = is_starred;
+        }
+        if let Some(remark) = request.remark {
+            record.remark = remark;
+        }
+        if let Some(is_blocked) = request.is_blocked {
+            state.social_runtime.sync_contact_block_preference(
+                auth.tenant_id.as_str(),
+                &auth,
+                target_user_id.as_str(),
+                is_blocked,
+                next_entity_id()?,
+                next_entity_id()?,
+            )?;
+        }
+        record.is_blocked = state.social_runtime.contact_is_blocked_all_scope(
+            auth.tenant_id.as_str(),
+            auth.social_principal_user_id(),
+            target_user_id.as_str(),
+        );
+        record.updated_at = utc_now_rfc3339_millis();
+        backend_upsert_contact_preferences(store, &auth, record.clone())?;
+        Ok(resource_item(ContactPreferencesView::from(record)))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 async fn create_contact_recommendation(
     Path(target_user_id): Path<String>,
-    headers: HeaderMap,
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
     State(_state): State<AppState>,
     Json(request): Json<CreateContactRecommendationRequest>,
-) -> Result<Json<ContactRecommendationView>, SocialServiceError> {
-    let auth = friendship::resolve_auth_from_headers(&headers)?;
-    Ok(Json(ContactRecommendationView {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        target_user_id,
-        recommendation_id: next_entity_id()?,
-        target_conversation_id: request.target_conversation_id,
-        created_at: utc_now_rfc3339_millis(),
-    }))
-}
-
-fn default_preferences(auth: &AppContext, target_user_id: &str) -> ContactPreferencesRecord {
-    ContactPreferencesRecord {
-        tenant_id: auth.tenant_id.clone(),
-        owner_user_id: auth.user_id.clone(),
-        target_user_id: target_user_id.to_owned(),
-        is_starred: false,
-        remark: String::new(),
-        is_blocked: false,
-        updated_at: utc_now_rfc3339_millis(),
-    }
+) -> Response {
+    let result = (|| {
+        let recommendation_id = next_entity_id()?;
+        let record = backend_create_contact_recommendation(
+            shared_contact_store().as_ref(),
+            &auth,
+            target_user_id.as_str(),
+            recommendation_id.as_str(),
+            request.target_conversation_id,
+        )?;
+        Ok(resource_item(ContactRecommendationView::from(record)))
+    })();
+    finish_enveloped_json(&ctx, result)
 }
 
 fn validate_tag_name(name: &str) -> Result<(), SocialServiceError> {
@@ -444,10 +398,6 @@ fn validate_tag_name(name: &str) -> Result<(), SocialServiceError> {
         ));
     }
     Ok(())
-}
-
-fn store_lock_error() -> SocialServiceError {
-    SocialServiceError::invalid("contact_store_unavailable", "contact open-api store lock failed")
 }
 
 impl From<ContactTagRecord> for ContactTagView {
@@ -477,6 +427,19 @@ impl From<ContactPreferencesRecord> for ContactPreferencesView {
             remark: record.remark,
             is_blocked: record.is_blocked,
             updated_at: record.updated_at,
+        }
+    }
+}
+
+impl From<ContactRecommendationRecord> for ContactRecommendationView {
+    fn from(record: ContactRecommendationRecord) -> Self {
+        Self {
+            tenant_id: record.tenant_id,
+            owner_user_id: record.owner_user_id,
+            target_user_id: record.target_user_id,
+            recommendation_id: record.recommendation_id,
+            target_conversation_id: record.target_conversation_id,
+            created_at: record.created_at,
         }
     }
 }

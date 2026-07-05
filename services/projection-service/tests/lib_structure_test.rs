@@ -168,17 +168,21 @@ fn test_projection_service_principal_identity_queries_are_strictly_typed() {
 #[test]
 fn test_projection_service_exposes_conversation_client_route_sync_target_owner_seam() {
     let lib_source = include_str!("../src/lib.rs");
+    let event_fanout_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/event_fanout.rs"))
+            .expect("services/projection-service/src/event_fanout.rs should exist");
+    let projection_routing_source = format!("{lib_source}\n{event_fanout_source}");
 
     assert!(
         lib_source.contains("pub fn client_route_sync_fanout_targets_for_conversation("),
         "services/projection-service/src/lib.rs should expose a projection-owned conversation device-sync target seam for active member plus fallback principal resolution"
     );
     assert!(
-        lib_source
+        projection_routing_source
             .matches(".client_route_sync_fanout_targets_for_conversation(")
             .count()
             >= 4,
-        "services/projection-service/src/lib.rs should route conversation-scoped device-sync fanout callers through the shared projection owner seam"
+        "services/projection-service should route conversation-scoped device-sync fanout callers through the shared projection owner seam"
     );
     assert!(
         lib_source
@@ -199,7 +203,8 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
         ".timeline_window_from_auth_context(",
         ".conversation_summary_from_auth_context(",
         ".message_interaction_summary_from_auth_context(",
-        ".pinned_messages_from_auth_context(",
+        ".pinned_messages_window_from_auth_context(",
+        ".member_directory_window_from_auth_context(",
         ".read_cursor_from_auth_context(",
     ] {
         assert!(
@@ -235,11 +240,15 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
 #[test]
 fn test_projection_service_client_route_sync_entry_assembly_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
+    let event_fanout_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/event_fanout.rs"))
+            .expect("services/projection-service/src/event_fanout.rs should exist");
     let client_route_sync_source = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/src/client_route_sync.rs"
     ))
     .expect("services/projection-service/src/client_route_sync.rs should exist");
+    let fanout_routing_source = format!("{lib_source}\n{event_fanout_source}");
 
     for required_symbol in [
         "pub(crate) struct ClientRouteSyncEntryDraft {",
@@ -258,11 +267,11 @@ fn test_projection_service_client_route_sync_entry_assembly_moves_out_of_lib_imp
         "services/projection-service/src/lib.rs should not keep inline device-sync entry assembly after the shared owner seam is extracted"
     );
     assert!(
-        lib_source
+        fanout_routing_source
             .matches(".append_client_route_sync_draft(")
             .count()
             >= 5,
-        "services/projection-service/src/lib.rs should route message, mutation, read_cursor, handoff, and member-governance sync fanout through the shared device-sync draft owner seam"
+        "services/projection-service should route message, mutation, read_cursor, handoff, and member-governance sync fanout through the shared device-sync draft owner seam"
     );
 }
 
@@ -365,13 +374,9 @@ fn test_projection_service_client_route_sync_identity_is_strictly_typed() {
         scope_source.contains("organization_id: &str,")
             && scope_source.contains("principal_kind: &str,")
             && scope_source.contains("principal_id: &str,")
-            && scope_source
-                .find("organization_id: &str,")
-                .unwrap()
+            && scope_source.find("organization_id: &str,").unwrap()
                 < scope_source.find("principal_kind: &str,").unwrap()
-            && scope_source
-                .find("principal_kind: &str,")
-                .unwrap()
+            && scope_source.find("principal_kind: &str,").unwrap()
                 < scope_source.find("principal_id: &str,").unwrap(),
         "client route scope keys must use organization_id and principal_kind before principal_id"
     );
@@ -384,21 +389,25 @@ fn test_projection_service_client_route_sync_identity_is_strictly_typed() {
 #[test]
 fn test_projection_service_timeline_store_uses_sequence_index() {
     let lib_source = include_str!("../src/lib.rs");
+    let timeline_tier_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/timeline_tier.rs"))
+            .expect("services/projection-service/src/timeline_tier.rs should exist");
+    let timeline_source = format!("{lib_source}\n{timeline_tier_source}");
 
     assert!(
-        lib_source.contains("entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>"),
+        timeline_source.contains("entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>"),
         "projection-service timeline store must be keyed by message_seq so cursor reads can seek instead of scanning a Vec"
     );
     assert!(
-        !lib_source.contains("entries: Mutex<HashMap<String, Vec<TimelineViewEntry>>>"),
+        !timeline_source.contains("entries: Mutex<HashMap<String, Vec<TimelineViewEntry>>>"),
         "projection-service timeline store must not keep per-conversation Vec entries"
     );
     assert!(
-        lib_source.contains(".range((Excluded(after_seq), Unbounded))"),
+        timeline_source.contains(".range((Excluded(after_seq), Unbounded))"),
         "projection-service timeline windows should seek by message_seq range"
     );
     assert!(
-        !lib_source.contains("partition_point(|entry| entry.message_seq <= after_seq)"),
+        !timeline_source.contains("partition_point(|entry| entry.message_seq <= after_seq)"),
         "projection-service timeline windows should not binary-search a Vec now that message_seq is the map key"
     );
 }
@@ -454,13 +463,13 @@ fn test_projection_service_runtime_keys_use_segment_safe_encoding() {
     }
 
     assert!(
-        lib_source.contains("HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>"),
+        lib_source.contains("HashMap<ContactOwnerScopeKey, contacts::ContactScopeStore>"),
         "projection-service contact store should be keyed by typed owner scope, not a parseable string"
     );
     assert!(
-        contacts_source.contains(
-            "HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>"
-        ),
+        contacts_source.contains("direct_chat_id_by_conversation")
+            && contacts_source
+                .contains("HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>"),
         "projection-service direct-chat conversation index should be keyed by typed tenant/organization/conversation tuple"
     );
 }
@@ -487,8 +496,12 @@ fn test_projection_service_direct_chat_binding_store_uses_conversation_index() {
     );
     assert!(
         contacts_source.contains(
-            "direct_chat_id_by_conversation: HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>"
+            "direct_chat_id_by_conversation"
         ),
+        "projection-service direct-chat binding runtime store must index tenant+organization+conversation to directChatId"
+    );
+    assert!(
+        contacts_source.contains("HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>"),
         "projection-service direct-chat binding runtime store must index tenant+organization+conversation to directChatId"
     );
     assert!(
@@ -626,4 +639,59 @@ fn test_projection_service_source_does_not_keep_legacy_device_sync_symbols() {
             );
         }
     }
+}
+
+#[test]
+fn test_projection_service_shares_runtime_between_embedded_apply_and_http_handlers() {
+    let bootstrap_source = include_str!("../src/bootstrap.rs");
+    let embedded_bridge_source = include_str!("../src/embedded_bridge.rs");
+    let http_source = include_str!("../src/http.rs");
+
+    assert!(
+        bootstrap_source.contains("pub fn shared_projection_runtime("),
+        "projection-service must expose one shared projection runtime singleton"
+    );
+    assert!(
+        embedded_bridge_source.contains("shared_projection_runtime().service()"),
+        "embedded journal apply must use the shared projection runtime"
+    );
+    assert!(
+        !embedded_bridge_source.contains("EMBEDDED_PROJECTION_SERVICE"),
+        "embedded bridge must not keep a separate projection runtime cache"
+    );
+    assert!(
+        http_source.contains("crate::bootstrap::shared_projection_runtime()"),
+        "HTTP handlers must resolve the same shared projection runtime"
+    );
+}
+
+#[test]
+fn test_projection_service_wires_personalization_snapshot_into_durable_restore_and_persist() {
+    let snapshot_source = include_str!("../src/snapshot.rs");
+
+    assert!(
+        snapshot_source.contains("restore_personalization_snapshot("),
+        "durable restore must include personalization snapshot restore"
+    );
+    assert!(
+        snapshot_source.contains("persist_personalization_snapshot("),
+        "durable persist must include personalization snapshot persist"
+    );
+}
+
+#[test]
+fn test_projection_supplemental_router_serves_timeline_reads_for_gateway_merge() {
+    let http_source = include_str!("../src/http.rs");
+
+    assert!(
+        http_source.contains("pub fn build_supplemental_domain_api_router"),
+        "projection supplemental router must exist for unified gateway merge"
+    );
+    assert!(
+        http_source.contains(
+            r#"/im/v3/api/chat/conversations/{conversation_id}/messages",
+            get(get_timeline),"#
+        ),
+        "supplemental router must expose GET timeline reads for conversations.messages.list"
+    );
 }

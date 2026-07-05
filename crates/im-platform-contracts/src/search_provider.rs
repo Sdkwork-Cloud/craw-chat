@@ -27,12 +27,20 @@ pub struct SearchableMessage {
     pub created_at: String,
 }
 
+/// A single message search hit with membership-scoped identifiers.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MessageSearchHit {
+    pub message_id: i64,
+    pub conversation_id: String,
+    pub message_seq: u64,
+}
+
 /// Result of a search query.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SearchResult {
-    /// Matching message IDs in relevance order.
-    pub message_ids: Vec<i64>,
-    /// Total number of matches (may exceed returned IDs).
+    /// Matching messages in relevance order.
+    pub hits: Vec<MessageSearchHit>,
+    /// Total number of matches (may exceed returned hits).
     pub total_count: u64,
     /// Cursor for pagination.
     pub next_cursor: Option<String>,

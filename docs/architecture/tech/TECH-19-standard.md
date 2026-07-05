@@ -81,7 +81,7 @@
 
 ### 4.1 拉取窗口
 
-`GET /im/v3/api/realtime/events?afterSeq=0&limit=100`
+`GET /im/v3/api/realtime/events?pageSize=100`
 
 返回在线实时事件以及当前 ack/trim 元数据。
 

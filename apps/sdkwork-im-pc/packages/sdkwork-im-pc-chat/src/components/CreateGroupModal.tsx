@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Chat, User } from '@sdkwork/im-pc-types';
 import { toast } from './Toast';
@@ -16,28 +16,55 @@ export const CreateGroupModal: React.FC<{
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [contacts, setContacts] = useState<User[]>([]);
+  const [contactsCursor, setContactsCursor] = useState<string | undefined>();
+  const [hasMoreContacts, setHasMoreContacts] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMoreContacts, setLoadingMoreContacts] = useState(false);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      contactService.getContacts()
-        .then((data) => {
-          setContacts(data);
+      contactService.listContactsPage()
+        .then((page) => {
+          setContacts(page.items);
+          setContactsCursor(page.nextCursor);
+          setHasMoreContacts(page.hasMore);
         })
         .catch(() => {
           setContacts([]);
+          setContactsCursor(undefined);
+          setHasMoreContacts(false);
           toast(t('chat.modal.toast.contactsLoadFailed'), 'error');
         })
         .finally(() => setLoading(false));
     } else {
       setContacts([]);
+      setContactsCursor(undefined);
+      setHasMoreContacts(false);
       setSelected(new Set());
       setSearchQuery('');
       setCreating(false);
+      setLoadingMoreContacts(false);
     }
   }, [isOpen, t]);
+
+  const loadMoreContacts = useCallback(() => {
+    if (!hasMoreContacts || loadingMoreContacts) {
+      return;
+    }
+    setLoadingMoreContacts(true);
+    void contactService.listContactsPage({ cursor: contactsCursor })
+      .then((page) => {
+        setContacts((previousContacts) => [...previousContacts, ...page.items]);
+        setContactsCursor(page.nextCursor);
+        setHasMoreContacts(page.hasMore);
+      })
+      .catch(() => {
+        toast(t('chat.modal.toast.contactsLoadFailed'), 'error');
+      })
+      .finally(() => setLoadingMoreContacts(false));
+  }, [contactsCursor, hasMoreContacts, loadingMoreContacts, t]);
 
   const toggleSelect = (id: string) => {
     setSelected((previousSelected) => {
@@ -97,7 +124,10 @@ export const CreateGroupModal: React.FC<{
       <ContactMemberPickerPanel
         contacts={contacts}
         emptyText={t('chat.modal.state.noContactsToCreate')}
+        hasMoreContacts={hasMoreContacts}
         isLoading={loading}
+        isLoadingMoreContacts={loadingMoreContacts}
+        onLoadMoreContacts={loadMoreContacts}
         searchPlaceholder={t('chat.modal.placeholder.memberSearch')}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}

@@ -93,8 +93,8 @@ fn load_quic_tls_server_config() -> Result<rustls::ServerConfig, String> {
 
     let cert_bytes = fs::read(cert_path.trim())
         .map_err(|error| format!("read quic tls cert failed: {error}"))?;
-    let key_bytes = fs::read(key_path.trim())
-        .map_err(|error| format!("read quic tls key failed: {error}"))?;
+    let key_bytes =
+        fs::read(key_path.trim()).map_err(|error| format!("read quic tls key failed: {error}"))?;
 
     let certs: Vec<CertificateDer<'static>> = certs(&mut cert_bytes.as_slice())
         .collect::<Result<Vec<_>, _>>()
@@ -128,7 +128,13 @@ mod link_quic_env_tests {
     #[test]
     fn quic_env_keys_are_stable_for_contract_tests() {
         assert_eq!(REALTIME_QUIC_BIND_ENV, "SDKWORK_IM_REALTIME_QUIC_BIND_ADDR");
-        assert_eq!(REALTIME_QUIC_TLS_CERT_ENV, "SDKWORK_IM_REALTIME_QUIC_TLS_CERT_PATH");
-        assert_eq!(REALTIME_QUIC_TLS_KEY_ENV, "SDKWORK_IM_REALTIME_QUIC_TLS_KEY_PATH");
+        assert_eq!(
+            REALTIME_QUIC_TLS_CERT_ENV,
+            "SDKWORK_IM_REALTIME_QUIC_TLS_CERT_PATH"
+        );
+        assert_eq!(
+            REALTIME_QUIC_TLS_KEY_ENV,
+            "SDKWORK_IM_REALTIME_QUIC_TLS_KEY_PATH"
+        );
     }
 }

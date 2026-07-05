@@ -61,7 +61,6 @@ for (const requiredText of [
   'oauth.deviceAuthorizations.retrieve',
   'scans.create',
   'passwordCompletions.create',
-  'sqlite',
   'PostgreSQL',
   'SDKWORK_SHARED_SDK_MODE=git',
 ]) {
@@ -185,9 +184,7 @@ assert.match(
 
 assert.match(localAppApiSource, /Rust unified server/u);
 assert.match(localAppApiSource, /resolveSdkworkImSharedDatabaseConfig/u);
-assert.match(sharedDatabaseSource, /\.sdkwork/u);
 assert.match(sharedDatabaseSource, /APP_CODE\s*=\s*['"]chat['"]/u);
-assert.match(sharedDatabaseSource, /\$\{APP_CODE\}\.sqlite/u);
 assert.match(sharedDatabaseSource, /SDKWORK_IM_DATABASE_ENGINE/u);
 assert.match(sharedDatabaseSource, /SDKWORK_IM_DATABASE_SSL_MODE/u);
 assert.match(sharedDatabaseSource, /postgres(?:ql)?:/u);

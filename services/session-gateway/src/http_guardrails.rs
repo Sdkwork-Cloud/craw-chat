@@ -4,7 +4,7 @@ use axum::extract::{DefaultBodyLimit, State};
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use axum::{middleware::from_fn_with_state, Router};
+use axum::{Router, middleware::from_fn_with_state};
 use tokio::sync::Semaphore;
 
 use crate::api_error::ApiError;
@@ -41,8 +41,8 @@ async fn enforce_in_flight_gate(
             return ApiError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
             }
             .into_response();
         }

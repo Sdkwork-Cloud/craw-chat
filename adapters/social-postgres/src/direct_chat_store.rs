@@ -74,6 +74,7 @@ pub trait DirectChatStore: Send + Sync {
         actor_id: &str,
         status: &str,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<DirectChatRecord>, ContractError>;
     fn update_status(
         &self,
@@ -128,7 +129,7 @@ WHERE tenant_id = $1 AND organization_id = $2
   AND (left_actor_id = $3 OR right_actor_id = $3)
   AND status = $4
 ORDER BY updated_at DESC
-LIMIT $5
+LIMIT $5 OFFSET $6
 "#;
 
 const UPDATE_STATUS_SQL: &str = r#"
@@ -245,6 +246,7 @@ impl DirectChatStore for PostgresDirectChatStore {
         actor_id: &str,
         status: &str,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<DirectChatRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
@@ -254,7 +256,7 @@ impl DirectChatStore for PostgresDirectChatStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_direct_chats_by_actor")?;
             let rows = client
-                .query(LIST_BY_ACTOR_SQL, &[&tid, &oid, &aid, &st, &limit])
+                .query(LIST_BY_ACTOR_SQL, &[&tid, &oid, &aid, &st, &limit, &offset])
                 .map_err(|e| postgres_unavailable("list_direct_chats_by_actor", e))?;
             Ok(rows.iter().map(row_to_record).collect())
         })

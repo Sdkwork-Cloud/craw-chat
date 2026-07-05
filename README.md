@@ -40,7 +40,7 @@ Most IM backends were designed for person-to-person chat and later patched for b
 | **Audit** | `audit-service` | `/backend/v3/api/audit/*` | Audit record storage and export |
 | **Ops** | `ops-service` | `/backend/v3/api/ops/*` | Health, cluster, lag, diagnostics, runtime-dir, provider-binding views |
 | **Governance** | `governance-service` | `/backend/v3/api/control/*` | Protocol registry, provider registration/binding, policy preview/commit/diff/history/rollback, node drain/activate/route migration |
-| **Desktop persistence** | `apps/sdkwork-im-pc` | — | SQLite persistence, repair, backup, restore |
+| **Desktop persistence** | `apps/sdkwork-im-pc` | — | Local browser storage (IndexedDB / localStorage), repair, backup, restore |
 
 ## Architecture
 
@@ -58,7 +58,7 @@ Six primary planes carry traffic; two cross-cutting planes govern and observe th
 │  Messaging Plane send / edit / recall, durable truth, outbox    │
 │  Stream Plane    open / delta / checkpoint / finalize / abort   │
 │  Projection Plane inbox / timeline / summary / read-model      │
-│  Storage Plane   PostgreSQL / SQLite / Redis / S3 / adapters    │
+│  Storage Plane   PostgreSQL / Redis / S3 / adapters             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -96,7 +96,7 @@ Deep dive: [docs/架构/02-架构标准与总体设计.md](./docs/架构/02-架�
 | Async runtime | `tokio 1.48` |
 | Middleware | `tower 0.5`, `tower-http` |
 | Serialization | `serde`, `serde_json`, CBOR |
-| Database | `sqlx` via [`../sdkwork-database`](../sdkwork-database) (PostgreSQL, SQLite) |
+| Database | `sqlx` via [`../sdkwork-database`](../sdkwork-database): **PostgreSQL** for IM core durable authority; dev `*:sqlite` profiles use in-memory journal/runtime (not a production SQLite IM store); desktop browser storage (IndexedDB / localStorage) for gateway webstore |
 | Cache / bus | Redis (`redis-cache` adapter) |
 | Object storage | S3-compatible (`object-storage-s3` adapter) |
 | Tracing | `tracing`, `tracing-subscriber` |
@@ -111,7 +111,7 @@ Deep dive: [docs/架构/02-架构标准与总体设计.md](./docs/架构/02-架�
 | Styling | TailwindCSS |
 | Rich text | TipTap |
 | i18n | i18next |
-| SDK | `@sdkwork/im-sdk`, `@sdkwork/rtc-sdk`, `@sdkwork/drive-app-sdk` |
+| SDK | `@sdkwork/im-sdk`, `@sdkwork/rtc-sdk`, `@sdkwork/drive-app-sdk`, `@sdkwork/community-app-sdk` (via `../sdkwork-community`) |
 
 **H5 mobile (`apps/sdkwork-im-h5`):**
 
@@ -132,7 +132,7 @@ Deep dive: [docs/架构/02-架构标准与总体设计.md](./docs/架构/02-架�
 | SDK | `im_sdk_generated` + `im_sdk_composed` |
 | Features | Inbox + conversation REST + shared WebSocket live hub (inbox + conversation) |
 
-**Sibling workspace dependencies:** `sdkwork-web-framework`, `sdkwork-database`, `sdkwork-appbase`, `sdkwork-rtc`, `sdkwork-app-topology`, `sdkwork-drive`, `sdkwork-notary`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-kernel`, `sdkwork-aiot`, `sdkwork-sdk-commons`, `sdkwork-sdk-generator`.
+**Sibling workspace dependencies:** `sdkwork-web-framework`, `sdkwork-database`, `sdkwork-appbase`, `sdkwork-rtc`, `sdkwork-app-topology`, `sdkwork-drive`, `sdkwork-community`, `sdkwork-notary`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-kernel`, `sdkwork-aiot`, `sdkwork-sdk-commons`, `sdkwork-sdk-generator`.
 
 ## Repository layout
 
@@ -156,7 +156,7 @@ sdkwork-im/
 Platform framework integration:
 
 - HTTP ingress uses [`../sdkwork-web-framework`](../sdkwork-web-framework) through `services/sdkwork-im-cloud-gateway` (`WebFramework`, `WebRequestContext`, IAM adapter, 18-stage interceptor chain).
-- PostgreSQL/SQLite pools use [`../sdkwork-database`](../sdkwork-database) through `crates/sdkwork-im-database-pool` and postgres adapters.
+- PostgreSQL pools use [`../sdkwork-database`](../sdkwork-database) through `crates/sdkwork-im-database-pool` and postgres adapters.
 - `sdkwork-discovery` is **deferred (Phase 2)**: RPC contracts exist under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`. Phase 1 gRPC hosts (`*-rpc-bin`) ship through `sdkwork-rpc-framework` with optional `SDKWORK_IM_DISCOVERY_ENDPOINT` registration. The `sdkwork-discovery` product control plane ships in Phase 2 per [ADR-20260619](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md).
 
 ## Topology v2
@@ -243,7 +243,6 @@ pnpm dev:browser   # PostgreSQL + standalone unified browser dev
 pnpm dev:server       # Rust server only, no PC renderer
 pnpm dev:desktop   # PostgreSQL + standalone Tauri desktop dev
 pnpm dev:browser:postgres  # browser + PostgreSQL
-pnpm dev:browser:sqlite    # browser + SQLite
 ```
 
 ### CLI chat validation

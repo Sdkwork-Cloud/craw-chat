@@ -4,6 +4,25 @@ use http_body_util::BodyExt;
 use im_app_context::DualTokenRequestBuilderExt;
 use tower::ServiceExt;
 
+fn percent_encode_query_component(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (byte as char).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
+}
+
+fn cursor_list_uri(path: &str, limit: usize, cursor: &str) -> String {
+    format!(
+        "{path}?limit={limit}&cursor={}",
+        percent_encode_query_component(cursor)
+    )
+}
+
 fn timeline_message_posted_event(
     tenant_id: &str,
     conversation_id: &str,
@@ -57,7 +76,9 @@ fn timeline_message_posted_event(
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = projection_service::build_public_app();
+    let app = projection_service::build_public_app_with_service(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
 
     let response = app
         .oneshot(
@@ -87,7 +108,9 @@ async fn test_public_app_exports_live_openapi_json() {
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
-    let app = projection_service::build_public_app();
+    let app = projection_service::build_public_app_with_service(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
 
     let response = app
         .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
@@ -307,7 +330,7 @@ async fn test_timeline_query_returns_projected_messages() {
         )
         .expect("projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
 
     let response = app
         .clone()
@@ -427,7 +450,7 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
             .expect("message projection should succeed");
     }
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
 
     let first_response = app
         .clone()
@@ -514,8 +537,11 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_value: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid response should be valid json");
-    assert_eq!(invalid_value["type"], "https://sdkwork.dev/problems/bad-request");
-    assert_eq!(invalid_value["title"], "Bad Request");
+    assert_eq!(
+        invalid_value["type"],
+        "https://docs.sdkwork.com/problems/40001",
+    );
+    assert_eq!(invalid_value["title"], "Validation failed");
     assert_eq!(invalid_value["status"], 400);
     assert!(
         invalid_value["detail"]
@@ -524,6 +550,44 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
             .contains("limit")
     );
     assert_eq!(invalid_value["code"].as_i64(), Some(40001));
+}
+
+#[tokio::test]
+async fn test_timeline_query_rejects_invalid_after_seq_with_problem_detail() {
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=not-a-number")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid afterSeq request should complete");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid afterSeq body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("invalid afterSeq response should be valid json");
+    assert_eq!(value["code"].as_i64(), Some(40001));
+    assert_eq!(value["status"], 400);
 }
 
 #[tokio::test]
@@ -590,7 +654,7 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
         )
         .expect("message projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -620,8 +684,8 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["type"], "https://sdkwork.dev/problems/forbidden");
-    assert_eq!(value["title"], "Forbidden");
+    assert_eq!(value["type"], "https://docs.sdkwork.com/problems/40301");
+    assert_eq!(value["title"], "Permission required");
     assert_eq!(value["status"], 403);
     assert!(
         !value["detail"]
@@ -749,7 +813,7 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
         )
         .expect("read cursor projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -862,7 +926,7 @@ async fn test_inbox_query_returns_projected_entries() {
         )
         .expect("message projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -960,7 +1024,7 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
             .expect("message projection should succeed");
     }
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let first = app
         .clone()
         .oneshot(
@@ -985,8 +1049,14 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         serde_json::from_slice(&first_body).expect("first inbox page should be json");
     assert_eq!(first_json["code"], 0);
     assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_json["data"]["items"][0]["conversationId"], "c_inbox_page_3");
-    assert_eq!(first_json["data"]["items"][1]["conversationId"], "c_inbox_page_2");
+    assert_eq!(
+        first_json["data"]["items"][0]["conversationId"],
+        "c_inbox_page_3"
+    );
+    assert_eq!(
+        first_json["data"]["items"][1]["conversationId"],
+        "c_inbox_page_2"
+    );
     assert_eq!(first_json["data"]["hasMore"], true);
     let next_cursor = first_json["data"]["nextCursor"]
         .as_str()
@@ -996,9 +1066,7 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!(
-                    "/im/v3/api/chat/inbox?limit=2&cursor={next_cursor}"
-                ))
+                .uri(cursor_list_uri("/im/v3/api/chat/inbox", 2, next_cursor))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -1018,7 +1086,10 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         serde_json::from_slice(&second_body).expect("second inbox page should be json");
     assert_eq!(second_json["code"], 0);
     assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_json["data"]["items"][0]["conversationId"], "c_inbox_page_1");
+    assert_eq!(
+        second_json["data"]["items"][0]["conversationId"],
+        "c_inbox_page_1"
+    );
     assert_eq!(second_json["data"]["hasMore"], false);
     assert_eq!(second_json["data"]["nextCursor"], serde_json::Value::Null);
 
@@ -1048,7 +1119,9 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
 
 #[tokio::test]
 async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
-    let app = projection_service::build_default_app();
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
 
     let response = app
         .oneshot(
@@ -1116,7 +1189,7 @@ async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
         )
         .expect("member projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -1211,7 +1284,7 @@ async fn test_member_directory_query_returns_projected_members() {
         )
         .expect("member projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -1240,7 +1313,10 @@ async fn test_member_directory_query_returns_projected_members() {
     assert_eq!(value["data"]["items"][0]["principalId"], "1");
     assert_eq!(value["data"]["items"][0]["role"], "owner");
     assert_eq!(value["data"]["items"][1]["principalId"], "1014");
-    assert_eq!(value["data"]["items"][1]["attributes"]["displayName"], "Member");
+    assert_eq!(
+        value["data"]["items"][1]["attributes"]["displayName"],
+        "Member"
+    );
 }
 
 #[tokio::test]
@@ -1275,7 +1351,7 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
         ))
         .expect("direct chat enrich should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -1332,7 +1408,7 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
             .expect("friendship projection should succeed");
     }
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let first = app
         .clone()
         .oneshot(
@@ -1368,9 +1444,7 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!(
-                    "/im/v3/api/chat/contacts?limit=2&cursor={next_cursor}"
-                ))
+                .uri(cursor_list_uri("/im/v3/api/chat/contacts", 2, next_cursor))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1440,7 +1514,7 @@ async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_ove
         ))
         .expect("direct chat enrich should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
         .oneshot(
             Request::builder()
@@ -1590,7 +1664,7 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
         ))
         .expect("pin projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let summary_response = app
         .clone()
         .oneshot(
@@ -1616,7 +1690,10 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
         .expect("interaction summary body should be valid json");
 
     assert_eq!(summary_value["code"], 0);
-    assert_eq!(summary_value["data"]["messageId"], "msg_c_interaction_http_1");
+    assert_eq!(
+        summary_value["data"]["messageId"],
+        "msg_c_interaction_http_1"
+    );
     assert_eq!(summary_value["data"]["messageSeq"], 1);
     assert_eq!(summary_value["data"]["totalReactionCount"], 2);
     assert_eq!(
@@ -1625,7 +1702,10 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
     );
     assert_eq!(summary_value["data"]["reactionCounts"][0]["count"], 2);
     assert_eq!(summary_value["data"]["pin"]["pinnedBy"]["id"], "1");
-    assert_eq!(summary_value["data"]["pin"]["pinnedAt"], "2026-04-10T12:00:20Z");
+    assert_eq!(
+        summary_value["data"]["pin"]["pinnedAt"],
+        "2026-04-10T12:00:20Z"
+    );
 
     let pins_response = app
         .oneshot(
@@ -1691,7 +1771,7 @@ async fn test_conversation_profile_and_preferences_support_get_and_patch() {
         )
         .expect("member projection should succeed");
 
-    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let conversation_id = "c_agent_e7f6182d320811b42f4484f9";
 
     let patch_profile_response = app
@@ -1794,8 +1874,9 @@ async fn test_conversation_profile_and_preferences_support_get_and_patch() {
         .await
         .expect("preferences patch body should collect")
         .to_bytes();
-    let patch_preferences_value: serde_json::Value = serde_json::from_slice(&patch_preferences_body)
-        .expect("preferences patch should be valid json");
+    let patch_preferences_value: serde_json::Value =
+        serde_json::from_slice(&patch_preferences_body)
+            .expect("preferences patch should be valid json");
     assert_eq!(patch_preferences_value["code"], 0);
     assert_eq!(patch_preferences_value["data"]["item"]["isPinned"], true);
     assert_eq!(patch_preferences_value["data"]["item"]["isHidden"], false);
@@ -1847,9 +1928,9 @@ async fn test_message_favorites_support_list_create_and_delete() {
         ))
         .expect("timeline projection should succeed");
 
-    let app = sdkwork_routes_im_projection_open_api::build_public_app_with_service(std::sync::Arc::new(
-        service,
-    ));
+    let app = sdkwork_routes_im_projection_open_api::build_public_app_with_service(
+        std::sync::Arc::new(service),
+    );
 
     let create_response = app
         .clone()
@@ -1938,4 +2019,33 @@ async fn test_message_favorites_support_list_create_and_delete() {
         serde_json::from_slice(&delete_body).expect("favorite delete should be valid json");
     assert_eq!(delete_value["code"], 0);
     assert_eq!(delete_value["data"]["deleted"], true);
+}
+
+#[tokio::test]
+async fn test_message_search_rejects_empty_query_with_problem_detail() {
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/messages/search?pageSize=20")
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("message search should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("message search body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("message search error should be json");
+    assert_eq!(value["title"], "Validation failed");
 }

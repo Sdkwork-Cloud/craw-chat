@@ -25,6 +25,9 @@ sdkwork_iam_database_host = { path = "../../../sdkwork-iam/crates/sdkwork-iam-da
 sdkwork_im_iam_application_bootstrap = { workspace = true }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 sdkwork-im-gateway-assembly = { path = "../../crates/sdkwork-im-gateway-assembly" }
+social-service = { path = "../social-service" }
+conversation_runtime = { path = "../sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
+session-gateway = { path = "../session-gateway" }
 sdkwork-drive-gateway-assembly = { path = "../../../sdkwork-drive/crates/sdkwork-drive-gateway-assembly" }
 sdkwork-notary-gateway-assembly = { path = "../../../sdkwork-notary/crates/sdkwork-notary-gateway-assembly" }
 sdkwork-course-gateway-assembly = { path = "../../../sdkwork-course/crates/sdkwork-course-gateway-assembly" }

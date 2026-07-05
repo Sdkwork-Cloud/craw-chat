@@ -4,6 +4,7 @@ import type {
   MessageFavoriteView,
 } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
+import { SDKWORK_DEFAULT_PAGE_SIZE } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
 
 export interface FavoriteItem {
   id: string;
@@ -22,7 +23,7 @@ export interface FavoriteService {
   removeFavorite(id: string): Promise<void>;
 }
 
-const FAVORITES_PAGE_LIMIT = 100;
+const FAVORITES_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 
 function mapFilterToFavoriteType(filter: string): MessageFavoriteType | undefined {
   const typeMap: Record<string, MessageFavoriteType> = {
@@ -71,7 +72,7 @@ class SdkworkFavoriteService implements FavoriteService {
     const favoriteType = mapFilterToFavoriteType(filter);
     const response = await this.client().messages.favorites.list({
       ...(favoriteType ? { favoriteType } : {}),
-      limit: FAVORITES_PAGE_LIMIT,
+      pageSize: FAVORITES_PAGE_LIMIT,
     });
     return response.items.map(mapFavoriteViewToFavoriteItem);
   }

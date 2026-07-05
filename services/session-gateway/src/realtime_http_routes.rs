@@ -7,17 +7,16 @@ use im_domain_core::realtime::{
 };
 
 use crate::api_error::ApiError;
-use crate::realtime::{self, AckRealtimeEventsRequest, ListRealtimeEventsQuery, SyncRealtimeSubscriptionsRequest};
-use crate::{resolve_request_app_context, resolve_requested_device_id, AppState};
+use crate::realtime::{
+    self, AckRealtimeEventsRequest, ListRealtimeEventsQuery, SyncRealtimeSubscriptionsRequest,
+};
+use crate::{AppState, resolve_request_app_context, resolve_requested_device_id};
 
 /// Converts a `tokio::task::JoinError` (panic or cancellation of a
 /// `spawn_blocking` task) into an `ApiError` so callers surface a clean 500
 /// instead of a runtime-level panic propagating into the axum handler.
 fn join_error_to_api_error(join_error: tokio::task::JoinError) -> ApiError {
-    ApiError::internal(
-        "realtime_blocking_join_failed",
-        join_error.to_string(),
-    )
+    ApiError::internal("realtime_blocking_join_failed", join_error.to_string())
 }
 
 pub async fn sync_realtime_subscriptions(
@@ -47,8 +46,8 @@ pub async fn sync_realtime_subscriptions(
     let blocking_auth = auth.clone();
     let blocking_device_id = device_id.clone();
     let items = request.items;
-    let snapshot = tokio::task::spawn_blocking(
-        move || -> Result<RealtimeSubscriptionSnapshot, ApiError> {
+    let snapshot =
+        tokio::task::spawn_blocking(move || -> Result<RealtimeSubscriptionSnapshot, ApiError> {
             blocking_state.prepare_active_client_route(
                 &blocking_auth,
                 blocking_device_id.as_str(),
@@ -66,10 +65,9 @@ pub async fn sync_realtime_subscriptions(
                     items,
                 )
                 .map_err(ApiError::from)
-        },
-    )
-    .await
-    .map_err(join_error_to_api_error)??;
+        })
+        .await
+        .map_err(join_error_to_api_error)??;
 
     Ok(Json(snapshot))
 }
@@ -82,36 +80,32 @@ pub async fn list_realtime_events(
 ) -> Result<Json<RealtimeEventWindow>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers, &state.auth_resolver).await?;
     let device_id = resolve_requested_device_id(&auth, None)?;
-    let limit = query.limit.unwrap_or(100);
-    // Pure validation (no IO) — safe on the async worker thread.
-    realtime::validate_realtime_event_limit(limit)?;
+    let limit = realtime::resolve_realtime_event_limit(&query.paging)?;
 
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let blocking_device_id = device_id.clone();
-    let after_seq = query.after_seq.unwrap_or_default();
-    let window = tokio::task::spawn_blocking(
-        move || -> Result<RealtimeEventWindow, ApiError> {
-            blocking_state.prepare_active_client_route(
-                &blocking_auth,
+    let after_seq = query.paging.after_seq.unwrap_or_default();
+    let window = tokio::task::spawn_blocking(move || -> Result<RealtimeEventWindow, ApiError> {
+        blocking_state.prepare_active_client_route(
+            &blocking_auth,
+            blocking_device_id.as_str(),
+            "http_poll",
+            false,
+        )?;
+        blocking_state
+            .realtime_runtime
+            .list_events_for_principal_kind(
+                blocking_auth.tenant_id.as_str(),
+                blocking_auth.organization_id.as_str(),
+                blocking_auth.actor_id.as_str(),
+                blocking_auth.actor_kind.as_str(),
                 blocking_device_id.as_str(),
-                "http_poll",
-                false,
-            )?;
-            blocking_state
-                .realtime_runtime
-                .list_events_for_principal_kind(
-                    blocking_auth.tenant_id.as_str(),
-                    blocking_auth.organization_id.as_str(),
-                    blocking_auth.actor_id.as_str(),
-                    blocking_auth.actor_kind.as_str(),
-                    blocking_device_id.as_str(),
-                    after_seq,
-                    limit,
-                )
-                .map_err(ApiError::from)
-        },
-    )
+                after_seq,
+                limit,
+            )
+            .map_err(ApiError::from)
+    })
     .await
     .map_err(join_error_to_api_error)??;
 
@@ -135,50 +129,47 @@ pub async fn ack_realtime_events(
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let blocking_device_id = device_id.clone();
-    let ack = tokio::task::spawn_blocking(
-        move || -> Result<RealtimeAckState, ApiError> {
-            let previous_route =
-                blocking_state.current_active_client_route(&blocking_auth, blocking_device_id.as_str());
-            blocking_state.prepare_active_client_route(
-                &blocking_auth,
+    let ack = tokio::task::spawn_blocking(move || -> Result<RealtimeAckState, ApiError> {
+        let previous_route =
+            blocking_state.current_active_client_route(&blocking_auth, blocking_device_id.as_str());
+        blocking_state.prepare_active_client_route(
+            &blocking_auth,
+            blocking_device_id.as_str(),
+            "http",
+            false,
+        )?;
+        let bound_route =
+            blocking_state.current_active_client_route(&blocking_auth, blocking_device_id.as_str());
+        let ack_result = blocking_state
+            .realtime_runtime
+            .ack_events_for_principal_kind(
+                blocking_auth.tenant_id.as_str(),
+                blocking_auth.organization_id.as_str(),
+                blocking_auth.actor_id.as_str(),
+                blocking_auth.actor_kind.as_str(),
                 blocking_device_id.as_str(),
-                "http",
-                false,
-            )?;
-            let bound_route =
-                blocking_state.current_active_client_route(&blocking_auth, blocking_device_id.as_str());
-            let ack_result = blocking_state
-                .realtime_runtime
-                .ack_events_for_principal_kind(
-                    blocking_auth.tenant_id.as_str(),
-                    blocking_auth.organization_id.as_str(),
-                    blocking_auth.actor_id.as_str(),
-                    blocking_auth.actor_kind.as_str(),
-                    blocking_device_id.as_str(),
-                    acked_seq,
-                );
-            match ack_result {
-                Ok(ack) => Ok(ack),
-                Err(error) => {
-                    match (previous_route, bound_route) {
-                        (Some(previous_route), Some(bound_route)) => {
-                            blocking_state
-                                .restore_active_client_route_if_current(&bound_route, previous_route);
-                        }
-                        (None, _) => {
-                            blocking_state
-                                .release_active_client_route_if_current_session(
-                                    &blocking_auth,
-                                    blocking_device_id.as_str(),
-                                );
-                        }
-                        _ => {}
+                acked_seq,
+            );
+        match ack_result {
+            Ok(ack) => Ok(ack),
+            Err(error) => {
+                match (previous_route, bound_route) {
+                    (Some(previous_route), Some(bound_route)) => {
+                        blocking_state
+                            .restore_active_client_route_if_current(&bound_route, previous_route);
                     }
-                    Err(ApiError::from(error))
+                    (None, _) => {
+                        blocking_state.release_active_client_route_if_current_session(
+                            &blocking_auth,
+                            blocking_device_id.as_str(),
+                        );
+                    }
+                    _ => {}
                 }
+                Err(ApiError::from(error))
             }
-        },
-    )
+        }
+    })
     .await
     .map_err(join_error_to_api_error)??;
 

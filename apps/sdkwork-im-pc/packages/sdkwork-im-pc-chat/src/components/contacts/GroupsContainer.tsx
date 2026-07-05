@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Plus, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from '../Toast';
@@ -13,19 +13,68 @@ export const GroupsContainer: React.FC<{
   const { t } = useTranslation();
   const [groups, setGroups] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 
+  const applyGroupsPage = useCallback((
+    page: Awaited<ReturnType<typeof groupService.listGroupsPage>>,
+    append: boolean,
+  ) => {
+    setGroups((previous) => {
+      if (!append) {
+        return page.items;
+      }
+      const byId = new Map(previous.map((group) => [group.id, group]));
+      for (const group of page.items) {
+        byId.set(group.id, group);
+      }
+      return Array.from(byId.values()).sort((left, right) => right.updatedAt - left.updatedAt);
+    });
+    setHasMore(page.hasMore);
+    setNextCursor(page.nextCursor);
+  }, []);
+
   useEffect(() => {
-    groupService.getGroups()
-      .then(data => {
-        setGroups(data);
+    let mounted = true;
+    setLoading(true);
+    groupService.listGroupsPage()
+      .then((page) => {
+        if (mounted) {
+          applyGroupsPage(page, false);
+        }
       })
       .catch(() => {
-        setGroups([]);
-        toast(t('contacts.groups.toast.loadFailed'), 'error');
+        if (mounted) {
+          setGroups([]);
+          toast(t('contacts.groups.toast.loadFailed'), 'error');
+        }
       })
-      .finally(() => setLoading(false));
-  }, [t]);
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [applyGroupsPage, t]);
+
+  const loadMoreGroups = async () => {
+    if (!hasMore || !nextCursor || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await groupService.listGroupsPage({ cursor: nextCursor });
+      applyGroupsPage(page, true);
+    } catch {
+      toast(t('contacts.groups.toast.loadFailed'), 'error');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const filteredGroups = groups.filter(group => {
     if (!searchQuery.trim()) return true;
@@ -79,12 +128,26 @@ export const GroupsContainer: React.FC<{
             </div>
           ))}
         </div>
+        {hasMore && !loading && (
+          <div className="flex justify-center pt-6">
+            <button
+              type="button"
+              onClick={() => void loadMoreGroups()}
+              disabled={loadingMore}
+              className="px-4 py-2 text-sm text-gray-300 border border-white/10 rounded-lg hover:bg-white/5 disabled:opacity-50"
+            >
+              {loadingMore
+                ? t('contacts.groups.loading')
+                : t('common:loadMore', { defaultValue: 'Load more' })}
+            </button>
+          </div>
+        )}
       </div>
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}
         onCreated={async (group) => {
-          setGroups((previousGroups) => [group, ...previousGroups]);
+          setGroups((previousGroups) => [group, ...previousGroups.filter((entry) => entry.id !== group.id)]);
           onOpenGroup?.(group);
         }}
       />

@@ -9,9 +9,75 @@ pub const API_SURFACE: &str = "backend-api";
 pub const ROUTES: &[HttpRoute] = &[
     HttpRoute::dual_token(
         HttpMethod::Get,
-        paths::PREFIX,
+        paths::PROTOCOL_REGISTRY,
         "governance",
-        "governance.prefix",
+        "governance.protocolRegistry.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROTOCOL_GOVERNANCE,
+        "governance",
+        "governance.protocolGovernance.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROVIDER_REGISTRY,
+        "governance",
+        "governance.providerRegistry.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROVIDER_BINDINGS,
+        "governance",
+        "governance.providerBindings.list",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::PROVIDER_BINDINGS,
+        "governance",
+        "governance.providerBindings.upsert",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROVIDER_POLICIES,
+        "governance",
+        "governance.providerPolicies.list",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROVIDER_POLICIES_DIFF,
+        "governance",
+        "governance.providerPolicies.diff.retrieve",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::PROVIDER_POLICIES_PREVIEW,
+        "governance",
+        "governance.providerPolicies.preview.create",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::PROVIDER_POLICIES_ROLLBACK,
+        "governance",
+        "governance.providerPolicies.rollback.create",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::NODE_DRAIN,
+        "governance",
+        "governance.nodes.drain.create",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::NODE_ACTIVATE,
+        "governance",
+        "governance.nodes.activate.create",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        paths::NODE_ROUTES_MIGRATE,
+        "governance",
+        "governance.nodes.routes.migrate.create",
     ),
 ];
 

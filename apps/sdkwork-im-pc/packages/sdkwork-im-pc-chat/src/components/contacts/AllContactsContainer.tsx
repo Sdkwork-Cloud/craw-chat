@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { UserPlus, ChevronRight } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { UserPlus, ChevronRight, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { cn } from '@sdkwork/im-pc-commons';
@@ -16,29 +16,59 @@ export const AllContactsContainer: React.FC<{
   const { t } = useTranslation();
   const [contacts, setContacts] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const applyContactsPage = useCallback((page: Awaited<ReturnType<typeof contactService.listContactsPage>>, append: boolean) => {
+    setContacts((previousContacts) => (append ? [...previousContacts, ...page.items] : page.items));
+    setNextCursor(page.nextCursor);
+    setHasMore(page.hasMore);
+  }, []);
+
+  const loadInitialContacts = useCallback(() => {
+    setLoading(true);
+    return contactService.listContactsPage()
+      .then((page) => {
+        applyContactsPage(page, false);
+      })
+      .catch(() => {
+        setContacts([]);
+        setNextCursor(undefined);
+        setHasMore(false);
+        toast(t('contacts.allContacts.toast.loadFailed'), 'error');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [applyContactsPage, t]);
+
+  const loadMoreContacts = useCallback(() => {
+    if (!hasMore || loadingMore || loading) {
+      return;
+    }
+    setLoadingMore(true);
+    void contactService.listContactsPage({ cursor: nextCursor })
+      .then((page) => {
+        applyContactsPage(page, true);
+      })
+      .catch(() => {
+        toast(t('contacts.allContacts.toast.loadFailed'), 'error');
+      })
+      .finally(() => {
+        setLoadingMore(false);
+      });
+  }, [applyContactsPage, hasMore, loading, loadingMore, nextCursor, t]);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadContacts = () => {
-      setLoading(true);
-      return contactService.getContacts()
-        .then((data) => {
-          if (isMounted) {
-            setContacts(data);
-          }
-        })
-        .catch(() => {
-          if (isMounted) {
-            setContacts([]);
-            toast(t('contacts.allContacts.toast.loadFailed'), 'error');
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setLoading(false);
-          }
-        });
+      if (!isMounted) {
+        return Promise.resolve();
+      }
+      return loadInitialContacts();
     };
 
     void loadContacts();
@@ -52,7 +82,29 @@ export const AllContactsContainer: React.FC<{
       isMounted = false;
       window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshContacts);
     };
-  }, [t]);
+  }, [loadInitialContacts]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      if (!hasMore || loadingMore || loading) {
+        return;
+      }
+      const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (remaining < 240) {
+        loadMoreContacts();
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [hasMore, loadMoreContacts, loading, loadingMore]);
 
   const filteredContacts = contacts.filter(user => {
     if (!searchQuery.trim()) return true;
@@ -84,7 +136,7 @@ export const AllContactsContainer: React.FC<{
         <div className="px-6 py-5 border-b border-white/5 shrink-0 flex items-center justify-between bg-[#1e1e1e] z-10">
            <div>
              <h2 className="text-xl font-medium text-gray-200">{t('contacts.allContacts.title')}</h2>
-             <p className="text-sm text-gray-500 mt-1">{t('contacts.allContacts.count', { count: filteredContacts.length })}</p>
+             <p className="text-sm text-gray-500 mt-1">{t('contacts.allContacts.count', { count: filteredContacts.length })}{hasMore ? '+' : ''}</p>
            </div>
            <button 
              onClick={() => onAddFriend?.()}
@@ -94,11 +146,16 @@ export const AllContactsContainer: React.FC<{
            </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto custom-scrollbar relative" id="all-contacts-scroll-container">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto custom-scrollbar relative"
+          id="all-contacts-scroll-container"
+        >
            {loading ? (
              <div className="p-8 text-center text-gray-500 text-sm">{t('contacts.allContacts.loading')}</div>
            ) : (
-             letters.map(letter => (
+             <>
+             {letters.map(letter => (
                 <div key={letter} id={`letter-${letter}`}>
                    <div className="px-6 py-1.5 bg-[#181818] text-xs text-gray-500 font-medium sticky top-0 z-10 border-y border-white/5">
                       {letter}
@@ -122,7 +179,14 @@ export const AllContactsContainer: React.FC<{
                       ))}
                    </div>
                 </div>
-             ))
+             ))}
+             {loadingMore && (
+               <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+                 <Loader2 size={16} className="animate-spin" />
+                 <span>{t('contacts.allContacts.loadingMore')}</span>
+               </div>
+             )}
+             </>
            )}
         </div>
 
@@ -130,7 +194,7 @@ export const AllContactsContainer: React.FC<{
            {['↑', ...letters, '#'].map(l => (
               <button 
                  key={l}
-                 onClick={() => l === '↑' ? document.getElementById('all-contacts-scroll-container')?.scrollTo({top:0, behavior:'smooth'}) : scrollToLetter(l)}
+                 onClick={() => l === '↑' ? scrollContainerRef.current?.scrollTo({top:0, behavior:'smooth'}) : scrollToLetter(l)}
                  className="w-5 h-5 flex items-center justify-center text-[10px] text-gray-400 hover:bg-indigo-500 hover:text-white rounded-md transition-colors"
                  title={l === '↑' ? t('contacts.allContacts.scrollTop') : l}
               >

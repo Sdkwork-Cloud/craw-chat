@@ -90,16 +90,6 @@ schemas:
       - spaceType
       - ownerUserId
       - createdAt
-  SpaceListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceView'
-    required:
-      - items
   SpaceMemberCreateRequest:
     type: object
     additionalProperties: false
@@ -127,16 +117,6 @@ schemas:
     required:
       - userId
       - role
-  SpaceMemberListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceMemberView'
-    required:
-      - items
   SpaceGroupCreateRequest:
     type: object
     additionalProperties: false
@@ -170,16 +150,6 @@ schemas:
     required:
       - groupId
       - groupName
-  SpaceGroupListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceGroupView'
-    required:
-      - items
   SpaceGroupMemberCreateRequest:
     type: object
     additionalProperties: false
@@ -230,16 +200,6 @@ schemas:
       - userId
       - role
       - joinedAt
-  SpaceGroupMemberListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceGroupMemberView'
-    required:
-      - items
   SpaceChannelCreateRequest:
     type: object
     additionalProperties: false
@@ -273,16 +233,6 @@ schemas:
       - channelId
       - channelName
       - channelType
-  SpaceChannelListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceChannelView'
-    required:
-      - items
   SpaceChannelAccessRuleCreateRequest:
     type: object
     additionalProperties: false
@@ -331,16 +281,6 @@ schemas:
       - ruleType
       - permission
       - createdAt
-  SpaceChannelAccessRuleListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceChannelAccessRuleView'
-    required:
-      - items
   SpaceInviteCreateRequest:
     type: object
     additionalProperties: false
@@ -360,16 +300,6 @@ schemas:
     required:
       - inviteCode
       - spaceId
-  SpaceInviteListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceInviteView'
-    required:
-      - items
   SpaceBanCreateRequest:
     type: object
     additionalProperties: false
@@ -392,13 +322,3 @@ schemas:
         nullable: true
     required:
       - userId
-  SpaceBanListResponse:
-    type: object
-    additionalProperties: false
-    properties:
-      items:
-        type: array
-        items:
-          $ref: '#/components/schemas/SpaceBanView'
-    required:
-      - items

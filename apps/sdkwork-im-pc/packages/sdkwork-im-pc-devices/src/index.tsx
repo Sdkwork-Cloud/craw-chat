@@ -1,2 +1,1 @@
-export * from './services/DeviceService';
-export * from './components/DevicesView';
+export { DevicesView, type DevicesViewProps } from './DevicesView';

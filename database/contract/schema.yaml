@@ -1,9 +1,9 @@
 schema_version: 1
 kind: sdkwork.database.schema
 module_id: im
-contract_version: 1.1.0
+contract_version: 1.0.0
 owner_team: im-platform
-compliance_level: L3
+compliance_level: L2
 engines:
   - postgres
 table_prefix: im_
@@ -53,15 +53,6 @@ tables:
   - name: im_rtc_signals
     lifecycle_status: active
     owner: im-platform
-  - name: im_rtc_outbox_events
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_rtc_quality_reports
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_rtc_participant_credentials
-    lifecycle_status: active
-    owner: im-platform
   - name: im_audit_records
     lifecycle_status: active
     owner: im-platform
@@ -72,9 +63,6 @@ tables:
     lifecycle_status: active
     owner: im-platform
   - name: im_projection_timeline_entries
-    lifecycle_status: active
-    owner: im-platform
-  - name: im_projection_metadata_snapshots
     lifecycle_status: active
     owner: im-platform
   - name: im_projection_conversation_summaries
@@ -134,6 +122,15 @@ tables:
   - name: im_spaces
     lifecycle_status: active
     owner: im-platform
+  - name: im_contact_tags
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_contact_preferences
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_contact_recommendations
+    lifecycle_status: active
+    owner: im-platform
   - name: im_space_members
     lifecycle_status: active
     owner: im-platform
@@ -174,5 +171,20 @@ tables:
     lifecycle_status: active
     owner: im-platform
   - name: im_ban_records
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_projection_metadata_snapshots
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_rtc_outbox_events
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_rtc_quality_reports
+    lifecycle_status: active
+    owner: im-platform
+  - name: im_rtc_participant_credentials
+    lifecycle_status: active
+    owner: im-platform
+  - name: sdkwork_node_registry
     lifecycle_status: active
     owner: im-platform

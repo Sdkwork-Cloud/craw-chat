@@ -4,8 +4,8 @@ use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
 use sdkwork_im_ccp_control::ControlFrame;
 use sdkwork_im_ccp_core::{CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
 use sdkwork_im_runtime_link::{
-    quic_framed_message_length, tcp_framed_message_length, CCP_QUIC_FRAME_HEADER_BYTES,
-    CCP_QUIC_MAX_FRAME_BYTES, CCP_TCP_FRAME_HEADER_BYTES, CCP_TCP_MAX_FRAME_BYTES,
+    CCP_QUIC_FRAME_HEADER_BYTES, CCP_QUIC_MAX_FRAME_BYTES, CCP_TCP_FRAME_HEADER_BYTES,
+    CCP_TCP_MAX_FRAME_BYTES, quic_framed_message_length, tcp_framed_message_length,
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -43,7 +43,11 @@ impl FramedStreamCcpCodec {
         self.encode_framed(&envelope)
     }
 
-    pub fn encode_control(&self, route: &CcpRoute, frame: &ControlFrame) -> Result<Vec<u8>, String> {
+    pub fn encode_control(
+        &self,
+        route: &CcpRoute,
+        frame: &ControlFrame,
+    ) -> Result<Vec<u8>, String> {
         let envelope = CcpEnvelope::new(
             ProtocolVersion::new("ccp", 1, 0),
             self.transport.clone(),
@@ -53,7 +57,8 @@ impl FramedStreamCcpCodec {
             Some(route.clone()),
             ["control"],
             None,
-            serde_json::to_string(frame).map_err(|error| format!("control encode failed: {error}"))?,
+            serde_json::to_string(frame)
+                .map_err(|error| format!("control encode failed: {error}"))?,
         );
         self.encode_framed(&envelope)
     }
@@ -98,7 +103,8 @@ pub fn encode_framed_control_envelope(
         None,
         ["control"],
         None,
-        serde_json::to_string(frame).map_err(|error| format!("control frame encode failed: {error}"))?,
+        serde_json::to_string(frame)
+            .map_err(|error| format!("control frame encode failed: {error}"))?,
     );
     match envelope.binding {
         TransportBinding::Tcp1 => TcpBinding::new()
@@ -124,12 +130,14 @@ where
         TransportBinding::Tcp1 => (
             CCP_TCP_FRAME_HEADER_BYTES,
             CCP_TCP_MAX_FRAME_BYTES,
-            tcp_framed_message_length as fn(&[u8]) -> Result<usize, sdkwork_im_ccp_codec::CodecError>,
+            tcp_framed_message_length
+                as fn(&[u8]) -> Result<usize, sdkwork_im_ccp_codec::CodecError>,
         ),
         TransportBinding::Quic1 => (
             CCP_QUIC_FRAME_HEADER_BYTES,
             CCP_QUIC_MAX_FRAME_BYTES,
-            quic_framed_message_length as fn(&[u8]) -> Result<usize, sdkwork_im_ccp_codec::CodecError>,
+            quic_framed_message_length
+                as fn(&[u8]) -> Result<usize, sdkwork_im_ccp_codec::CodecError>,
         ),
         _ => return Err("unsupported stream transport binding".into()),
     };

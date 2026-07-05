@@ -2,11 +2,30 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_app_context::DualTokenRequestBuilderExt;
+use std::sync::Once;
 use tower::ServiceExt;
+
+static INIT_AUTOMATION_HTTP_TEST_ENV: Once = Once::new();
+
+fn init_automation_http_test_env() {
+    INIT_AUTOMATION_HTTP_TEST_ENV.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+    });
+}
+
+fn automation_http_test_app() -> axum::Router {
+    init_automation_http_test_env();
+    automation_service::build_public_app()
+}
+
+fn automation_route_http_test_app() -> axum::Router {
+    init_automation_http_test_env();
+    sdkwork_routes_im_automation_app_api::build_public_app()
+}
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = automation_service::build_public_app();
+    let app = automation_http_test_app();
 
     let response = app
         .oneshot(
@@ -36,7 +55,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
-    let app = automation_service::build_public_app();
+    let app = automation_http_test_app();
 
     let response = app
         .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
@@ -60,7 +79,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_request_and_get_execution_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_response = app
         .clone()
@@ -139,7 +158,7 @@ async fn test_request_and_get_execution_over_http() {
 
 #[tokio::test]
 async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_rejected_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let first_response = app
         .clone()
@@ -256,7 +275,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
 
 #[tokio::test]
 async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let user_response = app
         .clone()
@@ -392,7 +411,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
 
 #[tokio::test]
 async fn test_agent_response_and_tool_call_lifecycle_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_response = app
         .clone()
@@ -608,7 +627,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
 
 #[tokio::test]
 async fn test_automation_governance_surface_and_operator_override_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let governance_response = app
         .clone()
@@ -806,7 +825,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
 
 #[tokio::test]
 async fn test_request_execution_rejects_oversized_input_payload_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
     let oversized_input = "x".repeat(131073);
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_input",
@@ -838,7 +857,7 @@ async fn test_request_execution_rejects_oversized_input_payload_over_http() {
 
 #[tokio::test]
 async fn test_request_execution_rejects_oversized_execution_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let oversized_execution_id = "e".repeat(257);
     let request_body = serde_json::json!({
@@ -870,7 +889,7 @@ async fn test_request_execution_rejects_oversized_execution_id_over_http() {
 
 #[tokio::test]
 async fn test_get_execution_rejects_oversized_execution_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let response = app
         .oneshot(
@@ -894,7 +913,7 @@ async fn test_get_execution_rejects_oversized_execution_id_over_http() {
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -961,7 +980,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
     let cases = [
         (
             "streamType",
@@ -1081,7 +1100,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -1148,7 +1167,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let request_body = serde_json::json!({
         "executionId": "e".repeat(257),
@@ -1188,7 +1207,7 @@ async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let response = app
         .oneshot(
@@ -1224,7 +1243,7 @@ async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_
 
 #[tokio::test]
 async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -1290,7 +1309,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
 
 #[tokio::test]
 async fn test_complete_agent_response_rejects_oversized_result_message_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -1381,7 +1400,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
 
 #[tokio::test]
 async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let response = app
         .oneshot(
@@ -1425,7 +1444,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
             serde_json::Value::String("s".repeat(257)),
         ),
     ] {
-        let app = sdkwork_routes_im_automation_app_api::build_public_app();
+        let app = automation_route_http_test_app();
 
         let create_execution_response = app
             .clone()
@@ -1498,7 +1517,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -1597,7 +1616,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
     let cases = [
         (
             "frameType",
@@ -1726,7 +1745,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -1819,7 +1838,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let request_body = serde_json::json!({
         "executionId": "e".repeat(257),
@@ -1849,7 +1868,7 @@ async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http()
 
 #[tokio::test]
 async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     for (field, execution_id, tool_call_id) in [
         ("executionId", "e".repeat(257), "tc_http_demo".to_string()),
@@ -1890,7 +1909,7 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -1983,7 +2002,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
 
 #[tokio::test]
 async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -2084,7 +2103,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
 
 #[tokio::test]
 async fn test_request_agent_tool_call_rejects_after_agent_response_completed_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()
@@ -2201,7 +2220,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
 
 #[tokio::test]
 async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http() {
-    let app = sdkwork_routes_im_automation_app_api::build_public_app();
+    let app = automation_route_http_test_app();
 
     let create_execution_response = app
         .clone()

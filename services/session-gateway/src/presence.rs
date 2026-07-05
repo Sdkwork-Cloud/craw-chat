@@ -1,5 +1,5 @@
 use sdkwork_im_contract_control::{
-    normalize_realtime_organization_id, PresenceStateRecord, PresenceStateStore,
+    PresenceStateRecord, PresenceStateStore, normalize_realtime_organization_id,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_runtime_link::decide_resume;
@@ -114,13 +114,8 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
         let device_keys = state
             .by_principal
             .get(
-                principal_scope_key(
-                    tenant_id,
-                    organization_id,
-                    principal_kind,
-                    principal_id,
-                )
-                .as_str(),
+                principal_scope_key(tenant_id, organization_id, principal_kind, principal_id)
+                    .as_str(),
             )
             .cloned()
             .unwrap_or_default();
@@ -684,12 +679,8 @@ impl PresenceRuntime {
         device_id: &str,
         expired_entry: PresenceRuntimeEntry,
     ) {
-        let scope_key = principal_scope_key(
-            tenant_id,
-            organization_id,
-            principal_kind,
-            principal_id,
-        );
+        let scope_key =
+            principal_scope_key(tenant_id, organization_id, principal_kind, principal_id);
         let restored = lock_presence_mutex(&self.restored_principals, "presence runtime")
             .contains(scope_key.as_str());
         if !restored {

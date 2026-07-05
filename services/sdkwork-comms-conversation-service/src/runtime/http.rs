@@ -4,7 +4,7 @@ use std::path::Path as FsPath;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use axum::extract::rejection::JsonRejection;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{DefaultBodyLimit, Extension, FromRequest, Path, Query, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
@@ -26,6 +26,7 @@ use sdkwork_im_web_bootstrap::{
     im_service_router_config, mount_im_infra_routes,
 };
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
+use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkSeqWindowQuery};
 use sdkwork_web_core::{
     ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
     problem_response,
@@ -56,8 +57,16 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn runtime(&self) -> Arc<ConversationRuntime<ConversationCommitJournal>> {
+        self.runtime.clone()
+    }
+
     pub(crate) fn rpc_runtime(&self) -> &ConversationRuntime<ConversationCommitJournal> {
         self.runtime.as_ref()
+    }
+
+    fn register_for_embedded_wiring(&self) {
+        crate::embedded_wiring::register_embedded_conversation_runtime(self.runtime.clone());
     }
 }
 
@@ -231,15 +240,8 @@ struct SharedChannelSyncRateLimitBucket {
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct MessageHistoryQuery {
-    after_seq: Option<u64>,
-    limit: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct MemberListQuery {
-    limit: Option<usize>,
-    cursor: Option<String>,
+    #[serde(flatten)]
+    paging: SdkWorkSeqWindowQuery,
 }
 
 impl SharedChannelSyncRateLimiter {
@@ -395,6 +397,13 @@ struct EditMessageRequest {
     parts: Vec<ContentPart>,
     #[serde(default)]
     render_hints: BTreeMap<String, String>,
+    idempotency_key: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct RecallMessageRequest {
+    idempotency_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -654,6 +663,16 @@ impl From<JsonRejection> for ApiError {
     }
 }
 
+impl From<QueryRejection> for ApiError {
+    fn from(rejection: QueryRejection) -> Self {
+        Self {
+            status: rejection.status(),
+            code: "invalid_query",
+            message: rejection.body_text(),
+        }
+    }
+}
+
 impl<S, T> FromRequest<S> for AppJson<T>
 where
     S: Send + Sync,
@@ -844,21 +863,31 @@ fn build_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJourna
 }
 
 pub fn default_app_state() -> AppState {
-    AppState {
+    if !im_app_context::allows_header_only_app_context_fallback() {
+        panic!(
+            "default conversation app state with allow-all principals is forbidden in production; \
+             call bootstrap_conversation_app_state_from_env() instead"
+        );
+    }
+    let state = AppState {
         runtime: Arc::new(build_runtime_for_app_state()),
         principal_directory: Arc::new(AllowAllPrincipalDirectory),
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
-    }
+    };
+    state.register_for_embedded_wiring();
+    state
 }
 
 pub fn app_state_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> AppState {
-    AppState {
+    let state = AppState {
         runtime: Arc::new(build_runtime_for_app_state()),
         principal_directory,
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
-    }
+    };
+    state.register_for_embedded_wiring();
+    state
 }
 
 /// Resolve conversation HTTP [`AppState`] from process environment.
@@ -1034,6 +1063,10 @@ pub fn build_domain_api_router(state: AppState) -> Router {
             post(leave_conversation),
         )
         .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/members/accept_invitation",
+            post(accept_conversation_invitation),
+        )
+        .route(
             "/im/v3/api/chat/conversations/{conversation_id}/read_cursor",
             get(get_read_cursor).post(update_read_cursor),
         )
@@ -1063,7 +1096,7 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/messages",
-            get(list_messages).post(post_message),
+            post(post_message),
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/system_channel/publish",
@@ -1717,16 +1750,20 @@ async fn list_members(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
-    Query(query): Query<MemberListQuery>,
+    query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
 ) -> Response {
     let result: ApiResult<ListMembersResponse> = (|| {
+        let Query(query) = query.map_err(ApiError::from)?;
         ensure_active_http_auth_principal(&state, &auth)?;
+        let paging = query.resolve().map_err(|_| {
+            ApiError::bad_request("cursor_invalid", "conversation member list cursor is invalid")
+        })?;
         state
             .runtime
             .list_members_window_from_auth_context(
                 &auth,
                 conversation_id.as_str(),
-                query.limit,
+                Some(paging.page_size),
                 query.cursor.as_deref(),
             )
             .map_err(|error| match error {
@@ -1852,6 +1889,21 @@ async fn leave_conversation(
     finish_api_json(&ctx, result)
 }
 
+async fn accept_conversation_invitation(
+    Extension(ctx): Extension<WebRequestContext>,
+    Extension(auth): Extension<AppContext>,
+    State(state): State<AppState>,
+    Path(conversation_id): Path<String>,
+) -> Response {
+    let result: ApiResult<ConversationMember> = (|| {
+        ensure_active_http_auth_principal(&state, &auth)?;
+        Ok(state
+            .runtime
+            .accept_conversation_invitation_from_auth_context(&auth, conversation_id)?)
+    })();
+    finish_api_json(&ctx, result)
+}
+
 async fn get_read_cursor(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
@@ -1873,15 +1925,16 @@ async fn list_messages(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
-    Query(query): Query<MessageHistoryQuery>,
+    query: Result<Query<MessageHistoryQuery>, QueryRejection>,
 ) -> Response {
     let result: ApiResult<MessageHistoryResult> = (|| {
+        let Query(query) = query.map_err(ApiError::from)?;
         ensure_active_http_auth_principal(&state, &auth)?;
-        let limit = validate_message_history_limit(query.limit)?;
+        let limit = validate_message_history_limit(Some(query.paging.resolved_page_size()))?;
         Ok(state.runtime.list_messages_window_from_auth_context(
             &auth,
             conversation_id.as_str(),
-            query.after_seq,
+            query.paging.after_seq,
             limit,
         )?)
     })();
@@ -1988,7 +2041,14 @@ async fn edit_message(
             request.render_hints,
         )?;
         Ok(state.runtime.edit_message(
-            EditMessageCommand::from_auth_context(&auth, message_id, body),
+            EditMessageCommand {
+                tenant_id: auth.tenant_id.clone(),
+                organization_id: organization_id_from_auth_context(&auth),
+                message_id,
+                editor: sender_from_auth_context(&auth),
+                body,
+                idempotency_key: request.idempotency_key,
+            },
         )?)
     })();
     finish_api_json(&ctx, result)
@@ -1999,11 +2059,18 @@ async fn recall_message(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(message_id): Path<String>,
+    AppJson(request): AppJson<RecallMessageRequest>,
 ) -> Response {
     let result: ApiResult<MessageMutationResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
         Ok(state.runtime.recall_message(
-            RecallMessageCommand::from_auth_context(&auth, message_id),
+            RecallMessageCommand {
+                tenant_id: auth.tenant_id.clone(),
+                organization_id: organization_id_from_auth_context(&auth),
+                message_id,
+                recalled_by: sender_from_auth_context(&auth),
+                idempotency_key: request.idempotency_key,
+            },
         )?)
     })();
     finish_api_json(&ctx, result)
@@ -2214,11 +2281,43 @@ mod tests {
         runtime: Arc<ConversationRuntime<ConversationCommitJournal>>,
         principal_directory: Arc<dyn PrincipalDirectory>,
     ) -> Router {
-        build_app(AppState {
+        use axum::extract::Request;
+        use axum::middleware::{from_fn, Next};
+        use axum::routing::get;
+
+        async fn inject_test_auth_context(request: Request, next: Next) -> Response {
+            let path = request.uri().path().to_owned();
+            let method = request.method().as_str().to_owned();
+            if let Ok(resolved) = im_app_context::resolve_app_context_for_request(
+                request.headers(),
+                path.as_str(),
+                method.as_str(),
+            ) {
+                let mut request = request;
+                request
+                    .extensions_mut()
+                    .insert(resolved.app_request_context);
+                request.extensions_mut().insert(resolved.app_context);
+                return next.run(request).await;
+            }
+            next.run(request).await
+        }
+
+        let state = AppState {
             runtime,
             principal_directory,
             shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
-        })
+        };
+        let read_router = Router::new()
+            .route(
+                "/im/v3/api/chat/conversations/{conversation_id}/messages",
+                get(list_messages),
+            )
+            .with_state(state.clone());
+
+        build_app(state)
+            .merge(read_router)
+            .layer(from_fn(inject_test_auth_context))
     }
 
     fn seed_group_conversation_with_ghost_member(

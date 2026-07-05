@@ -44,6 +44,12 @@ pub const ROUTES: &[HttpRoute] = &[
         "calls.sessions.end",
     ),
     HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::CALL_SESSION_SIGNALS,
+        "calls",
+        "calls.sessions.signals.list",
+    ),
+    HttpRoute::dual_token(
         HttpMethod::Post,
         paths::CALL_SESSION_SIGNALS,
         "calls",
@@ -54,6 +60,12 @@ pub const ROUTES: &[HttpRoute] = &[
         paths::CALL_SESSION_CREDENTIALS,
         "calls",
         "calls.sessions.credentials.create",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Post,
+        "/im/v3/api/calls/sessions/{rtcSessionId}/credentials/refresh",
+        "calls",
+        "calls.sessions.credentials.refresh",
     ),
 ];
 

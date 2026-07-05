@@ -24,6 +24,12 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
         "social.friendRequests.create",
     ),
     HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/friend_requests/pending/count",
+        "social",
+        "social.friendRequests.pendingCount",
+    ),
+    HttpRoute::open_api_flexible(
         HttpMethod::Post,
         "/im/v3/api/social/friend_requests/{requestId}/accept",
         "social",
@@ -96,6 +102,12 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
         "social.friendships.list",
     ),
     HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/user_blocks",
+        "social",
+        "social.userBlocks.create",
+    ),
+    HttpRoute::open_api_flexible(
         HttpMethod::Get,
         "/im/v3/api/social/user_blocks",
         "social",
@@ -106,12 +118,6 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
         "/im/v3/api/social/user_blocks/{block_id}",
         "social",
         "social.userBlocks.delete",
-    ),
-    HttpRoute::open_api_flexible(
-        HttpMethod::Post,
-        "/im/v3/api/social/direct_chats",
-        "social",
-        "social.directChats.create",
     ),
     HttpRoute::open_api_flexible(
         HttpMethod::Get,

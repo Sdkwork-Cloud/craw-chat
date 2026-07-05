@@ -1,4 +1,5 @@
-use std::collections::{BTreeSet, HashMap};
+use std::cmp::Reverse;
+use std::collections::{BTreeMap, HashMap};
 
 use im_app_context::AppContext;
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
@@ -46,28 +47,81 @@ pub(crate) fn record_notification_recipient_scope_key(record: &NotificationTaskR
     )
 }
 
+pub(crate) type NotificationRecipientIndex = HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>;
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub(crate) struct NotificationRecipientSortKey(
+    pub Reverse<(String, String)>,
+    pub String,
+);
+
+pub(crate) fn notification_recipient_sort_key(task: &NotificationTask) -> NotificationRecipientSortKey {
+    let (primary, secondary) = notification_sort_key(task);
+    NotificationRecipientSortKey(
+        Reverse((primary.to_owned(), secondary.to_owned())),
+        task.notification_id.clone(),
+    )
+}
+
 pub(crate) fn insert_notification_recipient_index(
-    index: &mut HashMap<String, BTreeSet<String>>,
+    index: &mut NotificationRecipientIndex,
     notification_key: &str,
     record: &NotificationTaskRecord,
 ) {
+    let sort_key = notification_recipient_sort_key(&record.task);
     index
         .entry(record_notification_recipient_scope_key(record))
         .or_default()
-        .insert(notification_key.to_owned());
+        .insert(sort_key, notification_key.to_owned());
 }
 
 pub(crate) fn remove_notification_recipient_index(
-    index: &mut HashMap<String, BTreeSet<String>>,
+    index: &mut NotificationRecipientIndex,
     notification_key: &str,
     record: &NotificationTaskRecord,
 ) {
     let recipient_key = record_notification_recipient_scope_key(record);
-    if let Some(task_keys) = index.get_mut(recipient_key.as_str()) {
-        task_keys.remove(notification_key);
-        if task_keys.is_empty() {
-            index.remove(recipient_key.as_str());
-        }
+    let Some(task_keys) = index.get_mut(recipient_key.as_str()) else {
+        return;
+    };
+    task_keys.retain(|_, key| key != notification_key);
+    if task_keys.is_empty() {
+        index.remove(recipient_key.as_str());
+    }
+}
+
+pub(crate) fn insert_runtime_notification_recipient_index(
+    index: &mut NotificationRecipientIndex,
+    notification_key: &str,
+    task: &NotificationTask,
+) {
+    let sort_key = notification_recipient_sort_key(task);
+    index
+        .entry(notification_recipient_scope_key(
+            task.tenant_id.as_str(),
+            task.recipient_kind.as_str(),
+            task.recipient_id.as_str(),
+        ))
+        .or_default()
+        .insert(sort_key, notification_key.to_owned());
+}
+
+pub(crate) fn remove_runtime_notification_recipient_index(
+    index: &mut NotificationRecipientIndex,
+    notification_key: &str,
+    task: &NotificationTask,
+) {
+    let recipient_key = notification_recipient_scope_key(
+        task.tenant_id.as_str(),
+        task.recipient_kind.as_str(),
+        task.recipient_id.as_str(),
+    );
+    let Some(task_keys) = index.get_mut(recipient_key.as_str()) else {
+        return;
+    };
+    task_keys.retain(|_, key| key != notification_key);
+    if task_keys.is_empty() {
+        index.remove(recipient_key.as_str());
     }
 }
 

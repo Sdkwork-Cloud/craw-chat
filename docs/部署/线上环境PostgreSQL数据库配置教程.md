@@ -8,7 +8,7 @@
 - public route: `/sdkwork/chat`
 - package name: `sdkwork-chat`
 - server database default: PostgreSQL
-- desktop database default: SQLite
+- desktop local storage: browser IndexedDB / localStorage
 
 ## 1. 运行时目录
 
@@ -234,9 +234,77 @@ bash bin/start-server.sh --instance default --release
 
 Windows Service 使用 `install-service-server.ps1` 安装并注册 `SdkworkImServer`。后台启动通过 systemd、launchd 或 Windows Service 读取配置入口 `sdkwork-im-server --config <config-root>/chat.toml`。
 
-线上不要使用本地开发命令。`pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop`、`pnpm dev:browser:sqlite`、`pnpm dev:desktop:sqlite` 仅用于开发编排；线上 PostgreSQL 运行必须使用服务端配置根 `/etc/sdkwork/chat/chat.toml`。
+线上不要使用本地开发命令。`pnpm dev`、`pnpm dev:browser`、`pnpm dev:desktop` 仅用于开发编排；线上 PostgreSQL 运行必须使用服务端配置根 `/etc/sdkwork/chat/chat.toml`。
 
-## 10. 安全与运维要点
+## 10. PostgreSQL 服务器调优推荐
+
+PostgreSQL 实例由外部托管服务或 DBA 维护，本节给出 IM 线上负载的推荐基线配置。DBA 应在实例初始化时应用这些参数，并根据实际内存、CPU、磁盘 IOPS 与并发量做二次微调。所有参数均通过 `postgresql.conf` 或云托管控制台设置；本仓库不维护 PostgreSQL 服务器侧 `.conf` 文件。
+
+### 10.1 内存与共享缓冲区
+
+按实例可用内存（RAM）配比设置：
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `shared_buffers` | `RAM * 25%`（4C8G 实例 = `2GB`） | PostgreSQL 共享缓冲池，专用实例取 25%，与其他服务共享时取 15-20%。 |
+| `effective_cache_size` | `RAM * 75%`（4C8G 实例 = `6GB`） | 查询规划器对操作系统页面缓存的估算值，不是实际分配，可设大些。 |
+| `work_mem` | `16MB` | 单条查询的排序/哈希内存。IM 联合查询、timeline 聚合需要较大值，但过高会因并发数放大总内存占用。 |
+| `maintenance_work_mem` | `512MB` | VACUUM、CREATE INDEX、ALTER TABLE 重写操作的内存。IM 消息表大，重建索引时较大值可显著缩短维护窗口。 |
+| `temp_buffers` | `16MB` | 临时表内存，IM 内部使用临时表较少，默认 8MB 偏低，建议 16MB。 |
+
+### 10.2 WAL 与检查点
+
+IM 写入特征：消息流持续写入、偶发批量会话归档、定时 outbox 投递。WAL 调优目标是减少 checkpoint 抖动和 WAL 切换开销：
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `wal_level` | `replica`（默认） | 主库提供流复制即可；逻辑解码 (`logical`) 仅在需要 CDC 时开启。 |
+| `max_wal_size` | `4GB` | 检查点之间允许的最大 WAL 大小，IM 高写入负载需要更大值以避免频繁检查点。 |
+| `min_wal_size` | `1GB` | WAL 预保留最小值，避免在低峰期 WAL 段频繁回收。 |
+| `checkpoint_timeout` | `15min` | 检查点间隔，默认 5min 偏短；延长到 15min 可减少 I/O 峰值，但崩溃恢复时间会略增。 |
+| `checkpoint_completion_target` | `0.9` | 检查点平滑分布到下一个间隔的 90%，避免 I/O 突刺。 |
+| `wal_compression` | `on` | WAL 段压缩，降低网络带宽和磁盘占用，CPU 开销可接受。 |
+| `wal_buffers` | `16MB` | WAL 缓冲区，默认 -1 自动按 shared_buffers/32 计算；显式设 16MB 避免过小。 |
+| `synchronous_commit` | `on`（默认） | IM 消息需要强持久化保证；仅在 latency 极度敏感且容忍数据丢失的场景才考虑 `off`/`local`。 |
+
+### 10.3 并发与连接
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `max_connections` | `200` | PostgreSQL 服务器侧连接上限。需与应用侧总连接池上限匹配：所有 SDKWork IM 微服务实例的 `DATABASE_POOL_MAX_CONNECTIONS` 之和应低于此值的 80%，留余量给 DBA 维护连接。 |
+| `superuser_reserved_connections` | `5` | 为 DBA 维护保留的连接数，防止应用耗尽连接后无法介入。 |
+
+### 10.4 自动清理与统计
+
+IM 消息表、outbox、audit 表会持续增长，autovacuum 必须保持开启且参数调优：
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `autovacuum` | `on`（默认） | 必须开启，IM 高写入表会快速积累死元组。 |
+| `autovacuum_max_workers` | `6` | 默认 3 偏低，IM 有多个高频更新表（messages、outbox、audit），建议 6。 |
+| `autovacuum_naptime` | `30s` | 默认 1min 偏长，IM 表需要更频繁的清理。 |
+| `autovacuum_vacuum_cost_limit` | `1000` | 默认 200 偏低，提高清理吞吐。 |
+| `track_activity_query_size` | `8192` | 默认 1024，IM 长查询（联合 timeline 查询）会被截断，建议 8KB。 |
+
+### 10.5 监控与日志
+
+| 参数 | 推荐值 | 说明 |
+|------|--------|------|
+| `log_min_duration_statement` | `500` | 记录执行超过 500ms 的查询，IM 关键路径查询 latency 应在 100ms 内。 |
+| `log_checkpoints` | `on` | 记录检查点事件，便于排查 WAL/IO 抖动。 |
+| `log_lock_waits` | `on` | 记录锁等待，IM 并发控制（FOR UPDATE SKIP LOCKED）异常时便于定位。 |
+| `log_autovacuum_min_duration` | `1s` | 记录耗时超过 1s 的 autovacuum，便于发现表膨胀。 |
+| `log_line_prefix` | `%m [%p] %q%u@%d ` | 包含时间、PID、用户、数据库，便于多租户排查。 |
+
+### 10.6 应用侧匹配要点
+
+- 所有 SDKWork IM 微服务实例的 `DATABASE_POOL_MAX_CONNECTIONS` 之和应 ≤ `max_connections * 0.8`。
+- `DATABASE_POOL_MIN_CONNECTIONS` 用于预热连接；建议每个实例 5-10。
+- `DATABASE_POOL_IDLE_TIMEOUT_SECONDS` 与 PG 服务器侧 `tcp_keepalives_idle` 匹配（Linux 默认 7200s 偏长，建议设 300s）。
+- 启用 `DATABASE_POOL_MAX_LIFETIME_SECONDS`（建议 1800s）避免连接长时间持有导致负载不均。
+- 不要在应用侧使用 PG 超级用户连接。
+
+## 11. 安全与运维要点
 
 - PostgreSQL 主库需有备份与恢复演练。
 - 应用账号不得使用超级用户长期连接。

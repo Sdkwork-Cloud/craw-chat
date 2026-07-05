@@ -56,7 +56,7 @@ pub enum AuditEventType {
     SecurityApiKeyUsage,
     /// Session creation/termination.
     SecuritySessionLifecycle,
-    
+
     // Access events (L2 required)
     /// Resource read access.
     AccessResourceRead,
@@ -64,7 +64,7 @@ pub enum AuditEventType {
     AccessResourceMutation,
     /// List/query access.
     AccessResourceList,
-    
+
     // Mutation events (L2 required)
     /// Call session created.
     MutationCallSessionCreated,
@@ -74,7 +74,7 @@ pub enum AuditEventType {
     MutationCallSignalPosted,
     /// Participant invited/accepted/rejected.
     MutationCallParticipantChanged,
-    
+
     // Administrative events (L3 required)
     /// Configuration changed.
     AdminConfigurationChanged,
@@ -97,7 +97,9 @@ impl AuditEventType {
             AuditEventType::AccessResourceMutation => "access.resource_mutation",
             AuditEventType::AccessResourceList => "access.resource_list",
             AuditEventType::MutationCallSessionCreated => "mutation.call_session_created",
-            AuditEventType::MutationCallSessionStateChanged => "mutation.call_session_state_changed",
+            AuditEventType::MutationCallSessionStateChanged => {
+                "mutation.call_session_state_changed"
+            }
             AuditEventType::MutationCallSignalPosted => "mutation.call_signal_posted",
             AuditEventType::MutationCallParticipantChanged => "mutation.call_participant_changed",
             AuditEventType::AdminConfigurationChanged => "admin.configuration_changed",
@@ -105,19 +107,20 @@ impl AuditEventType {
             AuditEventType::AdminFeatureFlagChanged => "admin.feature_flag_changed",
         }
     }
-    
+
     /// Check if this event type requires L3 audit compliance.
     pub fn requires_l3_audit(&self) -> bool {
-        matches!(self, 
-            AuditEventType::SecurityLoginAttempt |
-            AuditEventType::SecurityTokenValidationFailure |
-            AuditEventType::SecurityPermissionDenied |
-            AuditEventType::SecurityCrossTenantAccess |
-            AuditEventType::SecurityApiKeyUsage |
-            AuditEventType::SecuritySessionLifecycle |
-            AuditEventType::AdminConfigurationChanged |
-            AuditEventType::AdminRateLimitChanged |
-            AuditEventType::AdminFeatureFlagChanged
+        matches!(
+            self,
+            AuditEventType::SecurityLoginAttempt
+                | AuditEventType::SecurityTokenValidationFailure
+                | AuditEventType::SecurityPermissionDenied
+                | AuditEventType::SecurityCrossTenantAccess
+                | AuditEventType::SecurityApiKeyUsage
+                | AuditEventType::SecuritySessionLifecycle
+                | AuditEventType::AdminConfigurationChanged
+                | AuditEventType::AdminRateLimitChanged
+                | AuditEventType::AdminFeatureFlagChanged
         )
     }
 }
@@ -179,7 +182,7 @@ impl AuditOutcome {
             AuditOutcome::Throttled => "THROTTLED",
         }
     }
-    
+
     pub fn is_success(&self) -> bool {
         matches!(self, AuditOutcome::Success)
     }
@@ -235,7 +238,7 @@ impl AuditEvent {
     pub fn builder() -> AuditEventBuilder {
         AuditEventBuilder::default()
     }
-    
+
     /// Convert to redacted JSON for logging/output.
     pub fn to_redacted_json(&self) -> serde_json::Value {
         serde_json::json!({
@@ -293,67 +296,67 @@ impl AuditEventBuilder {
         self.event_id = Some(id);
         self
     }
-    
+
     pub fn event_type(mut self, type_: AuditEventType) -> Self {
         self.event_type = Some(type_);
         self
     }
-    
+
     pub fn timestamp(mut self, ts: String) -> Self {
         self.timestamp = Some(ts);
         self
     }
-    
+
     pub fn tenant_id(mut self, id: String) -> Self {
         self.tenant_id = Some(id);
         self
     }
-    
+
     pub fn organization_id(mut self, id: String) -> Self {
         self.organization_id = Some(id);
         self
     }
-    
+
     pub fn user_id(mut self, id: Option<String>) -> Self {
         self.user_id = id;
         self
     }
-    
+
     pub fn session_id(mut self, id: Option<String>) -> Self {
         self.session_id = id;
         self
     }
-    
+
     pub fn actor_type(mut self, type_: AuditActorType) -> Self {
         self.actor_type = Some(type_);
         self
     }
-    
+
     pub fn actor_id(mut self, id: String) -> Self {
         self.actor_id = Some(id);
         self
     }
-    
+
     pub fn action(mut self, action: String) -> Self {
         self.action = Some(action);
         self
     }
-    
+
     pub fn target_type(mut self, type_: String) -> Self {
         self.target_type = Some(type_);
         self
     }
-    
+
     pub fn target_id(mut self, id: String) -> Self {
         self.target_id = Some(id);
         self
     }
-    
+
     pub fn outcome(mut self, outcome: AuditOutcome) -> Self {
         self.outcome = Some(outcome);
         self
     }
-    
+
     pub fn reason(mut self, reason: String) -> Self {
         self.reason = Some(reason);
         self
@@ -368,48 +371,66 @@ impl AuditEventBuilder {
         self.request_id = id;
         self
     }
-    
+
     pub fn trace_id(mut self, id: Option<String>) -> Self {
         self.trace_id = id;
         self
     }
-    
+
     pub fn client_ip(mut self, ip: Option<String>) -> Self {
         self.client_ip = ip;
         self
     }
-    
+
     pub fn user_agent(mut self, ua: Option<String>) -> Self {
         self.user_agent = ua;
         self
     }
-    
+
     pub fn metadata(mut self, meta: serde_json::Value) -> Self {
         self.metadata = meta;
         self
     }
-    
+
     pub fn duration_ms(mut self, ms: u64) -> Self {
         self.duration_ms = Some(ms);
         self
     }
-    
+
     /// Build the audit event, validating required fields.
     pub fn build(self) -> Result<AuditEvent, AuditEventError> {
         Ok(AuditEvent {
-            event_id: self.event_id.ok_or(AuditEventError::MissingField("event_id"))?,
-            event_type: self.event_type.ok_or(AuditEventError::MissingField("event_type"))?,
-            timestamp: self.timestamp.ok_or(AuditEventError::MissingField("timestamp"))?,
-            tenant_id: self.tenant_id.ok_or(AuditEventError::MissingField("tenant_id"))?,
+            event_id: self
+                .event_id
+                .ok_or(AuditEventError::MissingField("event_id"))?,
+            event_type: self
+                .event_type
+                .ok_or(AuditEventError::MissingField("event_type"))?,
+            timestamp: self
+                .timestamp
+                .ok_or(AuditEventError::MissingField("timestamp"))?,
+            tenant_id: self
+                .tenant_id
+                .ok_or(AuditEventError::MissingField("tenant_id"))?,
             organization_id: self.organization_id.unwrap_or_else(|| "0".to_string()),
             user_id: self.user_id,
             session_id: self.session_id,
-            actor_type: self.actor_type.ok_or(AuditEventError::MissingField("actor_type"))?,
-            actor_id: self.actor_id.ok_or(AuditEventError::MissingField("actor_id"))?,
+            actor_type: self
+                .actor_type
+                .ok_or(AuditEventError::MissingField("actor_type"))?,
+            actor_id: self
+                .actor_id
+                .ok_or(AuditEventError::MissingField("actor_id"))?,
             action: self.action.ok_or(AuditEventError::MissingField("action"))?,
-            target_type: self.target_type.ok_or(AuditEventError::MissingField("target_type"))?,
-            target_id: self.target_id.ok_or(AuditEventError::MissingField("target_id"))?,
-            outcome: self.outcome.ok_or(AuditEventError::MissingField("outcome"))?,
+            target_type: self
+                .target_type
+                .ok_or(AuditEventError::MissingField("target_type"))?,
+            target_id: self
+                .target_id
+                .ok_or(AuditEventError::MissingField("target_id"))?,
+            outcome: self
+                .outcome
+                .ok_or(AuditEventError::MissingField("outcome"))?,
             reason: self.reason,
             request_id: self.request_id,
             trace_id: self.trace_id,
@@ -444,11 +465,11 @@ impl MemoryAuditEmitter {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn events(&self) -> Vec<AuditEvent> {
         self.events.lock().unwrap().clone()
     }
-    
+
     pub fn clear(&self) {
         self.events.lock().unwrap().clear();
     }
@@ -511,7 +532,7 @@ impl AuditEmitter for LoggingAuditEmitter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn audit_event_builder_complete() {
         let event = AuditEvent::builder()
@@ -534,22 +555,23 @@ mod tests {
             .duration_ms(50)
             .build()
             .expect("complete audit event should build");
-        
+
         assert_eq!(event.event_id, 123456789);
         assert_eq!(event.tenant_id, "tenant_1");
         assert!(event.outcome.is_success());
     }
-    
+
     #[test]
     fn audit_event_missing_field_error() {
-        let result = AuditEvent::builder()
-            .event_id(123)
-            .build();
-        
+        let result = AuditEvent::builder().event_id(123).build();
+
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Missing required field: event_type");
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Missing required field: event_type"
+        );
     }
-    
+
     #[test]
     fn audit_event_redaction() {
         let event = AuditEvent::builder()
@@ -568,13 +590,13 @@ mod tests {
             .metadata(serde_json::json!({"token": "secret"}))
             .build()
             .unwrap();
-        
+
         let redacted = event.to_redacted_json();
         assert_eq!(redacted["session_id"], "[REDACTED]");
         assert_eq!(redacted["client_ip"], "[IP_REDACTED]");
         assert_eq!(redacted["metadata"], "[REDACTED]");
     }
-    
+
     #[test]
     fn memory_audit_emitter() {
         let emitter = MemoryAuditEmitter::new();
@@ -591,14 +613,14 @@ mod tests {
             .outcome(AuditOutcome::Success)
             .build()
             .unwrap();
-        
+
         emitter.emit(event.clone()).unwrap();
-        
+
         let events = emitter.events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_id, 1);
     }
-    
+
     #[test]
     fn event_type_l3_classification() {
         assert!(AuditEventType::SecurityLoginAttempt.requires_l3_audit());

@@ -50,6 +50,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   const activeRtcSessionIdRef = useRef<string | undefined>(rtcSessionId);
   const autoClosedTerminalSessionRef = useRef<string | undefined>(undefined);
   const localPreviewContainerRef = useRef<HTMLDivElement | null>(null);
+  const remotePreviewContainerRef = useRef<HTMLDivElement | null>(null);
   const screenShareStreamRef = useRef<MediaStream | undefined>(undefined);
   const isMutedRef = useRef(false);
   const isVideoOffRef = useRef(type === 'voice');
@@ -60,6 +61,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
 
   const releaseCallMedia = useCallback(() => {
     void callService.bindLocalVideoElement(null).catch(() => undefined);
+    void callService.bindRemoteVideoElement(null, null).catch(() => undefined);
     stopMediaStream(screenShareStreamRef.current);
     screenShareStreamRef.current = undefined;
   }, []);
@@ -150,7 +152,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   useEffect(() => {
     if (!isOpen || callState !== 'connected' || type !== 'video' || isVideoOff) {
       void callService.bindLocalVideoElement(null).catch(() => undefined);
-      return;
+      return undefined;
     }
     void callService.bindLocalVideoElement(localPreviewContainerRef.current).catch((error) => {
       toast(error instanceof Error ? error.message : t('chat.callOverlay.toast.localVideoBindFailed'), 'error');
@@ -159,6 +161,23 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
       void callService.bindLocalVideoElement(null).catch(() => undefined);
     };
   }, [callState, isOpen, isVideoOff, type]);
+
+  useEffect(() => {
+    if (!isOpen || callState !== 'connected' || type !== 'video') {
+      void callService.bindRemoteVideoElement(null, null).catch(() => undefined);
+      return undefined;
+    }
+    const remoteUserId = callSnapshot.peerUserId;
+    void callService.bindRemoteVideoElement(
+      remoteUserId,
+      remotePreviewContainerRef.current,
+    ).catch((error) => {
+      toast(error instanceof Error ? error.message : t('chat.callOverlay.toast.remoteVideoBindFailed'), 'error');
+    });
+    return () => {
+      void callService.bindRemoteVideoElement(null, null).catch(() => undefined);
+    };
+  }, [callSnapshot.peerUserId, callState, isOpen, t, type]);
 
   useEffect(() => {
     return () => {
@@ -331,15 +350,19 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
               )}
             </div>
           ) : (
-            /* Simulated Video Feed */
             <div className="absolute inset-0 bg-[#222] flex items-center justify-center">
-              {/* Main Video (Remote) */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Avatar src={callerAvatar} alt={callerName} className="w-full h-full object-cover opacity-50 blur-sm" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white/30 text-2xl">{t('chat.callOverlay.media.remoteVideo')}</span>
+              <div
+                ref={remotePreviewContainerRef}
+                className="absolute inset-0 flex items-center justify-center"
+              />
+              {!callSnapshot.peerUserId && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <Avatar src={callerAvatar} alt={callerName} className="w-full h-full object-cover opacity-50 blur-sm" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-white/30 text-2xl">{t('chat.callOverlay.media.remoteVideo')}</span>
+                  </div>
                 </div>
-              </div>
+              )}
               
               {/* Picture in Picture (Local) */}
               <div className={`absolute bg-black overflow-hidden shadow-2xl z-20 transition-all duration-300 ${

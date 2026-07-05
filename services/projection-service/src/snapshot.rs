@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::ClientRouteSyncFeedEntry;
-use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
+use im_domain_core::conversation::{ConversationMember, ConversationReadCursor, read_cursor_storage_key};
 use im_platform_contracts::{
     MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch, TimelineProjectionRecord,
     TimelineProjectionStore,
@@ -21,7 +21,8 @@ use crate::scope::{
 };
 use crate::{
     ContactView, ConversationSummaryView, TimelineProjectionService, TimelineViewEntry,
-    model::ConversationCatalogEntry,
+    lock_projection_mutex,
+    model::{ConversationCatalogEntry, MessageVisibilityMutationResult},
 };
 
 const CONVERSATION_SUMMARY_KEY: &str = "conversation-summary";
@@ -29,6 +30,7 @@ pub(crate) const CONVERSATION_SUMMARY_SNAPSHOT_KEY: &str = CONVERSATION_SUMMARY_
 const CONVERSATION_CATALOG_KEY: &str = "conversation-catalog";
 const CONVERSATION_MEMBERS_KEY: &str = "conversation-members";
 const CONVERSATION_READ_CURSORS_KEY: &str = "conversation-read_cursors";
+const CONVERSATION_PROFILE_KEY: &str = "conversation-profile";
 const MESSAGE_INTERACTIONS_KEY: &str = "message-interactions";
 const CONTACTS_KEY: &str = "contacts";
 const CONTACT_OWNERS_KEY: &str = "contact-owners";
@@ -41,15 +43,18 @@ const CONTACT_CATALOG_SCOPE: &str = "projection-contacts";
 const PRINCIPAL_SNAPSHOT_SCOPE_PREFIX: &str = "principal";
 const CLIENT_ROUTE_SYNC_SNAPSHOT_SCOPE_PREFIX: &str = "client-route-sync";
 const CLIENT_ROUTE_SYNC_CATALOG_SCOPE: &str = "projection-client-route-sync";
+const MESSAGE_VISIBILITY_CATALOG_SCOPE: &str = "projection-message-visibilities";
+const MESSAGE_VISIBILITY_SCOPES_KEY: &str = "message-visibility-scopes";
+const MESSAGE_VISIBILITY_STATE_KEY: &str = "message-visibilities";
 
 #[derive(Default)]
-struct ProjectionSnapshotWritePlan {
+pub(crate) struct ProjectionSnapshotWritePlan {
     metadata_snapshots: Vec<MetadataSnapshotRecord>,
     timeline_batches: Vec<TimelineProjectionBatch>,
 }
 
 impl ProjectionSnapshotWritePlan {
-    fn push_metadata<T: Serialize>(
+    pub(crate) fn push_metadata<T: Serialize>(
         &mut self,
         scope: &str,
         key: &str,
@@ -110,7 +115,7 @@ impl ProjectionSnapshotWritePlan {
         Ok(())
     }
 
-    fn commit_metadata_only(
+    pub(crate) fn commit_metadata_only(
         self,
         metadata_store: &dyn MetadataStore,
     ) -> Result<(), ProjectionError> {
@@ -276,16 +281,28 @@ impl TimelineProjectionService {
             else {
                 return Ok(false);
             };
-            let timeline = timeline_store
-                .load_timeline(tenant_id, conversation_id)
-                .map_err(ProjectionError::StoreFailure)?
-                .into_iter()
-                .map(|(_, payload)| {
-                    serde_json::from_str::<TimelineViewEntry>(&payload)
-                        .map_err(ProjectionError::InvalidSnapshot)
-                })
-                .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
-                .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
+            let memory_cap = self.memory_timeline_cap();
+            let timeline = if memory_cap < crate::timeline_tier::PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED
+            {
+                crate::timeline_tier::load_timeline_tail_for_restore(
+                    timeline_store,
+                    tenant_id,
+                    conversation_id,
+                    summary.message_count,
+                    memory_cap,
+                )?
+            } else {
+                timeline_store
+                    .load_timeline(tenant_id, conversation_id)
+                    .map_err(ProjectionError::StoreFailure)?
+                    .into_iter()
+                    .map(|(_, payload)| {
+                        serde_json::from_str::<TimelineViewEntry>(&payload)
+                            .map_err(ProjectionError::InvalidSnapshot)
+                    })
+                    .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
+                    .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?
+            };
             let conversation = load_metadata_snapshot::<ConversationCatalogEntry>(
                 metadata_store,
                 scope.as_str(),
@@ -304,7 +321,13 @@ impl TimelineProjectionService {
             )?
             .unwrap_or_default()
             .into_iter()
-            .map(|cursor| (cursor.member_id.clone(), cursor))
+            .map(|cursor| {
+                let storage_key = read_cursor_storage_key(
+                    cursor.member_id.as_str(),
+                    cursor.device_id.as_deref(),
+                );
+                (storage_key, cursor)
+            })
             .collect();
             let interactions = load_metadata_snapshot::<Vec<StoredMessageInteractionSummary>>(
                 metadata_store,
@@ -345,11 +368,23 @@ impl TimelineProjectionService {
             self.read_cursors
                 .lock_projection("cursor store")
                 .insert(scope.clone(), read_cursors);
+            if let Some(profile) = load_metadata_snapshot::<crate::model::ConversationProfileView>(
+                metadata_store,
+                scope.as_str(),
+                CONVERSATION_PROFILE_KEY,
+            )? {
+                self.conversation_profiles
+                    .lock_projection("conversation profile store")
+                    .insert(scope.clone(), profile);
+            }
             self.message_interactions
                 .lock_projection("message interaction store")
-                .insert(scope.clone(), interactions);
-            self.restore_contact_snapshot(metadata_store)?;
-            self.restore_client_route_sync_snapshot(metadata_store, timeline_store)?;
+                .insert(scope.clone(), interactions.clone());
+            self.rebuild_pinned_messages_index_for_scope(scope.as_str(), &interactions);
+            propagate_optional_snapshot_restore(self.restore_contact_snapshot(metadata_store))?;
+            propagate_optional_snapshot_restore(
+                self.restore_client_route_sync_snapshot(metadata_store, timeline_store),
+            )?;
 
             Ok(true)
         })();
@@ -428,7 +463,8 @@ impl TimelineProjectionService {
         write_plan: &mut ProjectionSnapshotWritePlan,
     ) -> Result<bool, ProjectionError> {
         let scope = conversation_snapshot_scope(tenant_id, organization_id, conversation_id);
-        let Some(summary) = self.conversation_summary(tenant_id, organization_id, conversation_id) else {
+        let Some(summary) = self.conversation_summary(tenant_id, organization_id, conversation_id)
+        else {
             return Ok(false);
         };
         let conversation = self
@@ -467,6 +503,14 @@ impl TimelineProjectionService {
         }
         write_plan.push_metadata(scope.as_str(), CONVERSATION_MEMBERS_KEY, &members)?;
         write_plan.push_metadata(scope.as_str(), CONVERSATION_READ_CURSORS_KEY, &read_cursors)?;
+        if let Some(profile) = self
+            .conversation_profiles
+            .lock_projection("conversation profile store")
+            .get(scope.as_str())
+            .cloned()
+        {
+            write_plan.push_metadata(scope.as_str(), CONVERSATION_PROFILE_KEY, &profile)?;
+        }
         write_plan.push_metadata(scope.as_str(), MESSAGE_INTERACTIONS_KEY, &interaction_items)?;
         write_plan.push_timeline_batch(
             tenant_id,
@@ -817,14 +861,98 @@ impl TimelineProjectionService {
         result
     }
 
+    pub fn persist_message_visibility_snapshot(
+        &self,
+        metadata_store: &dyn MetadataStore,
+    ) -> Result<bool, ProjectionError> {
+        (|| {
+            let mut write_plan = ProjectionSnapshotWritePlan::default();
+            if !self.collect_message_visibility_snapshot_writes(&mut write_plan)? {
+                return Ok(false);
+            }
+            write_plan.commit_metadata_only(metadata_store)?;
+            Ok(true)
+        })()
+    }
+
+    fn collect_message_visibility_snapshot_writes(
+        &self,
+        write_plan: &mut ProjectionSnapshotWritePlan,
+    ) -> Result<bool, ProjectionError> {
+        let scopes = lock_projection_mutex(
+            &self.message_visibilities,
+            "message visibility store",
+        )
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+        if scopes.is_empty() {
+            return Ok(false);
+        }
+        write_plan.push_metadata(
+            MESSAGE_VISIBILITY_CATALOG_SCOPE,
+            MESSAGE_VISIBILITY_SCOPES_KEY,
+            &scopes,
+        )?;
+        for scope in scopes {
+            let items = lock_projection_mutex(
+                &self.message_visibilities,
+                "message visibility store",
+            )
+            .get(scope.as_str())
+            .cloned()
+            .unwrap_or_default();
+            write_plan.push_metadata(scope.as_str(), MESSAGE_VISIBILITY_STATE_KEY, &items)?;
+        }
+        Ok(true)
+    }
+
+    pub fn restore_message_visibility_snapshot(
+        &self,
+        metadata_store: &dyn MetadataStore,
+    ) -> Result<bool, ProjectionError> {
+        (|| {
+            let scopes = load_metadata_snapshot::<Vec<String>>(
+                metadata_store,
+                MESSAGE_VISIBILITY_CATALOG_SCOPE,
+                MESSAGE_VISIBILITY_SCOPES_KEY,
+            )?
+            .unwrap_or_default();
+            if scopes.is_empty() {
+                return Ok(false);
+            }
+            let mut store =
+                lock_projection_mutex(&self.message_visibilities, "message visibility store");
+            for scope in scopes {
+                let items = load_metadata_snapshot::<
+                    std::collections::HashMap<String, MessageVisibilityMutationResult>,
+                >(
+                    metadata_store,
+                    scope.as_str(),
+                    MESSAGE_VISIBILITY_STATE_KEY,
+                )?
+                .unwrap_or_default();
+                if items.is_empty() {
+                    continue;
+                }
+                store.insert(scope, items);
+            }
+            Ok(true)
+        })()
+    }
+
     pub fn restore_all_durable_snapshots(
         &self,
         metadata_store: &dyn MetadataStore,
         timeline_store: &dyn TimelineProjectionStore,
         conversation_scopes: &[String],
     ) -> Result<(), ProjectionError> {
-        self.restore_contact_snapshot(metadata_store)?;
-        self.restore_client_route_sync_snapshot(metadata_store, timeline_store)?;
+        propagate_optional_snapshot_restore(self.restore_personalization_snapshot(metadata_store))?;
+        propagate_optional_snapshot_restore(self.restore_contact_snapshot(metadata_store))?;
+        propagate_optional_snapshot_restore(
+            self.restore_client_route_sync_snapshot(metadata_store, timeline_store),
+        )?;
+        propagate_optional_snapshot_restore(self.restore_message_visibility_snapshot(metadata_store))?;
         for scope in conversation_scopes {
             let Some((tenant_id, organization_id, conversation_id)) =
                 parse_conversation_snapshot_scope(scope.as_str())
@@ -847,8 +975,10 @@ impl TimelineProjectionService {
         metadata_store: &dyn MetadataStore,
         timeline_store: &dyn TimelineProjectionStore,
     ) -> Result<(), ProjectionError> {
+        self.persist_personalization_snapshot(metadata_store)?;
         self.persist_contact_snapshot(metadata_store)?;
         self.persist_client_route_sync_snapshot(metadata_store, timeline_store)?;
+        self.persist_message_visibility_snapshot(metadata_store)?;
         let scopes = self
             .conversations
             .lock_projection("conversation store")
@@ -873,13 +1003,21 @@ impl TimelineProjectionService {
     }
 }
 
-fn conversation_snapshot_scope(tenant_id: &str, organization_id: &str, conversation_id: &str) -> String {
+fn conversation_snapshot_scope(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+) -> String {
     super::scope_key(tenant_id, organization_id, conversation_id)
 }
 
-fn parse_conversation_snapshot_scope(
-    scope: &str,
-) -> Option<(String, String, String)> {
+fn propagate_optional_snapshot_restore(
+    result: Result<bool, ProjectionError>,
+) -> Result<(), ProjectionError> {
+    result.map(|_| ())
+}
+
+fn parse_conversation_snapshot_scope(scope: &str) -> Option<(String, String, String)> {
     let segments = crate::scope::decode_projection_key_segments(scope)?;
     match segments.as_slice() {
         [tenant_id, organization_id, conversation_id] => Some((
@@ -943,7 +1081,7 @@ fn persist_metadata_snapshot<T: Serialize>(
         .map_err(ProjectionError::StoreFailure)
 }
 
-fn load_metadata_snapshot<T: DeserializeOwned>(
+pub(crate) fn load_metadata_snapshot<T: DeserializeOwned>(
     metadata_store: &dyn MetadataStore,
     scope: &str,
     key: &str,

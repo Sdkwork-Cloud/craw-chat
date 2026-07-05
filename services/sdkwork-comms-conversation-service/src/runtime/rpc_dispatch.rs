@@ -854,28 +854,20 @@ async fn dispatch_list_member_directory(
     let (limit, cursor) = page_request(request.page);
     let members = state
         .rpc_runtime()
-        .list_members_window_from_auth_context(
+        .list_member_directory_window_from_auth_context(
             auth,
             conversation_id.as_str(),
-            Some(limit.saturating_mul(4).min(MAX_PAGE_SIZE)),
+            Some(limit),
             cursor.as_deref(),
+            query.as_str(),
         )
         .map_err(map_runtime_error)?;
-    let filtered = members
-        .items
-        .into_iter()
-        .filter(|member| {
-            query.is_empty()
-                || member.principal_id.to_ascii_lowercase().contains(query.as_str())
-        })
-        .take(limit)
-        .collect::<Vec<_>>();
     let response = ListConversationMemberDirectoryResponse {
-        members: filtered.iter().map(member_view_from_domain).collect(),
+        members: members.items.iter().map(member_view_from_domain).collect(),
         page: Some(page_response(
             members.next_cursor,
             members.has_more,
-            filtered.len(),
+            members.items.len(),
         )),
         metadata: None,
     };

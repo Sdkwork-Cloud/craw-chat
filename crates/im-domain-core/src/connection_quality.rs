@@ -24,8 +24,8 @@
 //!   - Quality score: 0-1 composite score
 //! ```
 
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
-use std::sync::atomic::{AtomicU64, AtomicU32, Ordering};
 
 /// Network quality metrics collected from heartbeat responses.
 #[derive(Clone, Debug, Default)]
@@ -117,16 +117,16 @@ impl NetworkMetrics {
         // Clamp jitter to reasonable bounds (0-10s)
         let smoothed_jitter_clamped = smoothed_jitter.min(10000.0).max(0.0);
         self.jitter = Duration::from_millis(smoothed_jitter_clamped as u64);
-        
+
         // Update loss rate
         if self.total_attempts > 0 {
-            self.loss_rate = (self.total_attempts - self.total_successes) as f64 
-                / self.total_attempts as f64;
+            self.loss_rate =
+                (self.total_attempts - self.total_successes) as f64 / self.total_attempts as f64;
         }
-        
+
         // Update quality score
         self.update_quality_score();
-        
+
         // Check if connection is stable
         if self.is_stable() && self.stable_since.is_none() {
             self.stable_since = Some(Instant::now());
@@ -149,24 +149,24 @@ impl NetworkMetrics {
 
         self.total_attempts += 1;
         self.consecutive_timeouts += 1;
-        
+
         // Update loss rate
         if self.total_attempts > 0 {
-            self.loss_rate = (self.total_attempts - self.total_successes) as f64 
-                / self.total_attempts as f64;
+            self.loss_rate =
+                (self.total_attempts - self.total_successes) as f64 / self.total_attempts as f64;
         }
-        
+
         // Connection is no longer stable
         self.stable_since = None;
-        
+
         // Update quality score
         self.update_quality_score();
     }
 
     /// Check if connection is stable (low RTT, low loss).
     fn is_stable(&self) -> bool {
-        self.rtt < Duration::from_millis(200) 
-            && self.loss_rate < 0.05 
+        self.rtt < Duration::from_millis(200)
+            && self.loss_rate < 0.05
             && self.jitter < Duration::from_millis(50)
     }
 
@@ -174,7 +174,7 @@ impl NetworkMetrics {
     fn update_quality_score(&mut self) {
         // Quality score formula:
         // score = (rtt_score * 0.4) + (loss_score * 0.4) + (jitter_score * 0.2)
-        
+
         // RTT score: 1.0 for <100ms, decreasing linearly to 0.0 at 1000ms
         let rtt_score = if self.rtt < Duration::from_millis(100) {
             1.0
@@ -183,14 +183,14 @@ impl NetworkMetrics {
         } else {
             1.0 - (self.rtt.as_millis() as f64 - 100.0) / 900.0
         };
-        
+
         // Loss score: 1.0 for 0%, 0.0 for >=20%
         let loss_score = if self.loss_rate >= 0.2 {
             0.0
         } else {
             1.0 - self.loss_rate / 0.2
         };
-        
+
         // Jitter score: 1.0 for <20ms, decreasing to 0.0 at 200ms
         let jitter_score = if self.jitter < Duration::from_millis(20) {
             1.0
@@ -199,10 +199,10 @@ impl NetworkMetrics {
         } else {
             1.0 - (self.jitter.as_millis() as f64 - 20.0) / 180.0
         };
-        
+
         // Composite score
         self.quality_score = rtt_score * 0.4 + loss_score * 0.4 + jitter_score * 0.2;
-        
+
         // Penalize consecutive timeouts heavily
         if self.consecutive_timeouts >= 3 {
             self.quality_score *= 0.5;
@@ -369,8 +369,7 @@ impl AdaptiveHeartbeatPolicy {
 
     /// Check if reconnection should be recommended.
     pub fn should_recommend_reconnect(&self, metrics: &NetworkMetrics) -> bool {
-        metrics.consecutive_timeouts >= self.timeout_threshold
-            || metrics.quality_score < 0.5
+        metrics.consecutive_timeouts >= self.timeout_threshold || metrics.quality_score < 0.5
     }
 
     /// Calculate exponential backoff interval for reconnection attempts.
@@ -394,14 +393,14 @@ impl AdaptiveHeartbeatPolicy {
     /// Duration to wait before next reconnection attempt
     pub fn calculate_reconnect_backoff(&self, attempt_count: u32) -> Duration {
         use rand::Rng;
-        
+
         // Exponential backoff base: 1s, 2s, 4s, 8s, 16s...
         let base_delay_ms = 1000u64;
         let max_delay_ms = 60_000u64; // 60 seconds cap
-        
+
         // Calculate exponential multiplier (capped at 2^6 = 64x)
         let max_multiplier = 2u64.pow(attempt_count.min(6));
-        
+
         // Add jitter: random factor between 1 and max_multiplier
         // This prevents thundering herd when multiple clients reconnect simultaneously
         let jitter_multiplier = if max_multiplier > 1 {
@@ -410,15 +409,15 @@ impl AdaptiveHeartbeatPolicy {
         } else {
             1 // First attempt has no jitter range
         };
-        
+
         let delay_ms = base_delay_ms * jitter_multiplier;
-        
+
         // Apply cap and ensure minimum of 1 second
         let final_delay_ms = delay_ms.max(base_delay_ms).min(max_delay_ms);
-        
+
         Duration::from_millis(final_delay_ms)
     }
-    
+
     /// Calculate exponential backoff interval with a given jitter factor.
     ///
     /// This is an alternative jitter strategy that applies a fixed percentage
@@ -439,14 +438,14 @@ impl AdaptiveHeartbeatPolicy {
         jitter_percent: f64,
     ) -> Duration {
         use rand::Rng;
-        
+
         let base_delay = Duration::from_secs(1);
         let max_delay = Duration::from_secs(60);
-        
+
         // Calculate base exponential delay: 1s, 2s, 4s, 8s, 16s...
         let multiplier = 2u64.pow(attempt_count.min(6));
         let base_delay_ms = base_delay.as_millis() as u64 * multiplier;
-        
+
         // Apply jitter: delay * (1 ± jitter_percent/2)
         let jitter_factor = if jitter_percent > 0.0 {
             let mut rng = rand::thread_rng();
@@ -456,14 +455,14 @@ impl AdaptiveHeartbeatPolicy {
         } else {
             1.0
         };
-        
+
         let jittered_delay_ms = (base_delay_ms as f64 * jitter_factor) as u64;
-        
+
         // Apply cap and ensure minimum
         let final_delay_ms = jittered_delay_ms
             .max(base_delay.as_millis() as u64)
             .min(max_delay.as_millis() as u64);
-        
+
         Duration::from_millis(final_delay_ms)
     }
 }
@@ -507,7 +506,7 @@ impl AtomicNetworkMetrics {
         self.total_successes.fetch_add(1, Ordering::Relaxed);
         self.consecutive_timeouts.store(0, Ordering::Relaxed);
         self.rtt_ms.store(rtt.as_millis() as u64, Ordering::Relaxed);
-        
+
         // Update quality score (simplified calculation)
         self.update_quality_score_atomic();
     }
@@ -516,7 +515,7 @@ impl AtomicNetworkMetrics {
     pub fn record_timeout(&self) {
         self.total_attempts.fetch_add(1, Ordering::Relaxed);
         self.consecutive_timeouts.fetch_add(1, Ordering::Relaxed);
-        
+
         self.update_quality_score_atomic();
     }
 
@@ -555,7 +554,7 @@ impl AtomicNetworkMetrics {
         let rtt = self.get_rtt();
         let loss_rate = self.get_loss_rate();
         let consecutive_timeouts = self.get_consecutive_timeouts();
-        
+
         // Simplified score calculation
         let rtt_score = if rtt < Duration::from_millis(100) {
             1.0
@@ -564,22 +563,22 @@ impl AtomicNetworkMetrics {
         } else {
             1.0 - (rtt.as_millis() as f64 - 100.0) / 900.0
         };
-        
+
         let loss_score = if loss_rate >= 0.2 {
             0.0
         } else {
             1.0 - loss_rate / 0.2
         };
-        
+
         let base_score = rtt_score * 0.5 + loss_score * 0.5;
-        
+
         // Penalize consecutive timeouts
         let final_score = if consecutive_timeouts >= 3 {
             base_score * 0.5
         } else {
             base_score
         };
-        
+
         // Store as scaled integer
         let scaled = (final_score * 1000000.0) as u64;
         self.quality_score_scaled.store(scaled, Ordering::Relaxed);
@@ -614,9 +613,9 @@ mod tests {
     #[test]
     fn network_metrics_records_success() {
         let mut metrics = NetworkMetrics::new();
-        
+
         metrics.record_heartbeat_success(Duration::from_millis(50));
-        
+
         assert_eq!(metrics.total_attempts, 1);
         assert_eq!(metrics.total_successes, 1);
         assert_eq!(metrics.consecutive_timeouts, 0);
@@ -627,9 +626,9 @@ mod tests {
     #[test]
     fn network_metrics_records_timeout() {
         let mut metrics = NetworkMetrics::new();
-        
+
         metrics.record_heartbeat_timeout();
-        
+
         assert_eq!(metrics.total_attempts, 1);
         assert_eq!(metrics.total_successes, 0);
         assert_eq!(metrics.consecutive_timeouts, 1);
@@ -638,16 +637,22 @@ mod tests {
 
     #[test]
     fn quality_level_from_score() {
-        assert_eq!(ConnectionQuality::from_score(0.95), ConnectionQuality::Excellent);
+        assert_eq!(
+            ConnectionQuality::from_score(0.95),
+            ConnectionQuality::Excellent
+        );
         assert_eq!(ConnectionQuality::from_score(0.75), ConnectionQuality::Good);
         assert_eq!(ConnectionQuality::from_score(0.55), ConnectionQuality::Poor);
-        assert_eq!(ConnectionQuality::from_score(0.35), ConnectionQuality::Critical);
+        assert_eq!(
+            ConnectionQuality::from_score(0.35),
+            ConnectionQuality::Critical
+        );
     }
 
     #[test]
     fn adaptive_policy_adjusts_interval() {
         let policy = AdaptiveHeartbeatPolicy::new();
-        
+
         // Excellent quality: base interval
         let excellent_metrics = NetworkMetrics {
             rtt: Duration::from_millis(50),
@@ -655,8 +660,11 @@ mod tests {
             quality_score: 0.95,
             ..Default::default()
         };
-        assert_eq!(policy.adjust_interval(&excellent_metrics), policy.base_interval);
-        
+        assert_eq!(
+            policy.adjust_interval(&excellent_metrics),
+            policy.base_interval
+        );
+
         // Poor quality: minimum interval
         let poor_metrics = NetworkMetrics {
             rtt: Duration::from_millis(300),
@@ -665,24 +673,27 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(policy.adjust_interval(&poor_metrics), policy.min_interval);
-        
+
         // Consecutive timeouts: minimum interval
         let timeout_metrics = NetworkMetrics {
             consecutive_timeouts: 4,
             quality_score: 0.3,
             ..Default::default()
         };
-        assert_eq!(policy.adjust_interval(&timeout_metrics), policy.min_interval);
+        assert_eq!(
+            policy.adjust_interval(&timeout_metrics),
+            policy.min_interval
+        );
     }
 
     #[test]
     fn atomic_metrics_thread_safe() {
         use std::sync::Arc;
         use std::thread;
-        
+
         let metrics = Arc::new(AtomicNetworkMetrics::new());
         let mut handles = vec![];
-        
+
         for i in 0..10 {
             let metrics_clone = Arc::clone(&metrics);
             handles.push(thread::spawn(move || {
@@ -693,11 +704,11 @@ mod tests {
                 }
             }));
         }
-        
+
         for handle in handles {
             handle.join().unwrap();
         }
-        
+
         assert_eq!(metrics.total_attempts.load(Ordering::Relaxed), 10);
         // 4 timeouts (i=0,3,6,9), 6 successes (i=1,2,4,5,7,8)
         let success_count = metrics.total_successes.load(Ordering::Relaxed);
@@ -710,57 +721,77 @@ mod tests {
     #[test]
     fn reconnect_backoff_exponential() {
         let policy = AdaptiveHeartbeatPolicy::new();
-        
+
         // P1-1 fix: jitter makes exact values unpredictable
         // Test that backoff stays within expected bounds
-        
+
         // Attempt 0: base delay (1s) with jitter range 1-1 (no jitter for first attempt)
         let backoff0 = policy.calculate_reconnect_backoff(0);
-        assert_eq!(backoff0, Duration::from_secs(1), "first attempt should be 1s");
-        
+        assert_eq!(
+            backoff0,
+            Duration::from_secs(1),
+            "first attempt should be 1s"
+        );
+
         // Attempt 1: jitter range 1-2 seconds
         let backoff1 = policy.calculate_reconnect_backoff(1);
         assert!(
             backoff1 >= Duration::from_secs(1) && backoff1 <= Duration::from_secs(2),
-            "attempt 1 should be 1-2s (with jitter), got {:?}", backoff1
+            "attempt 1 should be 1-2s (with jitter), got {:?}",
+            backoff1
         );
-        
+
         // Attempt 2: jitter range 1-4 seconds
         let backoff2 = policy.calculate_reconnect_backoff(2);
         assert!(
             backoff2 >= Duration::from_secs(1) && backoff2 <= Duration::from_secs(4),
-            "attempt 2 should be 1-4s (with jitter), got {:?}", backoff2
+            "attempt 2 should be 1-4s (with jitter), got {:?}",
+            backoff2
         );
-        
+
         // Attempt 3: jitter range 1-8 seconds
         let backoff3 = policy.calculate_reconnect_backoff(3);
         assert!(
             backoff3 >= Duration::from_secs(1) && backoff3 <= Duration::from_secs(8),
-            "attempt 3 should be 1-8s (with jitter), got {:?}", backoff3
+            "attempt 3 should be 1-8s (with jitter), got {:?}",
+            backoff3
         );
-        
+
         // Attempt 10: capped at 60s, jitter range 1-60
         let backoff10 = policy.calculate_reconnect_backoff(10);
         assert!(
             backoff10 >= Duration::from_secs(1) && backoff10 <= Duration::from_secs(60),
-            "attempt 10 should be capped at 60s max, got {:?}", backoff10
+            "attempt 10 should be capped at 60s max, got {:?}",
+            backoff10
         );
     }
-    
+
     #[test]
     fn reconnect_backoff_with_fixed_jitter() {
         let policy = AdaptiveHeartbeatPolicy::new();
-        
+
         // Test the fixed-jitter variant for predictable behavior
         let backoff0 = policy.calculate_reconnect_backoff_with_jitter(0, 0.0);
-        assert_eq!(backoff0, Duration::from_secs(1), "no jitter should give exact 1s");
-        
+        assert_eq!(
+            backoff0,
+            Duration::from_secs(1),
+            "no jitter should give exact 1s"
+        );
+
         let backoff1 = policy.calculate_reconnect_backoff_with_jitter(1, 0.0);
-        assert_eq!(backoff1, Duration::from_secs(2), "no jitter should give exact 2s");
-        
+        assert_eq!(
+            backoff1,
+            Duration::from_secs(2),
+            "no jitter should give exact 2s"
+        );
+
         let backoff2 = policy.calculate_reconnect_backoff_with_jitter(2, 0.0);
-        assert_eq!(backoff2, Duration::from_secs(4), "no jitter should give exact 4s");
-        
+        assert_eq!(
+            backoff2,
+            Duration::from_secs(4),
+            "no jitter should give exact 4s"
+        );
+
         // With 20% jitter, values should be within ±20%
         let backoff_with_jitter = policy.calculate_reconnect_backoff_with_jitter(3, 0.2);
         let base = Duration::from_secs(8);
@@ -768,7 +799,8 @@ mod tests {
         let max_expected = Duration::from_millis(9600); // 8s * 1.2
         assert!(
             backoff_with_jitter >= min_expected && backoff_with_jitter <= max_expected,
-            "20% jitter should keep 8s within 6.4-9.6s, got {:?}", backoff_with_jitter
+            "20% jitter should keep 8s within 6.4-9.6s, got {:?}",
+            backoff_with_jitter
         );
     }
 }

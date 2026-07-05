@@ -595,8 +595,11 @@ pub struct MemoryNotificationTaskStore {
 #[derive(Default)]
 struct MemoryNotificationTaskState {
     tasks: HashMap<String, NotificationTaskRecord>,
-    tasks_by_recipient: HashMap<String, BTreeSet<String>>,
+    tasks_by_recipient: HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct NotificationRecipientSortKey(std::cmp::Reverse<(String, String)>, String);
 
 impl MemoryNotificationTaskStore {
     pub fn task(&self, tenant_id: &str, notification_id: &str) -> Option<NotificationTaskRecord> {
@@ -651,13 +654,13 @@ impl NotificationTaskStore for MemoryNotificationTaskStore {
         recipient_id: &str,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
         let state = lock_memory_mutex(&self.state, "notification task store");
-        let task_keys = state
-            .tasks_by_recipient
-            .get(notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id).as_str())
-            .cloned()
-            .unwrap_or_default();
-        Ok(task_keys
-            .into_iter()
+        let recipient_key =
+            notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id);
+        let Some(index) = state.tasks_by_recipient.get(recipient_key.as_str()) else {
+            return Ok(Vec::new());
+        };
+        Ok(index
+            .values()
             .filter_map(|task_key| state.tasks.get(task_key.as_str()).cloned())
             .collect())
     }
@@ -1077,28 +1080,43 @@ fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> S
     )
 }
 
+fn notification_recipient_sort_key(record: &NotificationTaskRecord) -> NotificationRecipientSortKey {
+    let primary = record
+        .task
+        .dispatched_at
+        .as_deref()
+        .unwrap_or(record.task.requested_at.as_str())
+        .to_owned();
+    NotificationRecipientSortKey(
+        std::cmp::Reverse((primary, record.task.requested_at.clone())),
+        record.task.notification_id.clone(),
+    )
+}
+
 fn insert_notification_recipient_index(
-    index: &mut HashMap<String, BTreeSet<String>>,
+    index: &mut HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>,
     notification_key: &str,
     record: &NotificationTaskRecord,
 ) {
+    let sort_key = notification_recipient_sort_key(record);
     index
         .entry(record_notification_recipient_scope_key(record))
         .or_default()
-        .insert(notification_key.to_owned());
+        .insert(sort_key, notification_key.to_owned());
 }
 
 fn remove_notification_recipient_index(
-    index: &mut HashMap<String, BTreeSet<String>>,
+    index: &mut HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>,
     notification_key: &str,
     record: &NotificationTaskRecord,
 ) {
     let recipient_key = record_notification_recipient_scope_key(record);
-    if let Some(task_keys) = index.get_mut(recipient_key.as_str()) {
-        task_keys.remove(notification_key);
-        if task_keys.is_empty() {
-            index.remove(recipient_key.as_str());
-        }
+    let Some(task_keys) = index.get_mut(recipient_key.as_str()) else {
+        return;
+    };
+    task_keys.retain(|_, key| key != notification_key);
+    if task_keys.is_empty() {
+        index.remove(recipient_key.as_str());
     }
 }
 

@@ -28,6 +28,8 @@ pub struct ReadCursorRecord {
     pub organization_id: String,
     pub conversation_id: String,
     pub member_id: i64, // Snowflake ID
+    #[serde(default)]
+    pub device_id: String,
     pub principal_kind: String,
     pub principal_id: String,
     pub read_seq: u64,

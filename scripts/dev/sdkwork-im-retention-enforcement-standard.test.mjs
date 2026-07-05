@@ -90,6 +90,29 @@ assert.match(
   'retention cleanup must purge im_message_media_refs alongside other retention stores',
 );
 
+assert.match(
+  retentionCleanup,
+  /PURGE_RTC_SESSIONS_SQL/,
+  'retention cleanup must purge im_rtc_sessions alongside other retention stores',
+);
+assert.match(
+  retentionCleanup,
+  /PURGE_RTC_SIGNALS_SQL/,
+  'retention cleanup must purge im_rtc_signals for forward-compatible signal row retention',
+);
+
+const postgresRtcState = readExists('adapters/postgres-rtc-state/src/lib.rs');
+assert.match(
+  postgresRtcState,
+  /resolve_rtc_session_retention_until/,
+  'PostgresRtcStateStore must set retention_until for terminal RTC sessions',
+);
+assert.match(
+  postgresRtcState,
+  /retention_until_from_class\("ephemeral"/,
+  'terminal RTC sessions must use canonical ephemeral retention class',
+);
+
 const sharedChannelMetrics = readExists('services/social-service/src/shared_channel_sync_metrics.rs');
 for (const metric of [
   'im_shared_channel_sync_stale_reclaim_ticks_total',
@@ -135,6 +158,7 @@ for (const metric of [
   'im_retention_purge_failures_total',
   'im_retention_purge_rows_deleted_total',
   'message_media_refs',
+  'rtc_sessions',
   'im_retention_purge_last_duration_seconds',
 ]) {
   assert.ok(retentionMetrics.includes(metric), `retention metrics must expose ${metric}`);

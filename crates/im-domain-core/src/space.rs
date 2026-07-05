@@ -416,3 +416,32 @@ pub struct BanRecord {
     pub created_at: String,
     pub updated_at: String,
 }
+
+// ---------------------------------------------------------------------------
+// Chat group capacity (shared by space-service and conversation policy)
+// ---------------------------------------------------------------------------
+
+/// Environment variable for the default/max chat group member cap used by conversation policy.
+pub const CHAT_GROUP_MAX_MEMBERS_ENV: &str = "SDKWORK_IM_GROUP_MAX_MEMBERS";
+pub const DEFAULT_CHAT_GROUP_MAX_MEMBERS: i32 = 500;
+pub const MIN_CHAT_GROUP_MAX_MEMBERS: i32 = 2;
+pub const MAX_CHAT_GROUP_MAX_MEMBERS: i32 = 10_000;
+
+/// Resolve the platform chat group member cap from environment.
+pub fn resolve_chat_group_max_members() -> i32 {
+    static CACHED: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
+    *CACHED.get_or_init(|| {
+        std::env::var(CHAT_GROUP_MAX_MEMBERS_ENV)
+            .ok()
+            .and_then(|value| value.trim().parse::<i32>().ok())
+            .filter(|value| *value >= MIN_CHAT_GROUP_MAX_MEMBERS && *value <= MAX_CHAT_GROUP_MAX_MEMBERS)
+            .unwrap_or(DEFAULT_CHAT_GROUP_MAX_MEMBERS)
+    })
+}
+
+/// Normalize a requested group cap to the shared platform bounds.
+pub fn normalize_chat_group_max_members(requested: Option<i32>) -> i32 {
+    requested
+        .unwrap_or_else(resolve_chat_group_max_members)
+        .clamp(MIN_CHAT_GROUP_MAX_MEMBERS, MAX_CHAT_GROUP_MAX_MEMBERS)
+}

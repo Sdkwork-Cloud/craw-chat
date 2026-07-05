@@ -45,9 +45,14 @@ assert.equal(typeof getQrCodeScanActions, 'function', 'QR scan service must expo
 assert.equal(typeof getQrCodeResultLabelKey, 'function', 'QR scan service must export standardized result label lookup.');
 
 const appRoot = path.resolve(import.meta.dirname, '..');
+const repoRoot = path.resolve(appRoot, '..', '..');
 
 function readText(...segments: string[]): string {
   return fs.readFileSync(path.join(appRoot, ...segments), 'utf8');
+}
+
+function readRepoText(...segments: string[]): string {
+  return fs.readFileSync(path.join(repoRoot, ...segments), 'utf8');
 }
 
 function readJson(...segments: string[]): Record<string, unknown> {
@@ -264,9 +269,13 @@ const capabilityModuleSurfaceSource = readText(
   'surfaces',
   'CapabilityModuleSurface.tsx',
 );
-const communityViewSource = readText(
+const communityViewSource = readRepoText(
+  '..',
+  'sdkwork-community',
+  'apps',
+  'sdkwork-community-pc',
   'packages',
-  'sdkwork-im-pc-community',
+  'sdkwork-community-pc-community',
   'src',
   'components',
   'CommunityView.tsx',
@@ -275,7 +284,7 @@ const packageJson = readJson('package.json') as {
   dependencies?: Record<string, string>;
   scripts?: Record<string, string>;
 };
-const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
+const pnpmWorkspaceSource = fs.readFileSync(path.join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
 
 assert.equal(
   packageJson.dependencies?.['@zxing/browser'],

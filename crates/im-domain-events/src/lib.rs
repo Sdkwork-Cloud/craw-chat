@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 pub mod social;
+pub mod space;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AggregateType {
     Conversation,
+    Space,
+    ChatGroup,
     FriendRequest,
     Friendship,
     ExternalConnection,
@@ -23,6 +26,8 @@ impl AggregateType {
     pub fn as_wire_value(&self) -> &'static str {
         match self {
             Self::Conversation => "conversation",
+            Self::Space => "space",
+            Self::ChatGroup => "chat_group",
             Self::FriendRequest => "friend_request",
             Self::Friendship => "friendship",
             Self::ExternalConnection => "external_connection",

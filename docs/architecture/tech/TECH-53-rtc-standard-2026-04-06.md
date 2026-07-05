@@ -72,9 +72,9 @@
 
 新增并冻结以下回归用例：
 
-- `services/sdkwork-im-cloud-gateway/tests/access_control_e2e_test.rs`
-  - `test_non_member_cannot_create_conversation_bound_rtc_session`
-  - `test_non_member_cannot_mutate_conversation_bound_rtc_signal_state`
+- `services/im-calls-service/tests/access_control_test.rs`
+  - `non_member_cannot_create_conversation_bound_rtc_session`
+  - `non_member_cannot_mutate_conversation_bound_rtc_signal_state`
 
 第二个用例验证的不是简单 `403`，而是更关键的“不允许先被越权请求脏写 `signalingStreamId`，再被后续合法请求继承脏状态”。
 
@@ -92,9 +92,9 @@
 本轮修复至少需要通过以下验证：
 
 ```bash
-cargo test -p sdkwork-im-cloud-gateway --test access_control_e2e_test --offline
-cargo test -p sdkwork-im-cloud-gateway --offline
-cargo test -p im-call-runtime --offline
+cargo test -p calls-service --test access_control_test --offline
+cargo test -p calls-service --offline
+cargo test -p session-gateway --lib --offline
 cargo test --workspace --offline
 ```
 

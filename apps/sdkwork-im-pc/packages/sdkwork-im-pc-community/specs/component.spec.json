@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/im-pc-community",
-    "displayName": "Sdkwork IM Pc Community",
+    "displayName": "Sdkwork IM Pc Community Adapter",
     "version": "1.0.0",
     "type": "node-package",
     "root": "sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-community",
@@ -85,7 +85,9 @@
     ],
     "runtimeEntrypoints": [],
     "routeManifest": null,
-    "sdkClients": [],
+    "sdkClients": [
+      "sdkwork-community-app-sdk"
+    ],
     "events": [],
     "configKeys": []
   },

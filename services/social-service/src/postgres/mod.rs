@@ -1,9 +1,11 @@
 pub mod block;
 pub mod bootstrap;
 pub mod direct_chat;
-pub mod friendship;
+mod access;
 mod http;
 pub mod id;
+mod list_query;
+mod mutation_policy;
 pub mod user_profile;
 pub mod user_search;
 pub mod user_settings;

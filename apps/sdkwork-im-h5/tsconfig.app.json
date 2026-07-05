@@ -55,6 +55,18 @@
       ],
       "@sdkwork/sdk-common": [
         "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ],
+      "@sdkwork/im-h5-commons": [
+        "./packages/sdkwork-im-h5-commons/src"
+      ],
+      "@sdkwork/im-h5-core": [
+        "./packages/sdkwork-im-h5-core/src"
+      ],
+      "@sdkwork/im-h5-shell": [
+        "./packages/sdkwork-im-h5-shell/src"
+      ],
+      "@sdkwork/im-h5-chat": [
+        "./packages/sdkwork-im-h5-chat/src"
       ]
     }
   },

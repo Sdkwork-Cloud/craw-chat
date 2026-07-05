@@ -14,6 +14,7 @@ use crate::channel_access_rule;
 use crate::group;
 use crate::group_member;
 use crate::invitation;
+use crate::openapi;
 use crate::space;
 use crate::space_member;
 
@@ -24,8 +25,38 @@ pub struct AppState {
     pub postgres_pool: Option<SocialPostgresPool>,
     pub space_store: Arc<dyn im_adapters_social_postgres::organization_store::SpaceStore>,
     pub group_store: Arc<dyn im_adapters_social_postgres::organization_store::GroupStore>,
+    pub group_member_store:
+        Arc<dyn im_adapters_social_postgres::organization_store::GroupMemberStore>,
+    pub space_member_store:
+        Arc<dyn im_adapters_social_postgres::governance_store::SpaceMemberStore>,
+    pub ban_store: Arc<dyn im_adapters_social_postgres::governance_store::BanStore>,
+    pub invitation_store: Arc<dyn im_adapters_social_postgres::governance_store::InvitationStore>,
+    pub channel_access_rule_store:
+        Arc<dyn im_adapters_social_postgres::governance_store::ChannelAccessRuleStore>,
     pub channel_store: Arc<dyn im_adapters_social_postgres::organization_store::ChannelStore>,
     pub id_generator: Arc<dyn IdGenerator>,
+    pub group_conversation_binder: Option<Arc<dyn crate::group_conversation_binder::SpaceGroupConversationBinder>>,
+    pub channel_conversation_binder:
+        Option<Arc<dyn crate::channel_conversation_binder::SpaceChannelConversationBinder>>,
+    pub write_authority: Option<Arc<crate::write_authority::SpaceWriteAuthority>>,
+}
+
+impl AppState {
+    pub fn with_group_conversation_binder(
+        mut self,
+        binder: Arc<dyn crate::group_conversation_binder::SpaceGroupConversationBinder>,
+    ) -> Self {
+        self.group_conversation_binder = Some(binder);
+        self
+    }
+
+    pub fn with_channel_conversation_binder(
+        mut self,
+        binder: Arc<dyn crate::channel_conversation_binder::SpaceChannelConversationBinder>,
+    ) -> Self {
+        self.channel_conversation_binder = Some(binder);
+        self
+    }
 }
 
 pub fn build_embedded_app(state: AppState) -> Router {
@@ -42,6 +73,9 @@ pub fn build_app(state: AppState) -> Router {
 
 fn build_space_api_routes(state: AppState) -> Router {
     Router::new()
+        // OpenAPI document + docs
+        .route("/openapi.json", get(openapi::openapi_json))
+        .route("/docs", get(openapi::docs))
         // Spaces
         .route(
             "/im/v3/api/spaces",
@@ -74,6 +108,10 @@ fn build_space_api_routes(state: AppState) -> Router {
             get(group::get_group)
                 .patch(group::update_group)
                 .delete(group::delete_group),
+        )
+        .route(
+            "/im/v3/api/spaces/{space_id}/groups/{group_id}/transfer_owner",
+            post(group::transfer_group_owner),
         )
         // Group members
         .route(

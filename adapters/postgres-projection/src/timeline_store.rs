@@ -1,7 +1,9 @@
 use im_domain_core::retention::retention_until_from_class;
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres::types::Json;
-use sdkwork_im_contract_message::{TimelineProjectionBatch, TimelineProjectionRecord};
+use sdkwork_im_contract_message::{
+    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionWindow,
+};
 use sdkwork_utils_rust::sha256_hash;
 use serde::Deserialize;
 
@@ -41,6 +43,18 @@ where tenant_id = $1
   and conversation_id = $3
   and (retention_until is null or retention_until > now())
 order by message_seq asc
+"#;
+
+const LOAD_TIMELINE_WINDOW_SQL: &str = r#"
+select message_seq, payload_json::text
+from im_projection_timeline_entries
+where tenant_id = $1
+  and organization_id = $2
+  and conversation_id = $3
+  and message_seq > $4
+  and (retention_until is null or retention_until > now())
+order by message_seq asc
+limit $5
 "#;
 
 #[derive(Clone)]
@@ -104,8 +118,47 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         })
     }
 
-    fn upsert_timeline_entries(
+    fn load_timeline_window(
         &self,
+        tenant_id: &str,
+        timeline_scope: &str,
+        after_seq: u64,
+        limit: usize,
+    ) -> Result<TimelineProjectionWindow, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let timeline_scope = timeline_scope.to_owned();
+        let fetch_limit = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
+        let after_seq_i64 = i64::try_from(after_seq).unwrap_or(i64::MAX);
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "timeline window load")?;
+            let rows = client
+                .query(
+                    LOAD_TIMELINE_WINDOW_SQL,
+                    &[
+                        &tenant_id,
+                        &default_projection_organization_id(),
+                        &timeline_scope,
+                        &after_seq_i64,
+                        &fetch_limit,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("timeline window select", error))?;
+            let mut items = rows
+                .into_iter()
+                .map(|row| {
+                    let message_seq: i64 = row.get(0);
+                    let payload: String = row.get(1);
+                    (message_seq.max(0) as u64, payload)
+                })
+                .collect::<Vec<_>>();
+            let has_more = items.len() > limit;
+            items.truncate(limit);
+            Ok(TimelineProjectionWindow { items, has_more })
+        })
+    }
+
+    fn upsert_timeline_entries(        &self,
         tenant_id: &str,
         timeline_scope: &str,
         records: &[TimelineProjectionRecord],

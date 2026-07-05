@@ -8,7 +8,11 @@ import {
   type SdkworkAppbasePcAuthRuntimeComposition,
   type SdkworkAppbasePcAuthRuntimeSdkClient,
 } from '@sdkwork/auth-runtime-pc-react';
-import { resetAiotAppSdkClient, getAiotAppSdkClient } from './aiotAppSdkClient';
+import {
+  getImHostedAiotAppSdkClient,
+  resetAiotPcIntegration,
+  syncImSessionToAiotPc,
+} from './aiotPcIntegration';
 import { resetAppSdkClient, getAppSdkClient, resolveAppSdkBaseUrl } from './appSdkClient';
 import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClient';
 import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
@@ -42,7 +46,7 @@ import { getKnowledgebaseAppSdkClient, resetKnowledgebaseAppSdkClient } from './
 import { rebootstrapKnowledgebasePcRuntimeForIm, resetKnowledgebasePcRuntime } from './knowledgebasePcIntegration';
 import { getVoiceAppSdkClient, resetVoiceAppSdkClient } from './voiceAppSdkClient';
 import { rebootstrapVoicePcRuntimeForIm, resetVoicePcRuntime } from './voicePcIntegration';
-import { getMailAppSdkClient, resetMailAppSdkClient } from './mailAppSdkClient';
+import { resetMailPcIntegration, syncImSessionToMailPc } from './mailPcIntegration';
 import { resetNotaryAppSdkClient, getNotaryAppSdkClient } from './notaryAppSdkClient';
 import { rebootstrapNotaryPcRuntimeForIm, resetNotaryPcRuntime } from './notaryPcIntegration';
 import { rebootstrapMembershipPcIntegrationForIm, resetMembershipPcIntegration, bootstrapMembershipPcIntegrationForIm } from './membershipPcIntegration';
@@ -122,7 +126,7 @@ function resolveIamDeploymentMode(): IamDeploymentMode {
 
 export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAppbaseAppSdkClient();
-  resetAiotAppSdkClient();
+  resetAiotPcIntegration();
   resetAppSdkClient();
   resetAgentAppSdkClient();
   resetCatalogAppSdkClient();
@@ -136,7 +140,7 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetImSdkClient();
   resetKnowledgebaseAppSdkClient();
   resetVoiceAppSdkClient();
-  resetMailAppSdkClient();
+  resetMailPcIntegration();
   resetNotaryAppSdkClient();
   void resetNotaryPcRuntime();
   resetMembershipPcIntegration();
@@ -153,7 +157,7 @@ export function clearSdkworkChatIamRuntimeSession(): void {
 
 function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
   return [
-    getAiotAppSdkClient(),
+    getImHostedAiotAppSdkClient(),
     getAppSdkClient(),
     getAgentAppSdkClient(),
     getCatalogAppSdkClient(),
@@ -165,7 +169,6 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getImSdkClient(),
     getKnowledgebaseAppSdkClient(),
     getVoiceAppSdkClient(),
-    getMailAppSdkClient(),
     getNotaryAppSdkClient(),
   ] as SdkworkAppbasePcAuthRuntimeSdkClient[];
 }
@@ -191,6 +194,8 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         void rebootstrapKnowledgebasePcRuntimeForIm();
         void rebootstrapVoicePcRuntimeForIm();
         void rebootstrapCoursePcRuntimeForIm();
+        syncImSessionToMailPc();
+        syncImSessionToAiotPc();
       },
     },
     sdkClients: getAuthenticatedSdkClients(),

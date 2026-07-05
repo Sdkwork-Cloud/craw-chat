@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: realtime
     app.kubernetes.io/part-of: sdkwork-im
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: session-gateway
@@ -20,6 +20,12 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
+      # session-gateway holds long-lived WebSocket connections and in-memory
+      # realtime route state. Give it a generous termination grace period so
+      # the preStop hook can drain connections (LB removal + client reconnect
+      # backoff) before SIGTERM, and so the SIGTERM handler can flush pending
+      # outbox events and persist state to PostgreSQL/Redis cleanly.
+      terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -54,24 +60,45 @@ spec:
               value: sdkwork-im-session-gateway
             - name: TMPDIR
               value: /tmp
+          # Let the load balancer / kube-proxy remove this Pod from the
+          # Service endpoints BEFORE we receive SIGTERM. Without this sleep,
+          # there is a ~5-10s race window where new WebSocket connections
+          # could still be routed to a terminating Pod and immediately dropped.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+          # startupProbe lets the runtime restore per-principal realtime route
+          # state from PostgreSQL before livenessProbe kicks in. Without it,
+          # a slow cold start (large tenant, many subscriptions) could be
+          # killed by livenessProbe before it finishes warming up.
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 20
             periodSeconds: 20
-            timeoutSeconds: 5
+            timeoutSeconds: 3
           resources:
             requests:
-              cpu: 250m
-              memory: 512Mi
+              # session-gateway holds DashMap-backed realtime route state,
+              # per-principal mutation shards, and in-flight WebSocket
+              # buffers. 512Mi was too tight for tenants with many concurrent
+              # connections; 1Gi gives headroom for GC and burst traffic.
+              cpu: 500m
+              memory: 1Gi
             limits:
               cpu: "2"
               memory: 2Gi

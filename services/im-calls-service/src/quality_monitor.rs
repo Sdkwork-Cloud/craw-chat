@@ -90,15 +90,24 @@ impl IceConnectionState {
     }
 
     pub fn is_connected(&self) -> bool {
-        matches!(self, IceConnectionState::Connected | IceConnectionState::Completed)
+        matches!(
+            self,
+            IceConnectionState::Connected | IceConnectionState::Completed
+        )
     }
 
     pub fn is_terminal(&self) -> bool {
-        matches!(self, IceConnectionState::Failed | IceConnectionState::Closed)
+        matches!(
+            self,
+            IceConnectionState::Failed | IceConnectionState::Closed
+        )
     }
 
     pub fn needs_restart(&self) -> bool {
-        matches!(self, IceConnectionState::Failed | IceConnectionState::Disconnected)
+        matches!(
+            self,
+            IceConnectionState::Failed | IceConnectionState::Disconnected
+        )
     }
 }
 
@@ -241,7 +250,8 @@ impl RtcQualityMetrics {
         };
 
         // Weighted composite score
-        self.quality_score = rtt_score * 0.3 + loss_score * 0.3 + jitter_score * 0.2 + bitrate_score * 0.2;
+        self.quality_score =
+            rtt_score * 0.3 + loss_score * 0.3 + jitter_score * 0.2 + bitrate_score * 0.2;
 
         // Penalize if ICE is not connected
         if !self.ice_state.is_connected() {
@@ -318,13 +328,13 @@ impl RtcQualityMonitor {
     pub fn update_metrics(&mut self, metrics: RtcQualityMetrics) {
         self.metrics = metrics.clone();
         self.metrics.update_quality_score();
-        
+
         // Record history snapshot (every 5 seconds)
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         // Evict oldest entries if at capacity
         if self.history.len() >= self.max_history_entries {
             let oldest = self.history.keys().next().copied();
@@ -332,7 +342,7 @@ impl RtcQualityMonitor {
                 self.history.remove(&key);
             }
         }
-        
+
         self.history.insert(timestamp, metrics);
     }
 
@@ -343,7 +353,7 @@ impl RtcQualityMonitor {
         if count == 0 {
             return self.metrics.quality_score;
         }
-        
+
         let sum: f64 = entries.map(|(_, m)| m.quality_score).sum();
         sum / count as f64
     }
@@ -353,10 +363,10 @@ impl RtcQualityMonitor {
         if self.history.len() < 2 {
             return QualityTrend::Stable;
         }
-        
+
         let recent_avg = self.average_quality_score(5);
         let older_avg = self.average_quality_score(10);
-        
+
         if recent_avg > older_avg + 0.05 {
             QualityTrend::Improving
         } else if recent_avg < older_avg - 0.05 {
@@ -370,9 +380,19 @@ impl RtcQualityMonitor {
     pub fn generate_report(&self) -> RtcQualityReport {
         let avg_score = self.average_quality_score(self.history.len());
         let trend = self.quality_trend();
-        let min_score = self.history.values().map(|m| m.quality_score).reduce(f64::min).unwrap_or(0.0);
-        let max_score = self.history.values().map(|m| m.quality_score).reduce(f64::max).unwrap_or(1.0);
-        
+        let min_score = self
+            .history
+            .values()
+            .map(|m| m.quality_score)
+            .reduce(f64::min)
+            .unwrap_or(0.0);
+        let max_score = self
+            .history
+            .values()
+            .map(|m| m.quality_score)
+            .reduce(f64::max)
+            .unwrap_or(1.0);
+
         RtcQualityReport {
             rtc_session_id: self.rtc_session_id.clone(),
             call_duration: self.metrics.call_duration,
@@ -460,7 +480,10 @@ impl RtcQualityMonitorRegistry {
 
     /// Get all active session IDs.
     pub fn active_sessions(&self) -> Vec<String> {
-        self.monitors.iter().map(|entry| entry.key().clone()).collect()
+        self.monitors
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 }
 
@@ -510,13 +533,13 @@ mod tests {
     fn ice_state_tracking() {
         let mut metrics = RtcQualityMetrics::new();
         metrics.record_ice_state_change(IceConnectionState::Connected);
-        
+
         assert!(metrics.ice_state.is_connected());
         assert!(!metrics.should_restart_ice());
-        
+
         metrics.record_ice_state_change(IceConnectionState::Failed);
         assert!(metrics.should_restart_ice());
-        
+
         metrics.record_ice_restart();
         assert_eq!(metrics.ice_restart_count, 1);
     }
@@ -533,8 +556,8 @@ mod tests {
             let registry_clone = Arc::clone(&registry);
             handles.push(thread::spawn(move || {
                 let session_id = format!("session_{}", i);
-                let monitor = registry_clone.get_or_create(&session_id);
-                
+                let _monitor = registry_clone.get_or_create(&session_id);
+
                 let metrics = RtcQualityMetrics {
                     rtt: Duration::from_millis(50 + i * 10),
                     ..Default::default()
@@ -554,7 +577,7 @@ mod tests {
     fn quality_report_generation() {
         let monitor = RtcQualityMonitor::new("test_session".to_string());
         let report = monitor.generate_report();
-        
+
         assert_eq!(report.rtc_session_id, "test_session");
         assert!(report.average_quality_score > 0.0);
     }

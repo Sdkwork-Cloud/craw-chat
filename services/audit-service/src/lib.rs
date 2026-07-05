@@ -25,7 +25,7 @@ use sdkwork_im_openapi::{
 };
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::{Deserialize, Serialize};
-use sdkwork_utils_rust::sha256_hash;
+use sdkwork_utils_rust::{sha256_hash, SdkWorkPageSizeQuery, MAX_LIST_PAGE_SIZE};
 use tokio::sync::Semaphore;
 use tracing::{error, info};
 
@@ -34,7 +34,8 @@ const AUDIT_AGGREGATE_TYPE_MAX_BYTES: usize = 128;
 const AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const AUDIT_ACTION_MAX_BYTES: usize = 128;
 const AUDIT_PAYLOAD_MAX_BYTES: usize = 128 * 1024;
-const AUDIT_RECORD_LIST_MAX_LIMIT: usize = 1000;
+const AUDIT_RECORD_LIST_MAX_LIMIT: usize = MAX_LIST_PAGE_SIZE as usize;
+const AUDIT_RECORD_LIST_DEFAULT_PAGE_SIZE: usize = 100;
 const AUDIT_RECORD_DELIVERY_PROOF_VERSION: &str = "audit.record.delivery-proof.v1";
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_AUDIT_MAX_IN_FLIGHT_REQUESTS";
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
@@ -107,11 +108,12 @@ pub struct RecordAuditAnchor {
     pub payload: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct ListAuditRecordsQuery {
     pub after_audit_seq: Option<u64>,
-    pub limit: Option<usize>,
+    #[serde(flatten)]
+    pub paging: SdkWorkPageSizeQuery,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -388,23 +390,13 @@ impl AuditRuntime {
         query: ListAuditRecordsQuery,
     ) -> Result<AuditRecordListResponse, AuditError> {
         let after_audit_seq = query.after_audit_seq.unwrap_or(0);
-        let limit = query.limit.unwrap_or(100);
-        if limit == 0 {
-            return Err(AuditError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "invalid_limit",
-                message: "limit must be greater than 0".into(),
-            });
-        }
-        if limit > AUDIT_RECORD_LIST_MAX_LIMIT {
-            return Err(AuditError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "invalid_limit",
-                message: format!(
-                    "limit must be less than or equal to {AUDIT_RECORD_LIST_MAX_LIMIT}"
-                ),
-            });
-        }
+        let page_size = query
+            .paging
+            .page_size
+            .map(|value| usize::try_from(value).unwrap_or(AUDIT_RECORD_LIST_DEFAULT_PAGE_SIZE))
+            .unwrap_or(AUDIT_RECORD_LIST_DEFAULT_PAGE_SIZE)
+            .clamp(1, AUDIT_RECORD_LIST_MAX_LIMIT);
+        let limit = page_size;
 
         match &self.backend {
             AuditBackend::InMemory { records } => Ok(Self::read_records(records)

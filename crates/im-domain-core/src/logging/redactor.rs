@@ -36,8 +36,8 @@
 //! └─────────────────┘
 //! ```
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -220,7 +220,9 @@ impl SensitiveDataRedactor {
 
         // Apply regex patterns
         for (pattern, replacement) in &self.patterns {
-            result = pattern.replace_all(&result, replacement.as_str()).to_string();
+            result = pattern
+                .replace_all(&result, replacement.as_str())
+                .to_string();
         }
 
         result
@@ -234,7 +236,10 @@ impl SensitiveDataRedactor {
                     .iter()
                     .map(|(key, value)| {
                         if self.sensitive_fields.contains(&key.to_lowercase()) {
-                            (key.clone(), serde_json::Value::String("[REDACTED]".to_string()))
+                            (
+                                key.clone(),
+                                serde_json::Value::String("[REDACTED]".to_string()),
+                            )
                         } else {
                             (key.clone(), self.redact_json(value))
                         }
@@ -246,9 +251,7 @@ impl SensitiveDataRedactor {
                 let redacted = arr.iter().map(|v| self.redact_json(v)).collect();
                 serde_json::Value::Array(redacted)
             }
-            serde_json::Value::String(s) => {
-                serde_json::Value::String(self.redact(s))
-            }
+            serde_json::Value::String(s) => serde_json::Value::String(self.redact(s)),
             other => other.clone(),
         }
     }
@@ -321,7 +324,8 @@ impl tracing::field::Visit for RedactingVisitor {
         let raw_value = format!("{:?}", value);
 
         if self.redactor.is_sensitive_field(field_name) {
-            self.fields.insert(field_name.to_owned(), "[REDACTED]".to_string());
+            self.fields
+                .insert(field_name.to_owned(), "[REDACTED]".to_string());
         } else {
             let redacted = self.redactor.redact(&raw_value);
             self.fields.insert(field_name.to_owned(), redacted);
@@ -332,7 +336,8 @@ impl tracing::field::Visit for RedactingVisitor {
         let field_name = field.name();
 
         if self.redactor.is_sensitive_field(field_name) {
-            self.fields.insert(field_name.to_owned(), "[REDACTED]".to_string());
+            self.fields
+                .insert(field_name.to_owned(), "[REDACTED]".to_string());
         } else {
             let redacted = self.redactor.redact(value);
             self.fields.insert(field_name.to_owned(), redacted);
@@ -404,7 +409,7 @@ mod tests {
         let redactor = SensitiveDataRedactor::new();
         let text = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWI";
         let redacted = redactor.redact(text);
-        
+
         assert_eq!(redacted, "Authorization: Bearer [REDACTED]");
         assert!(!redacted.contains("eyJ"));
     }
@@ -414,7 +419,7 @@ mod tests {
         let redactor = SensitiveDataRedactor::new();
         let text = "access_token=abc123def456ghi789jkl";
         let redacted = redactor.redact(text);
-        
+
         assert_eq!(redacted, "access_token=[REDACTED]");
     }
 
@@ -429,9 +434,9 @@ mod tests {
                 "nested_secret": "nested_value"
             }
         });
-        
+
         let redacted = redactor.redact_json(&json);
-        
+
         assert_eq!(redacted["password"], "[REDACTED]");
         assert_eq!(redacted["access_token"], "[REDACTED]");
         assert_eq!(redacted["username"], "user123");
@@ -442,7 +447,7 @@ mod tests {
         let redactor = SensitiveDataRedactor::new().with_email_redaction(true);
         let text = "User email: user@example.com";
         let redacted = redactor.redact(text);
-        
+
         assert_eq!(redacted, "User email: [EMAIL_REDACTED]");
     }
 
@@ -451,7 +456,7 @@ mod tests {
         let redactor = SensitiveDataRedactor::new().with_ip_redaction(true);
         let text = "Client IP: 192.168.1.100";
         let redacted = redactor.redact(text);
-        
+
         assert_eq!(redacted, "Client IP: [IP_REDACTED]");
     }
 
@@ -472,7 +477,7 @@ mod tests {
             100,
             None,
         );
-        
+
         assert_eq!(entry.client_ip, "[IP_REDACTED]");
         assert_eq!(entry.request_details["access_token"], "[REDACTED]");
     }
@@ -482,7 +487,7 @@ mod tests {
         let redactor = SensitiveDataRedactor::new();
         let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         let redacted = redactor.redact(jwt);
-        
+
         assert_eq!(redacted, "[JWT_REDACTED]");
     }
 
@@ -491,7 +496,7 @@ mod tests {
         let redactor = SensitiveDataRedactor::new();
         let text = "Bearer token123 and password=secret and api_key=key123";
         let redacted = redactor.redact(text);
-        
+
         assert!(redacted.contains("[REDACTED]"));
         assert!(!redacted.contains("token123"));
         assert!(!redacted.contains("secret"));

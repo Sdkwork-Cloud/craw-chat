@@ -36,12 +36,9 @@ pub fn validate_realtime_node_id_for_cluster(
     Ok(())
 }
 
-pub fn sign_cluster_route_event(
-    secret: &str,
-    event: &serde_json::Value,
-) -> Result<String, String> {
-    let event_json =
-        serde_json::to_string(event).map_err(|error| format!("serialize cluster event: {error}"))?;
+pub fn sign_cluster_route_event(secret: &str, event: &serde_json::Value) -> Result<String, String> {
+    let event_json = serde_json::to_string(event)
+        .map_err(|error| format!("serialize cluster event: {error}"))?;
     let signature = compute_hmac_hex(secret, event_json.as_bytes());
     let envelope = SignedClusterRouteEventEnvelope {
         v: 1,
@@ -56,9 +53,8 @@ pub fn verify_and_extract_cluster_route_event(
     secret: &str,
     payload: &str,
 ) -> Result<serde_json::Value, String> {
-    let envelope: SignedClusterRouteEventEnvelope = serde_json::from_str(payload).map_err(|_| {
-        "invalid signed cluster route event envelope".to_string()
-    })?;
+    let envelope: SignedClusterRouteEventEnvelope = serde_json::from_str(payload)
+        .map_err(|_| "invalid signed cluster route event envelope".to_string())?;
     if envelope.v != 1 {
         return Err("unsupported cluster route event envelope version".to_string());
     }

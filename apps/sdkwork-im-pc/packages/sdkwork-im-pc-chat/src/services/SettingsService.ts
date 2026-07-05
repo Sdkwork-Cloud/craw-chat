@@ -1,7 +1,7 @@
 import {
-  getAiotAppSdkClientWithSession,
-  type SdkworkAiotAppClient,
-} from "@sdkwork/im-pc-core/sdk/aiotAppSdkClient";
+  getImHostedAiotAppSdkClient,
+} from "@sdkwork/im-pc-core/sdk/aiotPcIntegration";
+import type { SdkworkAiotAppClient } from "@sdkwork/aiot-app-sdk";
 import {
   getAppSdkClientWithSession,
   type SdkworkImAppClient,
@@ -265,7 +265,7 @@ class SdkworkSettingsService implements SettingsService {
 
   constructor(
     private readonly getClient: () => SdkworkImAppClient = getAppSdkClientWithSession,
-    private readonly getAiotClient: () => SdkworkAiotAppClient = getAiotAppSdkClientWithSession,
+    private readonly getAiotClient: () => SdkworkAiotAppClient = getImHostedAiotAppSdkClient,
     private readonly resolveClientId: () => string = resolveSdkworkChatPcClientId,
   ) {
     setTimeout(() => this.initTheme(), 0);

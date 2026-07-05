@@ -32,6 +32,7 @@ export interface SdkworkRtcMediaPublishOptions {
 
 export interface SdkworkRtcMediaService {
   bindLocalVideoElement(element: HTMLElement | null): Promise<void>;
+  bindRemoteVideoElement(remoteUserId: string | null | undefined, element: HTMLElement | null): Promise<void>;
   join(options: SdkworkRtcMediaJoinOptions): Promise<void>;
   leave(): Promise<void>;
   muteAudio(muted: boolean): Promise<void>;
@@ -48,6 +49,15 @@ interface VolcengineLocalVideoEngine {
   setLocalVideoPlayer(
     streamIndex: number,
     options?: {
+      playerId?: string;
+      renderDom?: HTMLElement;
+      renderMode?: number;
+    },
+  ): HTMLVideoElement | undefined;
+  setRemoteVideoPlayer?(
+    streamIndex: number,
+    options?: {
+      userId?: string;
       playerId?: string;
       renderDom?: HTMLElement;
       renderMode?: number;
@@ -140,6 +150,7 @@ function createTrackId(rtcSessionId: string, kind: RtcTrackKind): string {
 }
 
 const LOCAL_VIDEO_PLAYER_ID = 'sdkwork-im-pc-local-video-preview';
+const REMOTE_VIDEO_PLAYER_ID = 'sdkwork-im-pc-remote-video-preview';
 const VOLCENGINE_MAIN_STREAM_INDEX = 0;
 const VOLCENGINE_RENDER_MODE_HIDDEN = 0;
 const VOLCENGINE_NATIVE_CLIENT_EXTENSION_KEY = 'volcengine.native-client';
@@ -150,6 +161,9 @@ export class SdkworkStandardRtcMediaService implements SdkworkRtcMediaService {
   private joinedRtcSessionId?: string;
   private localVideoBound = false;
   private localVideoElement?: HTMLElement;
+  private remoteVideoBound = false;
+  private remoteVideoElement?: HTMLElement;
+  private remoteVideoUserId?: string;
   private publishedTrackIds = new Set<string>();
 
   constructor(dependencies: SdkworkRtcMediaServiceDependencies = {}) {
@@ -159,6 +173,15 @@ export class SdkworkStandardRtcMediaService implements SdkworkRtcMediaService {
   async bindLocalVideoElement(element: HTMLElement | null): Promise<void> {
     this.localVideoElement = element ?? undefined;
     await this.syncLocalVideoBinding();
+  }
+
+  async bindRemoteVideoElement(
+    remoteUserId: string | null | undefined,
+    element: HTMLElement | null,
+  ): Promise<void> {
+    this.remoteVideoUserId = remoteUserId?.trim() || undefined;
+    this.remoteVideoElement = element ?? undefined;
+    await this.syncRemoteVideoBinding();
   }
 
   async join(options: SdkworkRtcMediaJoinOptions): Promise<void> {
@@ -196,6 +219,7 @@ export class SdkworkStandardRtcMediaService implements SdkworkRtcMediaService {
     this.client = client;
     this.joinedRtcSessionId = options.rtcSessionId;
     await this.syncLocalVideoBinding();
+    await this.syncRemoteVideoBinding();
   }
 
   async publish(options: SdkworkRtcMediaPublishOptions): Promise<void> {
@@ -221,8 +245,10 @@ export class SdkworkStandardRtcMediaService implements SdkworkRtcMediaService {
   async leave(): Promise<void> {
     const client = this.client;
     await this.unbindLocalVideo(client);
+    await this.unbindRemoteVideo(client);
     this.client = undefined;
     this.joinedRtcSessionId = undefined;
+    this.remoteVideoUserId = undefined;
     this.publishedTrackIds.clear();
     await client?.leave();
   }
@@ -274,6 +300,76 @@ export class SdkworkStandardRtcMediaService implements SdkworkRtcMediaService {
     } catch {
       // Local preview playback is best-effort; RTC room join and publishing must continue.
     }
+  }
+
+  private async syncRemoteVideoBinding(): Promise<void> {
+    const client = this.client;
+    const engine = this.getVolcengineLocalVideoEngine(client);
+    const remoteUserId = this.remoteVideoUserId;
+    if (!engine?.setRemoteVideoPlayer || !remoteUserId) {
+      await this.unbindRemoteVideo(client);
+      return;
+    }
+
+    if (!this.remoteVideoElement) {
+      await this.unbindRemoteVideo(client);
+      return;
+    }
+
+    try {
+      engine.setRemoteVideoPlayer(VOLCENGINE_MAIN_STREAM_INDEX, {
+        userId: remoteUserId,
+        playerId: REMOTE_VIDEO_PLAYER_ID,
+        renderDom: this.remoteVideoElement,
+        renderMode: VOLCENGINE_RENDER_MODE_HIDDEN,
+      });
+      this.remoteVideoBound = true;
+    } catch {
+      this.remoteVideoBound = false;
+      return;
+    }
+
+    try {
+      await engine.play?.(
+        remoteUserId,
+        undefined,
+        VOLCENGINE_MAIN_STREAM_INDEX,
+        REMOTE_VIDEO_PLAYER_ID,
+      );
+    } catch {
+      // Remote playback is best-effort; signaling and local publish must continue.
+    }
+  }
+
+  private async unbindRemoteVideo(client: RtcClient | undefined): Promise<void> {
+    if (!this.remoteVideoBound) {
+      return;
+    }
+    const engine = this.getVolcengineLocalVideoEngine(client);
+    const remoteUserId = this.remoteVideoUserId;
+    if (!engine) {
+      this.remoteVideoBound = false;
+      return;
+    }
+    try {
+      engine.stop?.(
+        remoteUserId,
+        undefined,
+        VOLCENGINE_MAIN_STREAM_INDEX,
+        REMOTE_VIDEO_PLAYER_ID,
+      );
+    } catch {
+      // Remote preview teardown is best-effort.
+    }
+    try {
+      engine.setRemoteVideoPlayer?.(VOLCENGINE_MAIN_STREAM_INDEX, {
+        userId: remoteUserId,
+        playerId: REMOTE_VIDEO_PLAYER_ID,
+      });
+    } catch {
+      // Remote preview teardown is best-effort.
+    }
+    this.remoteVideoBound = false;
   }
 
   private async unbindLocalVideo(client: RtcClient | undefined): Promise<void> {

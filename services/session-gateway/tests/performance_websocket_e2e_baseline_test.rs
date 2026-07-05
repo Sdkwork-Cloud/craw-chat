@@ -674,6 +674,16 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
         );
     }
 
+    cluster
+        .clear_client_route_disconnect_fence_for_principal_kind(
+            TENANT_ID,
+            "default",
+            PRINCIPAL_ID,
+            PRINCIPAL_KIND,
+            "d_primary",
+        )
+        .expect("backlog reconnect drill should clear disconnect fence after resume");
+
     let backlog_restore_started = Instant::now();
     let (mut reconnected, reconnect_connect_ms) =
         connect_ccp_device(server.websocket_url().as_str(), "d_primary").await;
@@ -717,7 +727,13 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
     assert_eq!(backlog_tail_window["window"]["trimmedThroughSeq"], 50);
 
     let persisted_checkpoint = checkpoint_store
-        .checkpoint(TENANT_ID, "default", PRINCIPAL_KIND, PRINCIPAL_ID, "d_primary")
+        .checkpoint(
+            TENANT_ID,
+            "default",
+            PRINCIPAL_KIND,
+            PRINCIPAL_ID,
+            "d_primary",
+        )
         .expect("persisted checkpoint should exist");
     assert_eq!(
         persisted_checkpoint.capacity_trimmed_event_count,

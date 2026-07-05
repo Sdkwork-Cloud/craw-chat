@@ -155,8 +155,8 @@ for (const handlerPath of ['block.rs', 'direct_chat.rs']) {
   const source = readText('services', 'social-service', 'src', 'postgres', handlerPath);
   assert.match(
     source,
-    /next_entity_id\(&state\.id_generator\)/u,
-    `services/social-service/src/postgres/${handlerPath} must allocate entity ids through the shared snowflake generator`,
+    /supplemental_social_mutation_forbidden\(\)/u,
+    `services/social-service/src/postgres/${handlerPath} must keep supplemental Postgres mutations fail-closed`,
   );
   assert.doesNotMatch(
     source,

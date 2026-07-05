@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft,
@@ -11,7 +11,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { toast } from "@sdkwork/im-pc-chat";
-import { ShopProduct, shopService } from "../services/ShopService";
+import { ShopProduct, PC_SHOP_FAVORITES_UNAVAILABLE } from "../services/ShopService";
 import { useTranslation } from "react-i18next";
 
 export const ProductDetail = ({
@@ -26,7 +26,6 @@ export const ProductDetail = ({
   onBuyNow: (skuId?: string) => void;
 }) => {
   const { t, i18n } = useTranslation(["product", "common"]);
-  const [isFav, setIsFav] = useState(false);
 
   const initialOptions = useMemo(() => {
     if (product.skus && product.skus.length > 0) {
@@ -49,10 +48,6 @@ export const ProductDetail = ({
     }
     return null;
   });
-
-  useEffect(() => {
-    shopService.isFavorite(product.id).then(setIsFav);
-  }, [product.id]);
 
   const selectedSku = useMemo(() => {
     if (product.options && product.skus) {
@@ -381,24 +376,11 @@ export const ProductDetail = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-16 h-16 rounded-2xl border border-white/10 flex items-center justify-center text-gray-400 hover:text-pink-500 hover:border-pink-500/50 hover:bg-pink-500/10 transition-colors shrink-0 bg-[#252527]"
-              style={{ color: isFav ? "#ec4899" : "" }}
-              onClick={async (e) => {
-                const newState = await shopService.toggleFavorite(product.id);
-                setIsFav(newState);
-                if (!newState) {
-                  toast(t("product:unfavorited"), "success");
-                } else {
-                  toast(t("product:favorited"), "success");
-                }
-              }}
+              disabled
+              title={PC_SHOP_FAVORITES_UNAVAILABLE}
+              className="w-16 h-16 rounded-2xl border border-white/10 flex items-center justify-center text-gray-600 cursor-not-allowed shrink-0 bg-[#252527] opacity-60"
             >
-              <Heart
-                size={24}
-                className={
-                  isFav ? "fill-pink-500" : "group-hover:fill-pink-500"
-                }
-              />
+              <Heart size={24} />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}

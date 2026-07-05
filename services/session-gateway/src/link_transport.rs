@@ -2,10 +2,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::http::{header, HeaderMap, HeaderValue};
-use im_app_context::{AppContext, AppContextError};
 use crate::auth_context::RealtimeAuthContextResolver;
-use sdkwork_im_ccp_binding_udp::{UdpBinding, CCP_UDP_MAX_DATAGRAM_BYTES};
+use axum::http::{HeaderMap, HeaderValue, header};
+use im_app_context::{AppContext, AppContextError};
+use sdkwork_im_ccp_binding_udp::{CCP_UDP_MAX_DATAGRAM_BYTES, UdpBinding};
 use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
 use sdkwork_im_ccp_control::{AuthBindFrame, AuthOkFrame, ControlFrame, ErrorFrame};
 use sdkwork_im_ccp_core::{CcpEnvelope, ProtocolVersion, TransportBinding};
@@ -19,10 +19,12 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::cluster_route_event_auth::validate_link_bind_addr_for_cleartext_tokens;
 use crate::client_route_registration::ClientRouteRegistration;
 use crate::client_route_state::ClientRouteState;
-use crate::link_framing::{read_framed_envelope, send_framed_control_frame, send_framed_error_and_close};
+use crate::cluster_route_event_auth::validate_link_bind_addr_for_cleartext_tokens;
+use crate::link_framing::{
+    read_framed_envelope, send_framed_control_frame, send_framed_error_and_close,
+};
 use crate::link_quic::{resolve_quic_bind_addr, spawn_quic_listener};
 use crate::link_realtime::serve_realtime_framed_session;
 use crate::{ApiError, RealtimePlaneAssembly};
@@ -310,7 +312,12 @@ impl LinkTransportRuntime {
             read_framed_envelope(reader, binding.clone()),
         )
         .await
-        .map_err(|_| format!("link handshake hello timed out after {}s", handshake_timeout.as_secs()))??;
+        .map_err(|_| {
+            format!(
+                "link handshake hello timed out after {}s",
+                handshake_timeout.as_secs()
+            )
+        })??;
         let hello = decode_control_frame(&hello_envelope, "hello")?;
         let ControlFrame::Hello(hello_frame) = hello else {
             return Err("first stream frame must be hello".into());
@@ -339,19 +346,20 @@ impl LinkTransportRuntime {
             .negotiate_hello(&hello_frame)
             .map_err(map_hello_error)?;
         let resume_negotiated = hello_ack.capabilities.supports("session.resume");
-        send_framed_control_frame(
-            writer,
-            binding.clone(),
-            &ControlFrame::HelloAck(hello_ack),
-        )
-        .await?;
+        send_framed_control_frame(writer, binding.clone(), &ControlFrame::HelloAck(hello_ack))
+            .await?;
 
         let auth_envelope = tokio::time::timeout(
             handshake_timeout,
             read_framed_envelope(reader, binding.clone()),
         )
         .await
-        .map_err(|_| format!("link handshake auth_bind timed out after {}s", handshake_timeout.as_secs()))??;
+        .map_err(|_| {
+            format!(
+                "link handshake auth_bind timed out after {}s",
+                handshake_timeout.as_secs()
+            )
+        })??;
         let auth_bind = decode_control_frame(&auth_envelope, "auth_bind")?;
         let ControlFrame::AuthBind(auth_bind_frame) = auth_bind else {
             return Err("second stream frame must be auth_bind".into());
@@ -739,7 +747,8 @@ fn encode_udp_control_envelope(frame: &ControlFrame) -> Result<Vec<u8>, String> 
         None,
         ["control"],
         None,
-        serde_json::to_string(frame).map_err(|error| format!("control frame encode failed: {error}"))?,
+        serde_json::to_string(frame)
+            .map_err(|error| format!("control frame encode failed: {error}"))?,
     );
     UdpBinding::new()
         .encode(&envelope, &JsonEnvelopeCodec::new())
@@ -747,7 +756,10 @@ fn encode_udp_control_envelope(frame: &ControlFrame) -> Result<Vec<u8>, String> 
         .map_err(|error| format!("udp envelope encode failed: {error}"))
 }
 
-fn decode_control_frame(envelope: &CcpEnvelope, expected_kind: &str) -> Result<ControlFrame, String> {
+fn decode_control_frame(
+    envelope: &CcpEnvelope,
+    expected_kind: &str,
+) -> Result<ControlFrame, String> {
     if envelope.kind != expected_kind {
         return Err(format!(
             "expected control frame `{expected_kind}`, got `{}`",
@@ -764,7 +776,7 @@ mod tests {
     use crate::RealtimeAuthContextResolver;
     use im_app_context::local_service_app_context;
     use sdkwork_im_ccp_binding_tcp::{
-        TcpBinding, CCP_TCP_FRAME_HEADER_BYTES, CCP_TCP_MAX_FRAME_BYTES,
+        CCP_TCP_FRAME_HEADER_BYTES, CCP_TCP_MAX_FRAME_BYTES, TcpBinding,
     };
     use sdkwork_im_ccp_control::{HelloFrame, SessionResumeFrame};
     use sdkwork_im_ccp_core::CapabilitySet;
@@ -876,7 +888,11 @@ mod tests {
     async fn test_tcp_link_listener_completes_hello_auth_handshake() {
         let assembly = RealtimePlaneAssembly::default();
         assembly.bind_node_runtime("node_tcp_test");
-        let runtime = LinkTransportRuntime::new(assembly, "node_tcp_test", RealtimeAuthContextResolver::default());
+        let runtime = LinkTransportRuntime::new(
+            assembly,
+            "node_tcp_test",
+            RealtimeAuthContextResolver::default(),
+        );
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("tcp listener should bind");
@@ -935,7 +951,11 @@ mod tests {
     async fn test_tcp_link_listener_completes_session_resume_when_negotiated() {
         let assembly = RealtimePlaneAssembly::default();
         assembly.bind_node_runtime("node_tcp_resume_test");
-        let runtime = LinkTransportRuntime::new(assembly, "node_tcp_resume_test", RealtimeAuthContextResolver::default());
+        let runtime = LinkTransportRuntime::new(
+            assembly,
+            "node_tcp_resume_test",
+            RealtimeAuthContextResolver::default(),
+        );
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("tcp listener should bind");
@@ -1013,7 +1033,11 @@ mod tests {
     async fn test_tcp_link_session_receives_live_push_event_window() {
         let assembly = RealtimePlaneAssembly::default();
         assembly.bind_node_runtime("node_tcp_push_test");
-        let runtime = LinkTransportRuntime::new(assembly, "node_tcp_push_test", RealtimeAuthContextResolver::default());
+        let runtime = LinkTransportRuntime::new(
+            assembly,
+            "node_tcp_push_test",
+            RealtimeAuthContextResolver::default(),
+        );
         let delivery_runtime = runtime.assembly().realtime_runtime();
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
@@ -1058,19 +1082,22 @@ mod tests {
         assert_eq!(connected.schema, "cc.realtime.connected.v1");
 
         client
-            .write_all(encode_tcp_business_frame(
-                "cc.realtime.subscriptions.sync.v1",
-                "cmd",
-                serde_json::json!({
-                    "type": "subscriptions.sync",
-                    "requestId": "req_tcp_push_1",
-                    "items": [{
-                        "scopeType": "conversation",
-                        "scopeId": "c_demo",
-                        "eventTypes": ["message.posted"]
-                    }]
-                }),
-            ).as_slice())
+            .write_all(
+                encode_tcp_business_frame(
+                    "cc.realtime.subscriptions.sync.v1",
+                    "cmd",
+                    serde_json::json!({
+                        "type": "subscriptions.sync",
+                        "requestId": "req_tcp_push_1",
+                        "items": [{
+                            "scopeType": "conversation",
+                            "scopeId": "c_demo",
+                            "eventTypes": ["message.posted"]
+                        }]
+                    }),
+                )
+                .as_slice(),
+            )
             .await
             .expect("subscription sync should send");
         client.flush().await.expect("flush should succeed");
@@ -1121,7 +1148,11 @@ mod tests {
     async fn test_udp_link_listener_completes_auth_bind_and_registers_route() {
         let assembly = RealtimePlaneAssembly::default();
         assembly.bind_node_runtime("node_udp_auth_test");
-        let runtime = LinkTransportRuntime::new(assembly, "node_udp_auth_test", RealtimeAuthContextResolver::default());
+        let runtime = LinkTransportRuntime::new(
+            assembly,
+            "node_udp_auth_test",
+            RealtimeAuthContextResolver::default(),
+        );
         let socket = UdpSocket::bind("127.0.0.1:0")
             .await
             .expect("udp socket should bind");
@@ -1194,7 +1225,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_udp_link_listener_responds_to_hello_datagram() {
-        let runtime = LinkTransportRuntime::new(RealtimePlaneAssembly::default(), "node_udp_test", RealtimeAuthContextResolver::default());
+        let runtime = LinkTransportRuntime::new(
+            RealtimePlaneAssembly::default(),
+            "node_udp_test",
+            RealtimeAuthContextResolver::default(),
+        );
         let socket = UdpSocket::bind("127.0.0.1:0")
             .await
             .expect("udp socket should bind");

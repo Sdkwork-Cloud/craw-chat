@@ -7,9 +7,12 @@ use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
+use sdkwork_utils_rust::SdkWorkResourceData;
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use crate::api_payload::resource_item;
 
 use crate::postgres::http::PostgresAppState;
 
@@ -29,7 +32,7 @@ pub async fn get_user_settings(
     State(state): State<PostgresAppState>,
     Path(user_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<UserSettingsResponse> = (|| {
+    let result: ApiResult<SdkWorkResourceData<UserSettingsResponse>> = (|| {
         if auth.actor_id != user_id {
             return Err(ApiProblem::forbidden("user can only read own settings"));
         }
@@ -42,7 +45,7 @@ pub async fn get_user_settings(
                 user_id.as_str(),
             )
             .map_err(|_| ApiProblem::internal_server_error("failed to read user settings"))?;
-        Ok(UserSettingsResponse { settings })
+        Ok(resource_item(UserSettingsResponse { settings }))
     })();
     finish_api_json(&ctx, result)
 }

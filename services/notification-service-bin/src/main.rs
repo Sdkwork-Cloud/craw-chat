@@ -18,6 +18,7 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> Result<(), String> {
+    notification_service::ensure_durable_notification_runtime_from_env()?;
     let bind_addr = std::env::var(BIND_ADDR_ENV).unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
     let listener = tokio::net::TcpListener::bind(bind_addr.as_str())
         .await

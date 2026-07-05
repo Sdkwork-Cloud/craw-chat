@@ -378,6 +378,7 @@ impl RealtimeScopeAccessPolicy for ArchivedConversationPolicy {
     fn validate_subscription_scope(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_id: &str,
         _principal_kind: &str,
         scope_type: &str,
@@ -396,6 +397,7 @@ impl RealtimeScopeAccessPolicy for ArchivedConversationPolicy {
     fn is_event_visible(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_id: &str,
         _principal_kind: &str,
         event: &RealtimeEvent,

@@ -97,12 +97,18 @@ async fn test_public_app_rejects_missing_or_invalid_context_signature_when_enabl
         .to_bytes();
     let missing_json: serde_json::Value =
         serde_json::from_slice(&missing_body).expect("response should be valid json");
-    assert_eq!(missing_json["type"], "about:blank");
+    assert_eq!(
+        missing_json["type"],
+        "https://docs.sdkwork.com/problems/40101"
+    );
     assert_eq!(missing_json["status"], 401);
-    assert_eq!(missing_json["title"], "Unauthorized");
-    assert_eq!(missing_json["code"], "app_context_invalid");
+    assert_eq!(missing_json["code"], 40101);
     assert!(
-        missing_json["message"]
+        missing_json["traceId"].as_str().is_some_and(|value| !value.is_empty()),
+        "problem detail must include traceId"
+    );
+    assert!(
+        missing_json["detail"]
             .as_str()
             .is_some_and(|message| message.contains("x-sdkwork-context-signature")),
         "missing signature should return explicit header requirement error"
@@ -135,12 +141,18 @@ async fn test_public_app_rejects_missing_or_invalid_context_signature_when_enabl
         .to_bytes();
     let invalid_json: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("response should be valid json");
-    assert_eq!(invalid_json["type"], "about:blank");
+    assert_eq!(
+        invalid_json["type"],
+        "https://docs.sdkwork.com/problems/40101"
+    );
     assert_eq!(invalid_json["status"], 401);
-    assert_eq!(invalid_json["title"], "Unauthorized");
-    assert_eq!(invalid_json["code"], "app_context_invalid");
+    assert_eq!(invalid_json["code"], 40101);
     assert!(
-        invalid_json["message"]
+        invalid_json["traceId"].as_str().is_some_and(|value| !value.is_empty()),
+        "problem detail must include traceId"
+    );
+    assert!(
+        invalid_json["detail"]
             .as_str()
             .is_some_and(|message| message.contains("signature validation failed")),
         "invalid signature should return verification failure"

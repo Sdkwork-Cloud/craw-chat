@@ -31,7 +31,7 @@ fn presence_record(
 ) -> PresenceStateRecord {
     PresenceStateRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
+        organization_id: "0".into(),
         principal_kind: "user".into(),
         principal_id: "1".into(),
         device_id: "d_cold".into(),
@@ -82,8 +82,13 @@ impl PresenceStateStore for HeartbeatAfterStaleListStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
-        self.inner
-            .load_state(tenant_id, organization_id, principal_kind, principal_id, device_id)
+        self.inner.load_state(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        )
     }
 
     fn save_state(&self, record: PresenceStateRecord) -> Result<(), ContractError> {
@@ -97,8 +102,12 @@ impl PresenceStateStore for HeartbeatAfterStaleListStore {
         principal_kind: &str,
         principal_id: &str,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
-        self.inner
-            .list_states_for_principal(tenant_id, organization_id, principal_kind, principal_id)
+        self.inner.list_states_for_principal(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+        )
     }
 
     fn list_online_states_seen_at_or_before(

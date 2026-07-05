@@ -87,6 +87,7 @@ export interface WatchIncomingCallsOptions {
 export interface CallService {
   acceptIncomingCall(): Promise<SdkworkCallSnapshot>;
   bindLocalVideoElement(element: HTMLElement | null): Promise<void>;
+  bindRemoteVideoElement(remoteUserId: string | null | undefined, element: HTMLElement | null): Promise<void>;
   endCall(options?: EndCallOptions): Promise<void>;
   getSnapshot(): SdkworkCallSnapshot;
   recoverRtcSession(rtcSessionId: string, options?: RecoverRtcSessionOptions): Promise<SdkworkCallSnapshot>;
@@ -329,6 +330,13 @@ class SdkworkImCallService implements CallService {
 
   async bindLocalVideoElement(element: HTMLElement | null): Promise<void> {
     await this.rtcMediaService.bindLocalVideoElement(element);
+  }
+
+  async bindRemoteVideoElement(
+    remoteUserId: string | null | undefined,
+    element: HTMLElement | null,
+  ): Promise<void> {
+    await this.rtcMediaService.bindRemoteVideoElement(remoteUserId, element);
   }
 
   async watchIncomingCalls(conversationIds: string[]): Promise<SdkworkCallSnapshot> {

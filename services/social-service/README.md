@@ -18,4 +18,4 @@ Gateway service `comms-social-service` owning `/im/v3/api/social/*`. Machine-rea
 - `cargo check -p social-service`
 - `cargo test -p social-service`
 - Postgres supplemental routes allocate entity ids through `sdkwork-im-runtime-id` (`src/postgres/id.rs`).
-- Postgres handlers cover friendships, blocks, direct chats, user profiles, and user settings under `/im/v3/api/social/*`.
+- Postgres supplemental handlers cover user search, blocks, direct chats, user profiles, and user settings under `/im/v3/api/social/*`. Friendship list/mutations are served only by runtime open-api (`src/openapi.rs`), not duplicate supplemental mounts.

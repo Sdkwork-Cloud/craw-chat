@@ -29,6 +29,9 @@ export const ShopView: React.FC<ShopViewProps> = ({ onNavigateToOrders }) => {
   );
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [productListCursor, setProductListCursor] = useState<string | undefined>();
+  const [productListHasMore, setProductListHasMore] = useState(false);
+  const [productListLoading, setProductListLoading] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(
     null,
@@ -40,11 +43,28 @@ export const ShopView: React.FC<ShopViewProps> = ({ onNavigateToOrders }) => {
     generatedCoupons?: { item: CartItem; product: ShopProduct; code: string }[];
   } | null>(null);
 
+  const loadProducts = (options?: { append?: boolean; cursor?: string; categoryId?: string | null }) => {
+    setProductListLoading(true);
+    shopService.listProductsPage(options?.categoryId ?? activeCategoryId ?? undefined, {
+      cursor: options?.cursor,
+    }).then((page) => {
+      setProducts((current) => (options?.append ? [...current, ...page.items] : page.items));
+      setProductListCursor(page.nextCursor);
+      setProductListHasMore(page.hasMore);
+    }).finally(() => {
+      setProductListLoading(false);
+    });
+  };
+
   useEffect(() => {
     shopService.getCategories().then(setCategories);
-    shopService.getProducts().then(setProducts);
+    loadProducts();
     updateCartCount();
   }, []);
+
+  useEffect(() => {
+    loadProducts({ categoryId: activeCategoryId });
+  }, [activeCategoryId]);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -256,6 +276,13 @@ export const ShopView: React.FC<ShopViewProps> = ({ onNavigateToOrders }) => {
                 onAddToCart={handleAddToCart}
                 activeCategoryId={activeCategoryId}
                 setActiveCategoryId={setActiveCategoryId}
+                hasMoreProducts={productListHasMore}
+                loadingMoreProducts={productListLoading}
+                onLoadMoreProducts={() => {
+                  if (productListCursor) {
+                    loadProducts({ append: true, cursor: productListCursor, categoryId: activeCategoryId });
+                  }
+                }}
               />
             </React.Fragment>
           ) : activeTab === "cart" ? (

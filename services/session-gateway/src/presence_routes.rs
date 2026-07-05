@@ -1,10 +1,13 @@
+use axum::Json;
 use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
-use axum::Json;
 use im_app_context::AppContext;
 
 use crate::client_route_state::ClientRouteStateSnapshot;
-use crate::{resolve_request_app_context, resolve_requested_device_id, ApiError, AppState, PresenceHeartbeatRequest};
+use crate::{
+    ApiError, AppState, PresenceHeartbeatRequest, resolve_request_app_context,
+    resolve_requested_device_id,
+};
 
 fn client_route_state_snapshot(
     state: &AppState,
@@ -17,10 +20,7 @@ fn client_route_state_snapshot(
 /// Converts a `tokio::task::JoinError` into an `ApiError` so presence
 /// handlers surface a clean 500 instead of a runtime-level panic.
 fn join_error_to_api_error(join_error: tokio::task::JoinError) -> ApiError {
-    ApiError::internal(
-        "presence_blocking_join_failed",
-        join_error.to_string(),
-    )
+    ApiError::internal("presence_blocking_join_failed", join_error.to_string())
 }
 
 pub(crate) async fn get_presence_me(

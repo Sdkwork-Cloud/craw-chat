@@ -34,7 +34,7 @@ Database profiles:
 
 ```bash
 pnpm dev:browser:postgres     # PostgreSQL via .env.postgres
-pnpm dev:browser:sqlite       # local SQLite user data
+pnpm dev:browser              # local browser user data
 ```
 
 ## App-root commands

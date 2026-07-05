@@ -17,6 +17,7 @@ im-adapters-postgres-projection.workspace = true
 im-adapters-postgres-journal.workspace = true
 sdkwork-im-contract-message = { path = "../../crates/sdkwork-im-contract-message" }
 sdkwork_database_config.workspace = true
+sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
@@ -25,6 +26,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork_utils_rust.workspace = true
+getrandom = "0.3.4"
 sdkwork_web_core.workspace = true
 sdkwork_routes_web_framework_backend_api.workspace = true
 sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }

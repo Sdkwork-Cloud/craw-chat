@@ -33,8 +33,8 @@ const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const moduleRegistrySource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
-const mailServiceSource = readText('packages', 'sdkwork-im-pc-mail', 'src', 'services', 'MailService.ts');
-const mailClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'mailAppSdkClient.ts');
+const mailViewSource = readText('packages', 'sdkwork-im-pc-mail', 'src', 'MailView.tsx');
+const mailIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'mailPcIntegration.ts');
 const viteConfigSource = readText('vite.config.ts');
 const tsconfig = readJson('tsconfig.json');
 
@@ -45,9 +45,9 @@ assert.equal(
 );
 
 assert.equal(
-  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['sdkwork-mail-app-sdk-generated-typescript'],
+  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['@sdkwork/mail-pc-core'],
   'workspace:*',
-  'Chat PC core must consume sdkwork-mail through the sibling generated app SDK workspace package.',
+  'Chat PC core must bridge IM session into canonical @sdkwork/mail-pc-core.',
 );
 
 assert.match(
@@ -147,27 +147,48 @@ assert.match(
   'Mail must be enabled in commercial runtime modules after SDK wiring.',
 );
 
-assert.match(
-  mailServiceSource,
-  /getMailAppSdkClientWithSession/u,
-  'MailService must consume the generated mail app SDK client instead of fail-closed stubs.',
-);
-assert.doesNotMatch(
-  mailServiceSource,
-  /PC_MAIL_CONTRACT_UNAVAILABLE/u,
-  'MailService must not keep contract-unavailable fail-closed stubs.',
+assert.equal(
+  readJson('packages', 'sdkwork-im-pc-mail', 'package.json').dependencies?.['@sdkwork/mail-pc-mail'],
+  'workspace:*',
+  'IM mail adapter must consume canonical @sdkwork/mail-pc-mail instead of embedding mail UI.',
 );
 
 assert.match(
-  mailClientSource,
-  /sdkwork-mail-app-sdk-generated-typescript/u,
-  'Mail app SDK client wrapper must import the sibling generated mail app SDK package.',
+  mailViewSource,
+  /@sdkwork\/mail-pc-mail/u,
+  'MailView must render canonical mail-pc-mail surfaces.',
+);
+assert.match(
+  mailViewSource,
+  /createMailAppServices/u,
+  'MailView must build services from canonical mail-pc-mail factory.',
+);
+assert.doesNotMatch(
+  mailViewSource,
+  /PC_MAIL_CONTRACT_UNAVAILABLE/u,
+  'MailView must not keep contract-unavailable fail-closed stubs.',
+);
+
+assert.match(
+  mailIntegrationSource,
+  /syncImSessionToMailPc/u,
+  'mailPcIntegration must bridge IM session into mail IAM session storage.',
+);
+assert.match(
+  mailIntegrationSource,
+  /@sdkwork\/mail-pc-core/u,
+  'mailPcIntegration must use canonical mail-pc-core session helpers.',
 );
 
 assert.match(
   viteConfigSource,
-  /sdkwork-mail-app-sdk-generated-typescript/u,
-  'Vite config must alias sdkwork-mail-app-sdk-generated-typescript for PC mail integration.',
+  /@sdkwork\/mail-pc-mail/u,
+  'Vite config must alias @sdkwork/mail-pc-mail for PC mail integration.',
+);
+assert.match(
+  viteConfigSource,
+  /@sdkwork\/mail-pc-core/u,
+  'Vite config must alias @sdkwork/mail-pc-core for PC mail integration.',
 );
 
 assert.ok(

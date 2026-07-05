@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import type { TimelineViewEntry } from "@sdkwork/im-sdk";
+
+import { useI18n } from "@sdkwork/im-h5-commons";
 
 import {
   fetchConversationTimeline,
@@ -22,6 +25,7 @@ interface ChatConversationPageProps {
 }
 
 export function ChatConversationPage({ conversationId, title }: ChatConversationPageProps) {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<TimelineViewEntry[]>([]);
   const [pagination, setPagination] = useState<TimelinePaginationState>({
     hasMore: false,
@@ -35,9 +39,16 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
   const [sending, setSending] = useState(false);
   const [liveConnected, setLiveConnected] = useState(false);
   const latestSeqRef = useRef(0);
-  const timelineRef = useRef<HTMLUListElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const loadingOlderRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: entries.length,
+    getScrollElement: () => timelineRef.current,
+    estimateSize: () => 76,
+    overscan: 10,
+  });
 
   const applyTimelineResponse = useCallback((items: TimelineViewEntry[], responsePagination: TimelinePaginationState, mode: "replace" | "append" | "merge") => {
     setEntries((previous) => {
@@ -67,7 +78,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         );
       })
       .catch((cause: unknown) => {
-        const message = cause instanceof Error ? cause.message : "Failed to load messages";
+        const message = cause instanceof Error ? cause.message : t("chat.conversation.loadError");
         setError(message);
       })
       .finally(() => {
@@ -75,7 +86,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
           setLoading(false);
         }
       });
-  }, [applyTimelineResponse, conversationId]);
+  }, [applyTimelineResponse, conversationId, t]);
 
   const appendNewTimelineEntries = useCallback(async () => {
     const afterSeq = latestSeqRef.current;
@@ -105,7 +116,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     try {
       const response = await fetchConversationTimeline(conversationId, {
         afterSeq: pagination.nextAfterSeq,
-        limit: 50,
+        pageSize: 50,
       });
       applyTimelineResponse(response.items ?? [], pickTimelinePagination(response), "append");
       requestAnimationFrame(() => {
@@ -114,13 +125,13 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         }
       });
     } catch (cause: unknown) {
-      const message = cause instanceof Error ? cause.message : "Failed to load earlier messages";
+      const message = cause instanceof Error ? cause.message : t("chat.conversation.loadEarlierError");
       setError(message);
     } finally {
       loadingOlderRef.current = false;
       setLoadingOlder(false);
     }
-  }, [applyTimelineResponse, conversationId, pagination.hasMore, pagination.nextAfterSeq]);
+  }, [applyTimelineResponse, conversationId, pagination.hasMore, pagination.nextAfterSeq, t]);
 
   useEffect(() => {
     loadTimeline();
@@ -165,7 +176,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       setDraft("");
       await appendNewTimelineEntries();
     } catch (cause: unknown) {
-      const message = cause instanceof Error ? cause.message : "Failed to send message";
+      const message = cause instanceof Error ? cause.message : t("chat.conversation.sendError");
       setError(message);
     } finally {
       setSending(false);
@@ -182,7 +193,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       await sendConversationImage(conversationId, file);
       await appendNewTimelineEntries();
     } catch (cause: unknown) {
-      const message = cause instanceof Error ? cause.message : "Failed to upload image";
+      const message = cause instanceof Error ? cause.message : t("chat.conversation.uploadError");
       setError(message);
     } finally {
       setUploading(false);
@@ -200,28 +211,28 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     void loadOlderMessages();
   };
 
-  const heading = title ?? `Conversation ${conversationId}`;
+  const heading = title ?? t("chat.conversation.fallbackTitle", { id: conversationId });
 
   return (
-    <section className="im-h5-chat-conversation" aria-label="Chat conversation">
+    <section className="im-h5-chat-conversation" aria-label={t("chat.conversation.aria")}>
       <header className="im-h5-chat-conversation-header">
         <a className="im-h5-chat-back-link" href="#/chat/inbox">
-          ← Inbox
+          {t("chat.conversation.back")}
         </a>
         <div className="im-h5-chat-conversation-heading">
           <h1 className="im-h5-chat-title">{heading}</h1>
           {liveConnected ? (
-            <span className="im-h5-chat-live-badge" aria-label="Live updates connected">
-              Live
+            <span className="im-h5-chat-live-badge" aria-label={t("chat.conversation.liveAria")}>
+              {t("chat.conversation.live")}
             </span>
           ) : null}
         </div>
       </header>
 
-      {loading ? <p className="im-h5-chat-status">Loading messages…</p> : null}
+      {loading ? <p className="im-h5-chat-status">{t("chat.conversation.loading")}</p> : null}
       {loadingOlder ? (
         <p className="im-h5-chat-status" role="status">
-          Loading earlier messages…
+          {t("chat.conversation.loadingOlder")}
         </p>
       ) : null}
       {error ? (
@@ -231,25 +242,46 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       ) : null}
 
       {!loading && !error ? (
-        <ul
+        <div
           ref={timelineRef}
           className="im-h5-chat-timeline"
           onScroll={handleTimelineScroll}
         >
           {entries.length === 0 ? (
-            <li className="im-h5-chat-status">No messages yet.</li>
+            <p className="im-h5-chat-status">{t("chat.conversation.empty")}</p>
           ) : (
-            entries.map((entry) => (
-              <li key={entry.messageId} className="im-h5-chat-timeline-item">
-                <div className="im-h5-chat-timeline-meta">
-                  <strong>{entry.sender?.displayName ?? entry.sender?.id ?? "Unknown"}</strong>
-                  <time>{entry.occurredAt}</time>
-                </div>
-                <p>{entry.body?.text ?? entry.summary ?? ""}</p>
-              </li>
-            ))
+            <ul
+              className="im-h5-chat-timeline-list"
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                position: "relative",
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const entry = entries[virtualRow.index];
+                return (
+                  <li
+                    key={entry.messageId}
+                    className="im-h5-chat-timeline-item"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <div className="im-h5-chat-timeline-meta">
+                      <strong>{entry.sender?.displayName ?? entry.sender?.id ?? t("chat.conversation.unknownSender")}</strong>
+                      <time>{entry.occurredAt}</time>
+                    </div>
+                    <p>{entry.body?.text ?? entry.summary ?? ""}</p>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </ul>
+        </div>
       ) : null}
 
       <footer className="im-h5-chat-composer">
@@ -266,17 +298,17 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
           type="button"
           className="im-h5-chat-composer-send"
           disabled={uploading}
-          aria-label="Upload image"
+          aria-label={t("chat.conversation.uploadAria")}
           onClick={() => fileInputRef.current?.click()}
         >
-          {uploading ? "Uploading…" : "Image"}
+          {uploading ? t("chat.conversation.uploading") : t("chat.conversation.image")}
         </button>
         <textarea
           className="im-h5-chat-composer-input"
           rows={2}
           value={draft}
-          placeholder="Type a message"
-          aria-label="Message text"
+          placeholder={t("chat.conversation.placeholder")}
+          aria-label={t("chat.conversation.messageAria")}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -291,7 +323,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
           disabled={sending || draft.trim().length === 0}
           onClick={() => void handleSend()}
         >
-          {sending ? "Sending…" : "Send"}
+          {sending ? t("chat.conversation.sending") : t("chat.conversation.send")}
         </button>
       </footer>
     </section>

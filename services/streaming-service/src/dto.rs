@@ -124,18 +124,3 @@ pub struct AppendStreamFrameRequest {
     #[serde(default)]
     pub attributes: BTreeMap<String, String>,
 }
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ListStreamFramesQuery {
-    pub after_frame_seq: Option<u64>,
-    pub limit: Option<usize>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StreamFrameWindow {
-    pub items: Vec<StreamFrame>,
-    pub next_after_frame_seq: Option<u64>,
-    pub has_more: bool,
-}
