@@ -37,8 +37,16 @@ const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
 const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-cloud-gateway-config', 'src', 'lib.rs');
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
-const shopServiceSource = readText('packages', 'sdkwork-im-pc-shop', 'src', 'services', 'ShopService.ts');
-const ordersServiceSource = readText('packages', 'sdkwork-im-pc-orders', 'src', 'services', 'OrdersService.ts');
+const shopServiceSource = fs.readFileSync(
+  path.resolve(repoRoot, '..', 'sdkwork-shop', 'apps', 'sdkwork-shop-pc', 'packages', 'sdkwork-shop-pc-consumer', 'src', 'services', 'ShopService.ts'),
+  'utf8',
+);
+const ordersServiceSource = fs.readFileSync(
+  path.resolve(repoRoot, '..', 'sdkwork-shop', 'apps', 'sdkwork-shop-pc', 'packages', 'sdkwork-shop-pc-orders', 'src', 'services', 'OrdersService.ts'),
+  'utf8',
+);
+const commerceIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'commercePcIntegration.ts');
+const imShopAdapterSource = readText('packages', 'sdkwork-im-pc-shop', 'src', 'index.tsx');
 const appAuthRuntimeSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
 const membershipAppSdkClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipAppSdkClient.ts');
 const apiCloudGatewayConfigSource = readRepoText('configs', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
@@ -102,10 +110,44 @@ assert.match(
   'Orders service must consume order and shop T1 app SDK clients.',
 );
 
+assert.equal(
+  readJson('packages', 'sdkwork-im-pc-core', 'package.json').dependencies?.['@sdkwork/shop-pc-core'],
+  'workspace:*',
+  'Chat PC core must bridge IM session into canonical @sdkwork/shop-pc-core.',
+);
+
+assert.match(
+  imShopAdapterSource,
+  /@sdkwork\/shop-pc-consumer/u,
+  'IM shop adapter must consume canonical @sdkwork/shop-pc-consumer.',
+);
+
+assert.match(
+  commerceIntegrationSource,
+  /syncImSessionToCommercePc/u,
+  'commercePcIntegration must bridge IM session into commerce PC runtime.',
+);
+assert.match(
+  commerceIntegrationSource,
+  /getImHostedCatalogAppSdkClient/u,
+  'commercePcIntegration must expose hosted catalog SDK client.',
+);
+
+assert.match(
+  viteConfigSource,
+  /@sdkwork\/shop-pc-consumer/u,
+  'Vite config must alias @sdkwork/shop-pc-consumer for embedded shop surfaces.',
+);
+assert.match(
+  viteConfigSource,
+  /@sdkwork\/shop-pc-orders/u,
+  'Vite config must alias @sdkwork/shop-pc-orders for embedded orders surfaces.',
+);
+
 assert.match(
   appAuthRuntimeSource,
-  /getCatalogAppSdkClient\(\)[\s\S]*getOrderAppSdkClient\(\)[\s\S]*getShopAppSdkClient\(\)/u,
-  'Auth runtime must register catalog, order, and shop T1 SDK clients.',
+  /getImHostedCatalogAppSdkClient\(\)[\s\S]*getImHostedOrderAppSdkClient\(\)[\s\S]*getImHostedShopAppSdkClient\(\)/u,
+  'Auth runtime must register hosted catalog, order, and shop T1 SDK clients.',
 );
 
 assert.match(

@@ -11,6 +11,8 @@ import { bootstrapImVoicePcIntegration } from './bootstrap/voicePc';
 import { bootstrapImCommunityPcIntegration } from './bootstrap/communityPc';
 import { bootstrapImAiotPcIntegration } from './bootstrap/aiotPc';
 import { bootstrapImMailPcIntegration } from './bootstrap/mailPc';
+import { bootstrapImCommercePcIntegration } from './bootstrap/commercePc';
+import { bootstrapImShopPcIntegration } from './bootstrap/shopPc';
 import './index.css';
 
 async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
@@ -24,6 +26,8 @@ async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
     bootstrapImVoicePcIntegration(),
     Promise.resolve(bootstrapImCommunityPcIntegration()),
     Promise.resolve(bootstrapImMailPcIntegration()),
+    Promise.resolve(bootstrapImCommercePcIntegration()),
+    Promise.resolve(bootstrapImShopPcIntegration()),
     Promise.resolve(bootstrapImAiotPcIntegration()),
   ]);
 }

@@ -4,17 +4,12 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
-    "@sdkwork/catalog-app-sdk": "workspace:*",
-    "@sdkwork/order-app-sdk": "workspace:*",
     "@sdkwork/im-pc-chat": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
     "@sdkwork/im-pc-core": "workspace:*",
-    "i18next": "catalog:",
-    "lucide-react": "catalog:",
-    "motion": "catalog:",
-    "react": "catalog:",
-    "react-i18next": "catalog:",
-    "react-qr-code": "catalog:"
+    "@sdkwork/shop-pc-consumer": "workspace:*",
+    "@sdkwork/shop-pc-core": "workspace:*",
+    "react": "catalog:"
   },
   "publishConfig": {
     "access": "public",

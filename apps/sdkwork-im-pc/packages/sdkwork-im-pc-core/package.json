@@ -32,17 +32,9 @@
       "types": "./src/sdk/driveAppSdkClient.ts",
       "default": "./src/sdk/driveAppSdkClient.ts"
     },
-    "./sdk/catalogAppSdkClient": {
-      "types": "./src/sdk/catalogAppSdkClient.ts",
-      "default": "./src/sdk/catalogAppSdkClient.ts"
-    },
-    "./sdk/shopAppSdkClient": {
-      "types": "./src/sdk/shopAppSdkClient.ts",
-      "default": "./src/sdk/shopAppSdkClient.ts"
-    },
-    "./sdk/orderAppSdkClient": {
-      "types": "./src/sdk/orderAppSdkClient.ts",
-      "default": "./src/sdk/orderAppSdkClient.ts"
+    "./sdk/commercePcIntegration": {
+      "types": "./src/sdk/commercePcIntegration.ts",
+      "default": "./src/sdk/commercePcIntegration.ts"
     },
     "./sdk/membershipAppSdkClient": {
       "types": "./src/sdk/membershipAppSdkClient.ts",
@@ -114,9 +106,7 @@
     "@sdkwork/aiot-pc-core": "workspace:*",
     "@sdkwork/core-pc-react": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
-    "@sdkwork/catalog-app-sdk": "workspace:*",
-    "@sdkwork/shop-app-sdk": "workspace:*",
-    "@sdkwork/order-app-sdk": "workspace:*",
+    "@sdkwork/shop-pc-core": "workspace:*",
     "@sdkwork/membership-app-sdk": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/membership-sdk-ports": "workspace:*",

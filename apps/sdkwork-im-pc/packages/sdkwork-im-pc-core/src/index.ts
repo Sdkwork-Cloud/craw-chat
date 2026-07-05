@@ -16,6 +16,7 @@ export * from './sdk/knowledgebasePcIntegration';
 export * from './sdk/voiceAppSdkClient';
 export * from './sdk/voicePcIntegration';
 export * from './sdk/mailPcIntegration';
+export * from './sdk/commercePcIntegration';
 export * from './sdk/agentsPcIntegration';
 export * from './sdk/appAuthService';
 export * from './sdk/appAuthRuntime';
