@@ -68,6 +68,10 @@
       "types": "./src/sdk/coursePcIntegration.ts",
       "default": "./src/sdk/coursePcIntegration.ts"
     },
+    "./sdk/courseBackendPcIntegration": {
+      "types": "./src/sdk/courseBackendPcIntegration.ts",
+      "default": "./src/sdk/courseBackendPcIntegration.ts"
+    },
     "./sdk/imSdkClient": {
       "types": "./src/sdk/imSdkClient.ts",
       "default": "./src/sdk/imSdkClient.ts"

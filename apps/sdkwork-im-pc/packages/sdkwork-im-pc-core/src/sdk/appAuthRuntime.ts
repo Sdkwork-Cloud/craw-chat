@@ -26,7 +26,7 @@ import {
 import {
   getMembershipAppSdkClient,
   resetMembershipAppSdkClient,
-} from './membershipAppSdkClient';
+} from './membershipPcIntegration';
 import {
   getCommunityAppSdkClient,
   resetCommunityPcIntegration,
@@ -38,7 +38,10 @@ import {
   resetCoursePcIntegration,
   syncImSessionToCoursePc,
 } from './coursePcIntegration';
-import { resetCourseBackendSdkClient } from './courseBackendSdkClient';
+import {
+  resetCourseBackendPcIntegration,
+  syncImSessionToCourseBackendPc,
+} from './courseBackendPcIntegration';
 import { resetDriveAppSdkClient, getDriveAppSdkClient, syncImSessionToDrivePc } from './drivePcIntegration';
 import { rebootstrapDrivePcRuntimeForIm, resetDrivePcRuntime } from './drivePcIntegration';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
@@ -133,7 +136,7 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetMembershipAppSdkClient();
   resetCommunityPcIntegration();
   resetCoursePcIntegration();
-  resetCourseBackendSdkClient();
+  resetCourseBackendPcIntegration();
   resetDriveAppSdkClient();
   resetImSdkClient();
   resetKnowledgebaseAppSdkClient();
@@ -197,6 +200,7 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         syncImSessionToAiotPc();
         syncImSessionToCommunityPc();
         syncImSessionToCoursePc();
+        syncImSessionToCourseBackendPc();
       },
     },
     sdkClients: getAuthenticatedSdkClients(),

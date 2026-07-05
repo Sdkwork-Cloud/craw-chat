@@ -6,6 +6,7 @@ import path from 'node:path';
 
 const appRoot = path.resolve(import.meta.dirname, '..');
 const repoRoot = path.resolve(appRoot, '..', '..');
+const courseRepoRoot = path.resolve(repoRoot, '..', 'sdkwork-course');
 
 function readText(...segments) {
   return fs.readFileSync(path.join(appRoot, ...segments), 'utf8');
@@ -19,30 +20,60 @@ function readRepoText(...segments) {
   return fs.readFileSync(path.join(repoRoot, ...segments), 'utf8');
 }
 
+function readCourseText(...segments) {
+  return fs.readFileSync(path.join(courseRepoRoot, ...segments), 'utf8');
+}
+
 const packageJson = readJson('package.json');
 const tsconfig = readJson('tsconfig.json');
 const viteConfigSource = readText('vite.config.ts');
 const pnpmWorkspaceSource = readRepoText('pnpm-workspace.yaml');
-const courseBackendClientSource = readText(
+const courseBackendIntegrationSource = readText(
+  'packages',
+  'sdkwork-im-pc-core',
+  'src',
+  'sdk',
+  'courseBackendPcIntegration.ts',
+);
+const courseBackendShimSource = readText(
   'packages',
   'sdkwork-im-pc-core',
   'src',
   'sdk',
   'courseBackendSdkClient.ts',
 );
-const consoleCourseSource = readText(
+const consoleLayoutSource = readText(
   'packages',
   'sdkwork-im-console-core',
   'src',
+  'ConsoleLayout.tsx',
+);
+const consoleCourseSource = readCourseText(
+  'apps',
+  'sdkwork-course-pc',
+  'packages',
+  'sdkwork-course-pc-console',
+  'src',
   'ConsoleCourse.tsx',
 );
-const consoleCourseServiceSource = readText(
+const consoleCourseServiceSource = readCourseText(
+  'apps',
+  'sdkwork-course-pc',
   'packages',
-  'sdkwork-im-console-core',
+  'sdkwork-course-pc-console',
   'src',
   'services',
   'CourseConsoleService.ts',
 );
+const courseConsoleHostSource = readCourseText(
+  'apps',
+  'sdkwork-course-pc',
+  'packages',
+  'sdkwork-course-pc-console',
+  'src',
+  'courseConsoleHost.ts',
+);
+const courseConsoleBootstrapSource = readText('src', 'bootstrap', 'courseConsolePc.ts');
 const appAuthRuntimeSource = readText(
   'packages',
   'sdkwork-im-pc-core',
@@ -59,6 +90,12 @@ assert.equal(
 
 assert.match(
   pnpmWorkspaceSource,
+  /sdkwork-course-pc-console/u,
+  'pnpm workspace must register sdkwork-course-pc-console package.',
+);
+
+assert.match(
+  pnpmWorkspaceSource,
   /sdkwork-course-backend-sdk\/sdkwork-course-backend-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must register sdkwork-course-backend-sdk generated transport.',
 );
@@ -69,102 +106,150 @@ assert.match(
   'Vite must alias @sdkwork/course-backend-sdk to generated course backend transport.',
 );
 
+assert.match(
+  viteConfigSource,
+  /@sdkwork\/course-pc-console/u,
+  'Vite must alias @sdkwork/course-pc-console to canonical course console package.',
+);
+
 assert.deepEqual(
-  tsconfig.compilerOptions?.paths?.['@sdkwork/course-backend-sdk'],
+  tsconfig.compilerOptions?.paths?.['@sdkwork/course-pc-console'],
   [
-    '../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+    '../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console/src/index.ts',
   ],
-  'tsconfig must map @sdkwork/course-backend-sdk for console integration.',
+  'tsconfig must map @sdkwork/course-pc-console for console integration.',
 );
 
 assert.match(
-  courseBackendClientSource,
+  courseBackendIntegrationSource,
   /from ['"]@sdkwork\/course-backend-sdk['"]/u,
-  'Core course backend client must import the composed course backend SDK package.',
+  'Course backend PC integration must import the composed course backend SDK package.',
 );
 
 assert.match(
-  courseBackendClientSource,
+  courseBackendIntegrationSource,
   /tokenManager:\s*getSdkworkChatGlobalTokenManager\(\)/u,
-  'Core course backend client must share the Sdkwork IM global token manager.',
+  'Course backend PC integration must share the Sdkwork IM global token manager.',
 );
 
 assert.doesNotMatch(
-  courseBackendClientSource,
+  courseBackendIntegrationSource,
   /fetch\(|axios|Authorization|Access-Token/u,
-  'Core course backend client must not assemble raw HTTP or auth headers.',
+  'Course backend PC integration must not assemble raw HTTP or auth headers.',
+);
+
+assert.match(
+  courseBackendShimSource,
+  /from '\.\/courseBackendPcIntegration'/u,
+  'Legacy courseBackendSdkClient path must re-export courseBackendPcIntegration.',
+);
+
+assert.match(
+  consoleLayoutSource,
+  /from '@sdkwork\/course-pc-console'/u,
+  'IM console layout must consume canonical course console package.',
+);
+
+assert.doesNotMatch(
+  consoleLayoutSource,
+  /\.\/ConsoleCourse/u,
+  'IM console layout must not keep local ConsoleCourse implementation.',
 );
 
 assert.match(
   consoleCourseServiceSource,
-  /getCourseBackendSdkClientWithSession/u,
-  'Console course service must consume the composed backend SDK client.',
+  /getCourseConsolePcHost\(\)\.getBackendClientWithSession/u,
+  'Course console service must consume the IM-wired backend SDK host port.',
 );
 
 assert.match(
   consoleCourseServiceSource,
   /client\.courses\.(list|create|publish|unpublish)/u,
-  'Console course service must call generated backend course mutations.',
+  'Course console service must call generated backend course mutations.',
 );
 
 assert.match(
   consoleCourseServiceSource,
   /client\.courseCategories\.(list|create)/u,
-  'Console course service must call generated backend category mutations.',
+  'Course console service must call generated backend category mutations.',
 );
 
 assert.match(
   consoleCourseServiceSource,
   /client\.courseSections\.(list|create)/u,
-  'Console course service must call generated backend section mutations.',
+  'Course console service must call generated backend section mutations.',
 );
 
 assert.match(
   consoleCourseServiceSource,
   /client\.courseLessons\.(list|create)/u,
-  'Console course service must call generated backend lesson mutations.',
+  'Course console service must call generated backend lesson mutations.',
 );
 
 assert.match(
   consoleCourseSource,
   /courseConsoleService\.createCourse/u,
-  'Console course surface must expose course creation.',
+  'Course console surface must expose course creation.',
 );
 
 assert.match(
   consoleCourseSource,
   /courseConsoleService\.publishCourse/u,
-  'Console course surface must expose course publish workflow.',
+  'Course console surface must expose course publish workflow.',
 );
 
 assert.match(
   consoleCourseSource,
   /courseConsoleService\.createCategory/u,
-  'Console course surface must expose category creation.',
+  'Course console surface must expose category creation.',
 );
 
 assert.match(
   consoleCourseSource,
   /courseConsoleService\.createSection/u,
-  'Console course surface must expose section creation.',
+  'Course console surface must expose section creation.',
 );
 
 assert.match(
   consoleCourseSource,
   /courseConsoleService\.createLesson/u,
-  'Console course surface must expose lesson creation.',
+  'Course console surface must expose lesson creation.',
 );
 
 assert.match(
   consoleCourseSource,
   /onClick=\{\(\) => setShowCreateForm[\s\S]*?创建课程/u,
-  'Console course header action must expose enabled create workflow.',
+  'Course console header action must expose enabled create workflow.',
+);
+
+assert.match(
+  courseConsoleHostSource,
+  /configureCourseConsolePcHost/u,
+  'Course console package must expose host port configuration.',
+);
+
+assert.match(
+  courseConsoleBootstrapSource,
+  /bootstrapImCourseConsolePcIntegration/u,
+  'IM bootstrap must wire course console host ports.',
+);
+
+assert.match(
+  courseConsoleBootstrapSource,
+  /getCourseBackendSdkClientWithSession/u,
+  'IM bootstrap must inject session-scoped course backend SDK client.',
 );
 
 assert.match(
   appAuthRuntimeSource,
-  /resetCourseBackendSdkClient/u,
-  'IM auth runtime must reset course backend SDK client on session changes.',
+  /resetCourseBackendPcIntegration/u,
+  'IM auth runtime must reset course backend integration on session changes.',
+);
+
+assert.match(
+  appAuthRuntimeSource,
+  /syncImSessionToCourseBackendPc/u,
+  'IM auth runtime must sync course backend session on IAM session changes.',
 );
 
 console.log('sdkwork im course backend SDK integration contract passed.');

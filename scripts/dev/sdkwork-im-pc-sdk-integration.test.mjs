@@ -3614,8 +3614,8 @@ const consoleCoreFiles = fs
   .filter((name) => name.endsWith('.tsx') && name !== 'index.tsx');
 assert.deepEqual(
   consoleCoreFiles.sort(),
-  ['ConsoleCourse.tsx', 'ConsoleLayout.tsx'],
-  'console-core must keep layout shell and course management surface only',
+  ['ConsoleLayout.tsx'],
+  'console-core must keep layout shell only; domain consoles live in sibling packages',
 );
 assert.doesNotMatch(
   `${videoPlayerViewSource}${liveRoomViewSource}`,
@@ -3629,7 +3629,7 @@ assert.match(
 );
 const commonsApiSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-commons/src/api.ts');
 const consoleRolesSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-console-roles/src/ConsoleRoles.tsx');
-const consoleCourseSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-console-core/src/ConsoleCourse.tsx');
+const consoleCourseSource = read('../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-console/src/ConsoleCourse.tsx');
 const consoleProductsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-console-product/src/ConsoleProducts.tsx');
 const consoleStoresSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-console-shop/src/ConsoleStores.tsx');
 const integrationServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-console-integrations/src/services/IntegrationService.ts');

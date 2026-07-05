@@ -48,7 +48,7 @@ const ordersServiceSource = fs.readFileSync(
 const commerceIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'commercePcIntegration.ts');
 const imShopAdapterSource = readText('packages', 'sdkwork-im-pc-shop', 'src', 'index.tsx');
 const appAuthRuntimeSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
-const membershipAppSdkClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipAppSdkClient.ts');
+const membershipAppSdkClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'membershipPcIntegration.ts');
 const apiCloudGatewayConfigSource = readRepoText('configs', 'sdkwork-api-cloud-gateway.sdkwork-im.development.toml');
 
 assert.equal(

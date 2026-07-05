@@ -12,7 +12,7 @@ import { bootstrapImCommunityPcIntegration } from './bootstrap/communityPc';
 import { bootstrapImAiotPcIntegration } from './bootstrap/aiotPc';
 import { bootstrapImMailPcIntegration } from './bootstrap/mailPc';
 import { bootstrapImCommercePcIntegration } from './bootstrap/commercePc';
-import { bootstrapImShopPcIntegration } from './bootstrap/shopPc';
+import { bootstrapImCourseConsolePcIntegration } from './bootstrap/courseConsolePc';
 import './index.css';
 
 async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
@@ -29,6 +29,7 @@ async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
     Promise.resolve(bootstrapImCommercePcIntegration()),
     Promise.resolve(bootstrapImShopPcIntegration()),
     Promise.resolve(bootstrapImAiotPcIntegration()),
+    Promise.resolve(bootstrapImCourseConsolePcIntegration()),
   ]);
 }
 
