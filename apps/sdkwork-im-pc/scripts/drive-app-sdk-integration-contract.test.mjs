@@ -72,6 +72,13 @@ const driveClientSource = readText(
   'sdkwork-im-pc-core',
   'src',
   'sdk',
+  'drivePcIntegration.ts',
+);
+const driveAppSdkClientSource = readText(
+  'packages',
+  'sdkwork-im-pc-core',
+  'src',
+  'sdk',
   'driveAppSdkClient.ts',
 );
 const drivePcIntegrationSource = readText(
@@ -195,6 +202,12 @@ assert.doesNotMatch(
 );
 
 assert.match(
+  driveAppSdkClientSource,
+  /from '\.\/drivePcIntegration'/u,
+  'Legacy driveAppSdkClient export must re-export from drivePcIntegration only.',
+);
+
+assert.match(
   drivePcIntegrationSource,
   /bootstrapDrivePcForIm/u,
   'IM core must expose drive PC integration bootstrap.',
@@ -208,8 +221,8 @@ assert.match(
 
 assert.match(
   drivePcIntegrationSource,
-  /rebootstrapDrivePcRuntimeForIm/u,
-  'IM core must re-bootstrap drive PC runtime after session changes.',
+  /syncImSessionToDrivePc/u,
+  'IM core must sync drive app SDK client on session changes.',
 );
 
 assert.match(

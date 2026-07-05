@@ -39,7 +39,7 @@ import {
   syncImSessionToCoursePc,
 } from './coursePcIntegration';
 import { resetCourseBackendSdkClient } from './courseBackendSdkClient';
-import { resetDriveAppSdkClient, getDriveAppSdkClient } from './driveAppSdkClient';
+import { resetDriveAppSdkClient, getDriveAppSdkClient, syncImSessionToDrivePc } from './drivePcIntegration';
 import { rebootstrapDrivePcRuntimeForIm, resetDrivePcRuntime } from './drivePcIntegration';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
 import { getKnowledgebaseAppSdkClient, resetKnowledgebaseAppSdkClient } from './knowledgebaseAppSdkClient';
@@ -188,6 +188,7 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         void rebootstrapNotaryPcRuntimeForIm();
         rebootstrapMembershipPcIntegrationForIm();
         void rebootstrapDrivePcRuntimeForIm();
+        syncImSessionToDrivePc();
         void rebootstrapKnowledgebasePcRuntimeForIm();
         void rebootstrapVoicePcRuntimeForIm();
         void rebootstrapCoursePcRuntimeForIm();

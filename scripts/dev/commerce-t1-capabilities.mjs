@@ -40,7 +40,8 @@ export const COMMERCE_T1_APP_SDK_WORKSPACE_PATHS = Object.freeze({
     '../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi',
   order:
     '../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi',
-  membership: 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-membership-transport',
+  membership:
+    '../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript',
 });
 
 export const COMMERCE_T1_DATABASE_URL_ENV_KEYS = Object.freeze(

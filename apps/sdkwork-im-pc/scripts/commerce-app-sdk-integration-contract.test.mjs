@@ -77,19 +77,11 @@ for (const [capability, packageName] of Object.entries(COMMERCE_T1_APP_SDK_PACKA
     new RegExp(`find:\\s*'${packageName.replaceAll('/', '\\/')}'`, 'u'),
     `Vite must alias ${packageName} to sibling generated transport`,
   );
-  if (capability === 'membership') {
-    assert.match(
-      pnpmWorkspaceSource,
-      /apps\/sdkwork-im-pc\/packages\/\*/u,
-      'repository root pnpm-workspace.yaml must include IM PC packages for membership transport',
-    );
-  } else {
-    assert.match(
-      pnpmWorkspaceSource,
-      new RegExp(workspaceRelative.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
-      `repository root pnpm-workspace.yaml must include ${packageName} generated transport`,
-    );
-  }
+  assert.match(
+    pnpmWorkspaceSource,
+    new RegExp(workspaceRelative.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
+    `repository root pnpm-workspace.yaml must include ${packageName} composed facade`,
+  );
 }
 
 assert.doesNotMatch(
