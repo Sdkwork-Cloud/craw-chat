@@ -1,40 +1,30 @@
 # @sdkwork/im-pc-core
 
-Domain: communication
-Capability: im-pc-core
+Domain: communication  
+Capability: im-pc-core  
 Package type: node-package
-Status: standard
 
-This README is the SDKWork module entrypoint for `@sdkwork/im-pc-core`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../../../sdkwork-specs/`.
+IM PC **host runtime**: session storage, IAM auth runtime, IM SDK client, realtime connection manager, and **session bridges** into sibling product PC packages.
 
-## Public API
+Machine-readable contract: `specs/component.spec.json`. Canonical standards: `../../../../../sdkwork-specs/`.
 
-- `.`
+## Host bridges vs domain ownership
 
-## Required SDK Surface
+| Module | Role |
+| --- | --- |
+| `session`, `appAuthRuntime`, `appSdkClient`, `imSdkClient` | IM-owned chat/auth runtime |
+| `mailPcIntegration` | IM session → `@sdkwork/mail-pc-core` |
+| `commercePcIntegration` | IM session → `@sdkwork/shop-pc-core` |
+| `aiotPcIntegration` | IM session → `@sdkwork/aiot-pc-core` |
+| `communityPcIntegration` | IM session → `@sdkwork/community-app-sdk` |
+| `coursePcIntegration` | IM session → `@sdkwork/course-app-sdk` + `@sdkwork/course-pc-course` host ports |
+| `drivePcIntegration`, `voicePcIntegration`, `knowledgebasePcIntegration`, … | Host port injection into sibling `*-pc-*` packages |
 
-- None declared in `specs/component.spec.json`.
+Product UI and domain services for mail, shop, orders, devices, and community **must not** live in this package. See `docs/architecture/tech/INTEGRATION-ADAPTER-REGISTER.md`.
 
-## Configuration
-
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
-
-## SaaS/Private/Local Behavior
-
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
-
-## Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
-
-## Extension Points
-
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
+Legacy re-export paths (e.g. `./sdk/communityAppSdkClient`) remain for compatibility; implementation lives in `*PcIntegration.ts`.
 
 ## Verification
 
-- `powershell -NoProfile -Command "Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null"`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+- `node ../../../scripts/dev/sdkwork-im-pc-sdk-integration.test.mjs`
+- `node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace ../../../`

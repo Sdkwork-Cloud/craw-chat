@@ -45,7 +45,8 @@ const communityServiceSource = readRepoText(
   'services',
   'CommunityService.ts',
 );
-const communityClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'communityAppSdkClient.ts');
+const communityClientSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'communityPcIntegration.ts');
+const communityClientReexportSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'communityAppSdkClient.ts');
 const communityBootstrapSource = readText('src', 'bootstrap', 'communityPc.ts');
 const viteConfigSource = readText('vite.config.ts');
 const tsconfig = readJson('tsconfig.json');
@@ -181,14 +182,29 @@ assert.doesNotMatch(
 );
 assert.match(
   communityBootstrapSource,
+  /bootstrapCommunityPcForIm/u,
+  'IM PC bootstrap must sync IM session into community PC runtime before rendering community UI.',
+);
+assert.match(
+  communityBootstrapSource,
   /bootstrapImCommunityPcHost/u,
   'IM PC bootstrap must wire the thin community host adapter before rendering community UI.',
 );
 
 assert.match(
   communityClientSource,
+  /bootstrapCommunityPcForIm|syncImSessionToCommunityPc/u,
+  'Community PC integration must expose IM session bridge helpers.',
+);
+assert.match(
+  communityClientSource,
   /@sdkwork\/community-app-sdk/u,
-  'Community app SDK client wrapper must import the composed community app SDK facade.',
+  'Community PC integration must import the composed community app SDK facade.',
+);
+assert.match(
+  communityClientReexportSource,
+  /from '\.\/communityPcIntegration'/u,
+  'Legacy communityAppSdkClient export must re-export from communityPcIntegration only.',
 );
 
 assert.match(

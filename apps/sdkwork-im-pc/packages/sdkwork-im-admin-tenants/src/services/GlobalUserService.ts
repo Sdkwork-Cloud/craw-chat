@@ -1,4 +1,11 @@
 import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/im-admin-core/sdk';
+import {
+  extractBackendSdkRecords,
+  mapAppSdkOffsetPage,
+  readBackendPageTotal,
+  readString,
+  SDKWORK_DEFAULT_PAGE_SIZE,
+} from '@sdkwork/im-admin-core/sdk/backendSdkResponseHelpers';
 
 export interface GlobalUser {
   id: string;
@@ -16,73 +23,6 @@ export interface GetGlobalUsersResponse {
 }
 
 type UnknownRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
-}
-
-function unwrapAppbaseResult(value: unknown): unknown {
-  const record = asRecord(value);
-  if (!('code' in record) && !('data' in record)) {
-    return value;
-  }
-
-  const code = record.code;
-  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
-  if (!['0', '200', '2000'].includes(normalizedCode)) {
-    throw new Error(String(record.message || record.msg || 'Appbase backend user request failed'));
-  }
-  return record.data;
-}
-
-function readRecords(value: unknown): UnknownRecord[] {
-  const unwrapped = unwrapAppbaseResult(value);
-  if (Array.isArray(unwrapped)) {
-    return unwrapped.map(asRecord).filter((record) => Object.keys(record).length > 0);
-  }
-  const record = asRecord(unwrapped);
-  for (const key of ['items', 'records', 'data', 'list', 'rows', 'content', 'users']) {
-    const nested = record[key];
-    if (Array.isArray(nested)) {
-      return nested.map(asRecord).filter((item) => Object.keys(item).length > 0);
-    }
-  }
-  return [];
-}
-
-function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
-  }
-  return fallback;
-}
-
-function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value.replace(/[,%\s]/gu, ''));
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-  return fallback;
-}
-
-function readTotal(value: unknown, fallback: number): number {
-  const record = asRecord(unwrapAppbaseResult(value));
-  return readNumber(record, ['total', 'totalElements', 'totalCount', 'count'], fallback);
-}
 
 function normalizeStatus(value: unknown): GlobalUser['status'] {
   const status = String(value ?? '').trim().toLowerCase();
@@ -130,16 +70,18 @@ function mapUser(record: UnknownRecord): GlobalUser {
 }
 
 class GlobalUserService {
-  async getGlobalUsers(params: { search?: string; status?: string }): Promise<GetGlobalUsersResponse> {
+  async getGlobalUsers(params: { search?: string; status?: string; page?: number } = {}): Promise<GetGlobalUsersResponse> {
+    const page = Math.max(1, params.page ?? 1);
     const response = await getAppbaseBackendSdkClientWithSession().iam.users.list({
+      page,
+      pageSize: SDKWORK_DEFAULT_PAGE_SIZE,
       ...(params.search?.trim() ? { q: params.search.trim() } : {}),
       ...(mapStatusFilter(params.status) ? { status: mapStatusFilter(params.status) } : {}),
     });
-    const records = readRecords(response);
-    const data = records.map(mapUser);
+    const mapped = mapAppSdkOffsetPage(response, mapUser, page, SDKWORK_DEFAULT_PAGE_SIZE);
     return {
-      data,
-      total: readTotal(response, data.length),
+      data: mapped.items,
+      total: mapped.totalItems ?? readBackendPageTotal(response, mapped.items.length),
     };
   }
 

@@ -1,4 +1,5 @@
 import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/im-admin-core/sdk';
+import { extractBackendSdkRecords, mapAppSdkOffsetPage, readBackendPageTotal, readNumber, readString, SDKWORK_DEFAULT_PAGE_SIZE } from '@sdkwork/im-admin-core/sdk/backendSdkResponseHelpers';
 
 export interface Tenant {
   id: string;
@@ -16,73 +17,6 @@ export interface GetTenantsResponse {
 }
 
 type UnknownRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
-}
-
-function unwrapAppbaseResult(value: unknown): unknown {
-  const record = asRecord(value);
-  if (!('code' in record) && !('data' in record)) {
-    return value;
-  }
-
-  const code = record.code;
-  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
-  if (!['0', '200', '2000'].includes(normalizedCode)) {
-    throw new Error(String(record.message || record.msg || 'Appbase backend tenant request failed'));
-  }
-  return record.data;
-}
-
-function readRecords(value: unknown): UnknownRecord[] {
-  const unwrapped = unwrapAppbaseResult(value);
-  if (Array.isArray(unwrapped)) {
-    return unwrapped.map(asRecord).filter((record) => Object.keys(record).length > 0);
-  }
-  const record = asRecord(unwrapped);
-  for (const key of ['items', 'records', 'data', 'list', 'rows', 'content', 'tenants']) {
-    const nested = record[key];
-    if (Array.isArray(nested)) {
-      return nested.map(asRecord).filter((item) => Object.keys(item).length > 0);
-    }
-  }
-  return [];
-}
-
-function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
-  }
-  return fallback;
-}
-
-function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value.replace(/[$,%\s,]/gu, ''));
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-  return fallback;
-}
-
-function readTotal(value: unknown, fallback: number): number {
-  const record = asRecord(unwrapAppbaseResult(value));
-  return readNumber(record, ['total', 'totalElements', 'totalCount', 'count'], fallback);
-}
 
 function formatCount(value: number): string {
   if (value >= 1_000_000) {
@@ -137,15 +71,17 @@ function mapTenant(record: UnknownRecord): Tenant {
 }
 
 class TenantService {
-  async getTenants(params: { search?: string }): Promise<GetTenantsResponse> {
+  async getTenants(params: { search?: string; page?: number } = {}): Promise<GetTenantsResponse> {
+    const page = Math.max(1, params.page ?? 1);
     const response = await getAppbaseBackendSdkClientWithSession().iam.tenants.list({
+      page,
+      pageSize: SDKWORK_DEFAULT_PAGE_SIZE,
       ...(params.search?.trim() ? { q: params.search.trim() } : {}),
     });
-    const records = readRecords(response);
-    const data = records.map(mapTenant);
+    const mapped = mapAppSdkOffsetPage(response, mapTenant, page, SDKWORK_DEFAULT_PAGE_SIZE);
     return {
-      data,
-      total: readTotal(response, data.length),
+      data: mapped.items,
+      total: mapped.totalItems ?? readBackendPageTotal(response, mapped.items.length),
     };
   }
 }

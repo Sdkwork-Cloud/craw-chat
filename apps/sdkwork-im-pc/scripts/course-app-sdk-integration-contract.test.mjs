@@ -75,6 +75,13 @@ const courseClientSource = readText(
   'sdkwork-im-pc-core',
   'src',
   'sdk',
+  'coursePcIntegration.ts',
+);
+const courseClientReexportSource = readText(
+  'packages',
+  'sdkwork-im-pc-core',
+  'src',
+  'sdk',
   'courseAppSdkClient.ts',
 );
 const coursePcIntegrationSource = readText(
@@ -292,6 +299,18 @@ assert.doesNotMatch(
   courseClientSource,
   /fetch\(|axios|Authorization|Access-Token/u,
   'Core course client must not assemble raw HTTP or auth headers.',
+);
+
+assert.match(
+  courseClientReexportSource,
+  /from '\.\/coursePcIntegration'/u,
+  'Legacy courseAppSdkClient export must re-export from coursePcIntegration only.',
+);
+
+assert.match(
+  coursePcIntegrationSource,
+  /syncImSessionToCoursePc/u,
+  'Course PC integration must expose IM session bridge helpers.',
 );
 
 assert.match(

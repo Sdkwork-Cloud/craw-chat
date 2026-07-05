@@ -1,40 +1,18 @@
 # @sdkwork/im-console-shop
 
-Domain: communication
 Capability: im-console-shop
-Package type: node-package
-Status: standard
 
-This README is the SDKWork module entrypoint for `@sdkwork/im-console-shop`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../../../sdkwork-specs/`.
+Console placeholder for shop store administration. Canonical shop commerce UI and SDK integration live in sibling `sdkwork-shop` (`@sdkwork/shop-pc-consumer`, `@sdkwork/shop-pc-orders`).
 
-## Public API
+## Ownership
 
-- `.`
+| Concern | Owner |
+| --- | --- |
+| End-user shop / orders surfaces | `sdkwork-shop` |
+| IM embedded shop tab | `@sdkwork/im-pc-shop` thin adapter |
+| Console store admin APIs | `sdkwork-shop` backend (future `@sdkwork/shop-pc-console-*`) |
+| This package | Contract-empty placeholder until shop console APIs ship |
 
-## Required SDK Surface
+The current `ConsoleStores` view renders `ConsoleContractEmptyState` intentionally — no mock store data or raw HTTP.
 
-- None declared in `specs/component.spec.json`.
-
-## Configuration
-
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
-
-## SaaS/Private/Local Behavior
-
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
-
-## Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
-
-## Extension Points
-
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
-
-## Verification
-
-- `powershell -NoProfile -Command "Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null"`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+Authority: sibling `sdkwork-shop` PC packages and IM commerce integration (`commercePcIntegration`, `bootstrapImShopPcHost`).

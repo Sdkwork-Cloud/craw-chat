@@ -16,7 +16,7 @@
 | Space/Group | PG materialize-before-append；**多 commit 单 PG 事务**（space 创建批次）；journal compensate |
 | RTC | Ring timeout reaper；终端 evict + DB retention；IM 信令 + `@sdkwork/rtc-sdk` 媒体；PC 远端视频 Volcengine 绑定 |
 | Projection | Postgres tiered timeline + hot cache；HS256 keyset cursor；生产拒绝 numeric offset |
-| PC 客户端 | 游标分页单源 + `pageSize=20` 默认；catch-up 有页数上限；mail/shop/devices 服务端分页 + UI load-more |
+| PC 客户端 | 游标分页单源 + `pageSize=20` 默认；catch-up 有页数上限；mail/shop/devices/orders 薄适配 sibling PC 包（`sdkwork-mail` / `sdkwork-shop` / `sdkwork-aiot`） |
 | 构建 | `pnpm install --frozen-lockfile`；sibling composed SDK workspace 对齐 |
 | 推送 | APNs HTTP/2 JWT |
 
@@ -68,6 +68,8 @@
 | E2EE | 仅 TLS；无 Signal/Double Ratchet |
 | 超大群外置 timeline | Postgres tier + cap；Scylla 分片为 post-launch |
 
+PC 客户端集成适配层登记见 [`INTEGRATION-ADAPTER-REGISTER.md`](architecture/tech/INTEGRATION-ADAPTER-REGISTER.md)。
+
 ---
 
 ## 验证命令
@@ -90,6 +92,10 @@ node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
 node ../sdkwork-specs/tools/check-pagination.mjs --workspace .
 node apps/sdkwork-im-pc/scripts/community-app-sdk-integration-contract.test.mjs
 node scripts/dev/sdkwork-im-pc-sidebar-module-sdk-boundary.test.mjs
+node scripts/dev/sdkwork-im-pc-device-agent-binding-standard.test.mjs
+node scripts/dev/sdkwork-im-pc-sdk-integration.test.mjs
+node apps/sdkwork-im-pc/scripts/mail-app-sdk-integration-contract.test.mjs
+node apps/sdkwork-im-pc/scripts/commerce-app-sdk-integration-contract.test.mjs
 pnpm run check:commercial-readiness
 ```
 
