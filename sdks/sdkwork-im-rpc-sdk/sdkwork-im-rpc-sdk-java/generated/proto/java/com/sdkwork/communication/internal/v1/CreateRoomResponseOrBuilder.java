@@ -6,8 +6,8 @@
 package com.sdkwork.communication.internal.v1;
 
 @com.google.protobuf.Generated
-public interface OrchestrateCreateRoomResponseOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse)
+public interface CreateRoomResponseOrBuilder extends
+    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.CreateRoomResponse)
     com.google.protobuf.MessageOrBuilder {
 
   /**

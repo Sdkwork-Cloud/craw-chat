@@ -6,13 +6,13 @@
 package com.sdkwork.communication.internal.v1;
 
 /**
- * Protobuf type {@code sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse}
+ * Protobuf type {@code sdkwork.communication.internal.v1.LeaveRoomResponse}
  */
 @com.google.protobuf.Generated
-public final class OrchestrateLeaveRoomResponse extends
+public final class LeaveRoomResponse extends
     com.google.protobuf.GeneratedMessage implements
-    // @@protoc_insertion_point(message_implements:sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)
-    OrchestrateLeaveRoomResponseOrBuilder {
+    // @@protoc_insertion_point(message_implements:sdkwork.communication.internal.v1.LeaveRoomResponse)
+    LeaveRoomResponseOrBuilder {
 private static final long serialVersionUID = 0L;
   static {
     com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
@@ -21,13 +21,13 @@ private static final long serialVersionUID = 0L;
       /* minor= */ 35,
       /* patch= */ 1,
       /* suffix= */ "",
-      "OrchestrateLeaveRoomResponse");
+      "LeaveRoomResponse");
   }
-  // Use OrchestrateLeaveRoomResponse.newBuilder() to construct.
-  private OrchestrateLeaveRoomResponse(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+  // Use LeaveRoomResponse.newBuilder() to construct.
+  private LeaveRoomResponse(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
     super(builder);
   }
-  private OrchestrateLeaveRoomResponse() {
+  private LeaveRoomResponse() {
     memberId_ = "";
     conversationId_ = "";
     status_ = "";
@@ -35,20 +35,20 @@ private static final long serialVersionUID = 0L;
 
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
-    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor;
+    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor;
   }
 
   @java.lang.Override
   public com.google.protobuf.Descriptors.Descriptor getDescriptorForType() {
-    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor;
+    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor;
   }
 
   @java.lang.Override
   protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internalGetFieldAccessorTable() {
-    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_fieldAccessorTable
+    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_fieldAccessorTable
         .ensureFieldAccessorsInitialized(
-            com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.class, com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.Builder.class);
+            com.sdkwork.communication.internal.v1.LeaveRoomResponse.class, com.sdkwork.communication.internal.v1.LeaveRoomResponse.Builder.class);
   }
 
   private int bitField0_;
@@ -257,10 +257,10 @@ private static final long serialVersionUID = 0L;
     if (obj == this) {
      return true;
     }
-    if (!(obj instanceof com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)) {
+    if (!(obj instanceof com.sdkwork.communication.internal.v1.LeaveRoomResponse)) {
       return super.equals(obj);
     }
-    com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse other = (com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse) obj;
+    com.sdkwork.communication.internal.v1.LeaveRoomResponse other = (com.sdkwork.communication.internal.v1.LeaveRoomResponse) obj;
 
     if (!getMemberId()
         .equals(other.getMemberId())) return false;
@@ -299,44 +299,44 @@ private static final long serialVersionUID = 0L;
     return hash;
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       java.nio.ByteBuffer data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       java.nio.ByteBuffer data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       com.google.protobuf.ByteString data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       com.google.protobuf.ByteString data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(byte[] data)
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(byte[] data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       byte[] data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(java.io.InputStream input)
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseWithIOException(PARSER, input);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
@@ -344,26 +344,26 @@ private static final long serialVersionUID = 0L;
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseDelimitedFrom(java.io.InputStream input)
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseDelimitedWithIOException(PARSER, input);
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseDelimitedFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       com.google.protobuf.CodedInputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseWithIOException(PARSER, input);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse parseFrom(
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse parseFrom(
       com.google.protobuf.CodedInputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
@@ -376,7 +376,7 @@ private static final long serialVersionUID = 0L;
   public static Builder newBuilder() {
     return DEFAULT_INSTANCE.toBuilder();
   }
-  public static Builder newBuilder(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse prototype) {
+  public static Builder newBuilder(com.sdkwork.communication.internal.v1.LeaveRoomResponse prototype) {
     return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
   }
   @java.lang.Override
@@ -392,26 +392,26 @@ private static final long serialVersionUID = 0L;
     return builder;
   }
   /**
-   * Protobuf type {@code sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse}
+   * Protobuf type {@code sdkwork.communication.internal.v1.LeaveRoomResponse}
    */
   public static final class Builder extends
       com.google.protobuf.GeneratedMessage.Builder<Builder> implements
-      // @@protoc_insertion_point(builder_implements:sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)
-      com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponseOrBuilder {
+      // @@protoc_insertion_point(builder_implements:sdkwork.communication.internal.v1.LeaveRoomResponse)
+      com.sdkwork.communication.internal.v1.LeaveRoomResponseOrBuilder {
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor;
+      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor;
     }
 
     @java.lang.Override
     protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_fieldAccessorTable
+      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.class, com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.Builder.class);
+              com.sdkwork.communication.internal.v1.LeaveRoomResponse.class, com.sdkwork.communication.internal.v1.LeaveRoomResponse.Builder.class);
     }
 
-    // Construct using com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.newBuilder()
+    // Construct using com.sdkwork.communication.internal.v1.LeaveRoomResponse.newBuilder()
     private Builder() {
       maybeForceBuilderInitialization();
     }
@@ -445,17 +445,17 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public com.google.protobuf.Descriptors.Descriptor
         getDescriptorForType() {
-      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor;
+      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor;
     }
 
     @java.lang.Override
-    public com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse getDefaultInstanceForType() {
-      return com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.getDefaultInstance();
+    public com.sdkwork.communication.internal.v1.LeaveRoomResponse getDefaultInstanceForType() {
+      return com.sdkwork.communication.internal.v1.LeaveRoomResponse.getDefaultInstance();
     }
 
     @java.lang.Override
-    public com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse build() {
-      com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse result = buildPartial();
+    public com.sdkwork.communication.internal.v1.LeaveRoomResponse build() {
+      com.sdkwork.communication.internal.v1.LeaveRoomResponse result = buildPartial();
       if (!result.isInitialized()) {
         throw newUninitializedMessageException(result);
       }
@@ -463,14 +463,14 @@ private static final long serialVersionUID = 0L;
     }
 
     @java.lang.Override
-    public com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse buildPartial() {
-      com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse result = new com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse(this);
+    public com.sdkwork.communication.internal.v1.LeaveRoomResponse buildPartial() {
+      com.sdkwork.communication.internal.v1.LeaveRoomResponse result = new com.sdkwork.communication.internal.v1.LeaveRoomResponse(this);
       if (bitField0_ != 0) { buildPartial0(result); }
       onBuilt();
       return result;
     }
 
-    private void buildPartial0(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse result) {
+    private void buildPartial0(com.sdkwork.communication.internal.v1.LeaveRoomResponse result) {
       int from_bitField0_ = bitField0_;
       if (((from_bitField0_ & 0x00000001) != 0)) {
         result.memberId_ = memberId_;
@@ -493,16 +493,16 @@ private static final long serialVersionUID = 0L;
 
     @java.lang.Override
     public Builder mergeFrom(com.google.protobuf.Message other) {
-      if (other instanceof com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse) {
-        return mergeFrom((com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)other);
+      if (other instanceof com.sdkwork.communication.internal.v1.LeaveRoomResponse) {
+        return mergeFrom((com.sdkwork.communication.internal.v1.LeaveRoomResponse)other);
       } else {
         super.mergeFrom(other);
         return this;
       }
     }
 
-    public Builder mergeFrom(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse other) {
-      if (other == com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.getDefaultInstance()) return this;
+    public Builder mergeFrom(com.sdkwork.communication.internal.v1.LeaveRoomResponse other) {
+      if (other == com.sdkwork.communication.internal.v1.LeaveRoomResponse.getDefaultInstance()) return this;
       if (!other.getMemberId().isEmpty()) {
         memberId_ = other.memberId_;
         bitField0_ |= 0x00000001;
@@ -923,23 +923,23 @@ private static final long serialVersionUID = 0L;
       return metadataBuilder_;
     }
 
-    // @@protoc_insertion_point(builder_scope:sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)
+    // @@protoc_insertion_point(builder_scope:sdkwork.communication.internal.v1.LeaveRoomResponse)
   }
 
-  // @@protoc_insertion_point(class_scope:sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)
-  private static final com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse DEFAULT_INSTANCE;
+  // @@protoc_insertion_point(class_scope:sdkwork.communication.internal.v1.LeaveRoomResponse)
+  private static final com.sdkwork.communication.internal.v1.LeaveRoomResponse DEFAULT_INSTANCE;
   static {
-    DEFAULT_INSTANCE = new com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse();
+    DEFAULT_INSTANCE = new com.sdkwork.communication.internal.v1.LeaveRoomResponse();
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse getDefaultInstance() {
+  public static com.sdkwork.communication.internal.v1.LeaveRoomResponse getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
 
-  private static final com.google.protobuf.Parser<OrchestrateLeaveRoomResponse>
-      PARSER = new com.google.protobuf.AbstractParser<OrchestrateLeaveRoomResponse>() {
+  private static final com.google.protobuf.Parser<LeaveRoomResponse>
+      PARSER = new com.google.protobuf.AbstractParser<LeaveRoomResponse>() {
     @java.lang.Override
-    public OrchestrateLeaveRoomResponse parsePartialFrom(
+    public LeaveRoomResponse parsePartialFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -958,17 +958,17 @@ private static final long serialVersionUID = 0L;
     }
   };
 
-  public static com.google.protobuf.Parser<OrchestrateLeaveRoomResponse> parser() {
+  public static com.google.protobuf.Parser<LeaveRoomResponse> parser() {
     return PARSER;
   }
 
   @java.lang.Override
-  public com.google.protobuf.Parser<OrchestrateLeaveRoomResponse> getParserForType() {
+  public com.google.protobuf.Parser<LeaveRoomResponse> getParserForType() {
     return PARSER;
   }
 
   @java.lang.Override
-  public com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse getDefaultInstanceForType() {
+  public com.sdkwork.communication.internal.v1.LeaveRoomResponse getDefaultInstanceForType() {
     return DEFAULT_INSTANCE;
   }
 

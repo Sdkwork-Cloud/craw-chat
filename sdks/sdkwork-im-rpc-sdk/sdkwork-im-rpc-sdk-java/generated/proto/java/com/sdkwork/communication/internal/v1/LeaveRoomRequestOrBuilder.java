@@ -6,8 +6,8 @@
 package com.sdkwork.communication.internal.v1;
 
 @com.google.protobuf.Generated
-public interface OrchestrateEnterRoomRequestOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest)
+public interface LeaveRoomRequestOrBuilder extends
+    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.LeaveRoomRequest)
     com.google.protobuf.MessageOrBuilder {
 
   /**

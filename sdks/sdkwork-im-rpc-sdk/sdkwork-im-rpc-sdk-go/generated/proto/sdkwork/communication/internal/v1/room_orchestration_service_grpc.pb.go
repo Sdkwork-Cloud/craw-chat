@@ -29,10 +29,10 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RoomOrchestrationServiceClient interface {
-	CreateRoom(ctx context.Context, in *OrchestrateCreateRoomRequest, opts ...grpc.CallOption) (*OrchestrateCreateRoomResponse, error)
-	RetrieveRoom(ctx context.Context, in *OrchestrateRetrieveRoomRequest, opts ...grpc.CallOption) (*OrchestrateRetrieveRoomResponse, error)
-	EnterRoom(ctx context.Context, in *OrchestrateEnterRoomRequest, opts ...grpc.CallOption) (*OrchestrateEnterRoomResponse, error)
-	LeaveRoom(ctx context.Context, in *OrchestrateLeaveRoomRequest, opts ...grpc.CallOption) (*OrchestrateLeaveRoomResponse, error)
+	CreateRoom(ctx context.Context, in *CreateRoomRequest, opts ...grpc.CallOption) (*CreateRoomResponse, error)
+	RetrieveRoom(ctx context.Context, in *RetrieveRoomRequest, opts ...grpc.CallOption) (*RetrieveRoomResponse, error)
+	EnterRoom(ctx context.Context, in *EnterRoomRequest, opts ...grpc.CallOption) (*EnterRoomResponse, error)
+	LeaveRoom(ctx context.Context, in *LeaveRoomRequest, opts ...grpc.CallOption) (*LeaveRoomResponse, error)
 }
 
 type roomOrchestrationServiceClient struct {
@@ -43,9 +43,9 @@ func NewRoomOrchestrationServiceClient(cc grpc.ClientConnInterface) RoomOrchestr
 	return &roomOrchestrationServiceClient{cc}
 }
 
-func (c *roomOrchestrationServiceClient) CreateRoom(ctx context.Context, in *OrchestrateCreateRoomRequest, opts ...grpc.CallOption) (*OrchestrateCreateRoomResponse, error) {
+func (c *roomOrchestrationServiceClient) CreateRoom(ctx context.Context, in *CreateRoomRequest, opts ...grpc.CallOption) (*CreateRoomResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrchestrateCreateRoomResponse)
+	out := new(CreateRoomResponse)
 	err := c.cc.Invoke(ctx, RoomOrchestrationService_CreateRoom_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -53,9 +53,9 @@ func (c *roomOrchestrationServiceClient) CreateRoom(ctx context.Context, in *Orc
 	return out, nil
 }
 
-func (c *roomOrchestrationServiceClient) RetrieveRoom(ctx context.Context, in *OrchestrateRetrieveRoomRequest, opts ...grpc.CallOption) (*OrchestrateRetrieveRoomResponse, error) {
+func (c *roomOrchestrationServiceClient) RetrieveRoom(ctx context.Context, in *RetrieveRoomRequest, opts ...grpc.CallOption) (*RetrieveRoomResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrchestrateRetrieveRoomResponse)
+	out := new(RetrieveRoomResponse)
 	err := c.cc.Invoke(ctx, RoomOrchestrationService_RetrieveRoom_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -63,9 +63,9 @@ func (c *roomOrchestrationServiceClient) RetrieveRoom(ctx context.Context, in *O
 	return out, nil
 }
 
-func (c *roomOrchestrationServiceClient) EnterRoom(ctx context.Context, in *OrchestrateEnterRoomRequest, opts ...grpc.CallOption) (*OrchestrateEnterRoomResponse, error) {
+func (c *roomOrchestrationServiceClient) EnterRoom(ctx context.Context, in *EnterRoomRequest, opts ...grpc.CallOption) (*EnterRoomResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrchestrateEnterRoomResponse)
+	out := new(EnterRoomResponse)
 	err := c.cc.Invoke(ctx, RoomOrchestrationService_EnterRoom_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -73,9 +73,9 @@ func (c *roomOrchestrationServiceClient) EnterRoom(ctx context.Context, in *Orch
 	return out, nil
 }
 
-func (c *roomOrchestrationServiceClient) LeaveRoom(ctx context.Context, in *OrchestrateLeaveRoomRequest, opts ...grpc.CallOption) (*OrchestrateLeaveRoomResponse, error) {
+func (c *roomOrchestrationServiceClient) LeaveRoom(ctx context.Context, in *LeaveRoomRequest, opts ...grpc.CallOption) (*LeaveRoomResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OrchestrateLeaveRoomResponse)
+	out := new(LeaveRoomResponse)
 	err := c.cc.Invoke(ctx, RoomOrchestrationService_LeaveRoom_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -87,10 +87,10 @@ func (c *roomOrchestrationServiceClient) LeaveRoom(ctx context.Context, in *Orch
 // All implementations should embed UnimplementedRoomOrchestrationServiceServer
 // for forward compatibility.
 type RoomOrchestrationServiceServer interface {
-	CreateRoom(context.Context, *OrchestrateCreateRoomRequest) (*OrchestrateCreateRoomResponse, error)
-	RetrieveRoom(context.Context, *OrchestrateRetrieveRoomRequest) (*OrchestrateRetrieveRoomResponse, error)
-	EnterRoom(context.Context, *OrchestrateEnterRoomRequest) (*OrchestrateEnterRoomResponse, error)
-	LeaveRoom(context.Context, *OrchestrateLeaveRoomRequest) (*OrchestrateLeaveRoomResponse, error)
+	CreateRoom(context.Context, *CreateRoomRequest) (*CreateRoomResponse, error)
+	RetrieveRoom(context.Context, *RetrieveRoomRequest) (*RetrieveRoomResponse, error)
+	EnterRoom(context.Context, *EnterRoomRequest) (*EnterRoomResponse, error)
+	LeaveRoom(context.Context, *LeaveRoomRequest) (*LeaveRoomResponse, error)
 }
 
 // UnimplementedRoomOrchestrationServiceServer should be embedded to have
@@ -100,16 +100,16 @@ type RoomOrchestrationServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedRoomOrchestrationServiceServer struct{}
 
-func (UnimplementedRoomOrchestrationServiceServer) CreateRoom(context.Context, *OrchestrateCreateRoomRequest) (*OrchestrateCreateRoomResponse, error) {
+func (UnimplementedRoomOrchestrationServiceServer) CreateRoom(context.Context, *CreateRoomRequest) (*CreateRoomResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateRoom not implemented")
 }
-func (UnimplementedRoomOrchestrationServiceServer) RetrieveRoom(context.Context, *OrchestrateRetrieveRoomRequest) (*OrchestrateRetrieveRoomResponse, error) {
+func (UnimplementedRoomOrchestrationServiceServer) RetrieveRoom(context.Context, *RetrieveRoomRequest) (*RetrieveRoomResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RetrieveRoom not implemented")
 }
-func (UnimplementedRoomOrchestrationServiceServer) EnterRoom(context.Context, *OrchestrateEnterRoomRequest) (*OrchestrateEnterRoomResponse, error) {
+func (UnimplementedRoomOrchestrationServiceServer) EnterRoom(context.Context, *EnterRoomRequest) (*EnterRoomResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method EnterRoom not implemented")
 }
-func (UnimplementedRoomOrchestrationServiceServer) LeaveRoom(context.Context, *OrchestrateLeaveRoomRequest) (*OrchestrateLeaveRoomResponse, error) {
+func (UnimplementedRoomOrchestrationServiceServer) LeaveRoom(context.Context, *LeaveRoomRequest) (*LeaveRoomResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LeaveRoom not implemented")
 }
 func (UnimplementedRoomOrchestrationServiceServer) testEmbeddedByValue() {}
@@ -133,7 +133,7 @@ func RegisterRoomOrchestrationServiceServer(s grpc.ServiceRegistrar, srv RoomOrc
 }
 
 func _RoomOrchestrationService_CreateRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OrchestrateCreateRoomRequest)
+	in := new(CreateRoomRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -145,13 +145,13 @@ func _RoomOrchestrationService_CreateRoom_Handler(srv interface{}, ctx context.C
 		FullMethod: RoomOrchestrationService_CreateRoom_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RoomOrchestrationServiceServer).CreateRoom(ctx, req.(*OrchestrateCreateRoomRequest))
+		return srv.(RoomOrchestrationServiceServer).CreateRoom(ctx, req.(*CreateRoomRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RoomOrchestrationService_RetrieveRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OrchestrateRetrieveRoomRequest)
+	in := new(RetrieveRoomRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -163,13 +163,13 @@ func _RoomOrchestrationService_RetrieveRoom_Handler(srv interface{}, ctx context
 		FullMethod: RoomOrchestrationService_RetrieveRoom_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RoomOrchestrationServiceServer).RetrieveRoom(ctx, req.(*OrchestrateRetrieveRoomRequest))
+		return srv.(RoomOrchestrationServiceServer).RetrieveRoom(ctx, req.(*RetrieveRoomRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RoomOrchestrationService_EnterRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OrchestrateEnterRoomRequest)
+	in := new(EnterRoomRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -181,13 +181,13 @@ func _RoomOrchestrationService_EnterRoom_Handler(srv interface{}, ctx context.Co
 		FullMethod: RoomOrchestrationService_EnterRoom_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RoomOrchestrationServiceServer).EnterRoom(ctx, req.(*OrchestrateEnterRoomRequest))
+		return srv.(RoomOrchestrationServiceServer).EnterRoom(ctx, req.(*EnterRoomRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _RoomOrchestrationService_LeaveRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OrchestrateLeaveRoomRequest)
+	in := new(LeaveRoomRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func _RoomOrchestrationService_LeaveRoom_Handler(srv interface{}, ctx context.Co
 		FullMethod: RoomOrchestrationService_LeaveRoom_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RoomOrchestrationServiceServer).LeaveRoom(ctx, req.(*OrchestrateLeaveRoomRequest))
+		return srv.(RoomOrchestrationServiceServer).LeaveRoom(ctx, req.(*LeaveRoomRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
