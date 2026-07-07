@@ -1,8 +1,8 @@
+use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
 use im_domain_core::message::{
     MessageEdited, MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageRecalled,
     MessageUnpinned,
 };
-use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
 use im_domain_core::social::normalize_actor_pair;
 use im_domain_events::normalize_commit_organization_id;
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
@@ -16,7 +16,11 @@ use super::{
     RuntimeError, TransferConversationOwnerPayload,
 };
 
-pub(super) fn conversation_scope_key(tenant_id: &str, organization_id: &str, conversation_id: &str) -> String {
+pub(super) fn conversation_scope_key(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+) -> String {
     encode_conversation_key_segments([
         tenant_id,
         normalize_commit_organization_id(organization_id).as_str(),
@@ -80,7 +84,11 @@ pub(super) fn decode_conversation_scope_key(scope_key: &str) -> Option<(String, 
     if segments.len() != 3 {
         return None;
     }
-    Some((segments[0].clone(), segments[1].clone(), segments[2].clone()))
+    Some((
+        segments[0].clone(),
+        segments[1].clone(),
+        segments[2].clone(),
+    ))
 }
 
 pub(in crate::runtime) fn upsert_roster_member(
@@ -693,9 +701,15 @@ pub(super) fn build_message_unpinned_envelope(
 
 const CANONICAL_CONVERSATION_ID_DIGEST_LEN: usize = 24;
 
-pub(in crate::runtime) fn deterministic_conversation_resource_id(prefix: &str, seed: &str) -> String {
+pub(in crate::runtime) fn deterministic_conversation_resource_id(
+    prefix: &str,
+    seed: &str,
+) -> String {
     let digest = sha256_hash(seed.as_bytes());
-    format!("{prefix}{}", &digest[..CANONICAL_CONVERSATION_ID_DIGEST_LEN])
+    format!(
+        "{prefix}{}",
+        &digest[..CANONICAL_CONVERSATION_ID_DIGEST_LEN]
+    )
 }
 
 pub(in crate::runtime) fn canonical_agent_dialog_business_id(
@@ -713,8 +727,7 @@ pub(in crate::runtime) fn canonical_agent_dialog_conversation_id(
     requester_id: &str,
     agent_id: &str,
 ) -> String {
-    let business_id =
-        canonical_agent_dialog_business_id(requester_kind, requester_id, agent_id);
+    let business_id = canonical_agent_dialog_business_id(requester_kind, requester_id, agent_id);
     let seed = encode_conversation_key_segments([
         tenant_id,
         normalize_commit_organization_id(organization_id).as_str(),
@@ -799,11 +812,8 @@ pub(in crate::runtime) fn resolve_direct_chat_binding_ids(
         right_actor_kind,
         right_actor_id,
     )?;
-    let conversation_id = canonical_direct_chat_conversation_id(
-        tenant_id,
-        organization_id,
-        direct_chat_id.as_str(),
-    );
+    let conversation_id =
+        canonical_direct_chat_conversation_id(tenant_id, organization_id, direct_chat_id.as_str());
     let requested_conversation_id = requested_conversation_id.trim();
     let requested_direct_chat_id = requested_direct_chat_id.trim();
     if !requested_direct_chat_id.is_empty() && requested_direct_chat_id != direct_chat_id {
@@ -905,28 +915,14 @@ mod canonical_id_tests {
     #[test]
     fn resolve_direct_chat_binding_ids_derives_stable_pair_scoped_ids() {
         let (conversation_id, direct_chat_id) = resolve_direct_chat_binding_ids(
-            "100001",
-            "default",
-            "user",
-            "u_alice",
-            "user",
-            "u_bob",
-            "",
-            "",
+            "100001", "default", "user", "u_alice", "user", "u_bob", "", "",
         )
         .expect("direct chat ids should resolve");
         assert!(conversation_id.starts_with("c_direct_"));
         assert!(!direct_chat_id.starts_with("pc-dc-"));
         assert_eq!(
             resolve_direct_chat_binding_ids(
-                "100001",
-                "default",
-                "user",
-                "u_bob",
-                "user",
-                "u_alice",
-                "",
-                "",
+                "100001", "default", "user", "u_bob", "user", "u_alice", "", "",
             )
             .expect("participant order should not change canonical ids"),
             (conversation_id.clone(), direct_chat_id.clone())

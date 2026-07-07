@@ -29,17 +29,22 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_domain_core::retention::retention_until_from_envelope;
-use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
+use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use im_platform_contracts::{
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateScope,
+    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition, ContractError,
+};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 use sdkwork_utils_rust::sha256_hash;
 use tokio::runtime::Handle;
 
 mod aggregate_store;
-mod message_store;
+mod automation_execution_store;
 mod message_post_persistence;
+mod message_store;
+mod notification_task_store;
 mod outbox_store;
 mod retention_cleanup;
 mod retention_metrics;
@@ -50,20 +55,23 @@ mod seq_allocator;
 mod stream_state_store;
 
 pub use aggregate_store::PostgresAggregateStore;
+pub use automation_execution_store::PostgresAutomationExecutionStore;
+pub use im_platform_contracts::CommitJournalReplayCursor as JournalReplayCursor;
 pub use message_post_persistence::PostgresDurableMessagePostWriter;
 pub use message_store::PostgresMessageStore;
-pub use seq_allocator::PostgresConversationSeqAllocator;
+pub use notification_task_store::PostgresNotificationTaskStore;
 pub use outbox_store::PostgresOutboxStore;
-pub use retention_cleanup::{purge_expired_retention_batch, RetentionCleanupReport};
-pub use retention_metrics::{retention_purge_metrics, RetentionPurgeMetrics};
+pub use retention_cleanup::{RetentionCleanupReport, purge_expired_retention_batch};
+pub use retention_metrics::{RetentionPurgeMetrics, retention_purge_metrics};
 pub use retention_reconcile::{
-    clear_conversation_retention_until, PostgresRetentionScopeStore, RetentionReconcileReport,
+    PostgresRetentionScopeStore, RetentionReconcileReport, clear_conversation_retention_until,
 };
 pub use retention_scheduler::{
-    spawn_retention_purge_scheduler, spawn_retention_purge_scheduler_from_env,
-    RetentionPurgeSchedulerConfig, RetentionPurgeSchedulerHandle,
+    RetentionPurgeSchedulerConfig, RetentionPurgeSchedulerHandle, spawn_retention_purge_scheduler,
+    spawn_retention_purge_scheduler_from_env,
 };
-pub use search_store::PostgresSearchProvider;
+pub use search_store::{MemberSearchQuery, PostgresSearchProvider};
+pub use seq_allocator::PostgresConversationSeqAllocator;
 pub use stream_state_store::PostgresStreamStateStore;
 
 /// Default upper bound on pooled PostgreSQL connections for the journal store.
@@ -213,7 +221,9 @@ impl PostgresJournalConfig {
     }
 }
 
-fn build_journal_pool(config: &PostgresJournalConfig) -> Result<PostgresJournalPool, ContractError> {
+fn build_journal_pool(
+    config: &PostgresJournalConfig,
+) -> Result<PostgresJournalPool, ContractError> {
     if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
         return Ok(PostgresJournalPool::from_pool(pool));
     }
@@ -267,7 +277,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }
@@ -314,7 +327,14 @@ impl PostgresCommitJournal {
         let pool = self.pool.clone();
         let prefix = self.partition_prefix.clone();
         let cursor = cursor.cloned();
-        run_postgres_io(move || load_recorded_after(&pool, &prefix, cursor.as_ref()))
+        run_postgres_io(move || {
+            load_recorded_page(
+                &pool,
+                &prefix,
+                cursor.as_ref(),
+                COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64,
+            )
+        })
     }
 
     pub fn with_partition_prefix(mut self, prefix: impl Into<String>) -> Self {
@@ -329,12 +349,6 @@ impl PostgresCommitJournal {
     pub fn partition_prefix(&self) -> &Arc<str> {
         &self.partition_prefix
     }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct JournalReplayCursor {
-    pub partition_key: String,
-    pub commit_offset: i64,
 }
 
 impl CommitJournal for PostgresCommitJournal {
@@ -359,7 +373,48 @@ impl CommitJournal for PostgresCommitJournal {
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
         let pool = self.pool.clone();
         let prefix = self.partition_prefix.clone();
-        run_postgres_io(move || load_recorded(&pool, &prefix))
+        run_postgres_io(move || {
+            load_recorded_page(
+                &pool,
+                &prefix,
+                None,
+                COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64,
+            )
+            .map(|(events, _cursor)| events)
+        })
+    }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        let cursor = cursor.cloned();
+        let limit = i64::try_from(limit.max(1)).unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
+        run_postgres_io(move || {
+            let (items, next_cursor) = load_recorded_page(&pool, &prefix, cursor.as_ref(), limit)?;
+            Ok(CommitJournalReplayPage { items, next_cursor })
+        })
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let pool = self.pool.clone();
+        let prefix = self.partition_prefix.clone();
+        let scope = scope.clone();
+        let cursor = cursor.cloned();
+        let limit = i64::try_from(limit.max(1)).unwrap_or(COMMIT_JOURNAL_REPLAY_BATCH_LIMIT as i64);
+        run_postgres_io(move || {
+            let (items, next_cursor) =
+                load_recorded_page_for_aggregate(&pool, &prefix, &scope, cursor.as_ref(), limit)?;
+            Ok(CommitJournalReplayPage { items, next_cursor })
+        })
     }
 }
 
@@ -430,6 +485,7 @@ select
 from im_commit_journal
 where partition_key like $1 || '%'
 order by partition_key asc, commit_offset asc
+limit $2
 "#;
 
 const LOAD_RECORDED_AFTER_SQL: &str = r#"
@@ -450,6 +506,52 @@ from im_commit_journal
 where partition_key like $1 || '%'
   and (partition_key, commit_offset) > ($2, $3)
 order by partition_key asc, commit_offset asc
+limit $4
+"#;
+
+const LOAD_RECORDED_AGGREGATE_SQL: &str = r#"
+select
+    event_id,
+    tenant_id,
+    organization_id,
+    event_type,
+    aggregate_type,
+    aggregate_id,
+    aggregate_seq,
+    occurred_at::text,
+    payload_json::text,
+    idempotency_key,
+    partition_key,
+    commit_offset
+from im_commit_journal
+where partition_key like $1 || '%'
+  and tenant_id = $2
+  and aggregate_id = $3
+order by commit_offset asc
+limit $4
+"#;
+
+const LOAD_RECORDED_AGGREGATE_AFTER_SQL: &str = r#"
+select
+    event_id,
+    tenant_id,
+    organization_id,
+    event_type,
+    aggregate_type,
+    aggregate_id,
+    aggregate_seq,
+    occurred_at::text,
+    payload_json::text,
+    idempotency_key,
+    partition_key,
+    commit_offset
+from im_commit_journal
+where partition_key like $1 || '%'
+  and tenant_id = $2
+  and aggregate_id = $3
+  and commit_offset > $4
+order by commit_offset asc
+limit $5
 "#;
 
 // ---------------------------------------------------------------------------
@@ -464,18 +566,23 @@ pub(crate) fn postgres_jsonb_payload(payload: &str) -> Result<serde_json::Value,
     })
 }
 
-pub(crate) fn postgres_timestamptz(value: &str, field: &'static str) -> Result<DateTime<Utc>, ContractError> {
+pub(crate) fn postgres_timestamptz(
+    value: &str,
+    field: &'static str,
+) -> Result<DateTime<Utc>, ContractError> {
     DateTime::parse_from_rfc3339(value.trim())
         .map(|instant| instant.with_timezone(&Utc))
         .or_else(|_| value.trim().parse::<DateTime<Utc>>())
         .map_err(|error| {
-            ContractError::Conflict(format!(
-                "postgres journal {field} must be RFC3339: {error}"
-            ))
+            ContractError::Conflict(format!("postgres journal {field} must be RFC3339: {error}"))
         })
 }
 
-fn journal_replay_row_get<T>(row: &postgres::Row, column: usize, field: &'static str) -> Result<T, ContractError>
+fn journal_replay_row_get<T>(
+    row: &postgres::Row,
+    column: usize,
+    field: &'static str,
+) -> Result<T, ContractError>
 where
     T: for<'a> postgres::types::FromSql<'a>,
 {
@@ -566,9 +673,9 @@ fn append_one(
         match result {
             Ok(row) => {
                 // Release the savepoint; the transaction remains usable.
-                savepoint
-                    .commit()
-                    .map_err(|error| postgres_unavailable_db("journal append savepoint commit", error))?;
+                savepoint.commit().map_err(|error| {
+                    postgres_unavailable_db("journal append savepoint commit", error)
+                })?;
                 match row {
                     Some(row) => InsertOutcome::Inserted(row),
                     None => InsertOutcome::EventIdAbsorbed,
@@ -598,7 +705,9 @@ fn append_one(
         InsertOutcome::EventIdAbsorbed => {
             let row = txn
                 .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
-                .map_err(|error| postgres_unavailable_db("journal append conflict lookup", error))?;
+                .map_err(|error| {
+                    postgres_unavailable_db("journal append conflict lookup", error)
+                })?;
             let partition: String = row.get(0);
             let offset: i64 = row.get(1);
             (partition, offset as u64)
@@ -610,8 +719,13 @@ fn append_one(
         // HTTP 409 instead of an opaque 503.
         InsertOutcome::PositionCollision => {
             let row = txn
-                .query_one(LOAD_EVENT_BY_POSITION_SQL, &[&partition_key, &commit_offset])
-                .map_err(|error| postgres_unavailable_db("journal append position lookup", error))?;
+                .query_one(
+                    LOAD_EVENT_BY_POSITION_SQL,
+                    &[&partition_key, &commit_offset],
+                )
+                .map_err(|error| {
+                    postgres_unavailable_db("journal append position lookup", error)
+                })?;
             let existing_event_id: String = row.get(0);
             let partition: String = row.get(1);
             let offset: i64 = row.get(2);
@@ -689,18 +803,18 @@ fn append_many(
             );
             match result {
                 Ok(row) => {
-                    savepoint
-                        .commit()
-                        .map_err(|error| postgres_unavailable("journal append_batch savepoint commit", error))?;
+                    savepoint.commit().map_err(|error| {
+                        postgres_unavailable("journal append_batch savepoint commit", error)
+                    })?;
                     match row {
                         Some(row) => InsertOutcome::Inserted(row),
                         None => InsertOutcome::EventIdAbsorbed,
                     }
                 }
                 Err(error) if is_unique_violation(&error) => {
-                    savepoint
-                        .rollback()
-                        .map_err(|error| postgres_unavailable("journal append_batch savepoint rollback", error))?;
+                    savepoint.rollback().map_err(|error| {
+                        postgres_unavailable("journal append_batch savepoint rollback", error)
+                    })?;
                     InsertOutcome::PositionCollision
                 }
                 Err(error) => {
@@ -727,7 +841,10 @@ fn append_many(
             }
             InsertOutcome::PositionCollision => {
                 let row = txn
-                    .query_one(LOAD_EVENT_BY_POSITION_SQL, &[&partition_key, &commit_offset])
+                    .query_one(
+                        LOAD_EVENT_BY_POSITION_SQL,
+                        &[&partition_key, &commit_offset],
+                    )
                     .map_err(|error| {
                         postgres_unavailable("journal append_batch position lookup", error)
                     })?;
@@ -756,44 +873,79 @@ fn append_many(
     Ok(positions)
 }
 
-/// Reconstruct committed envelopes in append order.
+/// Reconstruct committed envelopes in append order using an explicit page bound.
 ///
 /// Only the columns needed to rehydrate a [`CommitEnvelope`] are selected;
 /// the full event payload is round-tripped as text to preserve its original
 /// JSON encoding. Envelopes reconstructed here are best-effort projections —
 /// callers that need the authoritative aggregate state should replay through
 /// the domain layer rather than consume this projection directly.
-fn load_recorded(
-    pool: &PostgresJournalPool,
-    prefix: &str,
-) -> Result<Vec<CommitEnvelope>, ContractError> {
-    load_recorded_after(pool, prefix, None).map(|(events, _cursor)| events)
-}
-
-fn load_recorded_after(
+fn load_recorded_page(
     pool: &PostgresJournalPool,
     prefix: &str,
     cursor: Option<&JournalReplayCursor>,
+    limit: i64,
 ) -> Result<(Vec<CommitEnvelope>, Option<JournalReplayCursor>), ContractError> {
     let mut client = postgres_pool_client(pool, "journal recorded")?;
     let pattern = format!("{prefix}%");
     let rows = if let Some(cursor) = cursor {
+        let commit_offset = i64::try_from(cursor.commit_offset).unwrap_or(i64::MAX);
         client
             .query(
                 LOAD_RECORDED_AFTER_SQL,
-                &[
-                    &pattern,
-                    &cursor.partition_key,
-                    &cursor.commit_offset,
-                ],
+                &[&pattern, &cursor.partition_key, &commit_offset, &limit],
             )
             .map_err(|error| postgres_unavailable("journal recorded after select", error))?
     } else {
         client
-            .query(LOAD_RECORDED_SQL, &[&pattern])
+            .query(LOAD_RECORDED_SQL, &[&pattern, &limit])
             .map_err(|error| postgres_unavailable("journal recorded select", error))?
     };
 
+    parse_journal_replay_rows(rows, prefix, cursor)
+}
+
+fn load_recorded_page_for_aggregate(
+    pool: &PostgresJournalPool,
+    prefix: &str,
+    scope: &CommitJournalAggregateScope,
+    cursor: Option<&JournalReplayCursor>,
+    limit: i64,
+) -> Result<(Vec<CommitEnvelope>, Option<JournalReplayCursor>), ContractError> {
+    let mut client = postgres_pool_client(pool, "journal recorded aggregate")?;
+    let pattern = format!("{prefix}%");
+    let rows = if let Some(cursor) = cursor {
+        let commit_offset = i64::try_from(cursor.commit_offset).unwrap_or(i64::MAX);
+        client
+            .query(
+                LOAD_RECORDED_AGGREGATE_AFTER_SQL,
+                &[
+                    &pattern,
+                    &scope.tenant_id,
+                    &scope.aggregate_id,
+                    &commit_offset,
+                    &limit,
+                ],
+            )
+            .map_err(|error| {
+                postgres_unavailable("journal aggregate recorded after select", error)
+            })?
+    } else {
+        client
+            .query(
+                LOAD_RECORDED_AGGREGATE_SQL,
+                &[&pattern, &scope.tenant_id, &scope.aggregate_id, &limit],
+            )
+            .map_err(|error| postgres_unavailable("journal aggregate recorded select", error))?
+    };
+    parse_journal_replay_rows(rows, prefix, None)
+}
+
+fn parse_journal_replay_rows(
+    rows: Vec<postgres::Row>,
+    prefix: &str,
+    cursor: Option<&JournalReplayCursor>,
+) -> Result<(Vec<CommitEnvelope>, Option<JournalReplayCursor>), ContractError> {
     let mut envelopes = Vec::with_capacity(rows.len());
     let mut next_cursor = cursor.cloned();
     for row in rows {
@@ -810,7 +962,7 @@ fn load_recorded_after(
         let partition_key: String = journal_replay_row_get(&row, 10, "partition_key")?;
         let commit_offset: i64 = journal_replay_row_get(&row, 11, "commit_offset")?;
         let aggregate_type = parse_aggregate_type(aggregate_type_str.as_str());
-        let scope = replay_scope_for_journal_row(
+        let replay_scope = replay_scope_for_journal_row(
             &aggregate_type,
             tenant_id.as_str(),
             aggregate_id.as_str(),
@@ -829,9 +981,9 @@ fn load_recorded_after(
             event_version: 1,
             aggregate_type,
             aggregate_id: aggregate_id.clone(),
-            scope_type: scope.scope_type,
-            scope_id: scope.scope_id,
-            ordering_key: scope.ordering_key,
+            scope_type: replay_scope.scope_type,
+            scope_id: replay_scope.scope_id,
+            ordering_key: replay_scope.ordering_key,
             ordering_seq,
             causation_id: None,
             correlation_id: None,
@@ -850,7 +1002,7 @@ fn load_recorded_after(
         });
         next_cursor = Some(JournalReplayCursor {
             partition_key,
-            commit_offset,
+            commit_offset: commit_offset.max(0) as u64,
         });
     }
     Ok((envelopes, next_cursor))
@@ -913,14 +1065,22 @@ fn replay_ordering_key_from_partition(
 
 /// Bridge a blocking PostgreSQL operation off the async runtime.
 ///
-/// Runs synchronous postgres driver work on a dedicated OS thread via
-/// [`std::thread::scope`] so the blocking `postgres` crate never nests Tokio runtimes.
+/// When called from a multi-threaded Tokio runtime worker thread, uses
+/// [`tokio::task::block_in_place`] to move other tasks on the current worker
+/// to other workers, preventing async runtime starvation under concurrent
+/// load. Falls back to [`std::thread::scope`] for non-Tokio contexts and
+/// current-thread runtimes (e.g., `#[tokio::test]`).
 pub(crate) fn run_postgres_io<T>(
     operation: impl FnOnce() -> Result<T, ContractError> + Send,
 ) -> Result<T, ContractError>
 where
     T: Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        return tokio::task::block_in_place(operation);
+    }
     std::thread::scope(|scope| {
         scope
             .spawn(operation)
@@ -1019,9 +1179,7 @@ fn format_postgres_db_error(error: &r2d2_postgres::postgres::Error) -> String {
 /// stay idempotent alongside the existing `ON CONFLICT (event_id) DO NOTHING`
 /// path.
 pub(crate) fn is_unique_violation(error: &r2d2_postgres::postgres::Error) -> bool {
-    error
-        .as_db_error()
-        .map(|db_error| db_error.code())
+    error.as_db_error().map(|db_error| db_error.code())
         == Some(&r2d2_postgres::postgres::error::SqlState::UNIQUE_VIOLATION)
 }
 
@@ -1070,7 +1228,10 @@ fn postgres_config_error(
 /// error message or log line. If the URL cannot be parsed as `scheme://user:pass@host`,
 /// it is replaced wholesale with `<redacted>` to avoid leaking any fragment.
 pub(crate) fn journal_retention_until(envelope: &CommitEnvelope) -> Option<String> {
-    retention_until_from_envelope(envelope.retention_class.as_str(), envelope.occurred_at.as_str())
+    retention_until_from_envelope(
+        envelope.retention_class.as_str(),
+        envelope.occurred_at.as_str(),
+    )
 }
 
 fn redact_postgres_url(database_url: &str) -> String {

@@ -1,6 +1,6 @@
 use im_adapter_object_storage_s3::{
-    S3CompatibleObjectStorageProvider, S3CompatibleObjectStorageProviderConfig,
-    GOOGLE_OBJECT_STORAGE_PLUGIN_ID, VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
+    GOOGLE_OBJECT_STORAGE_PLUGIN_ID, S3CompatibleObjectStorageProvider,
+    S3CompatibleObjectStorageProviderConfig, VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
 };
 use im_platform_contracts::{
     ObjectStorageDownloadUrlRequest, ObjectStorageProvider, ObjectStoragePutRequest,
@@ -100,18 +100,19 @@ fn test_google_s3_gateway_adapter_marks_gateway_capability() {
 #[test]
 fn test_signed_url_with_credentials() {
     ensure_dev_environment();
-    let provider = S3CompatibleObjectStorageProvider::new(S3CompatibleObjectStorageProviderConfig {
-        plugin_id: VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID.into(),
-        provider_kind: "volcengine".into(),
-        display_name: "Volcengine Object Storage".into(),
-        endpoint: "https://tos.volcengine.local".into(),
-        region: "cn-beijing".into(),
-        gateway_mode: false,
-        access_key_id: Some("AKIDTEST1234567890".into()),
-        secret_access_key: Some("SECRET01234567890abcdef".into()),
-        security_token: None,
-        kms_key_id: Some("arn:aws:kms:cn-beijing:111122223333:key/abcd1234-5678".into()),
-    });
+    let provider =
+        S3CompatibleObjectStorageProvider::new(S3CompatibleObjectStorageProviderConfig {
+            plugin_id: VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID.into(),
+            provider_kind: "volcengine".into(),
+            display_name: "Volcengine Object Storage".into(),
+            endpoint: "https://tos.volcengine.local".into(),
+            region: "cn-beijing".into(),
+            gateway_mode: false,
+            access_key_id: Some("AKIDTEST1234567890".into()),
+            secret_access_key: Some("SECRET01234567890abcdef".into()),
+            security_token: None,
+            kms_key_id: Some("arn:aws:kms:cn-beijing:111122223333:key/abcd1234-5678".into()),
+        });
 
     let download_url = provider
         .signed_download_url(ObjectStorageDownloadUrlRequest {
@@ -155,7 +156,9 @@ fn test_signed_url_with_credentials() {
         Some(&"aws:kms".into())
     );
     assert_eq!(
-        upload.headers.get("X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id"),
+        upload
+            .headers
+            .get("X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id"),
         Some(&"arn:aws:kms:cn-beijing:111122223333:key/abcd1234-5678".into())
     );
 

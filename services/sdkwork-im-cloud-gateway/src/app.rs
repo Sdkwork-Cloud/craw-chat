@@ -5,22 +5,24 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::{Router, middleware::from_fn_with_state, routing::get};
-use tokio::sync::Semaphore;
 use crate::anomaly_detector::AnomalyDetector;
 use crate::gateway_protection::{
-    CircuitBreakerConfig, CircuitBreakerRegistry, HybridIpRateLimiter,
-    hybrid_rate_limit_middleware,
+    CircuitBreakerConfig, CircuitBreakerRegistry, HybridIpRateLimiter, hybrid_rate_limit_middleware,
 };
+use axum::{Router, middleware::from_fn_with_state, routing::get};
 use sdkwork_im_api_registry::RouteRegistry;
-use session_gateway::{AppState, RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env, resolve_max_websocket_connections};
 use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
+use session_gateway::{
+    AppState, RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env,
+    resolve_max_websocket_connections,
+};
+use tokio::sync::Semaphore;
 
 use crate::client::build_gateway_upstream_client;
 use crate::cors::build_browser_cors_layer;
 use crate::openapi::{
-    docs, openapi_index_json, openapi_json, openapi_runtime_summary_json, service_docs,
-    service_openapi_json,
+    OpenApiAggregateCache, docs, openapi_index_json, openapi_json, openapi_runtime_summary_json,
+    service_docs, service_openapi_json,
 };
 use crate::registry::build_gateway_registry;
 use crate::response::gateway_proxy_routes;
@@ -103,8 +105,38 @@ pub async fn build_app_with_registry_product_runtime_and_embedded_services_from_
         embedded_session_gateway,
         embedded_realtime_app_state,
         RealtimeAuthContextResolver::new(iam_pool),
+        GatewayIpRateLimitMode::Enabled,
     )
     .await
+}
+
+/// Build the gateway application for standalone composition where the final
+/// merged ingress applies the single edge IP limiter after dependency routes
+/// are mounted.
+pub async fn build_app_with_registry_product_runtime_and_embedded_services_from_env_without_ip_rate_limit(
+    config: WebGatewayConfig,
+    registry: RouteRegistry,
+    product_runtime_router: Option<Router>,
+    embedded_session_gateway: Option<Router>,
+    embedded_realtime_app_state: Option<AppState>,
+) -> Router {
+    let iam_pool = resolve_iam_auth_pool_from_env().await;
+    finish_gateway_app_from_env(
+        config,
+        registry,
+        product_runtime_router,
+        embedded_session_gateway,
+        embedded_realtime_app_state,
+        RealtimeAuthContextResolver::new(iam_pool),
+        GatewayIpRateLimitMode::Disabled,
+    )
+    .await
+}
+
+#[derive(Clone, Copy)]
+enum GatewayIpRateLimitMode {
+    Enabled,
+    Disabled,
 }
 
 async fn finish_gateway_app_from_env(
@@ -114,6 +146,7 @@ async fn finish_gateway_app_from_env(
     embedded_session_gateway: Option<Router>,
     embedded_realtime_app_state: Option<AppState>,
     realtime_auth: RealtimeAuthContextResolver,
+    ip_rate_limit_mode: GatewayIpRateLimitMode,
 ) -> Router {
     let business_router = Router::new()
         .route("/openapi.json", get(openapi_json))
@@ -137,10 +170,9 @@ async fn finish_gateway_app_from_env(
             product_runtime_router,
             embedded_session_gateway,
             realtime_auth,
-            circuit_breakers: CircuitBreakerRegistry::new(
-                CircuitBreakerConfig::from_env(),
-            ),
+            circuit_breakers: CircuitBreakerRegistry::new(CircuitBreakerConfig::from_env()),
             anomaly_detector: build_anomaly_detector(),
+            openapi_aggregate_cache: OpenApiAggregateCache::from_env(),
             websocket_connection_semaphore: Arc::new(Semaphore::new(
                 resolve_max_websocket_connections(),
             )),
@@ -149,7 +181,11 @@ async fn finish_gateway_app_from_env(
     let business_core = crate::web_framework::wrap_gateway_router_from_env(business_router)
         .await
         .layer(build_browser_cors_layer());
-    apply_gateway_rate_limit_and_embedded_ws(embedded_realtime_app_state, business_core)
+    apply_gateway_rate_limit_and_embedded_ws(
+        embedded_realtime_app_state,
+        business_core,
+        ip_rate_limit_mode,
+    )
 }
 
 fn finish_gateway_app_sync(
@@ -182,29 +218,37 @@ fn finish_gateway_app_sync(
             product_runtime_router,
             embedded_session_gateway,
             realtime_auth,
-            circuit_breakers: CircuitBreakerRegistry::new(
-                CircuitBreakerConfig::from_env(),
-            ),
+            circuit_breakers: CircuitBreakerRegistry::new(CircuitBreakerConfig::from_env()),
             anomaly_detector: build_anomaly_detector(),
+            openapi_aggregate_cache: OpenApiAggregateCache::from_env(),
             websocket_connection_semaphore: Arc::new(Semaphore::new(
                 resolve_max_websocket_connections(),
             )),
         });
 
-    let business_core =
-        crate::web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer());
-    apply_gateway_rate_limit_and_embedded_ws(embedded_realtime_app_state, business_core)
+    let business_core = crate::web_framework::wrap_gateway_router(business_router)
+        .layer(build_browser_cors_layer());
+    apply_gateway_rate_limit_and_embedded_ws(
+        embedded_realtime_app_state,
+        business_core,
+        GatewayIpRateLimitMode::Enabled,
+    )
 }
 
 fn apply_gateway_rate_limit_and_embedded_ws(
     embedded_realtime_app_state: Option<AppState>,
     business_router: Router,
+    ip_rate_limit_mode: GatewayIpRateLimitMode,
 ) -> Router {
-    let merged = mount_embedded_realtime_websocket_router(embedded_realtime_app_state, business_router);
-    merged.layer(from_fn_with_state(
-        HybridIpRateLimiter::from_env(),
-        hybrid_rate_limit_middleware,
-    ))
+    let merged =
+        mount_embedded_realtime_websocket_router(embedded_realtime_app_state, business_router);
+    match ip_rate_limit_mode {
+        GatewayIpRateLimitMode::Enabled => merged.layer(from_fn_with_state(
+            HybridIpRateLimiter::from_env(),
+            hybrid_rate_limit_middleware,
+        )),
+        GatewayIpRateLimitMode::Disabled => merged,
+    }
 }
 
 fn mount_embedded_realtime_websocket_router(

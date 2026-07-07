@@ -20,68 +20,74 @@
   "canonicalSpecs": [
     {
       "file": "COMPONENT_SPEC.md",
-      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/COMPONENT_SPEC.md",
       "purpose": "Component-local contract and discovery rules."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored source structure and generated code boundaries."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical SDKWork naming rules."
     },
     {
       "file": "MODULE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/MODULE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/MODULE_SPEC.md",
       "purpose": "Reusable module and package boundary rules."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Verification and contract testing expectations."
     },
     {
       "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
       "purpose": "TypeScript and Node package rules."
     },
     {
       "file": "APPLICATION_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APPLICATION_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APPLICATION_SPEC.md",
       "purpose": "Application shell and module composition rules."
     },
     {
       "file": "APP_MANIFEST_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_MANIFEST_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_MANIFEST_SPEC.md",
       "purpose": "SDKWork app manifest and release metadata rules."
     },
     {
       "file": "CONFIG_SPEC.md",
-      "path": "../../../../../sdkwork-specs/CONFIG_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/CONFIG_SPEC.md",
       "purpose": "Typed runtime config and SDK client initialization rules."
     },
     {
       "file": "DEPLOYMENT_SPEC.md",
-      "path": "../../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
       "purpose": "SaaS, private, and local deployment parity rules."
     },
     {
       "file": "APP_PC_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
       "purpose": "PC browser, desktop, and tablet application root rules."
     },
     {
       "file": "APP_PC_REACT_UI_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
       "purpose": "PC React package rules."
     }
   ],
   "contracts": {
+    "layerRole": "frontend-core",
     "publicExports": [
-      "."
+      ".",
+      "./sdk",
+      "./modules",
+      "./host",
+      "./session",
+      "./composition"
     ],
     "runtimeEntrypoints": [],
     "routeManifest": null,
@@ -156,8 +162,8 @@
       },
       {
         "workspace": "sdkwork-rtc-sdk",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
+        "surface": "local-native",
+        "credentialMode": "local-native"
       },
       {
         "workspace": "sdkwork-shop-app-sdk",
@@ -169,7 +175,111 @@
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       }
-    ]
+    ],
+    "permissionComposition": {
+      "inheritanceMode": "module-catalog-with-overrides",
+      "moduleCatalogRefs": [
+        {
+          "moduleId": "agents",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "aiot",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/iot/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "catalog",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "community",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/apps/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": false
+        },
+        {
+          "moduleId": "course",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/courses/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "drive",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "iam-kernel",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": false
+        },
+        {
+          "moduleId": "im",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "knowledgebase",
+          "manifestRef": "../../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "mail",
+          "manifestRef": "../../../../../../sdkwork-mail/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "notary",
+          "manifestRef": "../../../../../../sdkwork-notary/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "order",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "shop",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "voice",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        }
+      ],
+      "bootstrapAccessTokenScope": {
+        "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
+        "supplement": [],
+        "overrideReplace": false
+      },
+      "routePermissionHints": {
+        "inheritFromOpenApi": true,
+        "inheritFromModuleManifests": true,
+        "overrides": []
+      },
+      "consumerPolicy": {
+        "forbidLocalPermissionCatalogForDependencyDomains": true,
+        "allowExplicitOverridesOnly": true,
+        "allowFrontendHintsWithoutServerDuplication": true
+      }
+    }
   },
   "verification": {
     "commands": [

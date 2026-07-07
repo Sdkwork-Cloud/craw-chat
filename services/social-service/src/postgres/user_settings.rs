@@ -32,21 +32,23 @@ pub async fn get_user_settings(
     State(state): State<PostgresAppState>,
     Path(user_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<UserSettingsResponse>> = (|| {
-        if auth.actor_id != user_id {
-            return Err(ApiProblem::forbidden("user can only read own settings"));
-        }
+    let result: ApiResult<SdkWorkResourceData<UserSettingsResponse>> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            if auth.actor_id != user_id {
+                return Err(ApiProblem::forbidden("user can only read own settings"));
+            }
 
-        let settings = state
-            .user_settings_store
-            .list_by_user(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                user_id.as_str(),
-            )
-            .map_err(|_| ApiProblem::internal_server_error("failed to read user settings"))?;
-        Ok(resource_item(UserSettingsResponse { settings }))
-    })();
+            let settings = state
+                .user_settings_store
+                .list_by_user(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    user_id.as_str(),
+                )
+                .map_err(|_| ApiProblem::internal_server_error("failed to read user settings"))?;
+            Ok(resource_item(UserSettingsResponse { settings }))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }
 
@@ -57,23 +59,26 @@ pub async fn update_user_settings(
     Path(user_id): Path<String>,
     Json(request): Json<UpdateUserSettingsRequest>,
 ) -> Response {
-    let result: Result<Response, ApiProblem> = (|| {
-        if auth.actor_id != user_id {
-            return Err(ApiProblem::forbidden("user can only update own settings"));
-        }
+    let ctx_for_blocking = ctx.clone();
+    let result: Result<Response, ApiProblem> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            if auth.actor_id != user_id {
+                return Err(ApiProblem::forbidden("user can only update own settings"));
+            }
 
-        let now = chrono::Utc::now().to_rfc3339();
-        state
-            .user_settings_store
-            .upsert_settings(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                user_id.as_str(),
-                &request.settings,
-                now.as_str(),
-            )
-            .map_err(|_| ApiProblem::internal_server_error("failed to update user settings"))?;
-        no_content(&ctx)
-    })();
+            let now = chrono::Utc::now().to_rfc3339();
+            state
+                .user_settings_store
+                .upsert_settings(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    user_id.as_str(),
+                    &request.settings,
+                    now.as_str(),
+                )
+                .map_err(|_| ApiProblem::internal_server_error("failed to update user settings"))?;
+            no_content(&ctx_for_blocking)
+        })
+        .await;
     finish_api_response(&ctx, result)
 }

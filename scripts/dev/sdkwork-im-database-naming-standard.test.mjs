@@ -57,6 +57,8 @@ const runtimeIdCrate = read('crates/sdkwork-im-runtime-id/src/lib.rs');
 const sdkworkWorkflow = readJson('sdkwork.workflow.json');
 const sharedSdkReleaseSources = readJson('config/shared-sdk-release-sources.json');
 const chatPcPnpmWorkspace = read('pnpm-workspace.yaml');
+const chatPcTsconfig = readJson('apps/sdkwork-im-pc/tsconfig.json');
+const chatPcViteConfig = read('apps/sdkwork-im-pc/vite.config.ts');
 const componentSpec = readJson('specs/component.spec.json');
 const localSpecReadme = read('specs/README.md');
 const namingDoc = readDeployment(DEPLOYMENT_DOC_FILES.databaseNaming);
@@ -330,8 +332,8 @@ function pnpmWorkspaceDeclaresPackage(workspaceSource, packagePath) {
 }
 
 for (const requiredWorkspacePackage of [
-  '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi',
-  '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi',
+  '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript',
+  '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript',
   '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts',
   '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports',
   '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime',
@@ -341,6 +343,38 @@ for (const requiredWorkspacePackage of [
   assert.ok(
     pnpmWorkspaceDeclaresPackage(chatPcPnpmWorkspace, requiredWorkspacePackage),
     `sdkwork-im repository pnpm workspace must declare appbase source package ${requiredWorkspacePackage}`,
+  );
+}
+for (const [packageName, tsconfigPath, vitePath] of [
+  [
+    '@sdkwork/iam-app-sdk',
+    '../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts',
+    '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts',
+  ],
+  [
+    '@sdkwork/iam-backend-sdk',
+    '../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts',
+    '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts',
+  ],
+]) {
+  assert.deepEqual(
+    chatPcTsconfig.compilerOptions?.paths?.[packageName],
+    [tsconfigPath],
+    `apps/sdkwork-im-pc tsconfig must resolve ${packageName} through the composed facade source entry`,
+  );
+  assert.ok(
+    chatPcViteConfig.includes(vitePath),
+    `apps/sdkwork-im-pc Vite config must resolve ${packageName} through the composed facade source entry`,
+  );
+}
+for (const forbiddenWorkspacePackage of [
+  '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi',
+  '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi',
+]) {
+  assert.equal(
+    pnpmWorkspaceDeclaresPackage(chatPcPnpmWorkspace, forbiddenWorkspacePackage),
+    false,
+    `sdkwork-im repository pnpm workspace must consume IAM SDK composed facades instead of generated transport package ${forbiddenWorkspacePackage}`,
   );
 }
 assert.doesNotMatch(

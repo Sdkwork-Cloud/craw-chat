@@ -72,7 +72,33 @@
         "requestSent": "Friend request sent to {{name}}",
         "searchFailed": "Search failed",
         "alreadyFriend": "This user is already your friend",
-        "requestPending": "Friend request is already pending"
+        "requestPending": "Friend request is already pending",
+        "requestBlocked": "You cannot send a friend request to this user"
+      }
+    },
+    "tags": {
+      "title": "Tag management",
+      "description": "Organize contacts with tags for quick lookup",
+      "create": "New tag",
+      "rename": "Rename",
+      "contactCount": "{{count}} contacts",
+      "addMembers": "Add members",
+      "emptyMembers": "Contacts tagged \"{{name}}\" will appear here",
+      "prompt": {
+        "createName": "Enter a tag name:",
+        "renameName": "Enter a new tag name",
+        "addMemberIds": "Enter contact IDs separated by commas:"
+      },
+      "toast": {
+        "loadFailed": "Failed to load tags",
+        "createSucceeded": "Tag created",
+        "createFailed": "Failed to create tag",
+        "renameSucceeded": "Tag renamed",
+        "renameFailed": "Failed to rename tag",
+        "deleteSucceeded": "Tag deleted",
+        "deleteFailed": "Failed to delete tag",
+        "addMembersSucceeded": "Added {{count}} members to this tag",
+        "addMembersFailed": "Failed to add tag members"
       }
     },
     "groups": {
@@ -101,6 +127,7 @@
       "statusAdded": "Added",
       "statusCancelled": "Withdrawn",
       "statusRejected": "Rejected",
+      "empty": "No new friend requests",
       "toast": {
         "loadFailed": "Failed to load friend requests",
         "acceptSucceeded": "Friend request accepted",
@@ -126,6 +153,7 @@
     },
     "detail": {
       "addToBlacklist": "Add to blacklist",
+      "removeFromBlacklist": "Remove from blacklist",
       "basicInfo": "Basic Info",
       "chatId": "Chat ID",
       "company": "Company",
@@ -148,6 +176,8 @@
       "toast": {
         "blacklisted": "Added to blacklist",
         "blacklistFailed": "Blacklist update failed",
+        "unblacklisted": "Removed from blacklist",
+        "unblacklistFailed": "Failed to remove from blacklist",
         "chatIdCopied": "Chat ID copied",
         "chatIdNotReady": "Chat ID is not ready. Please try again.",
         "deleted": "Contact deleted",
@@ -412,6 +442,12 @@
         "operationFailed": "Conversation action failed",
         "markReadFailed": "Mark as read failed"
       },
+      "confirm": {
+        "deleteTitle": "Delete conversation?",
+        "deleteMessage": "This will remove \"{{name}}\" from your conversation list.",
+        "leaveGroupTitle": "Leave group?",
+        "leaveGroupMessage": "You will leave \"{{name}}\" and stop receiving new messages."
+      },
       "time": {
         "yesterday": "Yesterday"
       },
@@ -485,18 +521,30 @@
       },
       "recalledPlaceholder": "This message was recalled",
       "editedIndicator": "(edited)",
+      "sendState": {
+        "pending": "Sending…",
+        "retry": "Retry send"
+      },
+      "confirm": {
+        "deleteTitle": "Delete messages?",
+        "deleteMessage": "Delete {{count}} selected message(s)? This only removes them on your side."
+      },
       "toast": {
         "loadFailed": "Failed to load messages",
         "deleteSuccess": "Message deleted",
         "deleteManySuccess": "Deleted {{count}} messages",
+        "deletePartial": "Deleted {{succeeded}} message(s); {{failed}} failed",
         "deleteFailed": "Failed to delete message",
         "openGroupFailed": "Failed to open group chat",
         "copySuccess": "Copied",
+        "copyEmpty": "Nothing to copy",
+        "copyFailed": "Failed to copy",
         "favoriteSuccess": "Added to favorites",
         "favoriteFailed": "Failed to add favorite",
         "reactionFailed": "Failed to update reaction",
         "recallSuccess": "Message recalled",
-        "recallFailed": "Failed to recall message"
+        "recallFailed": "Failed to recall message",
+        "retryFailed": "Failed to resend message"
       }
     },
     "messageItems": {
@@ -780,6 +828,7 @@
       },
       "actions": {
         "cancel": "Cancel",
+        "confirm": "Confirm",
         "search": "Search",
         "createWithCount": "Create ({{count}})",
         "creating": "Creating...",

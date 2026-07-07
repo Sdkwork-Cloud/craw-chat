@@ -40,6 +40,7 @@ import {
   ALL_APP_MODULES,
   DEFAULT_SIDEBAR_MODULES,
   ALWAYS_CONFIGURABLE_MODULES,
+  isCommercialRuntimeModule,
 } from "../services/SettingsService";
 import {
   getSystemNotificationPermission,
@@ -387,9 +388,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               const allAvailable = configuredAvailable.filter(
                                 (mod) =>
                                   mod.id === "chat" ||
-                                  (DEFAULT_SIDEBAR_MODULES as readonly string[]).includes(mod.id) ||
-                                  (ALWAYS_CONFIGURABLE_MODULES as ReadonlySet<string>).has(mod.id) ||
-                                  serverModules.includes(mod.id),
+                                  (isCommercialRuntimeModule(mod.id) &&
+                                    ((DEFAULT_SIDEBAR_MODULES as readonly string[]).includes(mod.id) ||
+                                      (ALWAYS_CONFIGURABLE_MODULES as ReadonlySet<string>).has(mod.id) ||
+                                      serverModules.includes(mod.id))),
                               );
 
                               const currentModules =

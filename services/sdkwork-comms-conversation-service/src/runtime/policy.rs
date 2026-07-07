@@ -21,9 +21,11 @@ fn is_member_posting_restricted(member: &ConversationMember) -> bool {
         return false;
     }
     match member.attributes.get("muteUntil") {
-        Some(mute_until) if !mute_until.trim().is_empty() => DateTime::parse_from_rfc3339(mute_until)
-            .map(|deadline| deadline > Utc::now())
-            .unwrap_or(true),
+        Some(mute_until) if !mute_until.trim().is_empty() => {
+            DateTime::parse_from_rfc3339(mute_until)
+                .map(|deadline| deadline > Utc::now())
+                .unwrap_or(true)
+        }
         _ => true,
     }
 }
@@ -251,34 +253,34 @@ pub(super) fn ensure_member_add_request_allowed(
                 )));
             }
             match actor_member.role {
-            MembershipRole::Owner => {
-                if matches!(requested_role, MembershipRole::Owner) {
-                    return Err(RuntimeError::PermissionDenied(
-                        "group conversation does not support creating a second owner".into(),
-                    ));
-                }
+                MembershipRole::Owner => {
+                    if matches!(requested_role, MembershipRole::Owner) {
+                        return Err(RuntimeError::PermissionDenied(
+                            "group conversation does not support creating a second owner".into(),
+                        ));
+                    }
 
-                Ok(())
-            }
-            MembershipRole::Admin => {
-                if matches!(
-                    requested_role,
-                    MembershipRole::Member | MembershipRole::Guest
-                ) {
-                    return Ok(());
+                    Ok(())
                 }
+                MembershipRole::Admin => {
+                    if matches!(
+                        requested_role,
+                        MembershipRole::Member | MembershipRole::Guest
+                    ) {
+                        return Ok(());
+                    }
 
-                Err(RuntimeError::PermissionDenied(format!(
-                    "admin member {} cannot assign elevated role",
+                    Err(RuntimeError::PermissionDenied(format!(
+                        "admin member {} cannot assign elevated role",
+                        actor_member.principal_id
+                    )))
+                }
+                _ => Err(RuntimeError::PermissionDenied(format!(
+                    "member {} cannot add members",
                     actor_member.principal_id
-                )))
+                ))),
             }
-            _ => Err(RuntimeError::PermissionDenied(format!(
-                "member {} cannot add members",
-                actor_member.principal_id
-            ))),
         }
-        },
         ConversationScenario::Direct => {
             if conversation.roster.active_principal_count() >= 2 {
                 return Err(RuntimeError::PermissionDenied(
@@ -529,11 +531,7 @@ pub(super) fn ensure_message_edit_allowed(
         )));
     }
     if message.sender.id == actor_id {
-        ensure_message_mutation_within_ttl(
-            message,
-            resolve_message_edit_ttl_secs(),
-            "edit",
-        )?;
+        ensure_message_mutation_within_ttl(message, resolve_message_edit_ttl_secs(), "edit")?;
         return Ok(());
     }
 
@@ -557,11 +555,7 @@ pub(super) fn ensure_message_recall_allowed(
         )));
     }
     if message.sender.id == actor_id {
-        ensure_message_mutation_within_ttl(
-            message,
-            resolve_message_recall_ttl_secs(),
-            "recall",
-        )?;
+        ensure_message_mutation_within_ttl(message, resolve_message_recall_ttl_secs(), "recall")?;
         return Ok(());
     }
 
@@ -836,12 +830,9 @@ pub(super) fn ensure_room_enter_allowed(
     conversation: &ConversationState,
     room_kind: RoomKind,
 ) -> Result<(), RuntimeError> {
-    let binding = conversation
-        .aggregate
-        .business_binding()
-        .ok_or_else(|| RuntimeError::ConversationBindingNotFound(
-            "room enter requires a business binding".into(),
-        ))?;
+    let binding = conversation.aggregate.business_binding().ok_or_else(|| {
+        RuntimeError::ConversationBindingNotFound("room enter requires a business binding".into())
+    })?;
     if !is_room_business_type(binding.business_type.as_str()) {
         return Err(RuntimeError::InvalidInput(format!(
             "conversation business type {} is not a room binding",
@@ -883,7 +874,9 @@ pub(super) fn ensure_room_message_post_allowed(
     Ok(())
 }
 
-fn ensure_live_room_message_rate_allowed(actor_member: &ConversationMember) -> Result<(), RuntimeError> {
+fn ensure_live_room_message_rate_allowed(
+    actor_member: &ConversationMember,
+) -> Result<(), RuntimeError> {
     use std::collections::BTreeMap;
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
@@ -921,7 +914,8 @@ fn ensure_live_room_message_rate_allowed(actor_member: &ConversationMember) -> R
         .expect("live room rate limiter should lock");
 
     if let Some((count, window_start)) = state.buckets.get_mut(key.as_str()) {
-        if now.duration_since(*window_start) > Duration::from_millis(LIVE_ROOM_MESSAGE_RATE_WINDOW_MS)
+        if now.duration_since(*window_start)
+            > Duration::from_millis(LIVE_ROOM_MESSAGE_RATE_WINDOW_MS)
         {
             *count = 0;
             *window_start = now;

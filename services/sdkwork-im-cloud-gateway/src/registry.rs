@@ -173,10 +173,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
             .iter()
             .map(|segment| format!("/app/v3/api/{segment}/{{*path}}"))
             .collect();
-        let commerce_paths: Vec<&str> = commerce_path_patterns
-            .iter()
-            .map(String::as_str)
-            .collect();
+        let commerce_paths: Vec<&str> = commerce_path_patterns.iter().map(String::as_str).collect();
         entries.extend(prefix_routes(
             service_id,
             all_http_methods(),
@@ -206,10 +203,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         .iter()
         .map(|segment| format!("/app/v3/api/{segment}/{{*path}}"))
         .collect();
-    let course_paths: Vec<&str> = course_path_patterns
-        .iter()
-        .map(String::as_str)
-        .collect();
+    let course_paths: Vec<&str> = course_path_patterns.iter().map(String::as_str).collect();
     entries.extend(prefix_routes(
         "sdkwork-course-app-api",
         all_http_methods(),

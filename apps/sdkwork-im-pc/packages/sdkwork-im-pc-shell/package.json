@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "@sdkwork/course-pc-course": "workspace:*",
-    "@sdkwork/drive-pc-drive": "workspace:*",
-    "@sdkwork/im-pc-approvals": "workspace:*",
+    "@sdkwork/drive-pc-drive": "workspace:sdkwork-drive-pc-drive@*",
     "@sdkwork/im-pc-attendance": "workspace:*",
     "@sdkwork/im-pc-calendar": "workspace:*",
     "@sdkwork/im-pc-community": "workspace:*",

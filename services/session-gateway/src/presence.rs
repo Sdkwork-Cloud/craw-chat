@@ -1,5 +1,6 @@
 use sdkwork_im_contract_control::{
-    PresenceStateRecord, PresenceStateStore, normalize_realtime_organization_id,
+    ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
+    normalize_realtime_organization_id,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_runtime_link::decide_resume;
@@ -10,7 +11,7 @@ use im_app_context::AppContext;
 use im_domain_core::presence::{
     PresenceClientView, PresenceResumeView, PresenceSnapshotView, PresenceStatus,
 };
-use im_time::{rfc3339_cmp, rfc3339_gt, rfc3339_le, utc_now_rfc3339_millis};
+use im_time::{rfc3339_gt, rfc3339_le, utc_now_rfc3339_millis};
 
 use crate::principal_scope::{typed_client_route_scope_key, typed_principal_scope_key};
 
@@ -134,17 +135,10 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
             return Ok(Vec::new());
         }
         let state = lock_presence_mutex(&self.state, "presence state store");
-        let mut stale_keys = state
+        Ok(state
             .online_by_seen_at
             .iter()
             .filter(|key| rfc3339_le(key.last_seen_at.as_str(), cutoff_seen_at))
-            .collect::<Vec<_>>();
-        stale_keys.sort_by(|left, right| {
-            rfc3339_cmp(left.last_seen_at.as_str(), right.last_seen_at.as_str())
-                .then_with(|| left.device_key.cmp(&right.device_key))
-        });
-        Ok(stale_keys
-            .into_iter()
             .take(limit)
             .filter_map(|key| state.by_device.get(key.device_key.as_str()).cloned())
             .collect())
@@ -152,30 +146,24 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        device_id: &str,
-        cutoff_seen_at: &str,
-        expired_at: &str,
+        command: ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
         let device_key = client_route_scope_key(
-            tenant_id,
-            organization_id,
-            principal_kind,
-            principal_id,
-            device_id,
+            command.tenant_id,
+            command.organization_id,
+            command.principal_kind,
+            command.principal_id,
+            command.device_id,
         );
         let mut state = lock_presence_mutex(&self.state, "presence state store");
         let Some(current) = state.by_device.get(device_key.as_str()).cloned() else {
             return Ok(None);
         };
-        if !current.is_online_seen_at_or_before(cutoff_seen_at) {
+        if !current.is_online_seen_at_or_before(command.cutoff_seen_at) {
             return Ok(None);
         }
         remove_presence_online_seen_at_index(&mut state.online_by_seen_at, &current);
-        let expired = current.into_expired_offline(expired_at);
+        let expired = current.into_expired_offline(command.expired_at);
         insert_presence_online_seen_at_index(
             &mut state.online_by_seen_at,
             device_key.as_str(),
@@ -468,15 +456,15 @@ impl PresenceRuntime {
 
             let expired_record = self
                 .state_store
-                .expire_online_state_if_seen_at_or_before(
-                    record.tenant_id.as_str(),
-                    record.organization_id.as_str(),
-                    record.principal_kind.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
+                .expire_online_state_if_seen_at_or_before(ExpireOnlinePresenceStateCommand {
+                    tenant_id: record.tenant_id.as_str(),
+                    organization_id: record.organization_id.as_str(),
+                    principal_kind: record.principal_kind.as_str(),
+                    principal_id: record.principal_id.as_str(),
+                    device_id: record.device_id.as_str(),
                     cutoff_seen_at,
                     expired_at,
-                )
+                })
                 .map_err(PresenceRuntimeError::presence_store)?;
             let Some(expired_record) = expired_record else {
                 continue;

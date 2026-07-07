@@ -5,8 +5,6 @@ info:
   description: >-
     IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, social IM flows,
     and communication spaces.
-
-    Derived sdkgen input excludes the realtime websocket upgrade route. Websocket transport stays manual-owned.
 tags:
   - name: presence
   - name: realtime
@@ -20,7 +18,7 @@ paths:
     post:
       tags:
         - presence
-      operationId: presence.heartbeat.create
+      operationId: presence.heartbeat
       summary: Publish current client route presence heartbeat
       requestBody:
         required: true
@@ -265,7 +263,7 @@ paths:
       operationId: realtime.events.list
       summary: List pending realtime events
       parameters:
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -351,8 +349,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateRtcSessionRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -741,8 +739,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PostRtcSignalRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -807,8 +805,8 @@ paths:
             schema:
               $ref: '#/components/schemas/IssueRtcParticipantCredentialRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -864,7 +862,7 @@ paths:
       summary: Search social users
       parameters:
         - $ref: '#/components/parameters/QQuery'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -946,7 +944,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/DirectionQuery'
         - $ref: '#/components/parameters/StatusQuery'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -954,40 +952,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - items
-                          - pageInfo
-                        properties:
-                          items:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/FriendRequest'
-                          pageInfo:
-                            type: object
-                            additionalProperties: false
-                            required:
-                              - mode
-                              - hasMore
-                            properties:
-                              mode:
-                                type: string
-                                enum:
-                                  - cursor
-                              nextCursor:
-                                type:
-                                  - string
-                                  - 'null'
-                              hasMore:
-                                type: boolean
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '400':
           description: HTTP 400 problem
           content:
@@ -1031,8 +996,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SubmitFriendRequestRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -1084,7 +1049,7 @@ paths:
     get:
       tags:
         - social
-      operationId: social.friendRequests.pendingCount
+      operationId: social.friendRequests.pending.count.retrieve
       summary: Retrieve pending incoming friend request count
       responses:
         '200':
@@ -1136,16 +1101,16 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/social/friend_requests/{requestId}/accept:
+  /im/v3/api/social/friend_requests/{friendRequestId}/accept:
     parameters:
-      - $ref: '#/components/parameters/RequestIdPath'
+      - $ref: '#/components/parameters/FriendRequestIdPath'
     post:
       tags:
         - social
       operationId: social.friendRequests.accept
       summary: Accept a friend request
       parameters:
-        - $ref: '#/components/parameters/RequestIdPath'
+        - $ref: '#/components/parameters/FriendRequestIdPath'
       responses:
         '200':
           description: OK
@@ -1196,16 +1161,16 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/social/friend_requests/{requestId}/decline:
+  /im/v3/api/social/friend_requests/{friendRequestId}/decline:
     parameters:
-      - $ref: '#/components/parameters/RequestIdPath'
+      - $ref: '#/components/parameters/FriendRequestIdPath'
     post:
       tags:
         - social
       operationId: social.friendRequests.decline
       summary: Decline a friend request
       parameters:
-        - $ref: '#/components/parameters/RequestIdPath'
+        - $ref: '#/components/parameters/FriendRequestIdPath'
       responses:
         '200':
           description: OK
@@ -1256,16 +1221,16 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/social/friend_requests/{requestId}/cancel:
+  /im/v3/api/social/friend_requests/{friendRequestId}/cancel:
     parameters:
-      - $ref: '#/components/parameters/RequestIdPath'
+      - $ref: '#/components/parameters/FriendRequestIdPath'
     post:
       tags:
         - social
       operationId: social.friendRequests.cancel
       summary: Cancel a friend request
       parameters:
-        - $ref: '#/components/parameters/RequestIdPath'
+        - $ref: '#/components/parameters/FriendRequestIdPath'
       responses:
         '200':
           description: OK
@@ -1305,80 +1270,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-request-context: WebRequestContext
-      x-sdkwork-api-surface: open-api
-      x-sdkwork-owner: sdkwork-im
-      x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/social/friendships:
-    get:
-      tags:
-        - social
-      operationId: social.friendships.list
-      summary: List friendships
-      parameters:
-        - $ref: '#/components/parameters/LimitQuery'
-        - $ref: '#/components/parameters/CursorQuery'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - items
-                          - pageInfo
-                        properties:
-                          items:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Friendship'
-                          pageInfo:
-                            type: object
-                            additionalProperties: false
-                            required:
-                              - mode
-                              - hasMore
-                            properties:
-                              mode:
-                                type: string
-                                enum:
-                                  - cursor
-                              nextCursor:
-                                type:
-                                  - string
-                                  - 'null'
-                              hasMore:
-                                type: boolean
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
           content:
             application/problem+json:
               schema:
@@ -1455,16 +1346,16 @@ paths:
       tags:
         - social
       operationId: social.userBlocks.create
-      summary: Block a user in the social graph
+      summary: Block a social user
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateUserBlockRequest'
+              $ref: '#/components/schemas/BlockUserRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -1480,7 +1371,7 @@ paths:
                           - item
                         properties:
                           item:
-                            $ref: '#/components/schemas/SocialUserBlockMutationResponse'
+                            $ref: '#/components/schemas/OpenApiUserBlockResponse'
         '400':
           description: HTTP 400 problem
           content:
@@ -1501,12 +1392,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '409':
-          description: HTTP 409 problem
           content:
             application/problem+json:
               schema:
@@ -1524,29 +1409,13 @@ paths:
     delete:
       tags:
         - social
-      operationId: social.userBlocks.release
-      summary: Release an active user block
+      operationId: social.userBlocks.delete
+      summary: Release a social user block
       parameters:
         - $ref: '#/components/parameters/BlockIdPath'
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/SocialUserBlockMutationResponse'
+        '204':
+          description: No Content
         '400':
           description: HTTP 400 problem
           content:
@@ -1567,12 +1436,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '409':
-          description: HTTP 409 problem
           content:
             application/problem+json:
               schema:
@@ -1591,7 +1454,7 @@ paths:
       operationId: social.contacts.tags.list
       summary: List contact tags
       parameters:
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -1599,40 +1462,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - items
-                          - pageInfo
-                        properties:
-                          items:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/ContactTagView'
-                          pageInfo:
-                            type: object
-                            additionalProperties: false
-                            required:
-                              - mode
-                              - hasMore
-                            properties:
-                              mode:
-                                type: string
-                                enum:
-                                  - cursor
-                              nextCursor:
-                                type:
-                                  - string
-                                  - 'null'
-                              hasMore:
-                                type: boolean
+                $ref: '#/components/schemas/SdkWorkListResponse'
         '400':
           description: HTTP 400 problem
           content:
@@ -1676,8 +1506,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateContactTagRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -1799,24 +1629,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/TagIdPath'
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/DeleteContactTagResponse'
+        '204':
+          description: No Content
         '400':
           description: HTTP 400 problem
           content:
@@ -1865,8 +1679,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateContactRecommendationRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2044,7 +1858,7 @@ paths:
       operationId: contacts.list
       summary: List IM contacts
       parameters:
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -2121,10 +1935,10 @@ paths:
     get:
       tags:
         - chat
-      operationId: inbox.retrieve
-      summary: Retrieve current inbox window
+      operationId: inbox.list
+      summary: List current inbox window
       parameters:
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -2210,8 +2024,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateConversationRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2272,8 +2086,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateAgentDialogRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2334,8 +2148,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateAgentDialogRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2396,8 +2210,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateConversationRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2458,8 +2272,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateConversationRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2511,8 +2325,8 @@ paths:
     post:
       tags:
         - chat
-      operationId: conversations.directChats.bind
-      summary: Bind a direct chat conversation
+      operationId: conversations.directChats.bindings.create
+      summary: Create a direct chat conversation binding
       requestBody:
         required: true
         content:
@@ -2520,8 +2334,8 @@ paths:
             schema:
               $ref: '#/components/schemas/BindDirectChatRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -2879,7 +2693,7 @@ paths:
       summary: List conversation members
       parameters:
         - $ref: '#/components/parameters/ConversationIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -3642,7 +3456,7 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-    post:
+    patch:
       tags:
         - chat
       operationId: conversations.readCursor.update
@@ -3715,8 +3529,6 @@ paths:
       summary: List member directory
       parameters:
         - $ref: '#/components/parameters/ConversationIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
-        - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
           description: OK
@@ -3784,7 +3596,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/ConversationIdPath'
         - $ref: '#/components/parameters/AfterSeqQuery'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
       responses:
         '200':
           description: OK
@@ -3855,8 +3667,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PostMessageRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -3980,8 +3792,6 @@ paths:
       summary: List pinned messages
       parameters:
         - $ref: '#/components/parameters/ConversationIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
-        - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
           description: OK
@@ -4226,93 +4036,6 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/chat/messages/search:
-    get:
-      tags:
-        - chat
-      operationId: messages.search
-      summary: Search messages visible to the authenticated principal
-      parameters:
-        - $ref: '#/components/parameters/QQuery'
-        - $ref: '#/components/parameters/ConversationIdFilterQuery'
-        - $ref: '#/components/parameters/LimitQuery'
-        - $ref: '#/components/parameters/CursorQuery'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - items
-                          - pageInfo
-                          - totalCount
-                        properties:
-                          items:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/MessageSearchHitView'
-                          totalCount:
-                            type: integer
-                            format: int64
-                            minimum: 0
-                          pageInfo:
-                            type: object
-                            additionalProperties: false
-                            required:
-                              - mode
-                              - hasMore
-                            properties:
-                              mode:
-                                type: string
-                                enum:
-                                  - cursor
-                              nextCursor:
-                                type:
-                                  - string
-                                  - 'null'
-                              hasMore:
-                                type: boolean
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '503':
-          description: HTTP 503 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-request-context: WebRequestContext
-      x-sdkwork-api-surface: open-api
-      x-sdkwork-owner: sdkwork-im
-      x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/favorites:
     get:
       tags:
@@ -4320,7 +4043,7 @@ paths:
       operationId: messages.favorites.list
       summary: List message favorites
       parameters:
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
         - $ref: '#/components/parameters/FavoriteTypeQuery'
         - $ref: '#/components/parameters/QQuery'
@@ -4412,8 +4135,8 @@ paths:
             schema:
               $ref: '#/components/schemas/FavoriteMessageRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -4472,12 +4195,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/FavoriteIdPath'
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+        '204':
+          description: No Content
         '400':
           description: HTTP 400 problem
           content:
@@ -4520,24 +4239,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/MessageIdPath'
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/MessageVisibilityMutationResult'
+        '204':
+          description: No Content
         '400':
           description: HTTP 400 problem
           content:
@@ -4577,6 +4280,72 @@ paths:
         - chat
       operationId: messages.reactions.create
       summary: Add a message reaction
+      parameters:
+        - $ref: '#/components/parameters/MessageIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageReactionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/MessageReactionMutationResult'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
+  /im/v3/api/chat/messages/{messageId}/reactions/remove:
+    parameters:
+      - $ref: '#/components/parameters/MessageIdPath'
+    post:
+      tags:
+        - chat
+      operationId: messages.reactions.remove
+      summary: Remove a message reaction
       parameters:
         - $ref: '#/components/parameters/MessageIdPath'
       requestBody:
@@ -4635,67 +4404,13 @@ paths:
       x-sdkwork-api-surface: open-api
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-  /im/v3/api/chat/messages/{messageId}/reactions/remove:
-    parameters:
-      - $ref: '#/components/parameters/MessageIdPath'
-    post:
-      tags:
-        - chat
-      operationId: messages.reactions.delete
-      summary: Remove a message reaction
-      parameters:
-        - $ref: '#/components/parameters/MessageIdPath'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MessageReactionRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '404':
-          description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-request-context: WebRequestContext
-      x-sdkwork-api-surface: open-api
-      x-sdkwork-owner: sdkwork-im
-      x-sdkwork-api-authority: sdkwork-im.im
   /im/v3/api/chat/messages/{messageId}/pin:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
     post:
       tags:
         - chat
-      operationId: messages.pin.create
+      operationId: messages.pin
       summary: Pin a message
       parameters:
         - $ref: '#/components/parameters/MessageIdPath'
@@ -4755,7 +4470,7 @@ paths:
     post:
       tags:
         - chat
-      operationId: messages.pin.delete
+      operationId: messages.unpin
       summary: Unpin a message
       parameters:
         - $ref: '#/components/parameters/MessageIdPath'
@@ -4765,7 +4480,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SdkWorkCommandResponse'
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/MessagePinMutationResult'
         '400':
           description: HTTP 400 problem
           content:
@@ -4810,8 +4537,8 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateRoomRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -4871,8 +4598,8 @@ paths:
     get:
       tags:
         - chat
-      operationId: rooms.get
-      summary: Get room metadata and active member count
+      operationId: rooms.retrieve
+      summary: Retrieve room metadata and active member count
       parameters:
         - $ref: '#/components/parameters/RoomIdPath'
       responses:
@@ -5058,8 +4785,8 @@ paths:
             schema:
               $ref: '#/components/schemas/OpenStreamRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -5117,7 +4844,7 @@ paths:
       summary: List stream frames
       parameters:
         - $ref: '#/components/parameters/StreamIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -5204,8 +4931,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AppendStreamFrameRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -5259,7 +4986,7 @@ paths:
     post:
       tags:
         - streams
-      operationId: streams.checkpoint.create
+      operationId: streams.checkpoint
       summary: Checkpoint a stream
       parameters:
         - $ref: '#/components/parameters/StreamIdPath'
@@ -5446,8 +5173,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceCreateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -5477,7 +5204,7 @@ paths:
       operationId: spaces.list
       summary: List spaces
       parameters:
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -5515,8 +5242,8 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.get
-      summary: Get a space
+      operationId: spaces.retrieve
+      summary: Retrieve a space
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
       responses:
@@ -5608,7 +5335,7 @@ paths:
       operationId: spaces.members.list
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -5656,8 +5383,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceMemberCreateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -5686,7 +5413,7 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.members.get
+      operationId: spaces.members.retrieve
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/UserIdPath'
@@ -5714,7 +5441,7 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Get spaces members
+      summary: retrieve spaces members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
     patch:
@@ -5782,7 +5509,7 @@ paths:
       operationId: spaces.groups.list
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -5830,8 +5557,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceGroupCreateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -5860,7 +5587,7 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.groups.get
+      operationId: spaces.groups.retrieve
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/GroupIdPath'
@@ -5888,7 +5615,7 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Get spaces groups
+      summary: retrieve spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
     patch:
@@ -5949,71 +5676,6 @@ paths:
       summary: Delete spaces groups
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
-  /im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner:
-    post:
-      tags:
-        - spaces
-      operationId: spaces.groups.transferOwner
-      summary: Transfer space group ownership
-      parameters:
-        - $ref: '#/components/parameters/SpaceIdPath'
-        - $ref: '#/components/parameters/GroupIdPath'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TransferSpaceGroupOwnerRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        required:
-                          - item
-                        properties:
-                          item:
-                            $ref: '#/components/schemas/SpaceGroupView'
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '404':
-          description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-owner: sdkwork-im
-      x-sdkwork-api-authority: sdkwork-im.im
-      x-sdkwork-request-context: WebRequestContext
-      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/groups/{groupId}/members:
     get:
       tags:
@@ -6022,7 +5684,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/GroupIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -6101,7 +5763,7 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.groups.members.get
+      operationId: spaces.groups.members.retrieve
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/GroupIdPath'
@@ -6130,7 +5792,7 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Get spaces groups members
+      summary: retrieve spaces groups members
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
     patch:
@@ -6148,8 +5810,24 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceGroupMemberUpdateRequest'
       responses:
-        '204':
-          description: No Content
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/SpaceGroupMemberView'
       security:
         - AuthToken: []
           AccessToken: []
@@ -6184,7 +5862,7 @@ paths:
       operationId: spaces.channels.list
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -6232,8 +5910,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceChannelCreateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -6262,7 +5940,7 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.channels.get
+      operationId: spaces.channels.retrieve
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/ChannelIdPath'
@@ -6290,7 +5968,7 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Get spaces channels
+      summary: retrieve spaces channels
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
     patch:
@@ -6359,7 +6037,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/ChannelIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -6462,7 +6140,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/StatusQuery'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -6510,8 +6188,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceInviteCreateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -6540,7 +6218,7 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.invites.get
+      operationId: spaces.invites.retrieve
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/InviteCodePath'
@@ -6568,13 +6246,13 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Get spaces invites
+      summary: retrieve spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
-      operationId: spaces.invites.revoke
+      operationId: spaces.invites.delete
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/InviteCodePath'
@@ -6586,7 +6264,7 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Revoke spaces invites
+      summary: Delete spaces invites
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept:
@@ -6598,8 +6276,12 @@ paths:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/InviteCodePath'
       responses:
-        '204':
-          description: No Content
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SdkWorkCommandResponse'
       security:
         - AuthToken: []
           AccessToken: []
@@ -6615,7 +6297,7 @@ paths:
       operationId: spaces.bans.list
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
-        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
         - $ref: '#/components/parameters/CursorQuery'
       responses:
         '200':
@@ -6663,8 +6345,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SpaceBanCreateRequest'
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Created
           content:
             application/json:
               schema:
@@ -6693,7 +6375,7 @@ paths:
     get:
       tags:
         - spaces
-      operationId: spaces.bans.get
+      operationId: spaces.bans.retrieve
       parameters:
         - $ref: '#/components/parameters/SpaceIdPath'
         - $ref: '#/components/parameters/UserIdPath'
@@ -6721,7 +6403,7 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
-      summary: Get spaces bans
+      summary: retrieve spaces bans
       x-sdkwork-request-context: WebRequestContext
       x-sdkwork-api-surface: open-api
     delete:
@@ -6744,6 +6426,12 @@ paths:
       x-sdkwork-api-surface: open-api
 components:
   parameters:
+    BlockIdPath:
+      name: blockId
+      in: path
+      required: true
+      schema:
+        type: string
     ConversationIdPath:
       name: conversationId
       in: path
@@ -6762,20 +6450,14 @@ components:
       required: true
       schema:
         type: string
-    BlockIdPath:
-      name: blockId
-      in: path
-      required: true
-      schema:
-        type: string
     MessageIdPath:
       name: messageId
       in: path
       required: true
       schema:
         type: string
-    RequestIdPath:
-      name: requestId
+    FriendRequestIdPath:
+      name: friendRequestId
       in: path
       required: true
       schema:
@@ -6839,8 +6521,8 @@ components:
       required: false
       schema:
         $ref: '#/components/schemas/MessageFavoriteType'
-    LimitQuery:
-      name: limit
+    PageSizeQuery:
+      name: page_size
       in: query
       required: false
       schema:
@@ -6850,13 +6532,6 @@ components:
         maximum: 200
     QQuery:
       name: q
-      in: query
-      required: false
-      schema:
-        type: string
-        maxLength: 512
-    ConversationIdFilterQuery:
-      name: conversationId
       in: query
       required: false
       schema:
@@ -7637,10 +7312,6 @@ components:
         pin:
           $ref: '#/components/schemas/MessagePinView'
           nullable: true
-        readReceipt:
-          $ref: '#/components/schemas/MessageReadReceiptSummaryView'
-        deliveryReceipt:
-          $ref: '#/components/schemas/MessageDeliveryReceiptSummaryView'
       required:
         - tenantId
         - conversationId
@@ -7648,98 +7319,6 @@ components:
         - messageSeq
         - totalReactionCount
         - reactionCounts
-        - readReceipt
-        - deliveryReceipt
-    MessageDeliveryReceiptDeviceView:
-      type: object
-      additionalProperties: false
-      properties:
-        principalId:
-          type: string
-        principalKind:
-          type: string
-        memberId:
-          type: string
-        deviceId:
-          type: string
-        syncSeq:
-          type: integer
-          format: int64
-          minimum: 1
-      required:
-        - principalId
-        - principalKind
-        - memberId
-        - deviceId
-        - syncSeq
-    MessageDeliveryReceiptSummaryView:
-      type: object
-      additionalProperties: false
-      properties:
-        activeMemberCount:
-          type: integer
-          format: int64
-          minimum: 0
-        offeredCount:
-          type: integer
-          format: int64
-          minimum: 0
-        deliveredCount:
-          type: integer
-          format: int64
-          minimum: 0
-        deliveredDevices:
-          type: array
-          items:
-            $ref: '#/components/schemas/MessageDeliveryReceiptDeviceView'
-      required:
-        - activeMemberCount
-        - offeredCount
-        - deliveredCount
-        - deliveredDevices
-    MessageReadReceiptReaderView:
-      type: object
-      additionalProperties: false
-      properties:
-        principalId:
-          type: string
-        principalKind:
-          type: string
-        memberId:
-          type: string
-        readSeq:
-          type: integer
-          format: int64
-          minimum: 0
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - principalId
-        - principalKind
-        - memberId
-        - readSeq
-        - updatedAt
-    MessageReadReceiptSummaryView:
-      type: object
-      additionalProperties: false
-      properties:
-        activeMemberCount:
-          type: integer
-          format: int64
-          minimum: 0
-        readCount:
-          type: integer
-          format: int64
-          minimum: 0
-        readers:
-          type: array
-          items:
-            $ref: '#/components/schemas/MessageReadReceiptReaderView'
-      required:
-        - activeMemberCount
-        - readCount
-        - readers
     MessageReactionMutationResult:
       type: object
       additionalProperties: false
@@ -7787,38 +7366,6 @@ components:
         - messageId
         - isPinned
         - updatedAt
-    MessageVisibilityMutationResult:
-      type: object
-      additionalProperties: false
-      properties:
-        tenantId:
-          type: string
-        conversationId:
-          type: string
-        messageId:
-          type: string
-        messageSeq:
-          type: integer
-          format: int32
-          minimum: 0
-        principalKind:
-          type: string
-        principalId:
-          type: string
-        isDeleted:
-          type: boolean
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - tenantId
-        - conversationId
-        - messageId
-        - messageSeq
-        - principalKind
-        - principalId
-        - isDeleted
-        - updatedAt
     MessageFavoriteType:
       type: string
       enum:
@@ -7849,23 +7396,6 @@ components:
         - title
         - contentPreview
         - sourceDisplayName
-    MessageSearchHitView:
-      type: object
-      additionalProperties: false
-      properties:
-        conversationId:
-          type: string
-        messageId:
-          type: string
-          x-sdkwork-int64-string: true
-        messageSeq:
-          type: integer
-          format: int64
-          minimum: 1
-      required:
-        - conversationId
-        - messageId
-        - messageSeq
     MessageFavoriteView:
       type: object
       additionalProperties: false
@@ -8287,17 +7817,6 @@ components:
         border:
           type: string
           maxLength: 128
-    DeleteContactTagResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        tagId:
-          type: string
-        deleted:
-          type: boolean
-      required:
-        - tagId
-        - deleted
     ContactRecommendationView:
       type: object
       additionalProperties: false
@@ -8329,6 +7848,189 @@ components:
         targetConversationId:
           type: string
           maxLength: 128
+    BlockScope:
+      type: string
+      enum:
+        - all
+        - friendship
+        - direct_chat
+    UserBlockStatus:
+      type: string
+      enum:
+        - active
+        - released
+        - expired
+    BlockUserRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        blockedUserId:
+          type: string
+        scope:
+          $ref: '#/components/schemas/BlockScope'
+        directChatId:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - blockedUserId
+        - scope
+    UserBlock:
+      type: object
+      additionalProperties: false
+      properties:
+        tenantId:
+          type: string
+        blockId:
+          type: string
+        blockerUserId:
+          type: string
+        blockedUserId:
+          type: string
+        scope:
+          $ref: '#/components/schemas/BlockScope'
+        status:
+          $ref: '#/components/schemas/UserBlockStatus'
+        directChatId:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - tenantId
+        - blockId
+        - blockerUserId
+        - blockedUserId
+        - scope
+        - status
+        - createdAt
+        - updatedAt
+    SocialDerivedSnapshotStatus:
+      type: string
+      enum:
+        - current
+        - repair_required
+    SocialWritePersistence:
+      type: object
+      additionalProperties: false
+      properties:
+        journalAuthority:
+          type: boolean
+        snapshotStatus:
+          $ref: '#/components/schemas/SocialDerivedSnapshotStatus'
+      required:
+        - journalAuthority
+        - snapshotStatus
+    EventActor:
+      type: object
+      additionalProperties: false
+      properties:
+        actorId:
+          type: string
+        actorKind:
+          type: string
+        actorSessionId:
+          type: string
+          nullable: true
+      required:
+        - actorId
+        - actorKind
+    CommitEnvelopeResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        eventId:
+          type: string
+        tenantId:
+          type: string
+        eventType:
+          type: string
+        eventVersion:
+          type: integer
+          format: int32
+          minimum: 1
+        aggregateType:
+          type: string
+        aggregateId:
+          type: string
+        scopeType:
+          type: string
+        scopeId:
+          type: string
+        orderingKey:
+          type: string
+        orderingSeq:
+          type: integer
+          format: int64
+          minimum: 0
+        causationId:
+          type: string
+          nullable: true
+        correlationId:
+          type: string
+          nullable: true
+        idempotencyKey:
+          type: string
+          nullable: true
+        actor:
+          $ref: '#/components/schemas/EventActor'
+        occurredAt:
+          type: string
+          format: date-time
+        committedAt:
+          type: string
+          format: date-time
+        payloadSchema:
+          type: string
+          nullable: true
+        payload:
+          type: string
+        retentionClass:
+          type: string
+        auditClass:
+          type: string
+      required:
+        - eventId
+        - tenantId
+        - eventType
+        - eventVersion
+        - aggregateType
+        - aggregateId
+        - scopeType
+        - scopeId
+        - orderingKey
+        - orderingSeq
+        - actor
+        - occurredAt
+        - committedAt
+        - payload
+        - retentionClass
+        - auditClass
+    OpenApiUserBlockResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        userBlock:
+          $ref: '#/components/schemas/UserBlock'
+        latestCommit:
+          $ref: '#/components/schemas/CommitEnvelopeResponse'
+        persistence:
+          $ref: '#/components/schemas/SocialWritePersistence'
+      required:
+        - userBlock
+        - latestCommit
+        - persistence
     SocialUserSearchResult:
       type: object
       additionalProperties: false
@@ -8382,6 +8084,8 @@ components:
       properties:
         tenantId:
           type: string
+        friendRequestId:
+          type: string
         requesterUserId:
           type: string
         targetUserId:
@@ -8391,6 +8095,10 @@ components:
         requestMessage:
           type: string
           nullable: true
+        expiredAt:
+          type: string
+          format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -8399,6 +8107,7 @@ components:
           format: date-time
       required:
         - tenantId
+        - friendRequestId
         - requesterUserId
         - targetUserId
         - status
@@ -8497,185 +8206,6 @@ components:
           $ref: '#/components/schemas/Friendship'
       required:
         - friendship
-    BlockScope:
-      type: string
-      enum:
-        - all
-        - friendship
-        - direct_chat
-    UserBlockStatus:
-      type: string
-      enum:
-        - active
-        - released
-        - expired
-    UserBlock:
-      type: object
-      additionalProperties: false
-      properties:
-        tenantId:
-          type: string
-        blockId:
-          type: string
-        blockerUserId:
-          type: string
-        blockedUserId:
-          type: string
-        scope:
-          $ref: '#/components/schemas/BlockScope'
-        status:
-          $ref: '#/components/schemas/UserBlockStatus'
-        directChatId:
-          type: string
-          nullable: true
-        expiresAt:
-          type: string
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - tenantId
-        - blockId
-        - blockerUserId
-        - blockedUserId
-        - scope
-        - status
-        - createdAt
-        - updatedAt
-    CreateUserBlockRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        blockedUserId:
-          type: string
-        scope:
-          $ref: '#/components/schemas/BlockScope'
-        directChatId:
-          type: string
-          nullable: true
-        expiresAt:
-          type: string
-          nullable: true
-      required:
-        - blockedUserId
-        - scope
-    SocialEventActor:
-      type: object
-      additionalProperties: false
-      properties:
-        actorId:
-          type: string
-        actorKind:
-          type: string
-        actorSessionId:
-          type: string
-          nullable: true
-      required:
-        - actorId
-        - actorKind
-    SocialCommitEnvelope:
-      type: object
-      additionalProperties: false
-      properties:
-        eventId:
-          type: string
-        tenantId:
-          type: string
-        eventType:
-          type: string
-        eventVersion:
-          type: integer
-          format: int32
-          minimum: 0
-        aggregateType:
-          type: string
-        aggregateId:
-          type: string
-        scopeType:
-          type: string
-        scopeId:
-          type: string
-        orderingKey:
-          type: string
-        orderingSeq:
-          type: integer
-          format: int64
-          minimum: 0
-        causationId:
-          type: string
-          nullable: true
-        correlationId:
-          type: string
-          nullable: true
-        idempotencyKey:
-          type: string
-          nullable: true
-        actor:
-          $ref: '#/components/schemas/SocialEventActor'
-        occurredAt:
-          type: string
-        committedAt:
-          type: string
-        payloadSchema:
-          type: string
-          nullable: true
-        payload:
-          type: string
-        retentionClass:
-          type: string
-        auditClass:
-          type: string
-      required:
-        - eventId
-        - tenantId
-        - eventType
-        - eventVersion
-        - aggregateType
-        - aggregateId
-        - scopeType
-        - scopeId
-        - orderingKey
-        - orderingSeq
-        - actor
-        - occurredAt
-        - committedAt
-        - payload
-        - retentionClass
-        - auditClass
-    SocialDerivedSnapshotStatus:
-      type: string
-      enum:
-        - current
-        - repair_required
-    SocialWritePersistence:
-      type: object
-      additionalProperties: false
-      properties:
-        journalAuthority:
-          type: boolean
-        snapshotStatus:
-          $ref: '#/components/schemas/SocialDerivedSnapshotStatus'
-      required:
-        - journalAuthority
-        - snapshotStatus
-    SocialUserBlockMutationResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        userBlock:
-          $ref: '#/components/schemas/UserBlock'
-        latestCommit:
-          $ref: '#/components/schemas/SocialCommitEnvelope'
-        persistence:
-          $ref: '#/components/schemas/SocialWritePersistence'
-      required:
-        - userBlock
-        - latestCommit
-        - persistence
     CreateConversationRequest:
       type: object
       additionalProperties: false
@@ -8896,40 +8426,21 @@ components:
           type: string
         conversationId:
           type: string
-        memberId:
-          type: string
         principalId:
           type: string
-        principalKind:
-          type: string
-        deviceId:
-          type:
-            - string
-            - 'null'
         readSeq:
           type: integer
-          format: int64
+          format: int32
           minimum: 0
-        lastReadMessageId:
-          type:
-            - string
-            - 'null'
         updatedAt:
           type: string
           format: date-time
-        unreadCount:
-          type: integer
-          format: int64
-          minimum: 0
       required:
         - tenantId
         - conversationId
-        - memberId
         - principalId
-        - principalKind
         - readSeq
         - updatedAt
-        - unreadCount
     UpdateReadCursorRequest:
       type: object
       additionalProperties: false
@@ -8997,6 +8508,85 @@ components:
           type: string
       required:
         - payload
+    SdkWorkApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+        - traceId
+      properties:
+        code:
+          type: integer
+          format: int32
+          enum:
+            - 0
+          default: 0
+          minimum: 0
+          maximum: 0
+        data:
+          description: Operation-specific payload typed per response schema.
+        traceId:
+          type: string
+          format: uuid
+          description: Server-owned request correlation id.
+    SdkWorkPageData:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pageInfo
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+    SdkWorkCommandData:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+      properties:
+        accepted:
+          type: boolean
+          const: true
+        resourceId:
+          type: string
+        status:
+          type: string
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - offset
+            - cursor
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+        totalItems:
+          type: string
+          pattern: ^[0-9]+$
+        totalPages:
+          type: integer
+          minimum: 0
+        nextCursor:
+          type:
+            - string
+            - 'null'
+        hasMore:
+          type: boolean
     SdkWorkPlatformErrorCode:
       type: integer
       format: int32
@@ -9052,6 +8642,24 @@ components:
           format: int32
           minimum: 40011
           maximum: 40099
+    SdkWorkListResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkPageData'
+    SdkWorkCommandResponse:
+      allOf:
+        - $ref: '#/components/schemas/SdkWorkApiResponse'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SdkWorkCommandData'
     SpaceCreateRequest:
       type: object
       additionalProperties: false
@@ -9158,14 +8766,6 @@ components:
       required:
         - groupId
         - groupName
-    TransferSpaceGroupOwnerRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        newOwnerUserId:
-          type: string
-      required:
-        - newOwnerUserId
     SpaceGroupMemberCreateRequest:
       type: object
       additionalProperties: false
@@ -9436,80 +9036,6 @@ components:
         - streamType
         - state
       type: object
-    SdkWorkApiResponse:
-      type: object
-      additionalProperties: false
-      required:
-        - code
-        - data
-        - traceId
-      properties:
-        code:
-          type: integer
-          format: int32
-          enum:
-            - 0
-          default: 0
-          minimum: 0
-          maximum: 0
-        data:
-          description: Operation-specific payload typed per response schema.
-        traceId:
-          type: string
-          format: uuid
-          description: Server-owned request correlation id.
-    SdkWorkCommandData:
-      type: object
-      additionalProperties: false
-      required:
-        - accepted
-      properties:
-        accepted:
-          type: boolean
-          const: true
-        resourceId:
-          type: string
-        status:
-          type: string
-    PageInfo:
-      type: object
-      additionalProperties: false
-      required:
-        - mode
-      properties:
-        mode:
-          type: string
-          enum:
-            - offset
-            - cursor
-        page:
-          type: integer
-          minimum: 1
-        pageSize:
-          type: integer
-          minimum: 1
-          maximum: 200
-        totalItems:
-          type: string
-          pattern: ^[0-9]+$
-        totalPages:
-          type: integer
-          minimum: 0
-        nextCursor:
-          type:
-            - string
-            - 'null'
-        hasMore:
-          type: boolean
-    SdkWorkCommandResponse:
-      allOf:
-        - $ref: '#/components/schemas/SdkWorkApiResponse'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              $ref: '#/components/schemas/SdkWorkCommandData'
   securitySchemes:
     AuthToken:
       type: http

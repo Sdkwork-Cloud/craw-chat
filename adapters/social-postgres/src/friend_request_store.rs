@@ -6,7 +6,10 @@ use im_domain_core::social::{FriendRequest, FriendRequestStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
-use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    SocialPostgresConnectionManager, optional_postgres_timestamptz, postgres_pool_client,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
+};
 
 /// Friend request record for database storage.
 #[derive(Clone, Debug)]
@@ -21,6 +24,19 @@ pub struct FriendRequestRecord {
     pub expired_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FriendRequestInventoryQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub user_id: &'a str,
+    pub direction: &'a str,
+    pub status: Option<&'a str>,
+    pub cursor_updated_at: Option<&'a str>,
+    pub cursor_created_at: Option<&'a str>,
+    pub cursor_request_id: Option<i64>,
+    pub limit: i64,
 }
 
 impl FriendRequestRecord {
@@ -118,15 +134,7 @@ pub trait FriendRequestStore: Send + Sync {
     /// Keyset inventory page ordered by `updated_at DESC`, `created_at DESC`, `request_id ASC`.
     fn list_inventory(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        user_id: &str,
-        direction: &str,
-        status: Option<&str>,
-        cursor_updated_at: Option<&str>,
-        cursor_created_at: Option<&str>,
-        cursor_request_id: Option<i64>,
-        limit: i64,
+        query: FriendRequestInventoryQuery<'_>,
     ) -> Result<Vec<FriendRequestRecord>, ContractError>;
     fn count_pending_incoming_by_target(
         &self,
@@ -149,20 +157,20 @@ const INSERT_SQL: &str = r#"
 INSERT INTO im_friend_requests (
     tenant_id, organization_id, request_id, requester_user_id, target_user_id,
     request_message, status, expired_at, created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz, $10::timestamptz)
 ON CONFLICT (tenant_id, organization_id, request_id) DO NOTHING
 "#;
 
 const GET_BY_ID_SQL: &str = r#"
 SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
-       request_message, status, expired_at, created_at, updated_at
+       request_message, status, expired_at::text, created_at::text, updated_at::text
 FROM im_friend_requests
 WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3
 "#;
 
 const LIST_BY_REQUESTER_SQL: &str = r#"
 SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
-       request_message, status, expired_at, created_at, updated_at
+       request_message, status, expired_at::text, created_at::text, updated_at::text
 FROM im_friend_requests
 WHERE tenant_id = $1 AND organization_id = $2 AND requester_user_id = $3 AND status = $4
 ORDER BY created_at DESC
@@ -171,7 +179,7 @@ LIMIT $5
 
 const LIST_BY_TARGET_SQL: &str = r#"
 SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
-       request_message, status, expired_at, created_at, updated_at
+       request_message, status, expired_at::text, created_at::text, updated_at::text
 FROM im_friend_requests
 WHERE tenant_id = $1 AND organization_id = $2 AND target_user_id = $3 AND status = $4
 ORDER BY created_at DESC
@@ -180,7 +188,7 @@ LIMIT $5
 
 const UPDATE_STATUS_SQL: &str = r#"
 UPDATE im_friend_requests
-SET status = $4, updated_at = $5
+SET status = $4, updated_at = $5::timestamptz
 WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3 AND status = 'pending'
 "#;
 
@@ -191,13 +199,13 @@ WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3
 
 const REVERT_STATUS_SQL: &str = r#"
 UPDATE im_friend_requests
-SET status = $4, updated_at = $5
+SET status = $4, updated_at = $5::timestamptz
 WHERE tenant_id = $1 AND organization_id = $2 AND request_id = $3
 "#;
 
 const FIND_BY_PAIR_AND_STATUS_SQL: &str = r#"
 SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
-       request_message, status, expired_at, created_at, updated_at
+       request_message, status, expired_at::text, created_at::text, updated_at::text
 FROM im_friend_requests
 WHERE tenant_id = $1 AND organization_id = $2 AND requester_user_id = $3 AND target_user_id = $4 AND status = $5
 LIMIT 1
@@ -209,21 +217,21 @@ FROM im_friend_requests
 WHERE tenant_id = $1
   AND organization_id = $2
   AND requester_user_id = $3
-  AND created_at >= $4
-  AND created_at < $5
+  AND created_at >= $4::timestamptz
+  AND created_at < $5::timestamptz
 "#;
 
 const LIST_INVENTORY_INCOMING_SQL: &str = r#"
 SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
-       request_message, status, expired_at, created_at, updated_at
+       request_message, status, expired_at::text, created_at::text, updated_at::text
 FROM im_friend_requests
 WHERE tenant_id = $1 AND organization_id = $2 AND target_user_id = $3
   AND ($4::text IS NULL OR status = $4)
   AND (
-    $5::text IS NULL
-    OR updated_at < $5::text
-    OR (updated_at = $5::text AND created_at < $6::text)
-    OR (updated_at = $5::text AND created_at = $6::text AND request_id > $7)
+    $5::timestamptz IS NULL
+    OR updated_at < $5::timestamptz
+    OR (updated_at = $5::timestamptz AND created_at < $6::timestamptz)
+    OR (updated_at = $5::timestamptz AND created_at = $6::timestamptz AND request_id > $7)
   )
 ORDER BY updated_at DESC, created_at DESC, request_id ASC
 LIMIT $8
@@ -231,15 +239,32 @@ LIMIT $8
 
 const LIST_INVENTORY_OUTGOING_SQL: &str = r#"
 SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
-       request_message, status, expired_at, created_at, updated_at
+       request_message, status, expired_at::text, created_at::text, updated_at::text
 FROM im_friend_requests
 WHERE tenant_id = $1 AND organization_id = $2 AND requester_user_id = $3
   AND ($4::text IS NULL OR status = $4)
   AND (
-    $5::text IS NULL
-    OR updated_at < $5::text
-    OR (updated_at = $5::text AND created_at < $6::text)
-    OR (updated_at = $5::text AND created_at = $6::text AND request_id > $7)
+    $5::timestamptz IS NULL
+    OR updated_at < $5::timestamptz
+    OR (updated_at = $5::timestamptz AND created_at < $6::timestamptz)
+    OR (updated_at = $5::timestamptz AND created_at = $6::timestamptz AND request_id > $7)
+  )
+ORDER BY updated_at DESC, created_at DESC, request_id ASC
+LIMIT $8
+"#;
+
+const LIST_INVENTORY_ALL_SQL: &str = r#"
+SELECT tenant_id, organization_id, request_id, requester_user_id, target_user_id,
+       request_message, status, expired_at::text, created_at::text, updated_at::text
+FROM im_friend_requests
+WHERE tenant_id = $1 AND organization_id = $2
+  AND (target_user_id = $3 OR requester_user_id = $3)
+  AND ($4::text IS NULL OR status = $4)
+  AND (
+    $5::timestamptz IS NULL
+    OR updated_at < $5::timestamptz
+    OR (updated_at = $5::timestamptz AND created_at < $6::timestamptz)
+    OR (updated_at = $5::timestamptz AND created_at = $6::timestamptz AND request_id > $7)
   )
 ORDER BY updated_at DESC, created_at DESC, request_id ASC
 LIMIT $8
@@ -278,6 +303,9 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         let r = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_friend_request")?;
+            let expired_at = optional_postgres_timestamptz(r.expired_at.as_deref(), "expired_at")?;
+            let created_at = postgres_timestamptz(r.created_at.as_str(), "created_at")?;
+            let updated_at = postgres_timestamptz(r.updated_at.as_str(), "updated_at")?;
             client
                 .execute(
                     INSERT_SQL,
@@ -289,9 +317,9 @@ impl FriendRequestStore for PostgresFriendRequestStore {
                         &r.target_user_id,
                         &r.request_message,
                         &r.status,
-                        &r.expired_at,
-                        &r.created_at,
-                        &r.updated_at,
+                        &expired_at,
+                        &created_at,
+                        &updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_friend_request", e))?;
@@ -376,8 +404,12 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         let ua = updated_at.to_string();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "update_friend_request_status")?;
+            let updated_at_ts = postgres_timestamptz(ua.as_str(), "updated_at")?;
             let updated = client
-                .execute(UPDATE_STATUS_SQL, &[&tid, &oid, &request_id, &st, &ua])
+                .execute(
+                    UPDATE_STATUS_SQL,
+                    &[&tid, &oid, &request_id, &st, &updated_at_ts],
+                )
                 .map_err(|e| postgres_unavailable("update_friend_request_status", e))?;
             if updated == 0 {
                 return Err(ContractError::Conflict(
@@ -421,10 +453,11 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         let ua = updated_at.to_string();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "revert_friend_request_status")?;
+            let updated_at_ts = postgres_timestamptz(ua.as_str(), "updated_at")?;
             client
                 .execute(
                     REVERT_STATUS_SQL,
-                    &[&tid, &oid, &request_id, &st, &ua],
+                    &[&tid, &oid, &request_id, &st, &updated_at_ts],
                 )
                 .map_err(|e| postgres_unavailable("revert_friend_request_status", e))?;
             Ok(())
@@ -470,10 +503,12 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         let end = end_exclusive.to_string();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "count_friend_requests_by_requester")?;
+            let start_ts = postgres_timestamptz(start.as_str(), "start_inclusive")?;
+            let end_ts = postgres_timestamptz(end.as_str(), "end_exclusive")?;
             let row = client
                 .query_one(
                     COUNT_BY_REQUESTER_CREATED_BETWEEN_SQL,
-                    &[&tid, &oid, &rid, &start, &end],
+                    &[&tid, &oid, &rid, &start_ts, &end_ts],
                 )
                 .map_err(|e| postgres_unavailable("count_friend_requests_by_requester", e))?;
             Ok(row.get(0))
@@ -482,28 +517,23 @@ impl FriendRequestStore for PostgresFriendRequestStore {
 
     fn list_inventory(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        user_id: &str,
-        direction: &str,
-        status: Option<&str>,
-        cursor_updated_at: Option<&str>,
-        cursor_created_at: Option<&str>,
-        cursor_request_id: Option<i64>,
-        limit: i64,
+        query: FriendRequestInventoryQuery<'_>,
     ) -> Result<Vec<FriendRequestRecord>, ContractError> {
         let pool = self.pool.clone();
-        let tid = tenant_id.to_string();
-        let oid = org_id.to_string();
-        let uid = user_id.to_string();
-        let direction = direction.to_string();
-        let status = status.map(str::to_owned);
-        let cursor_updated_at = cursor_updated_at.map(str::to_owned);
-        let cursor_created_at = cursor_created_at.map(str::to_owned);
+        let tid = query.tenant_id.to_string();
+        let oid = query.organization_id.to_string();
+        let uid = query.user_id.to_string();
+        let direction = query.direction.to_string();
+        let status = query.status.map(str::to_owned);
+        let cursor_updated_at = query.cursor_updated_at.map(str::to_owned);
+        let cursor_created_at = query.cursor_created_at.map(str::to_owned);
+        let cursor_request_id = query.cursor_request_id;
+        let limit = query.limit;
         run_postgres_io(move || {
             let sql = match direction.as_str() {
                 "incoming" => LIST_INVENTORY_INCOMING_SQL,
                 "outgoing" => LIST_INVENTORY_OUTGOING_SQL,
+                "all" => LIST_INVENTORY_ALL_SQL,
                 other => {
                     return Err(ContractError::Invalid(format!(
                         "unsupported friend request inventory direction: {other}"
@@ -511,6 +541,14 @@ impl FriendRequestStore for PostgresFriendRequestStore {
                 }
             };
             let mut client = postgres_pool_client(&pool, "list_friend_request_inventory")?;
+            let cursor_updated_at_ts = optional_postgres_timestamptz(
+                cursor_updated_at.as_deref(),
+                "friend_request_inventory_cursor_updated_at",
+            )?;
+            let cursor_created_at_ts = optional_postgres_timestamptz(
+                cursor_created_at.as_deref(),
+                "friend_request_inventory_cursor_created_at",
+            )?;
             let rows = client
                 .query(
                     sql,
@@ -519,8 +557,8 @@ impl FriendRequestStore for PostgresFriendRequestStore {
                         &oid,
                         &uid,
                         &status,
-                        &cursor_updated_at,
-                        &cursor_created_at,
+                        &cursor_updated_at_ts,
+                        &cursor_created_at_ts,
                         &cursor_request_id,
                         &limit,
                     ],
@@ -543,10 +581,7 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "count_pending_friend_requests")?;
             let row = client
-                .query_one(
-                    COUNT_PENDING_INCOMING_SQL,
-                    &[&tid, &oid, &target],
-                )
+                .query_one(COUNT_PENDING_INCOMING_SQL, &[&tid, &oid, &target])
                 .map_err(|error| postgres_unavailable("count_pending_friend_requests", error))?;
             Ok(row.get(0))
         })

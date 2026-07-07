@@ -2,10 +2,12 @@
 
 use std::sync::Arc;
 
-use im_adapters_social_postgres::member_capacity::MemberInsertOutcome;
-use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
-use im_adapters_social_postgres::organization_store::{GroupMemberRecord, GroupRecord, SpaceRecord};
 use im_adapters_social_postgres::SpacePostgresMaterializer;
+use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
+use im_adapters_social_postgres::member_capacity::MemberInsertOutcome;
+use im_adapters_social_postgres::organization_store::{
+    GroupMemberRecord, GroupRecord, SpaceRecord,
+};
 use im_app_context::AppContext;
 use im_domain_events::space::{
     GroupCreatedPayload, GroupDeletedPayload, GroupMemberJoinedPayload, GroupMemberRemovedPayload,
@@ -24,6 +26,16 @@ use crate::journal_bootstrap::SpaceCommitJournal;
 pub struct SpaceWriteAuthority {
     journal: SpaceCommitJournal,
     materializer: Option<Arc<SpacePostgresMaterializer>>,
+}
+
+struct SpaceCommitBuildCommand<'a> {
+    id_generator: &'a Arc<dyn IdGenerator>,
+    auth: &'a AppContext,
+    aggregate_type: AggregateType,
+    aggregate_id: &'a str,
+    event_type: SpaceEventType,
+    occurred_at: &'a str,
+    payload_json: &'a str,
 }
 
 impl SpaceWriteAuthority {
@@ -70,24 +82,24 @@ impl SpaceWriteAuthority {
             updated_at: owner_member.updated_at.clone(),
         };
         let commits = vec![
-            self.build_commit(
+            self.build_commit(SpaceCommitBuildCommand {
                 id_generator,
                 auth,
-                AggregateType::Space,
-                record.space_id.to_string().as_str(),
-                SpaceEventType::SpaceCreated,
-                now,
-                &serde_json::to_string(&space_payload).map_err(serialize_error)?,
-            )?,
-            self.build_commit(
+                aggregate_type: AggregateType::Space,
+                aggregate_id: record.space_id.to_string().as_str(),
+                event_type: SpaceEventType::SpaceCreated,
+                occurred_at: now,
+                payload_json: &serde_json::to_string(&space_payload).map_err(serialize_error)?,
+            })?,
+            self.build_commit(SpaceCommitBuildCommand {
                 id_generator,
                 auth,
-                AggregateType::Space,
-                record.space_id.to_string().as_str(),
-                SpaceEventType::SpaceMemberJoined,
-                now,
-                &serde_json::to_string(&member_payload).map_err(serialize_error)?,
-            )?,
+                aggregate_type: AggregateType::Space,
+                aggregate_id: record.space_id.to_string().as_str(),
+                event_type: SpaceEventType::SpaceMemberJoined,
+                occurred_at: now,
+                payload_json: &serde_json::to_string(&member_payload).map_err(serialize_error)?,
+            })?,
         ];
         self.append_and_materialize(commits)
     }
@@ -107,15 +119,15 @@ impl SpaceWriteAuthority {
             settings_json: record.settings_json.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::Space,
-            record.space_id.to_string().as_str(),
-            SpaceEventType::SpaceUpdated,
-            record.updated_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::Space,
+            aggregate_id: record.space_id.to_string().as_str(),
+            event_type: SpaceEventType::SpaceUpdated,
+            occurred_at: record.updated_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -130,15 +142,15 @@ impl SpaceWriteAuthority {
             space_id: space_id.to_string(),
             deleted_at: deleted_at.to_owned(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::Space,
-            space_id.to_string().as_str(),
-            SpaceEventType::SpaceDeleted,
-            deleted_at,
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::Space,
+            aggregate_id: space_id.to_string().as_str(),
+            event_type: SpaceEventType::SpaceDeleted,
+            occurred_at: deleted_at,
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -156,15 +168,15 @@ impl SpaceWriteAuthority {
             joined_at: record.joined_at.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::Space,
-            record.space_id.to_string().as_str(),
-            SpaceEventType::SpaceMemberJoined,
-            record.joined_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::Space,
+            aggregate_id: record.space_id.to_string().as_str(),
+            event_type: SpaceEventType::SpaceMemberJoined,
+            occurred_at: record.joined_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -181,15 +193,15 @@ impl SpaceWriteAuthority {
             nickname: record.nickname.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::Space,
-            record.space_id.to_string().as_str(),
-            SpaceEventType::SpaceMemberUpdated,
-            record.updated_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::Space,
+            aggregate_id: record.space_id.to_string().as_str(),
+            event_type: SpaceEventType::SpaceMemberUpdated,
+            occurred_at: record.updated_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -206,15 +218,15 @@ impl SpaceWriteAuthority {
             user_id: user_id.to_owned(),
             removed_at: removed_at.to_owned(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::Space,
-            space_id.to_string().as_str(),
-            SpaceEventType::SpaceMemberRemoved,
-            removed_at,
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::Space,
+            aggregate_id: space_id.to_string().as_str(),
+            event_type: SpaceEventType::SpaceMemberRemoved,
+            occurred_at: removed_at,
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -239,15 +251,15 @@ impl SpaceWriteAuthority {
             created_at: record.created_at.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            record.group_id.to_string().as_str(),
-            SpaceEventType::GroupCreated,
-            record.created_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: record.group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupCreated,
+            occurred_at: record.created_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -267,15 +279,15 @@ impl SpaceWriteAuthority {
             settings_json: record.settings_json.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            record.group_id.to_string().as_str(),
-            SpaceEventType::GroupUpdated,
-            record.updated_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: record.group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupUpdated,
+            occurred_at: record.updated_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -290,15 +302,15 @@ impl SpaceWriteAuthority {
             group_id: group_id.to_string(),
             deleted_at: deleted_at.to_owned(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            group_id.to_string().as_str(),
-            SpaceEventType::GroupDeleted,
-            deleted_at,
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupDeleted,
+            occurred_at: deleted_at,
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -317,15 +329,15 @@ impl SpaceWriteAuthority {
             joined_at: record.joined_at.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            record.group_id.to_string().as_str(),
-            SpaceEventType::GroupMemberJoined,
-            record.joined_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: record.group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupMemberJoined,
+            occurred_at: record.joined_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -343,15 +355,15 @@ impl SpaceWriteAuthority {
             mute_until: record.mute_until.clone(),
             updated_at: record.updated_at.clone(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            record.group_id.to_string().as_str(),
-            SpaceEventType::GroupMemberUpdated,
-            record.updated_at.as_str(),
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: record.group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupMemberUpdated,
+            occurred_at: record.updated_at.as_str(),
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -368,15 +380,15 @@ impl SpaceWriteAuthority {
             user_id: user_id.to_owned(),
             removed_at: removed_at.to_owned(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            group_id.to_string().as_str(),
-            SpaceEventType::GroupMemberRemoved,
-            removed_at,
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupMemberRemoved,
+            occurred_at: removed_at,
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
@@ -395,29 +407,24 @@ impl SpaceWriteAuthority {
             new_owner_user_id: new_owner_user_id.to_owned(),
             transferred_at: transferred_at.to_owned(),
         };
-        let commit = self.build_commit(
+        let commit = self.build_commit(SpaceCommitBuildCommand {
             id_generator,
             auth,
-            AggregateType::ChatGroup,
-            group_id.to_string().as_str(),
-            SpaceEventType::GroupOwnerTransferred,
-            transferred_at,
-            &serde_json::to_string(&payload).map_err(serialize_error)?,
-        )?;
+            aggregate_type: AggregateType::ChatGroup,
+            aggregate_id: group_id.to_string().as_str(),
+            event_type: SpaceEventType::GroupOwnerTransferred,
+            occurred_at: transferred_at,
+            payload_json: &serde_json::to_string(&payload).map_err(serialize_error)?,
+        })?;
         self.append_and_materialize(vec![commit])
     }
 
     fn build_commit(
         &self,
-        id_generator: &Arc<dyn IdGenerator>,
-        auth: &AppContext,
-        aggregate_type: AggregateType,
-        aggregate_id: &str,
-        event_type: SpaceEventType,
-        occurred_at: &str,
-        payload_json: &str,
+        command: SpaceCommitBuildCommand<'_>,
     ) -> Result<CommitEnvelope, ApiProblem> {
-        let event_id = id_generator
+        let event_id = command
+            .id_generator
             .next_id()
             .map(|value| value.to_string())
             .map_err(|error| {
@@ -426,16 +433,16 @@ impl SpaceWriteAuthority {
             })?;
         Ok(space_commit_envelope(SpaceCommitEnvelopeInput {
             event_id: event_id.as_str(),
-            tenant_id: auth.tenant_id.as_str(),
-            organization_id: auth.organization_id.as_str(),
-            aggregate_type,
-            aggregate_id,
-            event_type,
+            tenant_id: command.auth.tenant_id.as_str(),
+            organization_id: command.auth.organization_id.as_str(),
+            aggregate_type: command.aggregate_type,
+            aggregate_id: command.aggregate_id,
+            event_type: command.event_type,
             ordering_seq: 1,
-            actor: event_actor_from_auth(auth),
-            occurred_at,
-            committed_at: occurred_at,
-            payload: payload_json,
+            actor: event_actor_from_auth(command.auth),
+            occurred_at: command.occurred_at,
+            committed_at: command.occurred_at,
+            payload: command.payload_json,
         }))
     }
 
@@ -510,7 +517,12 @@ fn journal_append_error(error: ContractError) -> ApiProblem {
     ApiProblem::dependency_unavailable("space commit journal append failed")
 }
 
-pub fn persist_space_created(state: &AppState, auth: &AppContext, record: &SpaceRecord, owner_member: &SpaceMemberRecord) -> Result<(), ApiProblem> {
+pub fn persist_space_created(
+    state: &AppState,
+    auth: &AppContext,
+    record: &SpaceRecord,
+    owner_member: &SpaceMemberRecord,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_space_created(&state.id_generator, auth, record, owner_member);
     }
@@ -524,7 +536,11 @@ pub fn persist_space_created(state: &AppState, auth: &AppContext, record: &Space
     })
 }
 
-pub fn persist_space_updated(state: &AppState, auth: &AppContext, record: &SpaceRecord) -> Result<(), ApiProblem> {
+pub fn persist_space_updated(
+    state: &AppState,
+    auth: &AppContext,
+    record: &SpaceRecord,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_space_updated(&state.id_generator, auth, record);
     }
@@ -534,13 +550,22 @@ pub fn persist_space_updated(state: &AppState, auth: &AppContext, record: &Space
     })
 }
 
-pub fn persist_space_deleted(state: &AppState, auth: &AppContext, space_id: i64, deleted_at: &str) -> Result<(), ApiProblem> {
+pub fn persist_space_deleted(
+    state: &AppState,
+    auth: &AppContext,
+    space_id: i64,
+    deleted_at: &str,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_space_deleted(&state.id_generator, auth, space_id, deleted_at);
     }
     state
         .space_store
-        .delete(auth.tenant_id.as_str(), auth.organization_id.as_str(), space_id)
+        .delete(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            space_id,
+        )
         .map_err(|error| {
             tracing::error!(error = ?error, space_id, "failed to delete space");
             ApiProblem::internal_server_error("failed to delete space")
@@ -566,12 +591,18 @@ pub fn persist_space_member_joined(
         }
         Err(error) => {
             tracing::error!(error = ?error, "failed to insert space member");
-            Err(ApiProblem::internal_server_error("failed to insert space member"))
+            Err(ApiProblem::internal_server_error(
+                "failed to insert space member",
+            ))
         }
     }
 }
 
-pub fn persist_space_member_updated(state: &AppState, auth: &AppContext, record: &SpaceMemberRecord) -> Result<(), ApiProblem> {
+pub fn persist_space_member_updated(
+    state: &AppState,
+    auth: &AppContext,
+    record: &SpaceMemberRecord,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_space_member_updated(&state.id_generator, auth, record);
     }
@@ -581,7 +612,13 @@ pub fn persist_space_member_updated(state: &AppState, auth: &AppContext, record:
     })
 }
 
-pub fn persist_space_member_removed(state: &AppState, auth: &AppContext, space_id: i64, user_id: &str, removed_at: &str) -> Result<(), ApiProblem> {
+pub fn persist_space_member_removed(
+    state: &AppState,
+    auth: &AppContext,
+    space_id: i64,
+    user_id: &str,
+    removed_at: &str,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_space_member_removed(
             &state.id_generator,
@@ -605,7 +642,12 @@ pub fn persist_space_member_removed(state: &AppState, auth: &AppContext, space_i
         })
 }
 
-pub fn persist_group_created(state: &AppState, auth: &AppContext, record: &GroupRecord, owner_member: &GroupMemberRecord) -> Result<(), ApiProblem> {
+pub fn persist_group_created(
+    state: &AppState,
+    auth: &AppContext,
+    record: &GroupRecord,
+    owner_member: &GroupMemberRecord,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_group_created(&state.id_generator, auth, record);
     }
@@ -618,7 +660,11 @@ pub fn persist_group_created(state: &AppState, auth: &AppContext, record: &Group
         })
 }
 
-pub fn persist_group_updated(state: &AppState, auth: &AppContext, record: &GroupRecord) -> Result<(), ApiProblem> {
+pub fn persist_group_updated(
+    state: &AppState,
+    auth: &AppContext,
+    record: &GroupRecord,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_group_updated(&state.id_generator, auth, record);
     }
@@ -628,13 +674,22 @@ pub fn persist_group_updated(state: &AppState, auth: &AppContext, record: &Group
     })
 }
 
-pub fn persist_group_deleted(state: &AppState, auth: &AppContext, group_id: i64, deleted_at: &str) -> Result<(), ApiProblem> {
+pub fn persist_group_deleted(
+    state: &AppState,
+    auth: &AppContext,
+    group_id: i64,
+    deleted_at: &str,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_group_deleted(&state.id_generator, auth, group_id, deleted_at);
     }
     state
         .group_store
-        .delete(auth.tenant_id.as_str(), auth.organization_id.as_str(), group_id)
+        .delete(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            group_id,
+        )
         .map_err(|error| {
             tracing::error!(error = ?error, group_id, "failed to delete group");
             ApiProblem::internal_server_error("failed to delete group")
@@ -660,12 +715,18 @@ pub fn persist_group_member_joined(
         }
         Err(error) => {
             tracing::error!(error = ?error, "failed to insert group member");
-            Err(ApiProblem::internal_server_error("failed to insert group member"))
+            Err(ApiProblem::internal_server_error(
+                "failed to insert group member",
+            ))
         }
     }
 }
 
-pub fn persist_group_member_updated(state: &AppState, auth: &AppContext, record: &GroupMemberRecord) -> Result<(), ApiProblem> {
+pub fn persist_group_member_updated(
+    state: &AppState,
+    auth: &AppContext,
+    record: &GroupMemberRecord,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_group_member_updated(&state.id_generator, auth, record);
     }
@@ -675,7 +736,13 @@ pub fn persist_group_member_updated(state: &AppState, auth: &AppContext, record:
     })
 }
 
-pub fn persist_group_member_removed(state: &AppState, auth: &AppContext, group_id: i64, user_id: &str, removed_at: &str) -> Result<(), ApiProblem> {
+pub fn persist_group_member_removed(
+    state: &AppState,
+    auth: &AppContext,
+    group_id: i64,
+    user_id: &str,
+    removed_at: &str,
+) -> Result<(), ApiProblem> {
     if let Some(authority) = state.write_authority.as_ref() {
         return authority.persist_group_member_removed(
             &state.id_generator,

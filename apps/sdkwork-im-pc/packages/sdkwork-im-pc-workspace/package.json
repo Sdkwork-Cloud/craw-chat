@@ -6,7 +6,6 @@
   "dependencies": {
     "@sdkwork/im-pc-core": "workspace:*",
     "@sdkwork/im-pc-shell": "workspace:*",
-    "@sdkwork/im-pc-chat": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
     "i18next": "catalog:",
     "lucide-react": "catalog:",

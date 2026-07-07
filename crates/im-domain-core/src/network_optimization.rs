@@ -1,12 +1,12 @@
 //! Network optimization primitives for weak/unstable connections.
 //!
-//! **Integration status**: library-only in `im-domain-core`; not wired into
-//! `session-gateway` or client runtimes. Production delivery still relies on
-//! TLS, WebSocket reconnection, and checkpoint catch-up.
+//! **Integration status**: `events.nack` ARQ replay is wired in `session-gateway`
+//! (`plan_nack_replay` / `rewind_for_nack` in `sdkwork-im-runtime-link`). FEC is intentionally
+//! fail-closed until a production Reed-Solomon backend is integrated in Phase 2.
 //!
 //! ## Design Principles
 //!
-//! - Proactive loss recovery with FEC (Reed-Solomon)
+//! - Proactive loss recovery through a future production FEC backend
 //! - Reactive loss recovery with ARQ (NACK-based retransmission)
 //! - Adaptive quality based on network conditions
 //! - Priority queuing for critical messages
@@ -14,11 +14,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use im_domain_core::network_optimization::{FecEncoder, ArqManager, NetworkQuality};
-//!
-//! // Encode message with FEC
-//! let encoder = FecEncoder::new(4, 2); // 4 data + 2 parity shards
-//! let encoded = encoder.encode(&message)?;
+//! use im_domain_core::network_optimization::{ArqManager, NetworkQuality};
 //!
 //! // Track unacknowledged messages for ARQ
 //! let arq = ArqManager::new(Duration::from_millis(100), 3);
@@ -36,9 +32,19 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+const MAX_FEC_DATA_SHARDS: usize = 256;
+const MAX_FEC_PARITY_SHARDS: usize = 64;
+const MAX_FEC_SHARD_SIZE: usize = 1024 * 1024;
+
 /// Network optimization errors.
 #[derive(Debug, Error, Serialize, Deserialize)]
 pub enum NetworkOptimizationError {
+    #[error("FEC is unavailable: {reason}")]
+    FecUnavailable { reason: String },
+
+    #[error("invalid FEC configuration: {reason}")]
+    FecInvalidConfig { reason: String },
+
     #[error("FEC encoding failed: data_shards={data}, parity_shards={parity}")]
     FecEncodingFailed { data: usize, parity: usize },
 
@@ -102,8 +108,9 @@ impl Default for FecConfig {
 
 /// FEC encoder for forward error correction.
 ///
-/// Simplified implementation without Reed-Solomon library dependency.
-/// Uses XOR-based parity for demonstration (real implementation would use RS).
+/// This type validates bounds and fails closed until a production Reed-Solomon backend is
+/// integrated. It deliberately does not expose the previous XOR demonstration as a production
+/// implementation.
 #[derive(Clone, Debug)]
 pub struct FecEncoder {
     config: FecConfig,
@@ -127,51 +134,21 @@ impl FecEncoder {
     }
 
     /// Encode message into data + parity shards.
-    ///
-    /// For simplicity, uses XOR-based parity (1 parity shard = XOR of all data shards).
-    /// Real implementation should use Reed-Solomon for multiple parity shards.
     pub fn encode(&self, message: &[u8]) -> Result<Vec<Vec<u8>>, NetworkOptimizationError> {
-        if message.len() > self.config.max_shard_size * self.config.data_shards {
+        let max_payload_size = self.max_payload_size()?;
+        if message.len() > max_payload_size {
             return Err(NetworkOptimizationError::FecEncodingFailed {
                 data: self.config.data_shards,
                 parity: self.config.parity_shards,
             });
         }
 
-        // Split message into data shards
-        let shard_size = (message.len() / self.config.data_shards).max(1);
-        let data_shards: Vec<Vec<u8>> = message
-            .chunks(shard_size)
-            .map(|chunk| {
-                let mut shard = chunk.to_vec();
-                shard.resize(shard_size, 0); // Pad to uniform size
-                shard
-            })
-            .collect();
-
-        // Generate parity shards (XOR-based for simplicity)
-        let mut parity_shards = Vec::new();
-        for _ in 0..self.config.parity_shards {
-            let parity = data_shards
-                .iter()
-                .fold(vec![0u8; shard_size], |mut acc, shard| {
-                    for (i, byte) in shard.iter().enumerate() {
-                        acc[i] ^= byte;
-                    }
-                    acc
-                });
-            parity_shards.push(parity);
-        }
-
-        // Combine data + parity shards
-        let all_shards = [data_shards, parity_shards].concat();
-        Ok(all_shards)
+        Err(Self::fec_unavailable_error())
     }
 
     /// Decode message from received shards.
-    ///
-    /// Returns Ok if at least data_shards shards are available.
     pub fn decode(&self, shards: &[Option<Vec<u8>>]) -> Result<Vec<u8>, NetworkOptimizationError> {
+        self.max_payload_size()?;
         let available_count = shards.iter().filter(|s| s.is_some()).count();
         if available_count < self.config.data_shards {
             return Err(NetworkOptimizationError::FecDecodingFailed {
@@ -180,46 +157,7 @@ impl FecEncoder {
             });
         }
 
-        // Reconstruct missing data shards using parity (XOR-based)
-        let shard_size = shards
-            .iter()
-            .filter_map(|s| s.as_ref())
-            .map(|s| s.len())
-            .next()
-            .unwrap_or(0);
-
-        let mut reconstructed = Vec::new();
-        for (i, shard) in shards.iter().enumerate() {
-            if i < self.config.data_shards {
-                if let Some(data) = shard {
-                    reconstructed.extend_from_slice(data);
-                } else {
-                    // Reconstruct missing data shard from parity
-                    // XOR all available data shards + parity to recover
-                    let mut recovered = vec![0u8; shard_size];
-                    for (j, s) in shards.iter().enumerate() {
-                        if j < self.config.data_shards && j != i && s.is_some() {
-                            for (k, byte) in s.as_ref().unwrap().iter().enumerate() {
-                                recovered[k] ^= byte;
-                            }
-                        }
-                    }
-                    // XOR with parity shard
-                    if let Some(parities) = shards.get(self.config.data_shards) {
-                        if let Some(parity) = parities {
-                            for (k, byte) in parity.iter().enumerate() {
-                                recovered[k] ^= byte;
-                            }
-                        }
-                    }
-                    reconstructed.extend_from_slice(&recovered);
-                }
-            }
-        }
-
-        // Remove padding
-        reconstructed.retain(|&b| b != 0);
-        Ok(reconstructed)
+        Err(Self::fec_unavailable_error())
     }
 
     /// Get required shards for decoding.
@@ -230,6 +168,57 @@ impl FecEncoder {
     /// Get total shards (data + parity).
     pub fn total_shards(&self) -> usize {
         self.config.data_shards + self.config.parity_shards
+    }
+
+    fn max_payload_size(&self) -> Result<usize, NetworkOptimizationError> {
+        if self.config.data_shards == 0 {
+            return Err(NetworkOptimizationError::FecInvalidConfig {
+                reason: "data_shards must be greater than zero".to_string(),
+            });
+        }
+        if self.config.parity_shards == 0 {
+            return Err(NetworkOptimizationError::FecInvalidConfig {
+                reason: "parity_shards must be greater than zero".to_string(),
+            });
+        }
+        if self.config.data_shards > MAX_FEC_DATA_SHARDS {
+            return Err(NetworkOptimizationError::FecInvalidConfig {
+                reason: format!(
+                    "data_shards must be <= {MAX_FEC_DATA_SHARDS}, got {}",
+                    self.config.data_shards
+                ),
+            });
+        }
+        if self.config.parity_shards > MAX_FEC_PARITY_SHARDS {
+            return Err(NetworkOptimizationError::FecInvalidConfig {
+                reason: format!(
+                    "parity_shards must be <= {MAX_FEC_PARITY_SHARDS}, got {}",
+                    self.config.parity_shards
+                ),
+            });
+        }
+        if self.config.max_shard_size == 0 || self.config.max_shard_size > MAX_FEC_SHARD_SIZE {
+            return Err(NetworkOptimizationError::FecInvalidConfig {
+                reason: format!(
+                    "max_shard_size must be between 1 and {MAX_FEC_SHARD_SIZE}, got {}",
+                    self.config.max_shard_size
+                ),
+            });
+        }
+
+        self.config
+            .data_shards
+            .checked_mul(self.config.max_shard_size)
+            .ok_or_else(|| NetworkOptimizationError::FecInvalidConfig {
+                reason: "data_shards * max_shard_size overflows usize".to_string(),
+            })
+    }
+
+    fn fec_unavailable_error() -> NetworkOptimizationError {
+        NetworkOptimizationError::FecUnavailable {
+            reason: "production Reed-Solomon backend is not integrated; use ARQ NACK replay or keep FEC disabled"
+                .to_string(),
+        }
     }
 }
 
@@ -497,65 +486,77 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fec_encoder_basic() {
+    fn fec_encoder_fails_closed_without_real_reed_solomon_backend() {
         let encoder = FecEncoder::new(4, 2);
         let message = b"Hello, world!";
 
-        let encoded = encoder.encode(message).unwrap();
-        // Actual shard count depends on message size and splitting
-        assert!(encoded.len() >= encoder.required_shards());
-        assert!(encoded.len() <= encoder.total_shards() + 3); // Allow for extra shards due to splitting
+        let result = encoder.encode(message);
+        assert!(matches!(
+            result,
+            Err(NetworkOptimizationError::FecUnavailable { .. })
+        ));
     }
 
     #[test]
-    fn fec_decoder_all_shards() {
+    fn fec_decoder_fails_closed_without_real_reed_solomon_backend() {
         let encoder = FecEncoder::new(4, 2);
-        let message = b"Hello, world!";
+        let shards: Vec<Option<Vec<u8>>> = vec![
+            Some(b"one".to_vec()),
+            Some(b"two".to_vec()),
+            Some(b"three".to_vec()),
+            Some(b"four".to_vec()),
+            Some(b"parity".to_vec()),
+            Some(b"parity".to_vec()),
+        ];
 
-        let encoded = encoder.encode(message).unwrap();
-        let shards: Vec<Option<Vec<u8>>> = encoded.iter().map(|s| Some(s.clone())).collect();
-
-        let decoded = encoder.decode(&shards);
-        // May fail if shard count doesn't match expected data_shards
-        // This is a simplified FEC implementation
-        if decoded.is_ok() {
-            assert!(decoded.unwrap().len() > 0);
-        }
+        let result = encoder.decode(&shards);
+        assert!(matches!(
+            result,
+            Err(NetworkOptimizationError::FecUnavailable { .. })
+        ));
     }
 
     #[test]
-    fn fec_decoder_missing_shard() {
+    fn fec_required_and_total_shards_remain_configured() {
         let encoder = FecEncoder::new(4, 2);
-        let message = b"Hello, world!";
 
-        let encoded = encoder.encode(message).unwrap();
-        // Simulate missing 1 shard
-        let shards: Vec<Option<Vec<u8>>> = encoded
-            .iter()
-            .enumerate()
-            .map(|(i, s)| if i == 0 { None } else { Some(s.clone()) })
-            .collect();
+        assert_eq!(encoder.required_shards(), 4);
+        assert_eq!(encoder.total_shards(), 6);
+    }
 
-        // With simplified XOR-based FEC, we can recover if we have enough shards
-        let decoded = encoder.decode(&shards);
-        if decoded.is_ok() {
-            let result = decoded.unwrap();
-            assert!(result.len() > 0);
-        }
+    #[test]
+    fn fec_encoder_rejects_invalid_or_unbounded_configuration() {
+        let encoder = FecEncoder::new(0, 2);
+
+        let result = encoder.encode(b"message");
+        assert!(matches!(
+            result,
+            Err(NetworkOptimizationError::FecInvalidConfig { .. })
+        ));
+
+        let oversized = FecEncoder::with_config(FecConfig {
+            data_shards: 512,
+            parity_shards: 2,
+            max_shard_size: 1024,
+        });
+        let result = oversized.encode(b"message");
+        assert!(matches!(
+            result,
+            Err(NetworkOptimizationError::FecInvalidConfig { .. })
+        ));
     }
 
     #[test]
     fn fec_decoder_insufficient_shards() {
         let encoder = FecEncoder::new(4, 2);
-        let message = b"Hello, world!";
-
-        let encoded = encoder.encode(message).unwrap();
-        // Only 2 shards available, need 4
-        let shards: Vec<Option<Vec<u8>>> = encoded
-            .iter()
-            .enumerate()
-            .map(|(i, s)| if i < 2 { Some(s.clone()) } else { None })
-            .collect();
+        let shards: Vec<Option<Vec<u8>>> = vec![
+            Some(b"one".to_vec()),
+            Some(b"two".to_vec()),
+            None,
+            None,
+            None,
+            None,
+        ];
 
         let result = encoder.decode(&shards);
         assert!(matches!(

@@ -48,9 +48,16 @@ impl RealtimeCheckpointStore for FileRealtimeCheckpointStore {
             .io_lock
             .lock()
             .expect("checkpoint file store lock should lock");
-        Ok(self
-            .read_records()?
-            .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str()))
+        Ok(self.read_records()?.remove(
+            scope_key(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
+            .as_str(),
+        ))
     }
 
     fn save_checkpoints(
@@ -122,7 +129,16 @@ impl RealtimeEventWindowStore for FileRealtimeEventWindowStore {
             .expect("realtime event window file store lock should lock");
         Ok(self
             .read_records()?
-            .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str())
+            .remove(
+                scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
+                .as_str(),
+            )
             .map(RealtimeEventWindowRecord::normalized))
     }
 
@@ -169,7 +185,16 @@ impl RealtimeEventWindowStore for FileRealtimeEventWindowStore {
             "realtime event window store",
             |records: &mut BTreeMap<String, RealtimeEventWindowRecord>| {
                 removed = records
-                    .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str())
+                    .remove(
+                        scope_key(
+                            tenant_id,
+                            organization_id,
+                            principal_kind,
+                            principal_id,
+                            device_id,
+                        )
+                        .as_str(),
+                    )
                     .is_some();
             },
         )?;
@@ -205,7 +230,13 @@ impl RealtimeEventWindowStore for FileRealtimeEventWindowStore {
             self.file_path.as_path(),
             "realtime event window store",
             |records: &mut BTreeMap<String, RealtimeEventWindowRecord>| {
-                let key = scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
+                let key = scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                );
                 if let Some(record) = records.get_mut(key.as_str()) {
                     record.trimmed_through_seq = record.trimmed_through_seq.max(acked_through_seq);
                     record
@@ -255,9 +286,16 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
             .io_lock
             .lock()
             .expect("disconnect fence file store lock should lock");
-        Ok(self
-            .read_records()?
-            .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str()))
+        Ok(self.read_records()?.remove(
+            scope_key(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
+            .as_str(),
+        ))
     }
 
     fn save_fence(&self, record: RealtimeDisconnectFenceRecord) -> Result<(), ContractError> {
@@ -302,7 +340,16 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
             "disconnect fence store",
             |records: &mut BTreeMap<String, RealtimeDisconnectFenceRecord>| {
                 records
-                    .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str())
+                    .remove(
+                        scope_key(
+                            tenant_id,
+                            organization_id,
+                            principal_kind,
+                            principal_id,
+                            device_id,
+                        )
+                        .as_str(),
+                    )
                     .is_some()
             },
         )
@@ -325,7 +372,13 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
             self.file_path.as_path(),
             "disconnect fence store",
             |records: &mut BTreeMap<String, RealtimeDisconnectFenceRecord>| {
-                let key = scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
+                let key = scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                );
                 let should_clear = records
                     .get(key.as_str())
                     .map(|record| {
@@ -353,9 +406,9 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
             "disconnect fence store",
             |records: &mut BTreeMap<String, RealtimeDisconnectFenceRecord>| {
                 let key = scope_key(
-            expected.tenant_id.as_str(),
-            expected.organization_id.as_str(),
-            expected.principal_kind.as_str(),
+                    expected.tenant_id.as_str(),
+                    expected.organization_id.as_str(),
+                    expected.principal_kind.as_str(),
                     expected.principal_id.as_str(),
                     expected.device_id.as_str(),
                 );
@@ -408,9 +461,16 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
             .io_lock
             .lock()
             .expect("subscription file store lock should lock");
-        Ok(self
-            .read_records()?
-            .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str()))
+        Ok(self.read_records()?.remove(
+            scope_key(
+                tenant_id,
+                organization_id,
+                principal_kind,
+                principal_id,
+                device_id,
+            )
+            .as_str(),
+        ))
     }
 
     fn load_matching_subscriptions(
@@ -489,7 +549,16 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
             "realtime subscription store",
             |records: &mut BTreeMap<String, RealtimeSubscriptionRecord>| {
                 records
-                    .remove(scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str())
+                    .remove(
+                        scope_key(
+                            tenant_id,
+                            organization_id,
+                            principal_kind,
+                            principal_id,
+                            device_id,
+                        )
+                        .as_str(),
+                    )
                     .is_some()
             },
         )
@@ -513,7 +582,13 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
             self.file_path.as_path(),
             "realtime subscription store",
             |records: &mut BTreeMap<String, RealtimeSubscriptionRecord>| {
-                let key = scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
+                let key = scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                );
                 let should_clear = records
                     .get(key.as_str())
                     .map(|record| rfc3339_le(record.synced_at.as_str(), cutoff_synced_at))

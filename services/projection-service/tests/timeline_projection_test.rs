@@ -1,8 +1,8 @@
 use im_app_context::AppContext;
 use im_domain_core::conversation::MembershipRole;
 use projection_service::{
-    MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
-    TimelineProjectionService, TimelineViewEntry,
+    ClientRouteSyncFeedWindowQuery, MessageReactionCountView, NotificationRecipientView,
+    RealtimeFanoutTarget, TimelineProjectionService, TimelineViewEntry,
 };
 use std::thread::sleep;
 use std::time::Duration;
@@ -28,6 +28,26 @@ fn app_context(
         actor_id: actor_id.into(),
         actor_kind: actor_kind.into(),
         device_id: device_id.map(str::to_owned),
+    }
+}
+
+fn client_route_sync_feed_query<'a>(
+    tenant_id: &'a str,
+    organization_id: &'a str,
+    principal_id: &'a str,
+    principal_kind: &'a str,
+    device_id: &'a str,
+    after_seq: Option<u64>,
+    limit: usize,
+) -> ClientRouteSyncFeedWindowQuery<'a> {
+    ClientRouteSyncFeedWindowQuery {
+        tenant_id,
+        organization_id,
+        principal_id,
+        principal_kind,
+        device_id,
+        after_seq,
+        limit,
     }
 }
 
@@ -176,8 +196,8 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
             .collect::<Vec<_>>(),
         vec![1, 2]
     );
-    assert_eq!(first.next_after_seq, Some(2));
-    assert!(first.has_more);
+    assert_eq!(first.page_info.next_cursor.as_deref(), Some("2"));
+    assert_eq!(first.page_info.has_more, Some(true));
 
     let second = service
         .timeline_window("100001", "default", "c_page", Some(2), 2)
@@ -190,8 +210,8 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
             .collect::<Vec<_>>(),
         vec![3]
     );
-    assert_eq!(second.next_after_seq, Some(3));
-    assert!(!second.has_more);
+    assert_eq!(second.page_info.next_cursor.as_deref(), Some("3"));
+    assert_eq!(second.page_info.has_more, Some(false));
 
     let auth = app_context("100001", "1", "user", None, None);
     let invalid = service
@@ -793,7 +813,9 @@ fn test_inbox_view_projects_member_summary_and_unread_count() {
         .apply(&cursor_updated)
         .expect("cursor projection should succeed");
 
-    let inbox = service.inbox_for_principal_kind("100001", "1", "user");
+    let inbox = service
+        .inbox_for_principal_kind("100001", "0", "1", "user")
+        .expect("inbox");
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].conversation_id, "c_inbox");
     assert_eq!(inbox[0].conversation_type, "group");
@@ -887,7 +909,9 @@ fn test_inbox_view_projects_direct_peer_display_from_member_attributes() {
         service.apply(event).expect("projection event should apply");
     }
 
-    let inbox = service.inbox_for_principal_kind("100001", "1015", "user");
+    let inbox = service
+        .inbox_for_principal_kind("100001", "0", "1015", "user")
+        .expect("inbox");
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].conversation_id, "c_direct_display");
     assert_eq!(inbox[0].conversation_type, "single");
@@ -1051,14 +1075,18 @@ fn test_inbox_unread_count_excludes_messages_sent_by_current_principal() {
         service.apply(event).expect("projection event should apply");
     }
 
-    let owner_inbox = service.inbox_for_principal_kind("100001", "1", "user");
+    let owner_inbox = service
+        .inbox_for_principal_kind("100001", "0", "1", "user")
+        .expect("inbox");
     assert_eq!(owner_inbox.len(), 1);
     assert_eq!(
         owner_inbox[0].unread_count, 1,
         "owner inbox should count only the friend's received message as unread"
     );
 
-    let friend_inbox = service.inbox_for_principal_kind("100001", "1017", "user");
+    let friend_inbox = service
+        .inbox_for_principal_kind("100001", "0", "1017", "user")
+        .expect("inbox");
     assert_eq!(friend_inbox.len(), 1);
     assert_eq!(
         friend_inbox[0].unread_count, 1,
@@ -1166,12 +1194,16 @@ fn test_inbox_from_auth_context_isolates_same_actor_id_by_principal_kind() {
     let user_auth = app_context("100001", "1018", "user", Some("s_typed_inbox_user"), None);
     let agent_auth = app_context("100001", "1018", "agent", Some("s_typed_inbox_agent"), None);
 
-    let user_inbox = service.inbox_from_auth_context(&user_auth);
+    let user_inbox = service
+        .inbox_from_auth_context(&user_auth)
+        .expect("user inbox");
     assert_eq!(user_inbox.len(), 1);
     assert_eq!(user_inbox[0].conversation_id, "c_typed_inbox_user");
     assert_eq!(user_inbox[0].member_id, "cm_typed_inbox_user");
 
-    let agent_inbox = service.inbox_from_auth_context(&agent_auth);
+    let agent_inbox = service
+        .inbox_from_auth_context(&agent_auth)
+        .expect("agent inbox");
     assert_eq!(agent_inbox.len(), 1);
     assert_eq!(agent_inbox[0].conversation_id, "c_typed_inbox_agent");
     assert_eq!(agent_inbox[0].member_id, "cm_typed_inbox_agent");
@@ -1269,7 +1301,7 @@ fn test_client_route_sync_feed_projects_registered_client_routes_for_message_and
         .expect("cursor projection should succeed");
 
     let feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1",
@@ -1277,7 +1309,7 @@ fn test_client_route_sync_feed_projects_registered_client_routes_for_message_and
             "d_pad",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(feed.len(), 2);
     assert_eq!(feed[0].sync_seq, 1);
@@ -1371,7 +1403,7 @@ fn test_rtc_signal_message_client_route_sync_feed_preserves_message_payload_for_
         .expect("rtc signal message projection should succeed");
 
     let feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1016",
@@ -1379,7 +1411,7 @@ fn test_rtc_signal_message_client_route_sync_feed_preserves_message_payload_for_
             "d_pad",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(feed.len(), 1);
     assert_eq!(feed[0].origin_event_type, "message.posted");
@@ -1510,7 +1542,7 @@ fn test_media_message_client_route_sync_feed_preserves_message_payload_for_state
         .expect("media message projection should succeed");
 
     let feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1016",
@@ -1518,7 +1550,7 @@ fn test_media_message_client_route_sync_feed_preserves_message_payload_for_state
             "d_pad",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(feed.len(), 1);
     assert_eq!(feed[0].origin_event_type, "message.posted");
@@ -1609,7 +1641,7 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
         .expect("agent cursor should project");
 
     let agent_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "bot",
@@ -1617,7 +1649,7 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
             "d_agent",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(agent_feed.len(), 1);
     assert_eq!(agent_feed[0].actor_id.as_deref(), Some("bot"));
@@ -1625,7 +1657,7 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
     assert_eq!(agent_feed[0].read_seq, Some(7));
 
     let system_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "bot",
@@ -1633,7 +1665,7 @@ fn test_read_cursor_client_route_sync_fanout_uses_cursor_principal_kind() {
             "d_system",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert!(
         system_feed.is_empty(),
@@ -1930,7 +1962,7 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
     }
 
     let owner_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1",
@@ -1938,7 +1970,7 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
             "d_owner",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(owner_feed.len(), 5);
     assert_eq!(
@@ -2011,7 +2043,7 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
     assert_eq!(removed_value["actorKind"], "user");
 
     let removed_principal_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1013",
@@ -2019,7 +2051,7 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
             "d_other",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(removed_principal_feed.len(), 3);
     assert_eq!(
@@ -2038,7 +2070,7 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
     assert_eq!(removed_principal_payload["state"], "removed");
 
     let leave_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1019",
@@ -2046,7 +2078,7 @@ fn test_member_governance_events_project_typed_sync_feed_deltas() {
             "d_leave",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(leave_feed.len(), 2);
     assert_eq!(leave_feed[1].origin_event_type, "conversation.member_left");
@@ -2209,7 +2241,7 @@ fn test_friendship_events_project_to_contact_client_route_sync_feeds_for_both_us
         [("1016", "d_alice", "1020"), ("1020", "d_bob", "1016")]
     {
         let feed = service
-            .client_route_sync_feed_window_for_principal_kind(
+            .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
                 "100001",
                 "default",
                 user_id,
@@ -2217,7 +2249,7 @@ fn test_friendship_events_project_to_contact_client_route_sync_feeds_for_both_us
                 device_id,
                 Some(0),
                 100,
-            )
+            ))
             .items;
         assert_eq!(
             feed.len(),
@@ -3539,7 +3571,7 @@ fn test_message_mutation_client_route_sync_fanout_uses_payload_actor_kind() {
     service.apply(&edited).expect("agent edit should project");
 
     let agent_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "bot",
@@ -3547,14 +3579,14 @@ fn test_message_mutation_client_route_sync_fanout_uses_payload_actor_kind() {
             "d_agent",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(agent_feed.len(), 1);
     assert_eq!(agent_feed[0].actor_id.as_deref(), Some("bot"));
     assert_eq!(agent_feed[0].actor_kind.as_deref(), Some("agent"));
 
     let system_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "bot",
@@ -3562,7 +3594,7 @@ fn test_message_mutation_client_route_sync_fanout_uses_payload_actor_kind() {
             "d_system",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert!(
         system_feed.is_empty(),
@@ -3913,7 +3945,7 @@ fn test_message_interaction_client_route_sync_fanout_uses_payload_actor_kind() {
         .expect("agent reaction should project");
 
     let agent_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "bot",
@@ -3921,14 +3953,14 @@ fn test_message_interaction_client_route_sync_fanout_uses_payload_actor_kind() {
             "d_agent",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(agent_feed.len(), 1);
     assert_eq!(agent_feed[0].actor_id.as_deref(), Some("bot"));
     assert_eq!(agent_feed[0].actor_kind.as_deref(), Some("agent"));
 
     let system_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "bot",
@@ -3936,7 +3968,7 @@ fn test_message_interaction_client_route_sync_fanout_uses_payload_actor_kind() {
             "d_system",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert!(
         system_feed.is_empty(),
@@ -4072,7 +4104,9 @@ fn test_agent_handoff_lifecycle_projects_into_summary_and_inbox_views() {
     assert_eq!(initial_handoff.source.id, "ag_source");
     assert_eq!(initial_handoff.target.id, "1014");
 
-    let initial_inbox = service.inbox_for_principal_kind("100001", "1014", "user");
+    let initial_inbox = service
+        .inbox_for_principal_kind("100001", "0", "1014", "user")
+        .expect("inbox");
     assert_eq!(initial_inbox.len(), 1);
     let initial_inbox_handoff = initial_inbox[0]
         .agent_handoff
@@ -4102,7 +4136,9 @@ fn test_agent_handoff_lifecycle_projects_into_summary_and_inbox_views() {
         Some("1014")
     );
 
-    let accepted_inbox = service.inbox_for_principal_kind("100001", "1014", "user");
+    let accepted_inbox = service
+        .inbox_for_principal_kind("100001", "0", "1014", "user")
+        .expect("inbox");
     let accepted_inbox_handoff = accepted_inbox[0]
         .agent_handoff
         .as_ref()
@@ -4237,7 +4273,7 @@ fn test_agent_handoff_status_change_projects_client_route_sync_entries_for_activ
         .expect("handoff accepted projection should succeed");
 
     let target_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "1014",
@@ -4245,7 +4281,7 @@ fn test_agent_handoff_status_change_projects_client_route_sync_entries_for_activ
             "d_pad",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(target_feed.len(), 1);
     assert_eq!(
@@ -4278,7 +4314,7 @@ fn test_agent_handoff_status_change_projects_client_route_sync_entries_for_activ
     assert_eq!(target_feed[0].occurred_at, "2026-04-06T11:01:00Z");
 
     let source_feed = service
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "100001",
             "default",
             "ag_source",
@@ -4286,7 +4322,7 @@ fn test_agent_handoff_status_change_projects_client_route_sync_entries_for_activ
             "d_agent",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(source_feed.len(), 1);
     assert_eq!(source_feed[0].actor_id.as_deref(), Some("1014"));

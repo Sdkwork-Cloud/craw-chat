@@ -136,7 +136,11 @@ async function main(): Promise<void> {
   const service = createSdkworkSettingsService(() => fakeClient, () => fakeAiotClient, () => 'c_pc');
 
   const serverModules = await service.getServerModules();
-  assert.deepEqual(serverModules, ['chat', 'contacts', 'agent', 'enterprise']);
+  assert.deepEqual(
+    serverModules,
+    ['chat', 'contacts', 'agent'],
+    'server module config must filter catalog-known modules that are not in COMMERCIAL_RUNTIME_MODULES',
+  );
 
   const devices = await service.getDevices();
   assert.deepEqual(devices, [

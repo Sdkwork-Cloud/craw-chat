@@ -26,7 +26,7 @@ use crate::link_framing::{
     read_framed_envelope, send_framed_control_frame, send_framed_error_and_close,
 };
 use crate::link_quic::{resolve_quic_bind_addr, spawn_quic_listener};
-use crate::link_realtime::serve_realtime_framed_session;
+use crate::link_realtime::{RealtimeFramedSessionInput, serve_realtime_framed_session};
 use crate::{ApiError, RealtimePlaneAssembly};
 
 const REALTIME_TCP_BIND_ENV: &str = "SDKWORK_IM_REALTIME_TCP_BIND_ADDR";
@@ -124,12 +124,14 @@ impl LinkTransportRuntime {
         serve_realtime_framed_session(
             recv,
             send,
-            TransportBinding::Quic1,
-            auth.context,
-            auth.device_id,
-            auth.resume_after_seq,
-            self.assembly.realtime_runtime(),
-            self.route_registration.clone(),
+            RealtimeFramedSessionInput {
+                transport: TransportBinding::Quic1,
+                auth: auth.context,
+                device_id: auth.device_id,
+                resume_after_seq: auth.resume_after_seq,
+                runtime: self.assembly.realtime_runtime(),
+                route_owner: self.route_registration.clone(),
+            },
         )
         .await
     }
@@ -281,12 +283,14 @@ impl LinkTransportRuntime {
         serve_realtime_framed_session(
             reader,
             writer,
-            TransportBinding::Tcp1,
-            auth.context,
-            auth.device_id,
-            auth.resume_after_seq,
-            self.assembly.realtime_runtime(),
-            self.route_registration.clone(),
+            RealtimeFramedSessionInput {
+                transport: TransportBinding::Tcp1,
+                auth: auth.context,
+                device_id: auth.device_id,
+                resume_after_seq: auth.resume_after_seq,
+                runtime: self.assembly.realtime_runtime(),
+                route_owner: self.route_registration.clone(),
+            },
         )
         .await
     }

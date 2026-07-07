@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::user_block_store::UserBlockRecord;
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::postgres::access::{ensure_block_owner, social_principal_user_id};
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::postgres::list_query::{ListQuery, resolve_keyset_page};
 
 #[derive(Debug, Deserialize)]
 pub struct BlockUserRequest {
@@ -63,21 +63,30 @@ pub async fn list_blocks(
     State(state): State<PostgresAppState>,
     Query(query): Query<ListQuery>,
 ) -> Response {
-    let result: ApiResult<SdkWorkPageData<BlockResponse>> = (|| {
-        let paging = resolve_list_page(&query)?;
-        let records = state
-            .user_block_store
-            .list_by_blocker(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                social_principal_user_id(&auth),
-                sql_fetch_limit(paging),
-                sql_fetch_offset(paging),
-            )
-            .map_err(|_| ApiProblem::internal_server_error("failed to list block records"))?;
-        let items = records.into_iter().map(BlockResponse::from).collect();
-        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
-    })();
+    let result: ApiResult<SdkWorkPageData<BlockResponse>> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            let paging = resolve_keyset_page(&query)?;
+            let records = state
+                .user_block_store
+                .list_by_blocker(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    social_principal_user_id(&auth),
+                    paging.cursor_created_at.as_deref(),
+                    paging.cursor_block_id,
+                    paging.fetch_limit(),
+                )
+                .map_err(|_| ApiProblem::internal_server_error("failed to list block records"))?;
+            let items: Vec<BlockResponse> = records.into_iter().map(BlockResponse::from).collect();
+            Ok(keyset_list_page(
+                items,
+                paging.page_size,
+                |item: &BlockResponse| {
+                    (item.created_at.clone(), item.block_id.parse().unwrap_or(0))
+                },
+            ))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }
 
@@ -87,16 +96,18 @@ pub async fn get_block(
     State(state): State<PostgresAppState>,
     Path(block_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<BlockResponse>> = (|| {
-        let bid: i64 = block_id.parse().unwrap_or(0);
-        let record = state
-            .user_block_store
-            .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), bid)
-            .map_err(|_| ApiProblem::internal_server_error("failed to read block record"))?
-            .ok_or_else(|| ApiProblem::not_found("block record not found"))?;
-        ensure_block_owner(&auth, &record)?;
-        Ok(resource_item(BlockResponse::from(record)))
-    })();
+    let result: ApiResult<SdkWorkResourceData<BlockResponse>> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            let bid: i64 = block_id.parse().unwrap_or(0);
+            let record = state
+                .user_block_store
+                .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), bid)
+                .map_err(|_| ApiProblem::internal_server_error("failed to read block record"))?
+                .ok_or_else(|| ApiProblem::not_found("block record not found"))?;
+            ensure_block_owner(&auth, &record)?;
+            Ok(resource_item(BlockResponse::from(record)))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }
 

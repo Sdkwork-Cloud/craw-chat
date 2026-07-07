@@ -32,6 +32,7 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
   const [isSearching, setIsSearching] = useState(false);
   const [searchNotice, setSearchNotice] = useState<{ type: 'loading' | 'empty'; message: string } | null>(null);
   const [result, setResult] = useState<AddFriendSearchResult | null>(null);
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
 
   const handleSearch = async () => {
     const normalizedQuery = searchQuery.trim();
@@ -68,6 +69,7 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
       setSearchQuery('');
       setResult(null);
       setSearchNotice(null);
+      setIsAddingFriend(false);
     }
   }, [isOpen]);
 
@@ -140,8 +142,13 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
                 </div>
               </div>
               <button
-                className="flex h-8 shrink-0 items-center gap-1 rounded bg-white/10 px-3 text-sm text-blue-400 transition-colors hover:bg-white/20"
+                disabled={isAddingFriend}
+                className="flex h-8 shrink-0 items-center gap-1 rounded bg-white/10 px-3 text-sm text-blue-400 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={async () => {
+                  if (isAddingFriend) {
+                    return;
+                  }
+                  setIsAddingFriend(true);
                   try {
                     await contactService.addFriend(result.id);
                     toast(t('contacts.addFriend.toast.requestSent', { name: result.name }), 'success');
@@ -156,11 +163,17 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
                       toast(t('contacts.addFriend.toast.requestPending'), 'info');
                       return;
                     }
+                    if (message.includes('blocked')) {
+                      toast(t('contacts.addFriend.toast.requestBlocked'), 'info');
+                      return;
+                    }
                     toast(t('contacts.addFriend.toast.requestFailed'), 'error');
+                  } finally {
+                    setIsAddingFriend(false);
                   }
                 }}
               >
-                <UserPlus size={14} />
+                {isAddingFriend ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                 {t('contacts.addFriend.add')}
               </button>
             </motion.div>

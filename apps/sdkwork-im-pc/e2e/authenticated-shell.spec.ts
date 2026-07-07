@@ -10,7 +10,18 @@ test.describe('authenticated production shell', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ items: [], hasMore: false }),
+          body: JSON.stringify({
+            code: 0,
+            data: {
+              items: [],
+              pageInfo: {
+                mode: 'cursor',
+                hasMore: false,
+                nextCursor: null,
+              },
+            },
+            traceId: 'trace.playwright.im.empty',
+          }),
         });
         return;
       }

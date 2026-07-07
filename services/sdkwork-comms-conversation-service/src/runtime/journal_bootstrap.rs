@@ -7,7 +7,7 @@ use im_adapters_redis_cache::RedisSeqAllocator;
 use im_adapters_social_postgres::user_block_store::PostgresUserBlockStore;
 use im_app_context::resolve_web_environment_from_process_env;
 use im_platform_contracts::{
-    ConversationAggregateStore, ConversationSeqAllocator, IdGenerator, MessageStore, OutboxStore,
+    ConversationAggregateStore, ConversationSeqAllocator, MessageStore, OutboxStore,
     RetentionScopeStore,
 };
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
@@ -38,6 +38,12 @@ impl CommitJournal for ConversationCommitJournal {
             Self::Memory(journal) => CommitJournal::append(journal, envelope.clone()),
             Self::Postgres(journal) => CommitJournal::append(journal, envelope.clone()),
         }?;
+        // Apply the committed event to the embedded projection read-model on a best-effort
+        // basis. The journal is the source of truth; the projection is a derived read-model
+        // that must remain eventually consistent. If the projection store is temporarily
+        // unavailable, the write must still succeed — the projection will catch up via
+        // journal replay polling. Failing the journal commit here would cause cascading 503
+        // errors (code 50301) for every message send when the projection dependency blips.
         projection_service::try_apply_commit_envelope(&envelope);
         Ok(position)
     }
@@ -50,6 +56,8 @@ impl CommitJournal for ConversationCommitJournal {
             Self::Memory(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
             Self::Postgres(journal) => CommitJournal::append_batch(journal, envelopes.clone()),
         }?;
+        // Best-effort projection apply — see `append` for rationale on decoupling the
+        // projection read-model from the journal commit path.
         for envelope in &envelopes {
             projection_service::try_apply_commit_envelope(envelope);
         }
@@ -60,6 +68,33 @@ impl CommitJournal for ConversationCommitJournal {
         match self {
             Self::Memory(journal) => CommitJournal::recorded(journal),
             Self::Postgres(journal) => CommitJournal::recorded(journal),
+        }
+    }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&sdkwork_im_contract_message::CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<sdkwork_im_contract_message::CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+            Self::Postgres(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+        }
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &sdkwork_im_contract_message::CommitJournalAggregateScope,
+        cursor: Option<&sdkwork_im_contract_message::CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<sdkwork_im_contract_message::CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
+            Self::Postgres(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
         }
     }
 }
@@ -108,7 +143,8 @@ pub fn resolve_conversation_commit_journal_from_env() -> Result<ConversationComm
     ))
 }
 
-pub fn build_conversation_runtime_from_env() -> Result<ConversationRuntime<ConversationCommitJournal>, String> {
+pub fn build_conversation_runtime_from_env()
+-> Result<ConversationRuntime<ConversationCommitJournal>, String> {
     let journal = resolve_conversation_commit_journal_from_env()?;
     let mut runtime = ConversationRuntime::new(journal.clone());
 
@@ -121,16 +157,14 @@ pub fn build_conversation_runtime_from_env() -> Result<ConversationRuntime<Conve
 
         runtime = runtime
             .with_message_store(
-                Arc::new(PostgresMessageStore::from_pool(pool.clone())) as Arc<dyn MessageStore>,
+                Arc::new(PostgresMessageStore::from_pool(pool.clone())) as Arc<dyn MessageStore>
             )
             .with_seq_allocator(seq_allocator)
             .with_outbox_store(
                 Arc::new(PostgresOutboxStore::from_pool(pool.clone())) as Arc<dyn OutboxStore>
             )
-            .with_aggregate_store(
-                Arc::new(PostgresAggregateStore::from_pool(pool.clone()))
-                    as Arc<dyn ConversationAggregateStore>,
-            )
+            .with_aggregate_store(Arc::new(PostgresAggregateStore::from_pool(pool.clone()))
+                as Arc<dyn ConversationAggregateStore>)
             .with_retention_scope_store(Arc::new(PostgresRetentionScopeStore::from_pool(pool))
                 as Arc<dyn RetentionScopeStore>)
             .with_id_generator(id_generator)

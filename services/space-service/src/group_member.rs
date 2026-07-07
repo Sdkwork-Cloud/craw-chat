@@ -5,18 +5,18 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_adapters_social_postgres::organization_store::{GroupMemberRecord, GroupRecord};
 use im_app_context::AppContext;
-use serde::{Deserialize, Serialize};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
+use serde::{Deserialize, Serialize};
 
-use crate::space_access::ensure_user_not_banned_in_space;
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::group_conversation_binder::SyncSpaceGroupMemberInput;
 use crate::http::AppState;
-use crate::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::list_query::{ListQuery, resolve_keyset_page};
+use crate::space_access::ensure_user_not_banned_in_space;
 use crate::write_authority::{
     persist_group_member_joined, persist_group_member_removed, persist_group_member_updated,
 };
@@ -76,7 +76,9 @@ fn parse_group_id(group_id: &str) -> Result<i64, ApiProblem> {
 fn normalize_member_role(role: Option<&str>, allow_owner: bool) -> Result<String, ApiProblem> {
     match role.unwrap_or("member") {
         "owner" if allow_owner => Ok("owner".to_owned()),
-        "owner" => Err(ApiProblem::bad_request("owner role cannot be assigned directly")),
+        "owner" => Err(ApiProblem::bad_request(
+            "owner role cannot be assigned directly",
+        )),
         "admin" => Ok("admin".to_owned()),
         "member" => Ok("member".to_owned()),
         "muted" => Ok("muted".to_owned()),
@@ -328,7 +330,7 @@ pub async fn list_group_members(
         let group_id = parse_group_id(group_id.as_str())?;
         let group = load_group_in_space(&state, &auth, space_id, group_id)?;
         actor_can_read_group_members(&state, &auth, &group)?;
-        let paging = resolve_list_page(&query)?;
+        let paging = resolve_keyset_page(&query)?;
 
         let records = state
             .group_member_store
@@ -336,8 +338,9 @@ pub async fn list_group_members(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 group_id,
-                sql_fetch_limit(paging),
-                sql_fetch_offset(paging),
+                paging.cursor_sort_value.as_deref(),
+                paging.cursor_entity.as_deref(),
+                paging.fetch_limit(),
             )
             .map_err(|error| {
                 tracing::error!(error = ?error, "failed to list group members");
@@ -345,7 +348,11 @@ pub async fn list_group_members(
             })?;
 
         let items = records.into_iter().map(MemberResponse::from).collect();
-        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
+        Ok(keyset_list_page(
+            items,
+            paging.page_size,
+            |item: &MemberResponse| (item.joined_at.clone(), item.user_id.clone()),
+        ))
     })();
     finish_api_json(&ctx, result)
 }
@@ -409,7 +416,9 @@ pub async fn update_group_member(
             .ok_or_else(|| ApiProblem::not_found("group member not found"))?;
 
         if record.role == "owner" || user_id == group.owner_user_id {
-            return Err(ApiProblem::forbidden("group owner membership cannot be modified"));
+            return Err(ApiProblem::forbidden(
+                "group owner membership cannot be modified",
+            ));
         }
 
         if let Some(role) = request.role.as_deref() {

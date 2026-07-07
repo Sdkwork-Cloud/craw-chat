@@ -12,3 +12,4 @@ export * from './components/AppErrorBoundary';
 export * from './components/Avatar';
 export * from './components/IconButton';
 export * from './components/MediaViewer';
+export * from './components/Toast';

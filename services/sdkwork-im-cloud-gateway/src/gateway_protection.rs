@@ -55,12 +55,16 @@ pub fn extract_client_ip(req: &Request) -> IpAddr {
         .get::<ConnectInfo<SocketAddr>>()
         .map(|connection| connection.0.ip());
     let config = TrustedProxyConfig::from_env();
-    resolve_client_ip(peer_ip, |name| {
-        req.headers()
-            .get(name)
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_owned)
-    }, &config)
+    resolve_client_ip(
+        peer_ip,
+        |name| {
+            req.headers()
+                .get(name)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned)
+        },
+        &config,
+    )
 }
 
 /// Extract client IP from headers when [`ConnectInfo`] is unavailable.
@@ -135,8 +139,8 @@ impl ClientBucket {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_refill);
         let refill_per_sec = config.max_rpm as f64 / 60.0;
-        self.tokens = (self.tokens + elapsed.as_secs_f64() * refill_per_sec)
-            .min(config.burst as f64);
+        self.tokens =
+            (self.tokens + elapsed.as_secs_f64() * refill_per_sec).min(config.burst as f64);
         self.last_refill = now;
 
         if self.tokens >= 1.0 {
@@ -347,9 +351,35 @@ pub async fn hybrid_rate_limit_middleware(
     req: Request,
     next: Next,
 ) -> Response {
-    let client_ip = extract_client_ip(&req);
+    if is_gateway_probe_path(req.uri().path()) {
+        return next.run(req).await;
+    }
 
-    if !limiter.check(GATEWAY_HTTP_RATE_SCOPE, client_ip) {
+    let client_ip = extract_client_ip(&req);
+    let scope = GATEWAY_HTTP_RATE_SCOPE;
+    // `HybridIpRateLimiter::check` may perform blocking Redis IO via
+    // `RedisFixedWindowRateLimiter::allow` (synchronous `get_connection`).
+    // Run it on the blocking pool so the async worker stays free and the
+    // gateway does not stall under load (the root cause of pending requests).
+    let blocking_limiter = limiter.clone();
+    let allowed =
+        match tokio::task::spawn_blocking(move || blocking_limiter.check(scope, client_ip)).await {
+            Ok(allowed) => allowed,
+            Err(join_error) => {
+                tracing::error!(
+                    target: "sdkwork.im.gateway",
+                    event = "im.gateway.rate_limit_blocking_failed",
+                    error = %join_error,
+                    "rate limit blocking task panicked; failing open to avoid stalling traffic"
+                );
+                // Fail open on internal panic: blocking all traffic due to a
+                // rate-limiter bug would amplify the outage. The request proceeds
+                // to downstream protections (auth, anomaly detection, etc.).
+                true
+            }
+        };
+
+    if !allowed {
         let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
 
         tracing::warn!(
@@ -379,13 +409,17 @@ pub async fn dashmap_rate_limit_middleware(
     req: Request,
     next: Next,
 ) -> Response {
+    if is_gateway_probe_path(req.uri().path()) {
+        return next.run(req).await;
+    }
+
     let client_ip = extract_client_ip(&req);
 
     if !limiter.check(client_ip) {
         // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
         // For example: 60 RPM -> 1 sec, 120 RPM -> 0.5 sec (rounded to 1), 30 RPM -> 2 sec
         let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
-        
+
         tracing::warn!(
             target: "sdkwork.im.gateway",
             event = "im.gateway.rate_limited",
@@ -413,13 +447,17 @@ pub async fn rate_limit_middleware(
     req: Request,
     next: Next,
 ) -> Response {
+    if is_gateway_probe_path(req.uri().path()) {
+        return next.run(req).await;
+    }
+
     let client_ip = extract_client_ip(&req);
 
     if !limiter.check(client_ip) {
         // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
         // For example: 60 RPM -> 1 sec, 120 RPM -> 0.5 sec (rounded to 1), 30 RPM -> 2 sec
         let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
-        
+
         tracing::warn!(
             target: "sdkwork.im.gateway",
             event = "im.gateway.rate_limited",
@@ -475,14 +513,9 @@ pub struct CircuitBreakerConfig {
 impl CircuitBreakerConfig {
     pub fn from_env() -> Self {
         Self {
-            failure_threshold: parse_env_or(
-                "SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD",
-                10,
-            ),
-            reset_timeout_secs: parse_env_or(
-                "SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS",
-                30,
-            ) as u64,
+            failure_threshold: parse_env_or("SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD", 10),
+            reset_timeout_secs: parse_env_or("SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS", 30)
+                as u64,
         }
     }
 
@@ -552,17 +585,17 @@ impl CircuitBreaker {
         match inner.state {
             CircuitState::Closed => true,
             CircuitState::Open => {
-                if let Some(opened_at) = inner.opened_at {
-                    if Instant::now().duration_since(opened_at) >= self.config.reset_duration() {
-                        inner.state = CircuitState::HalfOpen;
-                        inner.half_open_probe_in_flight = true;
-                        tracing::info!(
-                            target: "sdkwork.im.gateway",
-                            event = "im.gateway.circuit_breaker.half_open",
-                            "circuit breaker transitioning to half-open"
-                        );
-                        return true;
-                    }
+                if let Some(opened_at) = inner.opened_at
+                    && Instant::now().duration_since(opened_at) >= self.config.reset_duration()
+                {
+                    inner.state = CircuitState::HalfOpen;
+                    inner.half_open_probe_in_flight = true;
+                    tracing::info!(
+                        target: "sdkwork.im.gateway",
+                        event = "im.gateway.circuit_breaker.half_open",
+                        "circuit breaker transitioning to half-open"
+                    );
+                    return true;
                 }
                 false
             }
@@ -715,7 +748,10 @@ pub struct TenantRateLimitConfig {
 impl TenantRateLimitConfig {
     pub fn from_env() -> Self {
         Self {
-            max_rpm: parse_env_or(TENANT_RATE_LIMIT_MAX_RPM_ENV, TENANT_RATE_LIMIT_MAX_RPM_DEFAULT),
+            max_rpm: parse_env_or(
+                TENANT_RATE_LIMIT_MAX_RPM_ENV,
+                TENANT_RATE_LIMIT_MAX_RPM_DEFAULT,
+            ),
             burst: parse_env_or(TENANT_RATE_LIMIT_BURST_ENV, TENANT_RATE_LIMIT_BURST_DEFAULT),
             max_entries: parse_env_usize_or(
                 TENANT_RATE_LIMIT_MAX_ENTRIES_ENV,
@@ -803,7 +839,7 @@ pub async fn per_tenant_rate_limit_middleware(
         if !limiter.check(tenant_id.as_str()) {
             // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
             let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
-            
+
             tracing::warn!(
                 target: "sdkwork.im.gateway",
                 event = "im.gateway.tenant_rate_limited",
@@ -843,6 +879,13 @@ fn parse_env_usize_or(key: &str, default: usize) -> usize {
         .unwrap_or(default)
 }
 
+fn is_gateway_probe_path(path: &str) -> bool {
+    matches!(
+        path,
+        "/health" | "/healthz" | "/livez" | "/ready" | "/readyz" | "/metrics"
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -850,6 +893,14 @@ fn parse_env_usize_or(key: &str, default: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{
+        Router,
+        body::Body,
+        http::{Request as HttpRequest, StatusCode},
+        middleware::from_fn_with_state,
+        routing::get,
+    };
+    use tower::ServiceExt;
 
     // -- Rate limiter tests --
 
@@ -908,6 +959,32 @@ mod tests {
             bucket_count <= 4,
             "eviction should prevent unbounded growth, got {bucket_count}"
         );
+    }
+
+    #[tokio::test]
+    async fn rate_limit_middleware_exempts_health_probe_routes() {
+        let limiter = RateLimiter::new(RateLimitConfig {
+            max_rpm: 1,
+            burst: 1,
+            max_entries: 100,
+        });
+        let app = Router::new()
+            .route("/healthz", get(|| async { "ok" }))
+            .layer(from_fn_with_state(limiter, rate_limit_middleware));
+
+        for _ in 0..3 {
+            let response = app
+                .clone()
+                .oneshot(
+                    HttpRequest::builder()
+                        .uri("/healthz")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .expect("health route should respond");
+            assert_eq!(response.status(), StatusCode::OK);
+        }
     }
 
     // -- Circuit breaker tests --

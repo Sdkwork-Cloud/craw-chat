@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AckResponse, RealtimeEventAckRequest, RealtimeEventsResponse, RealtimeSubscriptionSyncRequest, RealtimeSubscriptionSyncResponse};
+use crate::models::{RealtimeEventAckRequest, RealtimeEventsAckResponse, RealtimeEventsListResponse, RealtimeSubscriptionSyncRequest, RealtimeSubscriptionsSyncResponse};
 
 #[derive(Clone)]
 pub struct RealtimeApi {
@@ -16,21 +16,21 @@ impl RealtimeApi {
     }
 
     /// Sync realtime subscription targets
-    pub async fn subscriptions_sync(&self, body: &RealtimeSubscriptionSyncRequest) -> Result<RealtimeSubscriptionSyncResponse, SdkworkError> {
+    pub async fn subscriptions_sync(&self, body: &RealtimeSubscriptionSyncRequest) -> Result<RealtimeSubscriptionsSyncResponse, SdkworkError> {
         let path = im_path(&"/realtime/subscriptions/sync".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Acknowledge realtime events
-    pub async fn events_ack(&self, body: &RealtimeEventAckRequest) -> Result<AckResponse, SdkworkError> {
+    pub async fn events_ack(&self, body: &RealtimeEventAckRequest) -> Result<RealtimeEventsAckResponse, SdkworkError> {
         let path = im_path(&"/realtime/events/ack".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List pending realtime events
-    pub async fn events_list(&self, limit: Option<i64>, cursor: Option<&str>) -> Result<RealtimeEventsResponse, SdkworkError> {
+    pub async fn events_list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<RealtimeEventsListResponse, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&"/realtime/events".to_string()), &query);

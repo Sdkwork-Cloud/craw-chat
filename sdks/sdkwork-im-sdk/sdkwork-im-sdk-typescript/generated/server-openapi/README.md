@@ -76,7 +76,7 @@ const result = await client.presence.me.retrieve();
 ```typescript
 // List pending realtime events
 const params = {
-  limit: 1,
+  page_size: 1,
   cursor: 'cursor',
 };
 const result = await client.realtime.events.list(params);
@@ -98,7 +98,7 @@ const result = await client.calls.sessions.create(body);
 
 ```typescript
 // Retrieve pending incoming friend request count
-const result = await client.social.friendRequests.pendingCount();
+const result = await client.social.friendRequests.pending.count.retrieve();
 ```
 
 ### chat
@@ -106,7 +106,7 @@ const result = await client.social.friendRequests.pendingCount();
 ```typescript
 // List IM contacts
 const params = {
-  limit: 1,
+  page_size: 1,
   cursor: 'cursor',
 };
 const result = await client.chat.contacts.list(params);
@@ -128,7 +128,7 @@ const result = await client.streams.create(body);
 ```typescript
 // List spaces
 const params = {
-  limit: 1,
+  page_size: 1,
   cursor: 'cursor',
 };
 const result = await client.spaces.list(params);

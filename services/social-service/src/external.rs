@@ -2,7 +2,6 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use sdkwork_web_core::WebRequestContext;
 use im_domain_core::social::{
     ExternalConnection, ExternalConnectionKind, ExternalConnectionStatus, ExternalMemberLink,
     ExternalMemberLinkStatus, ensure_cross_tenant_connection,
@@ -12,6 +11,7 @@ use im_domain_events::social::{
     SocialCommitEnvelopeInput, SocialEventType, social_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::api_payload::resource_item;
@@ -693,7 +693,7 @@ pub(crate) async fn establish_external_connection(
     State(state): State<AppState>,
     Json(request): Json<EstablishExternalConnectionRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let established = state.social_runtime.establish_external_connection(
             auth.tenant_id.as_str(),
             &auth,
@@ -706,8 +706,9 @@ pub(crate) async fn establish_external_connection(
             latest_commit: established.latest_commit.into(),
             persistence: established.persistence,
         }))
-    })();
-    finish_enveloped_json(&ctx, result)
+    })
+    .await;
+    crate::envelope::finish_created_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn external_connection_snapshot(
@@ -716,11 +717,11 @@ pub(crate) async fn external_connection_snapshot(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
-            .refresh_state_from_authority_for_write()?;
+            .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
             .external_connection_snapshot(auth.tenant_id.as_str(), connection_id.as_str())
@@ -736,7 +737,8 @@ pub(crate) async fn external_connection_snapshot(
             external_connection: snapshot.external_connection,
             commits: snapshot.commits.into_iter().map(Into::into).collect(),
         }))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -746,11 +748,12 @@ pub(crate) async fn bind_external_member_link(
     State(state): State<AppState>,
     Json(request): Json<BindExternalMemberLinkRequest>,
 ) -> Response {
-    let result = (|| {
-        let bound =
-            state
-                .social_runtime
-                .bind_external_member_link(auth.tenant_id.as_str(), &auth, request)?;
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
+        let bound = state.social_runtime.bind_external_member_link(
+            auth.tenant_id.as_str(),
+            &auth,
+            request,
+        )?;
 
         state
             .social_runtime
@@ -763,8 +766,9 @@ pub(crate) async fn bind_external_member_link(
             latest_commit: bound.latest_commit.into(),
             persistence: bound.persistence,
         }))
-    })();
-    finish_enveloped_json(&ctx, result)
+    })
+    .await;
+    crate::envelope::finish_created_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn external_member_link_snapshot(
@@ -773,11 +777,11 @@ pub(crate) async fn external_member_link_snapshot(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
-            .refresh_state_from_authority_for_write()?;
+            .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
             .external_member_link_snapshot(auth.tenant_id.as_str(), link_id.as_str())
@@ -793,6 +797,7 @@ pub(crate) async fn external_member_link_snapshot(
             external_member_link: snapshot.external_member_link,
             commits: snapshot.commits.into_iter().map(Into::into).collect(),
         }))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }

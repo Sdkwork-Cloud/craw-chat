@@ -67,6 +67,50 @@ function resolveDeclaredDependencyName(specifier) {
   return specifier.split('/')[0];
 }
 
+function listWorkspaceDependencyCycles() {
+  const packageByName = new Map(
+    listPackageJsonFiles().map((packageJsonPath) => {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      return [packageJson.name, packageJson];
+    }),
+  );
+  const localPackageNames = new Set(packageByName.keys());
+  const graph = new Map(
+    [...packageByName.entries()].map(([packageName, packageJson]) => [
+      packageName,
+      Object.keys(packageJson.dependencies ?? {}).filter((dependencyName) =>
+        localPackageNames.has(dependencyName),
+      ),
+    ]),
+  );
+  const cycles = [];
+  const visited = new Set();
+  const stack = [];
+
+  function visit(packageName) {
+    const activeIndex = stack.indexOf(packageName);
+    if (activeIndex >= 0) {
+      cycles.push([...stack.slice(activeIndex), packageName]);
+      return;
+    }
+    if (visited.has(packageName)) {
+      return;
+    }
+    visited.add(packageName);
+    stack.push(packageName);
+    for (const dependencyName of graph.get(packageName) ?? []) {
+      visit(dependencyName);
+    }
+    stack.pop();
+  }
+
+  for (const packageName of graph.keys()) {
+    visit(packageName);
+  }
+
+  return cycles;
+}
+
 const appPackageJson = readJson('apps/sdkwork-im-pc/package.json');
 const h5PackageJson = readJson('apps/sdkwork-im-h5/package.json');
 
@@ -154,6 +198,14 @@ for (const dependencyName of [
 }
 
 const shellPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/package.json');
+const capabilityModuleDependencySpecifiers = {
+  '@sdkwork/drive-pc-drive': 'workspace:sdkwork-drive-pc-drive@*',
+  '@sdkwork/knowledgebase-pc-knowledge': 'workspace:*',
+  '@sdkwork/course-pc-course': 'workspace:*',
+  '@sdkwork/notary-pc-notary': 'workspace:*',
+  '@sdkwork/voice-pc-market': 'workspace:*',
+  '@sdkwork/voice-pc-speech': 'workspace:*',
+};
 for (const dependencyName of [
   '@sdkwork/drive-pc-drive',
   '@sdkwork/knowledgebase-pc-knowledge',
@@ -164,10 +216,16 @@ for (const dependencyName of [
 ]) {
   assert.equal(
     shellPackageJson.dependencies?.[dependencyName],
-    'workspace:*',
+    capabilityModuleDependencySpecifiers[dependencyName],
     `@sdkwork/im-pc-shell must declare ${dependencyName} for capability module loaders`,
   );
 }
+
+assert.deepEqual(
+  listWorkspaceDependencyCycles(),
+  [],
+  'apps/sdkwork-im-pc packages must not declare circular workspace dependencies',
+);
 
 const catalogThirdPartyNames = new Set([
   'react',

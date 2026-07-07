@@ -25,7 +25,7 @@ const storedProfile = {
 const fakeClient = {
   chat: {
     inbox: {
-      async retrieve() {
+      async list() {
         return {
           items: [
             {

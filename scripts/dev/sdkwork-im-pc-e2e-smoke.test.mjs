@@ -23,7 +23,6 @@ assert.equal(
   'apps/sdkwork-im-pc/dist/server.cjs must exist; run pnpm build in apps/sdkwork-im-pc first',
 );
 
-const shell = process.platform === 'win32';
 const server = spawn(process.execPath, [serverEntry], {
   cwd: pcRoot,
   env: {
@@ -32,7 +31,6 @@ const server = spawn(process.execPath, [serverEntry], {
     PORT: '3000',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
-  shell,
 });
 
 function waitForHttpOk(url, timeoutMs = 30_000) {
@@ -64,17 +62,26 @@ function waitForHttpOk(url, timeoutMs = 30_000) {
 }
 
 function stopServer(child) {
-  if (!child || child.killed) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
     return Promise.resolve();
   }
   return new Promise((resolve) => {
-    child.once('exit', () => resolve());
+    let settled = false;
+    const settle = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve();
+    };
+    child.once('exit', settle);
     child.kill('SIGTERM');
     setTimeout(() => {
-      if (!child.killed) {
+      if (child.exitCode === null && child.signalCode === null) {
         child.kill('SIGKILL');
       }
     }, 5_000);
+    setTimeout(settle, 10_000);
   });
 }
 

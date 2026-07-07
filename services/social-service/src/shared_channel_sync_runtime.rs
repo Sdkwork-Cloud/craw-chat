@@ -11,8 +11,8 @@ use crate::runtime::{
     PendingSharedChannelSyncRequest, SocialControlState, StoredSharedChannelSyncDeliveryProof,
 };
 use crate::{
-    SharedChannelLinkedMemberSyncRequest, SharedChannelSyncDeliveryProofStatus,
-    SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD,
+    SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD, SharedChannelLinkedMemberSyncRequest,
+    SharedChannelSyncDeliveryProofStatus,
 };
 
 pub const SHARED_CHANNEL_SYNC_CLAIM_LEASE_SECONDS_DEFAULT: i64 = 300;
@@ -220,12 +220,7 @@ impl PendingSharedChannelSyncRequest {
         )
     }
 
-    pub fn takeover_eligible_for(
-        &self,
-        actor_id: &str,
-        actor_kind: &str,
-        now: &str,
-    ) -> bool {
+    pub fn takeover_eligible_for(&self, actor_id: &str, actor_kind: &str, now: &str) -> bool {
         let status = self.lease_status(now);
         let owner_id = self.owner_actor_id.as_deref().unwrap_or_default();
         let owner_kind = self.owner_actor_kind.as_deref().unwrap_or_default();
@@ -298,7 +293,11 @@ fn inventory_item_from_pending(
 impl SocialControlState {
     pub fn reclaim_stale_pending_shared_channel_sync_claims(&mut self, now: &str) -> usize {
         let mut reclaimed = 0usize;
-        let keys: Vec<String> = self.pending_shared_channel_sync_requests.keys().cloned().collect();
+        let keys: Vec<String> = self
+            .pending_shared_channel_sync_requests
+            .keys()
+            .cloned()
+            .collect();
         for request_key in keys {
             let Some(pending) = self.pending_shared_channel_sync_requests.get(&request_key) else {
                 continue;
@@ -337,8 +336,10 @@ impl SocialControlState {
         }
         crate::shared_channel_sync_metrics::shared_channel_sync_metrics()
             .record_delivery_proof_recorded();
-        self.pending_shared_channel_sync_requests.remove(&request_key);
-        self.dead_letter_shared_channel_sync_requests.remove(&request_key);
+        self.pending_shared_channel_sync_requests
+            .remove(&request_key);
+        self.dead_letter_shared_channel_sync_requests
+            .remove(&request_key);
         self.delivered_shared_channel_sync_requests
             .insert(request_key.clone(), delivered_at.to_owned());
         self.delivered_shared_channel_sync_delivery_proofs.insert(
@@ -419,15 +420,17 @@ impl SocialControlState {
         let items = self
             .delivered_shared_channel_sync_requests
             .iter()
-            .map(|(request_key, delivered_at)| SocialSharedChannelSyncDeliveredItem {
-                request_key: request_key.clone(),
-                delivered_at: delivered_at.clone(),
-                proof: self
-                    .delivered_shared_channel_sync_delivery_proofs
-                    .get(request_key)
-                    .cloned()
-                    .map(Into::into),
-            })
+            .map(
+                |(request_key, delivered_at)| SocialSharedChannelSyncDeliveredItem {
+                    request_key: request_key.clone(),
+                    delivered_at: delivered_at.clone(),
+                    proof: self
+                        .delivered_shared_channel_sync_delivery_proofs
+                        .get(request_key)
+                        .cloned()
+                        .map(Into::into),
+                },
+            )
             .collect();
         SocialSharedChannelSyncDeliveredInventoryResponse {
             status: "snapshot",
@@ -513,17 +516,7 @@ impl SocialControlState {
                 ));
             }
             let mut updated = pending;
-            if matches!(
-                status,
-                SocialSharedChannelSyncLeaseStatus::Stale
-                    | SocialSharedChannelSyncLeaseStatus::Untracked
-            ) && updated.owner_actor_id.as_deref() == Some(actor_id)
-                && updated.owner_actor_kind.as_deref() == Some(actor_kind)
-            {
-                updated.renew_claim_lease(actor_id, actor_kind, now, lease_seconds);
-            } else {
-                updated.renew_claim_lease(actor_id, actor_kind, now, lease_seconds);
-            }
+            updated.renew_claim_lease(actor_id, actor_kind, now, lease_seconds);
             self.upsert_pending_shared_channel_sync_request(request_key.clone(), updated);
             affected += 1;
         }
@@ -664,7 +657,10 @@ impl SocialControlState {
                 .pending_shared_channel_sync_requests
                 .get(request_key.as_str())
                 .cloned();
-            let existing_failure_count = existing.as_ref().map(|pending| pending.failure_count).unwrap_or(0);
+            let existing_failure_count = existing
+                .as_ref()
+                .map(|pending| pending.failure_count)
+                .unwrap_or(0);
             let mut pending = PendingSharedChannelSyncRequest {
                 request: request.clone(),
                 failure_count: existing_failure_count + 1,
@@ -833,11 +829,7 @@ mod tests {
         let now = utc_now_rfc3339_millis();
         let mut state = SocialControlState::default();
         let request = sample_request();
-        state.ensure_pending_shared_channel_sync_request(
-            request.clone(),
-            "pending",
-            now.as_str(),
-        );
+        state.ensure_pending_shared_channel_sync_request(request.clone(), "pending", now.as_str());
         state.mark_shared_channel_sync_delivered(
             &request,
             SharedChannelSyncDeliveryProofStatus::Applied,
@@ -984,12 +976,10 @@ impl SocialRuntime {
         let mut state = self
             .state
             .write()
-            .map_err(|_| {
-                SharedChannelSyncOwnerConflict {
-                    code: "social_runtime_lock_poisoned",
-                    message: "social runtime lock poisoned".into(),
-                    details: serde_json::json!({}),
-                }
+            .map_err(|_| SharedChannelSyncOwnerConflict {
+                code: "social_runtime_lock_poisoned",
+                message: "social runtime lock poisoned".into(),
+                details: serde_json::json!({}),
             })?;
         let affected = state.claim_pending_shared_channel_sync_targeted(
             request_keys,
@@ -1097,14 +1087,17 @@ impl SocialRuntime {
                 .state
                 .write()
                 .map_err(|error| format!("social runtime lock poisoned: {error}"))?;
-            let reclaimed =
-                state.reclaim_stale_pending_shared_channel_sync_claims(now.as_str());
+            let reclaimed = state.reclaim_stale_pending_shared_channel_sync_claims(now.as_str());
             let requests = state
                 .pending_shared_channel_sync_requests
                 .values()
                 .map(|pending| pending.request.clone())
                 .collect::<Vec<_>>();
-            (reclaimed, requests, state.pending_shared_channel_sync_requests.len())
+            (
+                reclaimed,
+                requests,
+                state.pending_shared_channel_sync_requests.len(),
+            )
         };
         self.persist_state_snapshot("shared-channel sync repair reclaim")?;
         let (reclaimed, requests, _) = requests;
@@ -1237,10 +1230,7 @@ impl SocialRuntime {
                         now.as_str(),
                         shared_channel_sync_claim_lease_seconds(),
                     );
-                    state.upsert_pending_shared_channel_sync_request(
-                        request_key.clone(),
-                        renewed,
-                    );
+                    state.upsert_pending_shared_channel_sync_request(request_key.clone(), renewed);
                 }
                 selected.push(pending.request.clone());
             }
@@ -1312,7 +1302,11 @@ impl SocialRuntime {
             }
         }
         Ok(SocialSharedChannelSyncRepublishResponse {
-            status: if failed == 0 { "republished" } else { "partial" },
+            status: if failed == 0 {
+                "republished"
+            } else {
+                "partial"
+            },
             attempted: requests.len(),
             repaired,
             failed,

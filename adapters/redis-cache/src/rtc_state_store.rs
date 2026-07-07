@@ -145,15 +145,12 @@ impl RedisRtcStateStore {
     /// - Outside a runtime: creates a temporary runtime via
     ///   `tokio::runtime::Runtime::new()` to establish the connection
     pub fn from_config(config: &RedisRtcStateConfig) -> Result<Self, RtcContractError> {
-        let client = redis::Client::open(config.redis_url.as_str()).map_err(|err| {
-            RtcContractError::Unavailable(format!("invalid redis_url: {err}"))
-        })?;
+        let client = redis::Client::open(config.redis_url.as_str())
+            .map_err(|err| RtcContractError::Unavailable(format!("invalid redis_url: {err}")))?;
         let manager = match Handle::try_current() {
             Ok(handle) => {
                 // Inside a runtime: use block_in_place to avoid deadlock.
-                tokio::task::block_in_place(|| {
-                    handle.block_on(ConnectionManager::new(client))
-                })
+                tokio::task::block_in_place(|| handle.block_on(ConnectionManager::new(client)))
             }
             Err(_) => {
                 // Outside a runtime: create a temporary one-shot runtime.
@@ -161,9 +158,7 @@ impl RedisRtcStateStore {
                     .enable_all()
                     .build()
                     .map_err(|err| {
-                        RtcContractError::Unavailable(format!(
-                            "redis runtime build failed: {err}"
-                        ))
+                        RtcContractError::Unavailable(format!("redis runtime build failed: {err}"))
                     })?;
                 rt.block_on(ConnectionManager::new(client))
             }
@@ -176,10 +171,7 @@ impl RedisRtcStateStore {
 
     /// Build the store from an existing [`ConnectionManager`], suitable
     /// for use inside a tokio runtime.
-    pub fn from_manager(
-        manager: ConnectionManager,
-        state_ttl_seconds: u64,
-    ) -> Self {
+    pub fn from_manager(manager: ConnectionManager, state_ttl_seconds: u64) -> Self {
         Self::new(manager, state_ttl_seconds)
     }
 
@@ -281,11 +273,7 @@ impl StateStore for RedisRtcStateStore {
         })
     }
 
-    fn clear_state(
-        &self,
-        tenant_id: &str,
-        rtc_session_id: &str,
-    ) -> Result<bool, RtcContractError> {
+    fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, RtcContractError> {
         let tenant_id = tenant_id.to_string();
         let rtc_session_id = rtc_session_id.to_string();
         self.run_blocking_async(move |mut conn| async move {
@@ -375,13 +363,7 @@ mod tests {
 
     #[test]
     fn key_patterns_are_tenant_scoped() {
-        assert_eq!(
-            RedisRtcStateStore::epoch_key("t1", "s1"),
-            "rtc:epoch:t1:s1"
-        );
-        assert_eq!(
-            RedisRtcStateStore::state_key("t1", "s1"),
-            "rtc:state:t1:s1"
-        );
+        assert_eq!(RedisRtcStateStore::epoch_key("t1", "s1"), "rtc:epoch:t1:s1");
+        assert_eq!(RedisRtcStateStore::state_key("t1", "s1"), "rtc:state:t1:s1");
     }
 }

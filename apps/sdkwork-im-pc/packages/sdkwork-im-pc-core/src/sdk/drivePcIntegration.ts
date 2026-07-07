@@ -1,6 +1,11 @@
 import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 import {
   createDriveAppClient,
+  type DriveUploaderBlobLike,
+  type DriveUploaderClient,
+  type DriveUploaderProfile,
+  type DriveUploaderRequest,
+  type DriveUploaderUploadResult,
   type SdkworkAppConfig,
   type SdkworkDriveAppClient as GeneratedSdkworkDriveAppClient,
 } from '@sdkwork/drive-app-sdk';
@@ -22,6 +27,17 @@ export type SdkworkDriveAppClient = GeneratedSdkworkDriveAppClient;
 export type SdkworkDriveAppClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;
 };
+export type {
+  DriveUploaderBlobLike,
+  DriveUploaderClient,
+  DriveUploaderProfile,
+  DriveUploaderRequest,
+  DriveUploaderUploadResult,
+};
+export type SdkworkDriveUploader = Pick<
+  DriveUploaderClient,
+  'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
+>;
 
 let driveAppSdkClient: SdkworkDriveAppClient | null = null;
 let drivePcRuntimeBootstrapped = false;

@@ -19,9 +19,27 @@ pub(crate) fn is_production_like_environment() -> bool {
 }
 
 #[derive(Debug)]
-pub(crate) struct FriendRequestRateLimitError {
-    pub(crate) message: String,
-    pub(crate) retry_after_seconds: u64,
+pub(crate) enum FriendRequestRateLimitFailure {
+    QuotaExceeded {
+        message: String,
+        retry_after_seconds: u64,
+    },
+    StoreUnavailable {
+        message: String,
+    },
+}
+
+impl FriendRequestRateLimitFailure {
+    #[cfg(test)]
+    pub(crate) fn retry_after_seconds(&self) -> u64 {
+        match self {
+            Self::QuotaExceeded {
+                retry_after_seconds,
+                ..
+            } => *retry_after_seconds,
+            Self::StoreUnavailable { .. } => 60,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -31,13 +49,17 @@ struct FriendRequestDailyLimiter {
 }
 
 impl FriendRequestDailyLimiter {
-    fn check_allowed(&mut self, tenant_id: &str, user_id: &str) -> Result<(), FriendRequestRateLimitError> {
+    fn check_allowed(
+        &mut self,
+        tenant_id: &str,
+        user_id: &str,
+    ) -> Result<(), FriendRequestRateLimitFailure> {
         self.roll_day_if_needed();
         let limit = resolve_friend_request_daily_limit();
         let key = format!("{tenant_id}:{user_id}");
         let current = self.counts.get(&key).copied().unwrap_or(0);
         if current >= limit {
-            return Err(rate_limit_exceeded_error(limit));
+            return Err(rate_limit_exceeded_failure(limit));
         }
         Ok(())
     }
@@ -68,7 +90,10 @@ fn resolve_friend_request_daily_limit() -> u32 {
 
 fn utc_day_bounds_rfc3339() -> (String, String) {
     let now = chrono::Utc::now();
-    let start = now.date_naive().and_hms_opt(0, 0, 0).expect("midnight should exist");
+    let start = now
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .expect("midnight should exist");
     let end = (now.date_naive() + chrono::Days::new(1))
         .and_hms_opt(0, 0, 0)
         .expect("midnight should exist");
@@ -83,10 +108,16 @@ fn seconds_until_next_utc_day() -> u64 {
     (tomorrow.and_utc() - now).num_seconds().max(1) as u64
 }
 
-fn rate_limit_exceeded_error(limit: u32) -> FriendRequestRateLimitError {
-    FriendRequestRateLimitError {
+fn rate_limit_exceeded_failure(limit: u32) -> FriendRequestRateLimitFailure {
+    FriendRequestRateLimitFailure::QuotaExceeded {
         message: format!("friend request daily limit exceeded ({limit} requests per day)"),
         retry_after_seconds: seconds_until_next_utc_day(),
+    }
+}
+
+fn store_unavailable_failure(message: impl Into<String>) -> FriendRequestRateLimitFailure {
+    FriendRequestRateLimitFailure::StoreUnavailable {
+        message: message.into(),
     }
 }
 
@@ -95,7 +126,7 @@ fn check_postgres_friend_request_rate_allowed(
     tenant_id: &str,
     organization_id: &str,
     requester_user_id: &str,
-) -> Result<(), FriendRequestRateLimitError> {
+) -> Result<(), FriendRequestRateLimitFailure> {
     let limit = resolve_friend_request_daily_limit();
     let (start_inclusive, end_exclusive) = utc_day_bounds_rfc3339();
     let current = store
@@ -106,12 +137,13 @@ fn check_postgres_friend_request_rate_allowed(
             start_inclusive.as_str(),
             end_exclusive.as_str(),
         )
-        .map_err(|error| FriendRequestRateLimitError {
-            message: format!("friend request rate limit store unavailable: {error:?}"),
-            retry_after_seconds: 60,
+        .map_err(|error| {
+            store_unavailable_failure(format!(
+                "friend request rate limit store unavailable: {error:?}"
+            ))
         })?;
     if current >= limit as i64 {
-        return Err(rate_limit_exceeded_error(limit));
+        return Err(rate_limit_exceeded_failure(limit));
     }
     Ok(())
 }
@@ -129,13 +161,11 @@ pub(crate) fn check_friend_request_rate_allowed(
     organization_id: &str,
     requester_user_id: &str,
     postgres_store: Option<&dyn FriendRequestStore>,
-) -> Result<(), FriendRequestRateLimitError> {
+) -> Result<(), FriendRequestRateLimitFailure> {
     if postgres_store.is_none() && is_production_like_environment() {
-        return Err(FriendRequestRateLimitError {
-            message: "friend request rate limit store is required in production-like environments"
-                .to_owned(),
-            retry_after_seconds: 60,
-        });
+        return Err(store_unavailable_failure(
+            "friend request rate limit store is required in production-like environments",
+        ));
     }
     if let Some(store) = postgres_store {
         return check_postgres_friend_request_rate_allowed(
@@ -148,10 +178,7 @@ pub(crate) fn check_friend_request_rate_allowed(
 
     FRIEND_REQUEST_RATE_LIMITER
         .lock()
-        .map_err(|_| FriendRequestRateLimitError {
-            message: "friend request rate limiter unavailable".to_owned(),
-            retry_after_seconds: 60,
-        })?
+        .map_err(|_| store_unavailable_failure("friend request rate limiter unavailable"))?
         .check_allowed(tenant_id, requester_user_id)
 }
 
@@ -231,8 +258,11 @@ mod tests {
         record_friend_request_submitted(tenant, user, false);
         let error = check_friend_request_rate_allowed(tenant, "default", user, None)
             .expect_err("third check should exceed daily cap");
-        assert!(error.message.contains("daily limit exceeded"));
-        assert!(error.retry_after_seconds > 0);
+        assert!(matches!(
+            error,
+            FriendRequestRateLimitFailure::QuotaExceeded { .. }
+        ));
+        assert!(error.retry_after_seconds() > 0);
     }
 
     #[test]
@@ -244,7 +274,8 @@ mod tests {
         let tenant = "100001";
         let user = "u_rate_limit_no_record";
 
-        check_friend_request_rate_allowed(tenant, "default", user, None).expect("first check should pass");
+        check_friend_request_rate_allowed(tenant, "default", user, None)
+            .expect("first check should pass");
         check_friend_request_rate_allowed(tenant, "default", user, None)
             .expect("second check should still pass without record");
     }

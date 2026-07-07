@@ -20,8 +20,8 @@ use im_domain_core::social::{
 use im_domain_events::normalize_commit_organization_id;
 use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
 use im_time::utc_now_rfc3339_millis;
-use serde::{Deserialize, Serialize};
 use sdkwork_utils_rust::sha256_hash;
+use serde::{Deserialize, Serialize};
 
 use crate::SharedChannelLinkedMemberSyncRequest;
 
@@ -114,8 +114,8 @@ impl SocialStateStore {
                 Ok(loaded)
             }
             Self::Database { pool: _ } => {
-                // Database mode loads from PostgreSQL on demand
-                // For now, return default state - actual DB queries happen through store methods
+                // Database mode persists through per-store PostgreSQL queries on each mutation.
+                // Bulk aggregate hydration is intentionally omitted; inventory APIs use PG stores.
                 Ok(SocialControlState::default())
             }
         }
@@ -624,6 +624,13 @@ pub struct SocialControlState {
     #[serde(skip)]
     pub(crate) pending_shared_channel_lease_index:
         BTreeMap<SharedChannelLeaseIndexKey, BTreeSet<String>>,
+    /// Commit envelopes for friend requests that have been evicted from
+    /// `friend_requests` after reaching a terminal state. Kept lightweight
+    /// (envelopes only, no full aggregate state) so that idempotency checks
+    /// via `committed_event()` still work after eviction. The PostgreSQL
+    /// supplemental store remains the source of truth for the full record.
+    #[serde(skip)]
+    pub(crate) evicted_friend_request_commits: BTreeMap<String, Vec<CommitEnvelope>>,
 }
 
 impl SocialControlState {
@@ -814,6 +821,13 @@ impl SocialControlState {
                     .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
             );
         }
+        for commits in self.evicted_friend_request_commits.values() {
+            event_keys.extend(
+                commits
+                    .iter()
+                    .map(|commit| (commit.tenant_id.clone(), commit.event_id.clone())),
+            );
+        }
         for record in self.friendships.values() {
             event_keys.extend(
                 record
@@ -878,11 +892,24 @@ impl SocialControlState {
                 request_id,
                 commit_index,
             } => {
-                let record = self.friend_requests.get(request_id)?.clone();
-                let commit = record.commits.get(*commit_index)?.clone();
+                if let Some(record) = self.friend_requests.get(request_id) {
+                    let commit = record.commits.get(*commit_index)?.clone();
+                    if commit.tenant_id != tenant_id || commit.event_id != event_id {
+                        return None;
+                    }
+                    return Some(SocialCommittedEvent::FriendRequest {
+                        record: record.clone(),
+                        commit,
+                    });
+                }
+                // Record was evicted from memory after reaching a terminal
+                // state. Reconstruct the commit from the retained envelopes.
+                let commits = self.evicted_friend_request_commits.get(request_id)?;
+                let commit = commits.get(*commit_index)?.clone();
                 if commit.tenant_id != tenant_id || commit.event_id != event_id {
                     return None;
                 }
+                let record = reconstruct_evicted_friend_request(request_id, commits)?;
                 Some(SocialCommittedEvent::FriendRequest { record, commit })
             }
             SocialCommittedEventPointer::Friendship {
@@ -1031,13 +1058,11 @@ impl SocialControlState {
             target_user_id: payload.target_user_id,
             status: FriendRequestStatus::Pending,
             request_message: payload.request_message,
-            expired_at: payload
-                .expires_at
-                .or_else(|| {
-                    crate::friend_request_expiration::resolve_friend_request_expires_at(
-                        payload.requested_at.as_str(),
-                    )
-                }),
+            expired_at: payload.expires_at.or_else(|| {
+                crate::friend_request_expiration::resolve_friend_request_expires_at(
+                    payload.requested_at.as_str(),
+                )
+            }),
             created_at: payload.requested_at.clone(),
             updated_at: payload.requested_at,
         };
@@ -1072,34 +1097,80 @@ impl SocialControlState {
             "friend_request",
             payload.request_id.as_str(),
         )?;
-        let mut record = self
-            .friend_requests
-            .get(payload.request_id.as_str())
-            .cloned()
-            .ok_or_else(|| {
-                format!(
-                    "friend request accept replay payload for {} references missing request {}",
-                    commit.event_id, payload.request_id
+        let request_id = payload.request_id.clone();
+        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
+            Some(record) => record,
+            None => {
+                tracing::warn!(
+                    request_id = %request_id,
+                    event_id = %commit.event_id,
+                    "friend request accept replay references missing request; backfilling from accept payload"
+                );
+                Self::backfill_friend_request_from_terminal(
+                    commit.tenant_id.as_str(),
+                    request_id.as_str(),
+                    payload.requester_user_id.as_str(),
+                    payload.target_user_id.as_str(),
+                    FriendRequestStatus::Accepted,
+                    payload.accepted_at.as_str(),
                 )
-            })?;
+            }
+        };
+        if matches!(record.friend_request.status, FriendRequestStatus::Accepted) {
+            append_bounded_social_commit(&mut record.commits, commit);
+            self.insert_friend_request_record(request_id, record);
+            return Ok(());
+        }
         if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
             return Err(format!(
                 "friend request accept replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, payload.request_id, record.friend_request.status
+                commit.event_id, request_id, record.friend_request.status
             ));
         }
-        if payload.accepted_by_user_id != record.friend_request.target_user_id {
+        if !payload.target_user_id.is_empty()
+            && payload.accepted_by_user_id != record.friend_request.target_user_id
+        {
             return Err(format!(
                 "friend request accept replay payload for {} must be accepted by target user {}",
                 commit.event_id, record.friend_request.target_user_id
             ));
         }
-        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Accepted;
         record.friend_request.updated_at = payload.accepted_at;
         append_bounded_social_commit(&mut record.commits, commit);
         self.insert_friend_request_record(request_id, record);
         Ok(())
+    }
+
+    /// Backfill a minimal friend request record from a terminal commit payload.
+    ///
+    /// Legacy or partially-replayed journals may carry a terminal friend request
+    /// commit (accept/decline/cancel/expire) without the originating submitted
+    /// commit. Instead of failing replay and poisoning the social authority, we
+    /// synthesize a best-effort record so the aggregate can be healed.
+    fn backfill_friend_request_from_terminal(
+        tenant_id: &str,
+        request_id: &str,
+        requester_user_id: &str,
+        target_user_id: &str,
+        status: FriendRequestStatus,
+        occurred_at: &str,
+    ) -> StoredFriendRequest {
+        let friend_request = FriendRequest {
+            tenant_id: tenant_id.to_owned(),
+            request_id: request_id.to_owned(),
+            requester_user_id: requester_user_id.to_owned(),
+            target_user_id: target_user_id.to_owned(),
+            status,
+            request_message: None,
+            expired_at: None,
+            created_at: occurred_at.to_owned(),
+            updated_at: occurred_at.to_owned(),
+        };
+        StoredFriendRequest {
+            friend_request,
+            commits: Vec::new(),
+        }
     }
 
     fn apply_friend_request_declined_commit(
@@ -1118,32 +1189,44 @@ impl SocialControlState {
             "friend_request",
             payload.request_id.as_str(),
         )?;
-        let mut record = self
-            .friend_requests
-            .get(payload.request_id.as_str())
-            .cloned()
-            .ok_or_else(|| {
-                format!(
-                    "friend request decline replay payload for {} references missing request {}",
-                    commit.event_id, payload.request_id
+        let request_id = payload.request_id.clone();
+        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
+            Some(record) => record,
+            None => {
+                tracing::warn!(
+                    request_id = %request_id,
+                    event_id = %commit.event_id,
+                    "friend request decline replay references missing request; backfilling from decline payload"
+                );
+                Self::backfill_friend_request_from_terminal(
+                    commit.tenant_id.as_str(),
+                    request_id.as_str(),
+                    payload.requester_user_id.as_str(),
+                    payload.target_user_id.as_str(),
+                    FriendRequestStatus::Declined,
+                    payload.declined_at.as_str(),
                 )
-            })?;
-        if !matches!(
-            record.friend_request.status,
-            FriendRequestStatus::Pending | FriendRequestStatus::Declined
-        ) {
+            }
+        };
+        if matches!(record.friend_request.status, FriendRequestStatus::Declined) {
+            append_bounded_social_commit(&mut record.commits, commit);
+            self.insert_friend_request_record(request_id, record);
+            return Ok(());
+        }
+        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
             return Err(format!(
                 "friend request decline replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, payload.request_id, record.friend_request.status
+                commit.event_id, request_id, record.friend_request.status
             ));
         }
-        if payload.declined_by_user_id != record.friend_request.target_user_id {
+        if !payload.target_user_id.is_empty()
+            && payload.declined_by_user_id != record.friend_request.target_user_id
+        {
             return Err(format!(
                 "friend request decline replay payload for {} must be declined by target user {}",
                 commit.event_id, record.friend_request.target_user_id
             ));
         }
-        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Declined;
         record.friend_request.updated_at = payload.declined_at;
         append_bounded_social_commit(&mut record.commits, commit);
@@ -1167,23 +1250,36 @@ impl SocialControlState {
             "friend_request",
             payload.request_id.as_str(),
         )?;
-        let mut record = self
-            .friend_requests
-            .get(payload.request_id.as_str())
-            .cloned()
-            .ok_or_else(|| {
-                format!(
-                    "friend request cancel replay payload for {} references missing request {}",
-                    commit.event_id, payload.request_id
+        let request_id = payload.request_id.clone();
+        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
+            Some(record) => record,
+            None => {
+                tracing::warn!(
+                    request_id = %request_id,
+                    event_id = %commit.event_id,
+                    "friend request cancel replay references missing request; backfilling from cancel payload"
+                );
+                Self::backfill_friend_request_from_terminal(
+                    commit.tenant_id.as_str(),
+                    request_id.as_str(),
+                    payload.requester_user_id.as_str(),
+                    payload.target_user_id.as_str(),
+                    FriendRequestStatus::Canceled,
+                    payload.canceled_at.as_str(),
                 )
-            })?;
+            }
+        };
+        if matches!(record.friend_request.status, FriendRequestStatus::Canceled) {
+            append_bounded_social_commit(&mut record.commits, commit);
+            self.insert_friend_request_record(request_id, record);
+            return Ok(());
+        }
         if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
             return Err(format!(
                 "friend request cancel replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, payload.request_id, record.friend_request.status
+                commit.event_id, request_id, record.friend_request.status
             ));
         }
-        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Canceled;
         record.friend_request.updated_at = payload.canceled_at;
         append_bounded_social_commit(&mut record.commits, commit);
@@ -1207,26 +1303,39 @@ impl SocialControlState {
             "friend_request",
             payload.request_id.as_str(),
         )?;
-        let mut record = self
-            .friend_requests
-            .get(payload.request_id.as_str())
-            .cloned()
-            .ok_or_else(|| {
-                format!(
-                    "friend request expiration replay payload for {} references missing request {}",
-                    commit.event_id, payload.request_id
-                )
-            })?;
-        if !matches!(
-            record.friend_request.status,
-            FriendRequestStatus::Pending | FriendRequestStatus::Expired
-        ) {
+        let request_id = payload.request_id.clone();
+        let mut record = match self.friend_requests.get(request_id.as_str()).cloned() {
+            Some(record) => record,
+            None => {
+                tracing::warn!(
+                    request_id = %request_id,
+                    event_id = %commit.event_id,
+                    "friend request expiration replay references missing request; backfilling from expire payload"
+                );
+                let expired_at = payload.expired_at.clone();
+                let mut backfilled = Self::backfill_friend_request_from_terminal(
+                    commit.tenant_id.as_str(),
+                    request_id.as_str(),
+                    payload.requester_user_id.as_str(),
+                    payload.target_user_id.as_str(),
+                    FriendRequestStatus::Expired,
+                    expired_at.as_str(),
+                );
+                backfilled.friend_request.expired_at = Some(expired_at);
+                backfilled
+            }
+        };
+        if matches!(record.friend_request.status, FriendRequestStatus::Expired) {
+            append_bounded_social_commit(&mut record.commits, commit);
+            self.insert_friend_request_record(request_id, record);
+            return Ok(());
+        }
+        if !matches!(record.friend_request.status, FriendRequestStatus::Pending) {
             return Err(format!(
                 "friend request expiration replay payload for {} cannot transition request {} from {:?}",
-                commit.event_id, payload.request_id, record.friend_request.status
+                commit.event_id, request_id, record.friend_request.status
             ));
         }
-        let request_id = record.friend_request.request_id.clone();
         record.friend_request.status = FriendRequestStatus::Expired;
         record.friend_request.updated_at = payload.expired_at.clone();
         record.friend_request.expired_at = Some(payload.expired_at);
@@ -1595,6 +1704,31 @@ impl SocialControlState {
         );
     }
 
+    /// Remove a friend request record from in-memory state.
+    ///
+    /// Friend requests are high-volume, short-lived aggregates. Once a request
+    /// reaches a terminal state (accepted/declined/canceled/expired) the
+    /// PostgreSQL supplemental store is the source of truth. Evicting the
+    /// record from memory prevents unbounded growth (OOM) as the user base
+    /// scales. The journal remains the write authority — replay rebuilds the
+    /// record if needed, and the PG store fallback covers lookups.
+    pub(crate) fn evict_friend_request_record(&mut self, request_id: &str) {
+        if let Some(record) = self.friend_requests.remove(request_id) {
+            unindex_friend_request_record(
+                &mut self.pending_friend_request_pair_index,
+                &mut self.accepted_friend_request_pair_index,
+                &mut self.friend_request_user_index,
+                &record,
+            );
+            // Retain commit envelopes so idempotency checks via
+            // committed_event() still work after eviction. Only the
+            // envelopes are kept (not the full aggregate state) to keep
+            // memory usage bounded.
+            self.evicted_friend_request_commits
+                .insert(request_id.to_owned(), record.commits.clone());
+        }
+    }
+
     pub(crate) fn insert_friendship_record(
         &mut self,
         friendship_id: String,
@@ -1920,10 +2054,7 @@ impl SocialControlState {
         now: &str,
     ) -> bool {
         self.record_failed_shared_channel_sync_requests_with_owner_preservation(
-            requests,
-            error,
-            now,
-            false,
+            requests, error, now, false,
         )
     }
 }
@@ -2005,7 +2136,8 @@ pub struct SocialRuntime {
     outbox_store: Option<Arc<dyn im_platform_contracts::OutboxStore>>,
     id_generator: Option<Arc<dyn im_platform_contracts::IdGenerator>>,
     realtime_fanout: RwLock<Option<Arc<dyn crate::social_realtime::SocialRealtimeFanout>>>,
-    direct_chat_binder: RwLock<Option<Arc<dyn crate::direct_chat_binder::DirectChatConversationBinder>>>,
+    direct_chat_binder:
+        RwLock<Option<Arc<dyn crate::direct_chat_binder::DirectChatConversationBinder>>>,
     shared_channel_sync_trigger:
         RwLock<Option<Arc<dyn crate::SharedChannelLinkedMemberSyncTrigger>>>,
     #[allow(dead_code)]
@@ -2106,7 +2238,8 @@ impl SocialRuntime {
 
     pub(crate) fn friend_request_rate_limit_store(
         &self,
-    ) -> Option<Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>> {
+    ) -> Option<Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>>
+    {
         self.postgres_materializer
             .as_ref()
             .map(|materializer| materializer.friend_request_store())
@@ -2118,6 +2251,14 @@ impl SocialRuntime {
         self.postgres_materializer
             .as_ref()
             .map(|materializer| materializer.friendship_store())
+    }
+
+    pub(crate) fn direct_chat_inventory_store(
+        &self,
+    ) -> Option<Arc<dyn im_adapters_social_postgres::direct_chat_store::DirectChatStore>> {
+        self.postgres_materializer
+            .as_ref()
+            .map(|materializer| materializer.direct_chat_store())
     }
 
     pub(crate) fn postgres_materializer(
@@ -2132,7 +2273,10 @@ impl SocialRuntime {
             .map_err(contract_error_message)
     }
 
-    pub fn set_realtime_fanout(&self, fanout: Arc<dyn crate::social_realtime::SocialRealtimeFanout>) {
+    pub fn set_realtime_fanout(
+        &self,
+        fanout: Arc<dyn crate::social_realtime::SocialRealtimeFanout>,
+    ) {
         *self
             .realtime_fanout
             .write()
@@ -2176,11 +2320,7 @@ impl SocialRuntime {
 
     fn ensure_social_realtime_delivery(&self, commits: &[CommitEnvelope]) -> Result<(), String> {
         let (has_fanout, has_outbox) = self.resolve_social_realtime_delivery();
-        crate::social_realtime::ensure_realtime_delivery_configured(
-            has_fanout,
-            has_outbox,
-            commits,
-        )
+        crate::social_realtime::ensure_realtime_delivery_configured(has_fanout, has_outbox, commits)
     }
 
     fn materialize_postgres_before_journal(
@@ -2204,25 +2344,33 @@ impl SocialRuntime {
         Ok(true)
     }
 
-    fn compensate_postgres_after_journal_failure(&self, commits: &[CommitEnvelope], materialized: bool) {
+    fn compensate_postgres_after_journal_failure(
+        &self,
+        commits: &[CommitEnvelope],
+        materialized: bool,
+    ) {
         if !materialized {
             return;
         }
         crate::social_materializer_metrics::record_postgres_journal_append_failures_after_materialize(
             commits.len() as u64,
         );
-        if let Some(materializer) = self.postgres_materializer.as_ref() {
-            if let Err(error) = materializer.compensate_commits(commits) {
-                tracing::error!(
-                    error = %error,
-                    commit_count = commits.len(),
-                    "social postgres compensation failed after journal append failure"
-                );
-            }
+        if let Some(materializer) = self.postgres_materializer.as_ref()
+            && let Err(error) = materializer.compensate_commits(commits)
+        {
+            tracing::error!(
+                error = %error,
+                commit_count = commits.len(),
+                "social postgres compensation failed after journal append failure"
+            );
         }
     }
 
-    fn finalize_persisted_commits(&self, commits: &[CommitEnvelope], postgres_already_materialized: bool) {
+    fn finalize_persisted_commits(
+        &self,
+        commits: &[CommitEnvelope],
+        postgres_already_materialized: bool,
+    ) {
         if commits.is_empty() {
             return;
         }
@@ -2263,19 +2411,19 @@ impl SocialRuntime {
                 }
             }
         }
-        if !postgres_already_materialized {
-            if let Some(materializer) = self.postgres_materializer.as_ref() {
-                let failures = materializer.try_materialize_commits(commits);
-                if failures > 0 {
-                    crate::social_materializer_metrics::record_postgres_materialization_failures(
-                        failures as u64,
-                    );
-                    tracing::error!(
-                        failure_count = failures,
-                        commit_count = commits.len(),
-                        "social postgres materialization completed with failures during replay finalize"
-                    );
-                }
+        if !postgres_already_materialized
+            && let Some(materializer) = self.postgres_materializer.as_ref()
+        {
+            let failures = materializer.try_materialize_commits(commits);
+            if failures > 0 {
+                crate::social_materializer_metrics::record_postgres_materialization_failures(
+                    failures as u64,
+                );
+                tracing::error!(
+                    failure_count = failures,
+                    commit_count = commits.len(),
+                    "social postgres materialization completed with failures during replay finalize"
+                );
             }
         }
     }
@@ -2319,7 +2467,7 @@ impl SocialRuntime {
         }
     }
 
-    pub fn with_user_directory(
+    pub(crate) fn with_user_directory(
         mut self,
         user_directory: Arc<dyn crate::user_directory::SocialUserDirectory>,
     ) -> Self {
@@ -2341,10 +2489,12 @@ impl SocialRuntime {
             );
         }
         if crate::friend_request_rate_limit::is_production_like_environment() {
-            return Err(crate::friendship::SocialServiceError::dependency_unavailable(
-                "social_user_directory_unconfigured",
-                "social user directory is not configured",
-            ));
+            return Err(
+                crate::friendship::SocialServiceError::dependency_unavailable(
+                    "social_user_directory_unconfigured",
+                    "social user directory is not configured",
+                ),
+            );
         }
         Ok(())
     }
@@ -2643,7 +2793,7 @@ impl SocialRuntime {
         peer_user_id: &str,
     ) -> Result<(), String> {
         let _read_lock = self.acquire_cross_instance_read_lock()?;
-        self.refresh_state_from_authority_for_write()?;
+        self.refresh_state_from_authority_for_read()?;
         if let Some(user_block) = self.active_direct_message_block_for_pair(
             tenant_id,
             organization_id,
@@ -2679,15 +2829,11 @@ impl SocialRuntime {
         user_id: &str,
     ) -> Result<Vec<Friendship>, String> {
         let state = self.authoritative_state_for_query()?;
-        let mut friendships = active_friendship_records_for_user(
-            &state,
-            tenant_id,
-            organization_id,
-            user_id,
-        )
-            .into_iter()
-            .map(|record| record.friendship)
-            .collect::<Vec<_>>();
+        let mut friendships =
+            active_friendship_records_for_user(&state, tenant_id, organization_id, user_id)
+                .into_iter()
+                .map(|record| record.friendship)
+                .collect::<Vec<_>>();
         friendships.sort_by(|left, right| {
             right
                 .updated_at
@@ -2705,16 +2851,14 @@ impl SocialRuntime {
         user_high_id: &str,
     ) -> Result<Option<DirectChat>, String> {
         let state = self.authoritative_state_for_query()?;
-        Ok(
-            active_direct_chat_record_for_pair(
-                &state,
-                tenant_id,
-                organization_id,
-                user_low_id,
-                user_high_id,
-            )
-            .map(|record| record.direct_chat),
+        Ok(active_direct_chat_record_for_pair(
+            &state,
+            tenant_id,
+            organization_id,
+            user_low_id,
+            user_high_id,
         )
+        .map(|record| record.direct_chat))
     }
 
     pub fn external_connection_snapshot(
@@ -2834,9 +2978,13 @@ impl SocialRuntime {
         commit: &CommitEnvelope,
     ) -> Result<SocialWritePersistence, String> {
         self.ensure_social_realtime_delivery(std::slice::from_ref(commit))?;
-        let materialized = self.materialize_postgres_before_journal(std::slice::from_ref(commit))?;
+        let materialized =
+            self.materialize_postgres_before_journal(std::slice::from_ref(commit))?;
         if let Err(error) = self.commit_journal.append(commit.clone()) {
-            self.compensate_postgres_after_journal_failure(std::slice::from_ref(commit), materialized);
+            self.compensate_postgres_after_journal_failure(
+                std::slice::from_ref(commit),
+                materialized,
+            );
             return Err(format!(
                 "failed to append social commit journal before state write: {}",
                 contract_error_message(error)
@@ -2973,14 +3121,14 @@ impl SocialRuntime {
 
     pub(crate) fn refresh_state_from_authority_for_write(&self) -> Result<(), String> {
         let result = self.merge_state_from_authority();
-        if result.is_ok() {
-            if let Some(journal_path) = self.journal_path.as_deref() {
-                *self
-                    .authority_journal_fingerprint
-                    .write()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner()) =
-                    social_commit_journal_fingerprint(journal_path);
-            }
+        if result.is_ok()
+            && let Some(journal_path) = self.journal_path.as_deref()
+        {
+            *self
+                .authority_journal_fingerprint
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                social_commit_journal_fingerprint(journal_path);
         }
         result
     }
@@ -2997,11 +3145,10 @@ impl SocialRuntime {
             return self.ensure_social_authority_available();
         }
         let current_fingerprint = social_commit_journal_fingerprint(journal_path);
-        let cached_fingerprint = self
+        let cached_fingerprint = *self
             .authority_journal_fingerprint
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone();
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if current_fingerprint.is_some() && current_fingerprint == cached_fingerprint {
             return self.ensure_social_authority_available();
         }
@@ -3061,8 +3208,7 @@ impl SocialRuntime {
         state.merge_pending_shared_channel_sync_requests_from(&snapshot_state);
         state.merge_dead_letter_shared_channel_sync_requests_from(&snapshot_state);
         state.merge_delivered_shared_channel_sync_requests_from(&snapshot_state);
-        state
-            .merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
+        state.merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
         state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
         *self
             .authority_replay_error
@@ -3568,6 +3714,68 @@ fn unindex_friend_request_record(
     }
 }
 
+/// Reconstruct a minimal `StoredFriendRequest` from the commit envelopes
+/// retained after eviction. Used by `committed_event()` so idempotency
+/// checks still work for terminal friend requests that were evicted from
+/// the in-memory `friend_requests` map.
+pub(crate) fn reconstruct_evicted_friend_request(
+    request_id: &str,
+    commits: &[CommitEnvelope],
+) -> Option<StoredFriendRequest> {
+    use im_domain_events::social::{
+        FriendRequestAcceptedPayload, FriendRequestCanceledPayload, FriendRequestDeclinedPayload,
+        FriendRequestSubmittedPayload,
+    };
+    let submitted = commits
+        .iter()
+        .find(|c| c.event_type == "friend_request.submitted")?;
+    let payload: FriendRequestSubmittedPayload = serde_json::from_str(&submitted.payload).ok()?;
+    let tenant_id = submitted.tenant_id.clone();
+    let mut friend_request = FriendRequest {
+        tenant_id: tenant_id.clone(),
+        request_id: payload.request_id.clone(),
+        requester_user_id: payload.requester_user_id.clone(),
+        target_user_id: payload.target_user_id.clone(),
+        status: FriendRequestStatus::Pending,
+        request_message: payload.request_message.clone(),
+        expired_at: payload.expires_at.clone(),
+        created_at: payload.requested_at.clone(),
+        updated_at: payload.requested_at.clone(),
+    };
+    // Apply terminal commit if present.
+    for commit in commits {
+        match commit.event_type.as_str() {
+            "friend_request.accepted" => {
+                if let Ok(p) = serde_json::from_str::<FriendRequestAcceptedPayload>(&commit.payload)
+                {
+                    friend_request.status = FriendRequestStatus::Accepted;
+                    friend_request.updated_at = p.accepted_at.clone();
+                }
+            }
+            "friend_request.declined" => {
+                if let Ok(p) = serde_json::from_str::<FriendRequestDeclinedPayload>(&commit.payload)
+                {
+                    friend_request.status = FriendRequestStatus::Declined;
+                    friend_request.updated_at = p.declined_at.clone();
+                }
+            }
+            "friend_request.canceled" => {
+                if let Ok(p) = serde_json::from_str::<FriendRequestCanceledPayload>(&commit.payload)
+                {
+                    friend_request.status = FriendRequestStatus::Canceled;
+                    friend_request.updated_at = p.canceled_at.clone();
+                }
+            }
+            _ => {}
+        }
+    }
+    let _ = request_id; // request_id is already in the payload
+    Some(StoredFriendRequest {
+        friend_request,
+        commits: commits.to_vec(),
+    })
+}
+
 fn index_friendship_record(
     active_pair_index: &mut BTreeMap<SocialPairIndexKey, String>,
     active_user_index: &mut BTreeMap<SocialUserIndexKey, BTreeSet<String>>,
@@ -3955,7 +4163,9 @@ fn unindex_pending_shared_channel_sync_request(
 }
 
 #[allow(dead_code)]
-pub(crate) fn shared_channel_sync_request_key(request: &SharedChannelLinkedMemberSyncRequest) -> String {
+pub(crate) fn shared_channel_sync_request_key(
+    request: &SharedChannelLinkedMemberSyncRequest,
+) -> String {
     crate::shared_channel_sync_runtime::shared_channel_sync_request_key(request)
 }
 
@@ -4180,7 +4390,8 @@ pub(crate) fn active_direct_chat_record_for_pair(
     left_actor_id: &str,
     right_actor_id: &str,
 ) -> Option<StoredDirectChat> {
-    let actor_pair = SocialPairIndexKey::new(tenant_id, organization_id, left_actor_id, right_actor_id);
+    let actor_pair =
+        SocialPairIndexKey::new(tenant_id, organization_id, left_actor_id, right_actor_id);
     state
         .direct_chats
         .get(
@@ -4438,4 +4649,141 @@ fn timestamp_newer_for_recency(candidate: &str, existing: &str) -> bool {
         compare_canonical_rfc3339_millis_utc(candidate, existing),
         Some(CmpOrdering::Greater)
     )
+}
+
+#[cfg(test)]
+mod friend_request_replay_self_heal_tests {
+    use super::SocialControlState;
+    use im_domain_core::social::FriendRequestStatus;
+    use im_domain_events::social::{
+        FriendRequestAcceptedPayload, FriendRequestDeclinedPayload, SocialCommitEnvelopeInput,
+        SocialEventType, social_commit_envelope,
+    };
+    use im_domain_events::{AggregateType, EventActor};
+    use im_platform_contracts::CommitEnvelope;
+
+    const TENANT_ID: &str = "100001";
+    const ORGANIZATION_ID: &str = "0";
+    const ACCEPTED_AT: &str = "2026-07-07T00:00:00.000Z";
+
+    fn build_accept_commit(event_id: &str, request_id: &str) -> CommitEnvelope {
+        let payload = FriendRequestAcceptedPayload {
+            request_id: request_id.to_owned(),
+            requester_user_id: "user_a".to_owned(),
+            target_user_id: "user_b".to_owned(),
+            accepted_by_user_id: "user_b".to_owned(),
+            accepted_at: ACCEPTED_AT.to_owned(),
+        };
+        let payload_json = serde_json::to_string(&payload).unwrap();
+        social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id,
+            tenant_id: TENANT_ID,
+            organization_id: ORGANIZATION_ID,
+            aggregate_type: AggregateType::FriendRequest,
+            aggregate_id: request_id,
+            event_type: SocialEventType::FriendRequestAccepted,
+            ordering_seq: 1,
+            actor: EventActor {
+                actor_id: "user_b".to_owned(),
+                actor_kind: "user".to_owned(),
+                actor_session_id: None,
+            },
+            occurred_at: ACCEPTED_AT,
+            committed_at: ACCEPTED_AT,
+            payload: payload_json.as_str(),
+        })
+    }
+
+    fn build_decline_commit(event_id: &str, request_id: &str) -> CommitEnvelope {
+        let payload = FriendRequestDeclinedPayload {
+            request_id: request_id.to_owned(),
+            requester_user_id: "user_a".to_owned(),
+            target_user_id: "user_b".to_owned(),
+            declined_by_user_id: "user_b".to_owned(),
+            declined_at: ACCEPTED_AT.to_owned(),
+        };
+        let payload_json = serde_json::to_string(&payload).unwrap();
+        social_commit_envelope(SocialCommitEnvelopeInput {
+            event_id,
+            tenant_id: TENANT_ID,
+            organization_id: ORGANIZATION_ID,
+            aggregate_type: AggregateType::FriendRequest,
+            aggregate_id: request_id,
+            event_type: SocialEventType::FriendRequestDeclined,
+            ordering_seq: 1,
+            actor: EventActor {
+                actor_id: "user_b".to_owned(),
+                actor_kind: "user".to_owned(),
+                actor_session_id: None,
+            },
+            occurred_at: ACCEPTED_AT,
+            committed_at: ACCEPTED_AT,
+            payload: payload_json.as_str(),
+        })
+    }
+
+    #[test]
+    fn accept_replay_backfills_missing_friend_request_record() {
+        let mut state = SocialControlState::default();
+        // Legacy journal: an accept commit exists but the originating submitted
+        // commit was lost. Replay must self-heal instead of poisoning the authority.
+        state
+            .apply_social_commit(build_accept_commit("evt_fr_accept_legacy", "fr_legacy"))
+            .expect("replay should backfill missing friend request from accept payload");
+        let record = state
+            .friend_requests
+            .get("fr_legacy")
+            .expect("backfilled friend request record should exist");
+        assert_eq!(record.friend_request.status, FriendRequestStatus::Accepted);
+        assert_eq!(record.friend_request.requester_user_id, "user_a");
+        assert_eq!(record.friend_request.target_user_id, "user_b");
+    }
+
+    #[test]
+    fn accept_replay_is_idempotent_when_already_accepted() {
+        let mut state = SocialControlState::default();
+        state
+            .apply_social_commit(build_accept_commit(
+                "evt_fr_accept_idempotent_1",
+                "fr_idempotent",
+            ))
+            .expect("initial accept replay should backfill");
+        // Re-applying an accept commit (different event id) for an already accepted
+        // request must not error.
+        state
+            .apply_social_commit(build_accept_commit(
+                "evt_fr_accept_idempotent_2",
+                "fr_idempotent",
+            ))
+            .expect("idempotent accept replay should succeed");
+        let record = state
+            .friend_requests
+            .get("fr_idempotent")
+            .expect("friend request record should exist");
+        assert_eq!(record.friend_request.status, FriendRequestStatus::Accepted);
+        assert_eq!(
+            record.commits.len(),
+            2,
+            "both accept commits should be recorded"
+        );
+    }
+
+    #[test]
+    fn accept_replay_rejects_conflicting_terminal_status() {
+        let mut state = SocialControlState::default();
+        state
+            .apply_social_commit(build_decline_commit(
+                "evt_fr_decline_conflict",
+                "fr_conflict",
+            ))
+            .expect("decline replay should backfill");
+        // An accept commit for an already-declined request is a genuine conflict,
+        // not incomplete data, and must still fail.
+        let result =
+            state.apply_social_commit(build_accept_commit("evt_fr_accept_conflict", "fr_conflict"));
+        assert!(
+            result.is_err(),
+            "accept replay should not override a declined request"
+        );
+    }
 }

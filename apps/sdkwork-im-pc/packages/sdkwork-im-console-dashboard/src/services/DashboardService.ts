@@ -172,10 +172,18 @@ function buildMetrics(snapshot: ConsoleDashboardSnapshot): DashboardMetrics {
   };
 }
 
+function hasPortalMetrics(snapshot: ConsoleDashboardSnapshot): boolean {
+  return readString(asRecord(snapshot.dashboard), ['dataAvailability'], '') === 'true'
+    || readRecords(snapshot.dashboard, ['metrics', 'summary', 'stats']).length > 0;
+}
+
 function buildActivityTrends(snapshot: ConsoleDashboardSnapshot): ActivityTrend[] {
   const trendRecords = readRecords(snapshot.conversations, ['activityTrends', 'trends', 'dailyActivity', 'samples'])
     .concat(readRecords(snapshot.dashboard, ['activityTrends', 'trends', 'dailyActivity', 'samples']));
   if (trendRecords.length === 0) {
+    if (!hasPortalMetrics(snapshot)) {
+      return [];
+    }
     return FALLBACK_DAYS.map((day) => ({ day, value: 0 }));
   }
   const maxValue = Math.max(...trendRecords.map((item) => readNumber(item, ['value', 'count', 'messages'], 0)), 1);

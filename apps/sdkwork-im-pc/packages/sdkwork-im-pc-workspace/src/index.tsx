@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation, I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
 import { Calendar, FileText, CheckSquare, Mail, PieChart, Clock, Cloud, ShieldCheck, Search, Plus, MoreHorizontal, Settings, ExternalLink, Server, Video, Image as ImageIcon, Mic, Music, PenTool } from 'lucide-react';
-import { toast } from '@sdkwork/im-pc-chat';
+import { toast } from '@sdkwork/im-pc-commons';
 import { workspaceService, AppItem, DocumentItem } from './services/WorkspaceService';
 import { cn } from '@sdkwork/im-pc-commons';
 

@@ -3,12 +3,12 @@ use std::{collections::BTreeSet, future::Future, sync::OnceLock};
 mod acceptor;
 
 pub use acceptor::{
-    link_transport_kind_for_binding, validate_udp_datagram_payload, LinkConnectionKey,
-    LinkConnectionRecord, LinkConnectionRegistry, LinkShardDispatcher, LinkTransportKind,
-    QuicBinding, QuicBindingMessage, TcpBinding, TcpBindingMessage, UdpBinding, UdpBindingMessage,
     CCP_QUIC_FRAME_HEADER_BYTES, CCP_QUIC_MAX_FRAME_BYTES, CCP_TCP_FRAME_HEADER_BYTES,
-    CCP_TCP_MAX_FRAME_BYTES, CCP_UDP_MAX_DATAGRAM_BYTES, quic_framed_message_length,
-    tcp_framed_message_length,
+    CCP_TCP_MAX_FRAME_BYTES, CCP_UDP_MAX_DATAGRAM_BYTES, LinkConnectionKey, LinkConnectionRecord,
+    LinkConnectionRegistry, LinkShardDispatcher, LinkTransportKind, QuicBinding,
+    QuicBindingMessage, TcpBinding, TcpBindingMessage, UdpBinding, UdpBindingMessage,
+    link_transport_kind_for_binding, quic_framed_message_length, tcp_framed_message_length,
+    validate_udp_datagram_payload,
 };
 
 use sdkwork_im_ccp_binding_ws::CCP_WS_SUBPROTOCOL;
@@ -376,6 +376,26 @@ impl LinkOutboundQueueState {
 
     pub fn record_client_ack(&mut self, acked_through_seq: u64) {
         self.last_sent_after_seq = self.last_sent_after_seq.max(acked_through_seq);
+    }
+
+    /// Rewind outbound cursors when the client reports a gap before the last delivered seq.
+    pub fn rewind_for_nack(&mut self, nack_through_seq: u64) -> bool {
+        let before_sent = self.last_sent_after_seq;
+        let before_delivered = self.delivered_after_seq;
+        self.last_sent_after_seq = self.last_sent_after_seq.min(nack_through_seq);
+        self.delivered_after_seq = self.delivered_after_seq.min(nack_through_seq);
+        before_sent != self.last_sent_after_seq || before_delivered != self.delivered_after_seq
+    }
+
+    /// Plan an ARQ replay window after a client `events.nack` frame.
+    pub fn plan_nack_replay(
+        &mut self,
+        nack_through_seq: u64,
+        requested_limit: usize,
+        latest_realtime_seq: u64,
+    ) -> LinkOutboundWindowPlan {
+        self.rewind_for_nack(nack_through_seq);
+        self.plan_pull(Some(nack_through_seq), requested_limit, latest_realtime_seq)
     }
 
     pub async fn drain_buffered_push_windows<TDriver>(
@@ -881,11 +901,11 @@ mod tests {
 
     use super::{
         LinkBufferedPushDrainDriver, LinkBufferedPushDrainStatus, LinkBufferedPushFetchedWindow,
-        LinkHelloError, LinkPushMode, LinkSession, LinkSessionResumeDirective, LinkWebsocketMode,
-        OutboundQueuePolicy, REALTIME_OVERLOAD_CLOSE_CODE, REALTIME_OVERLOAD_CLOSE_REASON,
-        ResumeDecision, SessionResumedFrame, decide_resume, parse_protocol_version,
-        pending_outbound_events, prepare_websocket_upgrade, select_websocket_mode,
-        supported_websocket_subprotocols,
+        LinkHelloError, LinkOutboundQueueState, LinkPushMode, LinkSession,
+        LinkSessionResumeDirective, LinkWebsocketMode, OutboundQueuePolicy,
+        REALTIME_OVERLOAD_CLOSE_CODE, REALTIME_OVERLOAD_CLOSE_REASON, ResumeDecision,
+        SessionResumedFrame, decide_resume, parse_protocol_version, pending_outbound_events,
+        prepare_websocket_upgrade, select_websocket_mode, supported_websocket_subprotocols,
     };
 
     fn poll_ready<F>(future: F) -> F::Output
@@ -1472,5 +1492,19 @@ mod tests {
         assert_eq!(queue.last_sent_after_seq(), 700);
         assert_eq!(queue.delivered_after_seq(), 700);
         assert_eq!(queue.latest_realtime_seq(), 700);
+    }
+
+    #[test]
+    fn test_runtime_link_rewinds_and_replays_after_client_nack() {
+        let mut queue =
+            LinkOutboundQueueState::new(200, 250, OutboundQueuePolicy::realtime_default());
+        assert!(queue.rewind_for_nack(150));
+        assert_eq!(queue.last_sent_after_seq(), 150);
+        assert_eq!(queue.delivered_after_seq(), 150);
+
+        let replay = queue.plan_nack_replay(150, 32, 250);
+        assert_eq!(replay.after_seq, 150);
+        assert_eq!(replay.batch.limit, 32);
+        assert_eq!(queue.last_sent_after_seq(), 150);
     }
 }

@@ -74,7 +74,7 @@ Console.WriteLine(result);
 // List pending realtime events
 var query = new Dictionary<string, object>
 {
-    ["limit"] = 1,
+    ["page_size"] = 1,
     ["cursor"] = "cursor",
 };
 var result = await client.Realtime.EventsListAsync(query);
@@ -98,13 +98,8 @@ Console.WriteLine(result);
 ### social
 
 ```csharp
-// List contact tags
-var query = new Dictionary<string, object>
-{
-    ["limit"] = 1,
-    ["cursor"] = "cursor",
-};
-var result = await client.Social.ContactsTagsListAsync(query);
+// Retrieve pending incoming friend request count
+var result = await client.Social.FriendRequestsPendingCountRetrieveAsync();
 Console.WriteLine(result);
 ```
 
@@ -114,7 +109,7 @@ Console.WriteLine(result);
 // List IM contacts
 var query = new Dictionary<string, object>
 {
-    ["limit"] = 1,
+    ["page_size"] = 1,
     ["cursor"] = "cursor",
 };
 var result = await client.Chat.ContactsListAsync(query);
@@ -138,7 +133,12 @@ Console.WriteLine(result);
 
 ```csharp
 // List spaces
-var result = await client.Spaces.ListAsync();
+var query = new Dictionary<string, object>
+{
+    ["page_size"] = 1,
+    ["cursor"] = "cursor",
+};
+var result = await client.Spaces.ListAsync(query);
 Console.WriteLine(result);
 ```
 

@@ -29,8 +29,13 @@ assert.match(
 const commitMaterializer = readExists('services/social-service/src/commit_materializer.rs');
 assert.match(
   commitMaterializer,
-  /commits\.len\(\)\s*>\s*1[\s\S]*materialize_commits_in_transaction/,
-  'SocialPostgresMaterializer must route multi-commit batches through transactional materialize',
+  /if commits\.is_empty\(\)[\s\S]*materialize_commits_in_transaction/,
+  'SocialPostgresMaterializer must route all commit batches through transactional materialize',
+);
+assert.doesNotMatch(
+  commitMaterializer,
+  /commits\.len\(\)\s*>\s*1/,
+  'SocialPostgresMaterializer must not gate transactions on multi-commit length only',
 );
 
 const lib = readExists('adapters/social-postgres/src/lib.rs');

@@ -1,11 +1,12 @@
-import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/im-admin-core/sdk';
+import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/im-pc-admin-sdk';
 import {
   extractBackendSdkRecords,
   mapAppSdkOffsetPage,
   readBackendPageTotal,
-  readString,
+  readRecordNumber,
+  readRecordString,
   SDKWORK_DEFAULT_PAGE_SIZE,
-} from '@sdkwork/im-admin-core/sdk/backendSdkResponseHelpers';
+} from '@sdkwork/im-pc-admin-sdk/backendSdkResponseHelpers';
 
 export interface GlobalUser {
   id: string;
@@ -48,24 +49,29 @@ function mapStatusFilter(status?: string): string | undefined {
 }
 
 function mapUser(record: UnknownRecord): GlobalUser {
-  const id = readString(record, ['userId', 'user_id', 'id', 'accountId'], 'user');
-  const displayName = readString(record, ['displayName', 'display_name', 'name', 'nickname', 'username'], id);
-  const tenantId = readString(record, ['tenantId', 'tenant_id'], '');
-  const tenantName = readString(record, ['tenantName', 'tenant_name', 'tenant'], tenantId);
-  const mfaEnabled = readString(record, ['mfaEnabled', 'mfa_enabled', 'multiFactorEnabled'], '');
-  const security = readString(
+  const id = readRecordString(record, ['userId', 'user_id', 'id', 'accountId'], 'user');
+  const displayName = readRecordString(
     record,
-    ['security', 'securityStatus', 'security_status'],
-    mfaEnabled === 'true' ? 'MFA Enforced' : 'Password Only',
+    ['displayName', 'display_name', 'name', 'nickname', 'username'],
+    id,
   );
+  const tenantId = readRecordString(record, ['tenantId', 'tenant_id']);
+  const tenantName = readRecordString(record, ['tenantName', 'tenant_name', 'tenant'], tenantId);
+  const mfaEnabled = readRecordString(record, ['mfaEnabled', 'mfa_enabled', 'multiFactorEnabled']);
+  const security =
+    readRecordString(record, ['security', 'securityStatus', 'security_status']) ||
+    (mfaEnabled === 'true' ? 'MFA Enforced' : 'Password Only');
   return {
-    email: readString(record, ['email'], ''),
+    email: readRecordString(record, ['email']),
     id,
     name: displayName,
     security,
-    status: normalizeStatus(readString(record, ['status', 'state'], 'active')),
-    tenant: tenantName && tenantId && tenantName !== tenantId ? `${tenantName} (${tenantId})` : tenantName,
-    uin: readString(record, ['uin', 'userNo', 'user_no', 'accountNo'], id),
+    status: normalizeStatus(readRecordString(record, ['status', 'state'], 'active')),
+    tenant:
+      tenantName && tenantId && tenantName !== tenantId
+        ? `${tenantName} (${tenantId})`
+        : tenantName,
+    uin: readRecordString(record, ['uin', 'userNo', 'user_no', 'accountNo'], id),
   };
 }
 

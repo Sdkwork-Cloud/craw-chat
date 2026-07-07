@@ -8,9 +8,8 @@ use im_platform_contracts::{
 use r2d2_postgres::postgres::Transaction;
 
 use crate::{
-    compose_partition_key, journal_retention_until, postgres_jsonb_payload,
+    PostgresJournalPool, compose_partition_key, journal_retention_until, postgres_jsonb_payload,
     postgres_pool_client, postgres_timestamptz, postgres_unavailable_db, run_postgres_io,
-    PostgresJournalPool,
 };
 
 const INSERT_MESSAGE_SQL: &str = r#"
@@ -103,7 +102,9 @@ fn append_journal_in_transaction(
     prefix: &str,
     envelope: &CommitEnvelope,
 ) -> Result<JournalAppendOutcome, ContractError> {
-    use crate::{is_unique_violation, APPEND_EVENT_SQL, LOAD_EVENT_BY_ID_SQL, LOAD_EVENT_BY_POSITION_SQL};
+    use crate::{
+        APPEND_EVENT_SQL, LOAD_EVENT_BY_ID_SQL, LOAD_EVENT_BY_POSITION_SQL, is_unique_violation,
+    };
     use sdkwork_utils_rust::sha256_hash;
 
     let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
@@ -169,11 +170,14 @@ fn append_journal_in_transaction(
                 }
             }
             Err(error) if is_unique_violation(&error) => {
-                savepoint
-                    .rollback()
-                    .map_err(|error| postgres_unavailable_db("message post journal rollback", error))?;
+                savepoint.rollback().map_err(|error| {
+                    postgres_unavailable_db("message post journal rollback", error)
+                })?;
                 let row = txn
-                    .query_one(LOAD_EVENT_BY_POSITION_SQL, &[&partition_key, &commit_offset])
+                    .query_one(
+                        LOAD_EVENT_BY_POSITION_SQL,
+                        &[&partition_key, &commit_offset],
+                    )
                     .map_err(|error| {
                         postgres_unavailable_db("message post journal position lookup", error)
                     })?;
@@ -189,7 +193,10 @@ fn append_journal_in_transaction(
                 }
             }
             Err(error) => {
-                return Err(postgres_unavailable_db("message post journal insert", error));
+                return Err(postgres_unavailable_db(
+                    "message post journal insert",
+                    error,
+                ));
             }
         }
     };

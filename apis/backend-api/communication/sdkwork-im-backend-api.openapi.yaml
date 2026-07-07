@@ -507,7 +507,7 @@ paths:
       operationId: records.create
       summary: Record audit anchor
       responses:
-        '200':
+        '201':
           description: OK
           content:
             application/json:
@@ -1445,7 +1445,7 @@ paths:
         description: Provider binding mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -1520,7 +1520,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -1670,7 +1670,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -1820,7 +1820,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -1970,7 +1970,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -2366,7 +2366,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -2598,7 +2598,7 @@ paths:
         description: Targeted request-key payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -2890,7 +2890,7 @@ paths:
     post:
       operationId: social.runtime.reclaimStalePendingSharedChannelSync.create
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -2965,7 +2965,7 @@ paths:
         description: Targeted request-key payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3033,7 +3033,7 @@ paths:
     post:
       operationId: social.runtime.repairDerivedSnapshot.create
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3101,7 +3101,7 @@ paths:
     post:
       operationId: social.runtime.repairSharedChannelSync.create
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3176,7 +3176,7 @@ paths:
         description: Targeted request-key payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3244,7 +3244,7 @@ paths:
     post:
       operationId: social.runtime.requeueDeadLetterSharedChannelSync.create
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3319,7 +3319,7 @@ paths:
         description: Targeted request-key payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3394,7 +3394,7 @@ paths:
         description: Targeted request-key payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3469,7 +3469,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3619,7 +3619,7 @@ paths:
         description: Social mutation payload.
         required: true
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
@@ -3790,7 +3790,7 @@ paths:
         - admin
       summary: createApiKeyGroup
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -3877,32 +3877,14 @@ paths:
         - admin
       summary: deleteApiKeyGroup
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -3992,7 +3974,7 @@ paths:
         - admin
       summary: createApiKey
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4079,32 +4061,14 @@ paths:
         - admin
       summary: deleteApiKey
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4296,7 +4260,7 @@ paths:
         - admin
       summary: saveChannelModel
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4340,32 +4304,14 @@ paths:
         - admin
       summary: deleteChannelModel
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4411,7 +4357,7 @@ paths:
         - admin
       summary: saveChannel
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4455,32 +4401,14 @@ paths:
         - admin
       summary: deleteChannel
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4526,7 +4454,7 @@ paths:
         - admin
       summary: saveCredential
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4570,32 +4498,14 @@ paths:
         - admin
       summary: deleteCredential
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -4616,7 +4526,7 @@ paths:
         - admin
       summary: reloadExtensionRuntimes
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4711,7 +4621,7 @@ paths:
         - admin
       summary: createRateLimitPolicy
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4806,7 +4716,7 @@ paths:
         - admin
       summary: saveMarketingCampaign
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4919,7 +4829,7 @@ paths:
         - admin
       summary: saveModelPrice
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -4963,32 +4873,14 @@ paths:
         - admin
       summary: deleteModelPrice
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -5034,7 +4926,7 @@ paths:
         - admin
       summary: saveModel
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -5078,32 +4970,14 @@ paths:
         - admin
       summary: deleteModel
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -5149,7 +5023,7 @@ paths:
         - admin
       summary: saveProvider
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -5193,32 +5067,14 @@ paths:
         - admin
       summary: deleteProvider
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -5328,7 +5184,7 @@ paths:
         - admin
       summary: createRoutingProfile
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -5461,7 +5317,7 @@ paths:
         - admin
       summary: saveGlobalStorageConfig
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -5542,7 +5398,7 @@ paths:
         - admin
       summary: saveTenantStorageConfig
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -5585,32 +5441,14 @@ paths:
         - admin
       summary: deleteTenantStorageConfig
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SdkWorkApiResponse'
-                  - type: object
-                    required:
-                      - data
-                    properties:
-                      data:
-                        type: object
-                        additionalProperties: false
-                        required:
-                          - accepted
-                        properties:
-                          accepted:
-                            type: boolean
-                            const: true
-                          resourceId:
-                            type: string
-                          status:
-                            type: string
         '204':
-          description: Delete succeeded and no payload is returned
+          description: Deleted successfully. Trace id is returned in X-SdkWork-Trace-Id header.
+          headers:
+            X-SdkWork-Trace-Id:
+              description: Server-owned request correlation id.
+              schema:
+                type: string
+                format: uuid
         '401':
           description: Authentication failed or no active operator session
           content:
@@ -5695,7 +5533,7 @@ paths:
         - admin
       summary: validateGlobalStorageConfig
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:
@@ -5739,7 +5577,7 @@ paths:
         - admin
       summary: validateTenantStorageConfig
       responses:
-        '200':
+        '201':
           description: Successful response
           content:
             application/json:

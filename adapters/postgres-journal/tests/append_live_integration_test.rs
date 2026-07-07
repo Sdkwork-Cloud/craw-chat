@@ -58,7 +58,10 @@ fn append_agent_dialog_envelope_live() {
     let result = journal.append(envelope);
     match &result {
         Ok(position) => {
-            eprintln!("append ok: partition={} offset={}", position.partition, position.offset);
+            eprintln!(
+                "append ok: partition={} offset={}",
+                position.partition, position.offset
+            );
         }
         Err(error) => {
             eprintln!("append failed: {error:?}");

@@ -82,7 +82,14 @@ fn list_all_messages<J: CommitJournal>(
     conversation_id: &str,
     principal_id: &str,
 ) -> Result<conversation_runtime::MessageHistoryResult, RuntimeError> {
-    runtime.list_messages_window(tenant_id, "default", conversation_id, principal_id, None, 100)
+    runtime.list_messages_window(
+        tenant_id,
+        "default",
+        conversation_id,
+        principal_id,
+        None,
+        100,
+    )
 }
 
 fn canonical_bind_direct_chat_command(
@@ -127,7 +134,10 @@ fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
         .expect("conversation should be created");
 
     for invalid_limit in [0, 1001] {
-        let result = runtime.list_messages_window("100001", "default", "c_history_limit_guard",
+        let result = runtime.list_messages_window(
+            "100001",
+            "default",
+            "c_history_limit_guard",
             "1",
             None,
             invalid_limit,
@@ -309,7 +319,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_batch_fail".into(),
             sender: Sender {
                 id: "1051".into(),
@@ -411,7 +421,7 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     let message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_demo".into(),
             sender: Sender {
                 id: "1".into(),
@@ -574,7 +584,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     let first = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_post_retry".into(),
             sender: Sender {
                 id: "1".into(),
@@ -598,7 +608,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     let duplicate = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_post_retry".into(),
             sender: Sender {
                 id: "1".into(),
@@ -632,10 +642,10 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
         "idempotent retry should resolve to the original event id"
     );
 
-    let history = list_all_messages(&runtime, "100001", "c_post_retry", "1")
-        .expect("history should list");
+    let history =
+        list_all_messages(&runtime, "100001", "c_post_retry", "1").expect("history should list");
     assert_eq!(
-        history.items.len(),
+        history.page.items.len(),
         1,
         "duplicate same-input retry must not append a second stored message"
     );
@@ -643,7 +653,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
 
     let conflicting_retry = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_post_retry".into(),
         sender: Sender {
             id: "1".into(),
@@ -690,7 +700,7 @@ fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payloa
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_rtc_signal_backfill".into(),
             sender: Sender {
                 id: "1".into(),
@@ -717,9 +727,9 @@ fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payloa
 
     let history = list_all_messages(&runtime, "100001", "c_rtc_signal_backfill", "1")
         .expect("history should list");
-    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.page.items.len(), 1);
     assert_eq!(
-        history.items[0].message.rtc_session_id.as_deref(),
+        history.page.items[0].message.rtc_session_id.as_deref(),
         Some("rtc_runtime_backfill")
     );
 }
@@ -742,7 +752,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_replay".into(),
             sender: Sender {
                 id: "1".into(),
@@ -780,7 +790,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     let posted = replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_replay".into(),
             sender: Sender {
                 id: "1".into(),
@@ -832,7 +842,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     let alpha_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_alpha".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared".into(),
             sender: Sender {
                 id: "1045".into(),
@@ -856,7 +866,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     let beta_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_beta".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared".into(),
             sender: Sender {
                 id: "1046".into(),
@@ -898,7 +908,7 @@ fn test_post_message_rejects_sender_kind_mismatch_against_member_principal_kind(
 
     let post = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_kind_guard".into(),
         sender: Sender {
             id: "1".into(),
@@ -939,7 +949,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_edit_kind_guard".into(),
             sender: Sender {
                 id: "1".into(),
@@ -1002,7 +1012,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_recall_kind_guard".into(),
             sender: Sender {
                 id: "1".into(),
@@ -1035,7 +1045,8 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
             session_id: Some("s_demo".into()),
             metadata: Default::default(),
         },
-    idempotency_key: None,    });
+        idempotency_key: None,
+    });
 
     assert!(matches!(recall, Err(RuntimeError::PermissionDenied(_))));
 }
@@ -1182,7 +1193,10 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         },
         "user",
     );
-    assert!(matches!(conflicting_retry, Err(RuntimeError::InvalidInput(_))));
+    assert!(matches!(
+        conflicting_retry,
+        Err(RuntimeError::InvalidInput(_))
+    ));
 
     let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
     for envelope in source_journal.recorded() {
@@ -1661,7 +1675,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
     let source_post = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_handoff_post".into(),
             sender: Sender {
                 id: "ag_source".into(),
@@ -1686,7 +1700,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
     let target_post = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_handoff_post".into(),
             sender: Sender {
                 id: "1".into(),
@@ -1812,7 +1826,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
 
     let post_after_close = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_agent_handoff_state".into(),
         sender: Sender {
             id: "1".into(),
@@ -1999,10 +2013,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
         .list_members("100001", "default", "c_members")
         .expect("list members after remove should succeed");
     assert_eq!(members_after_remove.len(), 1);
-    assert_eq!(
-        members_after_remove[0].member_id,
-        "cm_c_members_user_1"
-    );
+    assert_eq!(members_after_remove[0].member_id, "cm_c_members_user_1");
 
     let events = journal.recorded();
     assert_eq!(events.len(), 4);
@@ -2081,7 +2092,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2105,7 +2116,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2220,7 +2231,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_received_unread_only".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2259,7 +2270,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_received_unread_only".into(),
             sender: Sender {
                 id: "1054".into(),
@@ -2314,7 +2325,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_actor_kind_guard".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2369,7 +2380,10 @@ fn test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch() {
         })
         .expect("create conversation should succeed");
 
-    let gate_attempt = runtime.ensure_conversation_bound_write_allowed_with_actor_kind("100001", "default", "c_write_capability_actor_kind_guard",
+    let gate_attempt = runtime.ensure_conversation_bound_write_allowed_with_actor_kind(
+        "100001",
+        "default",
+        "c_write_capability_actor_kind_guard",
         "1",
         "agent",
         "stream.append",
@@ -2399,7 +2413,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
     let posted = source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_policy_replay".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2537,7 +2551,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_retention_policy".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2584,7 +2598,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_retention_policy".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2633,7 +2647,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
 
     let subscriber_post = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_system_channel_post".into(),
         sender: Sender {
             id: "1".into(),
@@ -2659,7 +2673,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
 
     let system_post = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_system_channel_post".into(),
         sender: Sender {
             id: "svc_ops".into(),
@@ -2765,7 +2779,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: conversation_id.clone(),
             sender: Sender {
                 id: "1055".into(),
@@ -2829,7 +2843,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_mutation".into(),
             sender: Sender {
                 id: "1".into(),
@@ -2869,7 +2883,8 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("edit message should succeed");
 
     let recalled = runtime
@@ -2885,7 +2900,8 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("recall message should succeed");
 
     assert_eq!(edited.message_id, posted.message_id);
@@ -2921,7 +2937,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: conversation_id.clone(),
             sender: Sender {
                 id: "1".into(),
@@ -2967,7 +2983,8 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("generated message id should remain editable");
 
     let recalled = runtime
@@ -2983,7 +3000,8 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("generated message id should remain recallable");
 
     assert_eq!(edited.message_id, posted.message_id);
@@ -3007,7 +3025,7 @@ fn test_non_member_cannot_post_message_to_conversation() {
 
     let result = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_private".into(),
         sender: Sender {
             id: "1056".into(),
@@ -3048,7 +3066,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_private_mutation".into(),
             sender: Sender {
                 id: "1".into(),
@@ -3138,7 +3156,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_mutation".into(),
             sender: Sender {
                 id: "1".into(),
@@ -3228,7 +3246,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_override".into(),
             sender: Sender {
                 id: "1043".into(),
@@ -3321,7 +3339,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_mutation".into(),
             sender: Sender {
                 id: "1057".into(),
@@ -3354,7 +3372,8 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
             session_id: Some("s_owner".into()),
             metadata: Default::default(),
         },
-    idempotency_key: None,    });
+        idempotency_key: None,
+    });
     assert!(matches!(recall, Err(RuntimeError::PermissionDenied(_))));
 }
 
@@ -3847,7 +3866,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_cursor_commit_fail".into(),
             sender: Sender {
                 id: "1043".into(),
@@ -3914,7 +3933,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
 
     let post_attempt = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_post_commit_fail".into(),
         sender: Sender {
             id: "1".into(),
@@ -3943,7 +3962,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
         .expect("history should still load");
     assert_eq!(history.high_watermark, 0);
     assert!(
-        history.items.is_empty(),
+        history.page.items.is_empty(),
         "failed post must not leak a message"
     );
     assert_eq!(journal.recorded().len(), 2);
@@ -3966,7 +3985,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_edit_commit_fail".into(),
             sender: Sender {
                 id: "1".into(),
@@ -4015,13 +4034,13 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
 
     let history = list_all_messages(&runtime, "100001", "c_group_edit_commit_fail", "1")
         .expect("history should still load");
-    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.page.items.len(), 1);
     assert_eq!(
-        history.items[0].message.body.summary.as_deref(),
+        history.page.items[0].message.body.summary.as_deref(),
         Some("hello")
     );
     assert_eq!(
-        history.items[0].message.body.parts,
+        history.page.items[0].message.body.parts,
         vec![ContentPart::text("hello")]
     );
     assert_eq!(journal.recorded().len(), 3);
@@ -4044,7 +4063,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_recall_commit_fail".into(),
             sender: Sender {
                 id: "1".into(),
@@ -4077,7 +4096,8 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
             session_id: Some("s_owner".into()),
             metadata: Default::default(),
         },
-    idempotency_key: None,    });
+        idempotency_key: None,
+    });
     assert!(matches!(
         recall_attempt,
         Err(RuntimeError::Contract(ContractError::Unavailable(message)))
@@ -4086,10 +4106,10 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
 
     let history = list_all_messages(&runtime, "100001", "c_group_recall_commit_fail", "1")
         .expect("history should still load");
-    assert_eq!(history.items.len(), 1);
-    assert!(!history.items[0].recalled);
+    assert_eq!(history.page.items.len(), 1);
+    assert!(!history.page.items[0].recalled);
     assert_eq!(
-        history.items[0].message.body.summary.as_deref(),
+        history.page.items[0].message.body.summary.as_deref(),
         Some("hello")
     );
     assert_eq!(journal.recorded().len(), 3);
@@ -4112,7 +4132,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_reaction_add_commit_fail".into(),
             sender: Sender {
                 id: "1".into(),
@@ -4153,16 +4173,11 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
             if message == "forced journal append failure"
     ));
 
-    let history = list_all_messages(
-        &runtime,
-        "100001",
-        "c_group_reaction_add_commit_fail",
-        "1",
-    )
-    .expect("history should still load");
-    assert_eq!(history.items.len(), 1);
+    let history = list_all_messages(&runtime, "100001", "c_group_reaction_add_commit_fail", "1")
+        .expect("history should still load");
+    assert_eq!(history.page.items.len(), 1);
     assert!(
-        history.items[0].reactions.is_empty(),
+        history.page.items[0].reactions.is_empty(),
         "failed reaction add must not leak reaction state"
     );
     assert_eq!(journal.recorded().len(), 3);
@@ -4185,7 +4200,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_reaction_remove_commit_fail".into(),
             sender: Sender {
                 id: "1".into(),
@@ -4249,9 +4264,9 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
         "1",
     )
     .expect("history should still load");
-    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.page.items.len(), 1);
     assert_eq!(
-        history.items[0]
+        history.page.items[0]
             .reactions
             .get("thumbs_up")
             .map(|actors| actors.len()),
@@ -4278,7 +4293,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_pin_commit_fail".into(),
             sender: Sender {
                 id: "1".into(),
@@ -4320,8 +4335,8 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
 
     let history = list_all_messages(&runtime, "100001", "c_group_pin_commit_fail", "1")
         .expect("history should still load");
-    assert_eq!(history.items.len(), 1);
-    assert!(history.items[0].pin.is_none());
+    assert_eq!(history.page.items.len(), 1);
+    assert!(history.page.items[0].pin.is_none());
     assert_eq!(journal.recorded().len(), 3);
 }
 
@@ -4342,7 +4357,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_unpin_commit_fail".into(),
             sender: Sender {
                 id: "1".into(),
@@ -4399,9 +4414,9 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
 
     let history = list_all_messages(&runtime, "100001", "c_group_unpin_commit_fail", "1")
         .expect("history should still load");
-    assert_eq!(history.items.len(), 1);
+    assert_eq!(history.page.items.len(), 1);
     assert!(
-        history.items[0].pin.is_some(),
+        history.page.items[0].pin.is_some(),
         "failed unpin must preserve prior pin state"
     );
     assert_eq!(journal.recorded().len(), 4);
@@ -4684,7 +4699,7 @@ fn test_group_member_can_leave_and_loses_access() {
 
     let post_after_leave = runtime.post_message(PostMessageCommand {
         tenant_id: "100001".into(),
-       organization_id: "0".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_leave".into(),
         sender: Sender {
             id: "1043".into(),
@@ -5432,7 +5447,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_posted_time".into(),
             sender: Sender {
                 id: "1".into(),
@@ -5458,7 +5473,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_posted_time".into(),
             sender: Sender {
                 id: "1".into(),
@@ -5513,7 +5528,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             sender: Sender {
                 id: "1".into(),
@@ -5536,7 +5551,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             sender: Sender {
                 id: "1".into(),
@@ -5692,7 +5707,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     let first = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_mutation_time".into(),
             sender: Sender {
                 id: "1".into(),
@@ -5715,7 +5730,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     let second = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_mutation_time".into(),
             sender: Sender {
                 id: "1".into(),
@@ -5755,7 +5770,8 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("first edit should succeed");
 
     sleep(Duration::from_millis(5));
@@ -5779,7 +5795,8 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 render_hints: Default::default(),
                 reply_to: None,
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("second edit should succeed");
 
     runtime
@@ -5795,7 +5812,8 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("first recall should succeed");
 
     sleep(Duration::from_millis(5));
@@ -5813,7 +5831,8 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 session_id: Some("s_demo".into()),
                 metadata: Default::default(),
             },
-        idempotency_key: None,        })
+            idempotency_key: None,
+        })
         .expect("second recall should succeed");
 
     let events = journal.recorded();
@@ -5856,7 +5875,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_reaction_flow".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6002,7 +6021,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_pin_flow".into(),
             sender: Sender {
                 id: "1043".into(),
@@ -6143,7 +6162,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let posted = source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_reaction_pin_replay".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6343,7 +6362,8 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
         members.iter().any(|member| {
             member.principal_id == "actor_a"
                 && member.role == MembershipRole::Owner
-                && member.attributes.get("directChatId").map(String::as_str) == Some(direct_chat_id.as_str())
+                && member.attributes.get("directChatId").map(String::as_str)
+                    == Some(direct_chat_id.as_str())
         }),
         "left actor should become the anchor owner with direct chat binding metadata"
     );
@@ -6351,7 +6371,8 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
         members.iter().any(|member| {
             member.principal_id == "actor_b"
                 && member.role == MembershipRole::Member
-                && member.attributes.get("directChatId").map(String::as_str) == Some(direct_chat_id.as_str())
+                && member.attributes.get("directChatId").map(String::as_str)
+                    == Some(direct_chat_id.as_str())
         }),
         "right actor should become the peer member with direct chat binding metadata"
     );
@@ -6384,7 +6405,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6458,7 +6479,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     let reply = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_thread_runtime".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6542,7 +6563,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let first_root = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_retry".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6566,7 +6587,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let second_root = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_retry".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6719,7 +6740,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_notify".into(),
             sender: Sender {
                 id: "1051".into(),
@@ -6812,8 +6833,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     assert!(thread_join_events.iter().any(|event| {
         let payload: serde_json::Value = serde_json::from_str(event.payload.as_str())
             .expect("thread member joined payload should be json");
-        payload["principalId"] == "1051"
-            && payload["attributes"]["threadRole"] == "root_author"
+        payload["principalId"] == "1051" && payload["attributes"]["threadRole"] == "root_author"
     }));
 
     let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
@@ -6835,7 +6855,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     let reply = replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_thread_notify".into(),
             sender: Sender {
                 id: "1051".into(),
@@ -6893,7 +6913,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared_sync_runtime".into(),
             sender: Sender {
                 id: "1".into(),
@@ -6962,21 +6982,14 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
             .attributes
             .get("sharedChannelSyncRequestKey")
             .map(String::as_str),
-        Some(
-            "100001|c_shared_sync_runtime|scp_runtime|ec_runtime|1064|user|partner::runtime-user"
-        )
+        Some("100001|c_shared_sync_runtime|scp_runtime|ec_runtime|1064|user|partner::runtime-user")
     );
 
-    let linked_history = list_all_messages(
-        &runtime,
-        "100001",
-        "c_shared_sync_runtime",
-        "1064",
-    )
-    .expect("linked member should read shared history after sync");
-    assert_eq!(linked_history.items.len(), 1);
+    let linked_history = list_all_messages(&runtime, "100001", "c_shared_sync_runtime", "1064")
+        .expect("linked member should read shared history after sync");
+    assert_eq!(linked_history.page.items.len(), 1);
     assert_eq!(
-        linked_history.items[0].message.message_id,
+        linked_history.page.items[0].message.message_id,
         posted.message_id
     );
 
@@ -7000,16 +7013,12 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
             .expect("replay should succeed");
     }
 
-    let replay_linked_history = list_all_messages(
-        &replay_runtime,
-        "100001",
-        "c_shared_sync_runtime",
-        "1064",
-    )
-    .expect("replayed linked member should still read shared history");
-    assert_eq!(replay_linked_history.items.len(), 1);
+    let replay_linked_history =
+        list_all_messages(&replay_runtime, "100001", "c_shared_sync_runtime", "1064")
+            .expect("replayed linked member should still read shared history");
+    assert_eq!(replay_linked_history.page.items.len(), 1);
     assert_eq!(
-        replay_linked_history.items[0]
+        replay_linked_history.page.items[0]
             .message
             .body
             .summary
@@ -7030,11 +7039,12 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
         )
         .expect("first direct chat binding should succeed");
 
-    let duplicate = runtime.bind_direct_chat_conversation_with_binder_kind(
-        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
-        "system",
-    )
-    .expect("duplicate direct chat binding should replay");
+    let duplicate = runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
+            "system",
+        )
+        .expect("duplicate direct chat binding should replay");
 
     assert_eq!(duplicate.conversation_id, first.conversation_id);
     assert_eq!(
@@ -7093,7 +7103,10 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         },
         "system",
     );
-    assert!(matches!(conflicting_retry, Err(RuntimeError::InvalidInput(_))));
+    assert!(matches!(
+        conflicting_retry,
+        Err(RuntimeError::InvalidInput(_))
+    ));
 
     let replay_runtime = ConversationRuntime::new(InMemoryJournal::default());
     for envelope in source_journal.recorded() {
@@ -7192,15 +7205,20 @@ fn test_direct_chat_business_binding_survives_recovery_replay() {
     assert_eq!(binding.business_type, "direct_chat");
     assert_eq!(binding.business_id, direct_chat_id);
 
-    let duplicate_after_replay = replay_runtime.bind_direct_chat_conversation_with_binder_kind(
-        canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
-        "system",
-    )
-    .expect("replayed direct chat binding should be idempotent");
+    let duplicate_after_replay = replay_runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            canonical_bind_direct_chat_command("100001", "actor_a", "actor_b"),
+            "system",
+        )
+        .expect("replayed direct chat binding should be idempotent");
 
     assert_eq!(duplicate_after_replay.conversation_id, conversation_id);
     assert_eq!(
-        duplicate_after_replay.delivery_status.as_ref().unwrap().as_str(),
+        duplicate_after_replay
+            .delivery_status
+            .as_ref()
+            .unwrap()
+            .as_str(),
         "replayed"
     );
 }
@@ -7222,7 +7240,7 @@ fn test_post_message_rejects_oversized_sender_session_id() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_sender_session_oversized".into(),
             sender: Sender {
                 id: "1".into(),
@@ -7294,7 +7312,7 @@ fn test_post_message_rejects_oversized_sender_metadata() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_sender_metadata_oversized".into(),
             sender: Sender {
                 id: "1".into(),
@@ -7340,7 +7358,7 @@ fn test_post_message_rejects_oversized_render_hints() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
-           organization_id: "0".into(),
+            organization_id: "0".into(),
             conversation_id: "c_render_hints_oversized".into(),
             sender: Sender {
                 id: "1".into(),

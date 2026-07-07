@@ -1,10 +1,31 @@
-import type { TimelineViewEntry } from "@sdkwork/im-sdk";
+import type { SdkWorkListPageInfo, TimelineViewEntry } from "@sdkwork/im-sdk";
 
 export const MAX_TIMELINE_ENTRIES = 500;
 
 export interface TimelinePaginationState {
   hasMore: boolean;
   nextAfterSeq: number;
+}
+
+export function readCursorPageInfo(
+  pageInfo?: SdkWorkListPageInfo,
+): { hasMore: boolean; nextCursor?: string } {
+  const hasMore = pageInfo?.hasMore === true;
+  return {
+    hasMore,
+    nextCursor: hasMore ? (pageInfo?.nextCursor ?? undefined) : undefined,
+  };
+}
+
+export function readSeqPageInfo(pageInfo?: SdkWorkListPageInfo): TimelinePaginationState {
+  const hasMore = pageInfo?.hasMore === true;
+  const parsed = hasMore && pageInfo?.nextCursor
+    ? Number.parseInt(pageInfo.nextCursor, 10)
+    : 0;
+  return {
+    hasMore,
+    nextAfterSeq: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
+  };
 }
 
 export function resolveLatestMessageSeq(entries: readonly TimelineViewEntry[]): number {
@@ -28,11 +49,7 @@ export function mergeTimelineEntries(
 }
 
 export function pickTimelinePagination(response: {
-  hasMore?: boolean;
-  nextAfterSeq?: number | null;
+  pageInfo?: SdkWorkListPageInfo;
 }): TimelinePaginationState {
-  return {
-    hasMore: Boolean(response.hasMore),
-    nextAfterSeq: typeof response.nextAfterSeq === "number" ? response.nextAfterSeq : 0,
-  };
+  return readSeqPageInfo(response.pageInfo);
 }

@@ -18,30 +18,30 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Sync realtime subscription targets
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RealtimeSubscriptionSyncResponse?> SubscriptionsSyncAsync(Sdkwork.Im.Sdk.Generated.Models.RealtimeSubscriptionSyncRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.RealtimeSubscriptionsSyncResponse?> SubscriptionsSyncAsync(Sdkwork.Im.Sdk.Generated.Models.RealtimeSubscriptionSyncRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RealtimeSubscriptionSyncResponse>(ApiPaths.ImPath("/realtime/subscriptions/sync"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RealtimeSubscriptionsSyncResponse>(ApiPaths.ImPath("/realtime/subscriptions/sync"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Acknowledge realtime events
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.AckResponse?> EventsAckAsync(Sdkwork.Im.Sdk.Generated.Models.RealtimeEventAckRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.RealtimeEventsAckResponse?> EventsAckAsync(Sdkwork.Im.Sdk.Generated.Models.RealtimeEventAckRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.AckResponse>(ApiPaths.ImPath("/realtime/events/ack"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RealtimeEventsAckResponse>(ApiPaths.ImPath("/realtime/events/ack"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// List pending realtime events
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RealtimeEventsResponse?> EventsListAsync(int? limit = null, string? cursor = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.RealtimeEventsListResponse?> EventsListAsync(int? pageSize = null, string? cursor = null)
         {
             var queryString = BuildQueryString(new[]
             {
-                new QueryParameterSpec("limit", limit, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.RealtimeEventsResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/realtime/events"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.RealtimeEventsListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/realtime/events"), queryString));
         }
 
 

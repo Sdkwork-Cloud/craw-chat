@@ -11,8 +11,8 @@ use sdkwork_utils_rust::sha256_hash;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_timestamptz,
-    postgres_unavailable, run_postgres_io, PostgresJournalPool,
+    PostgresJournalPool, now_rfc3339, postgres_jsonb_payload, postgres_pool_client,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
 const DEFAULT_ORGANIZATION_ID: &str = "0";
@@ -204,11 +204,10 @@ fn save_state(pool: &PostgresJournalPool, record: StreamStateRecord) -> Result<(
 
     let session = &record.session;
     let (result_message_id, payload_extras) = result_message_id_for_db(session);
-    let payload_json = postgres_jsonb_payload(
-        &serde_json::to_string(&payload_extras).map_err(|error| {
+    let payload_json =
+        postgres_jsonb_payload(&serde_json::to_string(&payload_extras).map_err(|error| {
             ContractError::Conflict(format!("stream session payload encode failed: {error}"))
-        })?,
-    )?;
+        })?)?;
     let payload_hash = sha256_hash(payload_json.to_string().as_bytes());
     let opened_at = postgres_timestamptz(session.opened_at.as_str(), "opened_at")?;
     let closed_at = optional_timestamptz(session.closed_at.as_deref())?;
@@ -265,11 +264,10 @@ fn save_state(pool: &PostgresJournalPool, record: StreamStateRecord) -> Result<(
             sender: frame.sender.clone(),
             attributes: frame.attributes.clone(),
         };
-        let frame_json = postgres_jsonb_payload(
-            &serde_json::to_string(&frame_payload).map_err(|error| {
+        let frame_json =
+            postgres_jsonb_payload(&serde_json::to_string(&frame_payload).map_err(|error| {
                 ContractError::Conflict(format!("stream frame payload encode failed: {error}"))
-            })?,
-        )?;
+            })?)?;
         let frame_hash = sha256_hash(frame_json.to_string().as_bytes());
         let frame_seq = i64::try_from(frame.frame_seq).map_err(|_| {
             ContractError::Conflict("stream frame frame_seq exceeds i64 range".into())
@@ -332,8 +330,8 @@ fn clear_state(
 
 fn session_from_row(row: &postgres::Row) -> Result<StreamSession, ContractError> {
     let payload_text: String = row.get(20);
-    let extras: StreamSessionPayloadExtras = serde_json::from_str(payload_text.as_str())
-        .map_err(|error| {
+    let extras: StreamSessionPayloadExtras =
+        serde_json::from_str(payload_text.as_str()).map_err(|error| {
             ContractError::Conflict(format!("stream session payload decode failed: {error}"))
         })?;
     let result_message_id = row
@@ -371,9 +369,10 @@ fn frame_from_row(
     stream_id: &str,
 ) -> Result<StreamFrame, ContractError> {
     let payload_text: String = row.get(4);
-    let payload: StreamFramePayload = serde_json::from_str(payload_text.as_str()).map_err(|error| {
-        ContractError::Conflict(format!("stream frame payload decode failed: {error}"))
-    })?;
+    let payload: StreamFramePayload =
+        serde_json::from_str(payload_text.as_str()).map_err(|error| {
+            ContractError::Conflict(format!("stream frame payload decode failed: {error}"))
+        })?;
     let occurred_at = format_timestamptz(row.get(5))?;
     Ok(StreamFrame {
         tenant_id: tenant_id.to_owned(),
@@ -394,7 +393,12 @@ fn frame_from_row(
 
 fn result_message_id_for_db(session: &StreamSession) -> (Option<i64>, StreamSessionPayloadExtras) {
     let Some(result_message_id) = session.result_message_id.as_deref() else {
-        return (None, StreamSessionPayloadExtras { result_message_id: None });
+        return (
+            None,
+            StreamSessionPayloadExtras {
+                result_message_id: None,
+            },
+        );
     };
     if let Ok(parsed) = result_message_id.parse::<i64>() {
         return (
@@ -438,7 +442,9 @@ fn parse_stream_session_state(value: &str) -> Result<StreamSessionState, Contrac
     }
 }
 
-fn optional_timestamptz(value: Option<&str>) -> Result<Option<chrono::DateTime<chrono::Utc>>, ContractError> {
+fn optional_timestamptz(
+    value: Option<&str>,
+) -> Result<Option<chrono::DateTime<chrono::Utc>>, ContractError> {
     value
         .map(|instant| postgres_timestamptz(instant, "timestamp"))
         .transpose()
@@ -447,9 +453,8 @@ fn optional_timestamptz(value: Option<&str>) -> Result<Option<chrono::DateTime<c
 fn optional_u64_as_i64(value: Option<u64>) -> Result<Option<i64>, ContractError> {
     value
         .map(|seq| {
-            i64::try_from(seq).map_err(|_| {
-                ContractError::Conflict("stream sequence exceeds i64 range".into())
-            })
+            i64::try_from(seq)
+                .map_err(|_| ContractError::Conflict("stream sequence exceeds i64 range".into()))
         })
         .transpose()
 }
@@ -457,9 +462,8 @@ fn optional_u64_as_i64(value: Option<u64>) -> Result<Option<i64>, ContractError>
 fn optional_i64_as_u64(value: Option<i64>) -> Result<Option<u64>, ContractError> {
     value
         .map(|seq| {
-            u64::try_from(seq).map_err(|_| {
-                ContractError::Conflict("stream sequence is negative".into())
-            })
+            u64::try_from(seq)
+                .map_err(|_| ContractError::Conflict("stream sequence is negative".into()))
         })
         .transpose()
 }

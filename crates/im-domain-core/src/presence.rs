@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /// User presence status for availability indication.
 ///
@@ -54,9 +55,7 @@ impl PresenceStatus {
         }
     }
 
-    /// Parse a string into a PresenceStatus.
-    /// Returns None for unknown values.
-    pub fn from_str(value: &str) -> Option<Self> {
+    pub fn from_wire_value(value: &str) -> Option<Self> {
         match value {
             "online" => Some(Self::Online),
             "away" => Some(Self::Away),
@@ -104,6 +103,14 @@ impl PresenceStatus {
             Self::Invisible => 2, // Normal push but appears offline
             Self::Offline => 0,   // No push, queue for later
         }
+    }
+}
+
+impl FromStr for PresenceStatus {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::from_wire_value(value).ok_or(())
     }
 }
 

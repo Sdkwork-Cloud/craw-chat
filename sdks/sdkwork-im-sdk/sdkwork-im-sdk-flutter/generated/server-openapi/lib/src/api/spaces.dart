@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../http/client.dart';
 import '../models.dart';
 
@@ -11,40 +12,44 @@ class SpacesApi {
   SpacesApi(this._client);
 
   /// Create a space
-  Future<SpaceView?> create(SpaceCreateRequest body) async {
+  Future<SpacesCreateResponse201?> create(SpaceCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceView.fromJson(map);
+      return map == null ? null : SpacesCreateResponse201.fromJson(map);
     })();
   }
 
   /// List spaces
-  Future<SpaceListResponse?> list() async {
-    final response = await _client.get(ApiPaths.imPath('/spaces'));
+  Future<SpacesListResponse?> list([int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceListResponse.fromJson(map);
+      return map == null ? null : SpacesListResponse.fromJson(map);
     })();
   }
 
-  /// Get a space
-  Future<SpaceView?> get_(String spaceId) async {
+  /// Retrieve a space
+  Future<SpacesRetrieveResponse?> retrieve(String spaceId) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceView.fromJson(map);
+      return map == null ? null : SpacesRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update a space
-  Future<SpaceView?> update(String spaceId, SpaceUpdateRequest body) async {
+  Future<SpacesUpdateResponse?> update(String spaceId, SpaceUpdateRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceView.fromJson(map);
+      return map == null ? null : SpacesUpdateResponse.fromJson(map);
     })();
   }
 
@@ -54,40 +59,44 @@ class SpacesApi {
   }
 
   /// List spaces members
-  Future<SpaceMemberListResponse?> membersList(String spaceId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/members'));
+  Future<SpacesMembersListResponse?> membersList(String spaceId, [int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/members'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceMemberListResponse.fromJson(map);
+      return map == null ? null : SpacesMembersListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces members
-  Future<SpaceMemberView?> membersCreate(String spaceId, SpaceMemberCreateRequest body) async {
+  Future<SpacesMembersCreateResponse201?> membersCreate(String spaceId, SpaceMemberCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/members'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceMemberView.fromJson(map);
+      return map == null ? null : SpacesMembersCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get spaces members
-  Future<SpaceMemberView?> membersGet(String spaceId, String userId) async {
+  /// retrieve spaces members
+  Future<SpacesMembersRetrieveResponse?> membersRetrieve(String spaceId, String userId) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceMemberView.fromJson(map);
+      return map == null ? null : SpacesMembersRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update spaces members
-  Future<SpaceMemberView?> membersUpdate(String spaceId, String userId, SpaceMemberUpdateRequest body) async {
+  Future<SpacesMembersUpdateResponse?> membersUpdate(String spaceId, String userId, SpaceMemberUpdateRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceMemberView.fromJson(map);
+      return map == null ? null : SpacesMembersUpdateResponse.fromJson(map);
     })();
   }
 
@@ -97,40 +106,44 @@ class SpacesApi {
   }
 
   /// List spaces groups
-  Future<SpaceGroupListResponse?> groupsList(String spaceId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups'));
+  Future<SpacesGroupsListResponse?> groupsList(String spaceId, [int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupListResponse.fromJson(map);
+      return map == null ? null : SpacesGroupsListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces groups
-  Future<SpaceGroupView?> groupsCreate(String spaceId, SpaceGroupCreateRequest body) async {
+  Future<SpacesGroupsCreateResponse201?> groupsCreate(String spaceId, SpaceGroupCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupView.fromJson(map);
+      return map == null ? null : SpacesGroupsCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get spaces groups
-  Future<SpaceGroupView?> groupsGet(String spaceId, String groupId) async {
+  /// retrieve spaces groups
+  Future<SpacesGroupsRetrieveResponse?> groupsRetrieve(String spaceId, String groupId) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupView.fromJson(map);
+      return map == null ? null : SpacesGroupsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update spaces groups
-  Future<SpaceGroupView?> groupsUpdate(String spaceId, String groupId, SpaceGroupUpdateRequest body) async {
+  Future<SpacesGroupsUpdateResponse?> groupsUpdate(String spaceId, String groupId, SpaceGroupUpdateRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupView.fromJson(map);
+      return map == null ? null : SpacesGroupsUpdateResponse.fromJson(map);
     })();
   }
 
@@ -140,37 +153,45 @@ class SpacesApi {
   }
 
   /// List spaces groups members
-  Future<SpaceGroupMemberListResponse?> groupsMembersList(String spaceId, String groupId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/members'));
+  Future<SpacesGroupsMembersListResponse?> groupsMembersList(String spaceId, String groupId, [int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/members'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupMemberListResponse.fromJson(map);
+      return map == null ? null : SpacesGroupsMembersListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces groups members
-  Future<SpaceGroupMemberView?> groupsMembersCreate(String spaceId, String groupId, SpaceGroupMemberCreateRequest body) async {
+  Future<SpacesGroupsMembersCreateResponse201?> groupsMembersCreate(String spaceId, String groupId, SpaceGroupMemberCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/members'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupMemberView.fromJson(map);
+      return map == null ? null : SpacesGroupsMembersCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get spaces groups members
-  Future<SpaceGroupMemberView?> groupsMembersGet(String spaceId, String groupId, String userId) async {
+  /// retrieve spaces groups members
+  Future<SpacesGroupsMembersRetrieveResponse?> groupsMembersRetrieve(String spaceId, String groupId, String userId) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceGroupMemberView.fromJson(map);
+      return map == null ? null : SpacesGroupsMembersRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update spaces groups members
-  Future<void> groupsMembersUpdate(String spaceId, String groupId, String userId, SpaceGroupMemberUpdateRequest body) async {
+  Future<SpacesGroupsMembersUpdateResponse?> groupsMembersUpdate(String spaceId, String groupId, String userId, SpaceGroupMemberUpdateRequest body) async {
     final payload = body.toJson();
-    await _client.patch(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    final response = await _client.patch(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/groups/${serializePathParameter(groupId, const PathParameterSpec('groupId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SpacesGroupsMembersUpdateResponse.fromJson(map);
+    })();
   }
 
   /// Delete spaces groups members
@@ -179,40 +200,44 @@ class SpacesApi {
   }
 
   /// List spaces channels
-  Future<SpaceChannelListResponse?> channelsList(String spaceId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels'));
+  Future<SpacesChannelsListResponse?> channelsList(String spaceId, [int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceChannelListResponse.fromJson(map);
+      return map == null ? null : SpacesChannelsListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces channels
-  Future<SpaceChannelView?> channelsCreate(String spaceId, SpaceChannelCreateRequest body) async {
+  Future<SpacesChannelsCreateResponse201?> channelsCreate(String spaceId, SpaceChannelCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceChannelView.fromJson(map);
+      return map == null ? null : SpacesChannelsCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get spaces channels
-  Future<SpaceChannelView?> channelsGet(String spaceId, String channelId) async {
+  /// retrieve spaces channels
+  Future<SpacesChannelsRetrieveResponse?> channelsRetrieve(String spaceId, String channelId) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceChannelView.fromJson(map);
+      return map == null ? null : SpacesChannelsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update spaces channels
-  Future<SpaceChannelView?> channelsUpdate(String spaceId, String channelId, SpaceChannelUpdateRequest body) async {
+  Future<SpacesChannelsUpdateResponse?> channelsUpdate(String spaceId, String channelId, SpaceChannelUpdateRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceChannelView.fromJson(map);
+      return map == null ? null : SpacesChannelsUpdateResponse.fromJson(map);
     })();
   }
 
@@ -222,21 +247,25 @@ class SpacesApi {
   }
 
   /// List spaces channels access Rules
-  Future<SpaceChannelAccessRuleListResponse?> channelsAccessRulesList(String spaceId, String channelId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/access_rules'));
+  Future<SpacesChannelsAccessRulesListResponse?> channelsAccessRulesList(String spaceId, String channelId, [int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/access_rules'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceChannelAccessRuleListResponse.fromJson(map);
+      return map == null ? null : SpacesChannelsAccessRulesListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces channels access Rules
-  Future<SpaceChannelAccessRuleView?> channelsAccessRulesCreate(String spaceId, String channelId, SpaceChannelAccessRuleCreateRequest body) async {
+  Future<SpacesChannelsAccessRulesCreateResponse201?> channelsAccessRulesCreate(String spaceId, String channelId, SpaceChannelAccessRuleCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/channels/${serializePathParameter(channelId, const PathParameterSpec('channelId', 'simple', false))}/access_rules'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceChannelAccessRuleView.fromJson(map);
+      return map == null ? null : SpacesChannelsAccessRulesCreateResponse201.fromJson(map);
     })();
   }
 
@@ -246,68 +275,81 @@ class SpacesApi {
   }
 
   /// List spaces invites
-  Future<SpaceInviteListResponse?> invitesList(String spaceId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites'));
+  Future<SpacesInvitesListResponse?> invitesList(String spaceId, [String? status, int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('status', status, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceInviteListResponse.fromJson(map);
+      return map == null ? null : SpacesInvitesListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces invites
-  Future<SpaceInviteView?> invitesCreate(String spaceId, SpaceInviteCreateRequest body) async {
+  Future<SpacesInvitesCreateResponse201?> invitesCreate(String spaceId, SpaceInviteCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceInviteView.fromJson(map);
+      return map == null ? null : SpacesInvitesCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get spaces invites
-  Future<SpaceInviteView?> invitesGet(String spaceId, String inviteCode) async {
+  /// retrieve spaces invites
+  Future<SpacesInvitesRetrieveResponse?> invitesRetrieve(String spaceId, String inviteCode) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites/${serializePathParameter(inviteCode, const PathParameterSpec('inviteCode', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceInviteView.fromJson(map);
+      return map == null ? null : SpacesInvitesRetrieveResponse.fromJson(map);
     })();
   }
 
-  /// Revoke spaces invites
-  Future<void> invitesRevoke(String spaceId, String inviteCode) async {
+  /// Delete spaces invites
+  Future<void> invitesDelete(String spaceId, String inviteCode) async {
     await _client.delete(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites/${serializePathParameter(inviteCode, const PathParameterSpec('inviteCode', 'simple', false))}'));
   }
 
   /// Accept spaces invites
-  Future<void> invitesAccept(String spaceId, String inviteCode) async {
-    await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites/${serializePathParameter(inviteCode, const PathParameterSpec('inviteCode', 'simple', false))}/accept'));
+  Future<SdkWorkCommandResponse?> invitesAccept(String spaceId, String inviteCode) async {
+    final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/invites/${serializePathParameter(inviteCode, const PathParameterSpec('inviteCode', 'simple', false))}/accept'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SdkWorkCommandResponse.fromJson(map);
+    })();
   }
 
   /// List spaces bans
-  Future<SpaceBanListResponse?> bansList(String spaceId) async {
-    final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/bans'));
+  Future<SpacesBansListResponse?> bansList(String spaceId, [int? pageSize, String? cursor]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
+      QueryParameterSpec('cursor', cursor, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/bans'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceBanListResponse.fromJson(map);
+      return map == null ? null : SpacesBansListResponse.fromJson(map);
     })();
   }
 
   /// Create spaces bans
-  Future<SpaceBanView?> bansCreate(String spaceId, SpaceBanCreateRequest body) async {
+  Future<SpacesBansCreateResponse201?> bansCreate(String spaceId, SpaceBanCreateRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/bans'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceBanView.fromJson(map);
+      return map == null ? null : SpacesBansCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get spaces bans
-  Future<SpaceBanView?> bansGet(String spaceId, String userId) async {
+  /// retrieve spaces bans
+  Future<SpacesBansRetrieveResponse?> bansRetrieve(String spaceId, String userId) async {
     final response = await _client.get(ApiPaths.imPath('/spaces/${serializePathParameter(spaceId, const PathParameterSpec('spaceId', 'simple', false))}/bans/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SpaceBanView.fromJson(map);
+      return map == null ? null : SpacesBansRetrieveResponse.fromJson(map);
     })();
   }
 
@@ -388,3 +430,135 @@ String pathPrefix(String name, String style) {
 String pathPrimitivePrefix(String name, String style) {
   return style == 'matrix' ? ';$name=' : pathPrefix(name, style);
 }
+class QueryParameterSpec {
+  final String name;
+  final dynamic value;
+  final String style;
+  final bool explode;
+  final bool allowReserved;
+  final String? contentType;
+
+  const QueryParameterSpec(
+    this.name,
+    this.value,
+    this.style,
+    this.explode,
+    this.allowReserved,
+    this.contentType,
+  );
+}
+
+String buildQueryString(List<QueryParameterSpec> parameters) {
+  final pairs = <String>[];
+  for (final parameter in parameters) {
+    appendSerializedParameter(pairs, parameter);
+  }
+  return pairs.join('&');
+}
+
+void appendSerializedParameter(List<String> pairs, QueryParameterSpec parameter) {
+  final value = parameter.value;
+  if (value == null) return;
+
+  final contentType = parameter.contentType;
+  if (contentType != null && contentType.trim().isNotEmpty) {
+    pairs.add('${urlEncode(parameter.name)}=${encodeQueryValue(jsonEncode(value), parameter.allowReserved)}');
+    return;
+  }
+
+  final style = parameter.style.trim().isEmpty ? 'form' : parameter.style;
+  if (style == 'deepObject' && value is Map) {
+    appendDeepObjectParameter(pairs, parameter.name, value, parameter.allowReserved);
+    return;
+  }
+  if (value is Iterable) {
+    appendArrayParameter(pairs, parameter.name, value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  if (value is Map) {
+    appendObjectParameter(pairs, parameter.name, value, style, parameter.explode, parameter.allowReserved);
+    return;
+  }
+  pairs.add('${urlEncode(parameter.name)}=${encodeQueryValue(value.toString(), parameter.allowReserved)}');
+}
+
+void appendArrayParameter(
+  List<String> pairs,
+  String name,
+  Iterable values,
+  String style,
+  bool explode,
+  bool allowReserved,
+) {
+  final serialized = values.where((item) => item != null).map((item) => item.toString()).toList();
+  if (serialized.isEmpty) return;
+  if (style == 'form' && explode) {
+    for (final item in serialized) {
+      pairs.add('${urlEncode(name)}=${encodeQueryValue(item, allowReserved)}');
+    }
+    return;
+  }
+  pairs.add('${urlEncode(name)}=${encodeQueryValue(serialized.join(','), allowReserved)}');
+}
+
+void appendObjectParameter(
+  List<String> pairs,
+  String name,
+  Map values,
+  String style,
+  bool explode,
+  bool allowReserved,
+) {
+  final serialized = <String>[];
+  values.forEach((key, value) {
+    if (value == null) return;
+    if (style == 'form' && explode) {
+      pairs.add('${urlEncode(key.toString())}=${encodeQueryValue(value.toString(), allowReserved)}');
+      return;
+    }
+    serialized.add(key.toString());
+    serialized.add(value.toString());
+  });
+  if (serialized.isNotEmpty) {
+    pairs.add('${urlEncode(name)}=${encodeQueryValue(serialized.join(','), allowReserved)}');
+  }
+}
+
+void appendDeepObjectParameter(List<String> pairs, String name, Map values, bool allowReserved) {
+  values.forEach((key, value) {
+    if (value != null) {
+      pairs.add('${urlEncode('$name[$key]')}=${encodeQueryValue(value.toString(), allowReserved)}');
+    }
+  });
+}
+
+String encodeQueryValue(String value, bool allowReserved) {
+  var encoded = urlEncode(value);
+  if (!allowReserved) return encoded;
+  const replacements = <String, String>{
+    '%3A': ':',
+    '%2F': '/',
+    '%3F': '?',
+    '%23': '#',
+    '%5B': '[',
+    '%5D': ']',
+    '%40': '@',
+    '%21': '!',
+    '%24': r'$',
+    '%26': '&',
+    '%27': "'",
+    '%28': '(',
+    '%29': ')',
+    '%2A': '*',
+    '%2B': '+',
+    '%2C': ',',
+    '%3B': ';',
+    '%3D': '=',
+  };
+  replacements.forEach((escaped, reserved) {
+    encoded = encoded.replaceAll(escaped, reserved);
+  });
+  return encoded;
+}
+
+String urlEncode(String value) => Uri.encodeQueryComponent(value);

@@ -3,7 +3,7 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
 use sdkwork_routes_web_framework_backend_api::response::{ApiResult, finish_api_json};
-use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkPageData, MAX_LIST_PAGE_SIZE};
+use sdkwork_utils_rust::{MAX_LIST_PAGE_SIZE, SdkWorkCursorListQuery, SdkWorkPageData};
 use sdkwork_web_core::WebRequestContext;
 
 use crate::dto::{
@@ -13,8 +13,8 @@ use crate::dto::{
 use crate::error::StreamingError;
 use crate::helpers::{
     ensure_standalone_stream_open_allowed, ensure_standalone_stream_session_allowed,
-    stream_abort_request_key, stream_append_request_key,
-    stream_checkpoint_request_key, stream_complete_request_key, stream_open_request_key,
+    stream_abort_request_key, stream_append_request_key, stream_checkpoint_request_key,
+    stream_complete_request_key, stream_open_request_key,
 };
 use crate::state::AppState;
 
@@ -110,7 +110,7 @@ pub(crate) async fn list_stream_frames(
                 Err(StreamingError {
                     status: axum::http::StatusCode::BAD_REQUEST,
                     code: "page_size_invalid",
-                    message: format!("pageSize must be between 1 and {MAX_LIST_PAGE_SIZE}"),
+                    message: format!("page_size must be between 1 and {MAX_LIST_PAGE_SIZE}"),
                 })?;
             }
         }
@@ -125,12 +125,7 @@ pub(crate) async fn list_stream_frames(
             message: "cursor must encode a non-negative frame sequence".into(),
         })?;
         let page_size = paging.page_size;
-        Ok(runtime.list_frames(
-            &auth,
-            stream_id.as_str(),
-            after_frame_seq,
-            page_size,
-        )?)
+        Ok(runtime.list_frames(&auth, stream_id.as_str(), after_frame_seq, page_size)?)
     })
     .await;
     finish_api_json(&ctx, result)

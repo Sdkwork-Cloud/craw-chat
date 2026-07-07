@@ -8,37 +8,37 @@ public class StreamsApi {
     }
 
     /// Open a stream
-    public func create(body: OpenStreamRequest) async throws -> StreamView? {
-        return try await client.post(ApiPaths.imPath("/streams"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: StreamView.self)
+    public func create(body: OpenStreamRequest) async throws -> StreamsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/streams"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: StreamsCreateResponse201.self)
     }
 
     /// List stream frames
-    public func framesList(streamId: String, limit: Int? = nil, cursor: String? = nil) async throws -> StreamFramesResponse? {
+    public func framesList(streamId: String, pageSize: Int? = nil, cursor: String? = nil) async throws -> StreamsFramesListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/frames"), query), responseType: StreamFramesResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/frames"), query), responseType: StreamsFramesListResponse.self)
     }
 
     /// Append a stream frame
-    public func framesCreate(streamId: String, body: AppendStreamFrameRequest) async throws -> StreamFrameView? {
-        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/frames"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: StreamFrameView.self)
+    public func framesCreate(streamId: String, body: AppendStreamFrameRequest) async throws -> StreamsFramesCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/frames"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: StreamsFramesCreateResponse201.self)
     }
 
     /// Checkpoint a stream
-    public func checkpointCreate(streamId: String) async throws -> StreamView? {
-        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/checkpoint"), body: nil, responseType: StreamView.self)
+    public func checkpoint(streamId: String) async throws -> StreamsCheckpointResponse? {
+        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/checkpoint"), body: nil, responseType: StreamsCheckpointResponse.self)
     }
 
     /// Complete a stream
-    public func complete(streamId: String) async throws -> StreamView? {
-        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/complete"), body: nil, responseType: StreamView.self)
+    public func complete(streamId: String) async throws -> StreamsCompleteResponse? {
+        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/complete"), body: nil, responseType: StreamsCompleteResponse.self)
     }
 
     /// Abort a stream
-    public func abort(streamId: String) async throws -> StreamView? {
-        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/abort"), body: nil, responseType: StreamView.self)
+    public func abort(streamId: String) async throws -> StreamsAbortResponse? {
+        return try await client.post(ApiPaths.imPath("/streams/\(serializePathParameter(streamId, PathParameterSpec(name: "streamId", style: "simple", explode: false)))/abort"), body: nil, responseType: StreamsAbortResponse.self)
     }
 
     private struct PathParameterSpec {

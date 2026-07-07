@@ -69,12 +69,13 @@ Control-plane decline/cancel/remove/activate mutations bind `declinedByUserId` /
 | `GET /im/v3/api/social/friend_requests/pending/count` | Pending request count (`data.item.count`) |
 | `GET /im/v3/api/social/friendships` | List friendships (`SocialRuntime` cursor inventory; **runtime open-api only**) |
 | `POST /im/v3/api/social/friendships/{friendshipId}/remove` | Remove friendship (event-sourced) |
-| `POST /im/v3/api/social/user_blocks` | Domain block (not preference-only) |
+| `POST /im/v3/api/social/user_blocks` | Domain block (not preference-only); exposed by IM OpenAPI and generated SDK as `social.userBlocks.create` |
+| `DELETE /im/v3/api/social/user_blocks/{blockId}` | Domain block release; exposed by IM OpenAPI and generated SDK as `social.userBlocks.delete` |
 | `GET /im/v3/api/social/users` | User search (Postgres supplemental read model when IM DB configured) |
-| `GET /im/v3/api/social/user_blocks` | Block list (Postgres supplemental read model) |
-| `GET /im/v3/api/social/direct_chats` | Direct chat inventory (Postgres supplemental read model) |
+| `GET /im/v3/api/social/user_blocks` | Block list (**supplemental Postgres mount only**; not in OpenAPI/SDK; internal/gateway read mount) |
+| `GET /im/v3/api/social/direct_chats` | Direct chat inventory (**supplemental Postgres mount only**; not in OpenAPI/SDK) |
 | `GET /im/v3/api/chat/contacts` | Projected contact list (friendships) |
-| `/im/v3/api/social/contacts/*` | Tags and preferences (`PostgresContactTagStore` / `PostgresContactPreferenceStore` when IM DB available) |
+| `/im/v3/api/social/contacts/*` | Tags and preferences — **keyset cursor** list for tags (`updated_at`, `tag_id`); Postgres-backed when IM DB available |
 | `POST /im/v3/api/social/contacts/{targetUserId}/recommendations` | Durable recommendation rows in `im_contact_recommendations` (Postgres when IM DB configured) |
 
 Contact tags, preferences, and recommendations **fail closed** in production/staging when the IM Postgres pool is unavailable (`503` / `contact_store_unavailable`). In-memory fallback is limited to `SDKWORK_IM_ENVIRONMENT=dev|test` and the Rust test harness.
@@ -182,6 +183,9 @@ Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when split
 - Accept handler rejects expired pending requests (`friend_request_expired`) even if scheduler has not yet run.
 - Wired in unified-process bootstrap (`ApplicationAssembly`) alongside shared-channel stale reclaim.
 - Pending badge API: `GET /im/v3/api/social/friend_requests/pending/count` returns `{ count }` in `data.item`.
+- User search `relationshipState`: `self`, `active`, `pending_incoming`, `pending_outgoing`, `none` (blocked users filtered from results).
+- OpenAPI block/unblock use deterministic `blockId` / `eventId` seeds; duplicate block requests return the active record; release is idempotent when already released.
+- Contact preferences `GET` syncs `isBlocked` from `UserBlock` (`all` scope), not preference-store drift alone.
 
 ## Deferred
 

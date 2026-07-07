@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use social_service::friendship::AppState;
-use social_service::{build_control_domain_api_router, SocialRuntime};
+use social_service::{SocialRuntime, build_control_domain_api_router};
 
 pub fn build_control_app(state: AppState) -> Router {
     build_control_domain_api_router(state)

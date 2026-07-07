@@ -1,10 +1,10 @@
 use std::collections::{BTreeSet, HashMap};
 
 use im_domain_core::conversation::ConversationMember;
-use sdkwork_utils_rust::{offset_limit_page_from_iter, OffsetLimitPage};
+use sdkwork_utils_rust::{OffsetLimitPage, offset_limit_page_from_iter};
 
 use super::support::decode_conversation_scope_key;
-use super::{encode_conversation_key_segments, ConversationState, RuntimeState};
+use super::{ConversationState, RuntimeState, encode_conversation_key_segments};
 
 #[derive(Default)]
 pub(super) struct ActorInboxRuntimeStore {
@@ -18,12 +18,7 @@ impl ActorInboxRuntimeStore {
         principal_kind: &str,
         principal_id: &str,
     ) -> String {
-        encode_conversation_key_segments([
-            tenant_id,
-            organization_id,
-            principal_kind,
-            principal_id,
-        ])
+        encode_conversation_key_segments([tenant_id, organization_id, principal_kind, principal_id])
     }
 
     pub(super) fn sync_member(&mut self, organization_id: &str, member: &ConversationMember) {
@@ -140,7 +135,8 @@ impl RuntimeState {
         let scope_keys: Vec<String> = self.conversations.keys().cloned().collect();
         self.actor_inbox = ActorInboxRuntimeStore::default();
         for scope_key in scope_keys {
-            let Some((_, organization_id, _)) = decode_conversation_scope_key(scope_key.as_str()) else {
+            let Some((_, organization_id, _)) = decode_conversation_scope_key(scope_key.as_str())
+            else {
                 continue;
             };
             let Some(conversation) = self.conversations.get(scope_key.as_str()) else {
@@ -174,9 +170,7 @@ impl RuntimeState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use im_domain_core::conversation::{
-        ConversationMember, MembershipRole, MembershipState,
-    };
+    use im_domain_core::conversation::{ConversationMember, MembershipRole, MembershipState};
 
     fn sample_member(conversation_id: &str, principal_id: &str) -> ConversationMember {
         ConversationMember {
@@ -206,14 +200,7 @@ mod tests {
         assert!(page.has_more);
         assert_eq!(page.next_cursor.as_deref(), Some("1"));
 
-        let second = store.page(
-            "100001",
-            "default",
-            "user",
-            "alice",
-            1,
-            1,
-        );
+        let second = store.page("100001", "default", "user", "alice", 1, 1);
         assert_eq!(second.items.len(), 1);
         assert!(!second.has_more);
     }

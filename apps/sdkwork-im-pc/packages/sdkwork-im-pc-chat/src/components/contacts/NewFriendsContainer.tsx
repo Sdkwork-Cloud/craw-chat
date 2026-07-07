@@ -31,41 +31,70 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
     const refreshOnChange = () => {
       void refreshRequests();
     };
-    const unsubscribeCount = contactService.subscribePendingFriendRequestCount(refreshOnChange);
+    const unsubscribePendingCount = contactService.subscribePendingFriendRequestCount(refreshOnChange);
     window.addEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshOnChange);
     return () => {
-      unsubscribeCount();
+      unsubscribePendingCount();
       window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshOnChange);
     };
   }, [refreshRequests]);
 
-  const handleAccept = async (requestId: number) => {
+  const [processingRequestIds, setProcessingRequestIds] = useState<Set<string>>(new Set());
+
+  const markProcessing = useCallback((requestId: string, processing: boolean) => {
+    setProcessingRequestIds((current) => {
+      const next = new Set(current);
+      if (processing) {
+        next.add(requestId);
+      } else {
+        next.delete(requestId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleAccept = async (requestId: string) => {
+    if (processingRequestIds.has(requestId)) {
+      return;
+    }
+    markProcessing(requestId, true);
     try {
       await contactService.handleFriendRequest(requestId, 'accept');
       toast(t('contacts.newFriends.toast.acceptSucceeded'), 'success');
-      await refreshRequests();
     } catch {
       toast(t('contacts.newFriends.toast.handleFailed'), 'error');
+    } finally {
+      markProcessing(requestId, false);
     }
   };
 
-  const handleReject = async (requestId: number) => {
+  const handleReject = async (requestId: string) => {
+    if (processingRequestIds.has(requestId)) {
+      return;
+    }
+    markProcessing(requestId, true);
     try {
       await contactService.handleFriendRequest(requestId, 'reject');
       toast(t('contacts.newFriends.toast.rejectSucceeded'), 'success');
-      await refreshRequests();
     } catch {
       toast(t('contacts.newFriends.toast.handleFailed'), 'error');
+    } finally {
+      markProcessing(requestId, false);
     }
   };
 
-  const handleCancel = async (requestId: number) => {
+  const handleCancel = async (requestId: string) => {
+    if (processingRequestIds.has(requestId)) {
+      return;
+    }
+    markProcessing(requestId, true);
     try {
       await contactService.cancelFriendRequest(requestId);
       toast(t('contacts.newFriends.toast.cancelSucceeded'), 'success');
-      await refreshRequests();
     } catch {
       toast(t('contacts.newFriends.toast.cancelFailed'), 'error');
+    } finally {
+      markProcessing(requestId, false);
     }
   };
 
@@ -87,6 +116,8 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
         <div className="flex flex-col gap-4 max-w-3xl">
           {loading ? (
             <div className="text-sm text-gray-500">{t('contacts.newFriends.loading')}</div>
+          ) : requests.length === 0 ? (
+            <div className="text-sm text-gray-500">{t('contacts.newFriends.empty')}</div>
           ) : requests.map((req) => (
             <div key={req.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5">
               <div className="flex items-center gap-4">
@@ -105,13 +136,15 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => void handleReject(req.id)}
-                      className="px-4 py-1.5 text-sm font-medium bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors"
+                      disabled={processingRequestIds.has(req.id)}
+                      className="px-4 py-1.5 text-sm font-medium bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t('contacts.newFriends.reject')}
                     </button>
                     <button
                       onClick={() => void handleAccept(req.id)}
-                      className="px-4 py-1.5 text-sm font-medium bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors"
+                      disabled={processingRequestIds.has(req.id)}
+                      className="px-4 py-1.5 text-sm font-medium bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {t('contacts.newFriends.accept')}
                     </button>
@@ -119,7 +152,8 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
                 ) : req.status === 'pending' && req.direction === 'outgoing' ? (
                   <button
                     onClick={() => void handleCancel(req.id)}
-                    className="px-4 py-1.5 text-sm font-medium bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors"
+                    disabled={processingRequestIds.has(req.id)}
+                    className="px-4 py-1.5 text-sm font-medium bg-white/10 hover:bg-white/20 text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {t('contacts.newFriends.cancel')}
                   </button>

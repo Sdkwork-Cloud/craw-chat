@@ -11,81 +11,81 @@ class CallsApi {
   CallsApi(this._client);
 
   /// Create an IM call signaling session
-  Future<RtcSessionMutationResponse?> sessionsCreate(CreateRtcSessionRequest body) async {
+  Future<CallsSessionsCreateResponse201?> sessionsCreate(CreateRtcSessionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSessionMutationResponse.fromJson(map);
+      return map == null ? null : CallsSessionsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Retrieve IM call signaling session state
-  Future<RtcSession?> sessionsRetrieve(String rtcSessionId) async {
+  Future<CallsSessionsRetrieveResponse?> sessionsRetrieve(String rtcSessionId) async {
     final response = await _client.get(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSession.fromJson(map);
+      return map == null ? null : CallsSessionsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Invite participants into an IM call signaling session
-  Future<RtcSessionMutationResponse?> sessionsInvite(String rtcSessionId, InviteRtcSessionRequest body) async {
+  Future<CallsSessionsInviteResponse?> sessionsInvite(String rtcSessionId, InviteRtcSessionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}/invite'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSessionMutationResponse.fromJson(map);
+      return map == null ? null : CallsSessionsInviteResponse.fromJson(map);
     })();
   }
 
   /// Accept an IM call signaling session
-  Future<RtcSessionMutationResponse?> sessionsAccept(String rtcSessionId, UpdateRtcSessionRequest body) async {
+  Future<CallsSessionsAcceptResponse?> sessionsAccept(String rtcSessionId, UpdateRtcSessionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}/accept'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSessionMutationResponse.fromJson(map);
+      return map == null ? null : CallsSessionsAcceptResponse.fromJson(map);
     })();
   }
 
   /// Reject an IM call signaling session
-  Future<RtcSessionMutationResponse?> sessionsReject(String rtcSessionId, UpdateRtcSessionRequest body) async {
+  Future<CallsSessionsRejectResponse?> sessionsReject(String rtcSessionId, UpdateRtcSessionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}/reject'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSessionMutationResponse.fromJson(map);
+      return map == null ? null : CallsSessionsRejectResponse.fromJson(map);
     })();
   }
 
   /// End an IM call signaling session
-  Future<RtcSessionMutationResponse?> sessionsEnd(String rtcSessionId, UpdateRtcSessionRequest body) async {
+  Future<CallsSessionsEndResponse?> sessionsEnd(String rtcSessionId, UpdateRtcSessionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}/end'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSessionMutationResponse.fromJson(map);
+      return map == null ? null : CallsSessionsEndResponse.fromJson(map);
     })();
   }
 
   /// Post an IM call signaling event
-  Future<RtcSignalEvent?> sessionsSignalsCreate(String rtcSessionId, PostRtcSignalRequest body) async {
+  Future<CallsSessionsSignalsCreateResponse201?> sessionsSignalsCreate(String rtcSessionId, PostRtcSignalRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}/signals'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcSignalEvent.fromJson(map);
+      return map == null ? null : CallsSessionsSignalsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Issue an RTC media participant credential for an IM call
-  Future<RtcParticipantCredential?> sessionsCredentialsCreate(String rtcSessionId, IssueRtcParticipantCredentialRequest body) async {
+  Future<CallsSessionsCredentialsCreateResponse201?> sessionsCredentialsCreate(String rtcSessionId, IssueRtcParticipantCredentialRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/calls/sessions/${serializePathParameter(rtcSessionId, const PathParameterSpec('rtcSessionId', 'simple', false))}/credentials'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RtcParticipantCredential.fromJson(map);
+      return map == null ? null : CallsSessionsCredentialsCreateResponse201.fromJson(map);
     })();
   }
 }

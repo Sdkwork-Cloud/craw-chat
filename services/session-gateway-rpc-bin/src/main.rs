@@ -2,11 +2,12 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use sdkwork_im_rpc_service_rust::{
-    build_im_rpc_service_router_with_config_for_services, initialize_im_rpc_framework_from_env,
-    register_im_discovery_instance, serve_im_rpc_with_discovery, ImRpcServerConfig,
+    ImRpcServerConfig, build_im_rpc_service_router_with_config_for_services,
+    initialize_im_rpc_framework_from_env, register_im_discovery_instance,
+    serve_im_rpc_with_discovery,
 };
-use session_gateway::{SessionGatewayRpcDispatcher, SESSION_GATEWAY_RPC_SERVICE_KEYS};
 use sdkwork_rpc_server::wait_for_ctrl_c;
+use session_gateway::{SESSION_GATEWAY_RPC_SERVICE_KEYS, SessionGatewayRpcDispatcher};
 
 const DEFAULT_SESSION_GATEWAY_RPC_BIND_ADDR: &str = "127.0.0.1:50051";
 const SESSION_GATEWAY_RPC_BIND_ADDR_ENV: &str = "SDKWORK_IM_SESSION_GATEWAY_RPC_BIND_ADDR";
@@ -72,8 +73,8 @@ async fn run() -> Result<(), String> {
     serve_im_rpc_with_discovery(router, &config, discovery, async {
         let _ = wait_for_ctrl_c().await;
     })
-        .await
-        .map_err(|error| format!("session-gateway-rpc server should run: {error}"))
+    .await
+    .map_err(|error| format!("session-gateway-rpc server should run: {error}"))
 }
 
 fn resolve_bind_addr() -> Result<std::net::SocketAddr, String> {
@@ -100,7 +101,7 @@ fn resolve_public_endpoint(bind_addr: std::net::SocketAddr) -> Option<String> {
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use super::{resolve_public_endpoint, DEFAULT_SESSION_GATEWAY_RPC_BIND_ADDR};
+    use super::{DEFAULT_SESSION_GATEWAY_RPC_BIND_ADDR, resolve_public_endpoint};
 
     #[test]
     fn default_bind_addr_is_valid_socket_addr() {
@@ -112,7 +113,8 @@ mod tests {
 
     #[test]
     fn resolve_public_endpoint_falls_back_to_http_bind_addr() {
-        let endpoint = resolve_public_endpoint(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50051));
+        let endpoint =
+            resolve_public_endpoint(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50051));
         assert_eq!(endpoint, Some("http://127.0.0.1:50051".to_owned()));
     }
 }

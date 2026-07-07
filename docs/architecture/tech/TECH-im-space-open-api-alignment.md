@@ -86,10 +86,10 @@ When Postgres is configured but conversation binders are missing, group/channel 
 All Open API handlers return `SdkWorkApiResponse` via `finish_api_json`:
 
 - Single resource: `data.item` via `api_payload::resource_item` (`SdkWorkResourceData`)
-- Lists: `data.items` + `data.pageInfo` (`SdkWorkPageData`, offset-mode `pageSize` + numeric `nextCursor` via `sdkwork-utils-rust`)
-  - SQL-backed lists: `api_payload::bounded_sql_list_page` after `LIMIT pageSize+1 OFFSET cursor` fetches (`list_query::sql_fetch_limit` / `sql_fetch_offset`)
-  - `list_spaces`: merges owned + member spaces in memory, sorts by `createdAt` desc, then `api_payload::limited_list_page`
-  - Query wire: `SdkWorkCursorListQuery` (`pageSize` + `cursor`; legacy `limit` alias accepted in Rust handlers)
+- Lists: `data.items` + `data.pageInfo` (`SdkWorkPageData`, cursor mode with `pageInfo.mode`)
+  - SQL-backed lists use keyset predicates and bounded `LIMIT page_size + 1` reads.
+  - `list_spaces` uses store/index-backed keyset pagination; it must not rebuild owned/member scopes into an unbounded in-memory vector and then slice.
+  - Query wire: `SdkWorkCursorListQuery` (`page_size` + opaque `cursor` only). Historical aliases such as `pageSize` and `limit` are rejected for this pre-launch application.
 
 Wire view types (`SpaceView`, `SpaceGroupView`, `SpaceChannelView`, `SpaceChannelAccessRuleView`, …) match `sdkwork-im-im.openapi.yaml` schemas.
 
@@ -109,7 +109,7 @@ Read-only supplemental handlers (`sdkwork-routes-im-social-open-api`) expose lis
 - Channel/invitation/ban event sourcing (journal coverage for governance tables).
 - Channel roster sync beyond system-channel bootstrap (e.g. auto-subscribe space members).
 
-List endpoints use offset-mode `pageSize` with numeric `nextCursor` continuation (OpenAPI `LimitQuery` + `CursorQuery`; see `PAGINATION-DEBT-REGISTER.md` PAG-009). `list_spaces` merges owned + member spaces, sorts by `createdAt` desc, then pages in memory.
+List endpoints use cursor-mode `page_size` with opaque cursor continuation. `PAGINATION-DEBT-REGISTER.md` records the closed migration from old offset/in-memory pagination to keyset pagination; no compatibility alias remains.
 
 SDK generation merges `sdks/sdkwork-im-sdk/openapi/im-spaces-paths.fragment.yaml` into the IM OpenAPI mirror; list pagination parameters must be kept in sync with `apis/open-api/im/sdkwork-im-im.openapi.yaml`.
 

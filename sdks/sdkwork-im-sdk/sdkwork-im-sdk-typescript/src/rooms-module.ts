@@ -14,7 +14,7 @@ export class ImRoomsModule {
   }
 
   get(roomId: string | number): Promise<RoomView> {
-    return this.transportClient.chat.rooms.get(roomId);
+    return this.transportClient.chat.rooms.retrieve(roomId);
   }
 
   enter(roomId: string | number): Promise<EnterRoomResponse> {

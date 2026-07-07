@@ -2,15 +2,14 @@
 
 use std::net::IpAddr;
 
-use redis::Commands;
-
-use crate::redis_unavailable;
+use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
 
 /// Redis-backed temporary IP block store shared across gateway replicas.
 #[derive(Clone, Debug)]
 pub struct RedisIpBlockStore {
     client: redis::Client,
     key_prefix: String,
+    timeouts: RedisBlockingTimeouts,
 }
 
 impl RedisIpBlockStore {
@@ -18,6 +17,7 @@ impl RedisIpBlockStore {
         Self {
             client,
             key_prefix: key_prefix.into(),
+            timeouts: RedisBlockingTimeouts::gateway_rate_limit_from_env(),
         }
     }
 
@@ -40,15 +40,22 @@ impl RedisIpBlockStore {
         format!("{}{client_ip}", self.key_prefix)
     }
 
-    pub fn is_blocked(&self, client_ip: &IpAddr) -> Result<bool, im_platform_contracts::ContractError> {
-        let mut connection = self
-            .client
-            .get_connection()
-            .map_err(|error| redis_unavailable("ip_block_connect", error))?;
-        let exists: bool = connection
-            .exists(self.key(client_ip))
-            .map_err(|error| redis_unavailable("ip_block_exists", error))?;
-        Ok(exists)
+    pub fn is_blocked(
+        &self,
+        client_ip: &IpAddr,
+    ) -> Result<bool, im_platform_contracts::ContractError> {
+        let key = self.key(client_ip);
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "ip_block_exists",
+            move |mut connection| async move {
+                redis::cmd("EXISTS")
+                    .arg(key)
+                    .query_async(&mut connection)
+                    .await
+            },
+        )
     }
 
     pub fn block_for_secs(
@@ -59,14 +66,19 @@ impl RedisIpBlockStore {
         if duration_secs == 0 {
             return Ok(());
         }
-        let mut connection = self
-            .client
-            .get_connection()
-            .map_err(|error| redis_unavailable("ip_block_connect", error))?;
         let key = self.key(client_ip);
-        let _: () = connection
-            .set_ex(key, "1", duration_secs)
-            .map_err(|error| redis_unavailable("ip_block_set", error))?;
-        Ok(())
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "ip_block_set",
+            move |mut connection| async move {
+                redis::cmd("SETEX")
+                    .arg(key)
+                    .arg(duration_secs)
+                    .arg("1")
+                    .query_async(&mut connection)
+                    .await
+            },
+        )
     }
 }

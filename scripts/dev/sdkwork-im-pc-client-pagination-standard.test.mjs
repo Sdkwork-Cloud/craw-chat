@@ -50,7 +50,10 @@ assert.match(groupsContainer, /groupService\.listGroupsPage/u);
 const contactService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'ContactService.ts');
 assert.match(contactService, /forEachCursorPage/u);
 assert.match(contactService, /listContactsPage/u);
+assert.match(contactService, /listTagsPage/u);
 assert.match(contactService, /syncFriendRequestsFromServer/u);
+assert.match(contactService, /removeFromBlacklist/u);
+assert.match(contactService, /MAX_CONTACT_TAGS_SYNC/u);
 assert.doesNotMatch(contactService, /listAllContacts/u);
 
 const groupService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'GroupService.ts');

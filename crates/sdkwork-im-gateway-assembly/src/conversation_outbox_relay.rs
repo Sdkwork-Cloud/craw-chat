@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
-use im_platform_contracts::{OutboxEventRecord, OutboxStore, RealtimeEventRecipient};
+use im_platform_contracts::{
+    OutboxEventRecord, OutboxStore, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
+};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use session_gateway::RealtimeDeliveryRuntime;
 use tokio::sync::watch;
@@ -60,7 +62,9 @@ fn resolve_conversation_outbox_store_from_env() -> Option<Arc<dyn OutboxStore>> 
             return PostgresJournalConfig::from_database_config(&config)
                 .connect_pool()
                 .ok()
-                .map(|pool| Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>);
+                .map(|pool| {
+                    Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>
+                });
         }
     }
 
@@ -181,12 +185,7 @@ fn relay_conversation_outbox_event(
     let recipients =
         conversation_realtime_recipients(event.event_type.as_str(), event.payload_json.as_str());
     if recipients.is_empty() {
-        mark_missing_recipients(
-            outbox,
-            event,
-            "conversation",
-            "recipientPrincipalIds",
-        );
+        mark_missing_recipients(outbox, event, "conversation", "recipientPrincipalIds");
         return;
     }
 
@@ -199,14 +198,16 @@ fn relay_conversation_outbox_event(
     let publish_result =
         im_platform_contracts::RealtimeEventPublisher::publish_durable_scope_event_to_recipients(
             realtime_runtime,
-        event.tenant_id.as_str(),
-        event.organization_id.as_str(),
-        "conversation",
-        event.aggregate_id.as_str(),
-        event.event_type.as_str(),
-        payload,
-        recipient_views,
-    );
+            RealtimeScopeEventPublishCommand {
+                tenant_id: event.tenant_id.as_str(),
+                organization_id: event.organization_id.as_str(),
+                scope_type: "conversation",
+                scope_id: event.aggregate_id.as_str(),
+                event_type: event.event_type.as_str(),
+                payload,
+                recipients: recipient_views,
+            },
+        );
 
     if let Err(error) = publish_result {
         warn!(
@@ -251,10 +252,7 @@ fn build_realtime_payload(event: &OutboxEventRecord) -> String {
     .to_string()
 }
 
-fn conversation_realtime_recipients(
-    event_type: &str,
-    payload_json: &str,
-) -> Vec<(String, String)> {
+fn conversation_realtime_recipients(event_type: &str, payload_json: &str) -> Vec<(String, String)> {
     let payload = serde_json::from_str::<serde_json::Value>(payload_json).unwrap_or_default();
     if let Some(ids) = payload
         .get("recipientPrincipalIds")
@@ -293,10 +291,7 @@ mod tests {
             "conversationId": "c_1",
             "messageId": "m_1",
         });
-        let recipients = conversation_realtime_recipients(
-            "message.posted",
-            &payload.to_string(),
-        );
+        let recipients = conversation_realtime_recipients("message.posted", &payload.to_string());
         assert!(recipients.is_empty());
     }
 
@@ -307,10 +302,7 @@ mod tests {
             "recipientPrincipalKinds": ["user", "device"],
             "conversationId": "c_1",
         });
-        let recipients = conversation_realtime_recipients(
-            "message.posted",
-            &payload.to_string(),
-        );
+        let recipients = conversation_realtime_recipients("message.posted", &payload.to_string());
         assert_eq!(
             recipients,
             vec![

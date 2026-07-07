@@ -44,21 +44,15 @@ const DRIVE_RECENT_PAGE_SIZE = '12';
 
 type RecordLike = Record<string, unknown>;
 
+/** Commercial-runtime workbench catalog only; contract-pending apps ship in sibling products first. */
 const workspaceAppCatalog: AppItem[] = [
   { id: 'notary', name: '公证业务', nameKey: 'apps.notary', iconName: 'ShieldCheck', color: 'bg-indigo-500/20 text-indigo-400' },
-  { id: 'calendar', name: '日程安排', nameKey: 'apps.calendar', iconName: 'Calendar', color: 'bg-blue-500/20 text-blue-400' },
-  { id: 'approval', name: '审批', nameKey: 'apps.approval', iconName: 'CheckSquare', color: 'bg-green-500/20 text-green-400' },
-  { id: 'report', name: '汇报', nameKey: 'apps.report', iconName: 'FileText', color: 'bg-orange-500/20 text-orange-400' },
-  { id: 'mail', name: '企业邮箱', nameKey: 'apps.mail', iconName: 'Mail', color: 'bg-purple-500/20 text-purple-400' },
-  { id: 'dashboard', name: '数据看板', nameKey: 'apps.dashboard', iconName: 'PieChart', color: 'bg-pink-500/20 text-pink-400' },
-  { id: 'attendance', name: '考勤打卡', nameKey: 'apps.attendance', iconName: 'Clock', color: 'bg-yellow-500/20 text-yellow-400' },
   { id: 'drive', name: '云盘', nameKey: 'apps.drive', iconName: 'Cloud', color: 'bg-cyan-500/20 text-cyan-400' },
-  { id: 'devices', name: '智能硬件', nameKey: 'apps.devices', iconName: 'Server', color: 'bg-indigo-500/20 text-indigo-400' },
-  { id: 'videogen', name: 'AI视频生成', nameKey: 'apps.videogen', iconName: 'Video', color: 'bg-indigo-500/20 text-indigo-400' },
-  { id: 'imagegen', name: 'AI图片生成', nameKey: 'apps.imagegen', iconName: 'ImageIcon', color: 'bg-blue-500/20 text-blue-400' },
-  { id: 'voicegen', name: 'AI语音合成', nameKey: 'apps.voicegen', iconName: 'Mic', color: 'bg-green-500/20 text-green-400' },
-  { id: 'musicgen', name: 'AI音乐生成', nameKey: 'apps.musicgen', iconName: 'Music', color: 'bg-purple-500/20 text-purple-400' },
-  { id: 'writing', name: 'AI智能写作', nameKey: 'apps.writing', iconName: 'PenTool', color: 'bg-pink-500/20 text-pink-400' },
+  { id: 'knowledge', name: '知识库', nameKey: 'apps.knowledge', iconName: 'BookOpen', color: 'bg-emerald-500/20 text-emerald-400' },
+  { id: 'community', name: '社区', nameKey: 'apps.community', iconName: 'Users', color: 'bg-sky-500/20 text-sky-400' },
+  { id: 'voice', name: '语音市场', nameKey: 'apps.voice', iconName: 'Mic', color: 'bg-violet-500/20 text-violet-400' },
+  { id: 'shop', name: '商城', nameKey: 'apps.shop', iconName: 'Store', color: 'bg-amber-500/20 text-amber-400' },
+  { id: 'orders', name: '订单', nameKey: 'apps.orders', iconName: 'ReceiptText', color: 'bg-orange-500/20 text-orange-400' },
 ];
 
 function isRecord(value: unknown): value is RecordLike {

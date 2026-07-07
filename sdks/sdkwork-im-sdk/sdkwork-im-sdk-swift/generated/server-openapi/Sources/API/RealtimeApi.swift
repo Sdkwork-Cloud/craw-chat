@@ -8,22 +8,22 @@ public class RealtimeApi {
     }
 
     /// Sync realtime subscription targets
-    public func subscriptionsSync(body: RealtimeSubscriptionSyncRequest) async throws -> RealtimeSubscriptionSyncResponse? {
-        return try await client.post(ApiPaths.imPath("/realtime/subscriptions/sync"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RealtimeSubscriptionSyncResponse.self)
+    public func subscriptionsSync(body: RealtimeSubscriptionSyncRequest) async throws -> RealtimeSubscriptionsSyncResponse? {
+        return try await client.post(ApiPaths.imPath("/realtime/subscriptions/sync"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RealtimeSubscriptionsSyncResponse.self)
     }
 
     /// Acknowledge realtime events
-    public func eventsAck(body: RealtimeEventAckRequest) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/realtime/events/ack"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: AckResponse.self)
+    public func eventsAck(body: RealtimeEventAckRequest) async throws -> RealtimeEventsAckResponse? {
+        return try await client.post(ApiPaths.imPath("/realtime/events/ack"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RealtimeEventsAckResponse.self)
     }
 
     /// List pending realtime events
-    public func eventsList(limit: Int? = nil, cursor: String? = nil) async throws -> RealtimeEventsResponse? {
+    public func eventsList(pageSize: Int? = nil, cursor: String? = nil) async throws -> RealtimeEventsListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/realtime/events"), query), responseType: RealtimeEventsResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/realtime/events"), query), responseType: RealtimeEventsListResponse.self)
     }
 
 

@@ -18,37 +18,37 @@ func NewRealtimeApi(client *sdkhttp.Client) *RealtimeApi {
 }
 
 // Sync realtime subscription targets
-func (a *RealtimeApi) SubscriptionsSync(body sdktypes.RealtimeSubscriptionSyncRequest) (sdktypes.RealtimeSubscriptionSyncResponse, error) {
+func (a *RealtimeApi) SubscriptionsSync(body sdktypes.RealtimeSubscriptionSyncRequest) (sdktypes.RealtimeSubscriptionsSyncResponse, error) {
     raw, err := a.client.Post(ImApiPath("/realtime/subscriptions/sync"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RealtimeSubscriptionSyncResponse
+        var zero sdktypes.RealtimeSubscriptionsSyncResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RealtimeSubscriptionSyncResponse](raw)
+    return decodeResult[sdktypes.RealtimeSubscriptionsSyncResponse](raw)
 }
 
 // Acknowledge realtime events
-func (a *RealtimeApi) EventsAck(body sdktypes.RealtimeEventAckRequest) (sdktypes.AckResponse, error) {
+func (a *RealtimeApi) EventsAck(body sdktypes.RealtimeEventAckRequest) (sdktypes.RealtimeEventsAckResponse, error) {
     raw, err := a.client.Post(ImApiPath("/realtime/events/ack"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.AckResponse
+        var zero sdktypes.RealtimeEventsAckResponse
         return zero, err
     }
-    return decodeResult[sdktypes.AckResponse](raw)
+    return decodeResult[sdktypes.RealtimeEventsAckResponse](raw)
 }
 
 // List pending realtime events
-func (a *RealtimeApi) EventsList(limit *int, cursor *string) (sdktypes.RealtimeEventsResponse, error) {
+func (a *RealtimeApi) EventsList(pageSize *int, cursor *string) (sdktypes.RealtimeEventsListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
-        {Name: "limit", Value: func() interface{} { if limit == nil { return nil }; return *limit }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(ImApiPath("/realtime/events"), query), nil, nil)
     if err != nil {
-        var zero sdktypes.RealtimeEventsResponse
+        var zero sdktypes.RealtimeEventsListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RealtimeEventsResponse](raw)
+    return decodeResult[sdktypes.RealtimeEventsListResponse](raw)
 }
 
 

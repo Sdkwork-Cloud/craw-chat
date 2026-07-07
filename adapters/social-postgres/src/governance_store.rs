@@ -7,7 +7,8 @@ use r2d2::Pool;
 
 use crate::member_capacity::MemberInsertOutcome;
 use crate::{
-    postgres_pool_client, postgres_unavailable, run_postgres_io, SocialPostgresConnectionManager,
+    SocialPostgresConnectionManager, optional_postgres_timestamptz, postgres_pool_client,
+    postgres_unavailable, run_postgres_io,
 };
 
 // ---------------------------------------------------------------------------
@@ -40,8 +41,9 @@ pub trait SpaceMemberStore: Send + Sync {
         tenant_id: &str,
         org_id: &str,
         space_id: i64,
+        cursor_joined_at: Option<&str>,
+        cursor_user_id: Option<&str>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<SpaceMemberRecord>, ContractError>;
     fn count_by_space(
         &self,
@@ -105,8 +107,9 @@ const SPACE_MEMBER_LIST_SQL: &str = r#"
 SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at, updated_at
 FROM im_space_members
 WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
-ORDER BY joined_at ASC
-LIMIT $4 OFFSET $5
+  AND ($4::timestamptz IS NULL OR (joined_at, user_id) > ($4::timestamptz, $5::text))
+ORDER BY joined_at ASC, user_id ASC
+LIMIT $6
 "#;
 
 const SPACE_MEMBER_COUNT_SQL: &str = r#"
@@ -210,18 +213,35 @@ impl SpaceMemberStore for PostgresSpaceMemberStore {
         tenant_id: &str,
         org_id: &str,
         space_id: i64,
+        cursor_joined_at: Option<&str>,
+        cursor_user_id: Option<&str>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<SpaceMemberRecord>, ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let org_id = org_id.to_owned();
+        let cursor_joined_at = cursor_joined_at.map(str::to_owned);
+        let cursor_user_id = cursor_user_id.map(str::to_owned);
+        let cursor_ts_parsed = match &cursor_joined_at {
+            Some(ts) => Some(optional_postgres_timestamptz(
+                Some(ts.as_str()),
+                "cursor_joined_at",
+            )?),
+            None => None,
+        };
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_space_members")?;
             let rows = client
                 .query(
                     SPACE_MEMBER_LIST_SQL,
-                    &[&tenant_id, &org_id, &space_id, &limit, &offset],
+                    &[
+                        &tenant_id,
+                        &org_id,
+                        &space_id,
+                        &cursor_ts_parsed,
+                        &cursor_user_id,
+                        &limit,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("list_space_members", error))?;
             Ok(rows.iter().map(row_to_space_member_record).collect())
@@ -255,9 +275,9 @@ impl SpaceMemberStore for PostgresSpaceMemberStore {
         let record = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_space_member_within_capacity")?;
-            let mut transaction = client
-                .transaction()
-                .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+            let mut transaction = client.transaction().map_err(|error| {
+                postgres_unavailable("insert_space_member_within_capacity", error)
+            })?;
 
             let existing = transaction
                 .query_opt(
@@ -269,37 +289,37 @@ impl SpaceMemberStore for PostgresSpaceMemberStore {
                         &record.user_id,
                     ],
                 )
-                .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+                .map_err(|error| {
+                    postgres_unavailable("insert_space_member_within_capacity", error)
+                })?;
             if existing.is_some() {
-                transaction
-                    .rollback()
-                    .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+                transaction.rollback().map_err(|error| {
+                    postgres_unavailable("insert_space_member_within_capacity", error)
+                })?;
                 return Ok(MemberInsertOutcome::AlreadyExists);
             }
 
             let capacity_row = transaction
                 .query_opt(
                     SPACE_MEMBER_RESERVE_CAPACITY_SQL,
-                    &[
-                        &record.tenant_id,
-                        &record.organization_id,
-                        &record.space_id,
-                    ],
+                    &[&record.tenant_id, &record.organization_id, &record.space_id],
                 )
-                .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+                .map_err(|error| {
+                    postgres_unavailable("insert_space_member_within_capacity", error)
+                })?;
             let Some(capacity_row) = capacity_row else {
-                transaction
-                    .rollback()
-                    .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+                transaction.rollback().map_err(|error| {
+                    postgres_unavailable("insert_space_member_within_capacity", error)
+                })?;
                 return Err(ContractError::Invalid("space not found".to_owned()));
             };
             let space_max: i32 = capacity_row.get("max_members");
             let current_count: i64 = capacity_row.get("current_count");
             let effective_max = i32::min(space_max, max_members);
             if current_count >= i64::from(effective_max) {
-                transaction
-                    .rollback()
-                    .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+                transaction.rollback().map_err(|error| {
+                    postgres_unavailable("insert_space_member_within_capacity", error)
+                })?;
                 return Ok(MemberInsertOutcome::CapacityFull);
             }
 
@@ -317,10 +337,12 @@ impl SpaceMemberStore for PostgresSpaceMemberStore {
                         &record.updated_at,
                     ],
                 )
-                .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
-            transaction
-                .commit()
-                .map_err(|error| postgres_unavailable("insert_space_member_within_capacity", error))?;
+                .map_err(|error| {
+                    postgres_unavailable("insert_space_member_within_capacity", error)
+                })?;
+            transaction.commit().map_err(|error| {
+                postgres_unavailable("insert_space_member_within_capacity", error)
+            })?;
             Ok(MemberInsertOutcome::Inserted)
         })
     }
@@ -390,7 +412,10 @@ impl SpaceMemberStore for PostgresSpaceMemberStore {
                     &[&tenant_id, &org_id, &user_id, &limit],
                 )
                 .map_err(|error| postgres_unavailable("list_space_ids_by_user", error))?;
-            Ok(rows.iter().map(|row| row.get::<_, i64>("space_id")).collect())
+            Ok(rows
+                .iter()
+                .map(|row| row.get::<_, i64>("space_id"))
+                .collect())
         })
     }
 }
@@ -419,6 +444,18 @@ pub struct InvitationRecord {
     pub updated_at: String,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct InvitationTargetListQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub target_type: &'a str,
+    pub target_id: i64,
+    pub status: Option<&'a str>,
+    pub limit: i64,
+    pub cursor_created_at: Option<&'a str>,
+    pub cursor_invitation_id: Option<i64>,
+}
+
 pub trait InvitationStore: Send + Sync {
     fn insert(&self, record: &InvitationRecord) -> Result<(), ContractError>;
     fn get_by_id(
@@ -429,13 +466,7 @@ pub trait InvitationStore: Send + Sync {
     ) -> Result<Option<InvitationRecord>, ContractError>;
     fn list_by_target(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        target_type: &str,
-        target_id: i64,
-        status: Option<&str>,
-        limit: i64,
-        offset: i64,
+        query: InvitationTargetListQuery<'_>,
     ) -> Result<Vec<InvitationRecord>, ContractError>;
     fn update(&self, record: &InvitationRecord) -> Result<(), ContractError>;
 }
@@ -467,8 +498,9 @@ FROM im_invitations
 WHERE tenant_id = $1 AND organization_id = $2
   AND target_type = $3 AND target_id = $4
   AND ($5::text IS NULL OR status = $5)
-ORDER BY created_at DESC
-LIMIT $6 OFFSET $7
+  AND ($6::timestamptz IS NULL OR (created_at, invitation_id) < ($6::timestamptz, $7::int8))
+ORDER BY created_at DESC, invitation_id DESC
+LIMIT $8
 "#;
 
 const INVITATION_UPDATE_SQL: &str = r#"
@@ -554,10 +586,7 @@ impl InvitationStore for PostgresInvitationStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get_invitation")?;
             let row = client
-                .query_opt(
-                    INVITATION_GET_SQL,
-                    &[&tenant_id, &org_id, &invitation_id],
-                )
+                .query_opt(INVITATION_GET_SQL, &[&tenant_id, &org_id, &invitation_id])
                 .map_err(|error| postgres_unavailable("get_invitation", error))?;
             Ok(row.map(|row| row_to_invitation_record(&row)))
         })
@@ -565,19 +594,24 @@ impl InvitationStore for PostgresInvitationStore {
 
     fn list_by_target(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        target_type: &str,
-        target_id: i64,
-        status: Option<&str>,
-        limit: i64,
-        offset: i64,
+        query: InvitationTargetListQuery<'_>,
     ) -> Result<Vec<InvitationRecord>, ContractError> {
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let org_id = org_id.to_owned();
-        let target_type = target_type.to_owned();
-        let status = status.map(str::to_owned);
+        let tenant_id = query.tenant_id.to_owned();
+        let org_id = query.organization_id.to_owned();
+        let target_type = query.target_type.to_owned();
+        let target_id = query.target_id;
+        let status = query.status.map(str::to_owned);
+        let limit = query.limit;
+        let cursor_created_at = query.cursor_created_at.map(str::to_owned);
+        let cursor_invitation_id = query.cursor_invitation_id;
+        let cursor_ts_parsed = match &cursor_created_at {
+            Some(ts) => Some(optional_postgres_timestamptz(
+                Some(ts.as_str()),
+                "cursor_created_at",
+            )?),
+            None => None,
+        };
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_invitations")?;
             let rows = client
@@ -589,8 +623,9 @@ impl InvitationStore for PostgresInvitationStore {
                         &target_type,
                         &target_id,
                         &status,
+                        &cursor_ts_parsed,
+                        &cursor_invitation_id,
                         &limit,
-                        &offset,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("list_invitations", error))?;
@@ -658,8 +693,9 @@ pub trait BanStore: Send + Sync {
         org_id: &str,
         target_type: &str,
         target_id: i64,
+        cursor_created_at: Option<&str>,
+        cursor_ban_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<BanRecord>, ContractError>;
     fn update(&self, record: &BanRecord) -> Result<(), ContractError>;
 }
@@ -696,8 +732,9 @@ WHERE tenant_id = $1 AND organization_id = $2
   AND target_type = $3 AND target_id = $4
   AND unbanned_at IS NULL
   AND (expires_at IS NULL OR expires_at > NOW())
-ORDER BY created_at DESC
-LIMIT $5 OFFSET $6
+  AND ($5::timestamptz IS NULL OR (created_at, ban_id) < ($5::timestamptz, $6::int8))
+ORDER BY created_at DESC, ban_id DESC
+LIMIT $7
 "#;
 
 const BAN_UPDATE_SQL: &str = r#"
@@ -802,19 +839,36 @@ impl BanStore for PostgresBanStore {
         org_id: &str,
         target_type: &str,
         target_id: i64,
+        cursor_created_at: Option<&str>,
+        cursor_ban_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<BanRecord>, ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let org_id = org_id.to_owned();
         let target_type = target_type.to_owned();
+        let cursor_created_at = cursor_created_at.map(str::to_owned);
+        let cursor_ts_parsed = match &cursor_created_at {
+            Some(ts) => Some(optional_postgres_timestamptz(
+                Some(ts.as_str()),
+                "cursor_created_at",
+            )?),
+            None => None,
+        };
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_active_bans")?;
             let rows = client
                 .query(
                     BAN_LIST_ACTIVE_SQL,
-                    &[&tenant_id, &org_id, &target_type, &target_id, &limit, &offset],
+                    &[
+                        &tenant_id,
+                        &org_id,
+                        &target_type,
+                        &target_id,
+                        &cursor_ts_parsed,
+                        &cursor_ban_id,
+                        &limit,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("list_active_bans", error))?;
             Ok(rows.iter().map(row_to_ban_record).collect())
@@ -868,15 +922,11 @@ pub trait ChannelAccessRuleStore: Send + Sync {
         tenant_id: &str,
         org_id: &str,
         channel_id: i64,
+        cursor_created_at: Option<&str>,
+        cursor_rule_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<ChannelAccessRuleRecord>, ContractError>;
-    fn delete(
-        &self,
-        tenant_id: &str,
-        org_id: &str,
-        rule_id: i64,
-    ) -> Result<(), ContractError>;
+    fn delete(&self, tenant_id: &str, org_id: &str, rule_id: i64) -> Result<(), ContractError>;
 }
 
 const ACCESS_RULE_INSERT_SQL: &str = r#"
@@ -891,8 +941,9 @@ SELECT tenant_id, organization_id, rule_id, channel_id,
        rule_type, principal_kind, principal_id, permission, created_at
 FROM im_channel_access_rules
 WHERE tenant_id = $1 AND organization_id = $2 AND channel_id = $3
-ORDER BY created_at ASC
-LIMIT $4 OFFSET $5
+  AND ($4::timestamptz IS NULL OR (created_at, rule_id) > ($4::timestamptz, $5::int8))
+ORDER BY created_at ASC, rule_id ASC
+LIMIT $6
 "#;
 
 const ACCESS_RULE_DELETE_SQL: &str = r#"
@@ -956,40 +1007,48 @@ impl ChannelAccessRuleStore for PostgresChannelAccessRuleStore {
         tenant_id: &str,
         org_id: &str,
         channel_id: i64,
+        cursor_created_at: Option<&str>,
+        cursor_rule_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<ChannelAccessRuleRecord>, ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let org_id = org_id.to_owned();
+        let cursor_created_at = cursor_created_at.map(str::to_owned);
+        let cursor_ts_parsed = match &cursor_created_at {
+            Some(ts) => Some(optional_postgres_timestamptz(
+                Some(ts.as_str()),
+                "cursor_created_at",
+            )?),
+            None => None,
+        };
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_channel_access_rules")?;
             let rows = client
                 .query(
                     ACCESS_RULE_LIST_SQL,
-                    &[&tenant_id, &org_id, &channel_id, &limit, &offset],
+                    &[
+                        &tenant_id,
+                        &org_id,
+                        &channel_id,
+                        &cursor_ts_parsed,
+                        &cursor_rule_id,
+                        &limit,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("list_channel_access_rules", error))?;
             Ok(rows.iter().map(row_to_access_rule_record).collect())
         })
     }
 
-    fn delete(
-        &self,
-        tenant_id: &str,
-        org_id: &str,
-        rule_id: i64,
-    ) -> Result<(), ContractError> {
+    fn delete(&self, tenant_id: &str, org_id: &str, rule_id: i64) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let org_id = org_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "delete_channel_access_rule")?;
             client
-                .execute(
-                    ACCESS_RULE_DELETE_SQL,
-                    &[&tenant_id, &org_id, &rule_id],
-                )
+                .execute(ACCESS_RULE_DELETE_SQL, &[&tenant_id, &org_id, &rule_id])
                 .map_err(|error| postgres_unavailable("delete_channel_access_rule", error))?;
             Ok(())
         })

@@ -67,26 +67,34 @@ pub fn canonical_direct_chat_conversation_id(
     deterministic_conversation_resource_id("c_direct_", seed.as_str())
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct DirectChatBindingIdInput<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub left_actor_kind: &'a str,
+    pub left_actor_id: &'a str,
+    pub right_actor_kind: &'a str,
+    pub right_actor_id: &'a str,
+    pub requested_conversation_id: &'a str,
+    pub requested_direct_chat_id: &'a str,
+}
+
 pub fn resolve_direct_chat_binding_ids(
-    tenant_id: &str,
-    organization_id: &str,
-    left_actor_kind: &str,
-    left_actor_id: &str,
-    right_actor_kind: &str,
-    right_actor_id: &str,
-    requested_conversation_id: &str,
-    requested_direct_chat_id: &str,
+    input: DirectChatBindingIdInput<'_>,
 ) -> Result<(String, String), String> {
     let direct_chat_id = canonical_direct_chat_business_id(
-        left_actor_kind,
-        left_actor_id,
-        right_actor_kind,
-        right_actor_id,
+        input.left_actor_kind,
+        input.left_actor_id,
+        input.right_actor_kind,
+        input.right_actor_id,
     )?;
-    let conversation_id =
-        canonical_direct_chat_conversation_id(tenant_id, organization_id, direct_chat_id.as_str());
-    let requested_conversation_id = requested_conversation_id.trim();
-    let requested_direct_chat_id = requested_direct_chat_id.trim();
+    let conversation_id = canonical_direct_chat_conversation_id(
+        input.tenant_id,
+        input.organization_id,
+        direct_chat_id.as_str(),
+    );
+    let requested_conversation_id = input.requested_conversation_id.trim();
+    let requested_direct_chat_id = input.requested_direct_chat_id.trim();
     if !requested_direct_chat_id.is_empty() && requested_direct_chat_id != direct_chat_id {
         return Err(format!(
             "directChatId must be omitted or match the canonical direct chat id; expected {direct_chat_id}"
@@ -103,8 +111,8 @@ pub fn resolve_direct_chat_binding_ids(
 #[cfg(test)]
 mod tests {
     use super::{
-        canonical_direct_chat_business_id, canonical_direct_chat_conversation_id,
-        resolve_direct_chat_binding_ids,
+        DirectChatBindingIdInput, canonical_direct_chat_business_id,
+        canonical_direct_chat_conversation_id, resolve_direct_chat_binding_ids,
     };
 
     #[test]
@@ -122,8 +130,17 @@ mod tests {
     #[test]
     fn resolve_direct_chat_binding_ids_accepts_empty_requested_ids() {
         let (conversation_id, direct_chat_id) =
-            resolve_direct_chat_binding_ids("t1", "0", "user", "u_alice", "user", "u_bob", "", "")
-                .expect("resolved ids");
+            resolve_direct_chat_binding_ids(DirectChatBindingIdInput {
+                tenant_id: "t1",
+                organization_id: "0",
+                left_actor_kind: "user",
+                left_actor_id: "u_alice",
+                right_actor_kind: "user",
+                right_actor_id: "u_bob",
+                requested_conversation_id: "",
+                requested_direct_chat_id: "",
+            })
+            .expect("resolved ids");
         assert!(!conversation_id.is_empty());
         assert!(!direct_chat_id.is_empty());
     }

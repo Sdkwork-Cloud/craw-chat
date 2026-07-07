@@ -23,14 +23,15 @@ mod event_fanout;
 mod inbox;
 mod interactions;
 mod journal_consumer;
+mod list_page;
 mod member_directory;
 mod member_store;
 mod message_delivery_index;
 mod message_favorites;
-mod personalization_snapshot;
 mod message_visibilities;
 mod model;
 mod observability;
+mod personalization_snapshot;
 mod projection;
 mod read_receipts;
 mod received_message_index;
@@ -56,7 +57,10 @@ use scope::{
 };
 
 pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
-pub use bootstrap::{ProjectionRuntime, build_projection_runtime_from_env, try_init_embedded_projection_runtime};
+pub use bootstrap::{
+    ProjectionRuntime, build_projection_runtime_from_env, try_init_embedded_projection_runtime,
+};
+pub use client_route_sync::{ClientRouteSyncAckStateView, ClientRouteSyncFeedWindowQuery};
 pub use embedded_bridge::try_apply_commit_envelope;
 pub use http::{
     build_app, build_default_app, build_public_app, build_public_app_with_service,
@@ -65,19 +69,19 @@ pub use http::{
 pub use journal_consumer::{
     ProjectionJournalConsumerHandle, spawn_projection_journal_consumer_from_env,
 };
+pub use message_visibilities::TimelineWindowForPrincipalQuery;
 pub use model::{
     ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
     ConversationMemberDirectoryEntry, ConversationPreferencesView, ConversationProfileView,
     ConversationSummaryView, DeleteMessageFavoriteResponse, FavoriteMessageRequest,
-    FavoriteMessagesWindowView, InboxWindowView, InteractionActorView, MessageFavoriteView,
-    MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView,
+    FavoriteMessagesWindowView, InboxWindowView, InteractionActorView,
+    MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView, MessageFavoriteView,
     MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
     MessageReadReceiptReaderView, MessageReadReceiptSummaryView, MessageSearchHitView,
     MessageSearchWindowView, MessageVisibilityMutationResult, NotificationRecipientView,
     RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView, TimelineViewEntry,
     TimelineWindowView, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
-pub use client_route_sync::ClientRouteSyncAckStateView;
 pub use observability::{
     ProjectionLagItemView, ProjectionLogView, ProjectionOperationMetricView,
     ProjectionPlaneMetricsView, ProjectionPlaneObservabilityView, ProjectionReplayMetricsView,
@@ -88,15 +92,16 @@ pub use projection::ProjectionError;
 pub const PROJECTION_TIMELINE_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_TIMELINE_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_LIST_DEFAULT_LIMIT: usize = 100;
-pub const PROJECTION_LIST_MAX_LIMIT: usize = sdkwork_utils_rust::http_api::MAX_LIST_PAGE_SIZE as usize;
+pub const PROJECTION_LIST_MAX_LIMIT: usize =
+    sdkwork_utils_rust::http_api::MAX_LIST_PAGE_SIZE as usize;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
     PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT;
 
 pub use timeline_tier::{
-    resolve_memory_timeline_cap_from_env, PROJECTION_TIMELINE_MEMORY_CAP_DEFAULT,
-    PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED,
+    PROJECTION_TIMELINE_MEMORY_CAP_DEFAULT, PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED,
+    resolve_memory_timeline_cap_from_env,
 };
 
 #[derive(Default)]
@@ -113,8 +118,7 @@ pub struct TimelineProjectionService {
     direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>,
     message_interactions:
         Mutex<HashMap<String, HashMap<String, interactions::StoredMessageInteractionSummary>>>,
-    pinned_messages_index:
-        Mutex<HashMap<String, BTreeSet<interactions::PinnedMessageIndexKey>>>,
+    pinned_messages_index: Mutex<HashMap<String, BTreeSet<interactions::PinnedMessageIndexKey>>>,
     registered_client_routes:
         Mutex<HashMap<ClientRoutePrincipalScopeKey, HashMap<String, RegisteredClientRouteView>>>,
     client_route_sync_feeds:
@@ -127,6 +131,8 @@ pub struct TimelineProjectionService {
     conversation_profiles: Mutex<HashMap<String, model::ConversationProfileView>>,
     conversation_preferences: Mutex<HashMap<String, model::ConversationPreferencesView>>,
     message_favorites: Mutex<HashMap<String, HashMap<String, model::MessageFavoriteView>>>,
+    message_favorites_index:
+        Mutex<HashMap<String, BTreeSet<message_favorites::MessageFavoriteIndexEntry>>>,
     message_visibilities:
         Mutex<HashMap<String, HashMap<String, model::MessageVisibilityMutationResult>>>,
     observability: Mutex<ProjectionObservabilityState>,
@@ -136,10 +142,13 @@ pub struct TimelineProjectionService {
 impl TimelineProjectionService {
     pub fn configure_durable_timeline(
         &self,
-        store: std::sync::Arc<dyn sdkwork_im_contract_message::TimelineProjectionStore + Send + Sync>,
+        store: std::sync::Arc<
+            dyn sdkwork_im_contract_message::TimelineProjectionStore + Send + Sync,
+        >,
         memory_cap: usize,
     ) {
-        self.timeline_tier.configure_durable_timeline(store, memory_cap);
+        self.timeline_tier
+            .configure_durable_timeline(store, memory_cap);
     }
 
     pub fn set_memory_timeline_cap(&self, memory_cap: usize) {
@@ -154,7 +163,11 @@ impl TimelineProjectionService {
 impl TimelineProjectionService {
     pub fn reset_for_recovery(&self) {
         lock_projection_mutex(&self.entries, "projection store").clear();
-        lock_projection_mutex(&self.message_conversation_index, "message conversation index").clear();
+        lock_projection_mutex(
+            &self.message_conversation_index,
+            "message conversation index",
+        )
+        .clear();
         lock_projection_mutex(&self.summaries, "summary store").clear();
         lock_projection_mutex(&self.members, "member store").clear();
         lock_projection_mutex(&self.read_cursors, "cursor store").clear();
@@ -200,6 +213,7 @@ impl TimelineProjectionService {
         )
         .clear();
         lock_projection_mutex(&self.message_favorites, "message favorites store").clear();
+        lock_projection_mutex(&self.message_favorites_index, "message favorites index").clear();
         lock_projection_mutex(&self.message_visibilities, "message visibility store").clear();
         *lock_projection_mutex(&self.observability, "projection observability store") =
             ProjectionObservabilityState::default();
@@ -324,6 +338,17 @@ impl TimelineProjectionService {
     ) -> Result<(), ProjectionError> {
         let payload: ConversationPolicyAppliedProjectionPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
+        if payload.conversation_id.trim() != event.aggregate_id.trim() {
+            return Err(ProjectionError::InvalidEvent(format!(
+                "conversation.policy_applied conversationId {} does not match aggregate {}",
+                payload.conversation_id, event.aggregate_id
+            )));
+        }
+        if payload.policy_version.trim().is_empty() {
+            return Err(ProjectionError::InvalidEvent(
+                "conversation.policy_applied policyVersion must not be empty".into(),
+            ));
+        }
         let key = scope_key_for_event(event);
         let mut conversations = lock_projection_mutex(&self.conversations, "conversation store");
         let entry = conversations
@@ -438,7 +463,11 @@ impl TimelineProjectionService {
         timeline.insert(message_seq, entry);
         timeline_tier::trim_timeline_to_cap(timeline, self.memory_timeline_cap());
         drop(entries);
-        lock_projection_mutex(&self.message_conversation_index, "message conversation index").insert(
+        lock_projection_mutex(
+            &self.message_conversation_index,
+            "message conversation index",
+        )
+        .insert(
             scope::message_lookup_scope_key(
                 tenant_id.as_str(),
                 organization_id.as_str(),
@@ -618,10 +647,8 @@ impl TimelineProjectionService {
             member.joined_at.as_str(),
         );
         if member.is_active() {
-            lock_projection_mutex(&self.members, "member store").refresh_inbox_activity_for_scope(
-                key.as_str(),
-                member.joined_at.as_str(),
-            );
+            lock_projection_mutex(&self.members, "member store")
+                .refresh_inbox_activity_for_scope(key.as_str(), member.joined_at.as_str());
         }
         Ok(())
     }
@@ -764,10 +791,8 @@ impl TimelineProjectionService {
                     .map(|timeline| {
                         timeline_tier::timeline_window_from_memory(timeline, after_seq, limit)
                     })
-                    .unwrap_or(TimelineWindowView {
-                        items: Vec::new(),
-                        next_after_seq: None,
-                        has_more: false,
+                    .unwrap_or_else(|| {
+                        crate::list_page::seq_cursor_page(Vec::new(), limit, None, false)
                     }))
             }
             Err(error) => Err(error),
@@ -823,8 +848,7 @@ impl TimelineProjectionService {
         let scope_cursors = lock_projection_mutex(&self.read_cursors, "cursor store")
             .get(key.as_str())
             .cloned()?;
-        let storage_key =
-            read_cursor_storage_key(member.member_id.as_str(), device_id);
+        let storage_key = read_cursor_storage_key(member.member_id.as_str(), device_id);
         let cursor = scope_cursors
             .get(storage_key.as_str())
             .or_else(|| {

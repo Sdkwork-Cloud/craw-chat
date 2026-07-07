@@ -31,17 +31,18 @@ mod presence_routes;
 mod principal_scope;
 mod realtime;
 mod realtime_http_routes;
+mod realtime_list_page;
 mod route_store_tier;
 mod rpc_dispatch;
 mod runtime_bootstrap;
-mod service_readiness;
 mod scope_access_policy;
+mod service_readiness;
 mod websocket;
 mod websocket_auth_init;
+mod websocket_frame_rate_limit;
 mod websocket_route;
 mod websocket_upgrade;
 mod websocket_upgrade_rate_limit;
-mod websocket_frame_rate_limit;
 
 pub use api_error::ApiError;
 pub use assembly::RealtimePlaneAssembly;
@@ -49,25 +50,24 @@ pub use auth_context::{RealtimeAuthContextResolver, resolve_iam_auth_pool_from_e
 use client_route_registration::ClientRouteRegistration;
 use client_route_state::ClientRouteState;
 pub use cluster::{
-    RealtimeClientRoute, RealtimeClusterBridge, RealtimeClusterError, RealtimeNodeLifecycleView,
-    RealtimeRouteDeliveryResult, RealtimeRouteMigrationResult,
+    ClientRouteDisconnectCommand, RealtimeClientRoute, RealtimeClusterBridge, RealtimeClusterError,
+    RealtimeNodeLifecycleView, RealtimeRouteDeliveryResult, RealtimeRouteMigrationResult,
 };
 pub use cluster_route_event_auth::REALTIME_CLUSTER_BUS_SECRET_ENV;
 pub use gateway_embed::{GatewayEmbeddedRealtimePlane, bootstrap_gateway_embedded_realtime_plane};
 pub use http_guardrails::apply_public_http_guardrails;
 pub use http_limits::{
     REALTIME_ACCEPT_LEGACY_WEBSOCKET_JSON_ENV, realtime_accepts_legacy_websocket_json,
-    resolve_max_websocket_connections, resolve_max_preauth_websocket_connections,
+    resolve_max_preauth_websocket_connections, resolve_max_websocket_connections,
     resolve_realtime_node_id_from_env,
 };
 pub use link_transport::spawn_link_transport_listeners;
 pub use maintenance::spawn_realtime_maintenance_jobs;
 pub use presence::{PresenceRuntime, PresenceRuntimeError};
-pub use scope_access_policy::ConversationMemberRealtimeScopeAccessPolicy;
 pub use realtime::{
-    RealtimeClientRouteStateSnapshot, RealtimeDeliveryRuntime, RealtimeInboxDiagnosticsSnapshot,
-    RealtimePostgresAdapterPlan, RealtimePostgresBindingError, RealtimePostgresBindingValue,
-    RealtimePostgresBoundParameter, RealtimePostgresBoundStatement,
+    RealtimeClientRouteStateSnapshot, RealtimeDeliveryRuntime, RealtimeEventWindowQuery,
+    RealtimeInboxDiagnosticsSnapshot, RealtimePostgresAdapterPlan, RealtimePostgresBindingError,
+    RealtimePostgresBindingValue, RealtimePostgresBoundParameter, RealtimePostgresBoundStatement,
     RealtimePostgresBoundTransaction, RealtimePostgresCheckpointMutation,
     RealtimePostgresClientRouteEventMutation, RealtimePostgresMethodAtomicity,
     RealtimePostgresMethodPlan, RealtimePostgresMethodStep, RealtimePostgresParameterBinding,
@@ -88,6 +88,7 @@ pub use rpc_dispatch::{SESSION_GATEWAY_RPC_SERVICE_KEYS, SessionGatewayRpcDispat
 pub use runtime_bootstrap::{
     RealtimePlaneBootstrap, bootstrap_realtime_plane_from_env, spawn_cluster_route_event_subscriber,
 };
+pub use scope_access_policy::ConversationMemberRealtimeScopeAccessPolicy;
 use service_readiness::{ServiceReadiness, healthz, readyz};
 pub use websocket::{
     CCP_WEBSOCKET_SUBPROTOCOL, REALTIME_OVERLOAD_CLOSE_CODE, REALTIME_OVERLOAD_CLOSE_REASON,
@@ -331,7 +332,9 @@ impl AppState {
             realtime_runtime,
             client_route_state,
             websocket_connection_semaphore: Arc::new(Semaphore::new(max_connections)),
-            preauth_websocket_connection_semaphore: Arc::new(Semaphore::new(max_preauth_connections)),
+            preauth_websocket_connection_semaphore: Arc::new(Semaphore::new(
+                max_preauth_connections,
+            )),
             readiness: ServiceReadiness::from_env(),
             auth_resolver,
             websocket_upgrade_rate_limiter:

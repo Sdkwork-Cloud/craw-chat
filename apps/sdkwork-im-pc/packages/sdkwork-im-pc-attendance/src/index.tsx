@@ -5,7 +5,7 @@ import {
   Map, History, Fingerprint
 } from 'lucide-react';
 import { cn } from '@sdkwork/im-pc-commons';
-import { toast } from '@sdkwork/im-pc-chat';
+import { toast } from '@sdkwork/im-pc-commons';
 import { attendanceService, AttendanceStats, AttendanceRecord, AttendanceStatus } from './services/AttendanceService';
 import { StatsModal } from './components/StatsModal';
 import { AppealModal } from './components/AppealModal';

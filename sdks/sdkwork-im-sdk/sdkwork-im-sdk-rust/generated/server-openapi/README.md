@@ -67,7 +67,7 @@ println!("{result:?}");
 use std::collections::HashMap;
 // List pending realtime events
 let mut query = HashMap::new();
-query.insert("limit".to_string(), serde_json::json!(1));
+query.insert("page_size".to_string(), serde_json::json!(1));
 query.insert("cursor".to_string(), serde_json::json!("cursor"));
 let result = client.realtime().events_list(Some(&query)).await?;
 println!("{result:?}");
@@ -91,12 +91,8 @@ println!("{result:?}");
 ### social
 
 ```rust
-use std::collections::HashMap;
-// List contact tags
-let mut query = HashMap::new();
-query.insert("limit".to_string(), serde_json::json!(1));
-query.insert("cursor".to_string(), serde_json::json!("cursor"));
-let result = client.social().contacts_tags_list(Some(&query)).await?;
+// Retrieve pending incoming friend request count
+let result = client.social().friend_requests_pending_count_retrieve().await?;
 println!("{result:?}");
 ```
 
@@ -106,7 +102,7 @@ println!("{result:?}");
 use std::collections::HashMap;
 // List IM contacts
 let mut query = HashMap::new();
-query.insert("limit".to_string(), serde_json::json!(1));
+query.insert("page_size".to_string(), serde_json::json!(1));
 query.insert("cursor".to_string(), serde_json::json!("cursor"));
 let result = client.chat().contacts_list(Some(&query)).await?;
 println!("{result:?}");
@@ -129,8 +125,12 @@ println!("{result:?}");
 ### spaces
 
 ```rust
+use std::collections::HashMap;
 // List spaces
-let result = client.spaces().list().await?;
+let mut query = HashMap::new();
+query.insert("page_size".to_string(), serde_json::json!(1));
+query.insert("cursor".to_string(), serde_json::json!("cursor"));
+let result = client.spaces().list(Some(&query)).await?;
 println!("{result:?}");
 ```
 

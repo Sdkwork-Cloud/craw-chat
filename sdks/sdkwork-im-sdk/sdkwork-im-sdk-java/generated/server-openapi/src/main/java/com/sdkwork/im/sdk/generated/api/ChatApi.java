@@ -14,295 +14,301 @@ public class ChatApi {
     }
 
     /** List IM contacts */
-    public ContactsResponse contactsList(Integer limit, String cursor) throws Exception {
+    public ContactsListResponse contactsList(Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/contacts"), query));
-        return client.convertValue(raw, new TypeReference<ContactsResponse>() {});
+        return client.convertValue(raw, new TypeReference<ContactsListResponse>() {});
     }
 
-    /** Retrieve current inbox window */
-    public InboxResponse inboxRetrieve(Integer limit, String cursor) throws Exception {
+    /** List current inbox window */
+    public InboxListResponse inboxList(Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query));
-        return client.convertValue(raw, new TypeReference<InboxResponse>() {});
+        return client.convertValue(raw, new TypeReference<InboxListResponse>() {});
     }
 
     /** Create a conversation */
-    public CreateConversationResult conversationsCreate(CreateConversationRequest body) throws Exception {
+    public ConversationsCreateResponse201 conversationsCreate(CreateConversationRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<CreateConversationResult>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsCreateResponse201>() {});
     }
 
     /** Create an agent dialog */
-    public CreateConversationResult conversationsAgentDialogsCreate(CreateAgentDialogRequest body) throws Exception {
+    public ConversationsAgentDialogsCreateResponse201 conversationsAgentDialogsCreate(CreateAgentDialogRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/agent_dialogs"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<CreateConversationResult>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsAgentDialogsCreateResponse201>() {});
     }
 
     /** Create an agent handoff */
-    public AckResponse conversationsAgentHandoffsCreate(CreateAgentDialogRequest body) throws Exception {
+    public ConversationsAgentHandoffsCreateResponse201 conversationsAgentHandoffsCreate(CreateAgentDialogRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/agent_handoffs"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsAgentHandoffsCreateResponse201>() {});
     }
 
     /** Create a system channel */
-    public CreateConversationResult conversationsSystemChannelsCreate(CreateConversationRequest body) throws Exception {
+    public ConversationsSystemChannelsCreateResponse201 conversationsSystemChannelsCreate(CreateConversationRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/system_channels"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<CreateConversationResult>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsSystemChannelsCreateResponse201>() {});
     }
 
     /** Create a thread conversation */
-    public CreateConversationResult conversationsThreadsCreate(CreateConversationRequest body) throws Exception {
+    public ConversationsThreadsCreateResponse201 conversationsThreadsCreate(CreateConversationRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/threads"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<CreateConversationResult>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsThreadsCreateResponse201>() {});
     }
 
-    /** Bind a direct chat conversation */
-    public CreateConversationResult conversationsDirectChatsBind(BindDirectChatRequest body) throws Exception {
+    /** Create a direct chat conversation binding */
+    public ConversationsDirectChatsBindingsCreateResponse201 conversationsDirectChatsBindingsCreate(BindDirectChatRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/direct_chats/bindings"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<CreateConversationResult>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsDirectChatsBindingsCreateResponse201>() {});
     }
 
     /** Retrieve agent handoff state */
-    public AckResponse conversationsAgentHandoffRetrieve(String conversationId) throws Exception {
+    public ConversationsAgentHandoffRetrieveResponse conversationsAgentHandoffRetrieve(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/agent_handoff"));
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsAgentHandoffRetrieveResponse>() {});
     }
 
     /** Accept agent handoff */
-    public AckResponse conversationsAgentHandoffAccept(String conversationId) throws Exception {
+    public ConversationsAgentHandoffAcceptResponse conversationsAgentHandoffAccept(String conversationId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/agent_handoff/accept"), null);
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsAgentHandoffAcceptResponse>() {});
     }
 
     /** Resolve agent handoff */
-    public AckResponse conversationsAgentHandoffResolve(String conversationId) throws Exception {
+    public ConversationsAgentHandoffResolveResponse conversationsAgentHandoffResolve(String conversationId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/agent_handoff/resolve"), null);
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsAgentHandoffResolveResponse>() {});
     }
 
     /** Close agent handoff */
-    public AckResponse conversationsAgentHandoffClose(String conversationId) throws Exception {
+    public ConversationsAgentHandoffCloseResponse conversationsAgentHandoffClose(String conversationId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/agent_handoff/close"), null);
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsAgentHandoffCloseResponse>() {});
     }
 
     /** Retrieve conversation summary */
-    public ConversationSummaryView conversationsRetrieve(String conversationId) throws Exception {
+    public ConversationsRetrieveResponse conversationsRetrieve(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<ConversationSummaryView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsRetrieveResponse>() {});
     }
 
     /** List conversation members */
-    public ListMembersResponse conversationsMembersList(String conversationId, Integer limit, String cursor) throws Exception {
+    public ConversationsMembersListResponse conversationsMembersList(String conversationId, Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members"), query));
-        return client.convertValue(raw, new TypeReference<ListMembersResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMembersListResponse>() {});
     }
 
     /** Add a conversation member */
-    public ConversationMember conversationsMembersAdd(String conversationId, AddConversationMemberRequest body) throws Exception {
+    public ConversationsMembersAddResponse conversationsMembersAdd(String conversationId, AddConversationMemberRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/add"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ConversationMember>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMembersAddResponse>() {});
     }
 
     /** Remove a conversation member */
-    public AckResponse conversationsMembersRemove(String conversationId, RemoveConversationMemberRequest body) throws Exception {
+    public ConversationsMembersRemoveResponse conversationsMembersRemove(String conversationId, RemoveConversationMemberRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/remove"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMembersRemoveResponse>() {});
     }
 
     /** Transfer conversation owner */
-    public ConversationMember conversationsMembersTransferOwner(String conversationId, TransferConversationOwnerRequest body) throws Exception {
+    public ConversationsMembersTransferOwnerResponse conversationsMembersTransferOwner(String conversationId, TransferConversationOwnerRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/transfer_owner"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ConversationMember>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMembersTransferOwnerResponse>() {});
     }
 
     /** Change conversation member role */
-    public ConversationMember conversationsMembersChangeRole(String conversationId, ChangeConversationMemberRoleRequest body) throws Exception {
+    public ConversationsMembersChangeRoleResponse conversationsMembersChangeRole(String conversationId, ChangeConversationMemberRoleRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/change_role"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ConversationMember>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMembersChangeRoleResponse>() {});
     }
 
     /** Leave a conversation */
-    public AckResponse conversationsMembersLeave(String conversationId) throws Exception {
+    public ConversationsMembersLeaveResponse conversationsMembersLeave(String conversationId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/leave"), null);
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMembersLeaveResponse>() {});
+    }
+
+    /** Accept a conversation invitation */
+    public ConversationsMembersAcceptInvitationResponse conversationsMembersAcceptInvitation(String conversationId) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/members/accept_invitation"), null);
+        return client.convertValue(raw, new TypeReference<ConversationsMembersAcceptInvitationResponse>() {});
     }
 
     /** Retrieve conversation preferences */
-    public ConversationPreferencesView conversationsPreferencesRetrieve(String conversationId) throws Exception {
+    public ConversationsPreferencesRetrieveResponse conversationsPreferencesRetrieve(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/preferences"));
-        return client.convertValue(raw, new TypeReference<ConversationPreferencesView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsPreferencesRetrieveResponse>() {});
     }
 
     /** Update conversation preferences */
-    public ConversationPreferencesView conversationsPreferencesUpdate(String conversationId, UpdateConversationPreferencesRequest body) throws Exception {
+    public ConversationsPreferencesUpdateResponse conversationsPreferencesUpdate(String conversationId, UpdateConversationPreferencesRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/preferences"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ConversationPreferencesView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsPreferencesUpdateResponse>() {});
     }
 
     /** Retrieve conversation profile */
-    public ConversationProfileView conversationsProfileRetrieve(String conversationId) throws Exception {
+    public ConversationsProfileRetrieveResponse conversationsProfileRetrieve(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/profile"));
-        return client.convertValue(raw, new TypeReference<ConversationProfileView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsProfileRetrieveResponse>() {});
     }
 
     /** Update conversation profile */
-    public ConversationProfileView conversationsProfileUpdate(String conversationId, UpdateConversationProfileRequest body) throws Exception {
+    public ConversationsProfileUpdateResponse conversationsProfileUpdate(String conversationId, UpdateConversationProfileRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/profile"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ConversationProfileView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsProfileUpdateResponse>() {});
     }
 
     /** Retrieve read cursor */
-    public ReadCursorView conversationsReadCursorRetrieve(String conversationId) throws Exception {
+    public ConversationsReadCursorRetrieveResponse conversationsReadCursorRetrieve(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/read_cursor"));
-        return client.convertValue(raw, new TypeReference<ReadCursorView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsReadCursorRetrieveResponse>() {});
     }
 
     /** Update read cursor */
-    public ReadCursorView conversationsReadCursorUpdate(String conversationId, UpdateReadCursorRequest body) throws Exception {
-        Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/read_cursor"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ReadCursorView>() {});
+    public ConversationsReadCursorUpdateResponse conversationsReadCursorUpdate(String conversationId, UpdateReadCursorRequest body) throws Exception {
+        Object raw = client.patch(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/read_cursor"), body, null, null, "application/json");
+        return client.convertValue(raw, new TypeReference<ConversationsReadCursorUpdateResponse>() {});
     }
 
     /** List member directory */
-    public MemberDirectoryResponse conversationsMemberDirectoryList(String conversationId) throws Exception {
+    public ConversationsMemberDirectoryListResponse conversationsMemberDirectoryList(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/member_directory"));
-        return client.convertValue(raw, new TypeReference<MemberDirectoryResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMemberDirectoryListResponse>() {});
     }
 
     /** List conversation message timeline */
-    public TimelineResponse conversationsMessagesList(String conversationId, Integer afterSeq, Integer limit) throws Exception {
+    public ConversationsMessagesListResponse conversationsMessagesList(String conversationId, Integer afterSeq, Integer pageSize) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
-            new QueryParameterSpec("limit", limit, "form", true, false, null)
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/messages"), query));
-        return client.convertValue(raw, new TypeReference<TimelineResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMessagesListResponse>() {});
     }
 
     /** Post a conversation message */
-    public PostedMessageResponse conversationsMessagesCreate(String conversationId, PostMessageRequest body) throws Exception {
+    public ConversationsMessagesCreateResponse201 conversationsMessagesCreate(String conversationId, PostMessageRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/messages"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<PostedMessageResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMessagesCreateResponse201>() {});
     }
 
     /** Publish a system channel message */
-    public PostedMessageResponse conversationsSystemChannelPublish(String conversationId, PostMessageRequest body) throws Exception {
+    public ConversationsSystemChannelPublishResponse conversationsSystemChannelPublish(String conversationId, PostMessageRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/system_channel/publish"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<PostedMessageResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsSystemChannelPublishResponse>() {});
     }
 
     /** List pinned messages */
-    public PinnedMessagesResponse conversationsPinsList(String conversationId) throws Exception {
+    public ConversationsPinsListResponse conversationsPinsList(String conversationId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/pins"));
-        return client.convertValue(raw, new TypeReference<PinnedMessagesResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsPinsListResponse>() {});
     }
 
     /** Retrieve message interaction summary */
-    public MessageInteractionSummaryView conversationsMessagesInteractionSummaryRetrieve(String conversationId, String messageId) throws Exception {
+    public ConversationsMessagesInteractionSummaryRetrieveResponse conversationsMessagesInteractionSummaryRetrieve(String conversationId, String messageId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/interaction_summary"));
-        return client.convertValue(raw, new TypeReference<MessageInteractionSummaryView>() {});
+        return client.convertValue(raw, new TypeReference<ConversationsMessagesInteractionSummaryRetrieveResponse>() {});
     }
 
     /** Edit a message */
-    public PostedMessageResponse messagesEdit(String messageId, EditMessageRequest body) throws Exception {
+    public MessagesEditResponse messagesEdit(String messageId, EditMessageRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/edit"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<PostedMessageResponse>() {});
+        return client.convertValue(raw, new TypeReference<MessagesEditResponse>() {});
     }
 
     /** Recall a message */
-    public PostedMessageResponse messagesRecall(String messageId) throws Exception {
+    public MessagesRecallResponse messagesRecall(String messageId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/recall"), null);
-        return client.convertValue(raw, new TypeReference<PostedMessageResponse>() {});
+        return client.convertValue(raw, new TypeReference<MessagesRecallResponse>() {});
     }
 
     /** List message favorites */
-    public FavoriteMessagesResponse messagesFavoritesList(Integer limit, String cursor, String favoriteType, String q) throws Exception {
+    public MessagesFavoritesListResponse messagesFavoritesList(Integer pageSize, String cursor, String favoriteType, String q) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             new QueryParameterSpec("favoriteType", favoriteType, "form", true, false, null),
             new QueryParameterSpec("q", q, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/messages/favorites"), query));
-        return client.convertValue(raw, new TypeReference<FavoriteMessagesResponse>() {});
+        return client.convertValue(raw, new TypeReference<MessagesFavoritesListResponse>() {});
     }
 
     /** Favorite a message */
-    public MessageFavoriteView messagesFavoritesCreate(String messageId, FavoriteMessageRequest body) throws Exception {
+    public MessagesFavoritesCreateResponse201 messagesFavoritesCreate(String messageId, FavoriteMessageRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/favorites"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<MessageFavoriteView>() {});
+        return client.convertValue(raw, new TypeReference<MessagesFavoritesCreateResponse201>() {});
     }
 
     /** Delete a message favorite */
-    public DeleteMessageFavoriteResponse messagesFavoritesDelete(String favoriteId) throws Exception {
-        Object raw = client.delete(ApiPaths.imPath("/chat/messages/favorites/" + serializePathParameter(favoriteId, new PathParameterSpec("favoriteId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<DeleteMessageFavoriteResponse>() {});
+    public Void messagesFavoritesDelete(String favoriteId) throws Exception {
+        client.delete(ApiPaths.imPath("/chat/messages/favorites/" + serializePathParameter(favoriteId, new PathParameterSpec("favoriteId", "simple", false)) + ""));
+        return null;
     }
 
     /** Delete message visibility for the current principal */
-    public MessageVisibilityMutationResult messagesVisibilityDelete(String messageId) throws Exception {
-        Object raw = client.delete(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/visibility"));
-        return client.convertValue(raw, new TypeReference<MessageVisibilityMutationResult>() {});
+    public Void messagesVisibilityDelete(String messageId) throws Exception {
+        client.delete(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/visibility"));
+        return null;
     }
 
     /** Add a message reaction */
-    public MessageReactionMutationResult messagesReactionsCreate(String messageId, MessageReactionRequest body) throws Exception {
+    public MessagesReactionsCreateResponse201 messagesReactionsCreate(String messageId, MessageReactionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/reactions"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<MessageReactionMutationResult>() {});
+        return client.convertValue(raw, new TypeReference<MessagesReactionsCreateResponse201>() {});
     }
 
     /** Remove a message reaction */
-    public MessageReactionMutationResult messagesReactionsDelete(String messageId, MessageReactionRequest body) throws Exception {
+    public MessagesReactionsRemoveResponse messagesReactionsRemove(String messageId, MessageReactionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/reactions/remove"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<MessageReactionMutationResult>() {});
+        return client.convertValue(raw, new TypeReference<MessagesReactionsRemoveResponse>() {});
     }
 
     /** Pin a message */
-    public MessagePinMutationResult messagesPinCreate(String messageId) throws Exception {
+    public MessagesPinResponse messagesPin(String messageId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/pin"), null);
-        return client.convertValue(raw, new TypeReference<MessagePinMutationResult>() {});
+        return client.convertValue(raw, new TypeReference<MessagesPinResponse>() {});
     }
 
     /** Unpin a message */
-    public MessagePinMutationResult messagesPinDelete(String messageId) throws Exception {
+    public MessagesUnpinResponse messagesUnpin(String messageId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/unpin"), null);
-        return client.convertValue(raw, new TypeReference<MessagePinMutationResult>() {});
+        return client.convertValue(raw, new TypeReference<MessagesUnpinResponse>() {});
     }
 
     /** Create a live, chat, or game room bound to a group conversation */
-    public CreateConversationResult roomsCreate(CreateRoomRequest body) throws Exception {
+    public RoomsCreateResponse201 roomsCreate(CreateRoomRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/rooms"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<CreateConversationResult>() {});
+        return client.convertValue(raw, new TypeReference<RoomsCreateResponse201>() {});
     }
 
-    /** Get room metadata and active member count */
-    public RoomView roomsGet(String roomId) throws Exception {
+    /** Retrieve room metadata and active member count */
+    public RoomsRetrieveResponse roomsRetrieve(String roomId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/chat/rooms/" + serializePathParameter(roomId, new PathParameterSpec("roomId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<RoomView>() {});
+        return client.convertValue(raw, new TypeReference<RoomsRetrieveResponse>() {});
     }
 
     /** Enter a room as the authenticated principal */
-    public EnterRoomResponse roomsEnter(String roomId) throws Exception {
+    public RoomsEnterResponse roomsEnter(String roomId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/rooms/" + serializePathParameter(roomId, new PathParameterSpec("roomId", "simple", false)) + "/enter"), null);
-        return client.convertValue(raw, new TypeReference<EnterRoomResponse>() {});
+        return client.convertValue(raw, new TypeReference<RoomsEnterResponse>() {});
     }
 
     /** Leave a room as the authenticated principal */
-    public EnterRoomResponse roomsLeave(String roomId) throws Exception {
+    public RoomsLeaveResponse roomsLeave(String roomId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/rooms/" + serializePathParameter(roomId, new PathParameterSpec("roomId", "simple", false)) + "/leave"), null);
-        return client.convertValue(raw, new TypeReference<EnterRoomResponse>() {});
+        return client.convertValue(raw, new TypeReference<RoomsLeaveResponse>() {});
     }
 
     private record PathParameterSpec(String name, String style, boolean explode) {}

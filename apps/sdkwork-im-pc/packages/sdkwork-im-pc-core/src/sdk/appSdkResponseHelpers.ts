@@ -22,16 +22,33 @@ export function readOptionalString(
 
 export function readString(
   record: Record<string, unknown>,
-  ...keys: string[]
+  ...args: (string | readonly string[])[]
 ): string {
-  return readOptionalString(record, ...keys) ?? '';
+  if (args.length === 0) {
+    return '';
+  }
+  const [first, ...rest] = args;
+  if (Array.isArray(first)) {
+    const fallback = typeof rest[0] === 'string' ? rest[0] : '';
+    return readRecordString(record, first, fallback);
+  }
+  return readOptionalString(record, ...(args as string[])) ?? '';
 }
 
 export function readNumber(
   record: Record<string, unknown>,
-  ...keys: string[]
+  ...args: (string | number | readonly string[])[]
 ): number {
-  for (const key of keys) {
+  if (args.length === 0) {
+    return 0;
+  }
+  const [first, ...rest] = args;
+  if (Array.isArray(first)) {
+    const fallback =
+      typeof rest[0] === 'number' && Number.isFinite(rest[0]) ? rest[0] : 0;
+    return readRecordNumber(record, first, fallback);
+  }
+  for (const key of args as string[]) {
     const value = record[key];
     if (typeof value === 'number' && Number.isFinite(value)) {
       return value;
@@ -46,7 +63,51 @@ export function readNumber(
   return 0;
 }
 
+/** Read the first non-empty string field from an ordered key list with fallback. */
+export function readRecordString(
+  record: Record<string, unknown> | null | undefined,
+  keys: readonly string[],
+  fallback = '',
+): string {
+  const source = record ?? {};
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return fallback;
+}
+
+/** Read the first numeric field from an ordered key list with fallback. */
+export function readRecordNumber(
+  record: Record<string, unknown> | null | undefined,
+  keys: readonly string[],
+  fallback = 0,
+): number {
+  const source = record ?? {};
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value.replace(/[,%\s]/gu, ''));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
+}
+
 export function extractAppSdkPayload(result: SdkworkAppApiResult | unknown): unknown {
+  if (Array.isArray(result)) {
+    return result;
+  }
   const envelope = asRecord(result);
   if (!envelope) {
     return null;
@@ -276,10 +337,8 @@ export function mapAppSdkOffsetPage<T>(
 
 function readCursorPageInfo(payload: Record<string, unknown> | null): Pick<CursorListPage<unknown>, 'hasMore' | 'nextCursor'> {
   const pageInfo = asRecord(payload?.pageInfo);
-  const nextCursor = readOptionalString(pageInfo ?? payload ?? {}, 'nextCursor', 'cursor');
-  const hasMore = pageInfo?.hasMore === true
-    || payload?.hasMore === true
-    || Boolean(nextCursor);
+  const nextCursor = readOptionalString(pageInfo ?? {}, 'nextCursor', 'cursor');
+  const hasMore = pageInfo?.hasMore === true || Boolean(nextCursor);
   return { hasMore, nextCursor };
 }
 

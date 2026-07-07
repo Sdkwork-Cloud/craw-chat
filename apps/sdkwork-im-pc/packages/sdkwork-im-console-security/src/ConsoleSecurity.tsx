@@ -26,6 +26,10 @@ export const ConsoleSecurity = () => {
 
   if (!data) return null;
 
+  const healthScore = data.healthScore;
+  const healthScoreLabel = healthScore == null ? '—' : String(healthScore);
+  const healthScoreArc = healthScore == null ? 0 : healthScore;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -48,17 +52,21 @@ export const ConsoleSecurity = () => {
               <path
                 className="text-emerald-500 stroke-current"
                 strokeWidth="3"
-                strokeDasharray={`${data.healthScore}, 100`}
+                strokeDasharray={`${healthScoreArc}, 100`}
                 strokeLinecap="round"
                 fill="none"
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
             </svg>
-            <div className="absolute text-2xl font-bold text-console-text-main">{data.healthScore}</div>
+            <div className="absolute text-2xl font-bold text-console-text-main">{healthScoreLabel}</div>
           </div>
           <div>
             <h3 className="font-semibold text-console-text-main mb-1">健康得分</h3>
-            <p className="text-xs text-console-text-muted mb-3">您的企业即时通信环境安全状况良好。</p>
+            <p className="text-xs text-console-text-muted mb-3">
+              {healthScore == null
+                ? '暂无审计数据，无法计算安全健康分。'
+                : '您的企业即时通信环境安全状况已根据审计记录评估。'}
+            </p>
             <button className="text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors">
               查看优化建议
             </button>

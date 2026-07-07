@@ -1,9 +1,11 @@
 //! Postgres-backed [`ConversationSeqAllocator`] using `im_conversation_seq_counters`.
 
-use im_platform_contracts::ConversationSeqAllocator;
 use im_platform_contracts::ContractError;
+use im_platform_contracts::ConversationSeqAllocator;
 
-use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool};
+use crate::{
+    PostgresJournalPool, now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io,
+};
 
 const ALLOCATE_SEQ_SQL: &str = r#"
 insert into im_conversation_seq_counters (tenant_id, organization_id, conversation_id, next_seq, updated_at)

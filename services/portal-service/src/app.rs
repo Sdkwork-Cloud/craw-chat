@@ -1,0 +1,100 @@
+use std::sync::Arc;
+
+use axum::Router;
+use axum::extract::DefaultBodyLimit;
+use axum::http::Request;
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_web_core::WebRequestContext;
+use tokio::sync::Semaphore;
+
+use crate::bootstrap::default_portal_runtime;
+use crate::error::PortalError;
+use crate::handlers::{get_portal_access_snapshot, get_portal_snapshot, get_portal_workspace};
+use crate::openapi::{docs, openapi_json};
+use crate::state::{AppState, PortalRuntime, PublicAppGuardrails};
+
+const PORTAL_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+
+pub fn default_app_state() -> AppState {
+    crate::bootstrap::default_app_state()
+}
+
+pub fn build_domain_api_router(state: AppState) -> Router {
+    Router::new()
+        .route("/app/v3/api/portal/access", get(get_portal_access_snapshot))
+        .route("/app/v3/api/portal/workspace", get(get_portal_workspace))
+        .route("/app/v3/api/portal/{section}", get(get_portal_snapshot))
+        .with_state(state)
+}
+
+pub fn apply_public_http_guardrails(router: Router) -> Router {
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(PORTAL_MAX_IN_FLIGHT_REQUESTS_DEFAULT)),
+    };
+    router
+        .layer(DefaultBodyLimit::max(1024 * 1024))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            enforce_in_flight_gate,
+        ))
+}
+
+pub fn build_public_app() -> Router {
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(default_portal_runtime())),
+        im_service_router_config(),
+    )
+}
+
+pub fn build_app(runtime: Arc<PortalRuntime>) -> Router {
+    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
+}
+
+pub fn build_default_app() -> Router {
+    build_app(default_portal_runtime())
+}
+
+fn build_business_router(runtime: Arc<PortalRuntime>) -> Router {
+    Router::new()
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
+        .merge(build_domain_api_router(AppState { runtime }))
+}
+
+async fn enforce_in_flight_gate(
+    axum::extract::State(guardrails): axum::extract::State<PublicAppGuardrails>,
+    request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
+    if matches!(
+        request.uri().path(),
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
+    ) {
+        return next.run(request).await;
+    }
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            let problem = sdkwork_routes_web_framework_backend_api::response::ApiProblem::dependency_unavailable(
+                "portal service is at maximum in-flight request capacity, please retry later",
+            );
+            if let Some(ctx) = request.extensions().get::<WebRequestContext>() {
+                return problem.into_response_for(ctx);
+            }
+            return PortalError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "http_overloaded",
+                message:
+                    "portal service is at maximum in-flight request capacity, please retry later"
+                        .to_owned(),
+            }
+            .into_response();
+        }
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
+}

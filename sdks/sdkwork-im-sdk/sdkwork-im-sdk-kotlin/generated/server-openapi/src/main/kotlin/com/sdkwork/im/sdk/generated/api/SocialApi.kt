@@ -9,102 +9,118 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 class SocialApi(private val client: HttpClient) {
 
     /** Search social users */
-    suspend fun usersList(q: String? = null, limit: Int? = null, cursor: String? = null): SocialUserSearchResponse? {
+    suspend fun usersList(q: String? = null, pageSize: Int? = null, cursor: String? = null): SocialUsersListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("q", q, "form", true, false, null),
-            QueryParameterSpec("limit", limit, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/users"), query))
-        return client.convertValue(raw, object : TypeReference<SocialUserSearchResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialUsersListResponse>() {})
     }
 
     /** List friend requests */
-    suspend fun friendRequestsList(direction: String? = null, status: String? = null, limit: Int? = null, cursor: String? = null): SocialFriendRequestListResponse? {
+    suspend fun friendRequestsList(direction: String? = null, status: String? = null, pageSize: Int? = null, cursor: String? = null): SdkWorkListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("direction", direction, "form", true, false, null),
             QueryParameterSpec("status", status, "form", true, false, null),
-            QueryParameterSpec("limit", limit, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/friend_requests"), query))
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestListResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Create a friend request */
-    suspend fun friendRequestsCreate(body: SubmitFriendRequestRequest): SocialFriendRequestMutationResponse? {
+    suspend fun friendRequestsCreate(body: SubmitFriendRequestRequest): SocialFriendRequestsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/social/friend_requests"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsCreateResponse201>() {})
+    }
+
+    /** Retrieve pending incoming friend request count */
+    suspend fun friendRequestsPendingCountRetrieve(): SocialFriendRequestsPendingCountRetrieveResponse? {
+        val raw = client.get(ApiPaths.imPath("/social/friend_requests/pending/count"))
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsPendingCountRetrieveResponse>() {})
     }
 
     /** Accept a friend request */
-    suspend fun friendRequestsAccept(requestId: String): SocialFriendRequestAcceptanceResponse? {
-        val raw = client.post(ApiPaths.imPath("/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}/accept"), null)
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestAcceptanceResponse>() {})
+    suspend fun friendRequestsAccept(friendRequestId: String): SocialFriendRequestsAcceptResponse? {
+        val raw = client.post(ApiPaths.imPath("/social/friend_requests/${serializePathParameter(friendRequestId, PathParameterSpec("friendRequestId", "simple", false))}/accept"), null)
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsAcceptResponse>() {})
     }
 
     /** Decline a friend request */
-    suspend fun friendRequestsDecline(requestId: String): SocialFriendRequestMutationResponse? {
-        val raw = client.post(ApiPaths.imPath("/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}/decline"), null)
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestMutationResponse>() {})
+    suspend fun friendRequestsDecline(friendRequestId: String): SocialFriendRequestsDeclineResponse? {
+        val raw = client.post(ApiPaths.imPath("/social/friend_requests/${serializePathParameter(friendRequestId, PathParameterSpec("friendRequestId", "simple", false))}/decline"), null)
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsDeclineResponse>() {})
     }
 
     /** Cancel a friend request */
-    suspend fun friendRequestsCancel(requestId: String): SocialFriendRequestMutationResponse? {
-        val raw = client.post(ApiPaths.imPath("/social/friend_requests/${serializePathParameter(requestId, PathParameterSpec("requestId", "simple", false))}/cancel"), null)
-        return client.convertValue(raw, object : TypeReference<SocialFriendRequestMutationResponse>() {})
+    suspend fun friendRequestsCancel(friendRequestId: String): SocialFriendRequestsCancelResponse? {
+        val raw = client.post(ApiPaths.imPath("/social/friend_requests/${serializePathParameter(friendRequestId, PathParameterSpec("friendRequestId", "simple", false))}/cancel"), null)
+        return client.convertValue(raw, object : TypeReference<SocialFriendRequestsCancelResponse>() {})
     }
 
     /** Remove a friendship */
-    suspend fun friendshipsRemove(friendshipId: String): SocialFriendshipMutationResponse? {
+    suspend fun friendshipsRemove(friendshipId: String): SocialFriendshipsRemoveResponse? {
         val raw = client.post(ApiPaths.imPath("/social/friendships/${serializePathParameter(friendshipId, PathParameterSpec("friendshipId", "simple", false))}/remove"), null)
-        return client.convertValue(raw, object : TypeReference<SocialFriendshipMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SocialFriendshipsRemoveResponse>() {})
+    }
+
+    /** Block a social user */
+    suspend fun userBlocksCreate(body: BlockUserRequest): SocialUserBlocksCreateResponse201? {
+        val raw = client.post(ApiPaths.imPath("/social/user_blocks"), body, null, null, "application/json")
+        return client.convertValue(raw, object : TypeReference<SocialUserBlocksCreateResponse201>() {})
+    }
+
+    /** Release a social user block */
+    suspend fun userBlocksDelete(blockId: String): Unit {
+        client.delete(ApiPaths.imPath("/social/user_blocks/${serializePathParameter(blockId, PathParameterSpec("blockId", "simple", false))}"))
     }
 
     /** List contact tags */
-    suspend fun contactsTagsList(limit: Int? = null, cursor: String? = null): ContactTagsResponse? {
+    suspend fun contactsTagsList(pageSize: Int? = null, cursor: String? = null): SdkWorkListResponse? {
         val query = buildQueryString(listOf(
-            QueryParameterSpec("limit", limit, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/contacts/tags"), query))
-        return client.convertValue(raw, object : TypeReference<ContactTagsResponse>() {})
+        return client.convertValue(raw, object : TypeReference<SdkWorkListResponse>() {})
     }
 
     /** Create a contact tag */
-    suspend fun contactsTagsCreate(body: CreateContactTagRequest): ContactTagView? {
+    suspend fun contactsTagsCreate(body: CreateContactTagRequest): SocialContactsTagsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/social/contacts/tags"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ContactTagView>() {})
+        return client.convertValue(raw, object : TypeReference<SocialContactsTagsCreateResponse201>() {})
     }
 
     /** Update a contact tag */
-    suspend fun contactsTagsUpdate(tagId: String, body: UpdateContactTagRequest): ContactTagView? {
+    suspend fun contactsTagsUpdate(tagId: String, body: UpdateContactTagRequest): SocialContactsTagsUpdateResponse? {
         val raw = client.patch(ApiPaths.imPath("/social/contacts/tags/${serializePathParameter(tagId, PathParameterSpec("tagId", "simple", false))}"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ContactTagView>() {})
+        return client.convertValue(raw, object : TypeReference<SocialContactsTagsUpdateResponse>() {})
     }
 
     /** Delete a contact tag */
-    suspend fun contactsTagsDelete(tagId: String): DeleteContactTagResponse? {
-        val raw = client.delete(ApiPaths.imPath("/social/contacts/tags/${serializePathParameter(tagId, PathParameterSpec("tagId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<DeleteContactTagResponse>() {})
+    suspend fun contactsTagsDelete(tagId: String): Unit {
+        client.delete(ApiPaths.imPath("/social/contacts/tags/${serializePathParameter(tagId, PathParameterSpec("tagId", "simple", false))}"))
     }
 
     /** Create a contact recommendation */
-    suspend fun contactsRecommendationsCreate(targetUserId: String, body: CreateContactRecommendationRequest): ContactRecommendationView? {
+    suspend fun contactsRecommendationsCreate(targetUserId: String, body: CreateContactRecommendationRequest): SocialContactsRecommendationsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/social/contacts/${serializePathParameter(targetUserId, PathParameterSpec("targetUserId", "simple", false))}/recommendations"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ContactRecommendationView>() {})
+        return client.convertValue(raw, object : TypeReference<SocialContactsRecommendationsCreateResponse201>() {})
     }
 
     /** Retrieve contact preferences */
-    suspend fun contactsPreferencesRetrieve(targetUserId: String): ContactPreferencesView? {
+    suspend fun contactsPreferencesRetrieve(targetUserId: String): SocialContactsPreferencesRetrieveResponse? {
         val raw = client.get(ApiPaths.imPath("/social/contacts/${serializePathParameter(targetUserId, PathParameterSpec("targetUserId", "simple", false))}/preferences"))
-        return client.convertValue(raw, object : TypeReference<ContactPreferencesView>() {})
+        return client.convertValue(raw, object : TypeReference<SocialContactsPreferencesRetrieveResponse>() {})
     }
 
     /** Update contact preferences */
-    suspend fun contactsPreferencesUpdate(targetUserId: String, body: UpdateContactPreferencesRequest): ContactPreferencesView? {
+    suspend fun contactsPreferencesUpdate(targetUserId: String, body: UpdateContactPreferencesRequest): SocialContactsPreferencesUpdateResponse? {
         val raw = client.patch(ApiPaths.imPath("/social/contacts/${serializePathParameter(targetUserId, PathParameterSpec("targetUserId", "simple", false))}/preferences"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<ContactPreferencesView>() {})
+        return client.convertValue(raw, object : TypeReference<SocialContactsPreferencesUpdateResponse>() {})
     }
 
     private data class PathParameterSpec(val name: String, val style: String, val explode: Boolean)

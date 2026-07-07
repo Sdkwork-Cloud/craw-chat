@@ -37,7 +37,7 @@
 | POST | `/im/v3/api/chat/rooms/{roomId}/enter` | 自助进房（无需 admin 邀请） |
 | POST | `/im/v3/api/chat/rooms/{roomId}/leave` | 离房 |
 
-OpenAPI operationId：`rooms.create` / `rooms.get` / `rooms.enter` / `rooms.leave`
+OpenAPI operationId：`rooms.create` / `rooms.retrieve` / `rooms.enter` / `rooms.leave`
 
 创建请求体：
 
@@ -72,4 +72,3 @@ OpenAPI operationId：`rooms.create` / `rooms.get` / `rooms.enter` / `rooms.leav
 - 超大规模直播弹幕热路径：业务层 Redis/SSE 广播 + IM 存精选/公告
 - 游戏防作弊：Game Service 校验后再代发 IM 消息
 - RTC 音视频： sibling `sdkwork-rtc`
-

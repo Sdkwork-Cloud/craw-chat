@@ -11,12 +11,12 @@ use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
-use im_adapters_social_postgres::direct_chat_store::DirectChatRecord;
+use im_adapters_social_postgres::direct_chat_store::{DirectChatActorListQuery, DirectChatRecord};
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::postgres::access::{ensure_direct_chat_participant, social_principal_user_id};
 use crate::postgres::http::PostgresAppState;
-use crate::postgres::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::postgres::list_query::{ListQuery, resolve_keyset_page};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateDirectChatRequest {
@@ -31,6 +31,7 @@ pub struct DirectChatResponse {
     pub status: String,
     pub conversation_id: Option<String>,
     pub created_at: String,
+    pub updated_at: String,
 }
 
 impl From<DirectChatRecord> for DirectChatResponse {
@@ -42,6 +43,7 @@ impl From<DirectChatRecord> for DirectChatResponse {
             status: record.status,
             conversation_id: record.conversation_id,
             created_at: record.created_at,
+            updated_at: record.updated_at,
         }
     }
 }
@@ -68,22 +70,35 @@ pub async fn list_direct_chats(
     State(state): State<PostgresAppState>,
     Query(query): Query<ListQuery>,
 ) -> Response {
-    let result: ApiResult<SdkWorkPageData<DirectChatResponse>> = (|| {
-        let paging = resolve_list_page(&query)?;
-        let records = state
-            .direct_chat_store
-            .list_by_actor(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                social_principal_user_id(&auth),
-                "active",
-                sql_fetch_limit(paging),
-                sql_fetch_offset(paging),
-            )
-            .map_err(|_| ApiProblem::internal_server_error("failed to list direct chats"))?;
-        let items = records.into_iter().map(DirectChatResponse::from).collect();
-        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
-    })();
+    let result: ApiResult<SdkWorkPageData<DirectChatResponse>> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            let paging = resolve_keyset_page(&query)?;
+            let records = state
+                .direct_chat_store
+                .list_by_actor(DirectChatActorListQuery {
+                    tenant_id: auth.tenant_id.as_str(),
+                    organization_id: auth.organization_id.as_str(),
+                    actor_id: social_principal_user_id(&auth),
+                    status: "active",
+                    cursor_updated_at: paging.cursor_created_at.as_deref(),
+                    cursor_direct_chat_id: paging.cursor_direct_chat_id,
+                    limit: paging.fetch_limit(),
+                })
+                .map_err(|_| ApiProblem::internal_server_error("failed to list direct chats"))?;
+            let items: Vec<DirectChatResponse> =
+                records.into_iter().map(DirectChatResponse::from).collect();
+            Ok(keyset_list_page(
+                items,
+                paging.page_size,
+                |item: &DirectChatResponse| {
+                    (
+                        item.updated_at.clone(),
+                        item.direct_chat_id.parse().unwrap_or(0),
+                    )
+                },
+            ))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }
 
@@ -93,16 +108,18 @@ pub async fn get_direct_chat(
     State(state): State<PostgresAppState>,
     Path(direct_chat_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<DirectChatResponse>> = (|| {
-        let dcid: i64 = direct_chat_id.parse().unwrap_or(0);
-        let record = state
-            .direct_chat_store
-            .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), dcid)
-            .map_err(|_| ApiProblem::internal_server_error("failed to read direct chat"))?
-            .ok_or_else(|| ApiProblem::not_found("direct chat not found"))?;
-        ensure_direct_chat_participant(&auth, &record)?;
-        Ok(resource_item(DirectChatResponse::from(record)))
-    })();
+    let result: ApiResult<SdkWorkResourceData<DirectChatResponse>> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            let dcid: i64 = direct_chat_id.parse().unwrap_or(0);
+            let record = state
+                .direct_chat_store
+                .get_by_id(auth.tenant_id.as_str(), auth.organization_id.as_str(), dcid)
+                .map_err(|_| ApiProblem::internal_server_error("failed to read direct chat"))?
+                .ok_or_else(|| ApiProblem::not_found("direct chat not found"))?;
+            ensure_direct_chat_participant(&auth, &record)?;
+            Ok(resource_item(DirectChatResponse::from(record)))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }
 

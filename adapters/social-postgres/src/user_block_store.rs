@@ -6,7 +6,10 @@ use im_domain_core::social::{BlockScope, UserBlock};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
-use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    SocialPostgresConnectionManager, optional_postgres_timestamptz, postgres_pool_client,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
+};
 
 /// User block record for database storage.
 #[derive(Clone, Debug)]
@@ -67,13 +70,23 @@ pub trait UserBlockStore: Send + Sync {
         blocked_id: &str,
         scope: &str,
     ) -> Result<Option<UserBlockRecord>, ContractError>;
+    /// Returns an active block when either user blocked the other for friend/social flows.
+    fn find_active_friendship_block(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        left_user_id: &str,
+        right_user_id: &str,
+    ) -> Result<Option<UserBlockRecord>, ContractError>;
+    /// Keyset page ordered by `created_at DESC, block_id DESC`.
     fn list_by_blocker(
         &self,
         tenant_id: &str,
         org_id: &str,
         blocker_id: &str,
+        cursor_created_at: Option<&str>,
+        cursor_block_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<UserBlockRecord>, ContractError>;
     fn list_by_blocked(
         &self,
@@ -95,20 +108,20 @@ const INSERT_SQL: &str = r#"
 INSERT INTO im_user_blocks (
     tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
     scope, direct_chat_id, reason, expires_at, created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, $10::timestamptz, $11::timestamptz)
 ON CONFLICT (tenant_id, organization_id, block_id) DO NOTHING
 "#;
 
 const GET_BY_ID_SQL: &str = r#"
 SELECT tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
-       scope, direct_chat_id, reason, expires_at, created_at, updated_at
+       scope, direct_chat_id, reason, expires_at::text, created_at::text, updated_at::text
 FROM im_user_blocks
 WHERE tenant_id = $1 AND organization_id = $2 AND block_id = $3
 "#;
 
 const FIND_ACTIVE_BLOCK_SQL: &str = r#"
 SELECT tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
-       scope, direct_chat_id, reason, expires_at, created_at, updated_at
+       scope, direct_chat_id, reason, expires_at::text, created_at::text, updated_at::text
 FROM im_user_blocks
 WHERE tenant_id = $1 AND organization_id = $2
   AND blocker_user_id = $3 AND blocked_user_id = $4 AND scope = $5
@@ -116,18 +129,35 @@ WHERE tenant_id = $1 AND organization_id = $2
 LIMIT 1
 "#;
 
+const FIND_ACTIVE_FRIENDSHIP_BLOCK_SQL: &str = r#"
+SELECT tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
+       scope, direct_chat_id, reason, expires_at::text, created_at::text, updated_at::text
+FROM im_user_blocks
+WHERE tenant_id = $1 AND organization_id = $2
+  AND (
+    (blocker_user_id = $3 AND blocked_user_id = $4)
+    OR (blocker_user_id = $4 AND blocked_user_id = $3)
+  )
+  AND scope IN ('all', 'friendship')
+  AND (expires_at IS NULL OR expires_at > NOW())
+ORDER BY created_at DESC
+LIMIT 1
+"#;
+
 const LIST_BY_BLOCKER_SQL: &str = r#"
 SELECT tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
-       scope, direct_chat_id, reason, expires_at, created_at, updated_at
+       scope, direct_chat_id, reason, expires_at::text, created_at::text, updated_at::text
 FROM im_user_blocks
 WHERE tenant_id = $1 AND organization_id = $2 AND blocker_user_id = $3
-ORDER BY created_at DESC
-LIMIT $4 OFFSET $5
+  AND ($4::timestamptz IS NULL
+       OR (created_at, block_id) < ($4::timestamptz, $5))
+ORDER BY created_at DESC, block_id DESC
+LIMIT $6
 "#;
 
 const LIST_BY_BLOCKED_SQL: &str = r#"
 SELECT tenant_id, organization_id, block_id, blocker_user_id, blocked_user_id,
-       scope, direct_chat_id, reason, expires_at, created_at, updated_at
+       scope, direct_chat_id, reason, expires_at::text, created_at::text, updated_at::text
 FROM im_user_blocks
 WHERE tenant_id = $1 AND organization_id = $2 AND blocked_user_id = $3
 ORDER BY created_at DESC
@@ -173,6 +203,9 @@ impl UserBlockStore for PostgresUserBlockStore {
         let r = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_user_block")?;
+            let expires_at = optional_postgres_timestamptz(r.expires_at.as_deref(), "expires_at")?;
+            let created_at = postgres_timestamptz(r.created_at.as_str(), "created_at")?;
+            let updated_at = postgres_timestamptz(r.updated_at.as_str(), "updated_at")?;
             client
                 .execute(
                     INSERT_SQL,
@@ -185,9 +218,9 @@ impl UserBlockStore for PostgresUserBlockStore {
                         &r.scope,
                         &r.direct_chat_id,
                         &r.reason,
-                        &r.expires_at,
-                        &r.created_at,
-                        &r.updated_at,
+                        &expires_at,
+                        &created_at,
+                        &updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_user_block", e))?;
@@ -236,22 +269,65 @@ impl UserBlockStore for PostgresUserBlockStore {
         })
     }
 
+    fn find_active_friendship_block(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        left_user_id: &str,
+        right_user_id: &str,
+    ) -> Result<Option<UserBlockRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let left = left_user_id.to_string();
+        let right = right_user_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "find_active_friendship_user_block")?;
+            let row = client
+                .query_opt(
+                    FIND_ACTIVE_FRIENDSHIP_BLOCK_SQL,
+                    &[&tid, &oid, &left, &right],
+                )
+                .map_err(|e| postgres_unavailable("find_active_friendship_user_block", e))?;
+            Ok(row.map(|r| row_to_record(&r)))
+        })
+    }
+
     fn list_by_blocker(
         &self,
         tenant_id: &str,
         org_id: &str,
         blocker_id: &str,
+        cursor_created_at: Option<&str>,
+        cursor_block_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<UserBlockRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
         let bid = blocker_id.to_string();
+        let cursor_ts = cursor_created_at.map(str::to_owned);
+        let cursor_ts_parsed = match &cursor_ts {
+            Some(ts) => Some(optional_postgres_timestamptz(
+                Some(ts.as_str()),
+                "cursor_created_at",
+            )?),
+            None => None,
+        };
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_user_blocks_by_blocker")?;
             let rows = client
-                .query(LIST_BY_BLOCKER_SQL, &[&tid, &oid, &bid, &limit, &offset])
+                .query(
+                    LIST_BY_BLOCKER_SQL,
+                    &[
+                        &tid,
+                        &oid,
+                        &bid,
+                        &cursor_ts_parsed,
+                        &cursor_block_id,
+                        &limit,
+                    ],
+                )
                 .map_err(|e| postgres_unavailable("list_user_blocks_by_blocker", e))?;
             Ok(rows.iter().map(row_to_record).collect())
         })

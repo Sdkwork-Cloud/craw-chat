@@ -266,7 +266,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         )
         .await
         .expect("deployment profile write should return a response");
-    assert_eq!(deployment_write.status(), StatusCode::OK);
+    assert_eq!(deployment_write.status(), StatusCode::CREATED);
     let deployment_body = deployment_write
         .into_body()
         .collect()
@@ -275,25 +275,28 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .to_bytes();
     let deployment_json: serde_json::Value =
         serde_json::from_slice(&deployment_body).expect("deployment body should be valid json");
-    assert_eq!(deployment_json["data"]["status"], "applied");
-    assert_eq!(deployment_json["data"]["tenantId"], serde_json::Value::Null);
-    assert_eq!(deployment_json["data"]["currentVersion"], 2);
+    assert_eq!(deployment_json["data"]["item"]["status"], "applied");
     assert_eq!(
-        deployment_json["data"]["committedBinding"]["domain"],
+        deployment_json["data"]["item"]["tenantId"],
+        serde_json::Value::Null
+    );
+    assert_eq!(deployment_json["data"]["item"]["currentVersion"], 2);
+    assert_eq!(
+        deployment_json["data"]["item"]["committedBinding"]["domain"],
         "object-storage"
     );
     assert_eq!(
-        deployment_json["data"]["committedBinding"]["selectedPluginId"],
+        deployment_json["data"]["item"]["committedBinding"]["selectedPluginId"],
         "object-storage-volcengine"
     );
     assert_eq!(
-        deployment_json["data"]["committedBinding"]["selectionSource"],
+        deployment_json["data"]["item"]["committedBinding"]["selectionSource"],
         "deployment_profile"
     );
-    assert_eq!(deployment_json["data"]["diff"]["fromVersion"], 1);
-    assert_eq!(deployment_json["data"]["diff"]["toVersion"], 2);
+    assert_eq!(deployment_json["data"]["item"]["diff"]["fromVersion"], 1);
+    assert_eq!(deployment_json["data"]["item"]["diff"]["toVersion"], 2);
     assert!(
-        deployment_json["data"]["effectiveBindings"]
+        deployment_json["data"]["item"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -352,7 +355,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         )
         .await
         .expect("tenant override write should return a response");
-    assert_eq!(tenant_write.status(), StatusCode::OK);
+    assert_eq!(tenant_write.status(), StatusCode::CREATED);
     let tenant_body = tenant_write
         .into_body()
         .collect()
@@ -361,22 +364,25 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .to_bytes();
     let tenant_json: serde_json::Value =
         serde_json::from_slice(&tenant_body).expect("tenant body should be valid json");
-    assert_eq!(tenant_json["data"]["status"], "applied");
-    assert_eq!(tenant_json["data"]["tenantId"], "t_provider_combo");
-    assert_eq!(tenant_json["data"]["currentVersion"], 3);
-    assert_eq!(tenant_json["data"]["committedBinding"]["domain"], "rtc");
+    assert_eq!(tenant_json["data"]["item"]["status"], "applied");
+    assert_eq!(tenant_json["data"]["item"]["tenantId"], "t_provider_combo");
+    assert_eq!(tenant_json["data"]["item"]["currentVersion"], 3);
     assert_eq!(
-        tenant_json["data"]["committedBinding"]["selectedPluginId"],
+        tenant_json["data"]["item"]["committedBinding"]["domain"],
+        "rtc"
+    );
+    assert_eq!(
+        tenant_json["data"]["item"]["committedBinding"]["selectedPluginId"],
         "rtc-aliyun"
     );
     assert_eq!(
-        tenant_json["data"]["committedBinding"]["selectionSource"],
+        tenant_json["data"]["item"]["committedBinding"]["selectionSource"],
         "tenant_override"
     );
-    assert_eq!(tenant_json["data"]["diff"]["fromVersion"], 2);
-    assert_eq!(tenant_json["data"]["diff"]["toVersion"], 3);
+    assert_eq!(tenant_json["data"]["item"]["diff"]["fromVersion"], 2);
+    assert_eq!(tenant_json["data"]["item"]["diff"]["toVersion"], 3);
     assert_eq!(
-        tenant_json["data"]["diff"]["tenantOverrideChanges"],
+        tenant_json["data"]["item"]["diff"]["tenantOverrideChanges"],
         serde_json::json!([
             {
                 "tenantId": "t_provider_combo",
@@ -388,7 +394,7 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         ])
     );
     assert!(
-        tenant_json["data"]["effectiveBindings"]
+        tenant_json["data"]["item"]["effectiveBindings"]
             .as_array()
             .unwrap()
             .iter()
@@ -497,7 +503,7 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         )
         .await
         .expect("first write should return a response");
-    assert_eq!(first_write.status(), StatusCode::OK);
+    assert_eq!(first_write.status(), StatusCode::CREATED);
 
     let noop_write = app
         .clone()
@@ -518,7 +524,7 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         )
         .await
         .expect("noop write should return a response");
-    assert_eq!(noop_write.status(), StatusCode::OK);
+    assert_eq!(noop_write.status(), StatusCode::CREATED);
     let noop_body = noop_write
         .into_body()
         .collect()
@@ -527,21 +533,21 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         .to_bytes();
     let noop_json: serde_json::Value =
         serde_json::from_slice(&noop_body).expect("noop body should be valid json");
-    assert_eq!(noop_json["data"]["status"], "noop");
-    assert_eq!(noop_json["data"]["applied"], false);
-    assert_eq!(noop_json["data"]["currentVersion"], 2);
+    assert_eq!(noop_json["data"]["item"]["status"], "noop");
+    assert_eq!(noop_json["data"]["item"]["applied"], false);
+    assert_eq!(noop_json["data"]["item"]["currentVersion"], 2);
     assert_eq!(
-        noop_json["data"]["committedBinding"]["selectedPluginId"],
+        noop_json["data"]["item"]["committedBinding"]["selectedPluginId"],
         "object-storage-volcengine"
     );
-    assert_eq!(noop_json["data"]["diff"]["fromVersion"], 2);
-    assert_eq!(noop_json["data"]["diff"]["toVersion"], 2);
+    assert_eq!(noop_json["data"]["item"]["diff"]["fromVersion"], 2);
+    assert_eq!(noop_json["data"]["item"]["diff"]["toVersion"], 2);
     assert_eq!(
-        noop_json["data"]["diff"]["deploymentProfileChanges"],
+        noop_json["data"]["item"]["diff"]["deploymentProfileChanges"],
         serde_json::json!([])
     );
     assert_eq!(
-        noop_json["data"]["diff"]["tenantOverrideChanges"],
+        noop_json["data"]["item"]["diff"]["tenantOverrideChanges"],
         serde_json::json!([])
     );
 
@@ -600,7 +606,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         )
         .await
         .expect("deployment write should return a response");
-    assert_eq!(deployment_write.status(), StatusCode::OK);
+    assert_eq!(deployment_write.status(), StatusCode::CREATED);
 
     let tenant_write = app
         .clone()
@@ -621,7 +627,7 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         )
         .await
         .expect("tenant override write should return a response");
-    assert_eq!(tenant_write.status(), StatusCode::OK);
+    assert_eq!(tenant_write.status(), StatusCode::CREATED);
 
     let history_response = app
         .clone()
@@ -788,7 +794,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         )
         .await
         .expect("deployment write should return a response");
-    assert_eq!(deployment_write.status(), StatusCode::OK);
+    assert_eq!(deployment_write.status(), StatusCode::CREATED);
 
     let deployment_update = app
         .clone()
@@ -809,7 +815,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         )
         .await
         .expect("deployment update should return a response");
-    assert_eq!(deployment_update.status(), StatusCode::OK);
+    assert_eq!(deployment_update.status(), StatusCode::CREATED);
 
     let tenant_write = app
         .clone()
@@ -830,7 +836,7 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         )
         .await
         .expect("tenant override write should return a response");
-    assert_eq!(tenant_write.status(), StatusCode::OK);
+    assert_eq!(tenant_write.status(), StatusCode::CREATED);
 
     let response = app
         .oneshot(
@@ -1035,7 +1041,7 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         )
         .await
         .expect("concurrent write should return a response");
-    assert_eq!(concurrent_write.status(), StatusCode::OK);
+    assert_eq!(concurrent_write.status(), StatusCode::CREATED);
 
     let stale_write = app
         .clone()
@@ -1309,7 +1315,7 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
         )
         .await
         .expect("deployment write should return a response");
-    assert_eq!(deployment_write.status(), StatusCode::OK);
+    assert_eq!(deployment_write.status(), StatusCode::CREATED);
 
     let response = app
         .oneshot(

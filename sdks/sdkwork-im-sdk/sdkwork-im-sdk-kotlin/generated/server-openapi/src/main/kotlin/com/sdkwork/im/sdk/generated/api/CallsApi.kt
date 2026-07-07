@@ -9,51 +9,51 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 class CallsApi(private val client: HttpClient) {
 
     /** Create an IM call signaling session */
-    suspend fun sessionsCreate(body: CreateRtcSessionRequest): RtcSessionMutationResponse? {
+    suspend fun sessionsCreate(body: CreateRtcSessionRequest): CallsSessionsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcSessionMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsCreateResponse201>() {})
     }
 
     /** Retrieve IM call signaling session state */
-    suspend fun sessionsRetrieve(rtcSessionId: String): RtcSession? {
+    suspend fun sessionsRetrieve(rtcSessionId: String): CallsSessionsRetrieveResponse? {
         val raw = client.get(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}"))
-        return client.convertValue(raw, object : TypeReference<RtcSession>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsRetrieveResponse>() {})
     }
 
     /** Invite participants into an IM call signaling session */
-    suspend fun sessionsInvite(rtcSessionId: String, body: InviteRtcSessionRequest): RtcSessionMutationResponse? {
+    suspend fun sessionsInvite(rtcSessionId: String, body: InviteRtcSessionRequest): CallsSessionsInviteResponse? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}/invite"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcSessionMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsInviteResponse>() {})
     }
 
     /** Accept an IM call signaling session */
-    suspend fun sessionsAccept(rtcSessionId: String, body: UpdateRtcSessionRequest): RtcSessionMutationResponse? {
+    suspend fun sessionsAccept(rtcSessionId: String, body: UpdateRtcSessionRequest): CallsSessionsAcceptResponse? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}/accept"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcSessionMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsAcceptResponse>() {})
     }
 
     /** Reject an IM call signaling session */
-    suspend fun sessionsReject(rtcSessionId: String, body: UpdateRtcSessionRequest): RtcSessionMutationResponse? {
+    suspend fun sessionsReject(rtcSessionId: String, body: UpdateRtcSessionRequest): CallsSessionsRejectResponse? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}/reject"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcSessionMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsRejectResponse>() {})
     }
 
     /** End an IM call signaling session */
-    suspend fun sessionsEnd(rtcSessionId: String, body: UpdateRtcSessionRequest): RtcSessionMutationResponse? {
+    suspend fun sessionsEnd(rtcSessionId: String, body: UpdateRtcSessionRequest): CallsSessionsEndResponse? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}/end"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcSessionMutationResponse>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsEndResponse>() {})
     }
 
     /** Post an IM call signaling event */
-    suspend fun sessionsSignalsCreate(rtcSessionId: String, body: PostRtcSignalRequest): RtcSignalEvent? {
+    suspend fun sessionsSignalsCreate(rtcSessionId: String, body: PostRtcSignalRequest): CallsSessionsSignalsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}/signals"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcSignalEvent>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsSignalsCreateResponse201>() {})
     }
 
     /** Issue an RTC media participant credential for an IM call */
-    suspend fun sessionsCredentialsCreate(rtcSessionId: String, body: IssueRtcParticipantCredentialRequest): RtcParticipantCredential? {
+    suspend fun sessionsCredentialsCreate(rtcSessionId: String, body: IssueRtcParticipantCredentialRequest): CallsSessionsCredentialsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/calls/sessions/${serializePathParameter(rtcSessionId, PathParameterSpec("rtcSessionId", "simple", false))}/credentials"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RtcParticipantCredential>() {})
+        return client.convertValue(raw, object : TypeReference<CallsSessionsCredentialsCreateResponse201>() {})
     }
 
     private data class PathParameterSpec(val name: String, val style: String, val explode: Boolean)

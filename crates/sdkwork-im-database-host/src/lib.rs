@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use sdkwork_database_config::DatabaseConfig;
-use sdkwork_database_lifecycle::{lifecycle_options_from_env, LifecycleOrchestrator};
+use sdkwork_database_lifecycle::{LifecycleOrchestrator, lifecycle_options_from_env};
 use sdkwork_database_spi::{DatabaseAssetProvider, DatabaseManifest, DefaultDatabaseModule};
-use sdkwork_database_sqlx::{create_pool_from_config, DatabasePool};
+use sdkwork_database_sqlx::{DatabasePool, create_pool_from_config};
 
 pub struct ImDatabaseHost {
     pool: DatabasePool,
@@ -30,8 +30,8 @@ pub async fn bootstrap_im_database(pool: DatabasePool) -> Result<ImDatabaseHost,
     let manifest = DatabaseManifest::from_file(module.manifest_path())
         .map_err(|error| format!("read IM database manifest failed: {error}"))?;
     let options = lifecycle_options_from_env("IM", &manifest);
-    let orchestrator = LifecycleOrchestrator::new(pool.clone(), module.clone())
-        .with_applied_by("sdkwork-im");
+    let orchestrator =
+        LifecycleOrchestrator::new(pool.clone(), module.clone()).with_applied_by("sdkwork-im");
 
     orchestrator
         .init()

@@ -24,7 +24,7 @@ export const TextMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
   )}>
     <div className={cn("prose prose-sm prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1", isMe ? "prose-invert prose-p:text-white" : "prose-invert")}>
       <ReactMarkdown
-        disallowedElements={['script', 'iframe', 'object', 'embed', 'style']}
+        disallowedElements={['script', 'iframe', 'object', 'embed', 'style', 'img']}
         unwrapDisallowed
         components={{
           a: ({ href, children }) => {

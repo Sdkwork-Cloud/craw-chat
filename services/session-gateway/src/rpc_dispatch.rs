@@ -24,8 +24,9 @@ use sdkwork_im_rpc_service_rust::{
 use tokio_stream::{StreamExt as _, wrappers::IntervalStream};
 
 use crate::{
-    ApiError, AppState, RealtimeSubscriptionItemInput, bootstrap_realtime_plane_from_env,
-    resolve_iam_auth_pool_from_env, resolve_request_app_context, resolve_requested_device_id,
+    ApiError, AppState, RealtimeEventWindowQuery, RealtimeSubscriptionItemInput,
+    bootstrap_realtime_plane_from_env, resolve_iam_auth_pool_from_env, resolve_request_app_context,
+    resolve_requested_device_id,
 };
 
 pub const SESSION_GATEWAY_RPC_SERVICE_KEYS: &[&str] = &[
@@ -35,6 +36,10 @@ pub const SESSION_GATEWAY_RPC_SERVICE_KEYS: &[&str] = &[
 
 const PRESENCE_WATCH_POLL_INTERVAL: Duration = Duration::from_secs(2);
 const REALTIME_WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
+
+fn join_blocking_rpc_error(join_error: tokio::task::JoinError) -> ImRpcError {
+    ImRpcError::internal(format!("realtime_blocking_join_failed: {join_error}"))
+}
 
 #[derive(Clone)]
 pub struct SessionGatewayRpcDispatcher {
@@ -205,20 +210,33 @@ async fn dispatch_sync_subscriptions(
             &items,
         )
         .map_err(map_runtime_error)?;
-    state
-        .rpc_prepare_active_client_route(auth, device_id.as_str(), "grpc")
-        .map_err(map_runtime_error)?;
-    let snapshot = state
-        .rpc_realtime_runtime()
-        .sync_subscriptions_for_principal_kind(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            auth.actor_id.as_str(),
-            auth.actor_kind.as_str(),
-            device_id.as_str(),
-            items,
-        )
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_device_id = device_id.clone();
+    let snapshot = tokio::task::spawn_blocking(
+        move || -> Result<RealtimeSubscriptionSnapshot, ImRpcError> {
+            blocking_state
+                .rpc_prepare_active_client_route(
+                    &blocking_auth,
+                    blocking_device_id.as_str(),
+                    "grpc",
+                )
+                .map_err(map_runtime_error)?;
+            blocking_state
+                .rpc_realtime_runtime()
+                .sync_subscriptions_for_principal_kind(
+                    blocking_auth.tenant_id.as_str(),
+                    blocking_auth.organization_id.as_str(),
+                    blocking_auth.actor_id.as_str(),
+                    blocking_auth.actor_kind.as_str(),
+                    blocking_device_id.as_str(),
+                    items,
+                )
+                .map_err(map_runtime_error)
+        },
+    )
+    .await
+    .map_err(join_blocking_rpc_error)??;
     let response = SyncRealtimeSubscriptionsResponse {
         subscriptions: snapshot_to_proto_subscriptions(&snapshot),
         metadata: None,
@@ -239,21 +257,34 @@ async fn dispatch_list_events(
         .filter(|value| *value > 0)
         .unwrap_or(100);
     crate::realtime::validate_realtime_event_limit(limit).map_err(map_runtime_error)?;
-    state
-        .rpc_prepare_active_client_route(auth, device_id.as_str(), "grpc_poll")
-        .map_err(map_runtime_error)?;
-    let window = state
-        .rpc_realtime_runtime()
-        .list_events_for_principal_kind(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            auth.actor_id.as_str(),
-            auth.actor_kind.as_str(),
-            device_id.as_str(),
-            after_seq,
-            limit,
-        )
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_device_id = device_id.clone();
+    let window = tokio::task::spawn_blocking(
+        move || -> Result<im_domain_core::realtime::RealtimeEventWindow, ImRpcError> {
+            blocking_state
+                .rpc_prepare_active_client_route(
+                    &blocking_auth,
+                    blocking_device_id.as_str(),
+                    "grpc_poll",
+                )
+                .map_err(map_runtime_error)?;
+            blocking_state
+                .rpc_realtime_runtime()
+                .list_events_for_principal_kind(RealtimeEventWindowQuery {
+                    tenant_id: blocking_auth.tenant_id.as_str(),
+                    organization_id: blocking_auth.organization_id.as_str(),
+                    principal_id: blocking_auth.actor_id.as_str(),
+                    principal_kind: blocking_auth.actor_kind.as_str(),
+                    device_id: blocking_device_id.as_str(),
+                    after_seq,
+                    limit,
+                })
+                .map_err(map_runtime_error)
+        },
+    )
+    .await
+    .map_err(join_blocking_rpc_error)??;
     let response = ListRealtimeEventsResponse {
         events: window.items.iter().map(realtime_event_to_proto).collect(),
         page: None,
@@ -269,37 +300,57 @@ async fn dispatch_ack_events(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let device_id = resolve_requested_device_id(auth, None).map_err(map_api_error)?;
     let acked_seq = parse_cursor_u64(request.cursor.as_str())?;
-    let previous_route = state.rpc_current_active_client_route(auth, device_id.as_str());
-    state
-        .rpc_prepare_active_client_route(auth, device_id.as_str(), "grpc")
-        .map_err(map_runtime_error)?;
-    let bound_route = state.rpc_current_active_client_route(auth, device_id.as_str());
-    let ack_result = state.rpc_realtime_runtime().ack_events_for_principal_kind(
-        auth.tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        auth.actor_id.as_str(),
-        auth.actor_kind.as_str(),
-        device_id.as_str(),
-        acked_seq,
-    );
-    let ack = match ack_result {
-        Ok(ack) => ack,
-        Err(error) => {
-            match (previous_route, bound_route) {
-                (Some(previous_route), Some(bound_route)) => {
-                    state.rpc_restore_active_client_route_if_current(&bound_route, previous_route);
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_device_id = device_id.clone();
+    let ack = tokio::task::spawn_blocking(
+        move || -> Result<im_domain_core::realtime::RealtimeAckState, ImRpcError> {
+            let previous_route = blocking_state
+                .rpc_current_active_client_route(&blocking_auth, blocking_device_id.as_str());
+            blocking_state
+                .rpc_prepare_active_client_route(
+                    &blocking_auth,
+                    blocking_device_id.as_str(),
+                    "grpc",
+                )
+                .map_err(map_runtime_error)?;
+            let bound_route = blocking_state
+                .rpc_current_active_client_route(&blocking_auth, blocking_device_id.as_str());
+            let ack_result = blocking_state
+                .rpc_realtime_runtime()
+                .ack_events_for_principal_kind(
+                    blocking_auth.tenant_id.as_str(),
+                    blocking_auth.organization_id.as_str(),
+                    blocking_auth.actor_id.as_str(),
+                    blocking_auth.actor_kind.as_str(),
+                    blocking_device_id.as_str(),
+                    acked_seq,
+                );
+            match ack_result {
+                Ok(ack) => Ok(ack),
+                Err(error) => {
+                    match (previous_route, bound_route) {
+                        (Some(previous_route), Some(bound_route)) => {
+                            blocking_state.rpc_restore_active_client_route_if_current(
+                                &bound_route,
+                                previous_route,
+                            );
+                        }
+                        (None, _) => {
+                            blocking_state.rpc_release_active_client_route_if_current_session(
+                                &blocking_auth,
+                                blocking_device_id.as_str(),
+                            );
+                        }
+                        _ => {}
+                    }
+                    Err(map_api_error(error.into()))
                 }
-                (None, _) => {
-                    state.rpc_release_active_client_route_if_current_session(
-                        auth,
-                        device_id.as_str(),
-                    );
-                }
-                _ => {}
             }
-            return Err(map_api_error(error.into()));
-        }
-    };
+        },
+    )
+    .await
+    .map_err(join_blocking_rpc_error)??;
     let response = AckRealtimeEventsResponse {
         ack_cursor: ack.acked_through_seq.to_string(),
         metadata: None,
@@ -375,25 +426,25 @@ async fn dispatch_watch_realtime_events(
                     .map_err(map_runtime_error)?;
                 let window = state
                     .rpc_realtime_runtime()
-                    .list_events_for_principal_kind(
-                        auth.tenant_id.as_str(),
-                        auth.organization_id.as_str(),
-                        auth.actor_id.as_str(),
-                        auth.actor_kind.as_str(),
-                        device_id.as_str(),
-                        current_after_seq,
-                        100,
-                    )
+                    .list_events_for_principal_kind(RealtimeEventWindowQuery {
+                        tenant_id: auth.tenant_id.as_str(),
+                        organization_id: auth.organization_id.as_str(),
+                        principal_id: auth.actor_id.as_str(),
+                        principal_kind: auth.actor_kind.as_str(),
+                        device_id: device_id.as_str(),
+                        after_seq: current_after_seq,
+                        limit: 100,
+                    })
                     .map_err(map_runtime_error)?;
                 let event = window
                     .items
                     .last()
                     .map(realtime_event_to_proto)
                     .unwrap_or_default();
-                if let Some(last) = window.items.last() {
-                    if let Ok(mut cursor) = after_seq.lock() {
-                        *cursor = last.realtime_seq;
-                    }
+                if let Some(last) = window.items.last()
+                    && let Ok(mut cursor) = after_seq.lock()
+                {
+                    *cursor = last.realtime_seq;
                 }
                 let response = WatchRealtimeEventsResponse {
                     event: Some(event),
@@ -407,15 +458,15 @@ async fn dispatch_watch_realtime_events(
 
 fn metadata_to_axum_headers(metadata: &RpcMetadata) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    if let Some(value) = &metadata.authorization {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert(header::AUTHORIZATION, parsed);
-        }
+    if let Some(value) = &metadata.authorization
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert(header::AUTHORIZATION, parsed);
     }
-    if let Some(value) = &metadata.access_token {
-        if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert("access-token", parsed);
-        }
+    if let Some(value) = &metadata.access_token
+        && let Ok(parsed) = HeaderValue::from_str(value)
+    {
+        headers.insert("access-token", parsed);
     }
     headers
 }

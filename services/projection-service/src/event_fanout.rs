@@ -4,9 +4,7 @@ use im_domain_events::CommitEnvelope;
 
 use crate::client_route_sync::ClientRouteSyncEntryDraft;
 use crate::model::NotificationRecipientView;
-use crate::projection::{
-    AgentHandoffStatusChangedProjectionPayload,
-};
+use crate::projection::AgentHandoffStatusChangedProjectionPayload;
 use crate::{TimelineProjectionService, client_route_sync, scope};
 
 impl TimelineProjectionService {

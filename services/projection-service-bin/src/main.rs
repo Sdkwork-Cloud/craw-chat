@@ -28,7 +28,8 @@ async fn run() -> Result<(), String> {
     let runtime = Arc::new(projection_service::build_projection_runtime_from_env()?);
     let _projection_journal_consumer =
         projection_service::spawn_projection_journal_consumer_from_env(runtime.clone());
-    let app = sdkwork_routes_im_projection_open_api::build_public_app_with_runtime(runtime.clone()).await;
+    let app =
+        sdkwork_routes_im_projection_open_api::build_public_app_with_runtime(runtime.clone()).await;
 
     tracing::info!(
         "projection-service starting on {}",

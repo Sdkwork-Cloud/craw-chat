@@ -134,6 +134,10 @@ export interface PcLiveConnectionLeaseOptions {
   conversationIds?: readonly string[];
 }
 
+export interface PcLiveConnectionRecoveryOptions {
+  force?: boolean;
+}
+
 function collectActiveConversationIds(): string[] {
   const conversationIds = new Set(conversationRegistrations.keys());
   for (const conversationIdSet of leasedConversationIds.values()) {
@@ -429,7 +433,7 @@ function installBrowserRecoveryHooks(): void {
   browserHooksInstalled = true;
 
   window.addEventListener('online', () => {
-    recoverPcLiveConnection('browser online');
+    recoverPcLiveConnection('browser online', { force: true });
   });
   window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, () => {
     invalidatePcLiveConnection('auth session changed');
@@ -437,7 +441,7 @@ function installBrowserRecoveryHooks(): void {
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        recoverPcLiveConnection('browser visible');
+        recoverPcLiveConnection('browser visible', { force: true });
       }
     });
   }
@@ -476,13 +480,22 @@ export async function ensurePcLiveConnection(): Promise<ImLiveConnection> {
     return sharedConnectionPromise;
   }
 
-  sharedConnectionPromise = connectSharedLiveConnection()
+  const attemptGeneration = connectionGeneration + 1;
+  let attemptPromise: Promise<ImLiveConnection>;
+  attemptPromise = connectSharedLiveConnection()
     .then((connection) => {
-      sharedConnectionPromise = null;
+      if (sharedConnectionPromise === attemptPromise) {
+        sharedConnectionPromise = null;
+      }
       return connection;
     })
     .catch((error: unknown) => {
-      sharedConnectionPromise = null;
+      if (sharedConnectionPromise === attemptPromise) {
+        sharedConnectionPromise = null;
+      }
+      if (attemptGeneration !== connectionGeneration) {
+        throw error;
+      }
       connectionStatus = 'error';
       consecutiveFailures += 1;
       if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
@@ -497,19 +510,24 @@ export async function ensurePcLiveConnection(): Promise<ImLiveConnection> {
       }
       throw error;
     });
+  sharedConnectionPromise = attemptPromise;
 
   return sharedConnectionPromise;
 }
 
-export function recoverPcLiveConnection(reason = 'realtime recovery requested'): void {
+export function recoverPcLiveConnection(
+  reason = 'realtime recovery requested',
+  options: PcLiveConnectionRecoveryOptions = {},
+): void {
   if (!hasSubscriptionDemand() || !isAppSdkSessionAuthenticated(resolveSession())) {
     return;
   }
-  if (connectionStatus === 'open' || connectionStatus === 'connecting') {
+  if (!options.force && (connectionStatus === 'open' || connectionStatus === 'connecting')) {
     return;
   }
 
   clearReconnectTimer();
+  connectionGeneration += 1;
   if (sharedConnection) {
     const staleConnection = sharedConnection;
     resetConnectionState();
@@ -562,7 +580,7 @@ export function acquirePcLiveConnectionLease(
     if (sharedConnection) {
       syncWireSubscriptionsWhenReady(sharedConnection);
     }
-    teardownIfIdle();
+    teardownIfIdle('connection lease released');
   };
 }
 
@@ -613,7 +631,7 @@ export function subscribePcConversationMessages(
     if (sharedConnection) {
       syncWireSubscriptionsWhenReady(sharedConnection);
     }
-    teardownIfIdle();
+    teardownIfIdle('conversation subscription closed');
   };
 }
 
@@ -662,7 +680,7 @@ export function subscribePcRealtimeScope(
     if (sharedConnection) {
       syncWireSubscriptionsWhenReady(sharedConnection);
     }
-    teardownIfIdle();
+    teardownIfIdle('scope subscription closed');
   };
 }
 

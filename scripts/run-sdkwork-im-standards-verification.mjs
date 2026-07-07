@@ -30,6 +30,8 @@ const standardChecks = [
   'test:space-materializer-standard',
   'test:monorepo-frozen-install-standard',
   'test:pc-client-pagination-standard',
+  'test:three-capabilities-standard',
+  'test:portal-alignment-standard',
   'test:observability-bootstrap-standard',
   'test:sdkwork-im-iam-application-bootstrap-standard',
   'test:im-member-capability-alignment',

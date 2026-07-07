@@ -1,6 +1,6 @@
 use im_platform_contracts::{
-    CommitEnvelope, CommitJournal, CommitPosition, ContractError, LeaseGrant, LeaseStore, MetadataStore,
-    ObjectDescriptor, ObjectPutRequest, ObjectStore, RealtimeDisconnectFenceRecord,
+    CommitEnvelope, CommitJournal, CommitPosition, ContractError, LeaseGrant, LeaseStore,
+    MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, TimelineProjectionStore,
 };
 
@@ -12,10 +12,7 @@ struct NullObjectStore;
 struct NullDisconnectFenceStore;
 
 impl CommitJournal for NullJournal {
-    fn append(
-        &self,
-        _envelope: CommitEnvelope,
-    ) -> Result<CommitPosition, ContractError> {
+    fn append(&self, _envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
         Ok(CommitPosition::new("p0", 1))
     }
 }
@@ -54,6 +51,7 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn load_fence(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
@@ -68,6 +66,7 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn clear_fence(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
@@ -78,6 +77,7 @@ impl RealtimeDisconnectFenceStore for NullDisconnectFenceStore {
     fn clear_fence_disconnected_at_or_before(
         &self,
         _tenant_id: &str,
+        _organization_id: &str,
         _principal_kind: &str,
         _principal_id: &str,
         _device_id: &str,
@@ -150,6 +150,7 @@ fn test_contract_types_are_usable_without_binding_to_a_vendor() {
     disconnect_fence_store
         .save_fence(RealtimeDisconnectFenceRecord {
             tenant_id: "100001".into(),
+            organization_id: "org_a".into(),
             principal_kind: "user".into(),
             principal_id: "1".into(),
             device_id: "d_demo".into(),

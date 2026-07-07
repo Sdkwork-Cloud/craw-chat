@@ -92,17 +92,13 @@ fn space_service_summary(path: &str, method: HttpMethod) -> String {
     match (path, method) {
         ("/im/v3/api/spaces", HttpMethod::Post) => "Create a space".to_owned(),
         ("/im/v3/api/spaces", HttpMethod::Get) => "List accessible spaces".to_owned(),
-        ("/im/v3/api/spaces/{spaceId}", HttpMethod::Get) => {
-            "Retrieve a space by id".to_owned()
-        }
+        ("/im/v3/api/spaces/{spaceId}", HttpMethod::Get) => "Retrieve a space by id".to_owned(),
         ("/im/v3/api/spaces/{spaceId}", HttpMethod::Patch) => "Update space attributes".to_owned(),
         ("/im/v3/api/spaces/{spaceId}", HttpMethod::Delete) => "Delete a space".to_owned(),
         ("/im/v3/api/spaces/{spaceId}/members", HttpMethod::Post) => {
             "Add a member to a space".to_owned()
         }
-        ("/im/v3/api/spaces/{spaceId}/members", HttpMethod::Get) => {
-            "List space members".to_owned()
-        }
+        ("/im/v3/api/spaces/{spaceId}/members", HttpMethod::Get) => "List space members".to_owned(),
         ("/im/v3/api/spaces/{spaceId}/members/{userId}", HttpMethod::Get) => {
             "Retrieve a space member".to_owned()
         }
@@ -125,10 +121,9 @@ fn space_service_summary(path: &str, method: HttpMethod) -> String {
         ("/im/v3/api/spaces/{spaceId}/groups/{groupId}", HttpMethod::Delete) => {
             "Delete a group".to_owned()
         }
-        (
-            "/im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner",
-            HttpMethod::Post,
-        ) => "Transfer group ownership".to_owned(),
+        ("/im/v3/api/spaces/{spaceId}/groups/{groupId}/transfer_owner", HttpMethod::Post) => {
+            "Transfer group ownership".to_owned()
+        }
         ("/im/v3/api/spaces/{spaceId}/groups/{groupId}/members", HttpMethod::Post) => {
             "Add a member to a group".to_owned()
         }
@@ -141,16 +136,13 @@ fn space_service_summary(path: &str, method: HttpMethod) -> String {
         ("/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}", HttpMethod::Patch) => {
             "Update a group member".to_owned()
         }
-        (
-            "/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}",
-            HttpMethod::Delete,
-        ) => "Remove a group member".to_owned(),
+        ("/im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}", HttpMethod::Delete) => {
+            "Remove a group member".to_owned()
+        }
         ("/im/v3/api/spaces/{spaceId}/channels", HttpMethod::Post) => {
             "Create a channel within a space".to_owned()
         }
-        ("/im/v3/api/spaces/{spaceId}/channels", HttpMethod::Get) => {
-            "List channels".to_owned()
-        }
+        ("/im/v3/api/spaces/{spaceId}/channels", HttpMethod::Get) => "List channels".to_owned(),
         ("/im/v3/api/spaces/{spaceId}/channels/{channelId}", HttpMethod::Get) => {
             "Retrieve a channel".to_owned()
         }
@@ -160,14 +152,12 @@ fn space_service_summary(path: &str, method: HttpMethod) -> String {
         ("/im/v3/api/spaces/{spaceId}/channels/{channelId}", HttpMethod::Delete) => {
             "Delete a channel".to_owned()
         }
-        (
-            "/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules",
-            HttpMethod::Post,
-        ) => "Create a channel access rule".to_owned(),
-        (
-            "/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules",
-            HttpMethod::Get,
-        ) => "List channel access rules".to_owned(),
+        ("/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules", HttpMethod::Post) => {
+            "Create a channel access rule".to_owned()
+        }
+        ("/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules", HttpMethod::Get) => {
+            "List channel access rules".to_owned()
+        }
         (
             "/im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules/{ruleId}",
             HttpMethod::Delete,
@@ -184,11 +174,12 @@ fn space_service_summary(path: &str, method: HttpMethod) -> String {
         ("/im/v3/api/spaces/{spaceId}/invites/{inviteCode}", HttpMethod::Delete) => {
             "Revoke a space invitation".to_owned()
         }
-        (
-            "/im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept",
-            HttpMethod::Post,
-        ) => "Accept a space invitation".to_owned(),
-        ("/im/v3/api/spaces/{spaceId}/bans", HttpMethod::Post) => "Ban a user from a space".to_owned(),
+        ("/im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept", HttpMethod::Post) => {
+            "Accept a space invitation".to_owned()
+        }
+        ("/im/v3/api/spaces/{spaceId}/bans", HttpMethod::Post) => {
+            "Ban a user from a space".to_owned()
+        }
         ("/im/v3/api/spaces/{spaceId}/bans", HttpMethod::Get) => "List space bans".to_owned(),
         ("/im/v3/api/spaces/{spaceId}/bans/{userId}", HttpMethod::Get) => {
             "Retrieve a space ban record".to_owned()

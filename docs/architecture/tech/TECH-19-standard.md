@@ -81,7 +81,7 @@
 
 ### 4.1 拉取窗口
 
-`GET /im/v3/api/realtime/events?pageSize=100`
+`GET /im/v3/api/realtime/events?page_size=100`
 
 返回在线实时事件以及当前 ack/trim 元数据。
 
@@ -173,4 +173,3 @@ realtime window 被裁剪后，如果客户端还需要历史补偿，必须走 
 - ack 只代表在线窗口消费完成
 - `ackedThroughSeq` 单调递增
 - 窗口裁剪后历史补偿仍然回到 durable `client-route event window`
-

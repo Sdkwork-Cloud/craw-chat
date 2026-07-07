@@ -13,15 +13,15 @@ use sdkwork_im_cloud_gateway_observability::{
 use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use serde_json::json;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 use tower::ServiceExt;
 
 fn ensure_gateway_test_web_environment() {
     static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-            std::env::set_var("SDKWORK_ENV", "test");
-        }
+    INIT.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+        std::env::set_var("SDKWORK_ENV", "test");
     });
 }
 
@@ -29,6 +29,8 @@ fn ensure_gateway_test_web_environment() {
 struct OpenApiUpstreamState {
     service_id: Arc<str>,
     openapi: serde_json::Value,
+    openapi_hits: Arc<AtomicUsize>,
+    openapi_delay: Option<Duration>,
 }
 
 #[tokio::test]
@@ -156,6 +158,283 @@ async fn gateway_exposes_aggregate_openapi_json() {
     assert!(
         value["paths"]["/im/v3/api/chat/conversations/{conversation_id}/messages"]["post"]
             .is_object()
+    );
+}
+
+#[tokio::test]
+async fn aggregate_openapi_skips_self_referential_upstream_schema_fetches() {
+    let self_referential_upstream = spawn_openapi_upstream(
+        "sdkwork-iam-app-api",
+        json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Self Referenced Aggregate", "version": "0.1.0" },
+            "paths": {
+                "/self-referential-upstream-should-not-be-fetched": {
+                    "get": { "summary": "This path proves the gateway fetched itself", "responses": { "200": { "description": "ok" } } }
+                }
+            }
+        }),
+    )
+    .await;
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "sdkwork-iam-app-api",
+        self_referential_upstream.base_url.as_str(),
+    )]));
+    let request_host = self_referential_upstream
+        .base_url
+        .strip_prefix("http://")
+        .expect("test upstream uses http base url");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .header("host", request_host)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("aggregate openapi request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value = serde_json::from_slice(
+        &response
+            .into_body()
+            .collect()
+            .await
+            .expect("aggregate openapi body should collect")
+            .to_bytes(),
+    )
+    .expect("aggregate openapi should be valid json");
+
+    assert!(value["paths"]["/openapi/index.json"]["get"].is_object());
+    assert!(
+        value["paths"]["/self-referential-upstream-should-not-be-fetched"].is_null(),
+        "aggregate OpenAPI must not include paths loaded through a self-referential upstream"
+    );
+    assert_eq!(
+        self_referential_upstream.openapi_hit_count(),
+        0,
+        "aggregate OpenAPI must not issue an HTTP request to its own /openapi.json endpoint"
+    );
+}
+
+#[tokio::test]
+async fn aggregate_openapi_reuses_cached_upstream_documents() {
+    let projection = spawn_openapi_upstream(
+        "projection-service",
+        json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Sdkwork IM Projection Service API", "version": "0.1.0" },
+            "paths": {
+                "/im/v3/api/chat/inbox": {
+                    "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
+                }
+            }
+        }),
+    )
+    .await;
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "projection-service",
+        projection.base_url.as_str(),
+    )]));
+
+    for _ in 0..2 {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .header("host", "gateway.example:18079")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("aggregate openapi request should succeed");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let value: serde_json::Value = serde_json::from_slice(
+            &response
+                .into_body()
+                .collect()
+                .await
+                .expect("aggregate openapi body should collect")
+                .to_bytes(),
+        )
+        .expect("aggregate openapi should be valid json");
+        assert!(value["paths"]["/im/v3/api/chat/inbox"]["get"].is_object());
+    }
+
+    assert_eq!(
+        projection.openapi_hit_count(),
+        1,
+        "aggregate OpenAPI should reuse the successful upstream schema within the cache window"
+    );
+}
+
+#[tokio::test]
+async fn aggregate_openapi_coalesces_concurrent_cache_misses() {
+    let projection = spawn_delayed_openapi_upstream(
+        "projection-service",
+        json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Sdkwork IM Projection Service API", "version": "0.1.0" },
+            "paths": {
+                "/im/v3/api/chat/inbox": {
+                    "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
+                }
+            }
+        }),
+        Duration::from_millis(100),
+    )
+    .await;
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "projection-service",
+        projection.base_url.as_str(),
+    )]));
+
+    let responses = futures_util::future::join_all((0..8).map(|_| {
+        let app = app.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .header("host", "gateway.example:18079")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("aggregate openapi request should succeed")
+        }
+    }))
+    .await;
+
+    for response in responses {
+        assert_eq!(response.status(), StatusCode::OK);
+        let value: serde_json::Value = serde_json::from_slice(
+            &response
+                .into_body()
+                .collect()
+                .await
+                .expect("aggregate openapi body should collect")
+                .to_bytes(),
+        )
+        .expect("aggregate openapi should be valid json");
+        assert!(value["paths"]["/im/v3/api/chat/inbox"]["get"].is_object());
+    }
+
+    assert_eq!(
+        projection.openapi_hit_count(),
+        1,
+        "concurrent aggregate OpenAPI cache misses should share one upstream schema fetch"
+    );
+}
+
+#[tokio::test]
+async fn delayed_openapi_refresh_does_not_block_healthz() {
+    let projection = spawn_delayed_openapi_upstream(
+        "projection-service",
+        json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Sdkwork IM Projection Service API", "version": "0.1.0" },
+            "paths": {
+                "/im/v3/api/chat/inbox": {
+                    "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
+                }
+            }
+        }),
+        Duration::from_millis(500),
+    )
+    .await;
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "projection-service",
+        projection.base_url.as_str(),
+    )]));
+
+    let openapi_task = tokio::spawn({
+        let app = app.clone();
+        async move {
+            app.oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .header("host", "gateway.example:18079")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("aggregate openapi request should complete")
+        }
+    });
+
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    let healthz = tokio::time::timeout(
+        Duration::from_millis(100),
+        app.oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .body(Body::empty())
+                .unwrap(),
+        ),
+    )
+    .await
+    .expect("healthz must not wait for delayed OpenAPI refresh")
+    .expect("healthz request should complete");
+    assert_eq!(healthz.status(), StatusCode::OK);
+
+    let openapi = openapi_task.await.expect("openapi task should not panic");
+    assert_eq!(openapi.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn aggregate_openapi_cache_is_not_fragmented_by_non_self_hosts() {
+    let projection = spawn_openapi_upstream(
+        "projection-service",
+        json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Sdkwork IM Projection Service API", "version": "0.1.0" },
+            "paths": {
+                "/im/v3/api/chat/inbox": {
+                    "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
+                }
+            }
+        }),
+    )
+    .await;
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "projection-service",
+        projection.base_url.as_str(),
+    )]));
+
+    for host in ["gateway-a.example:18079", "gateway-b.example:18079"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .header("host", host)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("aggregate openapi request should succeed");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let value: serde_json::Value = serde_json::from_slice(
+            &response
+                .into_body()
+                .collect()
+                .await
+                .expect("aggregate openapi body should collect")
+                .to_bytes(),
+        )
+        .expect("aggregate openapi should be valid json");
+        assert!(value["paths"]["/im/v3/api/chat/inbox"]["get"].is_object());
+    }
+
+    assert_eq!(
+        projection.openapi_hit_count(),
+        1,
+        "aggregate OpenAPI cache should be keyed by self-reference behavior, not arbitrary Host values"
     );
 }
 
@@ -704,11 +983,34 @@ fn test_gateway_config(
 
 struct TestOpenApiUpstream {
     base_url: String,
+    openapi_hits: Arc<AtomicUsize>,
+}
+
+impl TestOpenApiUpstream {
+    fn openapi_hit_count(&self) -> usize {
+        self.openapi_hits.load(Ordering::SeqCst)
+    }
 }
 
 async fn spawn_openapi_upstream(
     service_id: &str,
     openapi: serde_json::Value,
+) -> TestOpenApiUpstream {
+    spawn_openapi_upstream_with_delay(service_id, openapi, None).await
+}
+
+async fn spawn_delayed_openapi_upstream(
+    service_id: &str,
+    openapi: serde_json::Value,
+    openapi_delay: Duration,
+) -> TestOpenApiUpstream {
+    spawn_openapi_upstream_with_delay(service_id, openapi, Some(openapi_delay)).await
+}
+
+async fn spawn_openapi_upstream_with_delay(
+    service_id: &str,
+    openapi: serde_json::Value,
+    openapi_delay: Option<Duration>,
 ) -> TestOpenApiUpstream {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -716,12 +1018,15 @@ async fn spawn_openapi_upstream(
     let local_addr = listener
         .local_addr()
         .expect("openapi upstream should expose local addr");
+    let openapi_hits = Arc::new(AtomicUsize::new(0));
     let app = Router::new()
         .route("/", any(openapi_upstream))
         .route("/{*path}", any(openapi_upstream))
         .with_state(OpenApiUpstreamState {
             service_id: Arc::<str>::from(service_id),
             openapi,
+            openapi_hits: openapi_hits.clone(),
+            openapi_delay,
         });
 
     tokio::spawn(async move {
@@ -732,6 +1037,7 @@ async fn spawn_openapi_upstream(
 
     TestOpenApiUpstream {
         base_url: format!("http://{local_addr}"),
+        openapi_hits,
     }
 }
 
@@ -741,6 +1047,10 @@ async fn openapi_upstream(
     request: Request<Body>,
 ) -> Json<serde_json::Value> {
     if method == Method::GET && request.uri().path() == "/openapi.json" {
+        state.openapi_hits.fetch_add(1, Ordering::SeqCst);
+        if let Some(delay) = state.openapi_delay {
+            tokio::time::sleep(delay).await;
+        }
         return Json(state.openapi);
     }
 

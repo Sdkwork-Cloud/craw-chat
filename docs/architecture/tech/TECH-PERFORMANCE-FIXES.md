@@ -27,7 +27,7 @@
 - ✅ P1 测试：projection `build_integration_test_app` 注入 auth；ProblemDetail type/title 对齐 sdkwork-v3
 - ✅ P1 核心闭环：Social/RTC/Space/Conversation 嵌入式接线与 outbox relay
 - ✅ Space governance surface：`space_member`、`invitation`、`ban`、`channel_access_rule` 已接入 Postgres store 与权限校验（2026-07）
-- ✅ P2 列表分页：`pageSize` 规范、`SdkWorkApiResponse` 列表 envelope、IM/backend OpenAPI 与 SDK 对齐（详见 `PAGINATION-DEBT-REGISTER.md`，2026-07-05 清零）
+- ✅ P2 列表分页：HTTP query wire 使用规范 `page_size`；`pageSize` 仅保留在 SDK 语言层/model 字段。`SdkWorkApiResponse` 列表 envelope、IM/backend OpenAPI 与 SDK 已对齐（详见 `PAGINATION-DEBT-REGISTER.md`）。
 - ✅ P1 消息写路径：`PostgresDurableMessagePostWriter` 单事务写入 journal + `im_conversation_messages` + 可选 outbox；`clientMsgId` 预查幂等
 - ✅ P1 实时投递：split-deploy 通过 `conversation_outbox_relay` 投递 `message.posted`；显式 `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` 时 fail-closed
 - ✅ P2 大 roster fanout：`RealtimeDeliveryRuntime` 对 durable/ephemeral scope fanout 做 recipient 去重、共享 payload（Arc）、分块投递（`SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE`，默认 256）；conversation/RTC/social outbox relay 与 embedded social fanout 统一走 batch 路径
@@ -379,7 +379,7 @@ SDKWORK_IM_DATABASE_CONNECT_TIMEOUT_SECONDS=10
 
 #### 列表分页规范对齐（2026-07-05）
 - **状态**: 已完成
-- **范围**: IM open-api、backend audit list、conversation/social/space/projection 运行时路径；PC/H5 消费层 `pageSize`；`sdkwork-utils-rust` 支持 flattened query-string `pageSize`
+- **范围**: IM open-api、backend audit list、conversation/social/space/projection 运行时路径；PC/H5 消费层使用 SDK 语言层 `pageSize` 选项但 HTTP query wire 必须序列化为 `page_size`；`sdkwork-utils-rust` 不再保留 flattened query-string `pageSize` 兼容分支。
 - **权威**: `sdkwork-specs/PAGINATION_SPEC.md`、`docs/architecture/tech/PAGINATION-DEBT-REGISTER.md`
 
 #### 内存事件窗口累积

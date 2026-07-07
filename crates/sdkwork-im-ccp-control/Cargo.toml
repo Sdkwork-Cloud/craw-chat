@@ -5,5 +5,5 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
+sdkwork-im-ccp-core = { workspace = true }
 serde.workspace = true

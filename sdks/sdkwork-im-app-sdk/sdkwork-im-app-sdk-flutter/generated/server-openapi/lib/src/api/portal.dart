@@ -11,59 +11,83 @@ class PortalApi {
   PortalApi(this._client);
 
   /// Read the tenant portal sign-in snapshot
-  Future<Map<String, dynamic>?> accessRetrieve() async {
+  Future<AccessRetrieveResponse?> accessRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/access'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : AccessRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant automation snapshot
-  Future<Map<String, dynamic>?> automationRetrieve() async {
+  Future<AutomationRetrieveResponse?> automationRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/automation'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : AutomationRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant conversations snapshot
-  Future<Map<String, dynamic>?> conversationSnapshotRetrieve() async {
+  Future<ConversationSnapshotRetrieveResponse?> conversationSnapshotRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/conversations'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ConversationSnapshotRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant dashboard snapshot
-  Future<Map<String, dynamic>?> dashboardRetrieve() async {
+  Future<DashboardRetrieveResponse?> dashboardRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/dashboard'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : DashboardRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant governance snapshot
-  Future<Map<String, dynamic>?> governanceRetrieve() async {
+  Future<GovernanceRetrieveResponse?> governanceRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/governance'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : GovernanceRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant portal home snapshot
-  Future<Map<String, dynamic>?> homeRetrieve() async {
+  Future<HomeRetrieveResponse?> homeRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/home'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : HomeRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant media snapshot
-  Future<Map<String, dynamic>?> mediaRetrieve() async {
+  Future<MediaRetrieveResponse?> mediaRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/media'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : MediaRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the tenant realtime snapshot
-  Future<Map<String, dynamic>?> realtimeRetrieve() async {
+  Future<RealtimeRetrieveResponse?> realtimeRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/realtime'));
-    return response;
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : RealtimeRetrieveResponse.fromJson(map);
+    })();
   }
 
   /// Read the current tenant workspace snapshot
-  Future<PortalWorkspaceView?> workspaceRetrieve() async {
+  Future<WorkspaceRetrieveResponse?> workspaceRetrieve() async {
     final response = await _client.get(ApiPaths.appPath('/portal/workspace'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : PortalWorkspaceView.fromJson(map);
+      return map == null ? null : WorkspaceRetrieveResponse.fromJson(map);
     })();
   }
 }

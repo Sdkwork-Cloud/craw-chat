@@ -58,7 +58,7 @@ final composed = ImSdkComposedClient(
 ## First read call
 
 ```dart
-final inbox = await transport.chat.inboxRetrieve();
+final inbox = await transport.chat.inboxList(20, null);
 ```
 
 ## First write call

@@ -161,36 +161,28 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let health_json: serde_json::Value =
         serde_json::from_slice(&health_body).expect("health body should be valid json");
-    assert_eq!(health_json["data"]["status"], "ok");
-    assert_eq!(health_json["data"]["projectionPlane"]["status"], "idle");
+    let health = &health_json["data"]["item"];
+    assert_eq!(health["status"], "ok");
+    assert_eq!(health["projectionPlane"]["status"], "idle");
     assert_eq!(
-        health_json["data"]["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
+        health["projectionPlane"]["metrics"]["conversationSnapshotPersist"]["successCount"],
         0
     );
-    assert_eq!(health_json["data"]["projectionPlane"]["replay"]["backlogSize"], 0);
+    assert_eq!(health["projectionPlane"]["replay"]["backlogSize"], 0);
+    assert_eq!(health["projectionPlane"]["replay"]["replayedEventCount"], 0);
+    assert_eq!(health["projectionPlane"]["replay"]["durationMs"], 0);
+    assert_eq!(health["projectionPlane"]["rebuildDurationMs"], 0);
+    assert_eq!(health["projectionPlane"]["updateDelay"]["timelineMs"], 0);
+    assert_eq!(health["projectionPlane"]["updateDelay"]["inboxMs"], 0);
+    assert_eq!(health["realtimeInbox"]["status"], "ok");
+    assert_eq!(health["realtimeInbox"]["pendingEventCount"], 0);
     assert_eq!(
-        health_json["data"]["projectionPlane"]["replay"]["replayedEventCount"],
+        health["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
         0
     );
-    assert_eq!(health_json["data"]["projectionPlane"]["replay"]["durationMs"], 0);
-    assert_eq!(health_json["data"]["projectionPlane"]["rebuildDurationMs"], 0);
-    assert_eq!(
-        health_json["data"]["projectionPlane"]["updateDelay"]["timelineMs"],
-        0
-    );
-    assert_eq!(health_json["data"]["projectionPlane"]["updateDelay"]["inboxMs"], 0);
-    assert_eq!(health_json["data"]["realtimeInbox"]["status"], "ok");
-    assert_eq!(health_json["data"]["realtimeInbox"]["pendingEventCount"], 0);
-    assert_eq!(
-        health_json["data"]["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
-        0
-    );
-    assert_eq!(health_json["data"]["realtimeInbox"]["capacityTrimmedEventCount"], 0);
-    assert_eq!(
-        health_json["data"]["realtimeInbox"]["maxCapacityTrimmedThroughSeq"],
-        0
-    );
-    assert!(health_json["data"]["realtimeInbox"]["lastCapacityTrimmedAt"].is_null());
+    assert_eq!(health["realtimeInbox"]["capacityTrimmedEventCount"], 0);
+    assert_eq!(health["realtimeInbox"]["maxCapacityTrimmedThroughSeq"], 0);
+    assert!(health["realtimeInbox"]["lastCapacityTrimmedAt"].is_null());
 
     let cluster_response = app
         .clone()
@@ -216,8 +208,14 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let cluster_json: serde_json::Value =
         serde_json::from_slice(&cluster_body).expect("cluster body should be valid json");
-    assert_eq!(cluster_json["data"]["nodes"][0]["profile"], "standalone");
-    assert_eq!(cluster_json["data"]["nodes"][0]["clientRouteCount"], 0);
+    assert_eq!(
+        cluster_json["data"]["item"]["nodes"][0]["profile"],
+        "standalone"
+    );
+    assert_eq!(
+        cluster_json["data"]["item"]["nodes"][0]["clientRouteCount"],
+        0
+    );
 
     let lag_response = app
         .clone()
@@ -243,13 +241,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let lag_json: serde_json::Value =
         serde_json::from_slice(&lag_body).expect("lag body should be valid json");
-    assert!(
-        lag_json["data"]["items"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|item| item["component"] == "projection_replay" && item["lag"] == 0),
-        "ops lag should expose the default projection replay lag item"
+    assert_eq!(
+        lag_json["data"]["item"]["items"].as_array().unwrap().len(),
+        0,
+        "ops lag should start empty until governance publishes real lag items"
     );
 
     let replay_status_response = app
@@ -276,19 +271,13 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let replay_status_json: serde_json::Value = serde_json::from_slice(&replay_status_body)
         .expect("replay_status body should be valid json");
-    assert_eq!(replay_status_json["data"]["status"], "idle");
-    assert_eq!(replay_status_json["data"]["replay"]["backlogSize"], 0);
-    assert_eq!(replay_status_json["data"]["replay"]["replayedEventCount"], 0);
-    assert_eq!(replay_status_json["data"]["replay"]["durationMs"], 0);
-    assert_eq!(replay_status_json["data"]["replayThroughputPerSecond"], 0);
-    assert!(
-        replay_status_json["data"]["lag"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|item| item["component"] == "projection_replay" && item["lag"] == 0),
-        "ops replay_status should expose the default projection replay lag item"
-    );
+    let replay_status = &replay_status_json["data"]["item"];
+    assert_eq!(replay_status["status"], "idle");
+    assert_eq!(replay_status["replay"]["backlogSize"], 0);
+    assert_eq!(replay_status["replay"]["replayedEventCount"], 0);
+    assert_eq!(replay_status["replay"]["durationMs"], 0);
+    assert_eq!(replay_status["replayThroughputPerSecond"], 0);
+    assert_eq!(replay_status["lag"].as_array().unwrap().len(), 0);
 
     let runtime_dir_response = app
         .clone()
@@ -314,8 +303,14 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let runtime_dir_json: serde_json::Value =
         serde_json::from_slice(&runtime_dir_body).expect("runtime_dir body should be valid json");
-    assert_eq!(runtime_dir_json["data"]["status"], "unmanaged");
-    assert_eq!(runtime_dir_json["data"]["files"].as_array().unwrap().len(), 0);
+    assert_eq!(runtime_dir_json["data"]["item"]["status"], "unmanaged");
+    assert_eq!(
+        runtime_dir_json["data"]["item"]["files"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
 
     let provider_bindings_response = app
         .clone()
@@ -341,7 +336,13 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let provider_bindings_json: serde_json::Value = serde_json::from_slice(&provider_bindings_body)
         .expect("provider_bindings body should be valid json");
-    assert_eq!(provider_bindings_json["data"]["items"].as_array().unwrap().len(), 0);
+    assert_eq!(
+        provider_bindings_json["data"]["item"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
 
     let provider_binding_drift_response = app
         .clone()
@@ -369,7 +370,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         serde_json::from_slice(&provider_binding_drift_body)
             .expect("provider_bindings drift body should be valid json");
     assert_eq!(
-        provider_binding_drift_json["data"]["items"]
+        provider_binding_drift_json["data"]["item"]["items"]
             .as_array()
             .unwrap()
             .len(),
@@ -399,59 +400,40 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .to_bytes();
     let diagnostics_json: serde_json::Value =
         serde_json::from_slice(&diagnostics_body).expect("diagnostics body should be valid json");
-    assert_eq!(diagnostics_json["data"]["profile"], "standalone");
+    let diagnostics = &diagnostics_json["data"]["item"];
+    assert_eq!(diagnostics["profile"], "standalone");
+    assert_eq!(diagnostics["clientRoutes"].as_array().unwrap().len(), 0);
+    assert_eq!(diagnostics["projectionPlane"]["status"], "idle");
+    assert_eq!(diagnostics["projectionPlane"]["replay"]["backlogSize"], 0);
     assert_eq!(
-        diagnostics_json["data"]["clientRoutes"].as_array().unwrap().len(),
+        diagnostics["projectionPlane"]["replay"]["replayedEventCount"],
         0
     );
-    assert_eq!(diagnostics_json["data"]["projectionPlane"]["status"], "idle");
+    assert_eq!(diagnostics["projectionPlane"]["replay"]["durationMs"], 0);
+    assert_eq!(diagnostics["projectionPlane"]["rebuildDurationMs"], 0);
     assert_eq!(
-        diagnostics_json["data"]["projectionPlane"]["replay"]["backlogSize"],
+        diagnostics["projectionPlane"]["updateDelay"]["timelineMs"],
         0
     );
+    assert_eq!(diagnostics["projectionPlane"]["updateDelay"]["inboxMs"], 0);
     assert_eq!(
-        diagnostics_json["data"]["projectionPlane"]["replay"]["replayedEventCount"],
+        diagnostics["projectionPlane"]["traces"]
+            .as_array()
+            .unwrap()
+            .len(),
         0
     );
+    assert_eq!(diagnostics["providerBindings"].as_array().unwrap().len(), 0);
     assert_eq!(
-        diagnostics_json["data"]["projectionPlane"]["replay"]["durationMs"],
-        0
-    );
-    assert_eq!(diagnostics_json["data"]["projectionPlane"]["rebuildDurationMs"], 0);
-    assert_eq!(
-        diagnostics_json["data"]["projectionPlane"]["updateDelay"]["timelineMs"],
-        0
-    );
-    assert_eq!(
-        diagnostics_json["data"]["projectionPlane"]["updateDelay"]["inboxMs"],
-        0
-    );
-    assert_eq!(
-        diagnostics_json["data"]["projectionPlane"]["traces"]
+        diagnostics["providerBindingDrift"]["items"]
             .as_array()
             .unwrap()
             .len(),
         0
     );
     assert_eq!(
-        diagnostics_json["data"]["providerBindings"]
-            .as_array()
-            .unwrap()
-            .len(),
+        diagnostics["sideEffectOutboxes"].as_array().unwrap().len(),
         0
     );
-    assert_eq!(
-        diagnostics_json["data"]["providerBindingDrift"]["items"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
-    );
-    assert_eq!(
-        diagnostics_json["data"]["sideEffectOutboxes"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
-    );
+    assert_eq!(diagnostics["lag"].as_array().unwrap().len(), 0);
 }

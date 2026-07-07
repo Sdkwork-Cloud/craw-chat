@@ -38,8 +38,8 @@ use im_domain_core::rtc::{
     StateRecord, StateStore,
 };
 use im_platform_contracts::{
-    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord, IdGenerator,
-    OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord,
+    IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
 };
 use im_time::{rfc3339_add_secs, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_communication_rtc_service::{
@@ -471,7 +471,9 @@ impl CallingRuntime {
             }
         }
 
-        if im_domain_core::rtc_outbox::resolve_rtc_outbox_recipients(event_type, &payload).is_empty() {
+        if im_domain_core::rtc_outbox::resolve_rtc_outbox_recipients(event_type, &payload)
+            .is_empty()
+        {
             tracing::warn!(
                 target: "sdkwork.im.calls.outbox",
                 event_type,
@@ -1567,16 +1569,8 @@ impl CallingRuntime {
             });
         }
 
-        let sender_rate_key = format!(
-            "{}:{}:{}",
-            scope_key.as_str(),
-            sender.kind,
-            sender.id
-        );
-        if !self.allow_sender_signal_rate(
-            sender_rate_key.as_str(),
-            occurred_at.as_str(),
-        ) {
+        let sender_rate_key = format!("{}:{}:{}", scope_key.as_str(), sender.kind, sender.id);
+        if !self.allow_sender_signal_rate(sender_rate_key.as_str(), occurred_at.as_str()) {
             return Err(CallingError {
                 status: axum::http::StatusCode::TOO_MANY_REQUESTS,
                 code: "call_signal_rate_limited",

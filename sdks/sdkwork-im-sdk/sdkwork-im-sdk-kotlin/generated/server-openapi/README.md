@@ -76,7 +76,7 @@ println(result)
 ```kotlin
 // List pending realtime events
 val params = linkedMapOf<String, Any>(
-    "limit" to 1,
+    "page_size" to 1,
     "cursor" to "cursor"
 )
 val result = client.realtime.eventsList(params)
@@ -99,12 +99,8 @@ println(result)
 ### social
 
 ```kotlin
-// List contact tags
-val params = linkedMapOf<String, Any>(
-    "limit" to 1,
-    "cursor" to "cursor"
-)
-val result = client.social.contactsTagsList(params)
+// Retrieve pending incoming friend request count
+val result = client.social.friendRequestsPendingCountRetrieve()
 println(result)
 ```
 
@@ -113,7 +109,7 @@ println(result)
 ```kotlin
 // List IM contacts
 val params = linkedMapOf<String, Any>(
-    "limit" to 1,
+    "page_size" to 1,
     "cursor" to "cursor"
 )
 val result = client.chat.contactsList(params)
@@ -136,7 +132,11 @@ println(result)
 
 ```kotlin
 // List spaces
-val result = client.spaces.list()
+val params = linkedMapOf<String, Any>(
+    "page_size" to 1,
+    "cursor" to "cursor"
+)
+val result = client.spaces.list(params)
 println(result)
 ```
 

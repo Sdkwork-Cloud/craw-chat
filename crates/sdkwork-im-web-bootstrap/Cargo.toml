@@ -8,7 +8,7 @@ description = "Sdkwork IM HTTP service web-framework bootstrap for open-api and 
 [dependencies]
 axum.workspace = true
 im-app-context = { path = "../im-app-context" }
-sdkwork_im_service_readiness = { path = "../sdkwork-im-service-readiness", package = "sdkwork-im-service-readiness" }
+sdkwork_im_service_readiness = { workspace = true }
 sdkwork_im_realtime_api_paths.workspace = true
 sdkwork_iam_web_adapter.workspace = true
 sdkwork_web_axum.workspace = true

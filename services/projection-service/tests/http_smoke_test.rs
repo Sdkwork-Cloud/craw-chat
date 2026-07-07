@@ -16,9 +16,9 @@ fn percent_encode_query_component(value: &str) -> String {
         .collect()
 }
 
-fn cursor_list_uri(path: &str, limit: usize, cursor: &str) -> String {
+fn cursor_list_uri(path: &str, page_size: usize, cursor: &str) -> String {
     format!(
-        "{path}?limit={limit}&cursor={}",
+        "{path}?page_size={page_size}&cursor={}",
         percent_encode_query_component(cursor)
     )
 }
@@ -405,6 +405,113 @@ async fn test_timeline_query_returns_projected_messages() {
 }
 
 #[tokio::test]
+async fn test_message_visibility_delete_returns_no_content_and_hides_message() {
+    let service = projection_service::TimelineProjectionService::default();
+    let conversation_id = "c_visibility_http";
+    let message_id = "m_visibility_http";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_visibility_member",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                0,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"c_visibility_http",
+                    "memberId":"cm_visibility",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-04-05T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+    service
+        .apply(&timeline_message_posted_event(
+            "100001",
+            conversation_id,
+            message_id,
+            1,
+            "1",
+            "cm_visibility",
+            "hide me",
+        ))
+        .expect("timeline projection should succeed");
+
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
+
+    let delete_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!(
+                    "/im/v3/api/chat/messages/{message_id}/visibility"
+                ))
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("visibility delete should return response");
+
+    assert_eq!(delete_response.status(), StatusCode::NO_CONTENT);
+    let delete_body = delete_response
+        .into_body()
+        .collect()
+        .await
+        .expect("visibility delete body should collect")
+        .to_bytes();
+    assert!(
+        delete_body.is_empty(),
+        "204 visibility delete response must not serialize a JSON body"
+    );
+
+    let timeline_response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages?afterSeq=0&page_size=20"
+                ))
+                .with_dual_token_context("100001", "1", "user", None, ["*"])
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("timeline query should return response");
+
+    assert_eq!(timeline_response.status(), StatusCode::OK);
+    let timeline_body = timeline_response
+        .into_body()
+        .collect()
+        .await
+        .expect("timeline body should collect")
+        .to_bytes();
+    let timeline_value: serde_json::Value =
+        serde_json::from_slice(&timeline_body).expect("timeline body should be valid json");
+    assert_eq!(timeline_value["code"], 0);
+    assert_eq!(
+        timeline_value["data"]["items"]
+            .as_array()
+            .expect("timeline items should be an array")
+            .len(),
+        0
+    );
+}
+
+#[tokio::test]
 async fn test_timeline_http_returns_bounded_cursor_window() {
     let service = projection_service::TimelineProjectionService::default();
 
@@ -456,7 +563,9 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&limit=2")
+                .uri(
+                    "/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&page_size=2",
+                )
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -478,14 +587,16 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
     assert_eq!(first_value["data"]["items"].as_array().unwrap().len(), 2);
     assert_eq!(first_value["data"]["items"][0]["messageSeq"], 1);
     assert_eq!(first_value["data"]["items"][1]["messageSeq"], 2);
-    assert_eq!(first_value["data"]["nextAfterSeq"], 2);
-    assert_eq!(first_value["data"]["hasMore"], true);
+    assert_eq!(first_value["data"]["pageInfo"]["nextCursor"], "2");
+    assert_eq!(first_value["data"]["pageInfo"]["hasMore"], true);
 
     let second_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=2&limit=2")
+                .uri(
+                    "/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=2&page_size=2",
+                )
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -506,13 +617,15 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
     assert_eq!(second_value["code"], 0);
     assert_eq!(second_value["data"]["items"].as_array().unwrap().len(), 1);
     assert_eq!(second_value["data"]["items"][0]["messageSeq"], 3);
-    assert_eq!(second_value["data"]["nextAfterSeq"], 3);
-    assert_eq!(second_value["data"]["hasMore"], false);
+    assert_eq!(second_value["data"]["pageInfo"]["nextCursor"], "3");
+    assert_eq!(second_value["data"]["pageInfo"]["hasMore"], false);
 
-    let invalid_limit_response = app
+    let invalid_page_size_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&limit=0")
+                .uri(
+                    "/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&page_size=0",
+                )
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -520,16 +633,16 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
                 .unwrap(),
         )
         .await
-        .expect("invalid limit request should complete");
-    assert_eq!(invalid_limit_response.status(), StatusCode::BAD_REQUEST);
+        .expect("invalid page_size request should complete");
+    assert_eq!(invalid_page_size_response.status(), StatusCode::BAD_REQUEST);
     assert_eq!(
-        invalid_limit_response
+        invalid_page_size_response
             .headers()
             .get(CONTENT_TYPE)
             .and_then(|value| value.to_str().ok()),
         Some("application/problem+json")
     );
-    let invalid_body = invalid_limit_response
+    let invalid_body = invalid_page_size_response
         .into_body()
         .collect()
         .await
@@ -539,17 +652,17 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         serde_json::from_slice(&invalid_body).expect("invalid response should be valid json");
     assert_eq!(
         invalid_value["type"],
-        "https://docs.sdkwork.com/problems/40001",
+        "https://docs.sdkwork.com/problems/40003",
     );
-    assert_eq!(invalid_value["title"], "Validation failed");
+    assert_eq!(invalid_value["title"], "Invalid parameter");
     assert_eq!(invalid_value["status"], 400);
     assert!(
         invalid_value["detail"]
             .as_str()
             .expect("detail should be present")
-            .contains("limit")
+            .contains("pagination")
     );
-    assert_eq!(invalid_value["code"].as_i64(), Some(40001));
+    assert_eq!(invalid_value["code"].as_i64(), Some(40003));
 }
 
 #[tokio::test]
@@ -1029,7 +1142,7 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/inbox?limit=2")
+                .uri("/im/v3/api/chat/inbox?page_size=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -1057,8 +1170,8 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         first_json["data"]["items"][1]["conversationId"],
         "c_inbox_page_2"
     );
-    assert_eq!(first_json["data"]["hasMore"], true);
-    let next_cursor = first_json["data"]["nextCursor"]
+    assert_eq!(first_json["data"]["pageInfo"]["hasMore"], true);
+    let next_cursor = first_json["data"]["pageInfo"]["nextCursor"]
         .as_str()
         .expect("first inbox page should include nextCursor");
 
@@ -1090,13 +1203,16 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         second_json["data"]["items"][0]["conversationId"],
         "c_inbox_page_1"
     );
-    assert_eq!(second_json["data"]["hasMore"], false);
-    assert_eq!(second_json["data"]["nextCursor"], serde_json::Value::Null);
+    assert_eq!(second_json["data"]["pageInfo"]["hasMore"], false);
+    assert_eq!(
+        second_json["data"]["pageInfo"]["nextCursor"],
+        serde_json::Value::Null
+    );
 
     let invalid = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/inbox?limit=0")
+                .uri("/im/v3/api/chat/inbox?page_size=0")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -1114,7 +1230,81 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_json: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid inbox body should be json");
-    assert_eq!(invalid_json["code"].as_i64(), Some(40001));
+    assert_eq!(invalid_json["code"].as_i64(), Some(40003));
+}
+
+#[tokio::test]
+async fn test_inbox_query_rejects_forbidden_pagination_aliases() {
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
+
+    for alias in ["pageSize", "limit", "page_no", "pageNo", "per_page", "size"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/im/v3/api/chat/inbox?{alias}=20"))
+                    .with_dual_token_tenant("100001")
+                    .with_dual_token_user("1")
+                    .with_dual_token_actor_kind("user")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("pagination alias rejection should return response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{alias}");
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/problem+json"),
+            "{alias}"
+        );
+
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("pagination alias rejection body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("pagination alias rejection body should be json");
+        assert_eq!(value["code"].as_i64(), Some(40003), "{alias}");
+    }
+}
+
+#[tokio::test]
+async fn test_inbox_query_rejects_page_and_cursor_combination() {
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(
+        projection_service::TimelineProjectionService::default(),
+    ));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox?page=1&cursor=opaque")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("page and cursor rejection should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("page and cursor rejection body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("page and cursor rejection body should be json");
+    assert_eq!(value["code"].as_i64(), Some(40003));
 }
 
 #[tokio::test]
@@ -1413,7 +1603,7 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/contacts?limit=2")
+                .uri("/im/v3/api/chat/contacts?page_size=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1435,8 +1625,8 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
     assert_eq!(first_json["data"]["items"].as_array().unwrap().len(), 2);
     assert_eq!(first_json["data"]["items"][0]["targetUserId"], "1037");
     assert_eq!(first_json["data"]["items"][1]["targetUserId"], "1036");
-    assert_eq!(first_json["data"]["hasMore"], true);
-    let next_cursor = first_json["data"]["nextCursor"]
+    assert_eq!(first_json["data"]["pageInfo"]["hasMore"], true);
+    let next_cursor = first_json["data"]["pageInfo"]["nextCursor"]
         .as_str()
         .expect("first contacts page should include nextCursor");
 
@@ -1465,13 +1655,16 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
     assert_eq!(second_json["code"], 0);
     assert_eq!(second_json["data"]["items"].as_array().unwrap().len(), 1);
     assert_eq!(second_json["data"]["items"][0]["targetUserId"], "1035");
-    assert_eq!(second_json["data"]["hasMore"], false);
-    assert_eq!(second_json["data"]["nextCursor"], serde_json::Value::Null);
+    assert_eq!(second_json["data"]["pageInfo"]["hasMore"], false);
+    assert_eq!(
+        second_json["data"]["pageInfo"]["nextCursor"],
+        serde_json::Value::Null
+    );
 
     let invalid = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/contacts?limit=0")
+                .uri("/im/v3/api/chat/contacts?page_size=0")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1016")
                 .with_dual_token_actor_kind("user")
@@ -1489,7 +1682,7 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_json: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid contacts body should be json");
-    assert_eq!(invalid_json["code"].as_i64(), Some(40001));
+    assert_eq!(invalid_json["code"].as_i64(), Some(40003));
 }
 
 #[tokio::test]
@@ -1975,7 +2168,7 @@ async fn test_message_favorites_support_list_create_and_delete() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/messages/favorites?limit=100&favoriteType=chat")
+                .uri("/im/v3/api/chat/messages/favorites?page_size=100&favoriteType=chat")
                 .with_dual_token_context("100001", "1", "user", None, ["*"])
                 .body(Body::empty())
                 .unwrap(),
@@ -2030,7 +2223,7 @@ async fn test_message_search_rejects_empty_query_with_problem_detail() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/messages/search?pageSize=20")
+                .uri("/im/v3/api/chat/messages/search?page_size=20")
                 .with_dual_token_context("100001", "1", "user", None, ["*"])
                 .body(Body::empty())
                 .unwrap(),

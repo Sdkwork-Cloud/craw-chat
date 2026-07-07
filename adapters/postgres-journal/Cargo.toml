@@ -17,6 +17,8 @@ r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"
 sdkwork_database_config.workspace = true
 sdkwork_im_database_pool = { workspace = true }
+sdkwork-im-contract-agent = { path = "../../crates/sdkwork-im-contract-agent" }
+sdkwork-im-contract-notification = { path = "../../crates/sdkwork-im-contract-notification" }
 sdkwork_utils_rust.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true

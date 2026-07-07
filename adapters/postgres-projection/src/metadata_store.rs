@@ -3,7 +3,8 @@ use r2d2_postgres::postgres::types::Json;
 use sdkwork_utils_rust::sha256_hash;
 
 use crate::{
-    now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresProjectionPool,
+    PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_unavailable,
+    run_postgres_io,
 };
 
 const UPSERT_METADATA_SNAPSHOT_SQL: &str = r#"
@@ -71,13 +72,7 @@ impl MetadataStore for PostgresMetadataStore {
             client
                 .execute(
                     UPSERT_METADATA_SNAPSHOT_SQL,
-                    &[
-                        &scope,
-                        &key,
-                        &Json(value),
-                        &payload_hash,
-                        &created_at,
-                    ],
+                    &[&scope, &key, &Json(value), &payload_hash, &created_at],
                 )
                 .map_err(|error| postgres_unavailable("metadata put snapshot", error))?;
             Ok(())

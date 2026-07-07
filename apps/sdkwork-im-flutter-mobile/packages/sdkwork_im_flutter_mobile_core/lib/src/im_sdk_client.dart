@@ -1,7 +1,7 @@
 import 'package:im_sdk_composed/im_sdk_composed.dart';
 import 'package:im_sdk_generated/im_client.dart';
 
-export 'package:im_sdk_generated/im_client.dart';
+export 'package:im_sdk_generated/im_sdk_generated.dart';
 export 'package:im_sdk_composed/im_sdk_composed.dart';
 
 const imApiPrefix = '/im/v3/api';

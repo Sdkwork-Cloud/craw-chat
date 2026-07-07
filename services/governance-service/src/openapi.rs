@@ -1,5 +1,5 @@
-use serde_json::{Map as JsonMap, Value as JsonValue};
 use sdkwork_im_openapi::OpenApiServiceSpec;
+use serde_json::{Map as JsonMap, Value as JsonValue};
 
 fn openapi_string_schema() -> JsonValue {
     serde_json::json!({

@@ -37,7 +37,7 @@ const manifest = {
     typecheck: 'tsc -p tsconfig.json --noEmit',
   },
   dependencies: {
-    '@sdkwork/im-sdk-generated': 'link:./generated/server-openapi',
+    '@sdkwork/im-sdk-generated': 'workspace:*',
     '@sdkwork/sdk-common': '^1.0.2',
     ws: '^8.18.1',
   },

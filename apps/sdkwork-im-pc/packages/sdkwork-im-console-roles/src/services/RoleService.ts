@@ -2,6 +2,8 @@ import { getAppbaseAppSdkClientWithSession } from '@sdkwork/im-pc-core';
 import {
   forEachCursorPage,
   mapAppSdkCursorPage,
+  readRecordNumber,
+  readRecordString,
   SDKWORK_DEFAULT_PAGE_SIZE,
   SDKWORK_MAX_PAGE_SIZE,
 } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
@@ -20,39 +22,6 @@ export interface GetRolesResponse {
 }
 
 type UnknownRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
-}
-
-function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
-  }
-  return fallback;
-}
-
-function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value.replace(/[,%\s]/gu, ''));
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-  return fallback;
-}
 
 function readBoolean(record: UnknownRecord, keys: string[], fallback = false): boolean {
   for (const key of keys) {
@@ -77,12 +46,12 @@ function readBoolean(record: UnknownRecord, keys: string[], fallback = false): b
 }
 
 function mapRole(record: UnknownRecord): Role {
-  const id = readString(record, ['roleId', 'role_id', 'id', 'code'], 'role');
+  const id = readRecordString(record, ['roleId', 'role_id', 'id', 'code'], 'role');
   return {
-    count: readNumber(record, ['memberCount', 'bindingCount', 'userCount', 'count'], 0),
-    desc: readString(record, ['description', 'desc', 'remark'], ''),
+    count: readRecordNumber(record, ['memberCount', 'bindingCount', 'userCount', 'count'], 0),
+    desc: readRecordString(record, ['description', 'desc', 'remark'], ''),
     id,
-    name: readString(record, ['name', 'displayName', 'display_name', 'roleName', 'role_name'], id),
+    name: readRecordString(record, ['name', 'displayName', 'display_name', 'roleName', 'role_name'], id),
     system: readBoolean(record, ['system', 'systemRole', 'builtIn', 'builtin', 'roleType'], false),
   };
 }

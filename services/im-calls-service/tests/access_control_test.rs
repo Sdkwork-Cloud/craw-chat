@@ -11,6 +11,22 @@ use im_platform_contracts::{
 };
 use sdkwork_im_contract_core::ContractError;
 
+/// Ensure `SDKWORK_IM_ENVIRONMENT` is set to a non-production value so that
+/// `is_production_like_im_environment()` returns `false` during tests.
+///
+/// When `SDKWORK_IM_ENVIRONMENT` is unset, `parse_environment` defaults to
+/// `"prod"`, which gates pure RTC session creation behind conversation binding.
+/// Tests in this file exercise pure RTC flows and must run in a dev/test env.
+fn ensure_test_environment() {
+    if std::env::var("SDKWORK_IM_ENVIRONMENT").is_err() {
+        // SAFETY: Test-only environment setup. Tests in this file do not race
+        // with other tests modifying the same env var within the same process.
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+        }
+    }
+}
+
 struct DenyAllMembersStore;
 
 impl ConversationAggregateStore for DenyAllMembersStore {
@@ -100,6 +116,7 @@ impl ConversationAggregateStore for DenyAllMembersStore {
 }
 
 fn runtime_with_deny_gate() -> CallingRuntime {
+    ensure_test_environment();
     let gate: Arc<dyn ConversationMemberAccessGate> = Arc::new(
         AggregateStoreConversationMemberAccessGate::new(Arc::new(DenyAllMembersStore)),
     );
@@ -178,7 +195,9 @@ impl ConversationAggregateStore for AllowMembersStore {
         Ok(self
             .members
             .iter()
-            .find(|member| member.principal_kind == principal_kind && member.principal_id == principal_id)
+            .find(|member| {
+                member.principal_kind == principal_kind && member.principal_id == principal_id
+            })
             .cloned())
     }
 

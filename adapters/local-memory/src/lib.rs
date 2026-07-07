@@ -3,17 +3,19 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
-    AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, CommitPosition,
-    ContractError, MetadataSnapshotRecord, MetadataStore, NotificationTaskRecord,
-    NotificationTaskStore, PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord,
-    RealtimeCheckpointStore, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    AutomationExecutionRecord, AutomationExecutionStore, CommitJournal,
+    CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
+    CommitPosition, ContractError, ExpireOnlinePresenceStateCommand, MetadataSnapshotRecord,
+    MetadataStore, NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord,
+    PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
+    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
     StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
     TimelineProjectionStore,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
-use im_time::{rfc3339_cmp, rfc3339_le};
+use im_time::rfc3339_le;
 
 fn lock_memory_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
@@ -75,6 +77,62 @@ impl CommitJournal for MemoryCommitJournal {
 
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
         Ok(MemoryCommitJournal::recorded(self))
+    }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let limit = limit.max(1);
+        let start_offset = cursor
+            .map(|cursor| usize::try_from(cursor.commit_offset).unwrap_or(usize::MAX))
+            .unwrap_or(0);
+        let events = lock_memory_mutex(&self.events, "journal");
+        if start_offset >= events.len() {
+            return Ok(CommitJournalReplayPage::default());
+        }
+
+        let end_offset = start_offset.saturating_add(limit).min(events.len());
+        let items = events[start_offset..end_offset].to_vec();
+        let next_cursor = (end_offset < events.len()).then(|| CommitJournalReplayCursor {
+            partition_key: self.partition.as_str().to_owned(),
+            commit_offset: end_offset as u64,
+        });
+
+        Ok(CommitJournalReplayPage { items, next_cursor })
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let limit = limit.max(1);
+        let mut scan_offset = cursor
+            .map(|cursor| usize::try_from(cursor.commit_offset).unwrap_or(usize::MAX))
+            .unwrap_or(0);
+        let events = lock_memory_mutex(&self.events, "journal");
+        let mut items = Vec::with_capacity(limit);
+
+        while scan_offset < events.len() && items.len() < limit {
+            let event = &events[scan_offset];
+            scan_offset += 1;
+            if event.tenant_id == scope.tenant_id
+                && (event.aggregate_id == scope.aggregate_id
+                    || event.scope_id == scope.aggregate_id)
+            {
+                items.push(event.clone());
+            }
+        }
+
+        let next_cursor = (scan_offset < events.len()).then(|| CommitJournalReplayCursor {
+            partition_key: self.partition.as_str().to_owned(),
+            commit_offset: scan_offset as u64,
+        });
+
+        Ok(CommitJournalReplayPage { items, next_cursor })
     }
 }
 
@@ -172,7 +230,14 @@ impl MemoryRealtimeCheckpointStore {
     ) -> Option<RealtimeCheckpointRecord> {
         lock_memory_mutex(&self.checkpoints, "realtime checkpoint store")
             .get(
-                client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str(),
+                client_route_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
+                .as_str(),
             )
             .cloned()
     }
@@ -187,7 +252,13 @@ impl RealtimeCheckpointStore for MemoryRealtimeCheckpointStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
-        Ok(self.checkpoint(tenant_id, organization_id, principal_kind, principal_id, device_id))
+        Ok(self.checkpoint(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        ))
     }
 
     fn save_checkpoints(
@@ -229,7 +300,14 @@ impl MemoryRealtimeEventWindowStore {
     ) -> Option<RealtimeEventWindowRecord> {
         lock_memory_mutex(&self.windows, "realtime event window store")
             .get(
-                client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str(),
+                client_route_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
+                .as_str(),
             )
             .cloned()
     }
@@ -244,7 +322,13 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeEventWindowRecord>, ContractError> {
-        Ok(self.window(tenant_id, organization_id, principal_kind, principal_id, device_id))
+        Ok(self.window(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        ))
     }
 
     fn save_windows(&self, records: Vec<RealtimeEventWindowRecord>) -> Result<(), ContractError> {
@@ -275,8 +359,14 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         Ok(
             lock_memory_mutex(&self.windows, "realtime event window store")
                 .remove(
-                    client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_kind,
+                        principal_id,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .is_some(),
         )
@@ -300,7 +390,13 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         device_id: &str,
         acked_through_seq: u64,
     ) -> Result<(), ContractError> {
-        let key = client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
+        let key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        );
         if let Some(record) =
             lock_memory_mutex(&self.windows, "realtime event window store").get_mut(key.as_str())
         {
@@ -329,7 +425,14 @@ impl MemoryRealtimeDisconnectFenceStore {
     ) -> Option<RealtimeDisconnectFenceRecord> {
         lock_memory_mutex(&self.fences, "realtime disconnect fence store")
             .get(
-                client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str(),
+                client_route_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
+                .as_str(),
             )
             .cloned()
     }
@@ -344,7 +447,13 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeDisconnectFenceRecord>, ContractError> {
-        Ok(self.fence(tenant_id, organization_id, principal_kind, principal_id, device_id))
+        Ok(self.fence(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        ))
     }
 
     fn save_fence(&self, record: RealtimeDisconnectFenceRecord) -> Result<(), ContractError> {
@@ -375,8 +484,14 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         Ok(
             lock_memory_mutex(&self.fences, "realtime disconnect fence store")
                 .remove(
-                    client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_kind,
+                        principal_id,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .is_some(),
         )
@@ -391,7 +506,13 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         device_id: &str,
         cutoff_disconnected_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
+        let key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        );
         let mut fences = lock_memory_mutex(&self.fences, "realtime disconnect fence store");
         let should_clear = fences
             .get(key.as_str())
@@ -442,7 +563,14 @@ impl MemoryRealtimeSubscriptionStore {
     ) -> Option<RealtimeSubscriptionRecord> {
         lock_memory_mutex(&self.subscriptions, "realtime subscription store")
             .get(
-                client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id).as_str(),
+                client_route_scope_key(
+                    tenant_id,
+                    organization_id,
+                    principal_kind,
+                    principal_id,
+                    device_id,
+                )
+                .as_str(),
             )
             .cloned()
     }
@@ -457,7 +585,13 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeSubscriptionRecord>, ContractError> {
-        Ok(self.subscriptions(tenant_id, organization_id, principal_kind, principal_id, device_id))
+        Ok(self.subscriptions(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        ))
     }
 
     fn load_matching_subscriptions(
@@ -517,8 +651,14 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         Ok(
             lock_memory_mutex(&self.subscriptions, "realtime subscription store")
                 .remove(
-                    client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id)
-                        .as_str(),
+                    client_route_scope_key(
+                        tenant_id,
+                        organization_id,
+                        principal_kind,
+                        principal_id,
+                        device_id,
+                    )
+                    .as_str(),
                 )
                 .is_some(),
         )
@@ -533,7 +673,13 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         device_id: &str,
         cutoff_synced_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = client_route_scope_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
+        let key = client_route_scope_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        );
         let mut subscriptions =
             lock_memory_mutex(&self.subscriptions, "realtime subscription store");
         let should_clear = subscriptions
@@ -819,13 +965,8 @@ impl PresenceStateStore for MemoryPresenceStateStore {
         let device_keys = state
             .presence_by_principal
             .get(
-                principal_scope_key(
-                    tenant_id,
-                    organization_id,
-                    principal_kind,
-                    principal_id,
-                )
-                .as_str(),
+                principal_scope_key(tenant_id, organization_id, principal_kind, principal_id)
+                    .as_str(),
             )
             .cloned()
             .unwrap_or_default();
@@ -844,17 +985,10 @@ impl PresenceStateStore for MemoryPresenceStateStore {
             return Ok(Vec::new());
         }
         let state = lock_memory_mutex(&self.state, "presence state store");
-        let mut stale_keys = state
+        Ok(state
             .online_by_seen_at
             .iter()
             .filter(|key| rfc3339_le(key.last_seen_at.as_str(), cutoff_seen_at))
-            .collect::<Vec<_>>();
-        stale_keys.sort_by(|left, right| {
-            rfc3339_cmp(left.last_seen_at.as_str(), right.last_seen_at.as_str())
-                .then_with(|| left.device_key.cmp(&right.device_key))
-        });
-        Ok(stale_keys
-            .into_iter()
             .take(limit)
             .filter_map(|key| state.by_device.get(key.device_key.as_str()).cloned())
             .collect())
@@ -862,30 +996,24 @@ impl PresenceStateStore for MemoryPresenceStateStore {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        device_id: &str,
-        cutoff_seen_at: &str,
-        expired_at: &str,
+        command: ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
         let device_key = client_route_scope_key(
-            tenant_id,
-            organization_id,
-            principal_kind,
-            principal_id,
-            device_id,
+            command.tenant_id,
+            command.organization_id,
+            command.principal_kind,
+            command.principal_id,
+            command.device_id,
         );
         let mut state = lock_memory_mutex(&self.state, "presence state store");
         let Some(current) = state.by_device.get(device_key.as_str()).cloned() else {
             return Ok(None);
         };
-        if !current.is_online_seen_at_or_before(cutoff_seen_at) {
+        if !current.is_online_seen_at_or_before(command.cutoff_seen_at) {
             return Ok(None);
         }
         remove_presence_online_seen_at_index(&mut state.online_by_seen_at, &current);
-        let expired = current.into_expired_offline(expired_at);
+        let expired = current.into_expired_offline(command.expired_at);
         insert_presence_online_seen_at_index(
             &mut state.online_by_seen_at,
             device_key.as_str(),
@@ -1080,7 +1208,9 @@ fn record_notification_recipient_scope_key(record: &NotificationTaskRecord) -> S
     )
 }
 
-fn notification_recipient_sort_key(record: &NotificationTaskRecord) -> NotificationRecipientSortKey {
+fn notification_recipient_sort_key(
+    record: &NotificationTaskRecord,
+) -> NotificationRecipientSortKey {
     let primary = record
         .task
         .dispatched_at
@@ -1157,6 +1287,50 @@ mod tests {
             .expect("poisoned journal lock should be recovered");
 
         assert_eq!(position.offset, 1);
+    }
+
+    #[test]
+    fn test_commit_journal_recorded_page_uses_explicit_memory_window() {
+        let journal = MemoryCommitJournal::default();
+        for seq in 0..3 {
+            let event_id = format!("evt_page_{seq}");
+            journal
+                .append(CommitEnvelope::minimal(
+                    event_id.as_str(),
+                    "100001",
+                    "message.posted",
+                    "conversation",
+                    "c_demo",
+                    seq,
+                ))
+                .expect("append should succeed");
+        }
+
+        let first_page = journal
+            .recorded_page(None, 2)
+            .expect("first page should load");
+        assert_eq!(
+            first_page
+                .items
+                .iter()
+                .map(|event| event.event_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["evt_page_0", "evt_page_1"]
+        );
+        assert_eq!(
+            first_page
+                .next_cursor
+                .as_ref()
+                .map(|cursor| cursor.commit_offset),
+            Some(2)
+        );
+
+        let second_page = journal
+            .recorded_page(first_page.next_cursor.as_ref(), 2)
+            .expect("second page should load");
+        assert_eq!(second_page.items.len(), 1);
+        assert_eq!(second_page.items[0].event_id, "evt_page_2");
+        assert!(second_page.next_cursor.is_none());
     }
 
     #[test]

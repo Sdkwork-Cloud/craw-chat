@@ -8,8 +8,11 @@ use im_domain_core::retention::is_retention_expired;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_message::TimelineProjectionStore;
 
-use crate::model::{TimelineViewEntry, TimelineWindowView};
+use sdkwork_utils_rust::SdkWorkPageData;
+
 use crate::ProjectionError;
+use crate::list_page;
+use crate::model::TimelineViewEntry;
 
 /// Unlimited in-memory timeline retention (development / in-memory backends).
 pub const PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED: usize = usize::MAX;
@@ -77,7 +80,7 @@ impl TimelineTierConfig {
 }
 
 pub fn trim_timeline_to_cap(timeline: &mut BTreeMap<u64, TimelineViewEntry>, cap: usize) {
-    if cap >= PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED {
+    if cap == PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED {
         return;
     }
     while timeline.len() > cap {
@@ -92,7 +95,7 @@ pub fn timeline_window_from_memory(
     timeline: &BTreeMap<u64, TimelineViewEntry>,
     after_seq: u64,
     limit: usize,
-) -> TimelineWindowView {
+) -> SdkWorkPageData<TimelineViewEntry> {
     let now = utc_now_rfc3339_millis();
     let mut window = timeline
         .range((Excluded(after_seq), Unbounded))
@@ -106,11 +109,7 @@ pub fn timeline_window_from_memory(
         window.truncate(limit);
     }
     let next_after_seq = window.last().map(|entry| entry.message_seq);
-    TimelineWindowView {
-        items: window,
-        next_after_seq,
-        has_more,
-    }
+    list_page::seq_cursor_page(window, limit, next_after_seq, has_more)
 }
 
 pub fn timeline_window_from_durable_store(
@@ -119,27 +118,54 @@ pub fn timeline_window_from_durable_store(
     conversation_id: &str,
     after_seq: u64,
     limit: usize,
-) -> Result<TimelineWindowView, ProjectionError> {
+) -> Result<SdkWorkPageData<TimelineViewEntry>, ProjectionError> {
+    let limit = limit.max(1);
     let now = utc_now_rfc3339_millis();
-    let window = store
-        .load_timeline_window(tenant_id, conversation_id, after_seq, limit)
-        .map_err(ProjectionError::StoreFailure)?;
-    let mut items = Vec::with_capacity(window.items.len());
-    for (_, payload) in window.items {
-        let entry = serde_json::from_str::<TimelineViewEntry>(&payload)
-            .map_err(ProjectionError::InvalidSnapshot)?;
-        if is_retention_expired(entry.retention_until.as_deref(), now.as_str()) {
-            continue;
+    let mut visible_after_seq = Some(after_seq);
+    let mut visible_items = Vec::new();
+    const RETENTION_FILTER_BATCH_MULTIPLIER: usize = 4;
+    let fetch_batch = (limit * RETENTION_FILTER_BATCH_MULTIPLIER).clamp(limit, 200);
+    let mut trailing_has_more;
+
+    loop {
+        let batch_after = visible_after_seq.unwrap_or(after_seq);
+        let window = store
+            .load_timeline_window(tenant_id, conversation_id, batch_after, fetch_batch)
+            .map_err(ProjectionError::StoreFailure)?;
+        trailing_has_more = window.has_more;
+
+        for (_, payload) in window.items {
+            let entry = serde_json::from_str::<TimelineViewEntry>(&payload)
+                .map_err(ProjectionError::InvalidSnapshot)?;
+            if is_retention_expired(entry.retention_until.as_deref(), now.as_str()) {
+                continue;
+            }
+            visible_items.push(entry);
+            if visible_items.len() > limit {
+                break;
+            }
         }
-        items.push(entry);
+
+        if visible_items.len() > limit || !trailing_has_more {
+            break;
+        }
+        visible_after_seq = visible_items.last().map(|entry| entry.message_seq);
+        if visible_after_seq.is_none() {
+            break;
+        }
     }
-    let has_more = window.has_more;
-    let next_after_seq = items.last().map(|entry| entry.message_seq);
-    Ok(TimelineWindowView {
-        items,
+
+    let has_more = visible_items.len() > limit || trailing_has_more;
+    if visible_items.len() > limit {
+        visible_items.truncate(limit);
+    }
+    let next_after_seq = visible_items.last().map(|entry| entry.message_seq);
+    Ok(list_page::seq_cursor_page(
+        visible_items,
+        limit,
         next_after_seq,
         has_more,
-    })
+    ))
 }
 
 pub fn load_timeline_tail_for_restore(
@@ -149,7 +175,7 @@ pub fn load_timeline_tail_for_restore(
     message_count: u64,
     cap: usize,
 ) -> Result<BTreeMap<u64, TimelineViewEntry>, ProjectionError> {
-    if cap >= PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED || message_count == 0 {
+    if cap == PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED || message_count == 0 {
         return load_full_timeline_for_restore(store, tenant_id, conversation_id);
     }
     let after_seq = message_count.saturating_sub(cap as u64);
@@ -159,6 +185,12 @@ pub fn load_timeline_tail_for_restore(
     parse_timeline_restore_entries(window.items)
 }
 
+/// Safety cap for full timeline restore to prevent OOM even when
+/// `PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED` is configured.  This ensures
+/// that a non-production in-memory backend with a very long-lived
+/// conversation does not load millions of entries into memory at once.
+const TIMELINE_FULL_RESTORE_MAX_ENTRIES: usize = 10_000;
+
 pub fn load_full_timeline_for_restore(
     store: &dyn TimelineProjectionStore,
     tenant_id: &str,
@@ -167,6 +199,17 @@ pub fn load_full_timeline_for_restore(
     let rows = store
         .load_timeline(tenant_id, conversation_id)
         .map_err(ProjectionError::StoreFailure)?;
+    let rows = if rows.len() > TIMELINE_FULL_RESTORE_MAX_ENTRIES {
+        tracing::warn!(
+            total_rows = rows.len(),
+            cap = TIMELINE_FULL_RESTORE_MAX_ENTRIES,
+            "timeline full restore exceeded safety cap; truncating to most recent entries"
+        );
+        let start = rows.len().saturating_sub(TIMELINE_FULL_RESTORE_MAX_ENTRIES);
+        rows[start..].to_vec()
+    } else {
+        rows
+    };
     parse_timeline_restore_entries(rows)
 }
 
@@ -189,14 +232,10 @@ pub fn resolve_timeline_window(
     conversation_id: &str,
     after_seq: u64,
     limit: usize,
-) -> Result<TimelineWindowView, ProjectionError> {
+) -> Result<SdkWorkPageData<TimelineViewEntry>, ProjectionError> {
     let memory_view = memory_timeline
         .map(|timeline| timeline_window_from_memory(timeline, after_seq, limit))
-        .unwrap_or_else(|| TimelineWindowView {
-            items: Vec::new(),
-            next_after_seq: None,
-            has_more: false,
-        });
+        .unwrap_or_else(|| list_page::seq_cursor_page(Vec::new(), limit, None, false));
 
     let Some(store) = tier.durable_timeline_store() else {
         return Ok(memory_view);
@@ -215,15 +254,26 @@ pub fn resolve_timeline_window(
         return Ok(memory_view);
     }
 
-    let mut durable_view =
-        timeline_window_from_durable_store(store.as_ref(), tenant_id, conversation_id, after_seq, limit)?;
-    if let Some(timeline) = memory_timeline {
-        if let Some(min_mem_seq) = timeline.keys().next().copied() {
-            durable_view.items.retain(|entry| entry.message_seq < min_mem_seq);
-            durable_view.has_more = durable_view.has_more
-                || timeline.keys().any(|seq| *seq > after_seq && *seq >= min_mem_seq);
-            durable_view.next_after_seq = durable_view.items.last().map(|entry| entry.message_seq);
-        }
+    let mut durable_view = timeline_window_from_durable_store(
+        store.as_ref(),
+        tenant_id,
+        conversation_id,
+        after_seq,
+        limit,
+    )?;
+    if let Some(timeline) = memory_timeline
+        && let Some(min_mem_seq) = timeline.keys().next().copied()
+    {
+        durable_view
+            .items
+            .retain(|entry| entry.message_seq < min_mem_seq);
+        let memory_has_more = timeline
+            .keys()
+            .any(|seq| *seq > after_seq && *seq >= min_mem_seq);
+        let has_more = durable_view.page_info.has_more == Some(true) || memory_has_more;
+        let next_after_seq = durable_view.items.last().map(|entry| entry.message_seq);
+        durable_view.page_info.has_more = Some(has_more);
+        durable_view.page_info.next_cursor = next_after_seq.map(|value| value.to_string());
     }
     Ok(durable_view)
 }
@@ -302,28 +352,14 @@ mod tests {
         tier.configure_durable_timeline(store, 1);
 
         let mut memory = BTreeMap::from([(2, sample_entry(2))]);
-        let window = resolve_timeline_window(
-            &tier,
-            Some(&memory),
-            "100001",
-            "c_demo",
-            0,
-            10,
-        )
-        .expect("window");
+        let window = resolve_timeline_window(&tier, Some(&memory), "100001", "c_demo", 0, 10)
+            .expect("window");
         assert_eq!(window.items.len(), 1);
         assert_eq!(window.items[0].message_seq, 1);
 
         memory.insert(2, sample_entry(2));
-        let hot_window = resolve_timeline_window(
-            &tier,
-            Some(&memory),
-            "100001",
-            "c_demo",
-            1,
-            10,
-        )
-        .expect("hot window");
+        let hot_window = resolve_timeline_window(&tier, Some(&memory), "100001", "c_demo", 1, 10)
+            .expect("hot window");
         assert_eq!(hot_window.items.len(), 1);
         assert_eq!(hot_window.items[0].message_seq, 2);
     }

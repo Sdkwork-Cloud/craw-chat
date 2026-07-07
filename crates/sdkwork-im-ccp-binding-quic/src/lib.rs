@@ -4,8 +4,8 @@
 //! as `ccp/tcp/1` per architecture doc 144.
 
 use sdkwork_im_ccp_binding_tcp::{
-    decode_length_prefixed_frame, encode_length_prefixed_frame,
-    CCP_TCP_FRAME_HEADER_BYTES, CCP_TCP_MAX_FRAME_BYTES,
+    CCP_TCP_FRAME_HEADER_BYTES, CCP_TCP_MAX_FRAME_BYTES, decode_length_prefixed_frame,
+    encode_length_prefixed_frame,
 };
 use sdkwork_im_ccp_codec::{CcpCodec, CodecError};
 use sdkwork_im_ccp_core::{CcpEnvelope, TransportBinding};

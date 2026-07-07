@@ -62,7 +62,9 @@ pub fn resolve_service_identity(metadata: &RpcMetadata) -> Result<Option<String>
     }
 
     // Collapsed nested if-let into a single chain
-    if let Some(identity) = metadata.authorization.as_deref()
+    if let Some(identity) = metadata
+        .authorization
+        .as_deref()
         .and_then(|auth| auth.strip_prefix("Service "))
         .map(str::trim)
         .filter(|value| !value.is_empty())

@@ -12,338 +12,347 @@ class ChatApi {
   ChatApi(this._client);
 
   /// List IM contacts
-  Future<ContactsResponse?> contactsList([int? limit, String? cursor]) async {
+  Future<ContactsListResponse?> contactsList([int? pageSize, String? cursor]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/contacts'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactsResponse.fromJson(map);
+      return map == null ? null : ContactsListResponse.fromJson(map);
     })();
   }
 
-  /// Retrieve current inbox window
-  Future<InboxResponse?> inboxRetrieve([int? limit, String? cursor]) async {
+  /// List current inbox window
+  Future<InboxListResponse?> inboxList([int? pageSize, String? cursor]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/inbox'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : InboxResponse.fromJson(map);
+      return map == null ? null : InboxListResponse.fromJson(map);
     })();
   }
 
   /// Create a conversation
-  Future<CreateConversationResult?> conversationsCreate(CreateConversationRequest body) async {
+  Future<ConversationsCreateResponse201?> conversationsCreate(CreateConversationRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : CreateConversationResult.fromJson(map);
+      return map == null ? null : ConversationsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Create an agent dialog
-  Future<CreateConversationResult?> conversationsAgentDialogsCreate(CreateAgentDialogRequest body) async {
+  Future<ConversationsAgentDialogsCreateResponse201?> conversationsAgentDialogsCreate(CreateAgentDialogRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/agent_dialogs'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : CreateConversationResult.fromJson(map);
+      return map == null ? null : ConversationsAgentDialogsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Create an agent handoff
-  Future<AckResponse?> conversationsAgentHandoffsCreate(CreateAgentDialogRequest body) async {
+  Future<ConversationsAgentHandoffsCreateResponse201?> conversationsAgentHandoffsCreate(CreateAgentDialogRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/agent_handoffs'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsAgentHandoffsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Create a system channel
-  Future<CreateConversationResult?> conversationsSystemChannelsCreate(CreateConversationRequest body) async {
+  Future<ConversationsSystemChannelsCreateResponse201?> conversationsSystemChannelsCreate(CreateConversationRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/system_channels'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : CreateConversationResult.fromJson(map);
+      return map == null ? null : ConversationsSystemChannelsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Create a thread conversation
-  Future<CreateConversationResult?> conversationsThreadsCreate(CreateConversationRequest body) async {
+  Future<ConversationsThreadsCreateResponse201?> conversationsThreadsCreate(CreateConversationRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/threads'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : CreateConversationResult.fromJson(map);
+      return map == null ? null : ConversationsThreadsCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Bind a direct chat conversation
-  Future<CreateConversationResult?> conversationsDirectChatsBind(BindDirectChatRequest body) async {
+  /// Create a direct chat conversation binding
+  Future<ConversationsDirectChatsBindingsCreateResponse201?> conversationsDirectChatsBindingsCreate(BindDirectChatRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/direct_chats/bindings'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : CreateConversationResult.fromJson(map);
+      return map == null ? null : ConversationsDirectChatsBindingsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Retrieve agent handoff state
-  Future<AckResponse?> conversationsAgentHandoffRetrieve(String conversationId) async {
+  Future<ConversationsAgentHandoffRetrieveResponse?> conversationsAgentHandoffRetrieve(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/agent_handoff'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsAgentHandoffRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Accept agent handoff
-  Future<AckResponse?> conversationsAgentHandoffAccept(String conversationId) async {
+  Future<ConversationsAgentHandoffAcceptResponse?> conversationsAgentHandoffAccept(String conversationId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/agent_handoff/accept'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsAgentHandoffAcceptResponse.fromJson(map);
     })();
   }
 
   /// Resolve agent handoff
-  Future<AckResponse?> conversationsAgentHandoffResolve(String conversationId) async {
+  Future<ConversationsAgentHandoffResolveResponse?> conversationsAgentHandoffResolve(String conversationId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/agent_handoff/resolve'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsAgentHandoffResolveResponse.fromJson(map);
     })();
   }
 
   /// Close agent handoff
-  Future<AckResponse?> conversationsAgentHandoffClose(String conversationId) async {
+  Future<ConversationsAgentHandoffCloseResponse?> conversationsAgentHandoffClose(String conversationId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/agent_handoff/close'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsAgentHandoffCloseResponse.fromJson(map);
     })();
   }
 
   /// Retrieve conversation summary
-  Future<ConversationSummaryView?> conversationsRetrieve(String conversationId) async {
+  Future<ConversationsRetrieveResponse?> conversationsRetrieve(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationSummaryView.fromJson(map);
+      return map == null ? null : ConversationsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// List conversation members
-  Future<ListMembersResponse?> conversationsMembersList(String conversationId, [int? limit, String? cursor]) async {
+  Future<ConversationsMembersListResponse?> conversationsMembersList(String conversationId, [int? pageSize, String? cursor]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ListMembersResponse.fromJson(map);
+      return map == null ? null : ConversationsMembersListResponse.fromJson(map);
     })();
   }
 
   /// Add a conversation member
-  Future<ConversationMember?> conversationsMembersAdd(String conversationId, AddConversationMemberRequest body) async {
+  Future<ConversationsMembersAddResponse?> conversationsMembersAdd(String conversationId, AddConversationMemberRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/add'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationMember.fromJson(map);
+      return map == null ? null : ConversationsMembersAddResponse.fromJson(map);
     })();
   }
 
   /// Remove a conversation member
-  Future<AckResponse?> conversationsMembersRemove(String conversationId, RemoveConversationMemberRequest body) async {
+  Future<ConversationsMembersRemoveResponse?> conversationsMembersRemove(String conversationId, RemoveConversationMemberRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/remove'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsMembersRemoveResponse.fromJson(map);
     })();
   }
 
   /// Transfer conversation owner
-  Future<ConversationMember?> conversationsMembersTransferOwner(String conversationId, TransferConversationOwnerRequest body) async {
+  Future<ConversationsMembersTransferOwnerResponse?> conversationsMembersTransferOwner(String conversationId, TransferConversationOwnerRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/transfer_owner'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationMember.fromJson(map);
+      return map == null ? null : ConversationsMembersTransferOwnerResponse.fromJson(map);
     })();
   }
 
   /// Change conversation member role
-  Future<ConversationMember?> conversationsMembersChangeRole(String conversationId, ChangeConversationMemberRoleRequest body) async {
+  Future<ConversationsMembersChangeRoleResponse?> conversationsMembersChangeRole(String conversationId, ChangeConversationMemberRoleRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/change_role'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationMember.fromJson(map);
+      return map == null ? null : ConversationsMembersChangeRoleResponse.fromJson(map);
     })();
   }
 
   /// Leave a conversation
-  Future<AckResponse?> conversationsMembersLeave(String conversationId) async {
+  Future<ConversationsMembersLeaveResponse?> conversationsMembersLeave(String conversationId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/leave'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : ConversationsMembersLeaveResponse.fromJson(map);
+    })();
+  }
+
+  /// Accept a conversation invitation
+  Future<ConversationsMembersAcceptInvitationResponse?> conversationsMembersAcceptInvitation(String conversationId) async {
+    final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/members/accept_invitation'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : ConversationsMembersAcceptInvitationResponse.fromJson(map);
     })();
   }
 
   /// Retrieve conversation preferences
-  Future<ConversationPreferencesView?> conversationsPreferencesRetrieve(String conversationId) async {
+  Future<ConversationsPreferencesRetrieveResponse?> conversationsPreferencesRetrieve(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/preferences'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationPreferencesView.fromJson(map);
+      return map == null ? null : ConversationsPreferencesRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update conversation preferences
-  Future<ConversationPreferencesView?> conversationsPreferencesUpdate(String conversationId, UpdateConversationPreferencesRequest body) async {
+  Future<ConversationsPreferencesUpdateResponse?> conversationsPreferencesUpdate(String conversationId, UpdateConversationPreferencesRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/preferences'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationPreferencesView.fromJson(map);
+      return map == null ? null : ConversationsPreferencesUpdateResponse.fromJson(map);
     })();
   }
 
   /// Retrieve conversation profile
-  Future<ConversationProfileView?> conversationsProfileRetrieve(String conversationId) async {
+  Future<ConversationsProfileRetrieveResponse?> conversationsProfileRetrieve(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/profile'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationProfileView.fromJson(map);
+      return map == null ? null : ConversationsProfileRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update conversation profile
-  Future<ConversationProfileView?> conversationsProfileUpdate(String conversationId, UpdateConversationProfileRequest body) async {
+  Future<ConversationsProfileUpdateResponse?> conversationsProfileUpdate(String conversationId, UpdateConversationProfileRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/profile'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationProfileView.fromJson(map);
+      return map == null ? null : ConversationsProfileUpdateResponse.fromJson(map);
     })();
   }
 
   /// Retrieve read cursor
-  Future<ReadCursorView?> conversationsReadCursorRetrieve(String conversationId) async {
+  Future<ConversationsReadCursorRetrieveResponse?> conversationsReadCursorRetrieve(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/read_cursor'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ReadCursorView.fromJson(map);
+      return map == null ? null : ConversationsReadCursorRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update read cursor
-  Future<ReadCursorView?> conversationsReadCursorUpdate(String conversationId, UpdateReadCursorRequest body) async {
+  Future<ConversationsReadCursorUpdateResponse?> conversationsReadCursorUpdate(String conversationId, UpdateReadCursorRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/read_cursor'), body: payload, contentType: 'application/json');
+    final response = await _client.patch(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/read_cursor'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ReadCursorView.fromJson(map);
+      return map == null ? null : ConversationsReadCursorUpdateResponse.fromJson(map);
     })();
   }
 
   /// List member directory
-  Future<MemberDirectoryResponse?> conversationsMemberDirectoryList(String conversationId) async {
+  Future<ConversationsMemberDirectoryListResponse?> conversationsMemberDirectoryList(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/member_directory'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MemberDirectoryResponse.fromJson(map);
+      return map == null ? null : ConversationsMemberDirectoryListResponse.fromJson(map);
     })();
   }
 
   /// List conversation message timeline
-  Future<TimelineResponse?> conversationsMessagesList(String conversationId, [int? afterSeq, int? limit]) async {
+  Future<ConversationsMessagesListResponse?> conversationsMessagesList(String conversationId, [int? afterSeq, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('afterSeq', afterSeq, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null)
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : TimelineResponse.fromJson(map);
+      return map == null ? null : ConversationsMessagesListResponse.fromJson(map);
     })();
   }
 
   /// Post a conversation message
-  Future<PostedMessageResponse?> conversationsMessagesCreate(String conversationId, PostMessageRequest body) async {
+  Future<ConversationsMessagesCreateResponse201?> conversationsMessagesCreate(String conversationId, PostMessageRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : PostedMessageResponse.fromJson(map);
+      return map == null ? null : ConversationsMessagesCreateResponse201.fromJson(map);
     })();
   }
 
   /// Publish a system channel message
-  Future<PostedMessageResponse?> conversationsSystemChannelPublish(String conversationId, PostMessageRequest body) async {
+  Future<ConversationsSystemChannelPublishResponse?> conversationsSystemChannelPublish(String conversationId, PostMessageRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/system_channel/publish'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : PostedMessageResponse.fromJson(map);
+      return map == null ? null : ConversationsSystemChannelPublishResponse.fromJson(map);
     })();
   }
 
   /// List pinned messages
-  Future<PinnedMessagesResponse?> conversationsPinsList(String conversationId) async {
+  Future<ConversationsPinsListResponse?> conversationsPinsList(String conversationId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/pins'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : PinnedMessagesResponse.fromJson(map);
+      return map == null ? null : ConversationsPinsListResponse.fromJson(map);
     })();
   }
 
   /// Retrieve message interaction summary
-  Future<MessageInteractionSummaryView?> conversationsMessagesInteractionSummaryRetrieve(String conversationId, String messageId) async {
+  Future<ConversationsMessagesInteractionSummaryRetrieveResponse?> conversationsMessagesInteractionSummaryRetrieve(String conversationId, String messageId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/interaction_summary'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessageInteractionSummaryView.fromJson(map);
+      return map == null ? null : ConversationsMessagesInteractionSummaryRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Edit a message
-  Future<PostedMessageResponse?> messagesEdit(String messageId, EditMessageRequest body) async {
+  Future<MessagesEditResponse?> messagesEdit(String messageId, EditMessageRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/edit'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : PostedMessageResponse.fromJson(map);
+      return map == null ? null : MessagesEditResponse.fromJson(map);
     })();
   }
 
   /// Recall a message
-  Future<PostedMessageResponse?> messagesRecall(String messageId) async {
+  Future<MessagesRecallResponse?> messagesRecall(String messageId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/recall'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : PostedMessageResponse.fromJson(map);
+      return map == null ? null : MessagesRecallResponse.fromJson(map);
     })();
   }
 
   /// List message favorites
-  Future<FavoriteMessagesResponse?> messagesFavoritesList([int? limit, String? cursor, String? favoriteType, String? q]) async {
+  Future<MessagesFavoritesListResponse?> messagesFavoritesList([int? pageSize, String? cursor, String? favoriteType, String? q]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null),
       QueryParameterSpec('favoriteType', favoriteType, 'form', true, false, null),
       QueryParameterSpec('q', q, 'form', true, false, null)
@@ -351,110 +360,102 @@ class ChatApi {
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/messages/favorites'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : FavoriteMessagesResponse.fromJson(map);
+      return map == null ? null : MessagesFavoritesListResponse.fromJson(map);
     })();
   }
 
   /// Favorite a message
-  Future<MessageFavoriteView?> messagesFavoritesCreate(String messageId, FavoriteMessageRequest body) async {
+  Future<MessagesFavoritesCreateResponse201?> messagesFavoritesCreate(String messageId, FavoriteMessageRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/favorites'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessageFavoriteView.fromJson(map);
+      return map == null ? null : MessagesFavoritesCreateResponse201.fromJson(map);
     })();
   }
 
   /// Delete a message favorite
-  Future<DeleteMessageFavoriteResponse?> messagesFavoritesDelete(String favoriteId) async {
-    final response = await _client.delete(ApiPaths.imPath('/chat/messages/favorites/${serializePathParameter(favoriteId, const PathParameterSpec('favoriteId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : DeleteMessageFavoriteResponse.fromJson(map);
-    })();
+  Future<void> messagesFavoritesDelete(String favoriteId) async {
+    await _client.delete(ApiPaths.imPath('/chat/messages/favorites/${serializePathParameter(favoriteId, const PathParameterSpec('favoriteId', 'simple', false))}'));
   }
 
   /// Delete message visibility for the current principal
-  Future<MessageVisibilityMutationResult?> messagesVisibilityDelete(String messageId) async {
-    final response = await _client.delete(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/visibility'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessageVisibilityMutationResult.fromJson(map);
-    })();
+  Future<void> messagesVisibilityDelete(String messageId) async {
+    await _client.delete(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/visibility'));
   }
 
   /// Add a message reaction
-  Future<MessageReactionMutationResult?> messagesReactionsCreate(String messageId, MessageReactionRequest body) async {
+  Future<MessagesReactionsCreateResponse201?> messagesReactionsCreate(String messageId, MessageReactionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/reactions'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessageReactionMutationResult.fromJson(map);
+      return map == null ? null : MessagesReactionsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Remove a message reaction
-  Future<MessageReactionMutationResult?> messagesReactionsDelete(String messageId, MessageReactionRequest body) async {
+  Future<MessagesReactionsRemoveResponse?> messagesReactionsRemove(String messageId, MessageReactionRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/reactions/remove'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessageReactionMutationResult.fromJson(map);
+      return map == null ? null : MessagesReactionsRemoveResponse.fromJson(map);
     })();
   }
 
   /// Pin a message
-  Future<MessagePinMutationResult?> messagesPinCreate(String messageId) async {
+  Future<MessagesPinResponse?> messagesPin(String messageId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/pin'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessagePinMutationResult.fromJson(map);
+      return map == null ? null : MessagesPinResponse.fromJson(map);
     })();
   }
 
   /// Unpin a message
-  Future<MessagePinMutationResult?> messagesPinDelete(String messageId) async {
+  Future<MessagesUnpinResponse?> messagesUnpin(String messageId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/unpin'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : MessagePinMutationResult.fromJson(map);
+      return map == null ? null : MessagesUnpinResponse.fromJson(map);
     })();
   }
 
   /// Create a live, chat, or game room bound to a group conversation
-  Future<CreateConversationResult?> roomsCreate(CreateRoomRequest body) async {
+  Future<RoomsCreateResponse201?> roomsCreate(CreateRoomRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/rooms'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : CreateConversationResult.fromJson(map);
+      return map == null ? null : RoomsCreateResponse201.fromJson(map);
     })();
   }
 
-  /// Get room metadata and active member count
-  Future<RoomView?> roomsGet(String roomId) async {
+  /// Retrieve room metadata and active member count
+  Future<RoomsRetrieveResponse?> roomsRetrieve(String roomId) async {
     final response = await _client.get(ApiPaths.imPath('/chat/rooms/${serializePathParameter(roomId, const PathParameterSpec('roomId', 'simple', false))}'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RoomView.fromJson(map);
+      return map == null ? null : RoomsRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Enter a room as the authenticated principal
-  Future<EnterRoomResponse?> roomsEnter(String roomId) async {
+  Future<RoomsEnterResponse?> roomsEnter(String roomId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/rooms/${serializePathParameter(roomId, const PathParameterSpec('roomId', 'simple', false))}/enter'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : EnterRoomResponse.fromJson(map);
+      return map == null ? null : RoomsEnterResponse.fromJson(map);
     })();
   }
 
   /// Leave a room as the authenticated principal
-  Future<EnterRoomResponse?> roomsLeave(String roomId) async {
+  Future<RoomsLeaveResponse?> roomsLeave(String roomId) async {
     final response = await _client.post(ApiPaths.imPath('/chat/rooms/${serializePathParameter(roomId, const PathParameterSpec('roomId', 'simple', false))}/leave'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : EnterRoomResponse.fromJson(map);
+      return map == null ? null : RoomsLeaveResponse.fromJson(map);
     })();
   }
 }

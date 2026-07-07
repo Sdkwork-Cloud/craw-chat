@@ -17,6 +17,10 @@ The public IM consumer SDK contract is SDKWork appbase based.
 If you are documenting or implementing a public consumer path, route authentication through the
 SDKWork app/auth client and do not create local HTTP auth wrappers.
 
+PC clients MUST deduplicate concurrent `/app/v3/api/auth/sessions/current` refresh calls through
+`appAuthService.getCurrentSession()` so AuthGate and feature modules do not stampede the unified
+gateway during startup.
+
 ## Preferred Client Surface
 
 | Language | Preferred client surface | Auth update method |

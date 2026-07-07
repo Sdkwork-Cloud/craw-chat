@@ -69,8 +69,13 @@ assert.equal(
 const commercialReadiness = readExists('scripts/release/commercial-readiness.mjs');
 assert.match(
   commercialReadiness,
-  /id:\s*'pc-install'[\s\S]*--frozen-lockfile/,
-  'commercial-readiness must keep frozen lockfile install as the first gate',
+  /id:\s*'pc-install'[\s\S]*--frozen-lockfile[\s\S]*--lockfile-only/,
+  'commercial-readiness must keep a non-destructive frozen lockfile check as the first gate',
+);
+assert.doesNotMatch(
+  commercialReadiness,
+  /id:\s*'pc-install'[\s\S]*args:\s*\[\s*'install',\s*'--frozen-lockfile',\s*'--ignore-scripts'\s*\]/,
+  'commercial-readiness must not run a full pnpm install that can purge or rewrite node_modules',
 );
 
 const commercialGates = readExists('.github/workflows/im-commercial-gates.yml');

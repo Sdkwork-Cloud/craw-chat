@@ -16,8 +16,8 @@ async function delay(): Promise<void> {
 const fakeClient = {
   chat: {
     inbox: {
-      async retrieve() {
-        sdkCalls.push('chat.inbox.retrieve');
+      async list() {
+        sdkCalls.push('chat.inbox.list');
         if (inboxScenario === 'projected-direct') {
           return {
             items: [
@@ -391,7 +391,7 @@ async function main(): Promise<void> {
   assert.equal(projectedChats[0]?.isMarkedUnread, true);
   assert.deepEqual(
     sdkCalls,
-    ['chat.inbox.retrieve'],
+    ['chat.inbox.list'],
     'complete inbox display projection must not trigger per-conversation profile, preference, member, social user, or contact preference hydration',
   );
 
@@ -407,7 +407,7 @@ async function main(): Promise<void> {
   assert.deepEqual(
     sdkCalls,
     [
-      'chat.inbox.retrieve',
+      'chat.inbox.list',
       'conversations.getProfile:c_group_avatar_only',
     ],
     'avatar-only group inbox projection should still hydrate the group profile without per-conversation preference reads',
@@ -426,7 +426,7 @@ async function main(): Promise<void> {
   assert.equal(projectedGroupChats[0]?.isMuted, true);
   assert.deepEqual(
     sdkCalls,
-    ['chat.inbox.retrieve'],
+    ['chat.inbox.list'],
     'complete group inbox display and preference projection must not trigger per-conversation profile or preference hydration',
   );
 
@@ -476,7 +476,7 @@ async function main(): Promise<void> {
   );
   assert.deepEqual(
     sdkCalls,
-    ['chat.inbox.retrieve'],
+    ['chat.inbox.list'],
     'missing agent dialog projection must not trigger ordinary direct-chat member or social-user hydration',
   );
 

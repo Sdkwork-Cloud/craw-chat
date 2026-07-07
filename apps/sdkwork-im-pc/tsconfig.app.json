@@ -20,10 +20,10 @@
         "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/iam-app-sdk": [
-        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/iam-backend-sdk": [
-        "../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/drive-app-sdk": [
         "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
@@ -56,13 +56,13 @@
         "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
       ],
       "@sdkwork/catalog-app-sdk": [
-        "../../../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/shop-app-sdk": [
-        "../../../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/order-app-sdk": [
-        "../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/membership-app-sdk": [
         "../../../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts"
@@ -74,6 +74,7 @@
         "../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/course-pc-course": ["./types/stubs/course-pc-course.d.ts"],
+      "@sdkwork/course-pc-console": ["./types/stubs/course-pc-console.d.ts"],
       "@sdkwork/drive-pc-drive": ["./types/stubs/drive-pc-drive.d.ts"],
       "@sdkwork/voice-pc-market": [
         "../../../sdkwork-voice/apps/sdkwork-voice-pc/packages/sdkwork-voice-pc-market/src/index.ts"
@@ -140,6 +141,8 @@
       "@sdkwork/im-console-core": ["./packages/sdkwork-im-console-core/src/index.tsx"],
       "@sdkwork/im-admin-core/*": ["./packages/sdkwork-im-admin-core/src/*"],
       "@sdkwork/im-admin-core": ["./packages/sdkwork-im-admin-core/src/index.tsx"],
+      "@sdkwork/im-pc-admin-sdk/*": ["./packages/sdkwork-im-pc-admin-sdk/src/*"],
+      "@sdkwork/im-pc-admin-sdk": ["./packages/sdkwork-im-pc-admin-sdk/src/index.ts"],
       "@sdkwork/im-pc-video-gen/*": ["./packages/sdkwork-im-pc-video-gen/src/*"],
       "@sdkwork/im-pc-video-gen": ["./packages/sdkwork-im-pc-video-gen/src/index.tsx"],
       "@sdkwork/im-pc-image-gen/*": ["./packages/sdkwork-im-pc-image-gen/src/*"],

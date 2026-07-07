@@ -5,8 +5,11 @@ use std::sync::Arc;
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
-use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
 use crate::wire_id::social_entity_id_to_i64;
+use crate::{
+    SocialPostgresConnectionManager, optional_postgres_timestamptz, postgres_pool_client,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
+};
 
 #[derive(Clone, Debug)]
 pub struct ContactTagRecord {
@@ -55,13 +58,14 @@ pub trait ContactStore: Send + Sync {
         owner_user_id: &str,
         tag_id: i64,
     ) -> Result<(), ContractError>;
-    fn list_tags_by_owner(
+    fn list_tags_by_owner_inventory(
         &self,
         tenant_id: &str,
         org_id: &str,
         owner_user_id: &str,
+        cursor_updated_at: Option<&str>,
+        cursor_tag_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<ContactTagRecord>, ContractError>;
     fn get_tag(
         &self,
@@ -80,12 +84,15 @@ pub trait ContactStore: Send + Sync {
         target_user_id: &str,
     ) -> Result<Option<ContactPreferencesRecord>, ContractError>;
 
-    fn insert_recommendation(&self, record: &ContactRecommendationRecord) -> Result<(), ContractError>;
+    fn insert_recommendation(
+        &self,
+        record: &ContactRecommendationRecord,
+    ) -> Result<(), ContractError>;
 }
 
 const GET_TAG_SQL: &str = r#"
 SELECT tenant_id, organization_id, owner_user_id, tag_id, name, color, count, bg, border,
-       created_at, updated_at
+       created_at::text, updated_at::text
 FROM im_contact_tags
 WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3 AND tag_id = $4
 "#;
@@ -94,7 +101,7 @@ const UPSERT_TAG_SQL: &str = r#"
 INSERT INTO im_contact_tags (
     tenant_id, organization_id, owner_user_id, tag_id, name, color, count, bg, border,
     created_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11::timestamptz)
 ON CONFLICT (tenant_id, organization_id, owner_user_id, tag_id) DO UPDATE SET
     name = EXCLUDED.name,
     color = EXCLUDED.color,
@@ -109,20 +116,25 @@ DELETE FROM im_contact_tags
 WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3 AND tag_id = $4
 "#;
 
-const LIST_TAGS_SQL: &str = r#"
+const LIST_TAGS_INVENTORY_SQL: &str = r#"
 SELECT tenant_id, organization_id, owner_user_id, tag_id, name, color, count, bg, border,
-       created_at, updated_at
+       created_at::text, updated_at::text
 FROM im_contact_tags
 WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3
+  AND (
+    $4::timestamptz IS NULL
+    OR updated_at < $4::timestamptz
+    OR (updated_at = $4::timestamptz AND tag_id < $5)
+  )
 ORDER BY updated_at DESC, tag_id DESC
-LIMIT $4 OFFSET $5
+LIMIT $6
 "#;
 
 const UPSERT_PREFERENCES_SQL: &str = r#"
 INSERT INTO im_contact_preferences (
     tenant_id, organization_id, owner_user_id, target_user_id,
     is_starred, is_blocked, remark, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)
 ON CONFLICT (tenant_id, organization_id, owner_user_id, target_user_id) DO UPDATE SET
     is_starred = EXCLUDED.is_starred,
     is_blocked = EXCLUDED.is_blocked,
@@ -132,7 +144,7 @@ ON CONFLICT (tenant_id, organization_id, owner_user_id, target_user_id) DO UPDAT
 
 const GET_PREFERENCES_SQL: &str = r#"
 SELECT tenant_id, organization_id, owner_user_id, target_user_id,
-       is_starred, is_blocked, remark, updated_at
+       is_starred, is_blocked, remark, updated_at::text
 FROM im_contact_preferences
 WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3 AND target_user_id = $4
 "#;
@@ -141,7 +153,7 @@ const INSERT_RECOMMENDATION_SQL: &str = r#"
 INSERT INTO im_contact_recommendations (
     tenant_id, organization_id, owner_user_id, target_user_id,
     recommendation_id, target_conversation_id, created_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7)
+) VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz)
 "#;
 
 #[derive(Clone)]
@@ -169,6 +181,8 @@ impl ContactStore for PostgresContactStore {
         let record = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "upsert_contact_tag")?;
+            let created_at = postgres_timestamptz(record.created_at.as_str(), "created_at")?;
+            let updated_at = postgres_timestamptz(record.updated_at.as_str(), "updated_at")?;
             client
                 .execute(
                     UPSERT_TAG_SQL,
@@ -182,8 +196,8 @@ impl ContactStore for PostgresContactStore {
                         &record.count,
                         &record.bg,
                         &record.border,
-                        &record.created_at,
-                        &record.updated_at,
+                        &created_at,
+                        &updated_at,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("upsert_contact_tag", error))?;
@@ -214,24 +228,37 @@ impl ContactStore for PostgresContactStore {
         })
     }
 
-    fn list_tags_by_owner(
+    fn list_tags_by_owner_inventory(
         &self,
         tenant_id: &str,
         org_id: &str,
         owner_user_id: &str,
+        cursor_updated_at: Option<&str>,
+        cursor_tag_id: Option<i64>,
         limit: i64,
-        offset: i64,
     ) -> Result<Vec<ContactTagRecord>, ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let org_id = org_id.to_owned();
         let owner_user_id = owner_user_id.to_owned();
+        let cursor_updated_at = cursor_updated_at.map(str::to_owned);
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_contact_tags")?;
+            let cursor_updated_at_ts = optional_postgres_timestamptz(
+                cursor_updated_at.as_deref(),
+                "contact_tag_inventory_cursor_updated_at",
+            )?;
             let rows = client
                 .query(
-                    LIST_TAGS_SQL,
-                    &[&tenant_id, &org_id, &owner_user_id, &limit, &offset],
+                    LIST_TAGS_INVENTORY_SQL,
+                    &[
+                        &tenant_id,
+                        &org_id,
+                        &owner_user_id,
+                        &cursor_updated_at_ts,
+                        &cursor_tag_id,
+                        &limit,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("list_contact_tags", error))?;
             Ok(rows
@@ -267,10 +294,7 @@ impl ContactStore for PostgresContactStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get_contact_tag")?;
             let row = client
-                .query_opt(
-                    GET_TAG_SQL,
-                    &[&tenant_id, &org_id, &owner_user_id, &tag_id],
-                )
+                .query_opt(GET_TAG_SQL, &[&tenant_id, &org_id, &owner_user_id, &tag_id])
                 .map_err(|error| postgres_unavailable("get_contact_tag", error))?;
             Ok(row.map(|row| ContactTagRecord {
                 tenant_id: row.get("tenant_id"),
@@ -293,6 +317,7 @@ impl ContactStore for PostgresContactStore {
         let record = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "upsert_contact_preferences")?;
+            let updated_at = postgres_timestamptz(record.updated_at.as_str(), "updated_at")?;
             client
                 .execute(
                     UPSERT_PREFERENCES_SQL,
@@ -304,7 +329,7 @@ impl ContactStore for PostgresContactStore {
                         &record.is_starred,
                         &record.is_blocked,
                         &record.remark,
-                        &record.updated_at,
+                        &updated_at,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("upsert_contact_preferences", error))?;
@@ -345,11 +370,15 @@ impl ContactStore for PostgresContactStore {
         })
     }
 
-    fn insert_recommendation(&self, record: &ContactRecommendationRecord) -> Result<(), ContractError> {
+    fn insert_recommendation(
+        &self,
+        record: &ContactRecommendationRecord,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let record = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_contact_recommendation")?;
+            let created_at = postgres_timestamptz(record.created_at.as_str(), "created_at")?;
             client
                 .execute(
                     INSERT_RECOMMENDATION_SQL,
@@ -360,7 +389,7 @@ impl ContactStore for PostgresContactStore {
                         &record.target_user_id,
                         &record.recommendation_id,
                         &record.target_conversation_id,
-                        &record.created_at,
+                        &created_at,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("insert_contact_recommendation", error))?;

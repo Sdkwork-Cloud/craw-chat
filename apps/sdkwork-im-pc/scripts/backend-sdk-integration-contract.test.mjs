@@ -12,11 +12,14 @@ function read(relativePath) {
 }
 
 const backendSdkClientSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/sdk/backendSdkClient.ts',
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-admin-sdk/src/backendSdkClient.ts',
 );
 const coreIndexSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/index.ts');
 const adminCoreSdkIndexSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/sdk/index.ts',
+);
+const adminCoreBackendSdkCompatSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/sdk/backendSdkClient.ts',
 );
 const adminDashboardServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-admin-dashboard/src/services/AdminDashboardService.ts',
@@ -67,12 +70,17 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   coreIndexSource,
   /backendSdkClient/u,
-  'PC core package must not export backend SDK wrappers; backend SDK exports belong to admin-core/sdk.',
+  'PC core package must not export backend SDK wrappers; backend SDK exports belong to im-pc-admin-sdk.',
 );
 assert.match(
   adminCoreSdkIndexSource,
   /export \* from ['"]\.\/backendSdkClient['"]/u,
-  'Admin core sdk subpath must export the product backend SDK wrapper.',
+  'Admin core sdk subpath must keep a compatibility export for the product backend SDK wrapper.',
+);
+assert.match(
+  adminCoreBackendSdkCompatSource,
+  /@sdkwork\/im-pc-admin-sdk\/backendSdkClient/u,
+  'Admin core backend SDK compatibility entrypoint must delegate to im-pc-admin-sdk.',
 );
 
 for (const [label, source] of [
@@ -83,8 +91,8 @@ for (const [label, source] of [
 ]) {
   assert.match(
     source,
-    /@sdkwork\/im-admin-core\/sdk[\s\S]*getBackendSdkClientWithSession/u,
-    `${label} must receive backend/operator data through the admin-core generated IM backend SDK wrapper.`,
+    /@sdkwork\/im-pc-admin-sdk[\s\S]*getBackendSdkClientWithSession/u,
+    `${label} must receive backend/operator data through the im-pc-admin-sdk generated IM backend SDK wrapper.`,
   );
   assert.doesNotMatch(
     source,

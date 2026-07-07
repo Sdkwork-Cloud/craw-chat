@@ -264,6 +264,54 @@ function buildGeneratedLanguage(root, config, language) {
   });
 }
 
+function writeJsonIfChanged(filePath, value) {
+  const next = `${JSON.stringify(value, null, 2)}\n`;
+  if (!existsSync(filePath) || readFileSync(filePath, 'utf8') !== next) {
+    writeFileSync(filePath, next, 'utf8');
+  }
+}
+
+function normalizeGeneratedPackageMetadata(root, config, language) {
+  if (language !== 'typescript') {
+    return;
+  }
+
+  const outputDir = languageOutputDir(root, config, language);
+  const expectedPackageName = languagePackageName(config, language);
+  const packageJsonPath = path.join(outputDir, 'package.json');
+  if (existsSync(packageJsonPath)) {
+    const packageJson = readJson(packageJsonPath);
+    if (packageJson.name !== expectedPackageName) {
+      packageJson.name = expectedPackageName;
+      writeJsonIfChanged(packageJsonPath, packageJson);
+    }
+  }
+
+  const packageLockPath = path.join(outputDir, 'package-lock.json');
+  if (existsSync(packageLockPath)) {
+    const packageLock = readJson(packageLockPath);
+    if (packageLock.name !== expectedPackageName) {
+      packageLock.name = expectedPackageName;
+    }
+    if (packageLock.packages?.['']?.name !== expectedPackageName) {
+      packageLock.packages[''].name = expectedPackageName;
+    }
+    writeJsonIfChanged(packageLockPath, packageLock);
+  }
+
+  const sdkMetadataPath = path.join(outputDir, 'sdkwork-sdk.json');
+  if (existsSync(sdkMetadataPath)) {
+    const sdkMetadata = readJson(sdkMetadataPath);
+    if (sdkMetadata.packageName !== expectedPackageName) {
+      sdkMetadata.packageName = expectedPackageName;
+    }
+    if (sdkMetadata.transportPackageName !== expectedPackageName) {
+      sdkMetadata.transportPackageName = expectedPackageName;
+    }
+    writeJsonIfChanged(sdkMetadataPath, sdkMetadata);
+  }
+}
+
 function languageOutputDir(root, config, language) {
   return path.join(root, `${config.sdkName}-${language}`, 'generated', 'server-openapi');
 }
@@ -660,6 +708,18 @@ function verifyGeneratedLanguage(root, config, language, failures) {
       if (metadata.sdkType !== config.sdkType) {
         failures.push(`typescript sdkwork-sdk.json sdkType must be ${config.sdkType}`);
       }
+      if (metadata.packageName !== languagePackageName(config, language)) {
+        failures.push(`typescript sdkwork-sdk.json packageName must be ${languagePackageName(config, language)}`);
+      }
+      if (metadata.transportPackageName !== languagePackageName(config, language)) {
+        failures.push(`typescript sdkwork-sdk.json transportPackageName must be ${languagePackageName(config, language)}`);
+      }
+    }
+    if (existsSync(manifestPath)) {
+      const manifest = readJson(manifestPath);
+      if (manifest.name !== languagePackageName(config, language)) {
+        failures.push(`typescript package.json name must be ${languagePackageName(config, language)}`);
+      }
     }
     if (!existsSync(sdkSourcePath) || !readText(sdkSourcePath).includes(`class ${config.primaryClient}`)) {
       failures.push(`typescript SDK must export ${config.primaryClient}`);
@@ -789,6 +849,7 @@ export async function runGenerateSdkFamily(config, argv) {
       generatorScript,
       ...generatorArgs(root, config, language, resolvedVersion, args.baseUrl),
     ], { cwd: root, step: `sdkgen:${language}` });
+    normalizeGeneratedPackageMetadata(root, config, language);
     buildGeneratedLanguage(root, config, language);
     const manifestPath = path.join(languageOutputDir(root, config, language), manifestNameFor(config, language));
     if (!existsSync(manifestPath)) {

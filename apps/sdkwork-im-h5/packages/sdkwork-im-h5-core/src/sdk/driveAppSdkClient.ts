@@ -1,5 +1,8 @@
 import {
   createDriveAppClient,
+  type DriveUploaderClient,
+  type DriveUploaderRequest,
+  type DriveUploaderUploadResult,
   type SdkworkAppConfig,
   type SdkworkDriveAppClient as GeneratedSdkworkDriveAppClient,
 } from "@sdkwork/drive-app-sdk";
@@ -17,6 +20,15 @@ export type SdkworkDriveAppClient = GeneratedSdkworkDriveAppClient;
 export type SdkworkDriveAppClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;
 };
+export type {
+  DriveUploaderClient,
+  DriveUploaderRequest,
+  DriveUploaderUploadResult,
+};
+export type SdkworkDriveUploader = Pick<
+  DriveUploaderClient,
+  "uploadAudio" | "uploadAttachment" | "uploadImage" | "uploadVideo"
+>;
 
 let driveAppSdkClient: SdkworkDriveAppClient | null = null;
 

@@ -59,8 +59,11 @@ export async function fetchConversationTimelineDelta(
 export async function sendConversationText(
   conversationId: string,
   text: string,
+  options?: { clientMsgId?: string },
 ): Promise<PostedMessageResponse> {
-  return getImSdkClient().conversations.postText(conversationId, text.trim());
+  return getImSdkClient().conversations.postText(conversationId, text.trim(), {
+    clientMsgId: options?.clientMsgId,
+  });
 }
 
 export async function sendConversationImage(

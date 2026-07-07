@@ -341,9 +341,10 @@ impl RouteDirectory {
         let original_routes: Vec<(String, RouteBinding)> = route_keys
             .iter()
             .filter_map(|key| {
-                routes.routes_by_key.get(key).map(|route| {
-                    (key.clone(), route.clone())
-                })
+                routes
+                    .routes_by_key
+                    .get(key)
+                    .map(|route| (key.clone(), route.clone()))
             })
             .collect();
         drop(routes);
@@ -374,7 +375,11 @@ impl RouteDirectory {
 
         // Only update node indices if all migrations succeeded
         if failed_routes.is_empty() {
-            routes.move_route_keys_between_nodes(source_node_id, target_node_id, migrated_route_keys);
+            routes.move_route_keys_between_nodes(
+                source_node_id,
+                target_node_id,
+                migrated_route_keys,
+            );
         } else {
             // Rollback partial migration
             tracing::warn!(
@@ -660,7 +665,7 @@ pub fn encode_route_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>
 }
 
 mod route_store;
-pub use route_store::{memory_route_store, RouteStore};
+pub use route_store::{RouteStore, memory_route_store};
 
 #[cfg(test)]
 mod tests {

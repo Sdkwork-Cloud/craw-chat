@@ -1,5 +1,9 @@
 syntax = "proto3";
 
+// Phase 2 deferred: RuntimeTopologyService, RouteLeaseService, and DomainEventRelayService
+// are contract-only until distributed-runtime orchestration ships. Do not call from production
+// clients; use static topology env vars per ADR-20260619-im-rpc-discovery-integration-deferred.md.
+
 package sdkwork.communication.internal.v1;
 
 import "sdkwork/common/v1/context.proto";

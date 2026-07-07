@@ -1,6 +1,6 @@
 import {
   createKnowledgebaseAppClient,
-  type SdkworkAppClient,
+  type SdkworkKnowledgebaseAppClient,
   type SdkworkAppConfig,
 } from '@sdkwork/knowledgebase-app-sdk';
 import type { Interceptors } from '@sdkwork/sdk-common';
@@ -14,7 +14,7 @@ import {
   type SdkworkChatSession,
 } from './session';
 
-export type KnowledgebaseAppSdkClient = SdkworkAppClient;
+export type KnowledgebaseAppSdkClient = SdkworkKnowledgebaseAppClient;
 export type KnowledgebaseAppSdkClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;
 };

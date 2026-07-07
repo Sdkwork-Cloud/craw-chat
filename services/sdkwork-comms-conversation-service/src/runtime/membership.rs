@@ -1,5 +1,6 @@
 use super::support::{deactivate_roster_member, upsert_roster_member};
 use super::*;
+use sdkwork_utils_rust::{PageInfo, PageMode, cursor_list_page_data};
 use std::collections::BTreeMap;
 
 const SHARED_HISTORY_LINK_ATTRIBUTE_KEYS: [&str; 3] = [
@@ -112,7 +113,11 @@ where
         conversation_id: &str,
     ) -> Result<Vec<ConversationMember>, RuntimeError> {
         self.require_active_member_from_auth_context(auth, conversation_id)?;
-        self.list_members(auth.tenant_id.as_str(), organization_id_from_auth_context(auth).as_str(), conversation_id)
+        self.list_members(
+            auth.tenant_id.as_str(),
+            organization_id_from_auth_context(auth).as_str(),
+            conversation_id,
+        )
     }
 
     pub fn list_members_window_from_auth_context(
@@ -157,13 +162,12 @@ where
         let window = conversation
             .roster
             .list_active_members_window_filtered(offset, limit, query);
-        Ok(ListMembersResult {
-            items: window.items,
-            next_cursor: window
-                .next_offset
-                .map(|value| value.to_string()),
-            has_more: window.has_more,
-        })
+        Ok(cursor_list_page_data(
+            window.items,
+            limit,
+            window.next_offset.map(|value| value.to_string()),
+            window.has_more,
+        ))
     }
 
     pub fn list_messages_window_from_auth_context(
@@ -173,7 +177,10 @@ where
         after_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
-        self.list_messages_with_actor_kind(auth.tenant_id.as_str(), organization_id_from_auth_context(auth).as_str(), conversation_id,
+        self.list_messages_with_actor_kind(
+            auth.tenant_id.as_str(),
+            organization_id_from_auth_context(auth).as_str(),
+            conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
             after_seq,
@@ -349,7 +356,10 @@ where
         command: AddConversationMemberCommand,
     ) -> Result<ConversationMember, RuntimeError> {
         let actor_kind = self
-            .require_active_member(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str(),
+            .require_active_member(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
                 command.invited_by.as_str(),
             )?
             .principal_kind;
@@ -474,8 +484,11 @@ where
         validate_member_attributes_payload_size("memberAttributes", &attributes)?;
         resolve_shared_history_linked_member(&attributes)?;
 
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let organization_id = command.organization_id.clone();
         let member = {
             let mut state =
@@ -488,86 +501,86 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-            let history_visibility = conversation
-                .aggregate
-                .policy()
-                .map(|policy| policy.history_visibility.as_str())
-                .unwrap_or("joined");
-            if history_visibility != "shared" {
-                return Err(RuntimeError::InvalidInput(format!(
-                    "shared channel linked-member sync requires history_visibility=shared, got {history_visibility}"
-                )));
-            }
-
-            if let Some(current_member) = conversation.roster.resolve_current_member_with_kind(
-                command.local_actor_id.as_str(),
-                command.local_actor_kind.as_str(),
-            ) {
-                if shared_history_link_matches(&current_member, &command) {
-                    let mut member = current_member;
-                    if shared_channel_sync_request_key_fence(&member).is_none() {
-                        member.attributes.insert(
-                            SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE.to_owned(),
-                            request_key.clone(),
-                        );
-                    }
-                    let status = if shared_channel_sync_request_key_fence(&member)
-                        == Some(request_key.as_str())
-                    {
-                        SyncSharedChannelLinkedMemberStatus::Replayed
-                    } else {
-                        SyncSharedChannelLinkedMemberStatus::AlreadyLinked
-                    };
-                    return Ok(SyncSharedChannelLinkedMemberResult { status, member });
+                let history_visibility = conversation
+                    .aggregate
+                    .policy()
+                    .map(|policy| policy.history_visibility.as_str())
+                    .unwrap_or("joined");
+                if history_visibility != "shared" {
+                    return Err(RuntimeError::InvalidInput(format!(
+                        "shared channel linked-member sync requires history_visibility=shared, got {history_visibility}"
+                    )));
                 }
 
-                return Err(RuntimeError::Conflict(format!(
-                    "principal {} is already materialized as conversation member {} with incompatible shared-channel link truth",
-                    command.local_actor_id, current_member.member_id
-                )));
-            }
-
-            let member_episode = next_member_episode(
-                conversation,
-                command.local_actor_id.as_str(),
-                command.local_actor_kind.as_str(),
-            );
-            let mut member = build_conversation_member_with_attributes(
-                command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
-                member_episode_id(
-                    command.conversation_id.as_str(),
-                    command.local_actor_kind.as_str(),
+                if let Some(current_member) = conversation.roster.resolve_current_member_with_kind(
                     command.local_actor_id.as_str(),
-                    member_episode,
-                ),
-                command.local_actor_id.as_str(),
-                command.local_actor_kind.as_str(),
-                MembershipRole::Guest,
-                Some(command.synced_by.clone()),
-                conversation_timestamp(),
-                attributes,
-            );
-            member.state = MembershipState::Linked;
+                    command.local_actor_kind.as_str(),
+                ) {
+                    if shared_history_link_matches(&current_member, &command) {
+                        let mut member = current_member;
+                        if shared_channel_sync_request_key_fence(&member).is_none() {
+                            member.attributes.insert(
+                                SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE.to_owned(),
+                                request_key.clone(),
+                            );
+                        }
+                        let status = if shared_channel_sync_request_key_fence(&member)
+                            == Some(request_key.as_str())
+                        {
+                            SyncSharedChannelLinkedMemberStatus::Replayed
+                        } else {
+                            SyncSharedChannelLinkedMemberStatus::AlreadyLinked
+                        };
+                        return Ok(SyncSharedChannelLinkedMemberResult { status, member });
+                    }
 
-            let ordering_seq = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let envelope = build_member_envelope(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                command.conversation_id.as_str(),
-                "conversation.member_joined",
-                member.clone(),
-                ordering_seq,
-                retention_class.as_str(),
-                command.synced_by.as_str(),
-                requester_kind,
-            );
+                    return Err(RuntimeError::Conflict(format!(
+                        "principal {} is already materialized as conversation member {} with incompatible shared-channel link truth",
+                        command.local_actor_id, current_member.member_id
+                    )));
+                }
 
-            self.journal.append(envelope)?;
-            upsert_roster_member(conversation, member.clone());
-            upsert_read_cursor(conversation, build_default_read_cursor(&member));
-            member
+                let member_episode = next_member_episode(
+                    conversation,
+                    command.local_actor_id.as_str(),
+                    command.local_actor_kind.as_str(),
+                );
+                let mut member = build_conversation_member_with_attributes(
+                    command.tenant_id.as_str(),
+                    command.conversation_id.as_str(),
+                    member_episode_id(
+                        command.conversation_id.as_str(),
+                        command.local_actor_kind.as_str(),
+                        command.local_actor_id.as_str(),
+                        member_episode,
+                    ),
+                    command.local_actor_id.as_str(),
+                    command.local_actor_kind.as_str(),
+                    MembershipRole::Guest,
+                    Some(command.synced_by.clone()),
+                    conversation_timestamp(),
+                    attributes,
+                );
+                member.state = MembershipState::Linked;
+
+                let ordering_seq = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let envelope = build_member_envelope(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                    "conversation.member_joined",
+                    member.clone(),
+                    ordering_seq,
+                    retention_class.as_str(),
+                    command.synced_by.as_str(),
+                    requester_kind,
+                );
+
+                self.journal.append(envelope)?;
+                upsert_roster_member(conversation, member.clone());
+                upsert_read_cursor(conversation, build_default_read_cursor(&member));
+                member
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &member);
             member
@@ -613,8 +626,11 @@ where
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
         validate_member_attributes_payload_size("memberAttributes", &attributes)?;
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let organization_id = command.organization_id.clone();
         let member = {
             let mut state =
@@ -627,82 +643,82 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-            let invited_by_member = resolve_active_member_with_kind(
-                conversation,
-                command.invited_by.as_str(),
-                actor_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&invited_by_member, actor_kind)?;
-            policy::ensure_member_add_actor_allowed(conversation, &invited_by_member)?;
-            let history_visibility = conversation
-                .aggregate
-                .policy()
-                .map(|policy| policy.history_visibility.as_str())
-                .unwrap_or("joined");
+                let invited_by_member = resolve_active_member_with_kind(
+                    conversation,
+                    command.invited_by.as_str(),
+                    actor_kind,
+                )?;
+                policy::ensure_actor_kind_matches_member(&invited_by_member, actor_kind)?;
+                policy::ensure_member_add_actor_allowed(conversation, &invited_by_member)?;
+                let history_visibility = conversation
+                    .aggregate
+                    .policy()
+                    .map(|policy| policy.history_visibility.as_str())
+                    .unwrap_or("joined");
 
-            if conversation
-                .roster
-                .resolve_current_member_with_kind(
+                if conversation
+                    .roster
+                    .resolve_current_member_with_kind(
+                        command.principal_id.as_str(),
+                        command.principal_kind.as_str(),
+                    )
+                    .is_some()
+                {
+                    return Err(RuntimeError::MemberAlreadyExists(command.principal_id));
+                }
+                policy::ensure_member_add_request_allowed(
+                    conversation,
+                    &invited_by_member,
+                    &command.role,
+                )?;
+                let member_episode = next_member_episode(
+                    conversation,
                     command.principal_id.as_str(),
                     command.principal_kind.as_str(),
-                )
-                .is_some()
-            {
-                return Err(RuntimeError::MemberAlreadyExists(command.principal_id));
-            }
-            policy::ensure_member_add_request_allowed(
-                conversation,
-                &invited_by_member,
-                &command.role,
-            )?;
-            let member_episode = next_member_episode(
-                conversation,
-                command.principal_id.as_str(),
-                command.principal_kind.as_str(),
-            );
-            let shared_history_linked = resolve_shared_history_linked_member(&attributes)?;
+                );
+                let shared_history_linked = resolve_shared_history_linked_member(&attributes)?;
 
-            let mut member = build_conversation_member_with_attributes(
-                command.tenant_id.as_str(),
-                command.conversation_id.as_str(),
-                member_episode_id(
+                let mut member = build_conversation_member_with_attributes(
+                    command.tenant_id.as_str(),
                     command.conversation_id.as_str(),
-                    command.principal_kind.as_str(),
+                    member_episode_id(
+                        command.conversation_id.as_str(),
+                        command.principal_kind.as_str(),
+                        command.principal_id.as_str(),
+                        member_episode,
+                    ),
                     command.principal_id.as_str(),
-                    member_episode,
-                ),
-                command.principal_id.as_str(),
-                command.principal_kind.as_str(),
-                command.role,
-                Some(command.invited_by.clone()),
-                conversation_timestamp(),
-                attributes,
-            );
-            if history_visibility == "invited" {
-                member.state = MembershipState::Invited;
-            } else if history_visibility == "shared" && shared_history_linked {
-                member.state = MembershipState::Linked;
-            }
+                    command.principal_kind.as_str(),
+                    command.role,
+                    Some(command.invited_by.clone()),
+                    conversation_timestamp(),
+                    attributes,
+                );
+                if history_visibility == "invited" {
+                    member.state = MembershipState::Invited;
+                } else if history_visibility == "shared" && shared_history_linked {
+                    member.state = MembershipState::Linked;
+                }
 
-            let member_epoch = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let actor_kind = invited_by_member.principal_kind.clone();
-            let envelope = build_member_envelope(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                command.conversation_id.as_str(),
-                "conversation.member_joined",
-                member.clone(),
-                member_epoch,
-                retention_class.as_str(),
-                command.invited_by.as_str(),
-                actor_kind.as_str(),
-            );
+                let member_epoch = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let actor_kind = invited_by_member.principal_kind.clone();
+                let envelope = build_member_envelope(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                    "conversation.member_joined",
+                    member.clone(),
+                    member_epoch,
+                    retention_class.as_str(),
+                    command.invited_by.as_str(),
+                    actor_kind.as_str(),
+                );
 
-            self.journal.append(envelope)?;
-            upsert_roster_member(conversation, member.clone());
-            upsert_read_cursor(conversation, build_default_read_cursor(&member));
-            member
+                self.journal.append(envelope)?;
+                upsert_roster_member(conversation, member.clone());
+                upsert_read_cursor(conversation, build_default_read_cursor(&member));
+                member
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &member);
             member
@@ -722,7 +738,10 @@ where
         command: RemoveConversationMemberCommand,
     ) -> Result<ConversationMember, RuntimeError> {
         let actor_kind = self
-            .require_active_member(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str(),
+            .require_active_member(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
                 command.removed_by.as_str(),
             )?
             .principal_kind;
@@ -762,8 +781,11 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let organization_id = command.organization_id.clone();
         let member = {
             let mut state =
@@ -776,41 +798,41 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-            let removed_by_member = resolve_active_member_with_kind(
-                conversation,
-                command.removed_by.as_str(),
-                actor_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&removed_by_member, actor_kind)?;
+                let removed_by_member = resolve_active_member_with_kind(
+                    conversation,
+                    command.removed_by.as_str(),
+                    actor_kind,
+                )?;
+                policy::ensure_actor_kind_matches_member(&removed_by_member, actor_kind)?;
 
-            let mut member = conversation
-                .roster
-                .member(command.member_id.as_str())
-                .cloned()
-                .ok_or_else(|| RuntimeError::MemberNotFound(command.member_id.clone()))?;
-            policy::ensure_current_active_member_target(conversation, &member)?;
-            policy::ensure_member_remove_allowed(conversation, &removed_by_member, &member)?;
-            member.state = MembershipState::Removed;
-            member.removed_at = Some(conversation_timestamp());
+                let mut member = conversation
+                    .roster
+                    .member(command.member_id.as_str())
+                    .cloned()
+                    .ok_or_else(|| RuntimeError::MemberNotFound(command.member_id.clone()))?;
+                policy::ensure_current_active_member_target(conversation, &member)?;
+                policy::ensure_member_remove_allowed(conversation, &removed_by_member, &member)?;
+                member.state = MembershipState::Removed;
+                member.removed_at = Some(conversation_timestamp());
 
-            let member_epoch = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let actor_kind = removed_by_member.principal_kind.clone();
-            let envelope = build_member_envelope(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                command.conversation_id.as_str(),
-                "conversation.member_removed",
-                member.clone(),
-                member_epoch,
-                retention_class.as_str(),
-                command.removed_by.as_str(),
-                actor_kind.as_str(),
-            );
+                let member_epoch = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let actor_kind = removed_by_member.principal_kind.clone();
+                let envelope = build_member_envelope(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                    "conversation.member_removed",
+                    member.clone(),
+                    member_epoch,
+                    retention_class.as_str(),
+                    command.removed_by.as_str(),
+                    actor_kind.as_str(),
+                );
 
-            self.journal.append(envelope)?;
-            deactivate_roster_member(conversation, member.clone());
-            member
+                self.journal.append(envelope)?;
+                deactivate_roster_member(conversation, member.clone());
+                member
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &member);
             member
@@ -830,7 +852,10 @@ where
         command: LeaveConversationCommand,
     ) -> Result<ConversationMember, RuntimeError> {
         let actor_kind = self
-            .require_active_member(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str(),
+            .require_active_member(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
                 command.principal_id.as_str(),
             )?
             .principal_kind;
@@ -864,8 +889,11 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let organization_id = command.organization_id.clone();
         let member = {
             let mut state =
@@ -878,36 +906,36 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-            let leaving_member = resolve_active_member_with_kind(
-                conversation,
-                command.principal_id.as_str(),
-                actor_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&leaving_member, actor_kind)?;
-            policy::ensure_member_leave_allowed(conversation, &leaving_member)?;
+                let leaving_member = resolve_active_member_with_kind(
+                    conversation,
+                    command.principal_id.as_str(),
+                    actor_kind,
+                )?;
+                policy::ensure_actor_kind_matches_member(&leaving_member, actor_kind)?;
+                policy::ensure_member_leave_allowed(conversation, &leaving_member)?;
 
-            let mut member = leaving_member.clone();
-            member.state = MembershipState::Left;
-            member.removed_at = Some(conversation_timestamp());
+                let mut member = leaving_member.clone();
+                member.state = MembershipState::Left;
+                member.removed_at = Some(conversation_timestamp());
 
-            let member_epoch = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let actor_kind = leaving_member.principal_kind.clone();
-            let envelope = build_member_envelope(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                command.conversation_id.as_str(),
-                "conversation.member_left",
-                member.clone(),
-                member_epoch,
-                retention_class.as_str(),
-                command.principal_id.as_str(),
-                actor_kind.as_str(),
-            );
+                let member_epoch = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let actor_kind = leaving_member.principal_kind.clone();
+                let envelope = build_member_envelope(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    command.conversation_id.as_str(),
+                    "conversation.member_left",
+                    member.clone(),
+                    member_epoch,
+                    retention_class.as_str(),
+                    command.principal_id.as_str(),
+                    actor_kind.as_str(),
+                );
 
-            self.journal.append(envelope)?;
-            deactivate_roster_member(conversation, member.clone());
-            member
+                self.journal.append(envelope)?;
+                deactivate_roster_member(conversation, member.clone());
+                member
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &member);
             member
@@ -927,7 +955,10 @@ where
         command: TransferConversationOwnerCommand,
     ) -> Result<TransferConversationOwnerResult, RuntimeError> {
         let actor_kind = self
-            .require_active_member(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str(),
+            .require_active_member(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
                 command.transferred_by.as_str(),
             )?
             .principal_kind;
@@ -971,8 +1002,11 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let organization_id = command.organization_id.clone();
         let result = {
             let mut state =
@@ -985,65 +1019,64 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-            let owner_member = resolve_active_member_with_kind(
-                conversation,
-                command.transferred_by.as_str(),
-                actor_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&owner_member, actor_kind)?;
-            let target_member = conversation
-                .roster
-                .member(command.target_member_id.as_str())
-                .cloned()
-                .ok_or_else(|| RuntimeError::MemberNotFound(command.target_member_id.clone()))?;
-            policy::ensure_owner_transfer_allowed(conversation, &owner_member, &target_member)?;
+                let owner_member = resolve_active_member_with_kind(
+                    conversation,
+                    command.transferred_by.as_str(),
+                    actor_kind,
+                )?;
+                policy::ensure_actor_kind_matches_member(&owner_member, actor_kind)?;
+                let target_member = conversation
+                    .roster
+                    .member(command.target_member_id.as_str())
+                    .cloned()
+                    .ok_or_else(|| {
+                        RuntimeError::MemberNotFound(command.target_member_id.clone())
+                    })?;
+                policy::ensure_owner_transfer_allowed(conversation, &owner_member, &target_member)?;
 
-            let transferred_at = conversation_timestamp();
-            let actor_kind = owner_member.principal_kind.clone();
-            let previous_owner = ConversationMember {
-                role: MembershipRole::Admin,
-                ..owner_member
-            };
-            let new_owner = ConversationMember {
-                role: MembershipRole::Owner,
-                ..target_member
-            };
+                let transferred_at = conversation_timestamp();
+                let actor_kind = owner_member.principal_kind.clone();
+                let previous_owner = ConversationMember {
+                    role: MembershipRole::Admin,
+                    ..owner_member
+                };
+                let new_owner = ConversationMember {
+                    role: MembershipRole::Owner,
+                    ..target_member
+                };
 
-            let ordering_seq = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let payload = TransferConversationOwnerPayload {
-                tenant_id: command.tenant_id.clone(),
-                organization_id: command.organization_id.clone(),
-                conversation_id: command.conversation_id.clone(),
-                previous_owner,
-                new_owner,
-                transferred_at,
-            };
-            let event = build_owner_transfer_envelope(
-                payload.clone(),
-                ordering_seq,
-                retention_class.as_str(),
-                command.transferred_by.as_str(),
-                actor_kind.as_str(),
-            );
+                let ordering_seq = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let payload = TransferConversationOwnerPayload {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: command.conversation_id.clone(),
+                    previous_owner,
+                    new_owner,
+                    transferred_at,
+                };
+                let event = build_owner_transfer_envelope(
+                    payload.clone(),
+                    ordering_seq,
+                    retention_class.as_str(),
+                    command.transferred_by.as_str(),
+                    actor_kind.as_str(),
+                );
 
-            self.journal.append(event.clone())?;
-            upsert_roster_member(conversation, payload.previous_owner.clone());
-            upsert_roster_member(conversation, payload.new_owner.clone());
+                self.journal.append(event.clone())?;
+                upsert_roster_member(conversation, payload.previous_owner.clone());
+                upsert_roster_member(conversation, payload.new_owner.clone());
 
-            TransferConversationOwnerResult {
-                event_id: event.event_id,
-                transferred_at: payload.transferred_at.clone(),
-                previous_owner: payload.previous_owner,
-                new_owner: payload.new_owner,
-            }
+                TransferConversationOwnerResult {
+                    event_id: event.event_id,
+                    transferred_at: payload.transferred_at.clone(),
+                    previous_owner: payload.previous_owner,
+                    new_owner: payload.new_owner,
+                }
             };
             state.sync_actor_inbox_members(
                 organization_id.as_str(),
-                &[
-                    result.previous_owner.clone(),
-                    result.new_owner.clone(),
-                ],
+                &[result.previous_owner.clone(), result.new_owner.clone()],
             );
             result
         };
@@ -1056,7 +1089,10 @@ where
         command: ChangeConversationMemberRoleCommand,
     ) -> Result<ChangeConversationMemberRoleResult, RuntimeError> {
         let actor_kind = self
-            .require_active_member(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str(),
+            .require_active_member(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
                 command.changed_by.as_str(),
             )?
             .principal_kind;
@@ -1102,8 +1138,11 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let organization_id = command.organization_id.clone();
         let result = {
             let mut state =
@@ -1116,59 +1155,61 @@ where
                         .ok_or_else(|| {
                             RuntimeError::ConversationNotFound(command.conversation_id.clone())
                         })?;
-            let actor_member = resolve_active_member_with_kind(
-                conversation,
-                command.changed_by.as_str(),
-                actor_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
-            let target_member = conversation
-                .roster
-                .member(command.target_member_id.as_str())
-                .cloned()
-                .ok_or_else(|| RuntimeError::MemberNotFound(command.target_member_id.clone()))?;
-            policy::ensure_current_active_member_target(conversation, &target_member)?;
-            policy::ensure_member_role_change_allowed(
-                conversation,
-                &actor_member,
-                &target_member,
-                &command.new_role,
-            )?;
+                let actor_member = resolve_active_member_with_kind(
+                    conversation,
+                    command.changed_by.as_str(),
+                    actor_kind,
+                )?;
+                policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
+                let target_member = conversation
+                    .roster
+                    .member(command.target_member_id.as_str())
+                    .cloned()
+                    .ok_or_else(|| {
+                        RuntimeError::MemberNotFound(command.target_member_id.clone())
+                    })?;
+                policy::ensure_current_active_member_target(conversation, &target_member)?;
+                policy::ensure_member_role_change_allowed(
+                    conversation,
+                    &actor_member,
+                    &target_member,
+                    &command.new_role,
+                )?;
 
-            let changed_at = conversation_timestamp();
-            let previous_member = target_member.clone();
-            let updated_member = ConversationMember {
-                role: command.new_role.clone(),
-                ..target_member
-            };
-            let ordering_seq = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let actor_kind = actor_member.principal_kind.clone();
-            let payload = ChangeConversationMemberRolePayload {
-                tenant_id: command.tenant_id.clone(),
-                organization_id: command.organization_id.clone(),
-                conversation_id: command.conversation_id.clone(),
-                previous_member,
-                updated_member,
-                changed_at,
-            };
-            let event = build_member_role_changed_envelope(
-                payload.clone(),
-                ordering_seq,
-                retention_class.as_str(),
-                command.changed_by.as_str(),
-                actor_kind.as_str(),
-            );
+                let changed_at = conversation_timestamp();
+                let previous_member = target_member.clone();
+                let updated_member = ConversationMember {
+                    role: command.new_role.clone(),
+                    ..target_member
+                };
+                let ordering_seq = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let actor_kind = actor_member.principal_kind.clone();
+                let payload = ChangeConversationMemberRolePayload {
+                    tenant_id: command.tenant_id.clone(),
+                    organization_id: command.organization_id.clone(),
+                    conversation_id: command.conversation_id.clone(),
+                    previous_member,
+                    updated_member,
+                    changed_at,
+                };
+                let event = build_member_role_changed_envelope(
+                    payload.clone(),
+                    ordering_seq,
+                    retention_class.as_str(),
+                    command.changed_by.as_str(),
+                    actor_kind.as_str(),
+                );
 
-            self.journal.append(event.clone())?;
-            upsert_roster_member(conversation, payload.updated_member.clone());
+                self.journal.append(event.clone())?;
+                upsert_roster_member(conversation, payload.updated_member.clone());
 
-            ChangeConversationMemberRoleResult {
-                event_id: event.event_id,
-                changed_at: payload.changed_at.clone(),
-                previous_member: payload.previous_member,
-                updated_member: payload.updated_member,
-            }
+                ChangeConversationMemberRoleResult {
+                    event_id: event.event_id,
+                    changed_at: payload.changed_at.clone(),
+                    previous_member: payload.previous_member,
+                    updated_member: payload.updated_member,
+                }
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &result.updated_member);
             result
@@ -1219,13 +1260,12 @@ where
         let window = conversation
             .roster
             .list_active_members_window(offset, limit);
-        Ok(ListMembersResult {
-            items: window.items,
-            next_cursor: window
-                .next_offset
-                .map(|value| value.to_string()),
-            has_more: window.has_more,
-        })
+        Ok(cursor_list_page_data(
+            window.items,
+            limit,
+            window.next_offset.map(|value| value.to_string()),
+            window.has_more,
+        ))
     }
 
     pub fn update_read_cursor(
@@ -1233,7 +1273,10 @@ where
         command: UpdateReadCursorCommand,
     ) -> Result<ConversationReadCursor, RuntimeError> {
         let actor_kind = self
-            .require_active_member(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str(),
+            .require_active_member(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
                 command.principal_id.as_str(),
             )?
             .principal_kind;
@@ -1279,8 +1322,11 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let cursor = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.membership");
@@ -1346,7 +1392,9 @@ where
                     command.principal_id.as_str(),
                     actor_member.principal_kind.as_str(),
                 ))?;
-                conversation.roster.upsert_read_cursor(updated_cursor.clone());
+                conversation
+                    .roster
+                    .upsert_read_cursor(updated_cursor.clone());
                 updated_cursor
             } else {
                 if cursor_missing {
@@ -1514,37 +1562,31 @@ where
                 .get(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
             if let Some(kind) = principal_kind {
-                policy::ensure_history_read_allowed_with_kind(
-                    conversation,
-                    principal_id,
-                    kind,
-                )?;
+                policy::ensure_history_read_allowed_with_kind(conversation, principal_id, kind)?;
             } else {
                 policy::ensure_history_read_allowed(conversation, principal_id)?;
             }
         }
 
         let after = after_seq.unwrap_or_default();
-        let in_memory = {
-            let state =
-                read_runtime_state(&self.state, "conversation-runtime.state.list_messages.cache");
-            let conversation = state
-                .conversations
-                .get(scope_key.as_str())
-                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-            conversation
-                .message_log
-                .message_window_after(after, limit)
-        };
-        if !in_memory.items.is_empty() || self.message_store.is_none() {
-            return Ok(message_history_window(in_memory, after_seq));
-        }
         if let Some(store) = &self.message_store {
             let window = store
                 .read_window(tenant_id, organization_id, conversation_id, after, limit)
                 .map_err(RuntimeError::from)?;
             return Ok(message_history_window_from_store(window, after_seq));
         }
+
+        let in_memory = {
+            let state = read_runtime_state(
+                &self.state,
+                "conversation-runtime.state.list_messages.cache",
+            );
+            let conversation = state
+                .conversations
+                .get(scope_key.as_str())
+                .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+            conversation.message_log.message_window_after(after, limit)
+        };
         Ok(message_history_window(in_memory, after_seq))
     }
 
@@ -1617,11 +1659,12 @@ where
             .message_log
             .pinned_message_ids_page(offset, limit);
         let next_cursor = has_more.then(|| (offset + message_ids.len()).to_string());
-        Ok(ListPinnedMessagesResult {
+        Ok(cursor_list_page_data(
             message_ids,
+            limit,
             next_cursor,
             has_more,
-        })
+        ))
     }
 
     pub fn retrieve_inbox_from_auth_context(
@@ -1643,11 +1686,12 @@ where
             offset,
             limit,
         );
-        Ok(InboxRetrieveResult {
-            conversation_ids: page.items,
-            next_cursor: page.next_cursor,
-            has_more: page.has_more,
-        })
+        Ok(cursor_list_page_data(
+            page.items,
+            limit,
+            page.next_cursor,
+            page.has_more,
+        ))
     }
 }
 
@@ -1666,34 +1710,27 @@ fn parse_member_list_cursor(cursor: Option<&str>) -> Result<usize, RuntimeError>
     })
 }
 
-fn member_list_window(
-    items: Vec<ConversationMember>,
-    offset: usize,
-    limit: usize,
-) -> ListMembersResult {
-    if offset > items.len() {
-        return ListMembersResult {
-            items: Vec::new(),
-            next_cursor: None,
-            has_more: false,
-        };
-    }
-
-    let mut window = items
-        .into_iter()
-        .skip(offset)
-        .take(limit + 1)
-        .collect::<Vec<_>>();
-    let has_more = window.len() > limit;
-    if has_more {
-        window.truncate(limit);
-    }
-    let next_cursor = has_more.then(|| (offset + window.len()).to_string());
-
-    ListMembersResult {
-        items: window,
-        next_cursor,
-        has_more,
+fn message_history_page(
+    items: Vec<im_domain_core::message::StoredMessage>,
+    page_size: usize,
+    high_watermark: u64,
+    next_after_seq: Option<u64>,
+    has_more: bool,
+) -> MessageHistoryResult {
+    MessageHistoryResult {
+        page: SdkWorkPageData {
+            items,
+            page_info: PageInfo {
+                mode: PageMode::Cursor,
+                page: None,
+                page_size: Some(page_size as i32),
+                total_items: None,
+                total_pages: None,
+                next_cursor: next_after_seq.map(|value| value.to_string()),
+                has_more: Some(has_more),
+            },
+        },
+        high_watermark,
     }
 }
 
@@ -1702,12 +1739,14 @@ fn message_history_window(
     after_seq: Option<u64>,
 ) -> MessageHistoryResult {
     let _ = after_seq;
-    MessageHistoryResult {
-        items: window.items,
-        high_watermark: window.high_watermark,
-        next_after_seq: window.next_after_seq,
-        has_more: window.has_more,
-    }
+    let page_size = window.items.len().max(1);
+    message_history_page(
+        window.items,
+        page_size,
+        window.high_watermark,
+        window.next_after_seq,
+        window.has_more,
+    )
 }
 
 fn message_history_window_from_store(
@@ -1733,9 +1772,10 @@ fn stored_message_from_record(
     record: &im_platform_contracts::StoredMessageRecord,
 ) -> Result<im_domain_core::message::StoredMessage, RuntimeError> {
     use im_domain_core::message::{MessageBody, MessageType, Sender, StoredMessage};
-    let body: MessageBody = serde_json::from_str(record.payload_json.as_str()).map_err(|error| {
-        RuntimeError::InvalidInput(format!("invalid stored message payload: {error}"))
-    })?;
+    let body: MessageBody =
+        serde_json::from_str(record.payload_json.as_str()).map_err(|error| {
+            RuntimeError::InvalidInput(format!("invalid stored message payload: {error}"))
+        })?;
     let message_type = match record.message_type.as_str() {
         "system" => MessageType::System,
         "signal" => MessageType::Signal,

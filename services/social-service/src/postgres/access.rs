@@ -1,6 +1,7 @@
 //! Authorization helpers for Postgres supplemental social routes.
 
 use im_adapters_social_postgres::direct_chat_store::DirectChatRecord;
+#[cfg(test)]
 use im_adapters_social_postgres::friendship_store::FriendshipRecord;
 use im_adapters_social_postgres::user_block_store::UserBlockRecord;
 use im_app_context::AppContext;
@@ -11,6 +12,7 @@ pub fn social_principal_user_id(auth: &AppContext) -> &str {
     auth.social_principal_user_id()
 }
 
+#[cfg(test)]
 pub fn ensure_friendship_participant(
     auth: &AppContext,
     record: &FriendshipRecord,

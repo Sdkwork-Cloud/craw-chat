@@ -2,7 +2,7 @@ import type {
   DriveUploaderClient,
   DriveUploaderRequest,
   DriveUploaderUploadResult,
-} from "@sdkwork/drive-app-sdk";
+} from "@sdkwork/im-h5-core/sdk";
 import { getDriveAppSdkClientWithSession } from "@sdkwork/im-h5-core/sdk";
 import { readImH5IamSessionTokens } from "@sdkwork/im-h5-core/session";
 

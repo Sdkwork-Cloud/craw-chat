@@ -68,19 +68,34 @@ function buildTimelineEntry(options: Required<PlaywrightImApiFixtureOptions>) {
 }
 
 function emptyPagedResponse() {
+  return sdkworkPageResponse([]);
+}
+
+function emptyTimelineResponse() {
+  return sdkworkPageResponse([]);
+}
+
+function pageInfo() {
   return {
-    items: [],
+    mode: 'cursor',
     hasMore: false,
     nextCursor: null,
   };
 }
 
-function emptyTimelineResponse() {
+function sdkworkDataResponse(data: Record<string, unknown>) {
   return {
-    items: [],
-    hasMore: false,
-    nextAfterSeq: null,
+    code: 0,
+    data,
+    traceId: 'trace.playwright.im.1',
   };
+}
+
+function sdkworkPageResponse(items: unknown[]) {
+  return sdkworkDataResponse({
+    items,
+    pageInfo: pageInfo(),
+  });
 }
 
 export async function installPlaywrightImApiMocks(
@@ -108,11 +123,7 @@ export async function installPlaywrightImApiMocks(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          items: [inboxEntry],
-          hasMore: false,
-          nextCursor: null,
-        }),
+        body: JSON.stringify(sdkworkPageResponse([inboxEntry])),
       });
       return;
     }
@@ -125,11 +136,7 @@ export async function installPlaywrightImApiMocks(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          items: [timelineEntry],
-          hasMore: false,
-          nextAfterSeq: null,
-        }),
+        body: JSON.stringify(sdkworkPageResponse([timelineEntry])),
       });
       return;
     }
@@ -168,19 +175,21 @@ export async function installPlaywrightImApiMocks(
       const messageId = `message.playwright.${nextMessageSeq}`;
 
       await route.fulfill({
-        status: 200,
+        status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({
-          conversationId: options.conversationId,
-          messageId,
-          messageSeq: nextMessageSeq,
-          body: {
-            text: outboundText,
-            summary: outboundText,
-            parts: [],
+        body: JSON.stringify(sdkworkDataResponse({
+          item: {
+            conversationId: options.conversationId,
+            messageId,
+            messageSeq: nextMessageSeq,
+            body: {
+              text: outboundText,
+              summary: outboundText,
+              parts: [],
+            },
+            occurredAt: now,
           },
-          occurredAt: now,
-        }),
+        })),
       });
       return;
     }

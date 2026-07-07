@@ -100,19 +100,6 @@ public struct RealtimeEventView: Codable {
     }
 }
 
-public struct RealtimeEventsResponse: Codable {
-    public let items: [RealtimeEventView]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [RealtimeEventView]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
 public struct RtcSession: Codable {
     public let tenantId: String?
     public let rtcSessionId: String?
@@ -491,19 +478,6 @@ public struct TimelineViewEntry: Codable {
     }
 }
 
-public struct TimelineResponse: Codable {
-    public let items: [TimelineViewEntry]?
-    public let nextAfterSeq: Int?
-    public let hasMore: Bool?
-
-
-    public init(items: [TimelineViewEntry]? = nil, nextAfterSeq: Int? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextAfterSeq = nextAfterSeq
-        self.hasMore = hasMore
-    }
-}
-
 public struct PostMessageRequest: Codable {
     public let text: String?
     public let parts: [ContentPart]?
@@ -652,29 +626,6 @@ public struct MessagePinMutationResult: Codable {
     }
 }
 
-public struct MessageVisibilityMutationResult: Codable {
-    public let tenantId: String?
-    public let conversationId: String?
-    public let messageId: String?
-    public let messageSeq: Int?
-    public let principalKind: String?
-    public let principalId: String?
-    public let isDeleted: Bool?
-    public let updatedAt: String?
-
-
-    public init(tenantId: String? = nil, conversationId: String? = nil, messageId: String? = nil, messageSeq: Int? = nil, principalKind: String? = nil, principalId: String? = nil, isDeleted: Bool? = nil, updatedAt: String? = nil) {
-        self.tenantId = tenantId
-        self.conversationId = conversationId
-        self.messageId = messageId
-        self.messageSeq = messageSeq
-        self.principalKind = principalKind
-        self.principalId = principalId
-        self.isDeleted = isDeleted
-        self.updatedAt = updatedAt
-    }
-}
-
 public struct FavoriteMessageRequest: Codable {
     public let conversationId: String?
     public let favoriteType: String?
@@ -720,30 +671,6 @@ public struct MessageFavoriteView: Codable {
         self.contentPreview = contentPreview
         self.sourceDisplayName = sourceDisplayName
         self.favoritedAt = favoritedAt
-    }
-}
-
-public struct FavoriteMessagesResponse: Codable {
-    public let items: [MessageFavoriteView]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [MessageFavoriteView]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
-public struct DeleteMessageFavoriteResponse: Codable {
-    public let favoriteId: String?
-    public let deleted: Bool?
-
-
-    public init(favoriteId: String? = nil, deleted: Bool? = nil) {
-        self.favoriteId = favoriteId
-        self.deleted = deleted
     }
 }
 
@@ -919,19 +846,6 @@ public struct ConversationInboxEntry: Codable {
     }
 }
 
-public struct InboxResponse: Codable {
-    public let items: [ConversationInboxEntry]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [ConversationInboxEntry]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
 public struct ContactView: Codable {
     public let tenantId: String?
     public let ownerUserId: String?
@@ -956,19 +870,6 @@ public struct ContactView: Codable {
         self.conversationId = conversationId
         self.establishedAt = establishedAt
         self.lastInteractionAt = lastInteractionAt
-    }
-}
-
-public struct ContactsResponse: Codable {
-    public let items: [ContactView]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [ContactView]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
     }
 }
 
@@ -1033,19 +934,6 @@ public struct ContactTagView: Codable {
     }
 }
 
-public struct ContactTagsResponse: Codable {
-    public let items: [ContactTagView]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [ContactTagView]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
 public struct CreateContactTagRequest: Codable {
     public let name: String?
     public let color: String?
@@ -1080,17 +968,6 @@ public struct UpdateContactTagRequest: Codable {
     }
 }
 
-public struct DeleteContactTagResponse: Codable {
-    public let tagId: String?
-    public let deleted: Bool?
-
-
-    public init(tagId: String? = nil, deleted: Bool? = nil) {
-        self.tagId = tagId
-        self.deleted = deleted
-    }
-}
-
 public struct ContactRecommendationView: Codable {
     public let tenantId: String?
     public let ownerUserId: String?
@@ -1119,6 +996,132 @@ public struct CreateContactRecommendationRequest: Codable {
     }
 }
 
+public struct BlockUserRequest: Codable {
+    public let blockedUserId: String?
+    public let scope: String?
+    public let directChatId: String?
+    public let expiresAt: String?
+
+
+    public init(blockedUserId: String? = nil, scope: String? = nil, directChatId: String? = nil, expiresAt: String? = nil) {
+        self.blockedUserId = blockedUserId
+        self.scope = scope
+        self.directChatId = directChatId
+        self.expiresAt = expiresAt
+    }
+}
+
+public struct UserBlock: Codable {
+    public let tenantId: String?
+    public let blockId: String?
+    public let blockerUserId: String?
+    public let blockedUserId: String?
+    public let scope: String?
+    public let status: String?
+    public let directChatId: String?
+    public let expiresAt: String?
+    public let createdAt: String?
+    public let updatedAt: String?
+
+
+    public init(tenantId: String? = nil, blockId: String? = nil, blockerUserId: String? = nil, blockedUserId: String? = nil, scope: String? = nil, status: String? = nil, directChatId: String? = nil, expiresAt: String? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
+        self.tenantId = tenantId
+        self.blockId = blockId
+        self.blockerUserId = blockerUserId
+        self.blockedUserId = blockedUserId
+        self.scope = scope
+        self.status = status
+        self.directChatId = directChatId
+        self.expiresAt = expiresAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+public struct SocialWritePersistence: Codable {
+    public let journalAuthority: Bool?
+    public let snapshotStatus: String?
+
+
+    public init(journalAuthority: Bool? = nil, snapshotStatus: String? = nil) {
+        self.journalAuthority = journalAuthority
+        self.snapshotStatus = snapshotStatus
+    }
+}
+
+public struct EventActor: Codable {
+    public let actorId: String?
+    public let actorKind: String?
+    public let actorSessionId: String?
+
+
+    public init(actorId: String? = nil, actorKind: String? = nil, actorSessionId: String? = nil) {
+        self.actorId = actorId
+        self.actorKind = actorKind
+        self.actorSessionId = actorSessionId
+    }
+}
+
+public struct CommitEnvelopeResponse: Codable {
+    public let eventId: String?
+    public let tenantId: String?
+    public let eventType: String?
+    public let eventVersion: Int?
+    public let aggregateType: String?
+    public let aggregateId: String?
+    public let scopeType: String?
+    public let scopeId: String?
+    public let orderingKey: String?
+    public let orderingSeq: Int?
+    public let causationId: String?
+    public let correlationId: String?
+    public let idempotencyKey: String?
+    public let actor_: EventActor?
+    public let occurredAt: String?
+    public let committedAt: String?
+    public let payloadSchema: String?
+    public let payload: String?
+    public let retentionClass: String?
+    public let auditClass: String?
+
+
+    public init(eventId: String? = nil, tenantId: String? = nil, eventType: String? = nil, eventVersion: Int? = nil, aggregateType: String? = nil, aggregateId: String? = nil, scopeType: String? = nil, scopeId: String? = nil, orderingKey: String? = nil, orderingSeq: Int? = nil, causationId: String? = nil, correlationId: String? = nil, idempotencyKey: String? = nil, actor_: EventActor? = nil, occurredAt: String? = nil, committedAt: String? = nil, payloadSchema: String? = nil, payload: String? = nil, retentionClass: String? = nil, auditClass: String? = nil) {
+        self.eventId = eventId
+        self.tenantId = tenantId
+        self.eventType = eventType
+        self.eventVersion = eventVersion
+        self.aggregateType = aggregateType
+        self.aggregateId = aggregateId
+        self.scopeType = scopeType
+        self.scopeId = scopeId
+        self.orderingKey = orderingKey
+        self.orderingSeq = orderingSeq
+        self.causationId = causationId
+        self.correlationId = correlationId
+        self.idempotencyKey = idempotencyKey
+        self.actor_ = actor_
+        self.occurredAt = occurredAt
+        self.committedAt = committedAt
+        self.payloadSchema = payloadSchema
+        self.payload = payload
+        self.retentionClass = retentionClass
+        self.auditClass = auditClass
+    }
+}
+
+public struct OpenApiUserBlockResponse: Codable {
+    public let userBlock: UserBlock?
+    public let latestCommit: CommitEnvelopeResponse?
+    public let persistence: SocialWritePersistence?
+
+
+    public init(userBlock: UserBlock? = nil, latestCommit: CommitEnvelopeResponse? = nil, persistence: SocialWritePersistence? = nil) {
+        self.userBlock = userBlock
+        self.latestCommit = latestCommit
+        self.persistence = persistence
+    }
+}
+
 public struct SocialUserSearchResult: Codable {
     public let tenantId: String?
     public let userId: String?
@@ -1144,19 +1147,6 @@ public struct SocialUserSearchResult: Codable {
     }
 }
 
-public struct SocialUserSearchResponse: Codable {
-    public let items: [SocialUserSearchResult]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [SocialUserSearchResult]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
 public struct SubmitFriendRequestRequest: Codable {
     public let targetUserId: String?
     public let requestMessage: String?
@@ -1170,22 +1160,24 @@ public struct SubmitFriendRequestRequest: Codable {
 
 public struct FriendRequest: Codable {
     public let tenantId: String?
-    public let requestId: String?
+    public let friendRequestId: String?
     public let requesterUserId: String?
     public let targetUserId: String?
     public let status: String?
     public let requestMessage: String?
+    public let expiredAt: String?
     public let createdAt: String?
     public let updatedAt: String?
 
 
-    public init(tenantId: String? = nil, requestId: String? = nil, requesterUserId: String? = nil, targetUserId: String? = nil, status: String? = nil, requestMessage: String? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
+    public init(tenantId: String? = nil, friendRequestId: String? = nil, requesterUserId: String? = nil, targetUserId: String? = nil, status: String? = nil, requestMessage: String? = nil, expiredAt: String? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
         self.tenantId = tenantId
-        self.requestId = requestId
+        self.friendRequestId = friendRequestId
         self.requesterUserId = requesterUserId
         self.targetUserId = targetUserId
         self.status = status
         self.requestMessage = requestMessage
+        self.expiredAt = expiredAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -1240,14 +1232,12 @@ public struct SocialFriendRequestMutationResponse: Codable {
     }
 }
 
-public struct SocialFriendRequestListResponse: Codable {
-    public let items: [FriendRequest]?
-    public let nextCursor: String?
+public struct SocialFriendRequestPendingCountResponse: Codable {
+    public let count: Int?
 
 
-    public init(items: [FriendRequest]? = nil, nextCursor: String? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
+    public init(count: Int? = nil) {
+        self.count = count
     }
 }
 
@@ -1447,28 +1437,6 @@ public struct ConversationMember: Codable {
     }
 }
 
-public struct ListMembersResponse: Codable {
-    public let items: [ConversationMember]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [ConversationMember]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
-public struct MemberDirectoryResponse: Codable {
-    public let items: [ConversationMember]?
-
-
-    public init(items: [ConversationMember]? = nil) {
-        self.items = items
-    }
-}
-
 public struct ReadCursorView: Codable {
     public let tenantId: String?
     public let conversationId: String?
@@ -1492,15 +1460,6 @@ public struct UpdateReadCursorRequest: Codable {
 
     public init(readSeq: Int? = nil) {
         self.readSeq = readSeq
-    }
-}
-
-public struct PinnedMessagesResponse: Codable {
-    public let items: [MessageInteractionSummaryView]?
-
-
-    public init(items: [MessageInteractionSummaryView]? = nil) {
-        self.items = items
     }
 }
 
@@ -1545,19 +1504,6 @@ public struct StreamFrameView: Codable {
     }
 }
 
-public struct StreamFramesResponse: Codable {
-    public let items: [StreamFrameView]?
-    public let nextCursor: String?
-    public let hasMore: Bool?
-
-
-    public init(items: [StreamFrameView]? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
-        self.items = items
-        self.nextCursor = nextCursor
-        self.hasMore = hasMore
-    }
-}
-
 public struct AppendStreamFrameRequest: Codable {
     public let payload: String?
 
@@ -1567,26 +1513,123 @@ public struct AppendStreamFrameRequest: Codable {
     }
 }
 
+public struct SdkWorkApiResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SdkWorkPageData: Codable {
+    public let items: [[String: Any]]?
+    public let pageInfo: PageInfo?
+
+
+    public init(items: [[String: Any]]? = nil, pageInfo: PageInfo? = nil) {
+        self.items = items
+        self.pageInfo = pageInfo
+    }
+}
+
+public struct SdkWorkCommandData: Codable {
+    public let accepted: Bool?
+    public let resourceId: String?
+    public let status: String?
+
+
+    public init(accepted: Bool? = nil, resourceId: String? = nil, status: String? = nil) {
+        self.accepted = accepted
+        self.resourceId = resourceId
+        self.status = status
+    }
+}
+
+public struct PageInfo: Codable {
+    public let mode: String?
+    public let page: Int?
+    public let pageSize: Int?
+    public let totalItems: String?
+    public let totalPages: Int?
+    public let nextCursor: String?
+    public let hasMore: Bool?
+
+
+    public init(mode: String? = nil, page: Int? = nil, pageSize: Int? = nil, totalItems: String? = nil, totalPages: Int? = nil, nextCursor: String? = nil, hasMore: Bool? = nil) {
+        self.mode = mode
+        self.page = page
+        self.pageSize = pageSize
+        self.totalItems = totalItems
+        self.totalPages = totalPages
+        self.nextCursor = nextCursor
+        self.hasMore = hasMore
+    }
+}
+
 public struct ProblemDetail: Codable {
     public let type: String?
     public let title: String?
     public let status: Int?
     public let detail: String?
-    public let code: String?
-    public let message: String?
+    public let instance: String?
+    public let code: Int?
     public let traceId: String?
-    public let retryable: Bool?
+    public let errors: [FieldError]?
 
 
-    public init(type: String? = nil, title: String? = nil, status: Int? = nil, detail: String? = nil, code: String? = nil, message: String? = nil, traceId: String? = nil, retryable: Bool? = nil) {
+    public init(type: String? = nil, title: String? = nil, status: Int? = nil, detail: String? = nil, instance: String? = nil, code: Int? = nil, traceId: String? = nil, errors: [FieldError]? = nil) {
         self.type = type
         self.title = title
         self.status = status
         self.detail = detail
+        self.instance = instance
         self.code = code
-        self.message = message
         self.traceId = traceId
-        self.retryable = retryable
+        self.errors = errors
+    }
+}
+
+public struct FieldError: Codable {
+    public let field: String?
+    public let message: String?
+    public let code: Int?
+
+
+    public init(field: String? = nil, message: String? = nil, code: Int? = nil) {
+        self.field = field
+        self.message = message
+        self.code = code
+    }
+}
+
+public struct SdkWorkListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SdkWorkCommandResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
     }
 }
 
@@ -1631,15 +1674,6 @@ public struct SpaceView: Codable {
     }
 }
 
-public struct SpaceListResponse: Codable {
-    public let items: [SpaceView]?
-
-
-    public init(items: [SpaceView]? = nil) {
-        self.items = items
-    }
-}
-
 public struct SpaceMemberCreateRequest: Codable {
     public let userId: String?
     public let role: String?
@@ -1668,15 +1702,6 @@ public struct SpaceMemberView: Codable {
     public init(userId: String? = nil, role: String? = nil) {
         self.userId = userId
         self.role = role
-    }
-}
-
-public struct SpaceMemberListResponse: Codable {
-    public let items: [SpaceMemberView]?
-
-
-    public init(items: [SpaceMemberView]? = nil) {
-        self.items = items
     }
 }
 
@@ -1710,15 +1735,6 @@ public struct SpaceGroupView: Codable {
     public init(groupId: String? = nil, groupName: String? = nil) {
         self.groupId = groupId
         self.groupName = groupName
-    }
-}
-
-public struct SpaceGroupListResponse: Codable {
-    public let items: [SpaceGroupView]?
-
-
-    public init(items: [SpaceGroupView]? = nil) {
-        self.items = items
     }
 }
 
@@ -1765,15 +1781,6 @@ public struct SpaceGroupMemberView: Codable {
     }
 }
 
-public struct SpaceGroupMemberListResponse: Codable {
-    public let items: [SpaceGroupMemberView]?
-
-
-    public init(items: [SpaceGroupMemberView]? = nil) {
-        self.items = items
-    }
-}
-
 public struct SpaceChannelCreateRequest: Codable {
     public let channelName: String?
     public let channelType: String?
@@ -1804,15 +1811,6 @@ public struct SpaceChannelView: Codable {
         self.channelId = channelId
         self.channelName = channelName
         self.channelType = channelType
-    }
-}
-
-public struct SpaceChannelListResponse: Codable {
-    public let items: [SpaceChannelView]?
-
-
-    public init(items: [SpaceChannelView]? = nil) {
-        self.items = items
     }
 }
 
@@ -1852,15 +1850,6 @@ public struct SpaceChannelAccessRuleView: Codable {
     }
 }
 
-public struct SpaceChannelAccessRuleListResponse: Codable {
-    public let items: [SpaceChannelAccessRuleView]?
-
-
-    public init(items: [SpaceChannelAccessRuleView]? = nil) {
-        self.items = items
-    }
-}
-
 public struct SpaceInviteCreateRequest: Codable {
     public let maxUses: Int?
 
@@ -1878,15 +1867,6 @@ public struct SpaceInviteView: Codable {
     public init(inviteCode: String? = nil, spaceId: String? = nil) {
         self.inviteCode = inviteCode
         self.spaceId = spaceId
-    }
-}
-
-public struct SpaceInviteListResponse: Codable {
-    public let items: [SpaceInviteView]?
-
-
-    public init(items: [SpaceInviteView]? = nil) {
-        self.items = items
     }
 }
 
@@ -1909,15 +1889,6 @@ public struct SpaceBanView: Codable {
     public init(userId: String? = nil, reason: String? = nil) {
         self.userId = userId
         self.reason = reason
-    }
-}
-
-public struct SpaceBanListResponse: Codable {
-    public let items: [SpaceBanView]?
-
-
-    public init(items: [SpaceBanView]? = nil) {
-        self.items = items
     }
 }
 
@@ -1989,5 +1960,1357 @@ public struct StreamRefContentPart: Codable {
         self.streamId = streamId
         self.streamType = streamType
         self.state = state
+    }
+}
+
+public struct PresenceHeartbeatResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct PresenceMeRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RealtimeSubscriptionsSyncResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RealtimeEventsAckResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RealtimeEventsListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsInviteResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsAcceptResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsRejectResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsEndResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsSignalsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct CallsSessionsCredentialsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialUsersListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialFriendRequestsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialFriendRequestsPendingCountRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialFriendRequestsAcceptResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialFriendRequestsDeclineResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialFriendRequestsCancelResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialFriendshipsRemoveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialUserBlocksCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialContactsTagsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialContactsTagsUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialContactsRecommendationsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialContactsPreferencesRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SocialContactsPreferencesUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ContactsListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct InboxListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsAgentDialogsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsAgentHandoffsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsSystemChannelsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsThreadsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsDirectChatsBindingsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsAgentHandoffRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsAgentHandoffAcceptResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsAgentHandoffResolveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsAgentHandoffCloseResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersAddResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersRemoveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersTransferOwnerResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersChangeRoleResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersLeaveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMembersAcceptInvitationResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsPreferencesRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsPreferencesUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsProfileRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsProfileUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsReadCursorRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsReadCursorUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMemberDirectoryListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMessagesListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMessagesCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsSystemChannelPublishResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsPinsListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct ConversationsMessagesInteractionSummaryRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesEditResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesRecallResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesFavoritesListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesFavoritesCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesReactionsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesReactionsRemoveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesPinResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct MessagesUnpinResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RoomsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RoomsRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RoomsEnterResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct RoomsLeaveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct StreamsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct StreamsFramesListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct StreamsFramesCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct StreamsCheckpointResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct StreamsCompleteResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct StreamsAbortResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesMembersListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesMembersCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesMembersRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesMembersUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsMembersListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsMembersCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsMembersRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesGroupsMembersUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesChannelsListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesChannelsCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesChannelsRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesChannelsUpdateResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesChannelsAccessRulesListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesChannelsAccessRulesCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesInvitesListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesInvitesCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesInvitesRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesBansListResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesBansCreateResponse201: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
+    }
+}
+
+public struct SpacesBansRetrieveResponse: Codable {
+    public let code: Int?
+    public let data: Any?
+    public let traceId: String?
+
+
+    public init(code: Int? = nil, data: Any? = nil, traceId: String? = nil) {
+        self.code = code
+        self.data = data
+        self.traceId = traceId
     }
 }

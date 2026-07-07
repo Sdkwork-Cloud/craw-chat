@@ -13,10 +13,10 @@ use im_adapters_redis_cache::{
 use im_domain_core::rate_limiter::DomainRateLimiter;
 use sdkwork_utils_rust::trusted_proxy::TrustedProxyConfig;
 
+use crate::ApiError;
 use crate::http_limits::{
     resolve_websocket_upgrade_rate_burst, resolve_websocket_upgrade_rate_rpm,
 };
-use crate::ApiError;
 
 const WS_UPGRADE_RATE_SCOPE: &str = "session.ws_upgrade";
 const WS_UPGRADE_RATE_WINDOW_SECS: u64 = 60;
@@ -83,14 +83,11 @@ impl WebsocketUpgradeRateLimiter {
             }
         }
 
-        let mut limiter = self
-            .local
-            .lock()
-            .map_err(|_| ApiError {
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "websocket_rate_limiter_unavailable",
-                message: "websocket upgrade rate limiter lock poisoned".to_owned(),
-            })?;
+        let mut limiter = self.local.lock().map_err(|_| ApiError {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "websocket_rate_limiter_unavailable",
+            message: "websocket upgrade rate limiter lock poisoned".to_owned(),
+        })?;
         limiter
             .check_rate(client_ip.to_string().as_str(), "websocket.upgrade")
             .map_err(|_| ApiError {

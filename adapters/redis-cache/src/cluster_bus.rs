@@ -7,10 +7,13 @@
 //! - Publish: `cluster:route:{target_node_id}` → JSON payload
 //! - Subscribe: `cluster:route:{own_node_id}` → receive JSON payload
 
-use redis::{Commands, PubSubCommands};
+use redis::PubSubCommands;
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
+use crate::redis_blocking::{
+    RedisBlockingTimeouts, blocking_subscription_connection, run_bounded_redis_command,
+};
 use crate::redis_unavailable;
 
 /// A route event published across the cluster bus.
@@ -36,6 +39,7 @@ fn route_channel(node_id: &str) -> String {
 pub struct RedisClusterBus {
     client: redis::Client,
     own_node_id: String,
+    timeouts: RedisBlockingTimeouts,
 }
 
 impl RedisClusterBus {
@@ -43,13 +47,8 @@ impl RedisClusterBus {
         Self {
             client,
             own_node_id: own_node_id.into(),
+            timeouts: RedisBlockingTimeouts::from_env(),
         }
-    }
-
-    fn connection(&self) -> Result<redis::Connection, ContractError> {
-        self.client
-            .get_connection()
-            .map_err(|e| redis_unavailable("cluster_bus_connect", e))
     }
 
     /// Publish a route event to a target node's channel.
@@ -62,11 +61,19 @@ impl RedisClusterBus {
         let payload = serde_json::to_string(event).map_err(|e| {
             ContractError::Unavailable(format!("serialize cluster route event failed: {e}"))
         })?;
-        let mut conn = self.connection()?;
-        let _: i32 = conn
-            .publish(&channel, &payload)
-            .map_err(|e| redis_unavailable("publish_route_event", e))?;
-        Ok(())
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "publish_route_event",
+            move |mut connection| async move {
+                redis::cmd("PUBLISH")
+                    .arg(channel)
+                    .arg(payload)
+                    .query_async::<i32>(&mut connection)
+                    .await
+                    .map(|_| ())
+            },
+        )
     }
 
     /// Get the channel name for the local node's subscription.
@@ -82,7 +89,8 @@ impl RedisClusterBus {
         F: FnMut(redis::Msg) -> redis::ControlFlow<U> + Send,
         U: Send,
     {
-        let mut conn = self.connection()?;
+        let mut conn =
+            blocking_subscription_connection(&self.client, self.timeouts, "cluster_bus_subscribe")?;
         conn.subscribe(&[self.own_channel().as_str()], handler)
             .map_err(|e| redis_unavailable("subscribe_route_events", e))
     }
@@ -96,14 +104,21 @@ impl RedisClusterBus {
 impl im_platform_contracts::ClusterEventBus for RedisClusterBus {
     fn publish_route_event(&self, target_node_id: &str, event_json: &str) -> Result<(), String> {
         let channel = route_channel(target_node_id);
-        let mut conn = self
-            .client
-            .get_connection()
-            .map_err(|e| format!("redis cluster_bus publish failed: {e}"))?;
-        let _: i32 = conn
-            .publish(&channel, event_json)
-            .map_err(|e| format!("redis cluster_bus publish to {target_node_id} failed: {e}"))?;
-        Ok(())
+        let event_json = event_json.to_owned();
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "cluster_bus_publish",
+            move |mut connection| async move {
+                redis::cmd("PUBLISH")
+                    .arg(channel)
+                    .arg(event_json)
+                    .query_async::<i32>(&mut connection)
+                    .await
+                    .map(|_| ())
+            },
+        )
+        .map_err(|error| format!("redis cluster_bus publish to {target_node_id} failed: {error:?}"))
     }
 }
 
@@ -128,6 +143,7 @@ mod tests {
         let bus = RedisClusterBus {
             client: redis::Client::open("redis://localhost:6379").unwrap(),
             own_node_id: "node-x".into(),
+            timeouts: RedisBlockingTimeouts::from_env(),
         };
         assert_eq!(bus.own_channel(), "cluster:route:node-x");
     }

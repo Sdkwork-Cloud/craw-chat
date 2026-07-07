@@ -35,7 +35,7 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Post,
         paths::AGENT_RESPONSE_COMPLETE,
         "automation",
-        "automation.agentResponses.complete.create",
+        "automation.agentResponses.complete",
     ),
     HttpRoute::dual_token(
         HttpMethod::Post,
@@ -47,7 +47,7 @@ pub const ROUTES: &[HttpRoute] = &[
         HttpMethod::Post,
         paths::EXECUTION_TOOL_CALL_COMPLETE,
         "automation",
-        "automation.executions.agentToolCalls.complete.create",
+        "automation.agentToolCalls.complete",
     ),
     HttpRoute::dual_token(
         HttpMethod::Get,

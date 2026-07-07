@@ -6,11 +6,12 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
-sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
+sdkwork-im-ccp-core = { workspace = true }
 hmac = "0.12.1"
 serde_json.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_utils_rust.workspace = true
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 sha2 = "0.10"
 tracing.workspace = true
 

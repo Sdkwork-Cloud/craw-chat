@@ -5,12 +5,20 @@ import type { TimelineViewEntry } from "@sdkwork/im-sdk";
 
 import { useI18n } from "@sdkwork/im-h5-commons";
 
+import { markConversationRead } from "../services/chatInboxService";
 import {
   fetchConversationTimeline,
   fetchConversationTimelineDelta,
   sendConversationImage,
   sendConversationText,
 } from "../services/chatConversationService";
+import {
+  enqueuePendingTextSend,
+  isRetryableH5SendError,
+  releasePendingTextSendClaim,
+  removePendingTextSend,
+  runPendingTextSendFlush,
+} from "../services/offlineSendQueue";
 import { subscribeConversationLiveMessages } from "../services/chatRealtimeService";
 import {
   mergeTimelineEntries,
@@ -138,6 +146,44 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
   }, [loadTimeline]);
 
   useEffect(() => {
+    void markConversationRead(conversationId, { readSeq: latestSeqRef.current }).catch(() => undefined);
+  }, [conversationId, entries.length]);
+
+  const flushPendingSends = useCallback(async () => {
+    await runPendingTextSendFlush(async (pending) => {
+      const scoped = pending.filter((payload) => payload.conversationId === conversationId);
+      for (const payload of scoped) {
+        try {
+          await sendConversationText(conversationId, payload.text, {
+            clientMsgId: payload.clientMsgId,
+          });
+          await removePendingTextSend(payload.clientMsgId);
+        } catch {
+          await releasePendingTextSendClaim(payload.clientMsgId, payload.claimId);
+          break;
+        }
+      }
+      if (scoped.length > 0) {
+        await appendNewTimelineEntries();
+      }
+    });
+  }, [appendNewTimelineEntries, conversationId]);
+
+  useEffect(() => {
+    void flushPendingSends();
+  }, [flushPendingSends]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      void flushPendingSends();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [flushPendingSends]);
+
+  useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
@@ -170,12 +216,17 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     if (!text || sending) {
       return;
     }
+    const clientMsgId = `h5-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setSending(true);
     try {
-      await sendConversationText(conversationId, text);
+      await sendConversationText(conversationId, text, { clientMsgId });
+      await removePendingTextSend(clientMsgId);
       setDraft("");
       await appendNewTimelineEntries();
     } catch (cause: unknown) {
+      if (isRetryableH5SendError(cause)) {
+        await enqueuePendingTextSend({ conversationId, text, clientMsgId });
+      }
       const message = cause instanceof Error ? cause.message : t("chat.conversation.sendError");
       setError(message);
     } finally {
@@ -238,6 +289,11 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       {error ? (
         <div className="im-h5-chat-error" role="alert">
           <p>{error}</p>
+          {entries.length === 0 ? (
+            <button type="button" className="im-h5-chat-retry" onClick={() => loadTimeline()}>
+              {t("chat.conversation.retry")}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

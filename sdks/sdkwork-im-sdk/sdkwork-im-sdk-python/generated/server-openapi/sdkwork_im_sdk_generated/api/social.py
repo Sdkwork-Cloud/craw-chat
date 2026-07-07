@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import ContactPreferencesView, ContactRecommendationView, ContactTagsResponse, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, DeleteContactTagResponse, SocialFriendRequestAcceptanceResponse, SocialFriendRequestListResponse, SocialFriendRequestMutationResponse, SocialFriendshipMutationResponse, SocialUserSearchResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest
+from ..models import BlockUserRequest, CreateContactRecommendationRequest, CreateContactTagRequest, SdkWorkListResponse, SocialContactsPreferencesRetrieveResponse, SocialContactsPreferencesUpdateResponse, SocialContactsRecommendationsCreateResponse201, SocialContactsTagsCreateResponse201, SocialContactsTagsUpdateResponse, SocialFriendRequestsAcceptResponse, SocialFriendRequestsCancelResponse, SocialFriendRequestsCreateResponse201, SocialFriendRequestsDeclineResponse, SocialFriendRequestsPendingCountRetrieveResponse, SocialFriendshipsRemoveResponse, SocialUserBlocksCreateResponse201, SocialUsersListResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -192,6 +192,7 @@ class SocialApi:
         self.users = SocialUsersApi(client)
         self.friend_requests = SocialFriendRequestsApi(client)
         self.friendships = SocialFriendshipsApi(client)
+        self.user_blocks = SocialUserBlocksApi(client)
         self.contacts = SocialContactsApi(client)
 
 
@@ -202,11 +203,11 @@ class SocialUsersApi:
         self._client = client
 
 
-    def list(self, q: Optional[str] = None, limit: Optional[int] = None, cursor: Optional[str] = None) -> SocialUserSearchResponse:
+    def list(self, q: Optional[str] = None, page_size: Optional[int] = None, cursor: Optional[str] = None) -> SocialUsersListResponse:
         """Search social users"""
         query = build_query_string([
             {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/social/users", query))
@@ -216,33 +217,53 @@ class SocialFriendRequestsApi:
 
     def __init__(self, client: HttpClient):
         self._client = client
+        self.pending = SocialFriendRequestsPendingApi(client)
 
 
-    def list(self, direction: Optional[str] = None, status: Optional[str] = None, limit: Optional[int] = None, cursor: Optional[str] = None) -> SocialFriendRequestListResponse:
+    def list(self, direction: Optional[str] = None, status: Optional[str] = None, page_size: Optional[int] = None, cursor: Optional[str] = None) -> SdkWorkListResponse:
         """List friend requests"""
         query = build_query_string([
             {'name': 'direction', 'value': direction, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'status', 'value': status, 'style': 'form', 'explode': True, 'allow_reserved': False},
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/social/friend_requests", query))
 
-    def create(self, body: SubmitFriendRequestRequest) -> SocialFriendRequestMutationResponse:
+    def create(self, body: SubmitFriendRequestRequest) -> SocialFriendRequestsCreateResponse201:
         """Create a friend request"""
         return self._client.post(f"/im/v3/api/social/friend_requests", json=body)
 
-    def create_accept(self, request_id: str) -> SocialFriendRequestAcceptanceResponse:
+    def create_accept(self, friend_request_id: str) -> SocialFriendRequestsAcceptResponse:
         """Accept a friend request"""
-        return self._client.post(f"/im/v3/api/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}/accept")
+        return self._client.post(f"/im/v3/api/social/friend_requests/{serialize_path_parameter(friend_request_id, {'name': 'friendRequestId', 'style': 'simple', 'explode': False})}/accept")
 
-    def create_decline(self, request_id: str) -> SocialFriendRequestMutationResponse:
+    def create_decline(self, friend_request_id: str) -> SocialFriendRequestsDeclineResponse:
         """Decline a friend request"""
-        return self._client.post(f"/im/v3/api/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}/decline")
+        return self._client.post(f"/im/v3/api/social/friend_requests/{serialize_path_parameter(friend_request_id, {'name': 'friendRequestId', 'style': 'simple', 'explode': False})}/decline")
 
-    def cancel(self, request_id: str) -> SocialFriendRequestMutationResponse:
+    def cancel(self, friend_request_id: str) -> SocialFriendRequestsCancelResponse:
         """Cancel a friend request"""
-        return self._client.post(f"/im/v3/api/social/friend_requests/{serialize_path_parameter(request_id, {'name': 'requestId', 'style': 'simple', 'explode': False})}/cancel")
+        return self._client.post(f"/im/v3/api/social/friend_requests/{serialize_path_parameter(friend_request_id, {'name': 'friendRequestId', 'style': 'simple', 'explode': False})}/cancel")
+
+class SocialFriendRequestsPendingApi:
+    """social social.friend_requests.pending API client."""
+
+    def __init__(self, client: HttpClient):
+        self._client = client
+        self.count = SocialFriendRequestsPendingCountApi(client)
+
+
+class SocialFriendRequestsPendingCountApi:
+    """social social.friend_requests.pending.count API client."""
+
+    def __init__(self, client: HttpClient):
+        self._client = client
+
+
+    def list(self) -> SocialFriendRequestsPendingCountRetrieveResponse:
+        """Retrieve pending incoming friend request count"""
+        return self._client.get(f"/im/v3/api/social/friend_requests/pending/count")
 
 class SocialFriendshipsApi:
     """social social.friendships API client."""
@@ -251,9 +272,24 @@ class SocialFriendshipsApi:
         self._client = client
 
 
-    def create_remove(self, friendship_id: str) -> SocialFriendshipMutationResponse:
+    def create_remove(self, friendship_id: str) -> SocialFriendshipsRemoveResponse:
         """Remove a friendship"""
         return self._client.post(f"/im/v3/api/social/friendships/{serialize_path_parameter(friendship_id, {'name': 'friendshipId', 'style': 'simple', 'explode': False})}/remove")
+
+class SocialUserBlocksApi:
+    """social social.user_blocks API client."""
+
+    def __init__(self, client: HttpClient):
+        self._client = client
+
+
+    def create(self, body: BlockUserRequest) -> SocialUserBlocksCreateResponse201:
+        """Block a social user"""
+        return self._client.post(f"/im/v3/api/social/user_blocks", json=body)
+
+    def delete(self, block_id: str) -> None:
+        """Release a social user block"""
+        return self._client.delete(f"/im/v3/api/social/user_blocks/{serialize_path_parameter(block_id, {'name': 'blockId', 'style': 'simple', 'explode': False})}")
 
 class SocialContactsApi:
     """social social.contacts API client."""
@@ -272,23 +308,23 @@ class SocialContactsTagsApi:
         self._client = client
 
 
-    def list(self, limit: Optional[int] = None, cursor: Optional[str] = None) -> ContactTagsResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> SdkWorkListResponse:
         """List contact tags"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/social/contacts/tags", query))
 
-    def create(self, body: CreateContactTagRequest) -> ContactTagView:
+    def create(self, body: CreateContactTagRequest) -> SocialContactsTagsCreateResponse201:
         """Create a contact tag"""
         return self._client.post(f"/im/v3/api/social/contacts/tags", json=body)
 
-    def update(self, tag_id: str, body: UpdateContactTagRequest) -> ContactTagView:
+    def update(self, tag_id: str, body: UpdateContactTagRequest) -> SocialContactsTagsUpdateResponse:
         """Update a contact tag"""
         return self._client.patch(f"/im/v3/api/social/contacts/tags/{serialize_path_parameter(tag_id, {'name': 'tagId', 'style': 'simple', 'explode': False})}", json=body)
 
-    def delete(self, tag_id: str) -> DeleteContactTagResponse:
+    def delete(self, tag_id: str) -> None:
         """Delete a contact tag"""
         return self._client.delete(f"/im/v3/api/social/contacts/tags/{serialize_path_parameter(tag_id, {'name': 'tagId', 'style': 'simple', 'explode': False})}")
 
@@ -299,7 +335,7 @@ class SocialContactsRecommendationsApi:
         self._client = client
 
 
-    def create(self, target_user_id: str, body: CreateContactRecommendationRequest) -> ContactRecommendationView:
+    def create(self, target_user_id: str, body: CreateContactRecommendationRequest) -> SocialContactsRecommendationsCreateResponse201:
         """Create a contact recommendation"""
         return self._client.post(f"/im/v3/api/social/contacts/{serialize_path_parameter(target_user_id, {'name': 'targetUserId', 'style': 'simple', 'explode': False})}/recommendations", json=body)
 
@@ -310,10 +346,10 @@ class SocialContactsPreferencesApi:
         self._client = client
 
 
-    def list(self, target_user_id: str) -> ContactPreferencesView:
+    def list(self, target_user_id: str) -> SocialContactsPreferencesRetrieveResponse:
         """Retrieve contact preferences"""
         return self._client.get(f"/im/v3/api/social/contacts/{serialize_path_parameter(target_user_id, {'name': 'targetUserId', 'style': 'simple', 'explode': False})}/preferences")
 
-    def update(self, target_user_id: str, body: UpdateContactPreferencesRequest) -> ContactPreferencesView:
+    def update(self, target_user_id: str, body: UpdateContactPreferencesRequest) -> SocialContactsPreferencesUpdateResponse:
         """Update contact preferences"""
         return self._client.patch(f"/im/v3/api/social/contacts/{serialize_path_parameter(target_user_id, {'name': 'targetUserId', 'style': 'simple', 'explode': False})}/preferences", json=body)

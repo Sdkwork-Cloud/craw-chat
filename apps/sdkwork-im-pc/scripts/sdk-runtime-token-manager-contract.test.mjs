@@ -18,13 +18,6 @@ function readSdkSource(fileName) {
 }
 
 const sessionSource = readSdkSource('session.ts');
-const sdkClientFiles = [
-  'appSdkClient.ts',
-  'appbaseAppSdkClient.ts',
-  'agentAppSdkClient.ts',
-  'driveAppSdkClient.ts',
-  'imSdkClient.ts',
-];
 
 assert.match(
   sessionSource,
@@ -92,17 +85,25 @@ assert.match(
   'Authenticated app sessions require both SDKWork tokens and a non-expired session.',
 );
 
-for (const fileName of sdkClientFiles) {
-  const source = readSdkSource(fileName);
+const sdkClientTokenManagerChecks = [
+  ['appSdkClient.ts', 'appSdkClient.ts'],
+  ['appbaseAppSdkClient.ts', 'appbaseAppSdkClient.ts'],
+  ['agentAppSdkClient.ts', 'agentAppSdkClient.ts'],
+  ['driveAppSdkClient.ts', 'drivePcIntegration.ts'],
+  ['imSdkClient.ts', 'imSdkClient.ts'],
+];
+
+for (const [facadeFile, implementationFile] of sdkClientTokenManagerChecks) {
+  const source = readSdkSource(implementationFile);
   assert.match(
     source,
     /getSdkworkChatGlobalTokenManager/u,
-    `${fileName} must inject the PC runtime shared TokenManager.`,
+    `${facadeFile} must inject the PC runtime shared TokenManager via ${implementationFile}.`,
   );
   assert.doesNotMatch(
     source,
     /createSdkworkChatSessionTokenManager\(currentSession\)/u,
-    `${fileName} must not create a per-client TokenManager snapshot.`,
+    `${facadeFile} must not create a per-client TokenManager snapshot.`,
   );
 }
 

@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_database_sqlx::DatabasePool;
-use sdkwork_web_bootstrap::{AlwaysReady, CompositeReadinessCheck, ReadinessCheck, ReadinessFuture};
+use sdkwork_web_bootstrap::{
+    AlwaysReady, CompositeReadinessCheck, ReadinessCheck, ReadinessFuture,
+};
 use sdkwork_web_core::WebEnvironment;
 use session_gateway::resolve_iam_auth_pool_from_env;
 use sqlx::PgPool;
@@ -63,8 +65,7 @@ impl ReadinessCheck for RedisUrlReadinessCheck {
     fn check(&self) -> ReadinessFuture<'_> {
         let url = self.url.clone();
         Box::pin(async move {
-            ping_redis_url(url.as_str())
-                .map_err(|error| format!("redis readiness failed: {error}"))
+            ping_redis_url(url.as_str()).map_err(|error| format!("redis readiness failed: {error}"))
         })
     }
 }
@@ -84,7 +85,9 @@ impl ReadinessCheck for MissingDependencyReadinessCheck {
     fn check(&self) -> ReadinessFuture<'_> {
         let dependency = self.dependency;
         Box::pin(async move {
-            Err(format!("required dependency is not configured: {dependency}"))
+            Err(format!(
+                "required dependency is not configured: {dependency}"
+            ))
         })
     }
 }
@@ -120,11 +123,7 @@ fn redis_required_in_production(environment: &WebEnvironment) -> bool {
 fn ping_redis_url(redis_url: &str) -> Result<(), String> {
     redis::Client::open(redis_url)
         .map_err(|error| error.to_string())
-        .and_then(|client| {
-            client
-                .get_connection()
-                .map_err(|error| error.to_string())
-        })
+        .and_then(|client| client.get_connection().map_err(|error| error.to_string()))
         .and_then(|mut connection| {
             redis::cmd("PING")
                 .query::<String>(&mut connection)
@@ -134,7 +133,9 @@ fn ping_redis_url(redis_url: &str) -> Result<(), String> {
             if response.eq_ignore_ascii_case("PONG") {
                 Ok(())
             } else {
-                Err(format!("redis ping returned unexpected payload: {response}"))
+                Err(format!(
+                    "redis ping returned unexpected payload: {response}"
+                ))
             }
         })
 }
@@ -205,7 +206,8 @@ fn resolve_im_database_url_from_env() -> Option<String> {
 fn ping_postgres_url(database_url: &str) -> Result<(), String> {
     use postgres::Client;
 
-    let tls = make_tls_connector().map_err(|error| format!("postgres TLS connector build failed: {error}"))?;
+    let tls = make_tls_connector()
+        .map_err(|error| format!("postgres TLS connector build failed: {error}"))?;
     let mut client = Client::connect(database_url, tls)
         .map_err(|error| format!("postgres connect failed: {error}"))?;
     client
@@ -244,10 +246,7 @@ pub async fn resolve_im_service_readiness_check() -> Arc<dyn ReadinessCheck> {
     let mut checks: Vec<Arc<dyn ReadinessCheck>> = Vec::new();
 
     if let Some(pool) = resolve_iam_auth_pool_from_env().await {
-        checks.push(Arc::new(PgPoolReadinessCheck {
-            pool,
-            label: "iam",
-        }));
+        checks.push(Arc::new(PgPoolReadinessCheck { pool, label: "iam" }));
     }
 
     if let Ok(pool) = sdkwork_im_database_pool::create_im_database_pool_from_env().await {
@@ -303,7 +302,7 @@ pub fn ensure_im_service_process_identity(service_name: &str) {
 pub async fn shutdown_signal() {
     #[cfg(unix)]
     {
-        use tokio::signal::unix::{signal, SignalKind};
+        use tokio::signal::unix::{SignalKind, signal};
 
         let mut sigterm = signal(SignalKind::terminate())
             .expect("failed to install SIGTERM handler for graceful shutdown");
@@ -330,8 +329,12 @@ mod identity_tests {
     fn ensure_im_service_process_identity_sets_defaults_when_unset() {
         let prior_service = std::env::var("SDKWORK_IM_SERVICE_NAME").ok();
         let prior_otel = std::env::var("OTEL_SERVICE_NAME").ok();
-        std::env::remove_var("SDKWORK_IM_SERVICE_NAME");
-        std::env::remove_var("OTEL_SERVICE_NAME");
+        // SAFETY: Tests are single-threaded; mutating the process environment here
+        // cannot race with other threads in this binary.
+        unsafe {
+            std::env::remove_var("SDKWORK_IM_SERVICE_NAME");
+            std::env::remove_var("OTEL_SERVICE_NAME");
+        }
         ensure_im_service_process_identity("test-service");
         assert_eq!(
             std::env::var("SDKWORK_IM_SERVICE_NAME").ok().as_deref(),
@@ -341,13 +344,16 @@ mod identity_tests {
             std::env::var("OTEL_SERVICE_NAME").ok().as_deref(),
             Some("test-service")
         );
-        match prior_service {
-            Some(value) => std::env::set_var("SDKWORK_IM_SERVICE_NAME", value),
-            None => std::env::remove_var("SDKWORK_IM_SERVICE_NAME"),
-        }
-        match prior_otel {
-            Some(value) => std::env::set_var("OTEL_SERVICE_NAME", value),
-            None => std::env::remove_var("OTEL_SERVICE_NAME"),
+        // SAFETY: see above.
+        unsafe {
+            match prior_service {
+                Some(value) => std::env::set_var("SDKWORK_IM_SERVICE_NAME", value),
+                None => std::env::remove_var("SDKWORK_IM_SERVICE_NAME"),
+            }
+            match prior_otel {
+                Some(value) => std::env::set_var("OTEL_SERVICE_NAME", value),
+                None => std::env::remove_var("OTEL_SERVICE_NAME"),
+            }
         }
     }
 }

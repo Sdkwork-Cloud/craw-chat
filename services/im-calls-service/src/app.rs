@@ -8,8 +8,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
 use im_adapters_postgres_rtc_state::build_postgres_rtc_state_store_optional;
-use im_adapters_redis_cache::rtc_state_store::build_redis_rtc_state_store_optional;
 use im_adapters_redis_cache::RedisSignalRateLimiter;
+use im_adapters_redis_cache::rtc_state_store::build_redis_rtc_state_store_optional;
 use im_app_context::allows_header_only_app_context_fallback;
 use im_domain_core::audit::{AuditEmitter, LoggingAuditEmitter};
 use im_domain_core::rtc::StateStore;
@@ -54,8 +54,7 @@ const ENV_IM_DATABASE_URL: &str = "SDKWORK_IM_DATABASE_URL";
 /// When `true` or `1`, missing outbox configuration aborts startup.
 const ENV_RTC_REQUIRE_OUTBOX: &str = "SDKWORK_RTC_REQUIRE_OUTBOX";
 /// When `true` or `1`, missing Redis signal rate limiter aborts startup in production-like envs.
-const ENV_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT: &str =
-    "SDKWORK_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT";
+const ENV_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT: &str = "SDKWORK_RTC_REQUIRE_REDIS_SIGNAL_RATE_LIMIT";
 
 #[derive(Clone)]
 struct PublicAppGuardrails {
@@ -323,8 +322,12 @@ pub fn build_default_calling_runtime() -> CallingRuntime {
         .with_outbox_store(enforce_require_outbox(build_default_outbox_store_optional()))
         .with_audit_emitter(build_default_audit_emitter())
         .with_id_generator(build_default_id_generator())
-        .with_conversation_member_gate(crate::conversation_access::build_conversation_member_access_gate_from_env())
-        .with_conversation_aggregate_store(crate::conversation_access::build_conversation_aggregate_store_from_env());
+        .with_conversation_member_gate(
+            crate::conversation_access::build_conversation_member_access_gate_from_env(),
+        )
+        .with_conversation_aggregate_store(
+            crate::conversation_access::build_conversation_aggregate_store_from_env(),
+        );
     if let Some(limiter) = shared_signal_rate_limiter {
         tracing::info!(
             target: "sdkwork.im.calls",
@@ -403,8 +406,9 @@ const CALL_SESSION_MAINTENANCE_INTERVAL_SECS: u64 = 60;
 /// Background reaper for call sessions stuck in `started` beyond ring timeout.
 pub fn spawn_call_session_maintenance(runtime: Arc<CallingRuntime>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let mut interval =
-            tokio::time::interval(std::time::Duration::from_secs(CALL_SESSION_MAINTENANCE_INTERVAL_SECS));
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+            CALL_SESSION_MAINTENANCE_INTERVAL_SECS,
+        ));
         interval.tick().await;
         loop {
             interval.tick().await;

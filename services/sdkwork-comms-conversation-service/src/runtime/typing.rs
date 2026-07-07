@@ -6,7 +6,9 @@ use im_domain_core::typing::{
     TYPING_DEFAULT_TTL_SECONDS, TYPING_EVENT_TYPE, TYPING_SCOPE_TYPE, TypingIndicator,
     TypingIndicatorList, TypingIndicatorListItem,
 };
-use im_platform_contracts::{RealtimeEventPublisher, RealtimeEventRecipient};
+use im_platform_contracts::{
+    RealtimeEventPublisher, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
+};
 use im_time::utc_now_rfc3339_millis;
 
 use super::{
@@ -162,13 +164,15 @@ impl<J> ConversationRuntime<J> {
 
         publisher
             .publish_ephemeral_scope_event_to_recipients(
-                tenant_id,
-                organization_id,
-                TYPING_SCOPE_TYPE,
-                conversation_id,
-                TYPING_EVENT_TYPE,
-                payload,
-                recipients,
+                RealtimeScopeEventPublishCommand {
+                    tenant_id,
+                    organization_id,
+                    scope_type: TYPING_SCOPE_TYPE,
+                    scope_id: conversation_id,
+                    event_type: TYPING_EVENT_TYPE,
+                    payload,
+                    recipients,
+                },
             )
             .map_err(RuntimeError::from)
     }

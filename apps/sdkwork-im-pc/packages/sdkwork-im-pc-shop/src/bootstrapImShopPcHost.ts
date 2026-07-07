@@ -1,4 +1,4 @@
-import { configureShopPcHost } from '@sdkwork/shop-pc-core/host';
+import { configureShopPcHost } from '@sdkwork/shop-pc-core';
 import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 import { readAppSdkSessionTokens } from '@sdkwork/im-pc-core/sdk/session';
 

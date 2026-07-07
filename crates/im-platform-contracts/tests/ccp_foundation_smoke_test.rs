@@ -49,6 +49,8 @@ fn test_step03_ccp_foundation_tranche_can_compose_envelope_control_and_codec_typ
         device_id: Some("d_demo".into()),
         session_id: Some("s_demo".into()),
         actor_kind: "user".into(),
+        auth_token: None,
+        access_token: None,
     });
 
     assert_eq!(hello.frame_type(), "hello");

@@ -42,10 +42,9 @@ export async function setupAuthenticatedPage(
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        code: '0',
-        message: 'ok',
-        requestId: 'playwright.request.fallback',
+        code: 0,
         data: {},
+        traceId: 'trace.playwright.fallback',
       }),
     });
   });

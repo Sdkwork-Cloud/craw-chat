@@ -423,7 +423,7 @@ pub struct BanRecord {
 
 /// Environment variable for the default/max chat group member cap used by conversation policy.
 pub const CHAT_GROUP_MAX_MEMBERS_ENV: &str = "SDKWORK_IM_GROUP_MAX_MEMBERS";
-pub const DEFAULT_CHAT_GROUP_MAX_MEMBERS: i32 = 500;
+pub const DEFAULT_CHAT_GROUP_MAX_MEMBERS: i32 = 10_000;
 pub const MIN_CHAT_GROUP_MAX_MEMBERS: i32 = 2;
 pub const MAX_CHAT_GROUP_MAX_MEMBERS: i32 = 10_000;
 
@@ -434,7 +434,9 @@ pub fn resolve_chat_group_max_members() -> i32 {
         std::env::var(CHAT_GROUP_MAX_MEMBERS_ENV)
             .ok()
             .and_then(|value| value.trim().parse::<i32>().ok())
-            .filter(|value| *value >= MIN_CHAT_GROUP_MAX_MEMBERS && *value <= MAX_CHAT_GROUP_MAX_MEMBERS)
+            .filter(|value| {
+                *value >= MIN_CHAT_GROUP_MAX_MEMBERS && *value <= MAX_CHAT_GROUP_MAX_MEMBERS
+            })
             .unwrap_or(DEFAULT_CHAT_GROUP_MAX_MEMBERS)
     })
 }

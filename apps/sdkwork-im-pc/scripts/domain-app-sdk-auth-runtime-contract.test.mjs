@@ -38,36 +38,38 @@ const appAuthRuntimeSource = readText(
 );
 
 const domainSdkClients = [
-  ['catalog', 'Catalog'],
-  ['order', 'Order'],
-  ['shop', 'Shop'],
-  ['community', 'Community'],
-  ['course', 'Course'],
-  ['drive', 'Drive'],
-  ['knowledgebase', 'Knowledgebase'],
-  ['mail', 'Mail'],
+  { domain: 'catalog', getter: 'getImHostedCatalogAppSdkClient', resetter: 'resetCommercePcIntegration' },
+  { domain: 'order', getter: 'getImHostedOrderAppSdkClient', resetter: 'resetCommercePcIntegration' },
+  { domain: 'shop', getter: 'getImHostedShopAppSdkClient', resetter: 'resetCommercePcIntegration' },
+  { domain: 'community', getter: 'getCommunityAppSdkClient', resetter: 'resetCommunityPcIntegration' },
+  { domain: 'course', getter: 'getCourseAppSdkClient', resetter: 'resetCoursePcIntegration' },
+  { domain: 'drive', getter: 'getDriveAppSdkClient', resetter: 'resetDriveAppSdkClient' },
+  { domain: 'knowledgebase', getter: 'getKnowledgebaseAppSdkClient', resetter: 'resetKnowledgebaseAppSdkClient' },
+  { domain: 'mail', getter: null, resetter: 'resetMailPcIntegration' },
 ];
 
-for (const [domain, pascal] of domainSdkClients) {
+for (const { domain, getter, resetter } of domainSdkClients) {
+  if (getter) {
+    assert.match(
+      appAuthRuntimeSource,
+      new RegExp(getter, 'u'),
+      `Auth runtime must import the ${domain} app SDK client accessor (${getter}).`,
+    );
+    assert.match(
+      functionBody(appAuthRuntimeSource, 'getAuthenticatedSdkClients'),
+      new RegExp(`${getter}\\(\\)`, 'u'),
+      `Auth runtime sdkClients inventory must include the ${domain} app SDK client.`,
+    );
+  }
   assert.match(
     appAuthRuntimeSource,
-    new RegExp(`get${pascal}AppSdkClient`, 'u'),
-    `Auth runtime must import the ${domain} app SDK client.`,
-  );
-  assert.match(
-    appAuthRuntimeSource,
-    new RegExp(`reset${pascal}AppSdkClient`, 'u'),
-    `Auth runtime must import the ${domain} app SDK reset hook.`,
+    new RegExp(resetter, 'u'),
+    `Auth runtime must import the ${domain} app SDK reset hook (${resetter}).`,
   );
   assert.match(
     functionBody(appAuthRuntimeSource, 'resetSdkworkChatAuthenticatedSdkClients'),
-    new RegExp(`reset${pascal}AppSdkClient\\(\\)`, 'u'),
+    new RegExp(`${resetter}\\(\\)`, 'u'),
     `Session reset must reset the ${domain} app SDK client.`,
-  );
-  assert.match(
-    functionBody(appAuthRuntimeSource, 'getAuthenticatedSdkClients'),
-    new RegExp(`get${pascal}AppSdkClient\\(\\)`, 'u'),
-    `Auth runtime sdkClients inventory must include the ${domain} app SDK client.`,
   );
 }
 

@@ -33,6 +33,7 @@ const releaseBuildSource = readRepoText('scripts', 'release', 'run-sdkwork-im-pc
 const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
 const componentSpec = readRepoJson('specs', 'component.spec.json');
 const moduleRegistrySource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'moduleRegistry.ts');
+const capabilityLoadersSource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'capabilityModuleLoaders.ts');
 const mailViewSource = readText('packages', 'sdkwork-im-pc-mail', 'src', 'MailView.tsx');
 const mailIntegrationSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'mailPcIntegration.ts');
 const viteConfigSource = readText('vite.config.ts');
@@ -141,10 +142,23 @@ assert.deepEqual(
   'component.spec.json must document mail split upstream override env keys.',
 );
 
-assert.match(
-  moduleRegistrySource,
-  /COMMERCIAL_RUNTIME_MODULES[\s\S]*"mail"/u,
-  'Mail must be enabled in commercial runtime modules after SDK wiring.',
+function extractCommercialRuntimeModuleIds(source) {
+  const match = source.match(
+    /export const COMMERCIAL_RUNTIME_MODULES = new Set<AppModuleId>\(\[([\s\S]*?)\]\)/u,
+  );
+  assert.ok(match, 'moduleRegistry must export COMMERCIAL_RUNTIME_MODULES as a Set literal');
+  return [...match[1].matchAll(/"([^"]+)"/gu)].map((item) => item[1]);
+}
+
+const commercialRuntimeModuleIds = extractCommercialRuntimeModuleIds(moduleRegistrySource);
+assert.ok(
+  !commercialRuntimeModuleIds.includes('mail'),
+  'Mail SDK wiring may exist in core, but mail must stay out of commercial runtime navigation until contracts ship.',
+);
+assert.doesNotMatch(
+  capabilityLoadersSource,
+  /im-pc-mail|mail-pc-mail/u,
+  'Shell capability loaders must not register mail before commercial runtime promotion.',
 );
 
 assert.equal(

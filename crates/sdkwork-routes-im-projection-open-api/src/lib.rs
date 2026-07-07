@@ -1,21 +1,19 @@
 mod manifest;
-mod paths;
+pub mod paths;
 mod routes;
 mod web_bootstrap;
 
-pub use manifest::{route_manifest, API_SURFACE};
+pub use manifest::{API_SURFACE, route_manifest};
 pub use paths::PREFIX;
 
 use std::sync::Arc;
 
 use axum::Router;
-use projection_service::http::apply_public_http_guardrails;
 use projection_service::ProjectionRuntime;
+use projection_service::http::apply_public_http_guardrails;
 
 pub fn build_public_app() -> Router {
-    web_bootstrap::wrap_router(apply_public_http_guardrails(
-        routes::build_api_router(),
-    ))
+    web_bootstrap::wrap_router(apply_public_http_guardrails(routes::build_api_router()))
 }
 
 pub fn build_supplemental_public_app() -> Router {
@@ -31,7 +29,9 @@ pub async fn build_public_app_with_runtime(runtime: Arc<ProjectionRuntime>) -> R
     .await
 }
 
-pub fn build_public_app_with_service(service: Arc<projection_service::TimelineProjectionService>) -> Router {
+pub fn build_public_app_with_service(
+    service: Arc<projection_service::TimelineProjectionService>,
+) -> Router {
     web_bootstrap::wrap_router(apply_public_http_guardrails(
         routes::build_api_router_with_service(service),
     ))

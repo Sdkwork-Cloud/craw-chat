@@ -17,7 +17,8 @@ const preferenceUpdates: Array<{
   targetUserId: string;
   body: UpdateContactPreferencesRequest;
 }> = [];
-const userSearchCalls: Array<{ limit?: number; q?: string }> = [];
+const userSearchCalls: Array<{ pageSize?: number; q?: string }> = [];
+const userBlockCreates: Array<{ blockedUserId: string; scope: string }> = [];
 const tagCreates: CreateContactTagRequest[] = [];
 const tagUpdates: Array<{
   tagId: string;
@@ -112,7 +113,7 @@ const fakeClient = {
   },
   social: {
     users: {
-      async list(params: { limit?: number; q?: string }) {
+      async list(params: { pageSize?: number; q?: string }) {
         userSearchCalls.push(params);
         if (params.q === 'u_alice') {
           return {
@@ -249,6 +250,17 @@ const fakeClient = {
         },
       },
     },
+    userBlocks: {
+      async create(body: { blockedUserId: string; scope: string }) {
+        userBlockCreates.push(body);
+        return {
+          blockedUserId: body.blockedUserId,
+          scope: body.scope,
+          tenantId: '100001',
+          userBlockId: `block_${body.blockedUserId}`,
+        };
+      },
+    },
   },
 } as unknown as ImSdkClient;
 
@@ -295,8 +307,8 @@ async function main(): Promise<void> {
   assert.deepEqual(
     userSearchCalls,
     [
-      { q: 'u_alice', limit: 20 },
-      { q: 'u_bob', limit: 20 },
+      { q: 'u_alice', pageSize: 20 },
+      { q: 'u_bob', pageSize: 20 },
     ],
     'contact list hydration must resolve backend contact ids through the real social user search endpoint',
   );
@@ -311,6 +323,12 @@ async function main(): Promise<void> {
   await service.toggleStarContact('u_alice', false);
   await service.setContactRemark('u_alice', '  Alice Lead  ');
   await service.addToBlacklist('u_alice');
+
+  assert.deepEqual(
+    userBlockCreates,
+    [{ blockedUserId: 'u_alice', scope: 'all' }],
+    'contact blacklist actions must create a durable user block through the generated IM SDK userBlocks API',
+  );
 
   assert.deepEqual(
     preferenceUpdates,

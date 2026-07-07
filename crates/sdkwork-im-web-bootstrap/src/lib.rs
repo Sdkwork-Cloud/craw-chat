@@ -7,7 +7,7 @@
 use std::sync::{Arc, OnceLock};
 
 use axum::Router;
-use sdkwork_web_bootstrap::{service_router, ServiceRouterConfig};
+use sdkwork_web_bootstrap::{ServiceRouterConfig, service_router};
 
 /// Mount canonical infrastructure probes on an IM HTTP service router.
 pub fn mount_im_infra_routes(router: Router, config: ServiceRouterConfig) -> Router {
@@ -20,12 +20,14 @@ pub fn im_service_router_config() -> ServiceRouterConfig {
         .with_readiness_check(sdkwork_im_service_readiness::im_env_readiness_check())
         .with_metrics(im_service_http_metrics())
 }
-use im_app_context::{app_context_from_web_request, resolve_app_context, resolve_web_environment_from_process_env};
+use im_app_context::{
+    app_context_from_web_request, resolve_app_context, resolve_web_environment_from_process_env,
+};
 use sdkwork_iam_web_adapter::{
-    iam_web_request_context_resolver_from_env, IamAuthorizationPolicy, IamWebRequestContextResolver,
+    IamAuthorizationPolicy, IamWebRequestContextResolver, iam_web_request_context_resolver_from_env,
 };
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
-use sdkwork_web_axum::{with_web_request_context, WebFrameworkLayer};
+use sdkwork_web_axum::{WebFrameworkLayer, with_web_request_context};
 use sdkwork_web_bootstrap::SecurityPolicy;
 use sdkwork_web_core::{
     DomainContextInjector, EnforcePrincipalTenantIsolationPolicy, HttpMetricsDimensions,
@@ -136,7 +138,7 @@ fn wrap_im_open_api_service_router_inner(
 ) -> Router {
     let environment = resolve_web_environment_from_process_env();
     let security_policy = im_service_security_policy(&environment);
-    let authorization_policy = Arc::new(IamAuthorizationPolicy::new(route_manifest.clone()));
+    let authorization_policy = Arc::new(IamAuthorizationPolicy::new(route_manifest));
     let tenant_isolation_policy = Arc::new(EnforcePrincipalTenantIsolationPolicy);
     let layer = WebFrameworkLayer::new(resolver)
         .with_profile(im_service_context_profile())
@@ -163,11 +165,7 @@ pub fn init_im_service_tracing_from_env() {
 pub fn wrap_im_open_api_service_router(router: Router) -> Router {
     let resolver = cached_iam_web_request_context_resolver()
         .unwrap_or_else(|| IamWebRequestContextResolver::new(None));
-    wrap_im_open_api_service_router_with_resolver(
-        resolver,
-        HttpRouteManifest::new(&[]),
-        router,
-    )
+    wrap_im_open_api_service_router_with_resolver(resolver, HttpRouteManifest::new(&[]), router)
 }
 
 /// Alias for IM HTTP service processes (open-api and backend-api prefixes).

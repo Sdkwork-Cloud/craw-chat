@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use im_platform_contracts::{
-    ContractError, PresenceStateRecord, PresenceStateStore, StreamStateRecord, StreamStateStore,
+    ContractError, ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
+    StreamStateRecord, StreamStateStore,
 };
-use im_time::{rfc3339_cmp, rfc3339_le};
+use im_time::rfc3339_le;
 
 use crate::shared::{
     principal_scope_key, read_json_records_or_default, scope_key, stream_scope_key,
@@ -185,13 +186,8 @@ impl PresenceStateStore for FilePresenceStateStore {
         let device_keys = records
             .presence_by_principal
             .get(
-                principal_scope_key(
-                    tenant_id,
-                    organization_id,
-                    principal_kind,
-                    principal_id,
-                )
-                .as_str(),
+                principal_scope_key(tenant_id, organization_id, principal_kind, principal_id)
+                    .as_str(),
             )
             .cloned()
             .unwrap_or_default();
@@ -214,14 +210,10 @@ impl PresenceStateStore for FilePresenceStateStore {
             .lock()
             .expect("presence state file store lock should lock");
         let records = self.read_records()?;
-        let mut stale_entries = records
+        Ok(records
             .online_by_seen_at
             .iter()
             .filter(|(last_seen_at, _)| rfc3339_le(last_seen_at.as_str(), cutoff_seen_at))
-            .collect::<Vec<_>>();
-        stale_entries.sort_by(|left, right| rfc3339_cmp(left.0.as_str(), right.0.as_str()));
-        Ok(stale_entries
-            .into_iter()
             .flat_map(|(_, device_keys)| device_keys.iter())
             .take(limit)
             .filter_map(|device_key| records.by_device.get(device_key.as_str()).cloned())
@@ -230,13 +222,7 @@ impl PresenceStateStore for FilePresenceStateStore {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        device_id: &str,
-        cutoff_seen_at: &str,
-        expired_at: &str,
+        command: ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
         let _guard = self
             .io_lock
@@ -248,20 +234,20 @@ impl PresenceStateStore for FilePresenceStateStore {
             "presence state store",
             |records: &mut PersistedPresenceStateRecords| {
                 let key = scope_key(
-                    tenant_id,
-                    organization_id,
-                    principal_kind,
-                    principal_id,
-                    device_id,
+                    command.tenant_id,
+                    command.organization_id,
+                    command.principal_kind,
+                    command.principal_id,
+                    command.device_id,
                 );
                 let Some(current) = records.by_device.get(key.as_str()).cloned() else {
                     return;
                 };
-                if !current.is_online_seen_at_or_before(cutoff_seen_at) {
+                if !current.is_online_seen_at_or_before(command.cutoff_seen_at) {
                     return;
                 }
                 remove_presence_indexes(records, key.as_str(), &current);
-                let next = current.into_expired_offline(expired_at);
+                let next = current.into_expired_offline(command.expired_at);
                 insert_presence_indexes(records, key.as_str(), &next);
                 records.by_device.insert(key, next.clone());
                 expired = Some(next);

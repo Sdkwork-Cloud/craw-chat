@@ -8,7 +8,9 @@ const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18082";
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    sdkwork_im_service_readiness::ensure_im_service_process_identity("sdkwork-comms-conversation-service");
+    sdkwork_im_service_readiness::ensure_im_service_process_identity(
+        "sdkwork-comms-conversation-service",
+    );
     sdkwork_im_service_readiness::init_im_service_tracing_from_env();
 
     match run().await {
@@ -74,9 +76,9 @@ async fn run() -> Result<(), String> {
         listener.local_addr().map_err(|e| e.to_string())?
     );
     axum::serve(listener, app)
-.with_graceful_shutdown(async {
-sdkwork_im_service_readiness::shutdown_signal().await;
-})
+        .with_graceful_shutdown(async {
+            sdkwork_im_service_readiness::shutdown_signal().await;
+        })
         .await
         .map_err(|error| format!("conversation-runtime server should run: {error}"))?;
     Ok(())

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Search, Calendar as CalendarIcon, Check } from 'lucide-react';
 import { cn } from '@sdkwork/im-pc-commons';
 import { calendarService, CalendarList } from './services/CalendarService';
-import { toast } from '@sdkwork/im-pc-chat';
+import { toast } from '@sdkwork/im-pc-commons';
 
 interface SidebarProps {
   currentDate: Date;

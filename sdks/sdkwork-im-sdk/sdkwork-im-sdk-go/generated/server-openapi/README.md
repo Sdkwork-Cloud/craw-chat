@@ -81,7 +81,7 @@ fmt.Println(result)
 ```go
 // List pending realtime events
 params := map[string]interface{}{
-    "limit": 1,
+    "page_size": 1,
     "cursor": "cursor",
 }
 result, err := client.Realtime.EventsList(params)
@@ -110,12 +110,8 @@ fmt.Println(result)
 ### social
 
 ```go
-// List contact tags
-params := map[string]interface{}{
-    "limit": 1,
-    "cursor": "cursor",
-}
-result, err := client.Social.ContactsTagsList(params)
+// Retrieve pending incoming friend request count
+result, err := client.Social.FriendRequestsPendingCountRetrieve()
 if err != nil {
     panic(err)
 }
@@ -127,7 +123,7 @@ fmt.Println(result)
 ```go
 // List IM contacts
 params := map[string]interface{}{
-    "limit": 1,
+    "page_size": 1,
     "cursor": "cursor",
 }
 result, err := client.Chat.ContactsList(params)
@@ -156,7 +152,11 @@ fmt.Println(result)
 
 ```go
 // List spaces
-result, err := client.Spaces.List()
+params := map[string]interface{}{
+    "page_size": 1,
+    "cursor": "cursor",
+}
+result, err := client.Spaces.List(params)
 if err != nil {
     panic(err)
 }

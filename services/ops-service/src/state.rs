@@ -137,9 +137,6 @@ impl OpsRuntime {
 
     pub fn update_projection_replay_lag(&self, mut projection_lag_items: Vec<LagItem>) {
         projection_lag_items.retain(|item| item.component == "projection_replay");
-        if projection_lag_items.is_empty() {
-            projection_lag_items.push(default_projection_replay_lag_item());
-        }
         projection_lag_items.sort_by(|left, right| left.scope_id.cmp(&right.scope_id));
 
         let mut lag_items = lock_ops_mutex(&self.lag_items, "ops lag items");
@@ -333,16 +330,7 @@ fn lock_ops_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexG
 }
 
 fn default_lag_items() -> Vec<LagItem> {
-    vec![
-        LagItem {
-            component: "commit_journal".into(),
-            scope_id: "self-hosted.split-services.development".into(),
-            current_offset: 0,
-            committed_offset: 0,
-            lag: 0,
-        },
-        default_projection_replay_lag_item(),
-    ]
+    Vec::new()
 }
 
 fn rollup_health_status<'a>(statuses: impl IntoIterator<Item = &'a str>) -> &'static str {
@@ -365,16 +353,6 @@ fn health_status_severity(status: &str) -> u8 {
         "degraded" => 2,
         "ok" | "idle" => 0,
         _ => 2,
-    }
-}
-
-fn default_projection_replay_lag_item() -> LagItem {
-    LagItem {
-        component: "projection_replay".into(),
-        scope_id: "projection:*".into(),
-        current_offset: 0,
-        committed_offset: 0,
-        lag: 0,
     }
 }
 

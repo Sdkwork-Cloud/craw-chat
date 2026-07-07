@@ -1,6 +1,6 @@
 use im_adapters_local_disk::read_commit_journal_file;
-use im_platform_contracts::ContractError;
 use im_platform_contracts::CommitEnvelope;
+use im_platform_contracts::ContractError;
 
 use crate::runtime::SocialRuntime;
 

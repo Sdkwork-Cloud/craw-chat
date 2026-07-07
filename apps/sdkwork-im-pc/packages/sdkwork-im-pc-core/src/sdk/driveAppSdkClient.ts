@@ -5,6 +5,11 @@ export {
   initDriveAppSdkClient,
   resetDriveAppSdkClient,
   syncImSessionToDrivePc,
+  type DriveUploaderBlobLike,
+  type DriveUploaderProfile,
+  type DriveUploaderRequest,
+  type DriveUploaderUploadResult,
   type SdkworkDriveAppClient,
   type SdkworkDriveAppClientConfig,
+  type SdkworkDriveUploader,
 } from './drivePcIntegration';

@@ -327,7 +327,7 @@ async fn test_stream_append_and_list_frames_over_http() {
     let list_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_frames/frames?pageSize=10")
+                .uri("/im/v3/api/streams/st_frames/frames?page_size=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -983,7 +983,7 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_open_idempotent/frames?pageSize=10")
+                .uri("/im/v3/api/streams/st_open_idempotent/frames?page_size=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -2016,7 +2016,7 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_rebuild/frames?pageSize=10")
+                .uri("/im/v3/api/streams/st_rebuild/frames?page_size=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -2355,7 +2355,7 @@ async fn test_stream_list_rejects_page_size_above_guardrail_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/streams/st_limit_guardrail/frames?pageSize=201")
+                .uri("/im/v3/api/streams/st_limit_guardrail/frames?page_size=201")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -2386,7 +2386,7 @@ async fn test_stream_list_rejects_oversized_stream_id_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/im/v3/api/streams/{oversized_stream_id}/frames?pageSize=10"
+                    "/im/v3/api/streams/{oversized_stream_id}/frames?page_size=10"
                 ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")

@@ -2,11 +2,12 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use conversation_runtime::internal_rpc_dispatch::{
-    ConversationInternalRpcDispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS,
+    CONVERSATION_INTERNAL_RPC_SERVICE_KEYS, ConversationInternalRpcDispatcher,
 };
 use sdkwork_im_rpc_service_rust::{
-    build_im_rpc_service_router_with_config_for_services, initialize_im_rpc_framework_from_env,
-    register_im_discovery_instance, serve_im_rpc_with_discovery, ImRpcServerConfig,
+    ImRpcServerConfig, build_im_rpc_service_router_with_config_for_services,
+    initialize_im_rpc_framework_from_env, register_im_discovery_instance,
+    serve_im_rpc_with_discovery,
 };
 use sdkwork_rpc_server::wait_for_ctrl_c;
 
@@ -18,7 +19,9 @@ const INTERNAL_DISCOVERY_SERVICE_NAME: &str = "sdkwork-communication-internal-rp
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    sdkwork_im_service_readiness::ensure_im_service_process_identity("comms-conversation-internal-rpc");
+    sdkwork_im_service_readiness::ensure_im_service_process_identity(
+        "comms-conversation-internal-rpc",
+    );
     sdkwork_im_service_readiness::init_im_service_tracing_from_env();
 
     match run().await {
@@ -50,7 +53,9 @@ async fn run() -> Result<(), String> {
     let dispatcher = Arc::new(
         ConversationInternalRpcDispatcher::bootstrap_from_env()
             .await
-            .map_err(|error| format!("conversation internal rpc runtime bootstrap failed: {error}"))?,
+            .map_err(|error| {
+                format!("conversation internal rpc runtime bootstrap failed: {error}")
+            })?,
     );
     let router = build_im_rpc_service_router_with_config_for_services(
         &config,
@@ -60,7 +65,9 @@ async fn run() -> Result<(), String> {
 
     let discovery = register_im_discovery_instance(&config)
         .await
-        .map_err(|error| format!("conversation internal rpc discovery registration failed: {error}"))?;
+        .map_err(|error| {
+            format!("conversation internal rpc discovery registration failed: {error}")
+        })?;
 
     tracing::info!(
         target: "sdkwork.im",
@@ -76,8 +83,8 @@ async fn run() -> Result<(), String> {
     serve_im_rpc_with_discovery(router, &config, discovery, async {
         let _ = wait_for_ctrl_c().await;
     })
-        .await
-        .map_err(|error| format!("comms-conversation-internal-rpc server should run: {error}"))
+    .await
+    .map_err(|error| format!("comms-conversation-internal-rpc server should run: {error}"))
 }
 
 fn resolve_bind_addr() -> Result<std::net::SocketAddr, String> {
@@ -87,9 +94,9 @@ fn resolve_bind_addr() -> Result<std::net::SocketAddr, String> {
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| DEFAULT_INTERNAL_RPC_BIND_ADDR.to_owned());
 
-    bind_addr
-        .parse()
-        .map_err(|error| format!("invalid conversation internal rpc bind address `{bind_addr}`: {error}"))
+    bind_addr.parse().map_err(|error| {
+        format!("invalid conversation internal rpc bind address `{bind_addr}`: {error}")
+    })
 }
 
 fn resolve_public_endpoint(bind_addr: std::net::SocketAddr) -> Option<String> {
@@ -104,7 +111,7 @@ fn resolve_public_endpoint(bind_addr: std::net::SocketAddr) -> Option<String> {
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use super::{resolve_public_endpoint, DEFAULT_INTERNAL_RPC_BIND_ADDR};
+    use super::{DEFAULT_INTERNAL_RPC_BIND_ADDR, resolve_public_endpoint};
 
     #[test]
     fn default_bind_addr_is_valid_socket_addr() {
@@ -116,7 +123,8 @@ mod tests {
 
     #[test]
     fn resolve_public_endpoint_falls_back_to_http_bind_addr() {
-        let endpoint = resolve_public_endpoint(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50053));
+        let endpoint =
+            resolve_public_endpoint(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50053));
         assert_eq!(endpoint, Some("http://127.0.0.1:50053".to_owned()));
     }
 }

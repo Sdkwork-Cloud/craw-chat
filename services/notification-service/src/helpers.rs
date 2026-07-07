@@ -47,15 +47,15 @@ pub(crate) fn record_notification_recipient_scope_key(record: &NotificationTaskR
     )
 }
 
-pub(crate) type NotificationRecipientIndex = HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>;
+pub(crate) type NotificationRecipientIndex =
+    HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct NotificationRecipientSortKey(
-    pub Reverse<(String, String)>,
-    pub String,
-);
+pub(crate) struct NotificationRecipientSortKey(pub Reverse<(String, String)>, pub String);
 
-pub(crate) fn notification_recipient_sort_key(task: &NotificationTask) -> NotificationRecipientSortKey {
+pub(crate) fn notification_recipient_sort_key(
+    task: &NotificationTask,
+) -> NotificationRecipientSortKey {
     let (primary, secondary) = notification_sort_key(task);
     NotificationRecipientSortKey(
         Reverse((primary.to_owned(), secondary.to_owned())),
@@ -148,7 +148,10 @@ pub(crate) fn delivery_status_from_notification_status(
     }
 }
 
-pub(crate) fn notification_matches_request(task: &NotificationTask, request: &RequestNotification) -> bool {
+pub(crate) fn notification_matches_request(
+    task: &NotificationTask,
+    request: &RequestNotification,
+) -> bool {
     task.notification_id == request.notification_id.as_str()
         && task.source_event_id == request.source_event_id.as_str()
         && task.source_event_type == request.source_event_type.as_str()
@@ -182,7 +185,10 @@ pub(crate) fn notification_visible_to_actor(task: &NotificationTask, auth: &AppC
     task.recipient_id == auth.actor_id && task.recipient_kind == auth.actor_kind
 }
 
-pub(crate) fn fanout_notification_id(notification_id_seed: &str, recipient: &NotificationRecipient) -> String {
+pub(crate) fn fanout_notification_id(
+    notification_id_seed: &str,
+    recipient: &NotificationRecipient,
+) -> String {
     format!(
         "ntf_{}_{}_{}",
         notification_id_seed, recipient.recipient_kind, recipient.recipient_id
@@ -193,7 +199,10 @@ pub(crate) fn automation_notification_id(actor_kind: &str, execution_id: &str) -
     format!("ntf_automation_{actor_kind}_{execution_id}")
 }
 
-pub(crate) fn automation_notification_source_event_id(actor_kind: &str, execution_id: &str) -> String {
+pub(crate) fn automation_notification_source_event_id(
+    actor_kind: &str,
+    execution_id: &str,
+) -> String {
     format!("evt_{actor_kind}_{execution_id}_automation_execution_completed")
 }
 

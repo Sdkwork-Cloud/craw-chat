@@ -14,15 +14,15 @@ public class PresenceApi {
     }
 
     /** Publish current client route presence heartbeat */
-    public PresenceView heartbeatCreate(PresenceHeartbeatRequest body) throws Exception {
+    public PresenceHeartbeatResponse heartbeat(PresenceHeartbeatRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/presence/heartbeat"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<PresenceView>() {});
+        return client.convertValue(raw, new TypeReference<PresenceHeartbeatResponse>() {});
     }
 
     /** Retrieve current principal presence */
-    public PresenceView meRetrieve() throws Exception {
+    public PresenceMeRetrieveResponse meRetrieve() throws Exception {
         Object raw = client.get(ApiPaths.imPath("/presence/me"));
-        return client.convertValue(raw, new TypeReference<PresenceView>() {});
+        return client.convertValue(raw, new TypeReference<PresenceMeRetrieveResponse>() {});
     }
 
 

@@ -252,7 +252,7 @@ impl CapacityManager {
             .get(tenant_id)
             .cloned()
             .unwrap_or_default();
-        if !self.check_tenant_quota(&usage, resource_type.clone(), amount) {
+        if !self.check_tenant_quota(&usage, resource_type, amount) {
             let limit = self.get_quota_limit(&resource_type);
             return Err(CapacityError::TenantQuotaExceeded {
                 tenant: tenant_id.to_string(),

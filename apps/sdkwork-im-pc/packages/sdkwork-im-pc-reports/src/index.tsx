@@ -3,7 +3,7 @@ import {
   FileBox, Edit3, Send, Archive, Search, Filter, Calendar, BarChart3, Presentation, Plus, AlertCircle 
 } from 'lucide-react';
 import { cn } from '@sdkwork/im-pc-commons';
-import { toast } from '@sdkwork/im-pc-chat';
+import { toast } from '@sdkwork/im-pc-commons';
 import { reportService, ReportItem } from './services/ReportService';
 
 export const ReportsView: React.FC = () => {

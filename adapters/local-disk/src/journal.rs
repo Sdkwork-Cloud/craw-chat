@@ -4,7 +4,10 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use im_platform_contracts::{CommitEnvelope, CommitJournal, CommitPosition, ContractError};
+use im_platform_contracts::{
+    CommitEnvelope, CommitJournal, CommitJournalAggregateScope, CommitJournalReplayCursor,
+    CommitJournalReplayPage, CommitPosition, ContractError,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::shared::with_store_file_lock;
@@ -165,6 +168,48 @@ impl CommitJournal for FileCommitJournal {
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
         FileCommitJournal::recorded(self)
     }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("commit journal file store lock should lock");
+        with_store_file_lock(self.file_path.as_path(), "commit journal", || {
+            read_commit_journal_json_lines_page_unlocked(
+                self.file_path.as_path(),
+                "commit journal",
+                self.partition.as_str(),
+                cursor,
+                limit,
+            )
+        })
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let _guard = self
+            .io_lock
+            .lock()
+            .expect("commit journal file store lock should lock");
+        with_store_file_lock(self.file_path.as_path(), "commit journal", || {
+            read_commit_journal_json_lines_page_for_aggregate_unlocked(
+                self.file_path.as_path(),
+                "commit journal",
+                self.partition.as_str(),
+                scope,
+                cursor,
+                limit,
+            )
+        })
+    }
 }
 
 pub fn read_commit_journal_file(
@@ -213,31 +258,160 @@ fn read_commit_journal_json_lines_unlocked(
     let reader = BufReader::new(file);
     let mut events = Vec::new();
     for (line_index, line) in reader.lines().enumerate() {
-        let line = line.map_err(|error| {
-            ContractError::Unavailable(format!(
-                "failed to read {store_name} {} line {}: {error}",
-                file_path.display(),
-                line_index + 1
-            ))
-        })?;
-        if line.trim().is_empty() {
-            return Err(ContractError::Unavailable(format!(
-                "failed to parse {store_name} {} line {}: blank JSON Lines record",
-                file_path.display(),
-                line_index + 1
-            )));
-        }
-        let event = serde_json::from_str::<CommitEnvelope>(line.as_str()).map_err(|error| {
-            ContractError::Unavailable(format!(
-                "failed to parse {store_name} {} line {} as JSON Lines commit event: {error}",
-                file_path.display(),
-                line_index + 1
-            ))
-        })?;
-        events.push(event);
+        events.push(parse_commit_journal_line(
+            file_path, store_name, line_index, line,
+        )?);
     }
 
     Ok(events)
+}
+
+fn read_commit_journal_json_lines_page_unlocked(
+    file_path: &Path,
+    store_name: &str,
+    partition: &str,
+    cursor: Option<&CommitJournalReplayCursor>,
+    limit: usize,
+) -> Result<CommitJournalReplayPage, ContractError> {
+    let Some(reader) = open_commit_journal_reader_unlocked(file_path, store_name)? else {
+        return Ok(CommitJournalReplayPage::default());
+    };
+
+    let page_limit = limit.max(1);
+    let start_after_offset = cursor.map(|cursor| cursor.commit_offset).unwrap_or(0);
+    let mut items = Vec::with_capacity(page_limit);
+    let mut last_included_offset = start_after_offset;
+    let mut has_more = false;
+
+    for (line_index, line) in reader.lines().enumerate() {
+        let offset = line_index as u64 + 1;
+        if offset <= start_after_offset {
+            continue;
+        }
+        let event = parse_commit_journal_line(file_path, store_name, line_index, line)?;
+        if items.len() < page_limit {
+            items.push(event);
+            last_included_offset = offset;
+        } else {
+            has_more = true;
+            break;
+        }
+    }
+
+    let next_cursor = has_more.then(|| CommitJournalReplayCursor {
+        partition_key: partition.to_owned(),
+        commit_offset: last_included_offset,
+    });
+
+    Ok(CommitJournalReplayPage { items, next_cursor })
+}
+
+fn read_commit_journal_json_lines_page_for_aggregate_unlocked(
+    file_path: &Path,
+    store_name: &str,
+    partition: &str,
+    scope: &CommitJournalAggregateScope,
+    cursor: Option<&CommitJournalReplayCursor>,
+    limit: usize,
+) -> Result<CommitJournalReplayPage, ContractError> {
+    let Some(reader) = open_commit_journal_reader_unlocked(file_path, store_name)? else {
+        return Ok(CommitJournalReplayPage::default());
+    };
+
+    let page_limit = limit.max(1);
+    let start_after_offset = cursor.map(|cursor| cursor.commit_offset).unwrap_or(0);
+    let mut items = Vec::with_capacity(page_limit);
+    let mut page_full_offset = None;
+    let mut has_more = false;
+
+    for (line_index, line) in reader.lines().enumerate() {
+        let offset = line_index as u64 + 1;
+        if offset <= start_after_offset {
+            continue;
+        }
+        let event = parse_commit_journal_line(file_path, store_name, line_index, line)?;
+        if let Some(full_offset) = page_full_offset {
+            has_more = offset > full_offset;
+            break;
+        }
+        if event.tenant_id == scope.tenant_id
+            && (event.aggregate_id == scope.aggregate_id || event.scope_id == scope.aggregate_id)
+        {
+            items.push(event);
+            if items.len() == page_limit {
+                page_full_offset = Some(offset);
+            }
+        }
+    }
+
+    let next_cursor = has_more.then(|| CommitJournalReplayCursor {
+        partition_key: partition.to_owned(),
+        commit_offset: page_full_offset.unwrap_or(start_after_offset),
+    });
+
+    Ok(CommitJournalReplayPage { items, next_cursor })
+}
+
+fn open_commit_journal_reader_unlocked(
+    file_path: &Path,
+    store_name: &str,
+) -> Result<Option<BufReader<File>>, ContractError> {
+    recover_pending_commit_journal_temp_file(file_path, store_name)?;
+
+    if !file_path.exists() {
+        return Ok(None);
+    }
+
+    let file = File::open(file_path).map_err(|error| {
+        ContractError::Unavailable(format!(
+            "failed to read {store_name} {}: {error}",
+            file_path.display()
+        ))
+    })?;
+    if file
+        .metadata()
+        .map_err(|error| {
+            ContractError::Unavailable(format!(
+                "failed to stat {store_name} {}: {error}",
+                file_path.display()
+            ))
+        })?
+        .len()
+        == 0
+    {
+        return Ok(None);
+    }
+
+    Ok(Some(BufReader::new(file)))
+}
+
+fn parse_commit_journal_line(
+    file_path: &Path,
+    store_name: &str,
+    line_index: usize,
+    line: Result<String, std::io::Error>,
+) -> Result<CommitEnvelope, ContractError> {
+    let line = line.map_err(|error| {
+        ContractError::Unavailable(format!(
+            "failed to read {store_name} {} line {}: {error}",
+            file_path.display(),
+            line_index + 1
+        ))
+    })?;
+    if line.trim().is_empty() {
+        return Err(ContractError::Unavailable(format!(
+            "failed to parse {store_name} {} line {}: blank JSON Lines record",
+            file_path.display(),
+            line_index + 1
+        )));
+    }
+    serde_json::from_str::<CommitEnvelope>(line.as_str()).map_err(|error| {
+        ContractError::Unavailable(format!(
+            "failed to parse {store_name} {} line {} as JSON Lines commit event: {error}",
+            file_path.display(),
+            line_index + 1
+        ))
+    })
 }
 
 fn load_commit_journal_offset_unlocked(

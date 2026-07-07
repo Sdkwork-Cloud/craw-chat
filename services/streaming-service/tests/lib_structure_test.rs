@@ -30,6 +30,10 @@ fn test_streaming_runtime_frame_store_uses_sequence_index() {
         "stream append retry/conflict detection should perform direct frame_seq lookup"
     );
     assert!(
+        !source.contains("pageSize"),
+        "streaming HTTP pagination diagnostics must use canonical page_size wording, not the forbidden raw query alias"
+    );
+    assert!(
         source.contains("fn encode_stream_key_segments"),
         "streaming runtime keys need a single segment-safe encoder for sessions, frames, state, and idempotency"
     );

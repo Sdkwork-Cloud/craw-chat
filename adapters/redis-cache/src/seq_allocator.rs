@@ -5,27 +5,31 @@
 //! sequences at once and allocates locally until exhausted.
 //!
 //! ## Key pattern
-//! `seq:{tenant_id}:{org_id}:{conversation_id}` → atomic counter (i64)
+//! `seq:{length-prefixed tenant/org/conversation scope}` -> atomic counter (i64)
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use redis::Commands;
 use sdkwork_im_contract_core::ContractError;
 
-use crate::redis_unavailable;
+use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
+use crate::redis_key::encode_redis_key_segments;
 
 const DEFAULT_BATCH_SIZE: u32 = 1000;
 
 fn seq_key(tenant_id: &str, org_id: &str, conversation_id: &str) -> String {
-    format!("seq:{tenant_id}:{org_id}:{conversation_id}")
+    format!(
+        "seq:{}",
+        encode_redis_key_segments([tenant_id, org_id, conversation_id])
+    )
 }
 
 /// Redis-backed conversation sequence allocator with local batch caching.
 pub struct RedisSeqAllocator {
     client: redis::Client,
     batch_size: u32,
-    /// Local batch cache: key → (next_seq_in_batch, batch_upper_bound)
+    timeouts: RedisBlockingTimeouts,
+    /// Local batch cache: key -> (next_seq_in_batch, batch_upper_bound)
     batches: Mutex<HashMap<String, (u64, u64)>>,
 }
 
@@ -34,6 +38,7 @@ impl RedisSeqAllocator {
         Self {
             client,
             batch_size: DEFAULT_BATCH_SIZE,
+            timeouts: RedisBlockingTimeouts::from_env(),
             batches: Mutex::new(HashMap::new()),
         }
     }
@@ -41,12 +46,6 @@ impl RedisSeqAllocator {
     pub fn with_batch_size(mut self, batch_size: u32) -> Self {
         self.batch_size = batch_size.max(1);
         self
-    }
-
-    fn connection(&self) -> Result<redis::Connection, ContractError> {
-        self.client
-            .get_connection()
-            .map_err(|e| redis_unavailable("seq_allocator_connect", e))
     }
 }
 
@@ -81,10 +80,19 @@ impl im_platform_contracts::ConversationSeqAllocator for RedisSeqAllocator {
         // for the same key receive disjoint sequence ranges; at worst one
         // extra batch is fetched, which is harmless.
         let batch_size_u64 = self.batch_size as u64;
-        let mut conn = self.connection()?;
-        let new_upper: i64 = conn
-            .incr(&key, batch_size_u64)
-            .map_err(|e| redis_unavailable("seq_allocator_incrby", e))?;
+        let redis_key = key.clone();
+        let new_upper: i64 = run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "seq_allocator_incrby",
+            move |mut connection| async move {
+                redis::cmd("INCRBY")
+                    .arg(redis_key)
+                    .arg(batch_size_u64)
+                    .query_async(&mut connection)
+                    .await
+            },
+        )?;
         let new_upper = new_upper as u64;
         let first_seq = new_upper.saturating_sub(batch_size_u64).saturating_add(1);
 
@@ -97,7 +105,6 @@ impl im_platform_contracts::ConversationSeqAllocator for RedisSeqAllocator {
             return Ok(first_seq);
         }
 
-        // Store the remaining batch locally
         let next_seq = first_seq.saturating_add(1);
         let mut batches = self
             .batches
@@ -119,9 +126,9 @@ mod tests {
 
     #[test]
     fn test_seq_key_is_segment_safe() {
-        let k1 = seq_key("t1", "org1", "c1");
-        let k2 = seq_key("t2", "org1", "c1");
-        assert_ne!(k1, k2, "different tenant should produce different key");
+        let k1 = seq_key("tenant:a", "default", "conversation");
+        let k2 = seq_key("tenant", "a:default", "conversation");
+        assert_ne!(k1, k2, "segment-safe sequence keys must not collide");
     }
 
     #[test]

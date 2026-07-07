@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 
 use crate::friendship::{self, AppState};
-use crate::{block, direct_chat, external, shared_channel, SocialRuntime};
+use crate::{SocialRuntime, block, direct_chat, external, shared_channel};
 
 pub fn build_control_domain_api_router(state: AppState) -> Router {
     Router::new()

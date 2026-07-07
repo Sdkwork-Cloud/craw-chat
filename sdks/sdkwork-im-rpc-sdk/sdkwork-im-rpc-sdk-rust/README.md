@@ -27,7 +27,7 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - CreateThread: conversations.threads.create, unary, auth=app-session, idempotency=required
   - BindDirectChat: conversations.directChats.bind, unary, auth=app-session, idempotency=required
   - RetrieveConversation: conversations.retrieve, unary, auth=app-session, idempotency=none
-  - RetrieveInbox: inbox.retrieve, unary, auth=app-session, idempotency=none
+  - RetrieveInbox: inbox.list, unary, auth=app-session, idempotency=none
   - ListConversationMembers: conversations.members.list, unary, auth=app-session, idempotency=none
   - AddConversationMember: conversations.members.add, unary, auth=app-session, idempotency=required
   - RemoveConversationMember: conversations.members.remove, unary, auth=app-session, idempotency=required
@@ -63,9 +63,14 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - DeleteMessageFavorite: messages.favorites.delete, unary, auth=app-session, idempotency=required
   - DeleteMessageVisibility: messages.visibility.delete, unary, auth=app-session, idempotency=required
   - CreateMessageReaction: messages.reactions.create, unary, auth=app-session, idempotency=required
-  - DeleteMessageReaction: messages.reactions.delete, unary, auth=app-session, idempotency=required
-  - PinMessage: messages.pin.create, unary, auth=app-session, idempotency=required
-  - UnpinMessage: messages.pin.delete, unary, auth=app-session, idempotency=required
+  - DeleteMessageReaction: messages.reactions.remove, unary, auth=app-session, idempotency=required
+  - PinMessage: messages.pin, unary, auth=app-session, idempotency=required
+  - UnpinMessage: messages.unpin, unary, auth=app-session, idempotency=required
+- sdkwork.communication.app.v3.RoomService (app)
+  - CreateRoom: rooms.create, unary, auth=app-session, idempotency=required
+  - RetrieveRoom: rooms.retrieve, unary, auth=app-session, idempotency=none
+  - EnterRoom: rooms.enter, unary, auth=app-session, idempotency=required
+  - LeaveRoom: rooms.leave, unary, auth=app-session, idempotency=required
 - sdkwork.communication.app.v3.SocialService (app)
   - ListSocialUsers: social.users.list, unary, auth=app-session, idempotency=none
   - ListFriendRequests: social.friendRequests.list, unary, auth=app-session, idempotency=none
@@ -178,6 +183,13 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - PublishDomainEvent: internal.domainEvents.publish, unary, auth=service-mtls, idempotency=required
   - AckDomainEvent: internal.domainEvents.ack, unary, auth=service-mtls, idempotency=required
   - WatchDomainEvents: internal.domainEvents.watch, server, auth=service-mtls, idempotency=none
+- sdkwork.communication.internal.v1.RoomOrchestrationService (internal)
+  - CreateRoom: internal.rooms.create, unary, auth=service-mtls, idempotency=required
+  - RetrieveRoom: internal.rooms.retrieve, unary, auth=service-mtls, idempotency=none
+  - EnterRoom: internal.rooms.enter, unary, auth=service-mtls, idempotency=required
+  - LeaveRoom: internal.rooms.leave, unary, auth=service-mtls, idempotency=required
+- sdkwork.communication.internal.v1.MessageDispatchService (internal)
+  - DispatchConversationMessage: internal.messages.dispatch, unary, auth=service-mtls, idempotency=required
 
 ## Endpoint and TLS/mTLS
 
@@ -205,6 +217,12 @@ const deadlineMs = resolveRpcDeadlineMs({ timeoutMs: 5000 });
 const idempotencyMetadata = createRpcIdempotencyMetadata({ idempotencyKey: 'create-message-001' });
 // Call PresenceService.CreatePresenceHeartbeat with metadataProvider, idempotencyMetadata, and deadlineMs using the generated protobuf client.
 ```
+
+## Regeneration evidence
+
+RPC generation defaults to convention-first source output and does not write persisted generator evidence in normal generated language workspaces.
+
+Use `sdkgen inspect --protocol rpc` to verify the RPC SDK family name, language workspace name, RPC manifest, proto source reference, generated client files, and native package manifest. Add `--emit-control-plane` only when release, CI, audit, or migration workflows need persisted generator evidence; the evidence paths are derived by generator convention.
 
 ## Verification commands
 

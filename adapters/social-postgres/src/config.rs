@@ -2,7 +2,7 @@
 
 use tokio::runtime::Handle;
 
-use crate::{build_social_pool, run_postgres_io, SocialPostgresPool};
+use crate::{SocialPostgresPool, build_social_pool, run_postgres_io};
 
 const DEFAULT_POOL_MAX_SIZE: u32 = 16;
 const DEFAULT_POOL_MIN_IDLE: u32 = 0;
@@ -67,7 +67,9 @@ impl SocialPostgresConfig {
     }
 
     /// Creates a pool on a dedicated OS thread when called from a Tokio runtime.
-    pub fn connect_pool_bridged(&self) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
+    pub fn connect_pool_bridged(
+        &self,
+    ) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
         let config = self.clone();
         run_postgres_io(move || build_social_pool(&config))
     }

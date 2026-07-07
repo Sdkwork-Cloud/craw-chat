@@ -226,10 +226,7 @@ pub(crate) async fn connect_realtime_socket(
     }
     let ccp = CcpSocketCodec::default();
     complete_ccp_handshake(&mut socket, &ccp, context).await?;
-    Ok(RealtimeSocket {
-        inner: socket,
-        ccp,
-    })
+    Ok(RealtimeSocket { inner: socket, ccp })
 }
 
 fn format_realtime_connect_error(
@@ -607,7 +604,10 @@ mod tests {
         };
         assert!(
             error.to_string().contains(CCP_WS_SUBPROTOCOL)
-                || error.to_string().to_ascii_lowercase().contains("subprotocol"),
+                || error
+                    .to_string()
+                    .to_ascii_lowercase()
+                    .contains("subprotocol"),
             "error should explain missing CCP subprotocol negotiation, got {error}"
         );
 

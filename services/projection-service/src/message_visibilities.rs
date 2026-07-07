@@ -1,7 +1,21 @@
 use im_time::utc_now_rfc3339_millis;
 
 use super::model::MessageVisibilityMutationResult;
-use super::{TimelineProjectionService, TimelineWindowView, lock_projection_mutex, scope::{self, scope_key}};
+use super::{
+    TimelineProjectionService, TimelineWindowView, lock_projection_mutex,
+    scope::{self, scope_key},
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TimelineWindowForPrincipalQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub conversation_id: &'a str,
+    pub principal_kind: &'a str,
+    pub principal_id: &'a str,
+    pub after_seq: Option<u64>,
+    pub limit: usize,
+}
 
 /// Per-principal message visibility scope key for durable store adapters.
 fn message_visibility_scope_key(
@@ -69,9 +83,12 @@ impl TimelineProjectionService {
         organization_id: &str,
         message_id: &str,
     ) -> Option<String> {
-        lock_projection_mutex(&self.message_conversation_index, "message conversation index")
-            .get(scope::message_lookup_scope_key(tenant_id, organization_id, message_id).as_str())
-            .cloned()
+        lock_projection_mutex(
+            &self.message_conversation_index,
+            "message conversation index",
+        )
+        .get(scope::message_lookup_scope_key(tenant_id, organization_id, message_id).as_str())
+        .cloned()
     }
 
     /// Mark a message as soft-deleted (hidden) for the current principal.
@@ -126,16 +143,10 @@ impl TimelineProjectionService {
     /// Timeline window filtered by per-principal soft-delete visibility.
     pub fn timeline_window_for_principal(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        after_seq: Option<u64>,
-        limit: usize,
+        query: TimelineWindowForPrincipalQuery<'_>,
     ) -> Result<TimelineWindowView, crate::projection::ProjectionError> {
-        let limit = limit.max(1);
-        let mut visible_after_seq = after_seq;
+        let limit = query.limit.max(1);
+        let mut visible_after_seq = query.after_seq;
         let mut visible_items = Vec::new();
         const VISIBILITY_FILTER_BATCH_MULTIPLIER: usize = 4;
         let fetch_batch = (limit * VISIBILITY_FILTER_BATCH_MULTIPLIER).clamp(limit, 200);
@@ -143,21 +154,21 @@ impl TimelineProjectionService {
 
         loop {
             let batch = self.timeline_window(
-                tenant_id,
-                organization_id,
-                conversation_id,
+                query.tenant_id,
+                query.organization_id,
+                query.conversation_id,
                 visible_after_seq,
                 fetch_batch,
             )?;
-            trailing_has_more = batch.has_more;
+            trailing_has_more = batch.page_info.has_more == Some(true);
 
             for entry in batch.items {
                 let hidden = self
                     .message_visibility_for_principal(
-                        tenant_id,
-                        organization_id,
-                        principal_kind,
-                        principal_id,
+                        query.tenant_id,
+                        query.organization_id,
+                        query.principal_kind,
+                        query.principal_id,
                         entry.message_id.as_str(),
                     )
                     .is_some_and(|visibility| visibility.is_deleted);
@@ -170,10 +181,14 @@ impl TimelineProjectionService {
                 }
             }
 
-            if visible_items.len() > limit || !batch.has_more {
+            if visible_items.len() > limit || batch.page_info.has_more != Some(true) {
                 break;
             }
-            visible_after_seq = batch.next_after_seq;
+            visible_after_seq = batch
+                .page_info
+                .next_cursor
+                .as_deref()
+                .and_then(|value| value.parse::<u64>().ok());
             if visible_after_seq.is_none() {
                 break;
             }
@@ -185,11 +200,12 @@ impl TimelineProjectionService {
         }
         let next_after_seq = visible_items.last().map(|entry| entry.message_seq);
 
-        Ok(TimelineWindowView {
-            items: visible_items,
+        Ok(crate::list_page::seq_cursor_page(
+            visible_items,
+            limit,
             next_after_seq,
             has_more,
-        })
+        ))
     }
 }
 

@@ -5,8 +5,7 @@ use std::time::Duration;
 
 use im_domain_core::social::FriendRequestStatus;
 use im_domain_events::social::{
-    FriendRequestExpiredPayload, SocialCommitEnvelopeInput, SocialEventType,
-    social_commit_envelope,
+    FriendRequestExpiredPayload, SocialCommitEnvelopeInput, SocialEventType, social_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::{rfc3339_add_secs, rfc3339_le, utc_now_rfc3339_millis};
@@ -64,11 +63,7 @@ pub fn resolve_friend_request_expires_at(requested_at: &str) -> Option<String> {
 }
 
 pub fn friend_request_is_expired(expired_at: Option<&str>, created_at: &str) -> bool {
-    friend_request_is_due_for_expiration(
-        expired_at,
-        created_at,
-        utc_now_rfc3339_millis().as_str(),
-    )
+    friend_request_is_due_for_expiration(expired_at, created_at, utc_now_rfc3339_millis().as_str())
 }
 
 pub fn friend_request_is_due_for_expiration(
@@ -140,7 +135,9 @@ pub fn spawn_friend_request_expiration_scheduler(
 }
 
 impl SocialRuntime {
-    pub fn expire_due_friend_requests_persisted(&self) -> Result<FriendRequestExpirationTickResult, String> {
+    pub fn expire_due_friend_requests_persisted(
+        &self,
+    ) -> Result<FriendRequestExpirationTickResult, String> {
         let now = utc_now_rfc3339_millis();
         let _write_lock = self.acquire_cross_instance_write_lock()?;
         self.refresh_state_from_authority_for_write()?;
@@ -149,6 +146,7 @@ impl SocialRuntime {
             .write()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
 
+        const FRIEND_REQUEST_EXPIRATION_BATCH_LIMIT: usize = 1_024;
         let due_request_ids = state
             .friend_requests
             .values()
@@ -161,6 +159,7 @@ impl SocialRuntime {
                     )
             })
             .map(|record| record.friend_request.request_id.clone())
+            .take(FRIEND_REQUEST_EXPIRATION_BATCH_LIMIT)
             .collect::<Vec<_>>();
 
         if due_request_ids.is_empty() {
@@ -241,14 +240,13 @@ fn organization_id_from_friend_request_commits(commits: &[CommitEnvelope]) -> St
 }
 
 fn scheduler_enabled_from_env() -> bool {
-    match std::env::var(SCHEDULER_ENABLED_ENV)
-        .ok()
-        .map(|value| value.trim().to_ascii_lowercase())
-        .as_deref()
-    {
-        Some("0") | Some("false") | Some("off") | Some("no") => false,
-        _ => true,
-    }
+    !matches!(
+        std::env::var(SCHEDULER_ENABLED_ENV)
+            .ok()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .as_deref(),
+        Some("0") | Some("false") | Some("off") | Some("no")
+    )
 }
 
 fn read_u64_env(name: &str, default: u64, min: u64, max: u64) -> u64 {

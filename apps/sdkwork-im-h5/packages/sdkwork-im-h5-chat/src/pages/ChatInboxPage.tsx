@@ -4,7 +4,8 @@ import type { ConversationInboxEntry } from "@sdkwork/im-sdk";
 
 import { formatRelativeTime, useI18n } from "@sdkwork/im-h5-commons";
 
-import { fetchChatInboxPage } from "../services/chatInboxService";
+import { fetchChatInboxPage, markConversationRead, readInboxPageState } from "../services/chatInboxService";
+import { mergeInboxEntries } from "../services/chatInboxUtils";
 import { subscribeInboxLiveRefresh } from "../services/chatRealtimeService";
 
 export function ChatInboxPage() {
@@ -27,8 +28,9 @@ export function ChatInboxPage() {
     fetchChatInboxPage()
       .then((response) => {
         setEntries(response.items ?? []);
-        setNextCursor(response.nextCursor ?? undefined);
-        setHasMore(Boolean(response.hasMore));
+        const pageState = readInboxPageState(response);
+        setNextCursor(pageState.nextCursor);
+        setHasMore(pageState.hasMore);
       })
       .catch((cause: unknown) => {
         const message = cause instanceof Error ? cause.message : t("chat.inbox.loadError");
@@ -51,9 +53,10 @@ export function ChatInboxPage() {
 
     fetchChatInboxPage({ cursor: nextCursor })
       .then((response) => {
-        setEntries((previous) => [...previous, ...(response.items ?? [])]);
-        setNextCursor(response.nextCursor ?? undefined);
-        setHasMore(Boolean(response.hasMore));
+        setEntries((previous) => mergeInboxEntries(previous, response.items ?? []));
+        const pageState = readInboxPageState(response);
+        setNextCursor(pageState.nextCursor);
+        setHasMore(pageState.hasMore);
       })
       .catch((cause: unknown) => {
         const message = cause instanceof Error ? cause.message : t("chat.inbox.loadMoreError");
@@ -106,6 +109,9 @@ export function ChatInboxPage() {
     return (
       <div className="im-h5-chat-error" role="alert">
         <p>{error}</p>
+        <button type="button" className="im-h5-chat-retry" onClick={() => loadInbox()}>
+          {t("chat.inbox.retry")}
+        </button>
       </div>
     );
   }
@@ -138,18 +144,37 @@ export function ChatInboxPage() {
             ?? t("chat.inbox.conversationFallback", { id: String(conversationId) });
           const preview = entry.lastSummary ?? "";
           const updatedAt = entry.lastMessageAt ?? entry.lastActivityAt;
+          const unreadCount = entry.unreadCount ?? 0;
+          const isMarkedUnread = entry.preferences?.isMarkedUnread === true;
+          const isUnread = unreadCount > 0 || isMarkedUnread;
+          const isMuted = entry.preferences?.isMuted === true;
 
           return (
             <li key={String(conversationId ?? title)} className="im-h5-chat-item">
               <a
                 className="im-h5-chat-item-link"
                 href={`#/chat/conversations/${encodeURIComponent(String(conversationId))}`}
+                onClick={() => {
+                  void markConversationRead(String(conversationId), {
+                    readSeq: entry.lastMessageSeq ?? 0,
+                  }).catch(() => undefined);
+                }}
               >
                 <div className="im-h5-chat-item-main">
-                  <strong>{title}</strong>
+                  <strong>
+                    {title}
+                    {isMuted ? <span className="im-h5-chat-muted-badge" aria-hidden="true">🔕</span> : null}
+                  </strong>
                   {preview ? <p>{preview}</p> : null}
                 </div>
-                <time className="im-h5-chat-item-time">{formatRelativeTime(updatedAt)}</time>
+                <div className="im-h5-chat-item-meta">
+                  <time className="im-h5-chat-item-time">{formatRelativeTime(updatedAt)}</time>
+                  {isUnread ? (
+                    <span className="im-h5-chat-unread-badge" aria-label={t("chat.inbox.unreadCount", { count: unreadCount || 1 })}>
+                      {isMuted ? "" : (unreadCount > 99 ? "99+" : unreadCount || "")}
+                    </span>
+                  ) : null}
+                </div>
               </a>
             </li>
           );

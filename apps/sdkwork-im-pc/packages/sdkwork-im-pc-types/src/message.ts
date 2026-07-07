@@ -14,6 +14,8 @@ export interface Message {
   timestamp: number;
   isRecalled?: boolean;
   isEdited?: boolean;
+  /** Local-only delivery state for desktop offline send queue. */
+  sendState?: 'pending' | 'failed';
   replyTo?: {
     id: string;
     senderName: string;

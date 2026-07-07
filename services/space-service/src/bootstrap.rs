@@ -10,7 +10,9 @@ use im_adapters_social_postgres::governance_store::{
 use im_adapters_social_postgres::organization_store::{
     PostgresChannelStore, PostgresGroupMemberStore, PostgresGroupStore, PostgresSpaceStore,
 };
-use im_adapters_social_postgres::{SocialPostgresConfig, SocialPostgresPool, SpacePostgresMaterializer};
+use im_adapters_social_postgres::{
+    SocialPostgresConfig, SocialPostgresPool, SpacePostgresMaterializer,
+};
 
 use crate::http::{AppState, build_embedded_app, build_public_app};
 use crate::id::build_runtime_id_generator_for_space;

@@ -16,6 +16,16 @@ export interface GroupListPage {
   nextCursor?: string;
 }
 
+function readSdkCursorPageInfo(
+  pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
+): Pick<GroupListPage, 'hasMore' | 'nextCursor'> {
+  const hasMore = pageInfo?.hasMore === true;
+  return {
+    hasMore,
+    nextCursor: hasMore ? (pageInfo?.nextCursor ?? undefined) : undefined,
+  };
+}
+
 export interface GroupService {
   createGroup(name: string, members: string[]): Promise<Chat>;
   getGroupById(groupId: string): Promise<Chat | null>;
@@ -269,10 +279,11 @@ class SdkworkGroupService implements GroupService {
       pageSize: GROUP_MEMBERS_PAGE_LIMIT,
       ...(cursor ? { cursor } : {}),
     });
+    const page = readSdkCursorPageInfo(response.pageInfo);
     return {
       items: response.items,
-      hasMore: response.hasMore,
-      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     };
   }
 
@@ -291,18 +302,69 @@ class SdkworkGroupService implements GroupService {
   private async listInboxGroupEntriesPage(
     cursor?: string,
   ): Promise<{ items: ConversationListEntry[]; hasMore: boolean; nextCursor?: string }> {
-    const response = await this.client().chat?.inbox?.retrieve({
+    const response = await this.client().chat?.inbox?.list({
       pageSize: GROUP_INBOX_PAGE_LIMIT,
       ...(cursor ? { cursor } : {}),
     });
     if (!response) {
       return { items: [], hasMore: false };
     }
+    const page = readSdkCursorPageInfo(response.pageInfo);
     return {
       items: response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'),
-      hasMore: response.hasMore,
-      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     };
+  }
+
+  private async listConversationGroupEntriesPage(
+    cursor?: string,
+  ): Promise<{ items: ConversationListEntry[]; hasMore: boolean; nextCursor?: string }> {
+    const response = await this.client().conversations.list({
+      pageSize: GROUPS_PAGE_LIMIT,
+      ...(cursor ? { cursor } : {}),
+    });
+    const page = readSdkCursorPageInfo(response.pageInfo);
+    return {
+      items: response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'),
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  private async listMissingConversationGroupEntries(
+    knownGroupIds: Set<string>,
+  ): Promise<ConversationListEntry[]> {
+    const missingEntries: ConversationListEntry[] = [];
+    try {
+      await forEachCursorPage(
+        (cursor) => this.listConversationGroupEntriesPage(cursor),
+        (entries) => {
+          for (const entry of entries) {
+            if (knownGroupIds.has(entry.conversationId)) {
+              continue;
+            }
+            knownGroupIds.add(entry.conversationId);
+            missingEntries.push(entry);
+          }
+        },
+        { maxItems: MAX_GROUP_CONVERSATION_ENTRIES },
+      );
+    } catch {
+      return [];
+    }
+    return missingEntries;
+  }
+
+  private async hydrateConversationEntryGroups(entries: ConversationListEntry[]): Promise<Chat[]> {
+    const groups = await mapWithConcurrencyLimit(
+      entries,
+      GROUP_LIST_HYDRATION_CONCURRENCY,
+      async (entry) => (hasGroupDisplayProjection(entry)
+        ? mapConversationEntryToGroup(entry)
+        : await this.hydrateConversationEntryGroup(entry)),
+    );
+    return groups.filter((group): group is Chat => group != null);
   }
 
   private async hydrateConversationEntryGroup(entry: ConversationListEntry): Promise<Chat | null> {
@@ -382,7 +444,7 @@ class SdkworkGroupService implements GroupService {
 
   async listGroupsPage(params?: { cursor?: string; pageSize?: number }): Promise<GroupListPage> {
     const pageSize = params?.pageSize ?? GROUP_INBOX_PAGE_LIMIT;
-    const inboxPage = await this.client().chat?.inbox?.retrieve({
+    const inboxPage = await this.client().chat?.inbox?.list({
       pageSize,
       ...(params?.cursor ? { cursor: params.cursor } : {}),
     });
@@ -405,11 +467,12 @@ class SdkworkGroupService implements GroupService {
       GROUP_LIST_HYDRATION_CONCURRENCY,
       async (group) => this.withMemberState(group),
     )).sort((left, right) => right.updatedAt - left.updatedAt);
+    const page = readSdkCursorPageInfo(inboxPage.pageInfo);
 
     return {
       items,
-      hasMore: Boolean(inboxPage.hasMore),
-      nextCursor: inboxPage.hasMore ? (inboxPage.nextCursor ?? undefined) : undefined,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     };
   }
 
@@ -454,29 +517,25 @@ class SdkworkGroupService implements GroupService {
   }
 
   async getGroups(): Promise<Chat[]> {
-    const page = await this.listGroupsPage();
-    return page.items;
+    const inboxPage = await this.listInboxGroupEntriesPage();
+    const inboxGroups = await this.hydrateConversationEntryGroups(inboxPage.items);
+    const knownGroupIds = new Set(inboxGroups.map((group) => group.id));
+    const missingConversationEntries = await this.listMissingConversationGroupEntries(knownGroupIds);
+    const missingConversationGroups = await this.hydrateConversationEntryGroups(missingConversationEntries);
+    return (await mapWithConcurrencyLimit(
+      [...inboxGroups, ...missingConversationGroups],
+      GROUP_LIST_HYDRATION_CONCURRENCY,
+      async (group) => this.withMemberState(group),
+    )).sort((left, right) => right.updatedAt - left.updatedAt);
   }
 
   async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {
     const groupIds: string[] = [];
     await forEachCursorPage(
-      async (cursor) => {
-        const response = await this.client().conversations.list({
-          pageSize: GROUPS_PAGE_LIMIT,
-          ...(cursor ? { cursor } : {}),
-        });
-        return {
-          items: response.items,
-          hasMore: response.hasMore,
-          nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
-        };
-      },
+      (cursor) => this.listConversationGroupEntriesPage(cursor),
       (entries) => {
         for (const entry of entries) {
-          if (entry.conversationType.toLowerCase() === 'group') {
-            groupIds.push(entry.conversationId);
-          }
+          groupIds.push(entry.conversationId);
         }
       },
       { maxItems: MAX_GROUP_CONVERSATION_ENTRIES },

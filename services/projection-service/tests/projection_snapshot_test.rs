@@ -4,7 +4,8 @@ use im_domain_core::conversation::{
     MembershipRole, build_conversation_member, build_default_read_cursor,
 };
 use projection_service::{
-    FavoriteMessageRequest, TimelineProjectionService, UpdateConversationPreferencesRequest,
+    ClientRouteSyncFeedWindowQuery, FavoriteMessageRequest, TimelineProjectionService,
+    UpdateConversationPreferencesRequest,
 };
 
 fn app_context(
@@ -28,6 +29,26 @@ fn app_context(
         actor_id: actor_id.into(),
         actor_kind: actor_kind.into(),
         device_id: device_id.map(str::to_owned),
+    }
+}
+
+fn client_route_sync_feed_query<'a>(
+    tenant_id: &'a str,
+    organization_id: &'a str,
+    principal_id: &'a str,
+    principal_kind: &'a str,
+    device_id: &'a str,
+    after_seq: Option<u64>,
+    limit: usize,
+) -> ClientRouteSyncFeedWindowQuery<'a> {
+    ClientRouteSyncFeedWindowQuery {
+        tenant_id,
+        organization_id,
+        principal_id,
+        principal_kind,
+        device_id,
+        after_seq,
+        limit,
     }
 }
 
@@ -557,7 +578,10 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
     let member = restored
         .member_snapshot_for_principal_kind("t_alpha", "default", "c_restore", "1014", "user")
         .expect("member should restore");
-    assert_eq!(member.member_id, typed_member_id("c_restore", "user", "1014"));
+    assert_eq!(
+        member.member_id,
+        typed_member_id("c_restore", "user", "1014")
+    );
     assert_eq!(member.principal_id, "1014");
 
     let read_cursor = restored
@@ -570,7 +594,9 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
     );
     assert_eq!(read_cursor.unread_count, 1);
 
-    let inbox = restored.inbox_for_principal_kind("t_alpha", "1014", "user");
+    let inbox = restored
+        .inbox_for_principal_kind("t_alpha", "0", "1014", "user")
+        .expect("inbox");
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].conversation_id, "c_restore");
     assert_eq!(inbox[0].conversation_type, "group");
@@ -731,7 +757,7 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
     assert_eq!(devices[1].device_id, "d_phone");
 
     let phone_feed = restored
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "t_alpha",
             "default",
             "1014",
@@ -739,7 +765,7 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
             "d_phone",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(phone_feed.len(), 2);
     assert_eq!(phone_feed[0].origin_event_type, "message.posted");
@@ -754,7 +780,7 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
     assert_eq!(phone_feed[1].read_seq, Some(1));
 
     let pad_feed = restored
-        .client_route_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(client_route_sync_feed_query(
             "t_alpha",
             "default",
             "1014",
@@ -762,7 +788,7 @@ fn test_projection_service_restores_client_route_sync_state_from_projection_snap
             "d_pad",
             Some(0),
             100,
-        )
+        ))
         .items;
     assert_eq!(pad_feed.len(), 2);
     assert_eq!(pad_feed[0].origin_event_type, "message.posted");

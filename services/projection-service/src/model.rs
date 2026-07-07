@@ -6,6 +6,8 @@ use im_domain_core::message::{MessageBody, MessageType, Sender};
 use im_domain_core::social::DirectChatStatus;
 use serde::{Deserialize, Serialize};
 
+use sdkwork_utils_rust::SdkWorkPageData;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimelineViewEntry {
@@ -36,13 +38,7 @@ pub struct TimelineViewEntry {
     pub retention_until: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TimelineWindowView {
-    pub items: Vec<TimelineViewEntry>,
-    pub next_after_seq: Option<u64>,
-    pub has_more: bool,
-}
+pub type TimelineWindowView = SdkWorkPageData<TimelineViewEntry>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,22 +78,12 @@ pub struct MessageReadReceiptReaderView {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageReadReceiptSummaryView {
     pub active_member_count: u64,
     pub read_count: u64,
     pub readers: Vec<MessageReadReceiptReaderView>,
-}
-
-impl Default for MessageReadReceiptSummaryView {
-    fn default() -> Self {
-        Self {
-            active_member_count: 0,
-            read_count: 0,
-            readers: Vec::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,24 +96,13 @@ pub struct MessageDeliveryReceiptDeviceView {
     pub sync_seq: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageDeliveryReceiptSummaryView {
     pub active_member_count: u64,
     pub offered_count: u64,
     pub delivered_count: u64,
     pub delivered_devices: Vec<MessageDeliveryReceiptDeviceView>,
-}
-
-impl Default for MessageDeliveryReceiptSummaryView {
-    fn default() -> Self {
-        Self {
-            active_member_count: 0,
-            offered_count: 0,
-            delivered_count: 0,
-            delivered_devices: Vec::new(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,22 +196,13 @@ pub struct ClientRouteSyncFeedWindowView {
     pub trimmed_through_seq: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InboxWindowView {
-    pub items: Vec<ConversationInboxEntry>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
+pub type InboxWindowView = SdkWorkPageData<ConversationInboxEntry>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum InboxListCursor {
     Start,
     Offset(usize),
-    Keyset {
-        activity_at: String,
-        scope: String,
-    },
+    Keyset { activity_at: String, scope: String },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -277,13 +243,7 @@ pub struct ContactView {
     pub last_interaction_at: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ContactWindowView {
-    pub items: Vec<ContactView>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
+pub type ContactWindowView = SdkWorkPageData<ContactView>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ContactListCursor {
@@ -501,13 +461,7 @@ pub struct FavoriteMessageRequest {
     pub source_display_name: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FavoriteMessagesWindowView {
-    pub items: Vec<MessageFavoriteView>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
+pub type FavoriteMessagesWindowView = SdkWorkPageData<MessageFavoriteView>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -517,14 +471,7 @@ pub struct MessageSearchHitView {
     pub message_seq: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MessageSearchWindowView {
-    pub items: Vec<MessageSearchHitView>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-    pub total_count: u64,
-}
+pub type MessageSearchWindowView = SdkWorkPageData<MessageSearchHitView>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -533,12 +480,12 @@ pub struct DeleteMessageFavoriteResponse {
     pub deleted: bool,
 }
 
-/// Per-principal message visibility mutation result.
+/// Per-principal message visibility snapshot produced by the projection layer.
 ///
-/// Mirrors `MessageVisibilityMutationResult` in
-/// `apis/open-api/im/sdkwork-im-im.openapi.yaml`. `is_deleted = true` indicates
-/// the principal has soft-deleted (hidden) the message from their own view; the
-/// underlying message record and other principals' visibility are unaffected.
+/// `is_deleted = true` indicates the principal has soft-deleted (hidden) the
+/// message from their own view; the underlying message record and other
+/// principals' visibility are unaffected. The HTTP delete route returns
+/// `204 No Content`; this type remains an internal projection/RPC snapshot.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageVisibilityMutationResult {

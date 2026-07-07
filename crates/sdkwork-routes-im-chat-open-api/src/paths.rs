@@ -21,8 +21,7 @@ pub const CONVERSATION_AGENT_HANDOFF_RESOLVE: &str =
 pub const CONVERSATION_AGENT_HANDOFF_CLOSE: &str =
     "/im/v3/api/chat/conversations/{conversationId}/agent_handoff/close";
 pub const CONVERSATION_MEMBERS: &str = "/im/v3/api/chat/conversations/{conversationId}/members";
-pub const CONVERSATION_BINDING: &str =
-    "/im/v3/api/chat/conversations/{conversationId}/binding";
+pub const CONVERSATION_BINDING: &str = "/im/v3/api/chat/conversations/{conversationId}/binding";
 pub const CONVERSATION_MEMBERS_ADD: &str =
     "/im/v3/api/chat/conversations/{conversationId}/members/add";
 pub const CONVERSATION_MEMBERS_REMOVE: &str =
@@ -38,11 +37,9 @@ pub const CONVERSATION_READ_CURSOR: &str =
 pub const MESSAGE_EDIT: &str = "/im/v3/api/chat/messages/{messageId}/edit";
 pub const MESSAGE_RECALL: &str = "/im/v3/api/chat/messages/{messageId}/recall";
 pub const MESSAGE_REACTIONS: &str = "/im/v3/api/chat/messages/{messageId}/reactions";
-pub const MESSAGE_REACTIONS_REMOVE: &str =
-    "/im/v3/api/chat/messages/{messageId}/reactions/remove";
+pub const MESSAGE_REACTIONS_REMOVE: &str = "/im/v3/api/chat/messages/{messageId}/reactions/remove";
 pub const MESSAGE_PIN: &str = "/im/v3/api/chat/messages/{messageId}/pin";
 pub const MESSAGE_UNPIN: &str = "/im/v3/api/chat/messages/{messageId}/unpin";
-pub const CONVERSATION_MESSAGES: &str =
-    "/im/v3/api/chat/conversations/{conversationId}/messages";
+pub const CONVERSATION_MESSAGES: &str = "/im/v3/api/chat/conversations/{conversationId}/messages";
 pub const CONVERSATION_SYSTEM_CHANNEL_PUBLISH: &str =
     "/im/v3/api/chat/conversations/{conversationId}/system_channel/publish";

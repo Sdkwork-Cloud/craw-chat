@@ -14,27 +14,31 @@ public class SpacesApi {
     }
 
     /** Create a space */
-    public SpaceView create(SpaceCreateRequest body) throws Exception {
+    public SpacesCreateResponse201 create(SpaceCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesCreateResponse201>() {});
     }
 
     /** List spaces */
-    public SpaceListResponse list() throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces"));
-        return client.convertValue(raw, new TypeReference<SpaceListResponse>() {});
+    public SpacesListResponse list(Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces"), query));
+        return client.convertValue(raw, new TypeReference<SpacesListResponse>() {});
     }
 
-    /** Get a space */
-    public SpaceView get(String spaceId) throws Exception {
+    /** Retrieve a space */
+    public SpacesRetrieveResponse retrieve(String spaceId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesRetrieveResponse>() {});
     }
 
     /** Update a space */
-    public SpaceView update(String spaceId, SpaceUpdateRequest body) throws Exception {
+    public SpacesUpdateResponse update(String spaceId, SpaceUpdateRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + ""), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesUpdateResponse>() {});
     }
 
     /** Delete a space */
@@ -44,27 +48,31 @@ public class SpacesApi {
     }
 
     /** List spaces members */
-    public SpaceMemberListResponse membersList(String spaceId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/members"));
-        return client.convertValue(raw, new TypeReference<SpaceMemberListResponse>() {});
+    public SpacesMembersListResponse membersList(String spaceId, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/members"), query));
+        return client.convertValue(raw, new TypeReference<SpacesMembersListResponse>() {});
     }
 
     /** Create spaces members */
-    public SpaceMemberView membersCreate(String spaceId, SpaceMemberCreateRequest body) throws Exception {
+    public SpacesMembersCreateResponse201 membersCreate(String spaceId, SpaceMemberCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/members"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceMemberView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesMembersCreateResponse201>() {});
     }
 
-    /** Get spaces members */
-    public SpaceMemberView membersGet(String spaceId, String userId) throws Exception {
+    /** retrieve spaces members */
+    public SpacesMembersRetrieveResponse membersRetrieve(String spaceId, String userId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/members/" + serializePathParameter(userId, new PathParameterSpec("userId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceMemberView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesMembersRetrieveResponse>() {});
     }
 
     /** Update spaces members */
-    public SpaceMemberView membersUpdate(String spaceId, String userId, SpaceMemberUpdateRequest body) throws Exception {
+    public SpacesMembersUpdateResponse membersUpdate(String spaceId, String userId, SpaceMemberUpdateRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/members/" + serializePathParameter(userId, new PathParameterSpec("userId", "simple", false)) + ""), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceMemberView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesMembersUpdateResponse>() {});
     }
 
     /** Delete spaces members */
@@ -74,27 +82,31 @@ public class SpacesApi {
     }
 
     /** List spaces groups */
-    public SpaceGroupListResponse groupsList(String spaceId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups"));
-        return client.convertValue(raw, new TypeReference<SpaceGroupListResponse>() {});
+    public SpacesGroupsListResponse groupsList(String spaceId, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups"), query));
+        return client.convertValue(raw, new TypeReference<SpacesGroupsListResponse>() {});
     }
 
     /** Create spaces groups */
-    public SpaceGroupView groupsCreate(String spaceId, SpaceGroupCreateRequest body) throws Exception {
+    public SpacesGroupsCreateResponse201 groupsCreate(String spaceId, SpaceGroupCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceGroupView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesGroupsCreateResponse201>() {});
     }
 
-    /** Get spaces groups */
-    public SpaceGroupView groupsGet(String spaceId, String groupId) throws Exception {
+    /** retrieve spaces groups */
+    public SpacesGroupsRetrieveResponse groupsRetrieve(String spaceId, String groupId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceGroupView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesGroupsRetrieveResponse>() {});
     }
 
     /** Update spaces groups */
-    public SpaceGroupView groupsUpdate(String spaceId, String groupId, SpaceGroupUpdateRequest body) throws Exception {
+    public SpacesGroupsUpdateResponse groupsUpdate(String spaceId, String groupId, SpaceGroupUpdateRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + ""), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceGroupView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesGroupsUpdateResponse>() {});
     }
 
     /** Delete spaces groups */
@@ -104,27 +116,31 @@ public class SpacesApi {
     }
 
     /** List spaces groups members */
-    public SpaceGroupMemberListResponse groupsMembersList(String spaceId, String groupId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + "/members"));
-        return client.convertValue(raw, new TypeReference<SpaceGroupMemberListResponse>() {});
+    public SpacesGroupsMembersListResponse groupsMembersList(String spaceId, String groupId, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + "/members"), query));
+        return client.convertValue(raw, new TypeReference<SpacesGroupsMembersListResponse>() {});
     }
 
     /** Create spaces groups members */
-    public SpaceGroupMemberView groupsMembersCreate(String spaceId, String groupId, SpaceGroupMemberCreateRequest body) throws Exception {
+    public SpacesGroupsMembersCreateResponse201 groupsMembersCreate(String spaceId, String groupId, SpaceGroupMemberCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + "/members"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceGroupMemberView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesGroupsMembersCreateResponse201>() {});
     }
 
-    /** Get spaces groups members */
-    public SpaceGroupMemberView groupsMembersGet(String spaceId, String groupId, String userId) throws Exception {
+    /** retrieve spaces groups members */
+    public SpacesGroupsMembersRetrieveResponse groupsMembersRetrieve(String spaceId, String groupId, String userId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + "/members/" + serializePathParameter(userId, new PathParameterSpec("userId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceGroupMemberView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesGroupsMembersRetrieveResponse>() {});
     }
 
     /** Update spaces groups members */
-    public Void groupsMembersUpdate(String spaceId, String groupId, String userId, SpaceGroupMemberUpdateRequest body) throws Exception {
-        client.patch(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + "/members/" + serializePathParameter(userId, new PathParameterSpec("userId", "simple", false)) + ""), body, null, null, "application/json");
-        return null;
+    public SpacesGroupsMembersUpdateResponse groupsMembersUpdate(String spaceId, String groupId, String userId, SpaceGroupMemberUpdateRequest body) throws Exception {
+        Object raw = client.patch(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/groups/" + serializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false)) + "/members/" + serializePathParameter(userId, new PathParameterSpec("userId", "simple", false)) + ""), body, null, null, "application/json");
+        return client.convertValue(raw, new TypeReference<SpacesGroupsMembersUpdateResponse>() {});
     }
 
     /** Delete spaces groups members */
@@ -134,27 +150,31 @@ public class SpacesApi {
     }
 
     /** List spaces channels */
-    public SpaceChannelListResponse channelsList(String spaceId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels"));
-        return client.convertValue(raw, new TypeReference<SpaceChannelListResponse>() {});
+    public SpacesChannelsListResponse channelsList(String spaceId, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels"), query));
+        return client.convertValue(raw, new TypeReference<SpacesChannelsListResponse>() {});
     }
 
     /** Create spaces channels */
-    public SpaceChannelView channelsCreate(String spaceId, SpaceChannelCreateRequest body) throws Exception {
+    public SpacesChannelsCreateResponse201 channelsCreate(String spaceId, SpaceChannelCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceChannelView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesChannelsCreateResponse201>() {});
     }
 
-    /** Get spaces channels */
-    public SpaceChannelView channelsGet(String spaceId, String channelId) throws Exception {
+    /** retrieve spaces channels */
+    public SpacesChannelsRetrieveResponse channelsRetrieve(String spaceId, String channelId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels/" + serializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceChannelView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesChannelsRetrieveResponse>() {});
     }
 
     /** Update spaces channels */
-    public SpaceChannelView channelsUpdate(String spaceId, String channelId, SpaceChannelUpdateRequest body) throws Exception {
+    public SpacesChannelsUpdateResponse channelsUpdate(String spaceId, String channelId, SpaceChannelUpdateRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels/" + serializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false)) + ""), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceChannelView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesChannelsUpdateResponse>() {});
     }
 
     /** Delete spaces channels */
@@ -164,15 +184,19 @@ public class SpacesApi {
     }
 
     /** List spaces channels access Rules */
-    public SpaceChannelAccessRuleListResponse channelsAccessRulesList(String spaceId, String channelId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels/" + serializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false)) + "/access_rules"));
-        return client.convertValue(raw, new TypeReference<SpaceChannelAccessRuleListResponse>() {});
+    public SpacesChannelsAccessRulesListResponse channelsAccessRulesList(String spaceId, String channelId, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels/" + serializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false)) + "/access_rules"), query));
+        return client.convertValue(raw, new TypeReference<SpacesChannelsAccessRulesListResponse>() {});
     }
 
     /** Create spaces channels access Rules */
-    public SpaceChannelAccessRuleView channelsAccessRulesCreate(String spaceId, String channelId, SpaceChannelAccessRuleCreateRequest body) throws Exception {
+    public SpacesChannelsAccessRulesCreateResponse201 channelsAccessRulesCreate(String spaceId, String channelId, SpaceChannelAccessRuleCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/channels/" + serializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false)) + "/access_rules"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceChannelAccessRuleView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesChannelsAccessRulesCreateResponse201>() {});
     }
 
     /** Delete spaces channels access Rules */
@@ -182,51 +206,60 @@ public class SpacesApi {
     }
 
     /** List spaces invites */
-    public SpaceInviteListResponse invitesList(String spaceId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites"));
-        return client.convertValue(raw, new TypeReference<SpaceInviteListResponse>() {});
+    public SpacesInvitesListResponse invitesList(String spaceId, String status, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("status", status, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites"), query));
+        return client.convertValue(raw, new TypeReference<SpacesInvitesListResponse>() {});
     }
 
     /** Create spaces invites */
-    public SpaceInviteView invitesCreate(String spaceId, SpaceInviteCreateRequest body) throws Exception {
+    public SpacesInvitesCreateResponse201 invitesCreate(String spaceId, SpaceInviteCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceInviteView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesInvitesCreateResponse201>() {});
     }
 
-    /** Get spaces invites */
-    public SpaceInviteView invitesGet(String spaceId, String inviteCode) throws Exception {
+    /** retrieve spaces invites */
+    public SpacesInvitesRetrieveResponse invitesRetrieve(String spaceId, String inviteCode) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites/" + serializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceInviteView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesInvitesRetrieveResponse>() {});
     }
 
-    /** Revoke spaces invites */
-    public Void invitesRevoke(String spaceId, String inviteCode) throws Exception {
+    /** Delete spaces invites */
+    public Void invitesDelete(String spaceId, String inviteCode) throws Exception {
         client.delete(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites/" + serializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false)) + ""));
         return null;
     }
 
     /** Accept spaces invites */
-    public Void invitesAccept(String spaceId, String inviteCode) throws Exception {
-        client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites/" + serializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false)) + "/accept"), null);
-        return null;
+    public SdkWorkCommandResponse invitesAccept(String spaceId, String inviteCode) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/invites/" + serializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false)) + "/accept"), null);
+        return client.convertValue(raw, new TypeReference<SdkWorkCommandResponse>() {});
     }
 
     /** List spaces bans */
-    public SpaceBanListResponse bansList(String spaceId) throws Exception {
-        Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/bans"));
-        return client.convertValue(raw, new TypeReference<SpaceBanListResponse>() {});
+    public SpacesBansListResponse bansList(String spaceId, Integer pageSize, String cursor) throws Exception {
+        String query = buildQueryString(List.of(
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+            new QueryParameterSpec("cursor", cursor, "form", true, false, null)
+        ));
+        Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/bans"), query));
+        return client.convertValue(raw, new TypeReference<SpacesBansListResponse>() {});
     }
 
     /** Create spaces bans */
-    public SpaceBanView bansCreate(String spaceId, SpaceBanCreateRequest body) throws Exception {
+    public SpacesBansCreateResponse201 bansCreate(String spaceId, SpaceBanCreateRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/bans"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SpaceBanView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesBansCreateResponse201>() {});
     }
 
-    /** Get spaces bans */
-    public SpaceBanView bansGet(String spaceId, String userId) throws Exception {
+    /** retrieve spaces bans */
+    public SpacesBansRetrieveResponse bansRetrieve(String spaceId, String userId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/spaces/" + serializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false)) + "/bans/" + serializePathParameter(userId, new PathParameterSpec("userId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<SpaceBanView>() {});
+        return client.convertValue(raw, new TypeReference<SpacesBansRetrieveResponse>() {});
     }
 
     /** Delete spaces bans */
@@ -329,6 +362,103 @@ public class SpacesApi {
         return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
     }
 
+    private record QueryParameterSpec(String name, Object value, String style, boolean explode, boolean allowReserved, String contentType) {}
+
+    private static String buildQueryString(List<QueryParameterSpec> parameters) throws Exception {
+        List<String> pairs = new java.util.ArrayList<>();
+        for (QueryParameterSpec parameter : parameters) {
+            appendSerializedParameter(pairs, parameter);
+        }
+        return String.join("&", pairs);
+    }
+
+    private static void appendSerializedParameter(List<String> pairs, QueryParameterSpec parameter) throws Exception {
+        if (parameter.value() == null) {
+            return;
+        }
+        if (parameter.contentType() != null && !parameter.contentType().isBlank()) {
+            String json = clientObjectMapper().writeValueAsString(parameter.value());
+            pairs.add(urlEncode(parameter.name()) + "=" + encodeQueryValue(json, parameter.allowReserved()));
+            return;
+        }
+
+        String style = parameter.style() == null || parameter.style().isBlank() ? "form" : parameter.style();
+        Object value = parameter.value();
+        if ("deepObject".equals(style) && value instanceof Map<?, ?> map) {
+            appendDeepObjectParameter(pairs, parameter.name(), map, parameter.allowReserved());
+        } else if (value instanceof Iterable<?> iterable) {
+            appendArrayParameter(pairs, parameter.name(), iterable, style, parameter.explode(), parameter.allowReserved());
+        } else if (value instanceof Map<?, ?> map) {
+            appendObjectParameter(pairs, parameter.name(), map, style, parameter.explode(), parameter.allowReserved());
+        } else {
+            pairs.add(urlEncode(parameter.name()) + "=" + encodeQueryValue(String.valueOf(value), parameter.allowReserved()));
+        }
+    }
+
+    private static void appendArrayParameter(List<String> pairs, String name, Iterable<?> values, String style, boolean explode, boolean allowReserved) {
+        List<String> serialized = new java.util.ArrayList<>();
+        for (Object item : values) {
+            if (item != null) {
+                serialized.add(String.valueOf(item));
+            }
+        }
+        if (serialized.isEmpty()) {
+            return;
+        }
+        if ("form".equals(style) && explode) {
+            for (String item : serialized) {
+                pairs.add(urlEncode(name) + "=" + encodeQueryValue(item, allowReserved));
+            }
+            return;
+        }
+        pairs.add(urlEncode(name) + "=" + encodeQueryValue(String.join(",", serialized), allowReserved));
+    }
+
+    private static void appendObjectParameter(List<String> pairs, String name, Map<?, ?> values, String style, boolean explode, boolean allowReserved) {
+        List<String> serialized = new java.util.ArrayList<>();
+        values.forEach((key, value) -> {
+            if (value == null) {
+                return;
+            }
+            if ("form".equals(style) && explode) {
+                pairs.add(urlEncode(String.valueOf(key)) + "=" + encodeQueryValue(String.valueOf(value), allowReserved));
+            } else {
+                serialized.add(String.valueOf(key));
+                serialized.add(String.valueOf(value));
+            }
+        });
+        if (!serialized.isEmpty()) {
+            pairs.add(urlEncode(name) + "=" + encodeQueryValue(String.join(",", serialized), allowReserved));
+        }
+    }
+
+    private static void appendDeepObjectParameter(List<String> pairs, String name, Map<?, ?> values, boolean allowReserved) {
+        values.forEach((key, value) -> {
+            if (value != null) {
+                pairs.add(urlEncode(name + "[" + key + "]") + "=" + encodeQueryValue(String.valueOf(value), allowReserved));
+            }
+        });
+    }
+
+    private static String encodeQueryValue(String value, boolean allowReserved) {
+        String encoded = urlEncode(value);
+        if (!allowReserved) {
+            return encoded;
+        }
+        return encoded
+            .replace("%3A", ":").replace("%2F", "/").replace("%3F", "?").replace("%23", "#")
+            .replace("%5B", "[").replace("%5D", "]").replace("%40", "@").replace("%21", "!")
+            .replace("%24", "$").replace("%26", "&").replace("%27", "'").replace("%28", "(")
+            .replace("%29", ")").replace("%2A", "*").replace("%2B", "+").replace("%2C", ",")
+            .replace("%3B", ";").replace("%3D", "=");
+    }
+
+    private static com.fasterxml.jackson.databind.ObjectMapper clientObjectMapper() {
+        return new com.fasterxml.jackson.databind.ObjectMapper();
+    }
 
 
+    private static String urlEncode(String value) {
+        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+    }
 }

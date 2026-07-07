@@ -48,9 +48,15 @@ pnpm test:contract:database
 This module is in **initialization state** for greenfield deployments:
 
 1. **Baseline** — `database/ddl/baseline/postgres/0001_im_baseline.sql` is the **runtime authority** for IM core (journal, projection, social materializer, search).
-2. **SQLite baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists for lifecycle contract parity and desktop gateway co-location checks. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases (Drive, Commerce, etc.), not the IM event log.
+2. **SQLite baseline** — `database/ddl/baseline/sqlite/0001_im_baseline.sql` exists only for lifecycle checker parity and desktop gateway co-location checks. **IM services do not persist to SQLite**; `SDKWORK_IM_DATABASE_ENGINE=sqlite` uses in-memory ephemeral IM state in dev/test. Desktop `chat.sqlite` hosts gateway webstore and sibling module databases (Drive, Commerce, etc.), not the IM event log.
 3. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
 4. **Drift** — run `pnpm db:drift:check` before release.
+
+The PostgreSQL baseline is tenant-and-organization isolated: primary keys, unique
+constraints, and hot-path indexes include `tenant_id, organization_id` where
+business data is scoped. Realtime device event windows also keep a deferrable
+foreign key to realtime checkpoints so trim/ack state and event windows cannot
+silently drift apart.
 
 ## Commands
 
@@ -64,3 +70,5 @@ pnpm run db:seed
 pnpm run db:status
 pnpm run db:drift:check
 ```
+
+`db:materialize:contract` materializes the PostgreSQL runtime authority only. SQLite parity assets are maintained under `database/ddl/baseline/sqlite/` for checker coverage and desktop co-location validation; they are not a production IM persistence profile.

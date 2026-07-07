@@ -64,8 +64,8 @@ fn should_delegate_to_im_product_runtime(path: &str) -> bool {
     path == "/im/v3/openapi.json" || path.starts_with("/im/v3/api/")
 }
 
-fn should_delegate_to_product_runtime(path: &str) -> bool {
-    path.starts_with("/app/v3/api/portal/")
+fn should_delegate_to_product_runtime(_path: &str) -> bool {
+    false
 }
 
 fn is_appbase_identity_namespace(path: &str) -> bool {

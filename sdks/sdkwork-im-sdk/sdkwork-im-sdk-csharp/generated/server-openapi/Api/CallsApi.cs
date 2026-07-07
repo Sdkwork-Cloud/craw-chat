@@ -18,65 +18,65 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Create an IM call signaling session
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse?> SessionsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateRtcSessionRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsCreateResponse201?> SessionsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateRtcSessionRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse>(ApiPaths.ImPath("/calls/sessions"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsCreateResponse201>(ApiPaths.ImPath("/calls/sessions"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Retrieve IM call signaling session state
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSession?> SessionsRetrieveAsync(string rtcSessionId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsRetrieveResponse?> SessionsRetrieveAsync(string rtcSessionId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSession>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsRetrieveResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}"));
         }
 
         /// <summary>
         /// Invite participants into an IM call signaling session
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse?> SessionsInviteAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.InviteRtcSessionRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsInviteResponse?> SessionsInviteAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.InviteRtcSessionRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/invite"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsInviteResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/invite"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Accept an IM call signaling session
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse?> SessionsAcceptAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.UpdateRtcSessionRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsAcceptResponse?> SessionsAcceptAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.UpdateRtcSessionRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/accept"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsAcceptResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/accept"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Reject an IM call signaling session
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse?> SessionsRejectAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.UpdateRtcSessionRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsRejectResponse?> SessionsRejectAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.UpdateRtcSessionRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/reject"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsRejectResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/reject"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// End an IM call signaling session
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse?> SessionsEndAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.UpdateRtcSessionRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsEndResponse?> SessionsEndAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.UpdateRtcSessionRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSessionMutationResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/end"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsEndResponse>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/end"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Post an IM call signaling event
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcSignalEvent?> SessionsSignalsCreateAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.PostRtcSignalRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsSignalsCreateResponse201?> SessionsSignalsCreateAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.PostRtcSignalRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcSignalEvent>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/signals"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsSignalsCreateResponse201>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/signals"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Issue an RTC media participant credential for an IM call
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.RtcParticipantCredential?> SessionsCredentialsCreateAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.IssueRtcParticipantCredentialRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsCredentialsCreateResponse201?> SessionsCredentialsCreateAsync(string rtcSessionId, Sdkwork.Im.Sdk.Generated.Models.IssueRtcParticipantCredentialRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.RtcParticipantCredential>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/credentials"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.CallsSessionsCredentialsCreateResponse201>(ApiPaths.ImPath($"/calls/sessions/{SerializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false))}/credentials"), body, null, null, "application/json");
         }
 
         private sealed record PathParameterSpec(string Name, string Style, bool Explode);

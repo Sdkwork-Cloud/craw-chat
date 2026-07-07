@@ -3,21 +3,23 @@
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
-use im_adapters_social_postgres::governance_store::{InvitationRecord, SpaceMemberRecord};
 use im_adapters_social_postgres::MemberInsertOutcome;
+use im_adapters_social_postgres::governance_store::{
+    InvitationRecord, InvitationTargetListQuery, SpaceMemberRecord,
+};
 use im_app_context::AppContext;
-use serde::{Deserialize, Serialize};
+use im_time::{rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
-use im_time::{rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
+use serde::{Deserialize, Serialize};
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::http::AppState;
 use crate::id::next_entity_id;
-use crate::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
     actor_can_manage_space, actor_can_read_space, ensure_user_not_banned_in_space, load_space,
     normalize_space_member_role, parse_entity_id, parse_space_id,
@@ -80,9 +82,24 @@ fn normalize_invitation_target_type(target_type: &str) -> Result<String, ApiProb
 }
 
 fn ensure_invitee_specified(request: &CreateInvitationRequest) -> Result<(), ApiProblem> {
-    if request.invitee_user_id.as_deref().unwrap_or("").trim().is_empty()
-        && request.invitee_email.as_deref().unwrap_or("").trim().is_empty()
-        && request.invitee_phone.as_deref().unwrap_or("").trim().is_empty()
+    if request
+        .invitee_user_id
+        .as_deref()
+        .unwrap_or("")
+        .trim()
+        .is_empty()
+        && request
+            .invitee_email
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
+        && request
+            .invitee_phone
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .is_empty()
     {
         return Err(ApiProblem::bad_request(
             "invitee_user_id, invitee_email, or invitee_phone is required",
@@ -197,26 +214,35 @@ pub async fn list_invitations(
         let space_id = parse_space_id(space_id.as_str())?;
         let space = load_space(&state, &auth, space_id)?;
         actor_can_manage_space(&state, &auth, &space)?;
-        let paging = resolve_list_page(&query.paging)?;
+        let paging = resolve_keyset_page(&query.paging)?;
+        let cursor_invitation_id = paging
+            .cursor_entity
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok());
 
         let records = state
             .invitation_store
-            .list_by_target(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                "space",
-                space_id,
-                query.status.as_deref(),
-                sql_fetch_limit(paging),
-                sql_fetch_offset(paging),
-            )
+            .list_by_target(InvitationTargetListQuery {
+                tenant_id: auth.tenant_id.as_str(),
+                organization_id: auth.organization_id.as_str(),
+                target_type: "space",
+                target_id: space_id,
+                status: query.status.as_deref(),
+                limit: paging.fetch_limit(),
+                cursor_created_at: paging.cursor_sort_value.as_deref(),
+                cursor_invitation_id,
+            })
             .map_err(|error| {
                 tracing::error!(error = ?error, "failed to list invitations");
                 ApiProblem::internal_server_error("failed to list invitations")
             })?;
 
         let items = records.into_iter().map(InvitationResponse::from).collect();
-        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
+        Ok(keyset_list_page(
+            items,
+            paging.page_size,
+            |item: &InvitationResponse| (item.created_at.clone(), item.invitation_id.clone()),
+        ))
     })();
     finish_api_json(&ctx, result)
 }
@@ -256,10 +282,13 @@ pub async fn revoke_invitation(
         }
         invitation.status = "canceled".to_owned();
         invitation.updated_at = chrono::Utc::now().to_rfc3339();
-        state.invitation_store.update(&invitation).map_err(|error| {
-            tracing::error!(error = ?error, "failed to revoke invitation");
-            ApiProblem::internal_server_error("failed to revoke invitation")
-        })?;
+        state
+            .invitation_store
+            .update(&invitation)
+            .map_err(|error| {
+                tracing::error!(error = ?error, "failed to revoke invitation");
+                ApiProblem::internal_server_error("failed to revoke invitation")
+            })?;
         Ok(())
     })();
     finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))
@@ -281,9 +310,11 @@ pub async fn accept_invitation(
         if invitation.status != "pending" {
             return Err(ApiProblem::bad_request("invitation is not pending"));
         }
-        if invitation.expires_at.as_deref().is_some_and(|expires_at| {
-            rfc3339_le(expires_at, utc_now_rfc3339_millis().as_str())
-        }) {
+        if invitation
+            .expires_at
+            .as_deref()
+            .is_some_and(|expires_at| rfc3339_le(expires_at, utc_now_rfc3339_millis().as_str()))
+        {
             return Err(ApiProblem::bad_request("invitation has expired"));
         }
         if invitation
@@ -291,7 +322,9 @@ pub async fn accept_invitation(
             .as_deref()
             .is_some_and(|user_id| user_id != auth.actor_id)
         {
-            return Err(ApiProblem::forbidden("invitation is not addressed to this user"));
+            return Err(ApiProblem::forbidden(
+                "invitation is not addressed to this user",
+            ));
         }
 
         ensure_user_not_banned_in_space(&state, &auth, space_id, auth.actor_id.as_str())?;
@@ -317,17 +350,22 @@ pub async fn accept_invitation(
             }
             Err(error) => {
                 tracing::error!(error = ?error, "failed to insert space member from invitation");
-                return Err(ApiProblem::internal_server_error("failed to accept invitation"));
+                return Err(ApiProblem::internal_server_error(
+                    "failed to accept invitation",
+                ));
             }
         }
 
         invitation.status = "accepted".to_owned();
         invitation.accepted_at = Some(now.clone());
         invitation.updated_at = now;
-        state.invitation_store.update(&invitation).map_err(|error| {
-            tracing::error!(error = ?error, "failed to mark invitation accepted");
-            ApiProblem::internal_server_error("failed to accept invitation")
-        })?;
+        state
+            .invitation_store
+            .update(&invitation)
+            .map_err(|error| {
+                tracing::error!(error = ?error, "failed to mark invitation accepted");
+                ApiProblem::internal_server_error("failed to accept invitation")
+            })?;
         Ok(())
     })();
     finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))

@@ -8,250 +8,255 @@ public class ChatApi {
     }
 
     /// List IM contacts
-    public func contactsList(limit: Int? = nil, cursor: String? = nil) async throws -> ContactsResponse? {
+    public func contactsList(pageSize: Int? = nil, cursor: String? = nil) async throws -> ContactsListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/contacts"), query), responseType: ContactsResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/contacts"), query), responseType: ContactsListResponse.self)
     }
 
-    /// Retrieve current inbox window
-    public func inboxRetrieve(limit: Int? = nil, cursor: String? = nil) async throws -> InboxResponse? {
+    /// List current inbox window
+    public func inboxList(pageSize: Int? = nil, cursor: String? = nil) async throws -> InboxListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query), responseType: InboxResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/inbox"), query), responseType: InboxListResponse.self)
     }
 
     /// Create a conversation
-    public func conversationsCreate(body: CreateConversationRequest) async throws -> CreateConversationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CreateConversationResult.self)
+    public func conversationsCreate(body: CreateConversationRequest) async throws -> ConversationsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsCreateResponse201.self)
     }
 
     /// Create an agent dialog
-    public func conversationsAgentDialogsCreate(body: CreateAgentDialogRequest) async throws -> CreateConversationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/agent_dialogs"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CreateConversationResult.self)
+    public func conversationsAgentDialogsCreate(body: CreateAgentDialogRequest) async throws -> ConversationsAgentDialogsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/agent_dialogs"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsAgentDialogsCreateResponse201.self)
     }
 
     /// Create an agent handoff
-    public func conversationsAgentHandoffsCreate(body: CreateAgentDialogRequest) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/agent_handoffs"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: AckResponse.self)
+    public func conversationsAgentHandoffsCreate(body: CreateAgentDialogRequest) async throws -> ConversationsAgentHandoffsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/agent_handoffs"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsAgentHandoffsCreateResponse201.self)
     }
 
     /// Create a system channel
-    public func conversationsSystemChannelsCreate(body: CreateConversationRequest) async throws -> CreateConversationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/system_channels"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CreateConversationResult.self)
+    public func conversationsSystemChannelsCreate(body: CreateConversationRequest) async throws -> ConversationsSystemChannelsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/system_channels"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsSystemChannelsCreateResponse201.self)
     }
 
     /// Create a thread conversation
-    public func conversationsThreadsCreate(body: CreateConversationRequest) async throws -> CreateConversationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/threads"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CreateConversationResult.self)
+    public func conversationsThreadsCreate(body: CreateConversationRequest) async throws -> ConversationsThreadsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/threads"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsThreadsCreateResponse201.self)
     }
 
-    /// Bind a direct chat conversation
-    public func conversationsDirectChatsBind(body: BindDirectChatRequest) async throws -> CreateConversationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/direct_chats/bindings"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CreateConversationResult.self)
+    /// Create a direct chat conversation binding
+    public func conversationsDirectChatsBindingsCreate(body: BindDirectChatRequest) async throws -> ConversationsDirectChatsBindingsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/direct_chats/bindings"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsDirectChatsBindingsCreateResponse201.self)
     }
 
     /// Retrieve agent handoff state
-    public func conversationsAgentHandoffRetrieve(conversationId: String) async throws -> AckResponse? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff"), responseType: AckResponse.self)
+    public func conversationsAgentHandoffRetrieve(conversationId: String) async throws -> ConversationsAgentHandoffRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff"), responseType: ConversationsAgentHandoffRetrieveResponse.self)
     }
 
     /// Accept agent handoff
-    public func conversationsAgentHandoffAccept(conversationId: String) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff/accept"), body: nil, responseType: AckResponse.self)
+    public func conversationsAgentHandoffAccept(conversationId: String) async throws -> ConversationsAgentHandoffAcceptResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff/accept"), body: nil, responseType: ConversationsAgentHandoffAcceptResponse.self)
     }
 
     /// Resolve agent handoff
-    public func conversationsAgentHandoffResolve(conversationId: String) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff/resolve"), body: nil, responseType: AckResponse.self)
+    public func conversationsAgentHandoffResolve(conversationId: String) async throws -> ConversationsAgentHandoffResolveResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff/resolve"), body: nil, responseType: ConversationsAgentHandoffResolveResponse.self)
     }
 
     /// Close agent handoff
-    public func conversationsAgentHandoffClose(conversationId: String) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff/close"), body: nil, responseType: AckResponse.self)
+    public func conversationsAgentHandoffClose(conversationId: String) async throws -> ConversationsAgentHandoffCloseResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/agent_handoff/close"), body: nil, responseType: ConversationsAgentHandoffCloseResponse.self)
     }
 
     /// Retrieve conversation summary
-    public func conversationsRetrieve(conversationId: String) async throws -> ConversationSummaryView? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))"), responseType: ConversationSummaryView.self)
+    public func conversationsRetrieve(conversationId: String) async throws -> ConversationsRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))"), responseType: ConversationsRetrieveResponse.self)
     }
 
     /// List conversation members
-    public func conversationsMembersList(conversationId: String, limit: Int? = nil, cursor: String? = nil) async throws -> ListMembersResponse? {
+    public func conversationsMembersList(conversationId: String, pageSize: Int? = nil, cursor: String? = nil) async throws -> ConversationsMembersListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members"), query), responseType: ListMembersResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members"), query), responseType: ConversationsMembersListResponse.self)
     }
 
     /// Add a conversation member
-    public func conversationsMembersAdd(conversationId: String, body: AddConversationMemberRequest) async throws -> ConversationMember? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/add"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationMember.self)
+    public func conversationsMembersAdd(conversationId: String, body: AddConversationMemberRequest) async throws -> ConversationsMembersAddResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/add"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsMembersAddResponse.self)
     }
 
     /// Remove a conversation member
-    public func conversationsMembersRemove(conversationId: String, body: RemoveConversationMemberRequest) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/remove"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: AckResponse.self)
+    public func conversationsMembersRemove(conversationId: String, body: RemoveConversationMemberRequest) async throws -> ConversationsMembersRemoveResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/remove"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsMembersRemoveResponse.self)
     }
 
     /// Transfer conversation owner
-    public func conversationsMembersTransferOwner(conversationId: String, body: TransferConversationOwnerRequest) async throws -> ConversationMember? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/transfer_owner"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationMember.self)
+    public func conversationsMembersTransferOwner(conversationId: String, body: TransferConversationOwnerRequest) async throws -> ConversationsMembersTransferOwnerResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/transfer_owner"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsMembersTransferOwnerResponse.self)
     }
 
     /// Change conversation member role
-    public func conversationsMembersChangeRole(conversationId: String, body: ChangeConversationMemberRoleRequest) async throws -> ConversationMember? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/change_role"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationMember.self)
+    public func conversationsMembersChangeRole(conversationId: String, body: ChangeConversationMemberRoleRequest) async throws -> ConversationsMembersChangeRoleResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/change_role"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsMembersChangeRoleResponse.self)
     }
 
     /// Leave a conversation
-    public func conversationsMembersLeave(conversationId: String) async throws -> AckResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/leave"), body: nil, responseType: AckResponse.self)
+    public func conversationsMembersLeave(conversationId: String) async throws -> ConversationsMembersLeaveResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/leave"), body: nil, responseType: ConversationsMembersLeaveResponse.self)
+    }
+
+    /// Accept a conversation invitation
+    public func conversationsMembersAcceptInvitation(conversationId: String) async throws -> ConversationsMembersAcceptInvitationResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/members/accept_invitation"), body: nil, responseType: ConversationsMembersAcceptInvitationResponse.self)
     }
 
     /// Retrieve conversation preferences
-    public func conversationsPreferencesRetrieve(conversationId: String) async throws -> ConversationPreferencesView? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/preferences"), responseType: ConversationPreferencesView.self)
+    public func conversationsPreferencesRetrieve(conversationId: String) async throws -> ConversationsPreferencesRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/preferences"), responseType: ConversationsPreferencesRetrieveResponse.self)
     }
 
     /// Update conversation preferences
-    public func conversationsPreferencesUpdate(conversationId: String, body: UpdateConversationPreferencesRequest) async throws -> ConversationPreferencesView? {
-        return try await client.patch(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/preferences"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationPreferencesView.self)
+    public func conversationsPreferencesUpdate(conversationId: String, body: UpdateConversationPreferencesRequest) async throws -> ConversationsPreferencesUpdateResponse? {
+        return try await client.patch(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/preferences"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsPreferencesUpdateResponse.self)
     }
 
     /// Retrieve conversation profile
-    public func conversationsProfileRetrieve(conversationId: String) async throws -> ConversationProfileView? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/profile"), responseType: ConversationProfileView.self)
+    public func conversationsProfileRetrieve(conversationId: String) async throws -> ConversationsProfileRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/profile"), responseType: ConversationsProfileRetrieveResponse.self)
     }
 
     /// Update conversation profile
-    public func conversationsProfileUpdate(conversationId: String, body: UpdateConversationProfileRequest) async throws -> ConversationProfileView? {
-        return try await client.patch(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/profile"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationProfileView.self)
+    public func conversationsProfileUpdate(conversationId: String, body: UpdateConversationProfileRequest) async throws -> ConversationsProfileUpdateResponse? {
+        return try await client.patch(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/profile"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsProfileUpdateResponse.self)
     }
 
     /// Retrieve read cursor
-    public func conversationsReadCursorRetrieve(conversationId: String) async throws -> ReadCursorView? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/read_cursor"), responseType: ReadCursorView.self)
+    public func conversationsReadCursorRetrieve(conversationId: String) async throws -> ConversationsReadCursorRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/read_cursor"), responseType: ConversationsReadCursorRetrieveResponse.self)
     }
 
     /// Update read cursor
-    public func conversationsReadCursorUpdate(conversationId: String, body: UpdateReadCursorRequest) async throws -> ReadCursorView? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/read_cursor"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ReadCursorView.self)
+    public func conversationsReadCursorUpdate(conversationId: String, body: UpdateReadCursorRequest) async throws -> ConversationsReadCursorUpdateResponse? {
+        return try await client.patch(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/read_cursor"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsReadCursorUpdateResponse.self)
     }
 
     /// List member directory
-    public func conversationsMemberDirectoryList(conversationId: String) async throws -> MemberDirectoryResponse? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/member_directory"), responseType: MemberDirectoryResponse.self)
+    public func conversationsMemberDirectoryList(conversationId: String) async throws -> ConversationsMemberDirectoryListResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/member_directory"), responseType: ConversationsMemberDirectoryListResponse.self)
     }
 
     /// List conversation message timeline
-    public func conversationsMessagesList(conversationId: String, afterSeq: Int? = nil, limit: Int? = nil) async throws -> TimelineResponse? {
+    public func conversationsMessagesList(conversationId: String, afterSeq: Int? = nil, pageSize: Int? = nil) async throws -> ConversationsMessagesListResponse? {
         let query = buildQueryString([
             QueryParameterSpec(name: "afterSeq", value: afterSeq, style: "form", explode: true, allowReserved: false, contentType: nil),
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil)
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), query), responseType: TimelineResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), query), responseType: ConversationsMessagesListResponse.self)
     }
 
     /// Post a conversation message
-    public func conversationsMessagesCreate(conversationId: String, body: PostMessageRequest) async throws -> PostedMessageResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: PostedMessageResponse.self)
+    public func conversationsMessagesCreate(conversationId: String, body: PostMessageRequest) async throws -> ConversationsMessagesCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsMessagesCreateResponse201.self)
     }
 
     /// Publish a system channel message
-    public func conversationsSystemChannelPublish(conversationId: String, body: PostMessageRequest) async throws -> PostedMessageResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/system_channel/publish"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: PostedMessageResponse.self)
+    public func conversationsSystemChannelPublish(conversationId: String, body: PostMessageRequest) async throws -> ConversationsSystemChannelPublishResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/system_channel/publish"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsSystemChannelPublishResponse.self)
     }
 
     /// List pinned messages
-    public func conversationsPinsList(conversationId: String) async throws -> PinnedMessagesResponse? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/pins"), responseType: PinnedMessagesResponse.self)
+    public func conversationsPinsList(conversationId: String) async throws -> ConversationsPinsListResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/pins"), responseType: ConversationsPinsListResponse.self)
     }
 
     /// Retrieve message interaction summary
-    public func conversationsMessagesInteractionSummaryRetrieve(conversationId: String, messageId: String) async throws -> MessageInteractionSummaryView? {
-        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/interaction_summary"), responseType: MessageInteractionSummaryView.self)
+    public func conversationsMessagesInteractionSummaryRetrieve(conversationId: String, messageId: String) async throws -> ConversationsMessagesInteractionSummaryRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/interaction_summary"), responseType: ConversationsMessagesInteractionSummaryRetrieveResponse.self)
     }
 
     /// Edit a message
-    public func messagesEdit(messageId: String, body: EditMessageRequest) async throws -> PostedMessageResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/edit"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: PostedMessageResponse.self)
+    public func messagesEdit(messageId: String, body: EditMessageRequest) async throws -> MessagesEditResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/edit"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessagesEditResponse.self)
     }
 
     /// Recall a message
-    public func messagesRecall(messageId: String) async throws -> PostedMessageResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/recall"), body: nil, responseType: PostedMessageResponse.self)
+    public func messagesRecall(messageId: String) async throws -> MessagesRecallResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/recall"), body: nil, responseType: MessagesRecallResponse.self)
     }
 
     /// List message favorites
-    public func messagesFavoritesList(limit: Int? = nil, cursor: String? = nil, favoriteType: String? = nil, q: String? = nil) async throws -> FavoriteMessagesResponse? {
+    public func messagesFavoritesList(pageSize: Int? = nil, cursor: String? = nil, favoriteType: String? = nil, q: String? = nil) async throws -> MessagesFavoritesListResponse? {
         let query = buildQueryString([
-            QueryParameterSpec(name: "limit", value: limit, style: "form", explode: true, allowReserved: false, contentType: nil),
+            QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "cursor", value: cursor, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "favoriteType", value: favoriteType, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "q", value: q, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/messages/favorites"), query), responseType: FavoriteMessagesResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/messages/favorites"), query), responseType: MessagesFavoritesListResponse.self)
     }
 
     /// Favorite a message
-    public func messagesFavoritesCreate(messageId: String, body: FavoriteMessageRequest) async throws -> MessageFavoriteView? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/favorites"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessageFavoriteView.self)
+    public func messagesFavoritesCreate(messageId: String, body: FavoriteMessageRequest) async throws -> MessagesFavoritesCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/favorites"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessagesFavoritesCreateResponse201.self)
     }
 
     /// Delete a message favorite
-    public func messagesFavoritesDelete(favoriteId: String) async throws -> DeleteMessageFavoriteResponse? {
-        return try await client.delete(ApiPaths.imPath("/chat/messages/favorites/\(serializePathParameter(favoriteId, PathParameterSpec(name: "favoriteId", style: "simple", explode: false)))"), responseType: DeleteMessageFavoriteResponse.self)
+    public func messagesFavoritesDelete(favoriteId: String) async throws -> Void {
+        _ = try await client.delete(ApiPaths.imPath("/chat/messages/favorites/\(serializePathParameter(favoriteId, PathParameterSpec(name: "favoriteId", style: "simple", explode: false)))"))
     }
 
     /// Delete message visibility for the current principal
-    public func messagesVisibilityDelete(messageId: String) async throws -> MessageVisibilityMutationResult? {
-        return try await client.delete(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/visibility"), responseType: MessageVisibilityMutationResult.self)
+    public func messagesVisibilityDelete(messageId: String) async throws -> Void {
+        _ = try await client.delete(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/visibility"))
     }
 
     /// Add a message reaction
-    public func messagesReactionsCreate(messageId: String, body: MessageReactionRequest) async throws -> MessageReactionMutationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/reactions"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessageReactionMutationResult.self)
+    public func messagesReactionsCreate(messageId: String, body: MessageReactionRequest) async throws -> MessagesReactionsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/reactions"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessagesReactionsCreateResponse201.self)
     }
 
     /// Remove a message reaction
-    public func messagesReactionsDelete(messageId: String, body: MessageReactionRequest) async throws -> MessageReactionMutationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/reactions/remove"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessageReactionMutationResult.self)
+    public func messagesReactionsRemove(messageId: String, body: MessageReactionRequest) async throws -> MessagesReactionsRemoveResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/reactions/remove"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessagesReactionsRemoveResponse.self)
     }
 
     /// Pin a message
-    public func messagesPinCreate(messageId: String) async throws -> MessagePinMutationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/pin"), body: nil, responseType: MessagePinMutationResult.self)
+    public func messagesPin(messageId: String) async throws -> MessagesPinResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/pin"), body: nil, responseType: MessagesPinResponse.self)
     }
 
     /// Unpin a message
-    public func messagesPinDelete(messageId: String) async throws -> MessagePinMutationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/unpin"), body: nil, responseType: MessagePinMutationResult.self)
+    public func messagesUnpin(messageId: String) async throws -> MessagesUnpinResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/unpin"), body: nil, responseType: MessagesUnpinResponse.self)
     }
 
     /// Create a live, chat, or game room bound to a group conversation
-    public func roomsCreate(body: CreateRoomRequest) async throws -> CreateConversationResult? {
-        return try await client.post(ApiPaths.imPath("/chat/rooms"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CreateConversationResult.self)
+    public func roomsCreate(body: CreateRoomRequest) async throws -> RoomsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/chat/rooms"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RoomsCreateResponse201.self)
     }
 
-    /// Get room metadata and active member count
-    public func roomsGet(roomId: String) async throws -> RoomView? {
-        return try await client.get(ApiPaths.imPath("/chat/rooms/\(serializePathParameter(roomId, PathParameterSpec(name: "roomId", style: "simple", explode: false)))"), responseType: RoomView.self)
+    /// Retrieve room metadata and active member count
+    public func roomsRetrieve(roomId: String) async throws -> RoomsRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/chat/rooms/\(serializePathParameter(roomId, PathParameterSpec(name: "roomId", style: "simple", explode: false)))"), responseType: RoomsRetrieveResponse.self)
     }
 
     /// Enter a room as the authenticated principal
-    public func roomsEnter(roomId: String) async throws -> EnterRoomResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/rooms/\(serializePathParameter(roomId, PathParameterSpec(name: "roomId", style: "simple", explode: false)))/enter"), body: nil, responseType: EnterRoomResponse.self)
+    public func roomsEnter(roomId: String) async throws -> RoomsEnterResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/rooms/\(serializePathParameter(roomId, PathParameterSpec(name: "roomId", style: "simple", explode: false)))/enter"), body: nil, responseType: RoomsEnterResponse.self)
     }
 
     /// Leave a room as the authenticated principal
-    public func roomsLeave(roomId: String) async throws -> EnterRoomResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/rooms/\(serializePathParameter(roomId, PathParameterSpec(name: "roomId", style: "simple", explode: false)))/leave"), body: nil, responseType: EnterRoomResponse.self)
+    public func roomsLeave(roomId: String) async throws -> RoomsLeaveResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/rooms/\(serializePathParameter(roomId, PathParameterSpec(name: "roomId", style: "simple", explode: false)))/leave"), body: nil, responseType: RoomsLeaveResponse.self)
     }
 
     private struct PathParameterSpec {

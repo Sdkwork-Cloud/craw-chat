@@ -27,7 +27,8 @@ use tokio::sync::watch;
 use tokio::time::{interval, timeout};
 
 use crate::{
-    RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
+    RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeRuntimeError,
+    RealtimeSubscriptionItemInput,
     client_route_registration::ClientRouteRegistration,
     link_business_contract::{LinkClientBusinessFrame, validate_link_client_business_envelope},
     realtime::RealtimeWindowCheckpoint,
@@ -85,6 +86,8 @@ struct ClientFrameEnvelope {
     after_seq: Option<u64>,
     limit: Option<usize>,
     acked_seq: Option<u64>,
+    #[serde(default)]
+    nack_through_seq: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -144,6 +147,15 @@ pub trait RealtimeRouteOwner: Send + Sync {
     ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError>;
 
     fn release_active_client_route_if_current_session(&self, auth: &AppContext, device_id: &str);
+
+    /// Clone the owner into an owned trait object so it can be moved into a
+    /// `spawn_blocking` task. The default implementation panics; implementors
+    /// that participate in blocking route-session checks must override this.
+    fn boxed_clone(&self) -> Box<dyn RealtimeRouteOwner + Send + Sync> {
+        unimplemented!(
+            "boxed_clone not implemented for this RealtimeRouteOwner; route-session checks cannot be moved to spawn_blocking"
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -242,6 +254,10 @@ impl RealtimeRouteOwner for ClientRouteRegistration {
 
     fn release_active_client_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
         self.release_active_client_route_if_current_session(auth, device_id);
+    }
+
+    fn boxed_clone(&self) -> Box<dyn RealtimeRouteOwner + Send + Sync> {
+        Box::new(self.clone())
     }
 }
 
@@ -373,83 +389,169 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     {
         return;
     }
-    let mut route_epoch_receiver =
-        match route_owner.subscribe_active_client_route_epoch(&auth, device_id.as_str()) {
-            Ok(receiver) => receiver,
-            Err(_) => return,
-        };
-    if let Err(error) = runtime.ensure_client_route_state_for_principal_kind(
-        tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        principal_id.as_str(),
-        principal_kind.as_str(),
-        device_id.as_str(),
-    ) {
-        let _ =
-            send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error).await;
-        return;
-    }
-    let checkpoint = match runtime.window_checkpoint_for_principal_kind(
-        tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        principal_id.as_str(),
-        principal_kind.as_str(),
-        device_id.as_str(),
-    ) {
-        Ok(checkpoint) => checkpoint,
-        Err(error) => {
+    // `subscribe_active_client_route_epoch` performs blocking Redis/Postgres
+    // IO via `route_store.lookup`; run it on the blocking pool so the async
+    // worker stays free.
+    let subscribe_epoch_owner = route_owner.boxed_clone();
+    let subscribe_epoch_auth = auth.clone();
+    let subscribe_epoch_device = device_id.clone();
+    let mut route_epoch_receiver = match tokio::task::spawn_blocking(move || {
+        subscribe_epoch_owner
+            .subscribe_active_client_route_epoch(&subscribe_epoch_auth, &subscribe_epoch_device)
+    })
+    .await
+    {
+        Ok(Ok(receiver)) => receiver,
+        Ok(Err(_)) => return,
+        Err(join_error) => {
+            tracing::error!(
+                target: "sdkwork.im.session_gateway",
+                tenant_id = %tenant_id,
+                principal_id = %principal_id,
+                device_id = %device_id,
+                error = %join_error,
+                "subscribe_active_client_route_epoch blocking task panicked"
+            );
+            return;
+        }
+    };
+
+    // The three setup calls below all perform blocking Postgres IO
+    // (ensure_client_route_state loads checkpoint/subscriptions/window,
+    // window_checkpoint reads the latest sequence, disconnect_generation reads
+    // the fence store). Batch them into a single `spawn_blocking` so only one
+    // blocking-thread hop is needed and the async worker stays free during the
+    // round-trips. Mirrors the pattern in `link_realtime.rs`.
+    let setup_runtime = Arc::clone(&runtime);
+    let setup_tenant = tenant_id.clone();
+    let setup_org = auth.organization_id.clone();
+    let setup_principal = principal_id.clone();
+    let setup_kind = principal_kind.clone();
+    let setup_device = device_id.clone();
+    let setup_result = tokio::task::spawn_blocking(
+        move || -> Result<(RealtimeWindowCheckpoint, u64), RealtimeRuntimeError> {
+            setup_runtime.ensure_client_route_state_for_principal_kind(
+                setup_tenant.as_str(),
+                setup_org.as_str(),
+                setup_principal.as_str(),
+                setup_kind.as_str(),
+                setup_device.as_str(),
+            )?;
+            let checkpoint = setup_runtime.window_checkpoint_for_principal_kind(
+                setup_tenant.as_str(),
+                setup_org.as_str(),
+                setup_principal.as_str(),
+                setup_kind.as_str(),
+                setup_device.as_str(),
+            )?;
+            let disconnect_generation = setup_runtime.disconnect_generation_for_principal_kind(
+                setup_tenant.as_str(),
+                setup_org.as_str(),
+                setup_principal.as_str(),
+                setup_kind.as_str(),
+                setup_device.as_str(),
+            )?;
+            Ok((checkpoint, disconnect_generation))
+        },
+    )
+    .await;
+    let (checkpoint, disconnect_generation) = match setup_result {
+        Ok(Ok(values)) => values,
+        Ok(Err(error)) => {
             let _ =
                 send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
                     .await;
             return;
         }
-    };
-    let disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
-        tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        principal_id.as_str(),
-        principal_kind.as_str(),
-        device_id.as_str(),
-    ) {
-        Ok(disconnect_generation) => disconnect_generation,
-        Err(error) => {
-            let _ =
-                send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
-                    .await;
+        Err(join_error) => {
+            tracing::error!(
+                target: "sdkwork.im.session_gateway",
+                tenant_id = %tenant_id,
+                principal_id = %principal_id,
+                device_id = %device_id,
+                error = %join_error,
+                "session setup blocking task panicked"
+            );
+            let _ = send_initial_runtime_error(
+                &mut socket,
+                wire_mode,
+                &ccp_runtime,
+                &route,
+                &RealtimeRuntimeError {
+                    code: "session_setup_failed",
+                    message: format!("session setup blocking task failed: {join_error}"),
+                },
+            )
+            .await;
             return;
         }
     };
+
     let mut link_session = build_link_session(&auth, device_id.as_str());
     let mut resume_after_seq = checkpoint
         .acked_through_seq
         .max(checkpoint.trimmed_through_seq);
-    let mut receiver = match runtime.subscribe_client_route_for_principal_kind(
-        tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        principal_id.as_str(),
-        principal_kind.as_str(),
-        device_id.as_str(),
-    ) {
-        Ok(receiver) => receiver,
-        Err(error) => {
+
+    // `subscribe_client_route_for_principal_kind` and
+    // `subscribe_disconnect_signal_for_principal_kind` both invoke
+    // `ensure_client_route_state_internal`, which performs blocking Postgres
+    // IO when the principal's in-memory state has been evicted. Batch them
+    // into a single `spawn_blocking` so the async worker stays free.
+    let subscribe_runtime = Arc::clone(&runtime);
+    let subscribe_tenant = tenant_id.clone();
+    let subscribe_org = auth.organization_id.clone();
+    let subscribe_principal = principal_id.clone();
+    let subscribe_kind = principal_kind.clone();
+    let subscribe_device = device_id.clone();
+    let subscribe_result = tokio::task::spawn_blocking(
+        move || -> Result<(watch::Receiver<u64>, watch::Receiver<u64>), RealtimeRuntimeError> {
+            let receiver = subscribe_runtime.subscribe_client_route_for_principal_kind(
+                subscribe_tenant.as_str(),
+                subscribe_org.as_str(),
+                subscribe_principal.as_str(),
+                subscribe_kind.as_str(),
+                subscribe_device.as_str(),
+            )?;
+            let disconnect_receiver = subscribe_runtime
+                .subscribe_disconnect_signal_for_principal_kind(
+                    subscribe_tenant.as_str(),
+                    subscribe_org.as_str(),
+                    subscribe_principal.as_str(),
+                    subscribe_kind.as_str(),
+                    subscribe_device.as_str(),
+                )?;
+            Ok((receiver, disconnect_receiver))
+        },
+    )
+    .await;
+    let (mut receiver, mut disconnect_receiver) = match subscribe_result {
+        Ok(Ok(values)) => values,
+        Ok(Err(error)) => {
             let _ =
                 send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
                     .await;
             return;
         }
-    };
-    let mut disconnect_receiver = match runtime.subscribe_disconnect_signal_for_principal_kind(
-        tenant_id.as_str(),
-        auth.organization_id.as_str(),
-        principal_id.as_str(),
-        principal_kind.as_str(),
-        device_id.as_str(),
-    ) {
-        Ok(receiver) => receiver,
-        Err(error) => {
-            let _ =
-                send_initial_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error)
-                    .await;
+        Err(join_error) => {
+            tracing::error!(
+                target: "sdkwork.im.session_gateway",
+                tenant_id = %tenant_id,
+                principal_id = %principal_id,
+                device_id = %device_id,
+                error = %join_error,
+                "session subscribe blocking task panicked"
+            );
+            let _ = send_initial_runtime_error(
+                &mut socket,
+                wire_mode,
+                &ccp_runtime,
+                &route,
+                &RealtimeRuntimeError {
+                    code: "session_subscribe_failed",
+                    message: format!("session subscribe blocking task failed: {join_error}"),
+                },
+            )
+            .await;
             return;
         }
     };
@@ -531,20 +633,57 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
         {
             return;
         }
-        let catchup = match runtime.list_events_for_principal_kind(
-            auth.tenant_id.as_str(),
-            auth.organization_id.as_str(),
-            auth.actor_id.as_str(),
-            auth.actor_kind.as_str(),
-            device_id.as_str(),
-            catchup_plan.after_seq,
-            catchup_plan.batch.limit,
-        ) {
-            Ok(catchup) => catchup,
-            Err(error) => {
+        // `list_events_for_principal_kind` performs blocking Postgres IO;
+        // run it on the blocking pool so the async worker stays free.
+        let catchup_runtime = Arc::clone(&runtime);
+        let catchup_tenant = auth.tenant_id.clone();
+        let catchup_org = auth.organization_id.clone();
+        let catchup_principal = auth.actor_id.clone();
+        let catchup_kind = auth.actor_kind.clone();
+        let catchup_device = device_id.clone();
+        let catchup_after_seq = catchup_plan.after_seq;
+        let catchup_batch_limit = catchup_plan.batch.limit;
+        let catchup = match tokio::task::spawn_blocking(move || {
+            catchup_runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: catchup_tenant.as_str(),
+                organization_id: catchup_org.as_str(),
+                principal_id: catchup_principal.as_str(),
+                principal_kind: catchup_kind.as_str(),
+                device_id: catchup_device.as_str(),
+                after_seq: catchup_after_seq,
+                limit: catchup_batch_limit,
+            })
+        })
+        .await
+        {
+            Ok(Ok(catchup)) => catchup,
+            Ok(Err(error)) => {
                 let _ =
                     send_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, None, &error)
                         .await;
+                return;
+            }
+            Err(join_error) => {
+                tracing::error!(
+                    target: "sdkwork.im.session_gateway",
+                    tenant_id = %tenant_id,
+                    principal_id = %principal_id,
+                    device_id = %device_id,
+                    error = %join_error,
+                    "session catchup blocking task panicked"
+                );
+                let _ = send_runtime_error(
+                    &mut socket,
+                    wire_mode,
+                    &ccp_runtime,
+                    &route,
+                    None,
+                    &RealtimeRuntimeError {
+                        code: "session_catchup_failed",
+                        message: format!("session catchup blocking task failed: {join_error}"),
+                    },
+                )
+                .await;
                 return;
             }
         };
@@ -710,15 +849,28 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 if disconnect_changed.is_err() {
                     break;
                 }
-                let current_disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
-                    auth.tenant_id.as_str(),
-                    auth.organization_id.as_str(),
-                    auth.actor_id.as_str(),
-                    auth.actor_kind.as_str(),
-                    device_id.as_str(),
-                ) {
-                    Ok(disconnect_generation) => disconnect_generation,
-                    Err(error) => {
+                // `disconnect_generation_for_principal_kind` performs blocking
+                // Postgres IO; run it on the blocking pool so the async worker
+                // stays free.
+                let disconnect_runtime = Arc::clone(&runtime);
+                let disconnect_tenant = auth.tenant_id.clone();
+                let disconnect_org = auth.organization_id.clone();
+                let disconnect_principal = auth.actor_id.clone();
+                let disconnect_kind = auth.actor_kind.clone();
+                let disconnect_device = device_id.clone();
+                let current_disconnect_generation = match tokio::task::spawn_blocking(move || {
+                    disconnect_runtime.disconnect_generation_for_principal_kind(
+                        disconnect_tenant.as_str(),
+                        disconnect_org.as_str(),
+                        disconnect_principal.as_str(),
+                        disconnect_kind.as_str(),
+                        disconnect_device.as_str(),
+                    )
+                })
+                .await
+                {
+                    Ok(Ok(disconnect_generation)) => disconnect_generation,
+                    Ok(Err(error)) => {
                         let _ = send_runtime_error(
                             &mut socket,
                             wire_mode,
@@ -726,6 +878,31 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                             &route,
                             None,
                             &error,
+                        )
+                        .await;
+                        break;
+                    }
+                    Err(join_error) => {
+                        tracing::error!(
+                            target: "sdkwork.im.session_gateway",
+                            tenant_id = %tenant_id,
+                            principal_id = %principal_id,
+                            device_id = %device_id,
+                            error = %join_error,
+                            "disconnect_generation blocking task panicked (disconnect branch)"
+                        );
+                        let _ = send_runtime_error(
+                            &mut socket,
+                            wire_mode,
+                            &ccp_runtime,
+                            &route,
+                            None,
+                            &RealtimeRuntimeError {
+                                code: "disconnect_generation_failed",
+                                message: format!(
+                                    "disconnect_generation blocking task failed: {join_error}"
+                                ),
+                            },
                         )
                         .await;
                         break;
@@ -763,15 +940,28 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 if matches!(message, Message::Text(_) | Message::Binary(_)) {
                     last_activity = tokio::time::Instant::now();
                 }
-                let current_disconnect_generation = match runtime.disconnect_generation_for_principal_kind(
-                    auth.tenant_id.as_str(),
-                    auth.organization_id.as_str(),
-                    auth.actor_id.as_str(),
-                    auth.actor_kind.as_str(),
-                    device_id.as_str(),
-                ) {
-                    Ok(disconnect_generation) => disconnect_generation,
-                    Err(error) => {
+                // `disconnect_generation_for_principal_kind` performs blocking
+                // Postgres IO; run it on the blocking pool so the async worker
+                // stays free.
+                let disconnect_runtime = Arc::clone(&runtime);
+                let disconnect_tenant = auth.tenant_id.clone();
+                let disconnect_org = auth.organization_id.clone();
+                let disconnect_principal = auth.actor_id.clone();
+                let disconnect_kind = auth.actor_kind.clone();
+                let disconnect_device = device_id.clone();
+                let current_disconnect_generation = match tokio::task::spawn_blocking(move || {
+                    disconnect_runtime.disconnect_generation_for_principal_kind(
+                        disconnect_tenant.as_str(),
+                        disconnect_org.as_str(),
+                        disconnect_principal.as_str(),
+                        disconnect_kind.as_str(),
+                        disconnect_device.as_str(),
+                    )
+                })
+                .await
+                {
+                    Ok(Ok(disconnect_generation)) => disconnect_generation,
+                    Ok(Err(error)) => {
                         let _ = send_runtime_error(
                             &mut socket,
                             wire_mode,
@@ -779,6 +969,31 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                             &route,
                             None,
                             &error,
+                        )
+                        .await;
+                        break;
+                    }
+                    Err(join_error) => {
+                        tracing::error!(
+                            target: "sdkwork.im.session_gateway",
+                            tenant_id = %tenant_id,
+                            principal_id = %principal_id,
+                            device_id = %device_id,
+                            error = %join_error,
+                            "disconnect_generation blocking task panicked (message branch)"
+                        );
+                        let _ = send_runtime_error(
+                            &mut socket,
+                            wire_mode,
+                            &ccp_runtime,
+                            &route,
+                            None,
+                            &RealtimeRuntimeError {
+                                code: "disconnect_generation_failed",
+                                message: format!(
+                                    "disconnect_generation blocking task failed: {join_error}"
+                                ),
+                            },
                         )
                         .await;
                         break;
@@ -1320,19 +1535,37 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
         after_seq: u64,
         limit: usize,
     ) -> Result<LinkBufferedPushFetchedWindow<Self::Window>, Self::Error> {
-        self.ensure_current_route_session()?;
-        let window = self
-            .runtime
-            .list_events_for_principal_kind(
-                self.tenant_id,
-                self.organization_id,
-                self.principal_id,
-                self.principal_kind,
-                self.device_id,
+        self.ensure_current_route_session().await?;
+        // `list_events_for_principal_kind` performs blocking Postgres IO; run
+        // it on the blocking pool so the async worker stays free.
+        let runtime = self.runtime.clone();
+        let tenant_id = self.tenant_id.to_owned();
+        let organization_id = self.organization_id.to_owned();
+        let principal_id = self.principal_id.to_owned();
+        let principal_kind = self.principal_kind.to_owned();
+        let device_id = self.device_id.to_owned();
+        let window = match tokio::task::spawn_blocking(move || {
+            runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: tenant_id.as_str(),
+                organization_id: organization_id.as_str(),
+                principal_id: principal_id.as_str(),
+                principal_kind: principal_kind.as_str(),
+                device_id: device_id.as_str(),
                 after_seq,
                 limit,
-            )
-            .map_err(BufferedPushDrainError::Runtime)?;
+            })
+        })
+        .await
+        {
+            Ok(Ok(window)) => window,
+            Ok(Err(error)) => return Err(BufferedPushDrainError::Runtime(error)),
+            Err(join_error) => {
+                return Err(BufferedPushDrainError::Runtime(RealtimeRuntimeError {
+                    code: "list_events_failed",
+                    message: format!("list_events blocking task failed: {join_error}"),
+                }));
+            }
+        };
         let next_after_seq = window.next_after_seq;
         let is_empty = window.items.is_empty();
         Ok(LinkBufferedPushFetchedWindow {
@@ -1343,7 +1576,7 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
     }
 
     async fn send_window(&mut self, window: Self::Window) -> Result<(), Self::Error> {
-        self.ensure_current_route_session()?;
+        self.ensure_current_route_session().await?;
         send_business_payload(
             self.socket,
             self.wire_mode,
@@ -1364,10 +1597,35 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
 }
 
 impl BufferedPushDrainDriver<'_> {
-    fn ensure_current_route_session(&self) -> Result<(), BufferedPushDrainError> {
-        self.route_owner
-            .ensure_active_client_route_current_session(self.auth, self.device_id)
-            .map_err(|error| BufferedPushDrainError::Fence(error.code))
+    // Takes `&mut self` (not `&self`) so the returned future is `Send`:
+    // `BufferedPushDrainDriver` is `Send` but not `Sync` (it holds a
+    // `&mut WebSocket`, and axum's `WebSocket` is not `Sync`). A shared
+    // `&self` borrow held across `.await` would require `Sync`; a mutable
+    // borrow only requires `Send`.
+    async fn ensure_current_route_session(&mut self) -> Result<(), BufferedPushDrainError> {
+        // `ensure_active_client_route_current_session` may perform blocking
+        // Redis/Postgres IO via `route_store.lookup`; run it on the blocking
+        // pool so the async worker stays free.
+        let blocking_owner = self.route_owner.boxed_clone();
+        let blocking_auth = self.auth.clone();
+        let blocking_device_id = self.device_id.to_string();
+        match tokio::task::spawn_blocking(move || {
+            blocking_owner
+                .ensure_active_client_route_current_session(&blocking_auth, &blocking_device_id)
+        })
+        .await
+        {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => Err(BufferedPushDrainError::Fence(error.code)),
+            Err(join_error) => {
+                tracing::error!(
+                    target: "sdkwork.im.session_gateway",
+                    error = %join_error,
+                    "route session blocking task panicked (BufferedPushDrainDriver)"
+                );
+                Err(BufferedPushDrainError::Fence("route_session_check_failed"))
+            }
+        }
     }
 }
 
@@ -1394,20 +1652,32 @@ async fn handle_client_message(
     match message {
         Message::Text(_) | Message::Binary(_) => {
             let principal_key = format!("{tenant_id}:{principal_kind}:{principal_id}");
-            if let Err(error) = frame_rate_limiter.check_frame(principal_key.as_str()) {
+            // `check_frame` may perform blocking Redis IO; run it on the
+            // blocking pool so the async worker stays free.
+            let rate_limiter = frame_rate_limiter.clone();
+            let rate_principal_key = principal_key.clone();
+            if let Err(error) = match tokio::task::spawn_blocking(move || {
+                rate_limiter.check_frame(rate_principal_key.as_str())
+            })
+            .await
+            {
+                Ok(Ok(())) => Ok(()),
+                Ok(Err(error)) => Err(error),
+                Err(join_error) => Err(crate::ApiError {
+                    status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    code: "websocket_frame_rate_limiter_unavailable",
+                    message: format!(
+                        "websocket frame rate limiter blocking task failed: {join_error}"
+                    ),
+                }),
+            } {
                 let runtime_error = RealtimeRuntimeError {
                     code: error.code,
                     message: error.message,
                 };
-                let _ = send_runtime_error(
-                    socket,
-                    wire_mode,
-                    ccp_runtime,
-                    route,
-                    None,
-                    &runtime_error,
-                )
-                .await;
+                let _ =
+                    send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &runtime_error)
+                        .await;
                 return false;
             }
             let decoded = match decode_client_frame(message, wire_mode, ccp_runtime) {
@@ -1463,16 +1733,30 @@ async fn handle_client_message(
 
             match frame.frame_type.as_str() {
                 "subscriptions.sync" => {
-                    let snapshot = match runtime.sync_subscriptions_for_principal_kind(
-                        tenant_id,
-                        organization_id,
-                        principal_id,
-                        principal_kind,
-                        device_id,
-                        frame.items,
-                    ) {
-                        Ok(snapshot) => snapshot,
-                        Err(error) => {
+                    // `sync_subscriptions_for_principal_kind` performs blocking
+                    // Postgres IO; run it on the blocking pool so the async
+                    // worker stays free.
+                    let sync_runtime = runtime.clone();
+                    let sync_tenant = tenant_id.to_owned();
+                    let sync_org = organization_id.to_owned();
+                    let sync_principal = principal_id.to_owned();
+                    let sync_kind = principal_kind.to_owned();
+                    let sync_device = device_id.to_owned();
+                    let sync_items = frame.items.clone();
+                    let snapshot = match tokio::task::spawn_blocking(move || {
+                        sync_runtime.sync_subscriptions_for_principal_kind(
+                            sync_tenant.as_str(),
+                            sync_org.as_str(),
+                            sync_principal.as_str(),
+                            sync_kind.as_str(),
+                            sync_device.as_str(),
+                            sync_items,
+                        )
+                    })
+                    .await
+                    {
+                        Ok(Ok(snapshot)) => snapshot,
+                        Ok(Err(error)) => {
                             let _ = send_runtime_error(
                                 socket,
                                 wire_mode,
@@ -1480,6 +1764,31 @@ async fn handle_client_message(
                                 route,
                                 frame.request_id,
                                 &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                        Err(join_error) => {
+                            tracing::error!(
+                                target: "sdkwork.im.session_gateway",
+                                tenant_id = %tenant_id,
+                                principal_id = %principal_id,
+                                device_id = %device_id,
+                                error = %join_error,
+                                "sync_subscriptions blocking task panicked"
+                            );
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &RealtimeRuntimeError {
+                                    code: "sync_subscriptions_failed",
+                                    message: format!(
+                                        "sync_subscriptions blocking task failed: {join_error}"
+                                    ),
+                                },
                             )
                             .await;
                             return true;
@@ -1517,15 +1826,28 @@ async fn handle_client_message(
                         return true;
                     }
 
-                    let latest_realtime_seq = match runtime.window_checkpoint_for_principal_kind(
-                        tenant_id,
-                        organization_id,
-                        principal_id,
-                        principal_kind,
-                        device_id,
-                    ) {
-                        Ok(checkpoint) => checkpoint.latest_realtime_seq,
-                        Err(error) => {
+                    // `window_checkpoint_for_principal_kind` performs blocking
+                    // Postgres IO; run it on the blocking pool so the async
+                    // worker stays free.
+                    let checkpoint_runtime = runtime.clone();
+                    let checkpoint_tenant = tenant_id.to_owned();
+                    let checkpoint_org = organization_id.to_owned();
+                    let checkpoint_principal = principal_id.to_owned();
+                    let checkpoint_kind = principal_kind.to_owned();
+                    let checkpoint_device = device_id.to_owned();
+                    let latest_realtime_seq = match tokio::task::spawn_blocking(move || {
+                        checkpoint_runtime.window_checkpoint_for_principal_kind(
+                            checkpoint_tenant.as_str(),
+                            checkpoint_org.as_str(),
+                            checkpoint_principal.as_str(),
+                            checkpoint_kind.as_str(),
+                            checkpoint_device.as_str(),
+                        )
+                    })
+                    .await
+                    {
+                        Ok(Ok(checkpoint)) => checkpoint.latest_realtime_seq,
+                        Ok(Err(error)) => {
                             let _ = send_runtime_error(
                                 socket,
                                 wire_mode,
@@ -1537,20 +1859,60 @@ async fn handle_client_message(
                             .await;
                             return true;
                         }
+                        Err(join_error) => {
+                            tracing::error!(
+                                target: "sdkwork.im.session_gateway",
+                                tenant_id = %tenant_id,
+                                principal_id = %principal_id,
+                                device_id = %device_id,
+                                error = %join_error,
+                                "window_checkpoint blocking task panicked (events.pull)"
+                            );
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &RealtimeRuntimeError {
+                                    code: "window_checkpoint_failed",
+                                    message: format!(
+                                        "window_checkpoint blocking task failed: {join_error}"
+                                    ),
+                                },
+                            )
+                            .await;
+                            return true;
+                        }
                     };
                     let pull_plan =
                         outbound_queue.plan_pull(frame.after_seq, limit, latest_realtime_seq);
-                    let window = match runtime.list_events_for_principal_kind(
-                        tenant_id,
-                        organization_id,
-                        principal_id,
-                        principal_kind,
-                        device_id,
-                        pull_plan.after_seq,
-                        pull_plan.batch.limit,
-                    ) {
-                        Ok(window) => window,
-                        Err(error) => {
+                    // `list_events_for_principal_kind` performs blocking
+                    // Postgres IO; run it on the blocking pool so the async
+                    // worker stays free.
+                    let list_runtime = runtime.clone();
+                    let list_tenant = tenant_id.to_owned();
+                    let list_org = organization_id.to_owned();
+                    let list_principal = principal_id.to_owned();
+                    let list_kind = principal_kind.to_owned();
+                    let list_device = device_id.to_owned();
+                    let list_after_seq = pull_plan.after_seq;
+                    let list_batch_limit = pull_plan.batch.limit;
+                    let window = match tokio::task::spawn_blocking(move || {
+                        list_runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                            tenant_id: list_tenant.as_str(),
+                            organization_id: list_org.as_str(),
+                            principal_id: list_principal.as_str(),
+                            principal_kind: list_kind.as_str(),
+                            device_id: list_device.as_str(),
+                            after_seq: list_after_seq,
+                            limit: list_batch_limit,
+                        })
+                    })
+                    .await
+                    {
+                        Ok(Ok(window)) => window,
+                        Ok(Err(error)) => {
                             let _ = send_runtime_error(
                                 socket,
                                 wire_mode,
@@ -1558,6 +1920,31 @@ async fn handle_client_message(
                                 route,
                                 frame.request_id,
                                 &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                        Err(join_error) => {
+                            tracing::error!(
+                                target: "sdkwork.im.session_gateway",
+                                tenant_id = %tenant_id,
+                                principal_id = %principal_id,
+                                device_id = %device_id,
+                                error = %join_error,
+                                "list_events blocking task panicked (events.pull)"
+                            );
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &RealtimeRuntimeError {
+                                    code: "list_events_failed",
+                                    message: format!(
+                                        "list_events blocking task failed: {join_error}"
+                                    ),
+                                },
                             )
                             .await;
                             return true;
@@ -1607,6 +1994,206 @@ async fn handle_client_message(
                     }
                     true
                 }
+                "events.nack" => {
+                    let Some(nack_through_seq) = frame.nack_through_seq.or(frame.after_seq) else {
+                        let _ = send_business_error(
+                            socket,
+                            wire_mode,
+                            ccp_runtime,
+                            route,
+                            frame.request_id,
+                            "nack_through_seq_missing",
+                            "nackThroughSeq or afterSeq is required",
+                        )
+                        .await;
+                        return true;
+                    };
+                    let limit = frame.limit.unwrap_or(100);
+                    if limit == 0 {
+                        let _ = send_business_error(
+                            socket,
+                            wire_mode,
+                            ccp_runtime,
+                            route,
+                            frame.request_id,
+                            "limit_invalid",
+                            "limit must be greater than 0",
+                        )
+                        .await;
+                        return true;
+                    }
+
+                    // `window_checkpoint_for_principal_kind` performs blocking
+                    // Postgres IO; run it on the blocking pool so the async
+                    // worker stays free.
+                    let checkpoint_runtime = runtime.clone();
+                    let checkpoint_tenant = tenant_id.to_owned();
+                    let checkpoint_org = organization_id.to_owned();
+                    let checkpoint_principal = principal_id.to_owned();
+                    let checkpoint_kind = principal_kind.to_owned();
+                    let checkpoint_device = device_id.to_owned();
+                    let latest_realtime_seq = match tokio::task::spawn_blocking(move || {
+                        checkpoint_runtime.window_checkpoint_for_principal_kind(
+                            checkpoint_tenant.as_str(),
+                            checkpoint_org.as_str(),
+                            checkpoint_principal.as_str(),
+                            checkpoint_kind.as_str(),
+                            checkpoint_device.as_str(),
+                        )
+                    })
+                    .await
+                    {
+                        Ok(Ok(checkpoint)) => checkpoint.latest_realtime_seq,
+                        Ok(Err(error)) => {
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                        Err(join_error) => {
+                            tracing::error!(
+                                target: "sdkwork.im.session_gateway",
+                                tenant_id = %tenant_id,
+                                principal_id = %principal_id,
+                                device_id = %device_id,
+                                error = %join_error,
+                                "window_checkpoint blocking task panicked (events.nack)"
+                            );
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &RealtimeRuntimeError {
+                                    code: "window_checkpoint_failed",
+                                    message: format!(
+                                        "window_checkpoint blocking task failed: {join_error}"
+                                    ),
+                                },
+                            )
+                            .await;
+                            return true;
+                        }
+                    };
+                    let nack_plan = outbound_queue.plan_nack_replay(
+                        nack_through_seq,
+                        limit,
+                        latest_realtime_seq,
+                    );
+                    // `list_events_for_principal_kind` performs blocking
+                    // Postgres IO; run it on the blocking pool so the async
+                    // worker stays free.
+                    let list_runtime = runtime.clone();
+                    let list_tenant = tenant_id.to_owned();
+                    let list_org = organization_id.to_owned();
+                    let list_principal = principal_id.to_owned();
+                    let list_kind = principal_kind.to_owned();
+                    let list_device = device_id.to_owned();
+                    let list_after_seq = nack_plan.after_seq;
+                    let list_batch_limit = nack_plan.batch.limit;
+                    let window = match tokio::task::spawn_blocking(move || {
+                        list_runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                            tenant_id: list_tenant.as_str(),
+                            organization_id: list_org.as_str(),
+                            principal_id: list_principal.as_str(),
+                            principal_kind: list_kind.as_str(),
+                            device_id: list_device.as_str(),
+                            after_seq: list_after_seq,
+                            limit: list_batch_limit,
+                        })
+                    })
+                    .await
+                    {
+                        Ok(Ok(window)) => window,
+                        Ok(Err(error)) => {
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                        Err(join_error) => {
+                            tracing::error!(
+                                target: "sdkwork.im.session_gateway",
+                                tenant_id = %tenant_id,
+                                principal_id = %principal_id,
+                                device_id = %device_id,
+                                error = %join_error,
+                                "list_events blocking task panicked (events.nack)"
+                            );
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &RealtimeRuntimeError {
+                                    code: "list_events_failed",
+                                    message: format!(
+                                        "list_events blocking task failed: {join_error}"
+                                    ),
+                                },
+                            )
+                            .await;
+                            return true;
+                        }
+                    };
+                    let next_after_seq = window.next_after_seq;
+                    if send_business_payload(
+                        socket,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                        "evt",
+                        "cc.realtime.event.window.v1",
+                        json!({
+                            "type": "event.window",
+                            "requestId": frame.request_id,
+                            "reason": "nack",
+                            "window": window
+                        }),
+                    )
+                    .await
+                    .is_err()
+                    {
+                        return false;
+                    }
+                    let recovery_plan =
+                        outbound_queue.record_window_sent(nack_plan.after_seq, next_after_seq);
+                    if !drain_runtime_owned_buffered_push(
+                        socket,
+                        runtime,
+                        route_owner,
+                        auth,
+                        tenant_id,
+                        organization_id,
+                        principal_id,
+                        principal_kind,
+                        device_id,
+                        outbound_queue,
+                        recovery_plan,
+                        wire_mode,
+                        ccp_runtime,
+                        route,
+                    )
+                    .await
+                    {
+                        return false;
+                    }
+                    true
+                }
                 "events.ack" => {
                     let Some(acked_seq) = frame.acked_seq else {
                         let _ = send_business_error(
@@ -1622,16 +2209,30 @@ async fn handle_client_message(
                         return true;
                     };
 
-                    let ack = match runtime.ack_events_for_principal_kind(
-                        tenant_id,
-                        organization_id,
-                        principal_id,
-                        principal_kind,
-                        device_id,
-                        acked_seq,
-                    ) {
-                        Ok(ack) => ack,
-                        Err(error) => {
+                    // `ack_events_for_principal_kind` performs blocking
+                    // Postgres IO; run it on the blocking pool so the async
+                    // worker stays free.
+                    let ack_runtime = runtime.clone();
+                    let ack_tenant = tenant_id.to_owned();
+                    let ack_org = organization_id.to_owned();
+                    let ack_principal = principal_id.to_owned();
+                    let ack_kind = principal_kind.to_owned();
+                    let ack_device = device_id.to_owned();
+                    let ack_seq = acked_seq;
+                    let ack = match tokio::task::spawn_blocking(move || {
+                        ack_runtime.ack_events_for_principal_kind(
+                            ack_tenant.as_str(),
+                            ack_org.as_str(),
+                            ack_principal.as_str(),
+                            ack_kind.as_str(),
+                            ack_device.as_str(),
+                            ack_seq,
+                        )
+                    })
+                    .await
+                    {
+                        Ok(Ok(ack)) => ack,
+                        Ok(Err(error)) => {
                             let _ = send_runtime_error(
                                 socket,
                                 wire_mode,
@@ -1639,6 +2240,31 @@ async fn handle_client_message(
                                 route,
                                 frame.request_id,
                                 &error,
+                            )
+                            .await;
+                            return true;
+                        }
+                        Err(join_error) => {
+                            tracing::error!(
+                                target: "sdkwork.im.session_gateway",
+                                tenant_id = %tenant_id,
+                                principal_id = %principal_id,
+                                device_id = %device_id,
+                                error = %join_error,
+                                "ack_events blocking task panicked"
+                            );
+                            let _ = send_runtime_error(
+                                socket,
+                                wire_mode,
+                                ccp_runtime,
+                                route,
+                                frame.request_id,
+                                &RealtimeRuntimeError {
+                                    code: "ack_events_failed",
+                                    message: format!(
+                                        "ack_events blocking task failed: {join_error}"
+                                    ),
+                                },
                             )
                             .await;
                             return true;
@@ -1678,10 +2304,29 @@ async fn handle_client_message(
         }
         Message::Ping(payload) => {
             let principal_key = format!("{tenant_id}:{principal_kind}:{principal_id}");
-            if frame_rate_limiter.check_frame(principal_key.as_str()).is_err() {
-                return false;
+            // `check_frame` may perform blocking Redis IO; run it on the
+            // blocking pool so the async worker stays free.
+            let rate_limiter = frame_rate_limiter.clone();
+            let rate_principal_key = principal_key.clone();
+            let rate_result = tokio::task::spawn_blocking(move || {
+                rate_limiter.check_frame(rate_principal_key.as_str())
+            })
+            .await;
+            match rate_result {
+                Ok(Ok(())) => socket.send(Message::Pong(payload)).await.is_ok(),
+                Ok(Err(_)) => false,
+                Err(join_error) => {
+                    tracing::error!(
+                        target: "sdkwork.im.session_gateway",
+                        tenant_id = %tenant_id,
+                        principal_id = %principal_id,
+                        device_id = %device_id,
+                        error = %join_error,
+                        "frame_rate_limiter blocking task panicked (Ping branch)"
+                    );
+                    false
+                }
             }
-            socket.send(Message::Pong(payload)).await.is_ok()
         }
         Message::Pong(_) => true,
         Message::Close(frame) => {
@@ -1877,10 +2522,30 @@ async fn ensure_current_route_session_or_close(
     auth: &AppContext,
     device_id: &str,
 ) -> bool {
-    match route_owner.ensure_active_client_route_current_session(auth, device_id) {
-        Ok(()) => true,
-        Err(error) => {
+    // `ensure_active_client_route_current_session` may perform blocking
+    // Redis/Postgres IO via `route_store.lookup`; run it on the blocking
+    // pool so the async worker stays free.
+    let blocking_owner = route_owner.boxed_clone();
+    let blocking_auth = auth.clone();
+    let blocking_device_id = device_id.to_string();
+    let result = tokio::task::spawn_blocking(move || {
+        blocking_owner
+            .ensure_active_client_route_current_session(&blocking_auth, &blocking_device_id)
+    })
+    .await;
+    match result {
+        Ok(Ok(())) => true,
+        Ok(Err(error)) => {
             close_policy_with_reason(socket, error.code).await;
+            false
+        }
+        Err(join_error) => {
+            tracing::error!(
+                target: "sdkwork.im.session_gateway",
+                error = %join_error,
+                "route session blocking task panicked (ensure_current_route_session_or_close)"
+            );
+            close_policy_with_reason(socket, "route_session_check_failed").await;
             false
         }
     }
@@ -1897,9 +2562,20 @@ async fn ensure_current_route_session_for_request_or_close(
     route: &CcpRoute,
     request_id: Option<String>,
 ) -> bool {
-    match route_owner.ensure_active_client_route_current_session(auth, device_id) {
-        Ok(()) => true,
-        Err(error) => {
+    // `ensure_active_client_route_current_session` may perform blocking
+    // Redis/Postgres IO via `route_store.lookup`; run it on the blocking
+    // pool so the async worker stays free.
+    let blocking_owner = route_owner.boxed_clone();
+    let blocking_auth = auth.clone();
+    let blocking_device_id = device_id.to_string();
+    let result = tokio::task::spawn_blocking(move || {
+        blocking_owner
+            .ensure_active_client_route_current_session(&blocking_auth, &blocking_device_id)
+    })
+    .await;
+    match result {
+        Ok(Ok(())) => true,
+        Ok(Err(error)) => {
             let _ = send_business_error(
                 socket,
                 wire_mode,
@@ -1911,6 +2587,25 @@ async fn ensure_current_route_session_for_request_or_close(
             )
             .await;
             close_policy_with_reason(socket, error.code).await;
+            false
+        }
+        Err(join_error) => {
+            tracing::error!(
+                target: "sdkwork.im.session_gateway",
+                error = %join_error,
+                "route session blocking task panicked (ensure_current_route_session_for_request_or_close)"
+            );
+            let _ = send_business_error(
+                socket,
+                wire_mode,
+                ccp_runtime,
+                route,
+                request_id,
+                "route_session_check_failed",
+                format!("route session blocking task failed: {join_error}"),
+            )
+            .await;
+            close_policy_with_reason(socket, "route_session_check_failed").await;
             false
         }
     }

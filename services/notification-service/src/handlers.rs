@@ -2,13 +2,19 @@ use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use sdkwork_routes_web_framework_backend_api::response::{ApiResult, finish_api_json};
-use sdkwork_utils_rust::SdkWorkCursorListQuery;
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiResult, created_json, finish_api_json, finish_api_response,
+};
+use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
 
 use crate::dto::{NotificationListResponse, NotificationRequestResponse, RequestNotification};
 use crate::error::NotificationError;
 use crate::state::AppState;
+
+fn resource_item<T>(item: T) -> SdkWorkResourceData<T> {
+    SdkWorkResourceData { item }
+}
 
 async fn run_notification_sync<F, T>(operation: F) -> ApiResult<T>
 where
@@ -34,13 +40,16 @@ pub(crate) async fn request_notification(
     Json(request): Json<RequestNotification>,
 ) -> Response {
     let runtime = state.runtime.clone();
-    let result: ApiResult<NotificationRequestResponse> = run_notification_sync(move || {
-        Ok(runtime
-            .request_notification_from_app_context(&auth, request)?
-            .into())
-    })
-    .await;
-    finish_api_json(&ctx, result)
+    let result: ApiResult<SdkWorkResourceData<NotificationRequestResponse>> =
+        run_notification_sync(move || {
+            Ok(resource_item(
+                runtime
+                    .request_notification_from_app_context(&auth, request)?
+                    .into(),
+            ))
+        })
+        .await;
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub(crate) async fn list_notifications(
@@ -66,9 +75,12 @@ pub(crate) async fn get_notification(
     Path(notification_id): Path<String>,
 ) -> Response {
     let runtime = state.runtime.clone();
-    let result: ApiResult<im_domain_core::notification::NotificationTask> = run_notification_sync(move || {
-        Ok(runtime.get_notification(&auth, notification_id.as_str())?)
-    })
-    .await;
+    let result: ApiResult<SdkWorkResourceData<im_domain_core::notification::NotificationTask>> =
+        run_notification_sync(move || {
+            Ok(resource_item(
+                runtime.get_notification(&auth, notification_id.as_str())?,
+            ))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }

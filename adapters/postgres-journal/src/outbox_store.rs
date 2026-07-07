@@ -5,8 +5,8 @@
 use im_platform_contracts::{ContractError, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
 
 use crate::{
-    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_unavailable, run_postgres_io,
-    PostgresJournalPool,
+    PostgresJournalPool, now_rfc3339, postgres_jsonb_payload, postgres_pool_client,
+    postgres_unavailable, run_postgres_io,
 };
 
 /// PostgreSQL implementation of [`OutboxStore`].
@@ -221,7 +221,13 @@ impl OutboxStore for PostgresOutboxStore {
             client
                 .execute(
                     MARK_FAILED_SQL,
-                    &[&tenant_id, &organization_id, &outbox_id, &now, &max_attempts],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &outbox_id,
+                        &now,
+                        &max_attempts,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("mark_failed", error))?;
             Ok(())

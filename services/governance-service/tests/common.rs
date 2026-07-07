@@ -1,5 +1,5 @@
 use axum::body::Body;
-use axum::http::{request::Builder, Request};
+use axum::http::{Request, request::Builder};
 use im_app_context::DualTokenRequestBuilderExt;
 
 pub fn control_plane_request_builder(
@@ -12,13 +12,7 @@ pub fn control_plane_request_builder(
     Request::builder()
         .method(method)
         .uri(uri)
-        .with_dual_token_context(
-            "100001",
-            user_id,
-            actor_kind,
-            Some("d_pad"),
-            [permission],
-        )
+        .with_dual_token_context("100001", user_id, actor_kind, Some("d_pad"), [permission])
         .with_dual_token_organization("100001")
 }
 

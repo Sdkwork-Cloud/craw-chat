@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -266,16 +266,16 @@ impl ConversationPolicy {
             flags.dedup();
         }
 
-        if let Some(max_members) = self.max_members {
-            if max_members < crate::space::MIN_CHAT_GROUP_MAX_MEMBERS
-                || max_members > crate::space::MAX_CHAT_GROUP_MAX_MEMBERS
-            {
-                return Err(format!(
-                    "conversation maxMembers must be between {} and {}",
-                    crate::space::MIN_CHAT_GROUP_MAX_MEMBERS,
-                    crate::space::MAX_CHAT_GROUP_MAX_MEMBERS
-                ));
-            }
+        if let Some(max_members) = self.max_members
+            && !(crate::space::MIN_CHAT_GROUP_MAX_MEMBERS
+                ..=crate::space::MAX_CHAT_GROUP_MAX_MEMBERS)
+                .contains(&max_members)
+        {
+            return Err(format!(
+                "conversation maxMembers must be between {} and {}",
+                crate::space::MIN_CHAT_GROUP_MAX_MEMBERS,
+                crate::space::MAX_CHAT_GROUP_MAX_MEMBERS
+            ));
         }
 
         Ok(self)
@@ -331,6 +331,7 @@ pub struct ConversationRoster {
     members: BTreeMap<String, ConversationMember>,
     principal_members: HashMap<String, String>,
     read_cursors: BTreeMap<String, ConversationReadCursor>,
+    active_member_ids: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -368,42 +369,13 @@ impl ConversationRoster {
             .count()
     }
 
-    /// Lists active members using roster index order without materializing the full roster.
+    /// Lists active members using the maintained active-member index without scanning inactive rows.
     pub fn list_active_members_window(
         &self,
         offset: usize,
         limit: usize,
     ) -> ConversationMemberListWindow {
-        let limit = limit.max(1);
-        let mut skipped = 0usize;
-        let mut items = Vec::with_capacity(limit.saturating_add(1));
-        let mut has_more = false;
-
-        for member in self.members.values() {
-            if !member.is_active() {
-                continue;
-            }
-            if skipped < offset {
-                skipped += 1;
-                continue;
-            }
-            items.push(member.clone());
-            if items.len() > limit {
-                has_more = true;
-                break;
-            }
-        }
-
-        if has_more {
-            items.truncate(limit);
-        }
-
-        let next_offset = has_more.then(|| offset.saturating_add(items.len()));
-        ConversationMemberListWindow {
-            items,
-            next_offset,
-            has_more,
-        }
+        self.list_active_members_window_filtered(offset, limit, "")
     }
 
     /// Lists active members matching an optional principal-id substring without over-fetching.
@@ -419,7 +391,10 @@ impl ConversationRoster {
         let mut items = Vec::with_capacity(limit.saturating_add(1));
         let mut has_more = false;
 
-        for member in self.members.values() {
+        for member_id in &self.active_member_ids {
+            let Some(member) = self.members.get(member_id.as_str()) else {
+                continue;
+            };
             if !member.is_active() {
                 continue;
             }
@@ -459,6 +434,7 @@ impl ConversationRoster {
             principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str()),
             member.member_id.clone(),
         );
+        self.sync_active_member_index(&member);
         self.members.insert(member.member_id.clone(), member);
     }
 
@@ -467,7 +443,16 @@ impl ConversationRoster {
             principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str())
                 .as_str(),
         );
+        self.active_member_ids.remove(member.member_id.as_str());
         self.members.insert(member.member_id.clone(), member);
+    }
+
+    fn sync_active_member_index(&mut self, member: &ConversationMember) {
+        if member.is_active() {
+            self.active_member_ids.insert(member.member_id.clone());
+        } else {
+            self.active_member_ids.remove(member.member_id.as_str());
+        }
     }
 
     pub fn next_member_episode(&self, principal_id: &str, principal_kind: &str) -> u64 {
@@ -601,7 +586,11 @@ impl ConversationRoster {
         self.members.get(member_id)
     }
 
-    pub fn read_cursor(&self, member_id: &str, device_id: Option<&str>) -> Option<&ConversationReadCursor> {
+    pub fn read_cursor(
+        &self,
+        member_id: &str,
+        device_id: Option<&str>,
+    ) -> Option<&ConversationReadCursor> {
         let storage_key = read_cursor_storage_key(member_id, device_id);
         if let Some(cursor) = self.read_cursors.get(storage_key.as_str()) {
             return Some(cursor);

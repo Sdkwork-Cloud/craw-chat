@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { ContactPreferencesView, ContactRecommendationView, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, CreateUserBlockRequest, DeleteContactTagResponse, FriendRequest, Friendship, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendRequestPendingCountResponse, SocialFriendshipMutationResponse, SocialUserBlockMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
+import type { BlockUserRequest, ContactPreferencesView, ContactRecommendationView, ContactTagView, CreateContactRecommendationRequest, CreateContactTagRequest, OpenApiUserBlockResponse, SdkWorkPageData, SocialFriendRequestAcceptanceResponse, SocialFriendRequestMutationResponse, SocialFriendRequestPendingCountResponse, SocialFriendshipMutationResponse, SocialUserSearchResult, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest } from '../types';
 
 
 export class SocialContactsPreferencesApi {
@@ -38,7 +38,7 @@ export class SocialContactsRecommendationsApi {
 }
 
 export interface SocialContactsTagsListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -51,12 +51,12 @@ export class SocialContactsTagsApi {
 
 
 /** List contact tags */
-  async list(params?: SocialContactsTagsListParams): Promise<Record<string, unknown>> {
+  async list(params?: SocialContactsTagsListParams): Promise<SdkWorkPageData> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/contacts/tags`), query));
+    return this.client.get<SdkWorkPageData>(appendQueryString(imApiPath(`/social/contacts/tags`), query));
   }
 
 /** Create a contact tag */
@@ -70,8 +70,8 @@ export class SocialContactsTagsApi {
   }
 
 /** Delete a contact tag */
-  async delete(tagId: string): Promise<DeleteContactTagResponse> {
-    return this.client.delete<DeleteContactTagResponse>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
+  async delete(tagId: string): Promise<void> {
+    return this.client.delete<void>(imApiPath(`/social/contacts/tags/${serializePathParameter(tagId, { name: 'tagId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -98,20 +98,15 @@ export class SocialUserBlocksApi {
   }
 
 
-/** Block a user in the social graph */
-  async create(body: CreateUserBlockRequest): Promise<SocialUserBlockMutationResponse> {
-    return this.client.post<SocialUserBlockMutationResponse>(imApiPath(`/social/user_blocks`), body, undefined, undefined, 'application/json');
+/** Block a social user */
+  async create(body: BlockUserRequest): Promise<OpenApiUserBlockResponse> {
+    return this.client.post<OpenApiUserBlockResponse>(imApiPath(`/social/user_blocks`), body, undefined, undefined, 'application/json');
   }
 
-/** Release an active user block */
-  async release(blockId: string): Promise<SocialUserBlockMutationResponse> {
-    return this.client.delete<SocialUserBlockMutationResponse>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`));
+/** Release a social user block */
+  async delete(blockId: string): Promise<void> {
+    return this.client.delete<void>(imApiPath(`/social/user_blocks/${serializePathParameter(blockId, { name: 'blockId', style: 'simple', explode: false })}`));
   }
-}
-
-export interface SocialFriendshipsListParams {
-  limit?: number;
-  cursor?: string;
 }
 
 export class SocialFriendshipsApi {
@@ -122,29 +117,13 @@ export class SocialFriendshipsApi {
   }
 
 
-/** List friendships */
-  async list(params?: SocialFriendshipsListParams): Promise<Record<string, unknown>> {
-    const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
-    ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/friendships`), query));
-  }
-
 /** Remove a friendship */
   async remove(friendshipId: string): Promise<SocialFriendshipMutationResponse> {
     return this.client.post<SocialFriendshipMutationResponse>(imApiPath(`/social/friendships/${serializePathParameter(friendshipId, { name: 'friendshipId', style: 'simple', explode: false })}/remove`));
   }
 }
 
-export interface SocialFriendRequestsListParams {
-  direction?: 'incoming' | 'outgoing';
-  status?: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all';
-  limit?: number;
-  cursor?: string;
-}
-
-export class SocialFriendRequestsApi {
+export class SocialFriendRequestsPendingCountApi {
   private client: HttpClient;
 
   constructor(client: HttpClient) {
@@ -152,15 +131,49 @@ export class SocialFriendRequestsApi {
   }
 
 
+/** Retrieve pending incoming friend request count */
+  async retrieve(): Promise<SocialFriendRequestPendingCountResponse> {
+    return this.client.get<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`));
+  }
+}
+
+export class SocialFriendRequestsPendingApi {
+  private client: HttpClient;
+  public readonly count: SocialFriendRequestsPendingCountApi;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+    this.count = new SocialFriendRequestsPendingCountApi(client);
+  }
+
+}
+
+export interface SocialFriendRequestsListParams {
+  direction?: 'incoming' | 'outgoing';
+  status?: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all';
+  pageSize?: number;
+  cursor?: string;
+}
+
+export class SocialFriendRequestsApi {
+  private client: HttpClient;
+  public readonly pending: SocialFriendRequestsPendingApi;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+    this.pending = new SocialFriendRequestsPendingApi(client);
+  }
+
+
 /** List friend requests */
-  async list(params?: SocialFriendRequestsListParams): Promise<Record<string, unknown>> {
+  async list(params?: SocialFriendRequestsListParams): Promise<SdkWorkPageData> {
     const query = buildQueryString([
       { name: 'direction', value: params?.direction, style: 'form', explode: true, allowReserved: false },
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/friend_requests`), query));
+    return this.client.get<SdkWorkPageData>(appendQueryString(imApiPath(`/social/friend_requests`), query));
   }
 
 /** Create a friend request */
@@ -168,30 +181,25 @@ export class SocialFriendRequestsApi {
     return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests`), body, undefined, undefined, 'application/json');
   }
 
-/** Retrieve pending incoming friend request count */
-  async pendingCount(): Promise<SocialFriendRequestPendingCountResponse> {
-    return this.client.get<SocialFriendRequestPendingCountResponse>(imApiPath(`/social/friend_requests/pending/count`));
-  }
-
 /** Accept a friend request */
-  async accept(requestId: string): Promise<SocialFriendRequestAcceptanceResponse> {
-    return this.client.post<SocialFriendRequestAcceptanceResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/accept`));
+  async accept(friendRequestId: string): Promise<SocialFriendRequestAcceptanceResponse> {
+    return this.client.post<SocialFriendRequestAcceptanceResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/accept`));
   }
 
 /** Decline a friend request */
-  async decline(requestId: string): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/decline`));
+  async decline(friendRequestId: string): Promise<SocialFriendRequestMutationResponse> {
+    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/decline`));
   }
 
 /** Cancel a friend request */
-  async cancel(requestId: string): Promise<SocialFriendRequestMutationResponse> {
-    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(requestId, { name: 'requestId', style: 'simple', explode: false })}/cancel`));
+  async cancel(friendRequestId: string): Promise<SocialFriendRequestMutationResponse> {
+    return this.client.post<SocialFriendRequestMutationResponse>(imApiPath(`/social/friend_requests/${serializePathParameter(friendRequestId, { name: 'friendRequestId', style: 'simple', explode: false })}/cancel`));
   }
 }
 
 export interface SocialUsersListParams {
   q?: string;
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -207,7 +215,7 @@ export class SocialUsersApi {
   async list(params?: SocialUsersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'q', value: params?.q, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/social/users`), query));

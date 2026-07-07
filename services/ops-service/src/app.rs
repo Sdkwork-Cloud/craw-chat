@@ -74,9 +74,9 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    mount_ops_infra_routes(apply_public_http_guardrails(build_business_router(Arc::new(
-        OpsRuntime::default(),
-    ))))
+    mount_ops_infra_routes(apply_public_http_guardrails(build_business_router(
+        Arc::new(OpsRuntime::default()),
+    )))
 }
 
 pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
@@ -88,14 +88,13 @@ pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
 fn mount_ops_infra_routes(router: Router) -> Router {
     let config = im_service_router_config().skip_metrics();
     let http_metrics = config.metrics().unwrap_or_else(im_service_http_metrics);
-    mount_im_infra_routes(router, config)
-        .route(
-            "/metrics",
-            get(move || {
-                let metrics = http_metrics.clone();
-                async move { ops_metrics_handler(metrics).await }
-            }),
-        )
+    mount_im_infra_routes(router, config).route(
+        "/metrics",
+        get(move || {
+            let metrics = http_metrics.clone();
+            async move { ops_metrics_handler(metrics).await }
+        }),
+    )
 }
 
 async fn ops_metrics_handler(http_metrics: Arc<HttpMetricsRegistry>) -> impl IntoResponse {

@@ -5,7 +5,7 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use im_adapters_social_postgres::governance_store::{
     BanRecord, BanStore, ChannelAccessRuleRecord, ChannelAccessRuleStore, InvitationRecord,
-    InvitationStore, SpaceMemberRecord, SpaceMemberStore,
+    InvitationStore, InvitationTargetListQuery, SpaceMemberRecord, SpaceMemberStore,
 };
 use im_adapters_social_postgres::organization_store::{
     ChannelRecord, ChannelStore, GroupMemberRecord, GroupMemberStore, GroupRecord, GroupStore,
@@ -47,8 +47,9 @@ impl SpaceStore for NoopSpaceStore {
         _tenant_id: &str,
         _org_id: &str,
         _user_id: &str,
+        _cursor_created_at: Option<&str>,
+        _cursor_space_id: Option<i64>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<SpaceRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -91,8 +92,9 @@ impl GroupStore for NoopGroupStore {
         _tenant_id: &str,
         _org_id: &str,
         _space_id: i64,
+        _cursor_created_at: Option<&str>,
+        _cursor_group_id: Option<i64>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<GroupRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -152,8 +154,9 @@ impl GroupMemberStore for NoopGroupMemberStore {
         _tenant_id: &str,
         _org_id: &str,
         _group_id: i64,
+        _cursor_joined_at: Option<&str>,
+        _cursor_user_id: Option<&str>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<GroupMemberRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -211,8 +214,9 @@ impl ChannelStore for NoopChannelStore {
         _tenant_id: &str,
         _org_id: &str,
         _space_id: i64,
+        _cursor_created_at: Option<&str>,
+        _cursor_channel_id: Option<i64>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<ChannelRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -253,8 +257,9 @@ impl SpaceMemberStore for NoopSpaceMemberStore {
         _tenant_id: &str,
         _org_id: &str,
         _space_id: i64,
+        _cursor_joined_at: Option<&str>,
+        _cursor_user_id: Option<&str>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<SpaceMemberRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -325,8 +330,9 @@ impl BanStore for NoopBanStore {
         _org_id: &str,
         _target_type: &str,
         _target_id: i64,
+        _cursor_created_at: Option<&str>,
+        _cursor_ban_id: Option<i64>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<BanRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -354,13 +360,7 @@ impl InvitationStore for NoopInvitationStore {
 
     fn list_by_target(
         &self,
-        _tenant_id: &str,
-        _org_id: &str,
-        _target_type: &str,
-        _target_id: i64,
-        _status: Option<&str>,
-        _limit: i64,
-        _offset: i64,
+        _query: InvitationTargetListQuery<'_>,
     ) -> Result<Vec<InvitationRecord>, ContractError> {
         Ok(Vec::new())
     }
@@ -382,8 +382,9 @@ impl ChannelAccessRuleStore for NoopChannelAccessRuleStore {
         _tenant_id: &str,
         _org_id: &str,
         _channel_id: i64,
+        _cursor_created_at: Option<&str>,
+        _cursor_rule_id: Option<i64>,
         _limit: i64,
-        _offset: i64,
     ) -> Result<Vec<ChannelAccessRuleRecord>, ContractError> {
         Ok(Vec::new())
     }

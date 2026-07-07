@@ -15,7 +15,7 @@ export interface SecurityAuditLog {
 }
 
 export interface SecurityDashboardData {
-  healthScore: number;
+  healthScore: number | null;
   intercepts: SecurityIntercept[];
   auditLogs: SecurityAuditLog[];
 }
@@ -83,10 +83,16 @@ function normalizeInterceptLevel(value: unknown): SecurityIntercept['level'] {
   return 'info';
 }
 
-function deriveHealthScore(health: UnknownRecord, records: UnknownRecord[]): number {
+function deriveHealthScore(health: UnknownRecord, records: UnknownRecord[]): number | null {
   const explicitScore = readNumber(health, ['healthScore', 'securityScore', 'score'], Number.NaN);
   if (Number.isFinite(explicitScore)) {
+    if (explicitScore < 0) {
+      return null;
+    }
     return Math.max(0, Math.min(100, Math.round(explicitScore)));
+  }
+  if (records.length === 0) {
+    return null;
   }
   const criticalCount = records.filter((record) => normalizeInterceptLevel(readString(record, ['severity', 'level', 'status'], '')) === 'critical').length;
   const highCount = records.filter((record) => normalizeInterceptLevel(readString(record, ['severity', 'level', 'status'], '')) === 'high').length;

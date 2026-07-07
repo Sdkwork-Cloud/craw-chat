@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "language": "flutter",
   "sdkType": "app",
-  "packageName": "im_app_api_generated",
+  "packageName": "sdkwork-im-app-sdk-generated-typescript",
+  "transportPackageName": "sdkwork-im-app-sdk-generated-typescript",
+  "consumerPackageName": "@sdkwork/im-app-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

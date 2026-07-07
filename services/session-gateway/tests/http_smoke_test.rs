@@ -571,7 +571,7 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
     let event_window = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -597,11 +597,13 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
     );
     let event_window_json: serde_json::Value =
         serde_json::from_slice(&event_window_body).expect("event window should be valid json");
-    assert_eq!(event_window_json["deviceId"], "d_pad");
-    assert_eq!(event_window_json["items"].as_array().unwrap().len(), 0);
-    assert_eq!(event_window_json["ackedThroughSeq"], 0);
-    assert_eq!(event_window_json["trimmedThroughSeq"], 0);
-    assert_eq!(event_window_json["hasMore"], false);
+    assert_eq!(event_window_json["code"], 0);
+    let event_data = &event_window_json["data"];
+    assert_eq!(event_data["deviceId"], "d_pad");
+    assert_eq!(event_data["items"].as_array().unwrap().len(), 0);
+    assert_eq!(event_data["ackedThroughSeq"], 0);
+    assert_eq!(event_data["trimmedThroughSeq"], 0);
+    assert_eq!(event_data["pageInfo"]["hasMore"], false);
 }
 
 #[tokio::test]
@@ -828,7 +830,7 @@ async fn test_realtime_event_window_rejects_limit_above_guardrail_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=5000")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=5000")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -859,7 +861,7 @@ async fn test_realtime_event_window_rejects_zero_limit_without_binding_route_ove
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=0")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=0")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")

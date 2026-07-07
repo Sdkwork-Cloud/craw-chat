@@ -9,23 +9,23 @@ use axum::{Json, Router};
 use im_app_context::AppContext;
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator;
-use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkCursorListQuery};
+use sdkwork_utils_rust::{SdkWorkCursorListQuery, cursor_list_page_data};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::api_payload::resource_item;
 use crate::contact_open_api_backend::{
+    ContactPreferencesRecord, ContactRecommendationRecord, ContactTagRecord,
     create_contact_recommendation as backend_create_contact_recommendation,
-    delete_contact_tag as backend_delete_contact_tag,
+    delete_contact_tag as backend_delete_contact_tag, encode_contact_tag_inventory_cursor,
     get_contact_preferences as backend_get_contact_preferences,
-    get_contact_tag as backend_get_contact_tag,
-    list_contact_tags as backend_list_contact_tags,
-    shared_contact_store, upsert_contact_preferences as backend_upsert_contact_preferences,
-    upsert_contact_tag as backend_upsert_contact_tag, ContactPreferencesRecord,
-    ContactRecommendationRecord, ContactTagRecord,
+    get_contact_tag as backend_get_contact_tag, list_contact_tags as backend_list_contact_tags,
+    parse_contact_tag_inventory_cursor, shared_contact_store,
+    upsert_contact_preferences as backend_upsert_contact_preferences,
+    upsert_contact_tag as backend_upsert_contact_tag,
 };
+use crate::envelope::{finish_created_enveloped_json, finish_enveloped_json, finish_no_content};
 use crate::friendship::{AppState, SocialServiceError};
-use crate::envelope::finish_enveloped_json;
 
 static CONTACT_OPEN_API_ID_GENERATOR: OnceLock<RuntimeSnowflakeIdGenerator> = OnceLock::new();
 
@@ -130,13 +130,6 @@ struct ContactTagView {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct DeleteContactTagResponse {
-    tag_id: String,
-    deleted: bool,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 struct ContactPreferencesView {
     tenant_id: String,
     owner_user_id: String,
@@ -183,22 +176,26 @@ async fn list_contact_tags(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
     Query(query): Query<ContactTagsListQuery>,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |_state| {
         let paging = query.paging.resolve().map_err(|_| {
             SocialServiceError::invalid("cursor_invalid", "contact tag list cursor is invalid")
         })?;
+        let cursor = if let Some(raw) = query.paging.cursor.as_deref() {
+            Some(parse_contact_tag_inventory_cursor(raw)?)
+        } else {
+            None
+        };
         let contact_store = shared_contact_store();
         let store = contact_store.as_ref();
-        let (items, has_more) = backend_list_contact_tags(
-            store,
-            &auth,
-            paging.page_size,
-            paging.offset,
-        )?;
+        let (items, has_more) =
+            backend_list_contact_tags(store, &auth, paging.page_size, cursor.as_ref())?;
         let next_cursor = if has_more {
-            Some((paging.offset + paging.page_size).to_string())
+            items
+                .last()
+                .map(encode_contact_tag_inventory_cursor)
+                .transpose()?
         } else {
             None
         };
@@ -209,26 +206,30 @@ async fn list_contact_tags(
             next_cursor,
             has_more,
         ))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
 async fn create_contact_tag(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(request): Json<CreateContactTagRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |_state| {
         validate_tag_name(request.name.as_str())?;
         let now = utc_now_rfc3339_millis();
         let tag_id = next_entity_id()?;
         let owner_user_id = auth
             .ensure_user_actor_principal()
-            .map_err(|error| SocialServiceError::invalid("social_principal_invalid", error.message()))?
+            .map_err(|error| {
+                SocialServiceError::invalid("social_principal_invalid", error.message())
+            })?
             .to_owned();
         let record = ContactTagRecord {
             tenant_id: auth.tenant_id.clone(),
+            organization_id: auth.organization_id.clone(),
             owner_user_id,
             tag_id: tag_id.clone(),
             name: request.name,
@@ -242,29 +243,31 @@ async fn create_contact_tag(
         let contact_store = shared_contact_store();
         backend_upsert_contact_tag(contact_store.as_ref(), &auth, record.clone())?;
         Ok(resource_item(ContactTagView::from(record)))
-    })();
-    finish_enveloped_json(&ctx, result)
+    })
+    .await;
+    finish_created_enveloped_json(&ctx, result)
 }
 
 async fn update_contact_tag(
     Path(tag_id): Path<String>,
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(request): Json<UpdateContactTagRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |_state| {
         if let Some(name) = request.name.as_deref() {
             validate_tag_name(name)?;
         }
         let contact_store = shared_contact_store();
         let store = contact_store.as_ref();
-        let mut record = backend_get_contact_tag(store, &auth, tag_id.as_str())?.ok_or_else(|| {
-            SocialServiceError::not_found(
-                "contact_tag_not_found",
-                format!("contact tag {tag_id} was not found"),
-            )
-        })?;
+        let mut record =
+            backend_get_contact_tag(store, &auth, tag_id.as_str())?.ok_or_else(|| {
+                SocialServiceError::not_found(
+                    "contact_tag_not_found",
+                    format!("contact tag {tag_id} was not found"),
+                )
+            })?;
         if let Some(name) = request.name {
             record.name = name;
         }
@@ -283,7 +286,8 @@ async fn update_contact_tag(
         record.updated_at = utc_now_rfc3339_millis();
         backend_upsert_contact_tag(store, &auth, record.clone())?;
         Ok(resource_item(ContactTagView::from(record)))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -291,41 +295,41 @@ async fn delete_contact_tag(
     Path(tag_id): Path<String>,
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |_state| {
         let store_handle = shared_contact_store();
-        let deleted =
-            backend_delete_contact_tag(store_handle.as_ref(), &auth, tag_id.as_str())?;
+        let deleted = backend_delete_contact_tag(store_handle.as_ref(), &auth, tag_id.as_str())?;
         if !deleted {
             return Err(SocialServiceError::not_found(
                 "contact_tag_not_found",
                 format!("contact tag {tag_id} was not found"),
             ));
         }
-        Ok(resource_item(DeleteContactTagResponse {
-            tag_id,
-            deleted: true,
-        }))
-    })();
-    finish_enveloped_json(&ctx, result)
+        Ok(())
+    })
+    .await;
+    finish_no_content(&ctx, result)
 }
 
 async fn retrieve_contact_preferences(
     Path(target_user_id): Path<String>,
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let store_handle = shared_contact_store();
-        let record = backend_get_contact_preferences(
-            store_handle.as_ref(),
-            &auth,
+        let mut record =
+            backend_get_contact_preferences(store_handle.as_ref(), &auth, target_user_id.as_str())?;
+        record.is_blocked = state.social_runtime.contact_is_blocked_all_scope(
+            auth.tenant_id.as_str(),
+            auth.social_principal_user_id(),
             target_user_id.as_str(),
-        )?;
+        );
         Ok(resource_item(ContactPreferencesView::from(record)))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -336,11 +340,10 @@ async fn update_contact_preferences(
     State(state): State<AppState>,
     Json(request): Json<UpdateContactPreferencesRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let contact_store = shared_contact_store();
         let store = contact_store.as_ref();
-        let mut record =
-            backend_get_contact_preferences(store, &auth, target_user_id.as_str())?;
+        let mut record = backend_get_contact_preferences(store, &auth, target_user_id.as_str())?;
         if let Some(is_starred) = request.is_starred {
             record.is_starred = is_starred;
         }
@@ -365,7 +368,8 @@ async fn update_contact_preferences(
         record.updated_at = utc_now_rfc3339_millis();
         backend_upsert_contact_preferences(store, &auth, record.clone())?;
         Ok(resource_item(ContactPreferencesView::from(record)))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -373,10 +377,10 @@ async fn create_contact_recommendation(
     Path(target_user_id): Path<String>,
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(request): Json<CreateContactRecommendationRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |_state| {
         let recommendation_id = next_entity_id()?;
         let record = backend_create_contact_recommendation(
             shared_contact_store().as_ref(),
@@ -386,8 +390,9 @@ async fn create_contact_recommendation(
             request.target_conversation_id,
         )?;
         Ok(resource_item(ContactRecommendationView::from(record)))
-    })();
-    finish_enveloped_json(&ctx, result)
+    })
+    .await;
+    finish_created_enveloped_json(&ctx, result)
 }
 
 fn validate_tag_name(name: &str) -> Result<(), SocialServiceError> {

@@ -47,6 +47,13 @@ function okResponse(schemaName, description = 'OK') {
   };
 }
 
+function successResponse(status, schemaName) {
+  if (status === '204') {
+    return { description: 'No Content' };
+  }
+  return okResponse(schemaName, status === '201' ? 'Created' : 'OK');
+}
+
 function errorResponses(statuses = ['400', '401', '403', '404']) {
   return Object.fromEntries(statuses.map((status) => [status, { description: `HTTP ${status} problem` }]));
 }
@@ -58,6 +65,7 @@ function operation({
   parameters = [],
   request,
   response = 'AckResponse',
+  successStatus = '200',
   statuses,
 }) {
   return {
@@ -76,9 +84,9 @@ function operation({
             },
           },
         }
-      : {}),
+        : {}),
     responses: {
-      '200': okResponse(response),
+      [successStatus]: successResponse(successStatus, response),
       ...errorResponses(statuses),
     },
   };
@@ -89,11 +97,12 @@ function pathItem(pathSuffix, item) {
 }
 
 const pathParameters = {
+  BlockIdPath: parameter('blockId', 'path', stringSchema()),
   ConversationIdPath: parameter('conversationId', 'path', stringSchema()),
   FavoriteIdPath: parameter('favoriteId', 'path', stringSchema()),
   FriendshipIdPath: parameter('friendshipId', 'path', stringSchema()),
   MessageIdPath: parameter('messageId', 'path', stringSchema()),
-  RequestIdPath: parameter('requestId', 'path', stringSchema()),
+  FriendRequestIdPath: parameter('friendRequestId', 'path', stringSchema()),
   RoomIdPath: parameter('roomId', 'path', stringSchema()),
   RtcSessionIdPath: parameter('rtcSessionId', 'path', stringSchema()),
   StreamIdPath: parameter('streamId', 'path', stringSchema()),
@@ -106,7 +115,7 @@ const queryParameters = {
   CursorQuery: parameter('cursor', 'query', stringSchema(), { required: false }),
   DirectionQuery: parameter('direction', 'query', stringSchema({ enum: ['incoming', 'outgoing'] }), { required: false }),
   FavoriteTypeQuery: parameter('favoriteType', 'query', { $ref: '#/components/schemas/MessageFavoriteType' }, { required: false }),
-  LimitQuery: parameter('limit', 'query', { type: 'integer', format: 'int32', minimum: 1, maximum: 200 }, { required: false }),
+  PageSizeQuery: parameter('page_size', 'query', { type: 'integer', format: 'int32', minimum: 1, maximum: 200 }, { required: false }),
   QQuery: parameter('q', 'query', stringSchema({ maxLength: 256 }), { required: false }),
   StatusQuery: parameter('status', 'query', stringSchema({ enum: ['pending', 'accepted', 'declined', 'canceled', 'expired', 'all'] }), { required: false }),
 };
@@ -398,16 +407,6 @@ const schemas = {
     isPinned: boolSchema(),
     updatedAt: stringSchema({ format: 'date-time' }),
   }, ['tenantId', 'conversationId', 'messageId', 'isPinned', 'updatedAt']),
-  MessageVisibilityMutationResult: objectSchema({
-    tenantId: stringSchema(),
-    conversationId: stringSchema(),
-    messageId: stringSchema(),
-    messageSeq: sequenceSchema(),
-    principalKind: stringSchema(),
-    principalId: stringSchema(),
-    isDeleted: boolSchema(),
-    updatedAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'conversationId', 'messageId', 'messageSeq', 'principalKind', 'principalId', 'isDeleted', 'updatedAt']),
   MessageFavoriteType: {
     type: 'string',
     enum: ['link', 'image', 'file', 'chat'],
@@ -593,6 +592,89 @@ const schemas = {
   CreateContactRecommendationRequest: objectSchema({
     targetConversationId: stringSchema({ maxLength: 128 }),
   }),
+  BlockScope: {
+    type: 'string',
+    enum: ['all', 'friendship', 'direct_chat'],
+  },
+  UserBlockStatus: {
+    type: 'string',
+    enum: ['active', 'released', 'expired'],
+  },
+  BlockUserRequest: objectSchema({
+    blockedUserId: stringSchema(),
+    scope: ref('BlockScope'),
+    directChatId: nullable(stringSchema()),
+    expiresAt: nullable(stringSchema({ format: 'date-time' })),
+  }, ['blockedUserId', 'scope']),
+  UserBlock: objectSchema({
+    tenantId: stringSchema(),
+    blockId: stringSchema(),
+    blockerUserId: stringSchema(),
+    blockedUserId: stringSchema(),
+    scope: ref('BlockScope'),
+    status: ref('UserBlockStatus'),
+    directChatId: nullable(stringSchema()),
+    expiresAt: nullable(stringSchema({ format: 'date-time' })),
+    createdAt: stringSchema({ format: 'date-time' }),
+    updatedAt: stringSchema({ format: 'date-time' }),
+  }, ['tenantId', 'blockId', 'blockerUserId', 'blockedUserId', 'scope', 'status', 'createdAt', 'updatedAt']),
+  SocialDerivedSnapshotStatus: {
+    type: 'string',
+    enum: ['current', 'repair_required'],
+  },
+  SocialWritePersistence: objectSchema({
+    journalAuthority: boolSchema(),
+    snapshotStatus: ref('SocialDerivedSnapshotStatus'),
+  }, ['journalAuthority', 'snapshotStatus']),
+  EventActor: objectSchema({
+    actorId: stringSchema(),
+    actorKind: stringSchema(),
+    actorSessionId: nullable(stringSchema()),
+  }, ['actorId', 'actorKind']),
+  CommitEnvelopeResponse: objectSchema({
+    eventId: stringSchema(),
+    tenantId: stringSchema(),
+    eventType: stringSchema(),
+    eventVersion: int32Schema({ minimum: 1 }),
+    aggregateType: stringSchema(),
+    aggregateId: stringSchema(),
+    scopeType: stringSchema(),
+    scopeId: stringSchema(),
+    orderingKey: stringSchema(),
+    orderingSeq: intSchema({ minimum: 0 }),
+    causationId: nullable(stringSchema()),
+    correlationId: nullable(stringSchema()),
+    idempotencyKey: nullable(stringSchema()),
+    actor: ref('EventActor'),
+    occurredAt: stringSchema({ format: 'date-time' }),
+    committedAt: stringSchema({ format: 'date-time' }),
+    payloadSchema: nullable(stringSchema()),
+    payload: stringSchema(),
+    retentionClass: stringSchema(),
+    auditClass: stringSchema(),
+  }, [
+    'eventId',
+    'tenantId',
+    'eventType',
+    'eventVersion',
+    'aggregateType',
+    'aggregateId',
+    'scopeType',
+    'scopeId',
+    'orderingKey',
+    'orderingSeq',
+    'actor',
+    'occurredAt',
+    'committedAt',
+    'payload',
+    'retentionClass',
+    'auditClass',
+  ]),
+  OpenApiUserBlockResponse: objectSchema({
+    userBlock: ref('UserBlock'),
+    latestCommit: ref('CommitEnvelopeResponse'),
+    persistence: ref('SocialWritePersistence'),
+  }, ['userBlock', 'latestCommit', 'persistence']),
   SocialUserSearchResult: objectSchema({
     tenantId: stringSchema(),
     userId: stringSchema(),
@@ -615,14 +697,15 @@ const schemas = {
   }, ['targetUserId']),
   FriendRequest: objectSchema({
     tenantId: stringSchema(),
-    requestId: stringSchema(),
+    friendRequestId: stringSchema(),
     requesterUserId: stringSchema(),
     targetUserId: stringSchema(),
     status: stringSchema(),
     requestMessage: nullable(stringSchema()),
+    expiredAt: nullable(stringSchema({ format: 'date-time' })),
     createdAt: stringSchema({ format: 'date-time' }),
     updatedAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'requestId', 'requesterUserId', 'targetUserId', 'status', 'createdAt', 'updatedAt']),
+  }, ['tenantId', 'friendRequestId', 'requesterUserId', 'targetUserId', 'status', 'createdAt', 'updatedAt']),
   Friendship: objectSchema({
     tenantId: stringSchema(),
     friendshipId: stringSchema(),
@@ -776,7 +859,7 @@ const schemas = {
 
 const paths = Object.fromEntries([
   pathItem('/presence/heartbeat', {
-    post: operation({ tag: 'presence', operationId: 'presence.heartbeat.create', summary: 'Publish current client route presence heartbeat', request: 'PresenceHeartbeatRequest', response: 'PresenceView' }),
+    post: operation({ tag: 'presence', operationId: 'presence.heartbeat', summary: 'Publish current client route presence heartbeat', request: 'PresenceHeartbeatRequest', response: 'PresenceView' }),
   }),
   pathItem('/presence/me', {
     get: operation({ tag: 'presence', operationId: 'presence.me.retrieve', summary: 'Retrieve current principal presence', response: 'PresenceView' }),
@@ -785,16 +868,16 @@ const paths = Object.fromEntries([
     post: operation({ tag: 'realtime', operationId: 'realtime.subscriptions.sync', summary: 'Sync realtime subscription targets', request: 'RealtimeSubscriptionSyncRequest', response: 'RealtimeSubscriptionSyncResponse' }),
   }),
   pathItem('/realtime/ws', {
-    get: operation({ tag: 'realtime', operationId: 'realtime.ws.connect', summary: 'Upgrade to the IM realtime websocket', response: 'RealtimeWebSocketHandshake' }),
+    get: operation({ tag: 'realtime', operationId: 'realtime.ws.retrieve', summary: 'Retrieve the IM realtime websocket handshake', response: 'RealtimeWebSocketHandshake' }),
   }),
   pathItem('/realtime/events/ack', {
     post: operation({ tag: 'realtime', operationId: 'realtime.events.ack', summary: 'Acknowledge realtime events', request: 'RealtimeEventAckRequest', response: 'AckResponse' }),
   }),
   pathItem('/realtime/events', {
-    get: operation({ tag: 'realtime', operationId: 'realtime.events.list', summary: 'List pending realtime events', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'RealtimeEventsResponse' }),
+    get: operation({ tag: 'realtime', operationId: 'realtime.events.list', summary: 'List pending realtime events', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'RealtimeEventsResponse' }),
   }),
   pathItem('/calls/sessions', {
-    post: operation({ tag: 'calls', operationId: 'calls.sessions.create', summary: 'Create an IM call signaling session', request: 'CreateRtcSessionRequest', response: 'RtcSessionMutationResponse' }),
+    post: operation({ tag: 'calls', operationId: 'calls.sessions.create', summary: 'Create an IM call signaling session', request: 'CreateRtcSessionRequest', response: 'RtcSessionMutationResponse', successStatus: '201' }),
   }),
   pathItem('/calls/sessions/{rtcSessionId}', {
     parameters: [p('RtcSessionIdPath')],
@@ -818,50 +901,57 @@ const paths = Object.fromEntries([
   }),
   pathItem('/calls/sessions/{rtcSessionId}/signals', {
     parameters: [p('RtcSessionIdPath')],
-    post: operation({ tag: 'calls', operationId: 'calls.sessions.signals.create', summary: 'Post an IM call signaling event', parameters: [p('RtcSessionIdPath')], request: 'PostRtcSignalRequest', response: 'RtcSignalEvent' }),
+    post: operation({ tag: 'calls', operationId: 'calls.sessions.signals.create', summary: 'Post an IM call signaling event', parameters: [p('RtcSessionIdPath')], request: 'PostRtcSignalRequest', response: 'RtcSignalEvent', successStatus: '201' }),
   }),
   pathItem('/calls/sessions/{rtcSessionId}/credentials', {
     parameters: [p('RtcSessionIdPath')],
-    post: operation({ tag: 'calls', operationId: 'calls.sessions.credentials.create', summary: 'Issue an RTC media participant credential for an IM call', parameters: [p('RtcSessionIdPath')], request: 'IssueRtcParticipantCredentialRequest', response: 'RtcParticipantCredential' }),
+    post: operation({ tag: 'calls', operationId: 'calls.sessions.credentials.create', summary: 'Issue an RTC media participant credential for an IM call', parameters: [p('RtcSessionIdPath')], request: 'IssueRtcParticipantCredentialRequest', response: 'RtcParticipantCredential', successStatus: '201' }),
   }),
   pathItem('/social/users', {
-    get: operation({ tag: 'social', operationId: 'social.users.list', summary: 'Search social users', parameters: [p('QQuery'), p('LimitQuery'), p('CursorQuery')], response: 'SocialUserSearchResponse', statuses: ['400', '401', '403', '503'] }),
+    get: operation({ tag: 'social', operationId: 'social.users.list', summary: 'Search social users', parameters: [p('QQuery'), p('PageSizeQuery'), p('CursorQuery')], response: 'SocialUserSearchResponse', statuses: ['400', '401', '403', '503'] }),
   }),
   pathItem('/social/friend_requests', {
-    get: operation({ tag: 'social', operationId: 'social.friendRequests.list', summary: 'List friend requests', parameters: [p('DirectionQuery'), p('StatusQuery'), p('LimitQuery'), p('CursorQuery')], response: 'SdkWorkListResponse' }),
-    post: operation({ tag: 'social', operationId: 'social.friendRequests.create', summary: 'Create a friend request', request: 'SubmitFriendRequestRequest', response: 'SocialFriendRequestMutationResponse' }),
+    get: operation({ tag: 'social', operationId: 'social.friendRequests.list', summary: 'List friend requests', parameters: [p('DirectionQuery'), p('StatusQuery'), p('PageSizeQuery'), p('CursorQuery')], response: 'SdkWorkListResponse' }),
+    post: operation({ tag: 'social', operationId: 'social.friendRequests.create', summary: 'Create a friend request', request: 'SubmitFriendRequestRequest', response: 'SocialFriendRequestMutationResponse', successStatus: '201' }),
   }),
   pathItem('/social/friend_requests/pending/count', {
-    get: operation({ tag: 'social', operationId: 'social.friendRequests.pendingCount', summary: 'Retrieve pending incoming friend request count', response: 'SocialFriendRequestPendingCountResponse' }),
+    get: operation({ tag: 'social', operationId: 'social.friendRequests.pending.count.retrieve', summary: 'Retrieve pending incoming friend request count', response: 'SocialFriendRequestPendingCountResponse' }),
   }),
-  pathItem('/social/friend_requests/{requestId}/accept', {
-    parameters: [p('RequestIdPath')],
-    post: operation({ tag: 'social', operationId: 'social.friendRequests.accept', summary: 'Accept a friend request', parameters: [p('RequestIdPath')], response: 'SocialFriendRequestAcceptanceResponse' }),
+  pathItem('/social/friend_requests/{friendRequestId}/accept', {
+    parameters: [p('FriendRequestIdPath')],
+    post: operation({ tag: 'social', operationId: 'social.friendRequests.accept', summary: 'Accept a friend request', parameters: [p('FriendRequestIdPath')], response: 'SocialFriendRequestAcceptanceResponse' }),
   }),
-  pathItem('/social/friend_requests/{requestId}/decline', {
-    parameters: [p('RequestIdPath')],
-    post: operation({ tag: 'social', operationId: 'social.friendRequests.decline', summary: 'Decline a friend request', parameters: [p('RequestIdPath')], response: 'SocialFriendRequestMutationResponse' }),
+  pathItem('/social/friend_requests/{friendRequestId}/decline', {
+    parameters: [p('FriendRequestIdPath')],
+    post: operation({ tag: 'social', operationId: 'social.friendRequests.decline', summary: 'Decline a friend request', parameters: [p('FriendRequestIdPath')], response: 'SocialFriendRequestMutationResponse' }),
   }),
-  pathItem('/social/friend_requests/{requestId}/cancel', {
-    parameters: [p('RequestIdPath')],
-    post: operation({ tag: 'social', operationId: 'social.friendRequests.cancel', summary: 'Cancel a friend request', parameters: [p('RequestIdPath')], response: 'SocialFriendRequestMutationResponse' }),
+  pathItem('/social/friend_requests/{friendRequestId}/cancel', {
+    parameters: [p('FriendRequestIdPath')],
+    post: operation({ tag: 'social', operationId: 'social.friendRequests.cancel', summary: 'Cancel a friend request', parameters: [p('FriendRequestIdPath')], response: 'SocialFriendRequestMutationResponse' }),
   }),
   pathItem('/social/friendships/{friendshipId}/remove', {
     parameters: [p('FriendshipIdPath')],
     post: operation({ tag: 'social', operationId: 'social.friendships.remove', summary: 'Remove a friendship', parameters: [p('FriendshipIdPath')], response: 'SocialFriendshipMutationResponse' }),
   }),
+  pathItem('/social/user_blocks', {
+    post: operation({ tag: 'social', operationId: 'social.userBlocks.create', summary: 'Block a social user', request: 'BlockUserRequest', response: 'OpenApiUserBlockResponse', successStatus: '201' }),
+  }),
+  pathItem('/social/user_blocks/{blockId}', {
+    parameters: [p('BlockIdPath')],
+    delete: operation({ tag: 'social', operationId: 'social.userBlocks.delete', summary: 'Release a social user block', parameters: [p('BlockIdPath')], successStatus: '204' }),
+  }),
   pathItem('/social/contacts/tags', {
-    get: operation({ tag: 'social', operationId: 'social.contacts.tags.list', summary: 'List contact tags', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'SdkWorkListResponse' }),
-    post: operation({ tag: 'social', operationId: 'social.contacts.tags.create', summary: 'Create a contact tag', request: 'CreateContactTagRequest', response: 'ContactTagView' }),
+    get: operation({ tag: 'social', operationId: 'social.contacts.tags.list', summary: 'List contact tags', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'SdkWorkListResponse' }),
+    post: operation({ tag: 'social', operationId: 'social.contacts.tags.create', summary: 'Create a contact tag', request: 'CreateContactTagRequest', response: 'ContactTagView', successStatus: '201' }),
   }),
   pathItem('/social/contacts/tags/{tagId}', {
     parameters: [p('TagIdPath')],
     patch: operation({ tag: 'social', operationId: 'social.contacts.tags.update', summary: 'Update a contact tag', parameters: [p('TagIdPath')], request: 'UpdateContactTagRequest', response: 'ContactTagView' }),
-    delete: operation({ tag: 'social', operationId: 'social.contacts.tags.delete', summary: 'Delete a contact tag', parameters: [p('TagIdPath')], response: 'DeleteContactTagResponse' }),
+    delete: operation({ tag: 'social', operationId: 'social.contacts.tags.delete', summary: 'Delete a contact tag', parameters: [p('TagIdPath')], response: 'DeleteContactTagResponse', successStatus: '204' }),
   }),
   pathItem('/social/contacts/{targetUserId}/recommendations', {
     parameters: [p('TargetUserIdPath')],
-    post: operation({ tag: 'social', operationId: 'social.contacts.recommendations.create', summary: 'Create a contact recommendation', parameters: [p('TargetUserIdPath')], request: 'CreateContactRecommendationRequest', response: 'ContactRecommendationView' }),
+    post: operation({ tag: 'social', operationId: 'social.contacts.recommendations.create', summary: 'Create a contact recommendation', parameters: [p('TargetUserIdPath')], request: 'CreateContactRecommendationRequest', response: 'ContactRecommendationView', successStatus: '201' }),
   }),
   pathItem('/social/contacts/{targetUserId}/preferences', {
     parameters: [p('TargetUserIdPath')],
@@ -869,28 +959,28 @@ const paths = Object.fromEntries([
     patch: operation({ tag: 'social', operationId: 'social.contacts.preferences.update', summary: 'Update contact preferences', parameters: [p('TargetUserIdPath')], request: 'UpdateContactPreferencesRequest', response: 'ContactPreferencesView' }),
   }),
   pathItem('/chat/contacts', {
-    get: operation({ tag: 'chat', operationId: 'contacts.list', summary: 'List IM contacts', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'ContactsResponse' }),
+    get: operation({ tag: 'chat', operationId: 'contacts.list', summary: 'List IM contacts', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'ContactsResponse' }),
   }),
   pathItem('/chat/inbox', {
-    get: operation({ tag: 'chat', operationId: 'inbox.retrieve', summary: 'Retrieve current inbox window', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'InboxResponse' }),
+    get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'InboxResponse' }),
   }),
   pathItem('/chat/conversations', {
-    post: operation({ tag: 'chat', operationId: 'conversations.create', summary: 'Create a conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.create', summary: 'Create a conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/agent_dialogs', {
-    post: operation({ tag: 'chat', operationId: 'conversations.agentDialogs.create', summary: 'Create an agent dialog', request: 'CreateAgentDialogRequest', response: 'CreateConversationResult' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.agentDialogs.create', summary: 'Create an agent dialog', request: 'CreateAgentDialogRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/agent_handoffs', {
-    post: operation({ tag: 'chat', operationId: 'conversations.agentHandoffs.create', summary: 'Create an agent handoff', request: 'CreateAgentDialogRequest', response: 'AckResponse' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.agentHandoffs.create', summary: 'Create an agent handoff', request: 'CreateAgentDialogRequest', response: 'AckResponse', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/system_channels', {
-    post: operation({ tag: 'chat', operationId: 'conversations.systemChannels.create', summary: 'Create a system channel', request: 'CreateConversationRequest', response: 'CreateConversationResult' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.systemChannels.create', summary: 'Create a system channel', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/threads', {
-    post: operation({ tag: 'chat', operationId: 'conversations.threads.create', summary: 'Create a thread conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.threads.create', summary: 'Create a thread conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/direct_chats/bindings', {
-    post: operation({ tag: 'chat', operationId: 'conversations.directChats.bind', summary: 'Bind a direct chat conversation', request: 'BindDirectChatRequest', response: 'CreateConversationResult' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.directChats.bindings.create', summary: 'Create a direct chat conversation binding', request: 'BindDirectChatRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/{conversationId}/agent_handoff', {
     parameters: [p('ConversationIdPath')],
@@ -914,7 +1004,7 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/conversations/{conversationId}/members', {
     parameters: [p('ConversationIdPath')],
-    get: operation({ tag: 'chat', operationId: 'conversations.members.list', summary: 'List conversation members', parameters: [p('ConversationIdPath'), p('LimitQuery'), p('CursorQuery')], response: 'ListMembersResponse' }),
+    get: operation({ tag: 'chat', operationId: 'conversations.members.list', summary: 'List conversation members', parameters: [p('ConversationIdPath'), p('PageSizeQuery'), p('CursorQuery')], response: 'ListMembersResponse' }),
   }),
   pathItem('/chat/conversations/{conversationId}/members/add', {
     parameters: [p('ConversationIdPath')],
@@ -953,7 +1043,7 @@ const paths = Object.fromEntries([
   pathItem('/chat/conversations/{conversationId}/read_cursor', {
     parameters: [p('ConversationIdPath')],
     get: operation({ tag: 'chat', operationId: 'conversations.readCursor.retrieve', summary: 'Retrieve read cursor', parameters: [p('ConversationIdPath')], response: 'ReadCursorView' }),
-    post: operation({ tag: 'chat', operationId: 'conversations.readCursor.update', summary: 'Update read cursor', parameters: [p('ConversationIdPath')], request: 'UpdateReadCursorRequest', response: 'ReadCursorView' }),
+    patch: operation({ tag: 'chat', operationId: 'conversations.readCursor.update', summary: 'Update read cursor', parameters: [p('ConversationIdPath')], request: 'UpdateReadCursorRequest', response: 'ReadCursorView' }),
   }),
   pathItem('/chat/conversations/{conversationId}/member_directory', {
     parameters: [p('ConversationIdPath')],
@@ -961,8 +1051,8 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/conversations/{conversationId}/messages', {
     parameters: [p('ConversationIdPath')],
-    get: operation({ tag: 'chat', operationId: 'conversations.messages.list', summary: 'List conversation message timeline', parameters: [p('ConversationIdPath'), p('AfterSeqQuery'), p('LimitQuery')], response: 'TimelineResponse' }),
-    post: operation({ tag: 'chat', operationId: 'conversations.messages.create', summary: 'Post a conversation message', parameters: [p('ConversationIdPath')], request: 'PostMessageRequest', response: 'PostedMessageResponse' }),
+    get: operation({ tag: 'chat', operationId: 'conversations.messages.list', summary: 'List conversation message timeline', parameters: [p('ConversationIdPath'), p('AfterSeqQuery'), p('PageSizeQuery')], response: 'TimelineResponse' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.messages.create', summary: 'Post a conversation message', parameters: [p('ConversationIdPath')], request: 'PostMessageRequest', response: 'PostedMessageResponse', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/{conversationId}/system_channel/publish', {
     parameters: [p('ConversationIdPath')],
@@ -985,42 +1075,42 @@ const paths = Object.fromEntries([
     post: operation({ tag: 'chat', operationId: 'messages.recall', summary: 'Recall a message', parameters: [p('MessageIdPath')], response: 'PostedMessageResponse' }),
   }),
   pathItem('/chat/messages/favorites', {
-    get: operation({ tag: 'chat', operationId: 'messages.favorites.list', summary: 'List message favorites', parameters: [p('LimitQuery'), p('CursorQuery'), p('FavoriteTypeQuery'), p('QQuery')], response: 'FavoriteMessagesResponse' }),
+    get: operation({ tag: 'chat', operationId: 'messages.favorites.list', summary: 'List message favorites', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('FavoriteTypeQuery'), p('QQuery')], response: 'FavoriteMessagesResponse' }),
   }),
   pathItem('/chat/messages/{messageId}/favorites', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.favorites.create', summary: 'Favorite a message', parameters: [p('MessageIdPath')], request: 'FavoriteMessageRequest', response: 'MessageFavoriteView' }),
+    post: operation({ tag: 'chat', operationId: 'messages.favorites.create', summary: 'Favorite a message', parameters: [p('MessageIdPath')], request: 'FavoriteMessageRequest', response: 'MessageFavoriteView', successStatus: '201' }),
   }),
   pathItem('/chat/messages/favorites/{favoriteId}', {
     parameters: [p('FavoriteIdPath')],
-    delete: operation({ tag: 'chat', operationId: 'messages.favorites.delete', summary: 'Delete a message favorite', parameters: [p('FavoriteIdPath')], response: 'DeleteMessageFavoriteResponse' }),
+    delete: operation({ tag: 'chat', operationId: 'messages.favorites.delete', summary: 'Delete a message favorite', parameters: [p('FavoriteIdPath')], response: 'DeleteMessageFavoriteResponse', successStatus: '204' }),
   }),
   pathItem('/chat/messages/{messageId}/visibility', {
     parameters: [p('MessageIdPath')],
-    delete: operation({ tag: 'chat', operationId: 'messages.visibility.delete', summary: 'Delete message visibility for the current principal', parameters: [p('MessageIdPath')], response: 'MessageVisibilityMutationResult' }),
+    delete: operation({ tag: 'chat', operationId: 'messages.visibility.delete', summary: 'Delete message visibility for the current principal', parameters: [p('MessageIdPath')], successStatus: '204' }),
   }),
   pathItem('/chat/messages/{messageId}/reactions', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.reactions.create', summary: 'Add a message reaction', parameters: [p('MessageIdPath')], request: 'MessageReactionRequest', response: 'MessageReactionMutationResult' }),
+    post: operation({ tag: 'chat', operationId: 'messages.reactions.create', summary: 'Add a message reaction', parameters: [p('MessageIdPath')], request: 'MessageReactionRequest', response: 'MessageReactionMutationResult', successStatus: '201' }),
   }),
   pathItem('/chat/messages/{messageId}/reactions/remove', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.reactions.delete', summary: 'Remove a message reaction', parameters: [p('MessageIdPath')], request: 'MessageReactionRequest', response: 'MessageReactionMutationResult' }),
+    post: operation({ tag: 'chat', operationId: 'messages.reactions.remove', summary: 'Remove a message reaction', parameters: [p('MessageIdPath')], request: 'MessageReactionRequest', response: 'MessageReactionMutationResult' }),
   }),
   pathItem('/chat/messages/{messageId}/pin', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.pin.create', summary: 'Pin a message', parameters: [p('MessageIdPath')], response: 'MessagePinMutationResult' }),
+    post: operation({ tag: 'chat', operationId: 'messages.pin', summary: 'Pin a message', parameters: [p('MessageIdPath')], response: 'MessagePinMutationResult' }),
   }),
   pathItem('/chat/messages/{messageId}/unpin', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.pin.delete', summary: 'Unpin a message', parameters: [p('MessageIdPath')], response: 'MessagePinMutationResult' }),
+    post: operation({ tag: 'chat', operationId: 'messages.unpin', summary: 'Unpin a message', parameters: [p('MessageIdPath')], response: 'MessagePinMutationResult' }),
   }),
   pathItem('/chat/rooms', {
-    post: operation({ tag: 'chat', operationId: 'rooms.create', summary: 'Create a live, chat, or game room bound to a group conversation', request: 'CreateRoomRequest', response: 'CreateConversationResult', statuses: ['400', '401', '403', '404', '409'] }),
+    post: operation({ tag: 'chat', operationId: 'rooms.create', summary: 'Create a live, chat, or game room bound to a group conversation', request: 'CreateRoomRequest', response: 'CreateConversationResult', successStatus: '201', statuses: ['400', '401', '403', '404', '409'] }),
   }),
   pathItem('/chat/rooms/{roomId}', {
     parameters: [p('RoomIdPath')],
-    get: operation({ tag: 'chat', operationId: 'rooms.get', summary: 'Get room metadata and active member count', parameters: [p('RoomIdPath')], response: 'RoomView' }),
+    get: operation({ tag: 'chat', operationId: 'rooms.retrieve', summary: 'Retrieve room metadata and active member count', parameters: [p('RoomIdPath')], response: 'RoomView' }),
   }),
   pathItem('/chat/rooms/{roomId}/enter', {
     parameters: [p('RoomIdPath')],
@@ -1031,16 +1121,16 @@ const paths = Object.fromEntries([
     post: operation({ tag: 'chat', operationId: 'rooms.leave', summary: 'Leave a room as the authenticated principal', parameters: [p('RoomIdPath')], response: 'EnterRoomResponse' }),
   }),
   pathItem('/streams', {
-    post: operation({ tag: 'streams', operationId: 'streams.create', summary: 'Open a stream', request: 'OpenStreamRequest', response: 'StreamView' }),
+    post: operation({ tag: 'streams', operationId: 'streams.create', summary: 'Open a stream', request: 'OpenStreamRequest', response: 'StreamView', successStatus: '201' }),
   }),
   pathItem('/streams/{streamId}/frames', {
     parameters: [p('StreamIdPath')],
-    get: operation({ tag: 'streams', operationId: 'streams.frames.list', summary: 'List stream frames', parameters: [p('StreamIdPath'), p('LimitQuery'), p('CursorQuery')], response: 'StreamFramesResponse' }),
-    post: operation({ tag: 'streams', operationId: 'streams.frames.create', summary: 'Append a stream frame', parameters: [p('StreamIdPath')], request: 'AppendStreamFrameRequest', response: 'StreamFrameView' }),
+    get: operation({ tag: 'streams', operationId: 'streams.frames.list', summary: 'List stream frames', parameters: [p('StreamIdPath'), p('PageSizeQuery'), p('CursorQuery')], response: 'StreamFramesResponse' }),
+    post: operation({ tag: 'streams', operationId: 'streams.frames.create', summary: 'Append a stream frame', parameters: [p('StreamIdPath')], request: 'AppendStreamFrameRequest', response: 'StreamFrameView', successStatus: '201' }),
   }),
   pathItem('/streams/{streamId}/checkpoint', {
     parameters: [p('StreamIdPath')],
-    post: operation({ tag: 'streams', operationId: 'streams.checkpoint.create', summary: 'Checkpoint a stream', parameters: [p('StreamIdPath')], response: 'StreamView' }),
+    post: operation({ tag: 'streams', operationId: 'streams.checkpoint', summary: 'Checkpoint a stream', parameters: [p('StreamIdPath')], response: 'StreamView' }),
   }),
   pathItem('/streams/{streamId}/complete', {
     parameters: [p('StreamIdPath')],

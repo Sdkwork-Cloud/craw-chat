@@ -1,8 +1,8 @@
 //! Gateway-owned OpenAPI discovery schema components and the discovery path
 //! injections merged into the aggregate document.
 
-use serde_json::{Map, Value, json};
 use sdkwork_im_api_registry::{RouteDescriptor, RouteVisibility};
+use serde_json::{Map, Value, json};
 
 pub(crate) fn merge_gateway_discovery_openapi(
     tags: &mut std::collections::BTreeMap<String, Value>,

@@ -10,16 +10,17 @@ use im_adapters_social_postgres::contact_store::{
     ContactTagRecord as PostgresContactTagRecord, PostgresContactStore,
     contact_recommendation_id_to_i64, contact_tag_id_to_i64,
 };
-use im_app_context::{resolve_web_environment_from_process_env, AppContext};
-use sdkwork_utils_rust::offset_limit_page_from_iter;
+use im_app_context::{AppContext, resolve_web_environment_from_process_env};
 use sdkwork_web_core::WebEnvironment;
+use serde::{Deserialize, Serialize};
 
-use crate::friendship::SocialServiceError;
+use crate::friendship::{
+    SocialServiceError, decode_signed_inventory_cursor_payload, encode_signed_inventory_cursor,
+};
 
 fn contact_owner_user_id(auth: &AppContext) -> Result<&str, SocialServiceError> {
-    auth.ensure_user_actor_principal().map_err(|error| {
-        SocialServiceError::invalid("social_principal_invalid", error.message())
-    })
+    auth.ensure_user_actor_principal()
+        .map_err(|error| SocialServiceError::invalid("social_principal_invalid", error.message()))
 }
 
 static CONTACT_MEMORY_STORE: OnceLock<RwLock<ContactMemoryStore>> = OnceLock::new();
@@ -30,8 +31,7 @@ pub async fn init_contact_postgres_store() {
         return;
     }
     let store = crate::journal_bootstrap::resolve_social_postgres_pool_from_env().map(|pool| {
-        Arc::new(PostgresContactStore::new(Arc::new(pool.inner().clone())))
-            as Arc<dyn ContactStore>
+        Arc::new(PostgresContactStore::new(Arc::new(pool.inner().clone()))) as Arc<dyn ContactStore>
     });
     if store.is_none() && !allows_contact_memory_fallback() {
         tracing::error!(
@@ -42,14 +42,13 @@ pub async fn init_contact_postgres_store() {
 }
 
 pub fn shared_contact_store() -> Option<Arc<dyn ContactStore>> {
-    CONTACT_POSTGRES_STORE
-        .get()
-        .and_then(|store| store.clone())
+    CONTACT_POSTGRES_STORE.get().and_then(|store| store.clone())
 }
 
 #[derive(Clone, Debug)]
 pub struct ContactTagRecord {
     pub tenant_id: String,
+    pub organization_id: String,
     pub owner_user_id: String,
     pub tag_id: String,
     pub name: String,
@@ -64,6 +63,7 @@ pub struct ContactTagRecord {
 #[derive(Clone, Debug)]
 pub struct ContactPreferencesRecord {
     pub tenant_id: String,
+    pub organization_id: String,
     pub owner_user_id: String,
     pub target_user_id: String,
     pub is_starred: bool,
@@ -75,6 +75,7 @@ pub struct ContactPreferencesRecord {
 #[derive(Clone, Debug)]
 pub struct ContactRecommendationRecord {
     pub tenant_id: String,
+    pub organization_id: String,
     pub owner_user_id: String,
     pub target_user_id: String,
     pub recommendation_id: String,
@@ -85,6 +86,7 @@ pub struct ContactRecommendationRecord {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 struct ContactTagOwnerKey {
     tenant_id: String,
+    organization_id: String,
     owner_user_id: String,
 }
 
@@ -98,26 +100,85 @@ struct ContactTagSortKey {
 #[derive(Default)]
 struct ContactMemoryStore {
     tag_index: BTreeMap<ContactTagSortKey, ContactTagRecord>,
-    tag_identity: HashMap<(String, String, String), ContactTagSortKey>,
+    tag_identity: HashMap<(String, String, String, String), ContactTagSortKey>,
     preferences: Vec<ContactPreferencesRecord>,
     recommendations: Vec<ContactRecommendationRecord>,
+}
+
+const CONTACT_TAG_CURSOR_VERSION: u64 = 1;
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ContactTagInventoryCursor {
+    v: u64,
+    updated_at: String,
+    tag_id: String,
+}
+
+pub(crate) fn parse_contact_tag_inventory_cursor(
+    cursor: &str,
+) -> Result<ContactTagInventoryCursor, SocialServiceError> {
+    let payload = decode_signed_inventory_cursor_payload(cursor)?;
+    let cursor: ContactTagInventoryCursor = serde_json::from_value(payload).map_err(|_| {
+        SocialServiceError::invalid("cursor_invalid", "contact tag inventory cursor is invalid")
+    })?;
+    if cursor.v != CONTACT_TAG_CURSOR_VERSION {
+        return Err(SocialServiceError::invalid(
+            "cursor_invalid",
+            "contact tag inventory cursor version is unsupported",
+        ));
+    }
+    Ok(cursor)
+}
+
+pub(crate) fn encode_contact_tag_inventory_cursor(
+    record: &ContactTagRecord,
+) -> Result<String, SocialServiceError> {
+    let cursor = ContactTagInventoryCursor {
+        v: CONTACT_TAG_CURSOR_VERSION,
+        updated_at: record.updated_at.clone(),
+        tag_id: record.tag_id.clone(),
+    };
+    let payload = serde_json::to_value(&cursor).map_err(|_| {
+        SocialServiceError::invalid(
+            "cursor_encoding_failed",
+            "contact tag inventory cursor could not be encoded",
+        )
+    })?;
+    encode_signed_inventory_cursor(&payload)
+}
+
+fn contact_tag_belongs_after_cursor(
+    record: &ContactTagRecord,
+    cursor: &ContactTagInventoryCursor,
+) -> bool {
+    if record.updated_at < cursor.updated_at {
+        return true;
+    }
+    if record.updated_at > cursor.updated_at {
+        return false;
+    }
+    record.tag_id < cursor.tag_id
 }
 
 pub fn list_contact_tags(
     store: Option<&Arc<dyn ContactStore>>,
     auth: &AppContext,
     limit: usize,
-    offset: usize,
+    cursor: Option<&ContactTagInventoryCursor>,
 ) -> Result<(Vec<ContactTagRecord>, bool), SocialServiceError> {
     ensure_contact_memory_fallback_allowed(store)?;
     if let Some(store) = store {
+        let cursor_updated_at = cursor.map(|value| value.updated_at.as_str());
+        let cursor_tag_id = cursor.map(|value| contact_tag_id_to_i64(value.tag_id.as_str()));
         let records = store
-            .list_tags_by_owner(
+            .list_tags_by_owner_inventory(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 contact_owner_user_id(auth)?,
+                cursor_updated_at,
+                cursor_tag_id,
                 (limit.saturating_add(1)) as i64,
-                offset as i64,
             )
             .map_err(|_| store_unavailable("list_contact_tags"))?;
         let has_more = records.len() > limit;
@@ -132,24 +193,32 @@ pub fn list_contact_tags(
     let guard = memory_store().read().map_err(|_| store_lock_error())?;
     let owner_key = ContactTagOwnerKey {
         tenant_id: auth.tenant_id.clone(),
+        organization_id: auth.organization_id.clone(),
         owner_user_id: contact_owner_user_id(auth)?.to_owned(),
     };
     let start = ContactTagSortKey {
         owner: owner_key.clone(),
-        updated_at: Reverse(String::new()),
-        tag_id: Reverse(String::new()),
-    };
-    let end = ContactTagSortKey {
-        owner: owner_key,
         updated_at: Reverse(String::from("\u{10FFFF}")),
         tag_id: Reverse(String::from("\u{10FFFF}")),
     };
-    let page = offset_limit_page_from_iter(
-        guard.tag_index.range(start..=end).map(|(_, record)| record.clone()),
-        limit,
-        offset,
-    );
-    Ok((page.items, page.has_more))
+    let end = ContactTagSortKey {
+        owner: owner_key,
+        updated_at: Reverse(String::new()),
+        tag_id: Reverse(String::new()),
+    };
+    let mut items = Vec::new();
+    for (_, record) in guard.tag_index.range(start..=end) {
+        if cursor.is_some_and(|value| !contact_tag_belongs_after_cursor(record, value)) {
+            continue;
+        }
+        items.push(record.clone());
+        if items.len() > limit {
+            break;
+        }
+    }
+    let has_more = items.len() > limit;
+    items.truncate(limit);
+    Ok((items, has_more))
 }
 
 pub fn upsert_contact_tag(
@@ -171,6 +240,7 @@ pub fn upsert_contact_tag(
 fn upsert_contact_tag_in_memory(store: &mut ContactMemoryStore, record: ContactTagRecord) {
     let identity = (
         record.tenant_id.clone(),
+        record.organization_id.clone(),
         record.owner_user_id.clone(),
         record.tag_id.clone(),
     );
@@ -201,7 +271,12 @@ pub fn get_contact_tag(
     }
     let guard = memory_store().read().map_err(|_| store_lock_error())?;
     let owner_user_id = contact_owner_user_id(auth)?;
-    Ok(find_contact_tag_in_memory(&guard, auth, owner_user_id, tag_id))
+    Ok(find_contact_tag_in_memory(
+        &guard,
+        auth,
+        owner_user_id,
+        tag_id,
+    ))
 }
 
 fn find_contact_tag_in_memory(
@@ -212,6 +287,7 @@ fn find_contact_tag_in_memory(
 ) -> Option<ContactTagRecord> {
     let identity = (
         auth.tenant_id.clone(),
+        auth.organization_id.clone(),
         owner_user_id.to_owned(),
         tag_id.to_owned(),
     );
@@ -268,6 +344,7 @@ fn remove_contact_tag_from_memory(
 ) -> bool {
     let identity = (
         auth.tenant_id.clone(),
+        auth.organization_id.clone(),
         owner_user_id.to_owned(),
         tag_id.to_owned(),
     );
@@ -304,6 +381,7 @@ pub fn get_contact_preferences(
         .iter()
         .find(|record| {
             record.tenant_id == auth.tenant_id
+                && record.organization_id == auth.organization_id
                 && record.owner_user_id == owner_user_id
                 && record.target_user_id == target_user_id
         })
@@ -325,6 +403,7 @@ pub fn upsert_contact_preferences(
     let mut guard = memory_store().write().map_err(|_| store_lock_error())?;
     if let Some(index) = guard.preferences.iter().position(|existing| {
         existing.tenant_id == record.tenant_id
+            && existing.organization_id == record.organization_id
             && existing.owner_user_id == record.owner_user_id
             && existing.target_user_id == record.target_user_id
     }) {
@@ -360,6 +439,7 @@ pub fn create_contact_recommendation(
 
     let record = ContactRecommendationRecord {
         tenant_id: auth.tenant_id.clone(),
+        organization_id: auth.organization_id.clone(),
         owner_user_id: contact_owner_user_id(auth)?.to_owned(),
         target_user_id: target_user_id.to_owned(),
         recommendation_id: recommendation_id.to_owned(),
@@ -368,8 +448,9 @@ pub fn create_contact_recommendation(
     };
 
     if let Some(store) = store {
+        let postgres_record = recommendation_record_to_postgres(auth, &record)?;
         store
-            .insert_recommendation(&recommendation_record_to_postgres(auth, &record))
+            .insert_recommendation(&postgres_record)
             .map_err(|_| store_unavailable("create_contact_recommendation"))?;
         return Ok(record);
     }
@@ -382,6 +463,7 @@ pub fn create_contact_recommendation(
 pub fn default_preferences(auth: &AppContext, target_user_id: &str) -> ContactPreferencesRecord {
     ContactPreferencesRecord {
         tenant_id: auth.tenant_id.clone(),
+        organization_id: auth.organization_id.clone(),
         owner_user_id: auth.social_principal_user_id().to_owned(),
         target_user_id: target_user_id.to_owned(),
         is_starred: false,
@@ -399,6 +481,7 @@ fn contact_tag_sort_key(record: &ContactTagRecord) -> ContactTagSortKey {
     ContactTagSortKey {
         owner: ContactTagOwnerKey {
             tenant_id: record.tenant_id.clone(),
+            organization_id: record.organization_id.clone(),
             owner_user_id: record.owner_user_id.clone(),
         },
         updated_at: Reverse(record.updated_at.clone()),
@@ -406,7 +489,10 @@ fn contact_tag_sort_key(record: &ContactTagRecord) -> ContactTagSortKey {
     }
 }
 
-fn tag_record_to_postgres(auth: &AppContext, record: &ContactTagRecord) -> PostgresContactTagRecord {
+fn tag_record_to_postgres(
+    auth: &AppContext,
+    record: &ContactTagRecord,
+) -> PostgresContactTagRecord {
     PostgresContactTagRecord {
         tenant_id: record.tenant_id.clone(),
         organization_id: auth.organization_id.clone(),
@@ -425,6 +511,7 @@ fn tag_record_to_postgres(auth: &AppContext, record: &ContactTagRecord) -> Postg
 fn tag_record_from_postgres(record: PostgresContactTagRecord) -> ContactTagRecord {
     ContactTagRecord {
         tenant_id: record.tenant_id,
+        organization_id: record.organization_id,
         owner_user_id: record.owner_user_id,
         tag_id: record.tag_id.to_string(),
         name: record.name,
@@ -457,9 +544,12 @@ fn preferences_record_to_postgres(
     }
 }
 
-fn preferences_record_from_postgres(record: PostgresContactPreferencesRecord) -> ContactPreferencesRecord {
+fn preferences_record_from_postgres(
+    record: PostgresContactPreferencesRecord,
+) -> ContactPreferencesRecord {
     ContactPreferencesRecord {
         tenant_id: record.tenant_id,
+        organization_id: record.organization_id,
         owner_user_id: record.owner_user_id,
         target_user_id: record.target_user_id,
         is_starred: record.is_starred,
@@ -472,16 +562,25 @@ fn preferences_record_from_postgres(record: PostgresContactPreferencesRecord) ->
 fn recommendation_record_to_postgres(
     auth: &AppContext,
     record: &ContactRecommendationRecord,
-) -> PostgresContactRecommendationRecord {
-    PostgresContactRecommendationRecord {
-        tenant_id: record.tenant_id.clone(),
+) -> Result<PostgresContactRecommendationRecord, SocialServiceError> {
+    if record.tenant_id.as_str() != auth.tenant_id.as_str()
+        || record.organization_id.as_str() != auth.organization_id.as_str()
+    {
+        return Err(SocialServiceError::forbidden(
+            "contact_recommendation_scope_mismatch",
+            "contact recommendation scope must match the verified AppContext",
+        ));
+    }
+
+    Ok(PostgresContactRecommendationRecord {
+        tenant_id: auth.tenant_id.clone(),
         organization_id: auth.organization_id.clone(),
         owner_user_id: record.owner_user_id.clone(),
         target_user_id: record.target_user_id.clone(),
         recommendation_id: contact_recommendation_id_to_i64(record.recommendation_id.as_str()),
         target_conversation_id: record.target_conversation_id.clone(),
         created_at: record.created_at.clone(),
-    }
+    })
 }
 
 fn running_under_rust_test_harness() -> bool {
@@ -526,8 +625,8 @@ fn store_unavailable(operation: &str) -> SocialServiceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::response::IntoResponse;
     use crate::friendship::SocialServiceError;
+    use axum::response::IntoResponse;
 
     #[test]
     fn contact_store_unavailable_returns_service_unavailable() {
@@ -536,7 +635,10 @@ mod tests {
             "contact postgres store unavailable during test",
         )
         .into_response();
-        assert_eq!(response.status(), axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        );
     }
 
     #[test]
@@ -556,14 +658,8 @@ mod tests {
             actor_kind: "user".into(),
             device_id: None,
         };
-        let error = create_contact_recommendation(
-            None,
-            &auth,
-            "9001",
-            "rec_1",
-            None,
-        )
-        .expect_err("self recommendation should fail");
+        let error = create_contact_recommendation(None, &auth, "9001", "rec_1", None)
+            .expect_err("self recommendation should fail");
         assert!(format!("{error:?}").contains("contact_recommendation_self_target"));
     }
 
@@ -597,5 +693,42 @@ mod tests {
             record.target_conversation_id.as_deref(),
             Some("c_direct_001")
         );
+    }
+
+    #[test]
+    fn recommendation_postgres_mapping_rejects_record_scope_conflict() {
+        let auth = AppContext {
+            tenant_id: "100001".into(),
+            organization_id: "200001".into(),
+            user_id: "9001".into(),
+            session_id: None,
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
+            actor_id: "9001".into(),
+            actor_kind: "user".into(),
+            device_id: None,
+        };
+        let mut record = ContactRecommendationRecord {
+            tenant_id: auth.tenant_id.clone(),
+            organization_id: auth.organization_id.clone(),
+            owner_user_id: "9001".into(),
+            target_user_id: "9002".into(),
+            recommendation_id: "rec_3".into(),
+            target_conversation_id: None,
+            created_at: "2026-07-07T00:00:00.000Z".into(),
+        };
+        let mapped = recommendation_record_to_postgres(&auth, &record)
+            .expect("matching record scope should map to postgres");
+        assert_eq!(mapped.tenant_id, auth.tenant_id);
+        assert_eq!(mapped.organization_id, auth.organization_id);
+
+        record.organization_id = "200002".into();
+        let error = recommendation_record_to_postgres(&auth, &record)
+            .expect_err("record scope must not override AppContext organization");
+        assert!(format!("{error:?}").contains("contact_recommendation_scope_mismatch"));
     }
 }

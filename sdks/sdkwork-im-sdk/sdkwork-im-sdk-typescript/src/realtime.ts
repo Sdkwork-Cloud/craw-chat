@@ -707,6 +707,8 @@ function sendSubscriptionSync(
   ));
 }
 
+const DEFAULT_EVENTS_NACK_REPLAY_LIMIT = 100;
+
 function sendEventsAck(socket: ImWebSocketLike, requestId: string, ackedSeq: number): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
@@ -720,6 +722,67 @@ function sendEventsAck(socket: ImWebSocketLike, requestId: string, ackedSeq: num
       ackedSeq,
     },
   ));
+}
+
+function sendEventsNack(
+  socket: ImWebSocketLike,
+  requestId: string,
+  nackThroughSeq: number,
+  limit: number,
+): void {
+  if (socket.readyState !== SOCKET_OPEN_STATE) {
+    return;
+  }
+  socket.send(encodeCcpBusinessFrame(
+    'cc.realtime.events.nack.v1',
+    'nack',
+    {
+      type: 'events.nack',
+      requestId,
+      nackThroughSeq,
+      limit,
+    },
+  ));
+}
+
+function createRealtimeSeqTracker(socket: ImWebSocketLike): {
+  reset: () => void;
+  track: (sequence: number) => void;
+} {
+  let lastContiguousRealtimeSeq = 0;
+  let nackCounter = 0;
+
+  const track = (sequence: number): void => {
+    if (!Number.isFinite(sequence) || sequence <= 0) {
+      return;
+    }
+    if (lastContiguousRealtimeSeq === 0) {
+      lastContiguousRealtimeSeq = sequence;
+      return;
+    }
+    if (sequence === lastContiguousRealtimeSeq + 1) {
+      lastContiguousRealtimeSeq = sequence;
+      return;
+    }
+    if (sequence <= lastContiguousRealtimeSeq) {
+      return;
+    }
+    nackCounter += 1;
+    sendEventsNack(
+      socket,
+      `sdkwork-im-events-nack-${nackCounter}`,
+      lastContiguousRealtimeSeq,
+      DEFAULT_EVENTS_NACK_REPLAY_LIMIT,
+    );
+  };
+
+  return {
+    reset: () => {
+      lastContiguousRealtimeSeq = 0;
+      nackCounter = 0;
+    },
+    track,
+  };
 }
 
 function sendAuthInit(
@@ -877,6 +940,7 @@ export function createImLiveConnection({
   let heartbeatCounter = 0;
   let lastHeartbeatRequestId: string | undefined;
   let lastInboundAt = Date.now();
+  const realtimeSeqTracker = createRealtimeSeqTracker(socket);
 
   const emitState = (state: ImLiveConnectionState): void => {
     currentState = state;
@@ -1061,6 +1125,7 @@ export function createImLiveConnection({
     clearConnectionTimeout();
     clearAuthTimeout();
     connectionPhase = 'ready';
+    realtimeSeqTracker.reset();
     emitState({ status: 'open' });
     startHeartbeat();
     flushSubscriptionSync();
@@ -1221,6 +1286,7 @@ export function createImLiveConnection({
     }
     const decodedEvents = parseRealtimeEvents(inboundFrame);
     for (const decoded of decodedEvents) {
+      realtimeSeqTracker.track(decoded.context.sequence);
       if (!decoded.context.scopeId || !decoded.context.scopeType) {
         continue;
       }
@@ -1243,6 +1309,7 @@ export function createImLiveConnection({
     }
     const decodedMessages = parseRealtimePayloads(inboundFrame);
     for (const decoded of decodedMessages) {
+      realtimeSeqTracker.track(decoded.context.sequence);
       if (!decoded.context.conversationId) {
         continue;
       }

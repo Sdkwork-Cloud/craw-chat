@@ -56,10 +56,7 @@ fn tenant_override_resolves_before_global_fallback() {
         .effective_config(StorageScopeRef::tenant("100001"))
         .expect("tenant storage config should resolve");
 
-    assert_eq!(
-        effective.resolved_scope,
-        StorageScopeRef::tenant("100001")
-    );
+    assert_eq!(effective.resolved_scope, StorageScopeRef::tenant("100001"));
     assert_eq!(
         effective.binding.provider_plugin_id,
         "object-storage-google"

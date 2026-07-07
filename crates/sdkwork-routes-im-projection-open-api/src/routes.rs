@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::Router;
-use projection_service::{default_projection_service, TimelineProjectionService};
+use projection_service::{TimelineProjectionService, default_projection_service};
 
 pub fn build_api_router() -> Router {
     build_api_router_with_service(default_projection_service())

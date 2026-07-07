@@ -1,0 +1,15 @@
+[package]
+name = "im-portal-snapshots"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Portal snapshot builders for SDKWork IM console and workspace surfaces."
+
+[dependencies]
+audit-service = { path = "../../services/audit-service" }
+im-app-context = { path = "../im-app-context" }
+im-time = { path = "../im-time" }
+ops-service = { path = "../../services/ops-service" }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sdkwork_utils_rust.workspace = true

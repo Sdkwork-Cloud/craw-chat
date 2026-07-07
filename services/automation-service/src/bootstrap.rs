@@ -4,9 +4,14 @@ use std::sync::{Arc, OnceLock};
 
 use im_adapters_local_disk::FileAutomationExecutionStore;
 use im_adapters_local_memory::MemoryAutomationExecutionStore;
-use im_adapters_postgres_journal::{PostgresCommitJournal, PostgresJournalConfig};
-use im_app_context::{allows_header_only_app_context_fallback, resolve_web_environment_from_process_env};
+use im_adapters_postgres_journal::{
+    PostgresAutomationExecutionStore, PostgresCommitJournal, PostgresJournalConfig,
+};
+use im_app_context::{
+    allows_header_only_app_context_fallback, resolve_web_environment_from_process_env,
+};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
+use sdkwork_im_contract_agent::AutomationExecutionStore;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
 use sdkwork_web_core::WebEnvironment;
@@ -22,8 +27,7 @@ static DEFAULT_AUTOMATION_RUNTIME: OnceLock<Arc<AutomationRuntime>> = OnceLock::
 
 pub fn default_automation_runtime() -> Arc<AutomationRuntime> {
     if should_use_ephemeral_automation_runtime() {
-        return build_runtime_from_env()
-            .unwrap_or_else(|_| Arc::new(AutomationRuntime::default()));
+        return build_runtime_from_env().unwrap_or_else(|_| Arc::new(AutomationRuntime::default()));
     }
 
     DEFAULT_AUTOMATION_RUNTIME
@@ -45,29 +49,10 @@ pub fn ensure_durable_automation_runtime_from_env() -> Result<(), String> {
 
 pub fn build_runtime_from_env() -> Result<Arc<AutomationRuntime>, String> {
     let journal = resolve_automation_commit_journal_from_env()?;
-    if let Some(path) = resolve_automation_execution_store_path_from_env() {
-        info!(
-            path = %path,
-            "automation-service using file-backed automation execution store"
-        );
-        return Ok(Arc::new(AutomationRuntime::with_journal_and_store(
-            journal,
-            Arc::new(FileAutomationExecutionStore::new(path)),
-        )));
-    }
-
-    let environment = resolve_web_environment_from_process_env();
-    if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
-        info!("automation-service using in-memory automation execution store (development only)");
-        return Ok(Arc::new(AutomationRuntime::with_journal_and_store(
-            journal,
-            Arc::new(MemoryAutomationExecutionStore::default()),
-        )));
-    }
-
-    Err(format!(
-        "durable automation execution store is required in production: set {AUTOMATION_EXECUTION_STORE_FILE_ENV}"
-    ))
+    let store = resolve_automation_execution_store_from_env(&journal)?;
+    Ok(Arc::new(AutomationRuntime::with_dyn_execution_store(
+        journal, store,
+    )))
 }
 
 pub fn default_app_state() -> AppState {
@@ -108,12 +93,43 @@ impl CommitJournal for AutomationCommitJournal {
     }
 }
 
+fn resolve_automation_execution_store_from_env(
+    journal: &Arc<AutomationCommitJournal>,
+) -> Result<Arc<dyn AutomationExecutionStore>, String> {
+    if let Some(path) = resolve_automation_execution_store_path_from_env() {
+        info!(
+            path = %path,
+            "automation-service using file-backed automation execution store"
+        );
+        return Ok(Arc::new(FileAutomationExecutionStore::new(path)));
+    }
+
+    if let AutomationCommitJournal::Postgres(pg_journal) = journal.as_ref() {
+        info!("automation-service using postgres automation execution store");
+        return Ok(Arc::new(PostgresAutomationExecutionStore::from_pool(
+            pg_journal.pool().clone(),
+        )));
+    }
+
+    let environment = resolve_web_environment_from_process_env();
+    if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
+        info!("automation-service using in-memory automation execution store (development only)");
+        return Ok(Arc::new(MemoryAutomationExecutionStore::default()));
+    }
+
+    Err(format!(
+        "durable automation execution store is required in production: set {IM_DATABASE_URL_ENV} or {AUTOMATION_EXECUTION_STORE_FILE_ENV}"
+    ))
+}
+
 fn resolve_automation_commit_journal_from_env() -> Result<Arc<AutomationCommitJournal>, String> {
     if let Ok(config) = DatabaseConfig::from_env("IM") {
         if config.engine == DatabaseEngine::Postgres {
             let journal = PostgresJournalConfig::from_database_config(&config)
                 .connect()
-                .map_err(|error| format!("postgres automation journal bootstrap failed: {error:?}"))?;
+                .map_err(|error| {
+                    format!("postgres automation journal bootstrap failed: {error:?}")
+                })?;
             info!("automation-service using postgres commit journal");
             return Ok(Arc::new(AutomationCommitJournal::Postgres(journal)));
         }

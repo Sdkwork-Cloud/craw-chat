@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -71,12 +72,7 @@ impl RtcSessionState {
         self.as_wire_value()
     }
 
-    /// Parse a wire-value string into a `RtcSessionState`.
-    ///
-    /// Returns `None` for unknown values to allow forward compatibility
-    /// with future states (the caller can decide whether to reject or
-    /// treat as an unknown active state).
-    pub fn from_str(value: &str) -> Option<Self> {
+    pub fn from_wire_value(value: &str) -> Option<Self> {
         match value {
             "started" => Some(Self::Started),
             "accepted" => Some(Self::Accepted),
@@ -114,6 +110,14 @@ impl RtcSessionState {
     /// States that represent a connected media flow (call in progress).
     pub fn is_media_connected(&self) -> bool {
         matches!(self, Self::Connected | Self::OnHold | Self::Reconnecting)
+    }
+}
+
+impl FromStr for RtcSessionState {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::from_wire_value(value).ok_or(())
     }
 }
 
@@ -276,7 +280,7 @@ impl SignalRateTracker {
                 };
 
                 let weighted_previous =
-                    (self.previous_count as f64 * prev_weight.max(0.0).min(1.0)) as u32;
+                    (self.previous_count as f64 * prev_weight.clamp(0.0, 1.0)) as u32;
                 return self.signal_count.saturating_add(weighted_previous);
             }
         }
@@ -731,9 +735,9 @@ mod tests {
             RtcSessionState::Timeout,
         ] {
             let wire = expected.as_wire_value();
-            assert_eq!(RtcSessionState::from_str(wire), Some(expected));
+            assert_eq!(wire.parse::<RtcSessionState>(), Ok(expected));
         }
-        assert_eq!(RtcSessionState::from_str("unknown"), None);
+        assert!("unknown".parse::<RtcSessionState>().is_err());
     }
 
     #[test]

@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use im_app_context::is_production_like_im_environment;
 use im_domain_events::CommitEnvelope;
 
-use crate::bootstrap::{shared_projection_runtime, try_init_embedded_projection_runtime};
 use crate::TimelineProjectionService;
+use crate::bootstrap::{shared_projection_runtime, try_init_embedded_projection_runtime};
 
 /// Resolve the embedded projection service without panicking when Postgres is unavailable.
 ///
@@ -19,17 +20,21 @@ pub fn resolve_embedded_projection_service() -> Option<Arc<TimelineProjectionSer
 /// Unified-process hosts call this immediately after journal append so
 /// projection read models stay consistent without waiting for replay polling.
 pub fn try_apply_commit_envelope(envelope: &CommitEnvelope) {
-    let Some(service) = resolve_embedded_projection_service() else {
-        return;
-    };
-    match service.apply(envelope) {
-        Ok(()) => {}
-        Err(error) => {
+    if let Err(message) = apply_embedded_projection_event(envelope) {
+        if is_production_like_im_environment() {
+            tracing::error!(
+                event_id = %envelope.event_id,
+                event_type = %envelope.event_type,
+                conversation_id = %envelope.aggregate_id,
+                error = %message,
+                "embedded projection apply failed in production"
+            );
+        } else {
             tracing::warn!(
                 event_id = %envelope.event_id,
                 event_type = %envelope.event_type,
                 conversation_id = %envelope.aggregate_id,
-                error = %error,
+                error = %message,
                 "embedded projection apply failed"
             );
         }
@@ -39,6 +44,11 @@ pub fn try_apply_commit_envelope(envelope: &CommitEnvelope) {
 /// Structured result variant for callers that need explicit apply status.
 pub fn apply_embedded_projection_event(envelope: &CommitEnvelope) -> Result<(), String> {
     let Some(service) = resolve_embedded_projection_service() else {
+        if is_production_like_im_environment() {
+            return Err(
+                "embedded projection service unavailable in production-like environments".into(),
+            );
+        }
         return Ok(());
     };
     service
@@ -58,9 +68,7 @@ pub fn try_ack_client_route_sync_feed_for_principal(
     device_id: &str,
     acked_through_sync_seq: u64,
 ) -> Option<crate::ClientRouteSyncAckStateView> {
-    let Some(service) = resolve_embedded_projection_service() else {
-        return None;
-    };
+    let service = resolve_embedded_projection_service()?;
     Some(service.ack_client_route_sync_feed_for_principal_kind(
         tenant_id,
         organization_id,

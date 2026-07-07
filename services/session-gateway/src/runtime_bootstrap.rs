@@ -10,6 +10,7 @@ use im_adapters_postgres_realtime::{
     PostgresRealtimePresenceStateStore, PostgresRealtimeSubscriptionStore,
 };
 use im_adapters_redis_cache::{RedisBackedRouteStore, RedisClusterBus};
+use im_app_context::resolve_web_environment_from_process_env;
 use im_platform_contracts::ClusterEventBus;
 use redis::Client as RedisClient;
 use sdkwork_im_contract_control::{
@@ -17,7 +18,6 @@ use sdkwork_im_contract_control::{
     RealtimeSubscriptionStore,
 };
 use sdkwork_im_runtime_route::{RouteStore, memory_route_store};
-use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_web_core::WebEnvironment;
 
 use crate::{
@@ -40,8 +40,7 @@ const REALTIME_ROUTE_STORE_URL_ENV: &str = "SDKWORK_IM_REALTIME_ROUTE_STORE_URL"
 const REALTIME_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV: &str = "SDKWORK_IM_REALTIME_PERMISSIVE_SCOPE_ACCESS";
 
-fn resolve_realtime_scope_access_policy(
-) -> std::sync::Arc<dyn crate::RealtimeScopeAccessPolicy> {
+fn resolve_realtime_scope_access_policy() -> std::sync::Arc<dyn crate::RealtimeScopeAccessPolicy> {
     let permissive = std::env::var(REALTIME_PERMISSIVE_SCOPE_ACCESS_ENV)
         .ok()
         .is_some_and(|value| value == "1" || value.eq_ignore_ascii_case("true"));
@@ -84,6 +83,13 @@ fn resolve_realtime_scope_access_policy(
         }
     }
 
+    if matches!(environment, WebEnvironment::Prod) {
+        panic!(
+            "session-gateway fail-closed: {REALTIME_DATABASE_URL_ENV} and shared IM Postgres pools are required \
+             for membership-gated realtime scopes in production"
+        );
+    }
+
     std::sync::Arc::new(StandaloneRealtimeScopeAccessPolicy)
 }
 
@@ -124,6 +130,17 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
         );
     }
 
+    if postgres_pool.is_none()
+        && matches!(
+            resolve_web_environment_from_process_env(),
+            WebEnvironment::Prod
+        )
+    {
+        return Err(format!(
+            "session-gateway fail-closed: {REALTIME_DATABASE_URL_ENV} is required for durable realtime stores in production"
+        ));
+    }
+
     let assembly = if let Some(pool) = postgres_pool {
         let disconnect_fence_store = Arc::new(PostgresRealtimeDisconnectFenceStore::from_pool(
             pool.clone(),
@@ -134,7 +151,7 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
         let event_window_store =
             Arc::new(PostgresRealtimeEventWindowStore::from_pool(pool.clone()));
         let presence_state_store = Arc::new(PostgresRealtimePresenceStateStore::from_pool(pool));
-        build_assembly_with_stores(
+        build_assembly_with_stores(RealtimeAssemblyStoreBundle {
             disconnect_fence_store,
             checkpoint_store,
             subscription_store,
@@ -143,18 +160,18 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
             shared_cluster_bus,
             cluster_bus_secret,
             route_store,
-        )
+        })
     } else {
-        build_assembly_with_stores(
-            Arc::new(MemoryRealtimeDisconnectFenceStore::default()),
-            Arc::new(MemoryRealtimeCheckpointStore::default()),
-            Arc::new(MemoryRealtimeSubscriptionStore::default()),
-            Arc::new(MemoryRealtimeEventWindowStore::default()),
-            Arc::new(MemoryPresenceStateStore::default()),
+        build_assembly_with_stores(RealtimeAssemblyStoreBundle {
+            disconnect_fence_store: Arc::new(MemoryRealtimeDisconnectFenceStore::default()),
+            checkpoint_store: Arc::new(MemoryRealtimeCheckpointStore::default()),
+            subscription_store: Arc::new(MemoryRealtimeSubscriptionStore::default()),
+            event_window_store: Arc::new(MemoryRealtimeEventWindowStore::default()),
+            presence_state_store: Arc::new(MemoryPresenceStateStore::default()),
             shared_cluster_bus,
             cluster_bus_secret,
             route_store,
-        )
+        })
     };
 
     assembly.bind_node_runtime(node_id.as_str());
@@ -169,15 +186,19 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
     })
 }
 
-fn build_assembly_with_stores<D, C, S, E, P>(
+struct RealtimeAssemblyStoreBundle<D, C, S, E, P> {
     disconnect_fence_store: Arc<D>,
     checkpoint_store: Arc<C>,
     subscription_store: Arc<S>,
     event_window_store: Arc<E>,
     presence_state_store: Arc<P>,
-    cluster_bus: Option<Arc<dyn ClusterEventBus>>,
+    shared_cluster_bus: Option<Arc<dyn ClusterEventBus>>,
     cluster_bus_secret: Option<String>,
     route_store: Arc<dyn RouteStore>,
+}
+
+fn build_assembly_with_stores<D, C, S, E, P>(
+    bundle: RealtimeAssemblyStoreBundle<D, C, S, E, P>,
 ) -> RealtimePlaneAssembly
 where
     D: RealtimeDisconnectFenceStore + 'static,
@@ -187,25 +208,27 @@ where
     P: PresenceStateStore + 'static,
 {
     let mut realtime_cluster = RealtimeClusterBridge::with_disconnect_fence_store_and_route_store(
-        disconnect_fence_store,
-        route_store,
+        bundle.disconnect_fence_store,
+        bundle.route_store,
     );
-    if let Some(bus) = cluster_bus {
+    if let Some(bus) = bundle.shared_cluster_bus {
         realtime_cluster = realtime_cluster.with_cluster_bus(bus);
     }
-    if let Some(secret) = cluster_bus_secret {
+    if let Some(secret) = bundle.cluster_bus_secret {
         realtime_cluster = realtime_cluster.with_cluster_bus_auth(secret);
     }
 
     RealtimePlaneAssembly::new(
         Arc::new(realtime_cluster),
-        Arc::new(RealtimeDeliveryRuntime::with_durable_stores_and_scope_access_policy(
-            checkpoint_store,
-            subscription_store,
-            event_window_store,
-            resolve_realtime_scope_access_policy(),
-        )),
-        Arc::new(PresenceRuntime::with_store(presence_state_store)),
+        Arc::new(
+            RealtimeDeliveryRuntime::with_durable_stores_and_scope_access_policy(
+                bundle.checkpoint_store,
+                bundle.subscription_store,
+                bundle.event_window_store,
+                resolve_realtime_scope_access_policy(),
+            ),
+        ),
+        Arc::new(PresenceRuntime::with_store(bundle.presence_state_store)),
     )
 }
 
@@ -253,7 +276,7 @@ fn resolve_route_store_from_env(
 ) -> Result<Arc<dyn RouteStore>, String> {
     if let Some(redis_url) = resolve_route_store_redis_url() {
         if let Some(pool) = postgres_pool {
-            return RedisPostgresTieredRouteStore::new(redis_url, pool);
+            return RedisPostgresTieredRouteStore::create(redis_url, pool);
         }
         return RedisBackedRouteStore::new(redis_url).map(|store| store.into_arc());
     }

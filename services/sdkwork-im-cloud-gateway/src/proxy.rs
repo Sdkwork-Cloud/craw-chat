@@ -7,13 +7,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use sdkwork_im_api_registry::{HttpMethod, RouteProtocol};
-use sdkwork_im_cloud_gateway_config::{
-    GatewayRuntimeMode, is_assembly_embedded_im_service,
-};
+use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, is_assembly_embedded_im_service};
 
 use crate::client::resolve_max_http_request_body_bytes;
 use crate::response::{
-    build_proxy_response, is_sdkwork_context_projection_header, json_error_response, map_http_method,
+    build_proxy_response, is_sdkwork_context_projection_header, json_error_response,
+    map_http_method,
 };
 use crate::runtime::{
     delegate_to_runtime_router, dispatch_embedded_session_gateway_if_configured,
@@ -103,7 +102,8 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
             StatusCode::SERVICE_UNAVAILABLE,
             format!(
                 "upstream service {service_id} is temporarily unavailable. Please retry later."
-            ).as_str(),
+            )
+            .as_str(),
         );
     }
     let Some(upstream_base_url) = state.config.upstream_base_url(service_id.as_str()) else {

@@ -575,11 +575,10 @@ async fn send_subscription_sync(
             }
         ]
     });
-    let message = socket.ccp.encode_business_frame(
-        "cc.realtime.subscriptions.sync.v1",
-        "cmd",
-        &payload,
-    )?;
+    let message =
+        socket
+            .ccp
+            .encode_business_frame("cc.realtime.subscriptions.sync.v1", "cmd", &payload)?;
     socket
         .inner
         .send(message)
@@ -620,11 +619,10 @@ async fn send_subscription_sync_write(
             }
         ]
     });
-    let message = writer.ccp.encode_business_frame(
-        "cc.realtime.subscriptions.sync.v1",
-        "cmd",
-        &payload,
-    )?;
+    let message =
+        writer
+            .ccp
+            .encode_business_frame("cc.realtime.subscriptions.sync.v1", "cmd", &payload)?;
     writer
         .inner
         .send(message)

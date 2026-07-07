@@ -8,43 +8,43 @@ public class CallsApi {
     }
 
     /// Create an IM call signaling session
-    public func sessionsCreate(body: CreateRtcSessionRequest) async throws -> RtcSessionMutationResponse? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcSessionMutationResponse.self)
+    public func sessionsCreate(body: CreateRtcSessionRequest) async throws -> CallsSessionsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsCreateResponse201.self)
     }
 
     /// Retrieve IM call signaling session state
-    public func sessionsRetrieve(rtcSessionId: String) async throws -> RtcSession? {
-        return try await client.get(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))"), responseType: RtcSession.self)
+    public func sessionsRetrieve(rtcSessionId: String) async throws -> CallsSessionsRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))"), responseType: CallsSessionsRetrieveResponse.self)
     }
 
     /// Invite participants into an IM call signaling session
-    public func sessionsInvite(rtcSessionId: String, body: InviteRtcSessionRequest) async throws -> RtcSessionMutationResponse? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/invite"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcSessionMutationResponse.self)
+    public func sessionsInvite(rtcSessionId: String, body: InviteRtcSessionRequest) async throws -> CallsSessionsInviteResponse? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/invite"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsInviteResponse.self)
     }
 
     /// Accept an IM call signaling session
-    public func sessionsAccept(rtcSessionId: String, body: UpdateRtcSessionRequest) async throws -> RtcSessionMutationResponse? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/accept"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcSessionMutationResponse.self)
+    public func sessionsAccept(rtcSessionId: String, body: UpdateRtcSessionRequest) async throws -> CallsSessionsAcceptResponse? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/accept"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsAcceptResponse.self)
     }
 
     /// Reject an IM call signaling session
-    public func sessionsReject(rtcSessionId: String, body: UpdateRtcSessionRequest) async throws -> RtcSessionMutationResponse? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/reject"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcSessionMutationResponse.self)
+    public func sessionsReject(rtcSessionId: String, body: UpdateRtcSessionRequest) async throws -> CallsSessionsRejectResponse? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/reject"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsRejectResponse.self)
     }
 
     /// End an IM call signaling session
-    public func sessionsEnd(rtcSessionId: String, body: UpdateRtcSessionRequest) async throws -> RtcSessionMutationResponse? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/end"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcSessionMutationResponse.self)
+    public func sessionsEnd(rtcSessionId: String, body: UpdateRtcSessionRequest) async throws -> CallsSessionsEndResponse? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/end"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsEndResponse.self)
     }
 
     /// Post an IM call signaling event
-    public func sessionsSignalsCreate(rtcSessionId: String, body: PostRtcSignalRequest) async throws -> RtcSignalEvent? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/signals"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcSignalEvent.self)
+    public func sessionsSignalsCreate(rtcSessionId: String, body: PostRtcSignalRequest) async throws -> CallsSessionsSignalsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/signals"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsSignalsCreateResponse201.self)
     }
 
     /// Issue an RTC media participant credential for an IM call
-    public func sessionsCredentialsCreate(rtcSessionId: String, body: IssueRtcParticipantCredentialRequest) async throws -> RtcParticipantCredential? {
-        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/credentials"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: RtcParticipantCredential.self)
+    public func sessionsCredentialsCreate(rtcSessionId: String, body: IssueRtcParticipantCredentialRequest) async throws -> CallsSessionsCredentialsCreateResponse201? {
+        return try await client.post(ApiPaths.imPath("/calls/sessions/\(serializePathParameter(rtcSessionId, PathParameterSpec(name: "rtcSessionId", style: "simple", explode: false)))/credentials"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: CallsSessionsCredentialsCreateResponse201.self)
     }
 
     private struct PathParameterSpec {

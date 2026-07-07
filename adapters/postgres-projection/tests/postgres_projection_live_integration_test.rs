@@ -4,9 +4,8 @@ use r2d2_postgres::postgres::{Client, NoTls};
 use sdkwork_im_contract_message::TimelineProjectionRecord;
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
-const CORE_SCHEMA_SQL: &str = include_str!(
-    "../../../database/ddl/baseline/postgres/0001_im_baseline.sql"
-);
+const CORE_SCHEMA_SQL: &str =
+    include_str!("../../../database/ddl/baseline/postgres/0001_im_baseline.sql");
 
 #[test]
 fn test_postgres_projection_pool_connect_bridges_from_tokio_runtime() {
@@ -45,7 +44,8 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
     let snapshot_scope = format!("{tenant_id}|default|{conversation_id}");
     let snapshot_key = "conversation-summary";
     let snapshot_payload = r#"{"conversationId":"conv-1","title":"live projection"}"#;
-    let timeline_payload = r#"{"messageId":"99","messageSeq":1,"summary":"hello from live projection"}"#;
+    let timeline_payload =
+        r#"{"messageId":"99","messageSeq":1,"summary":"hello from live projection"}"#;
 
     stores
         .metadata

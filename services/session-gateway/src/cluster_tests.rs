@@ -14,7 +14,7 @@ use im_platform_contracts::{
 };
 
 use super::*;
-use crate::RealtimeSubscriptionItemInput;
+use crate::{RealtimeEventWindowQuery, RealtimeSubscriptionItemInput};
 
 fn expect_ok<T>(result: Result<T, crate::realtime::RealtimeRuntimeError>) -> T {
     result.expect("realtime runtime operation should succeed")
@@ -186,7 +186,15 @@ fn test_publish_does_not_fallback_to_origin_when_route_points_to_missing_target_
     assert_eq!(result.delivered, 0);
 
     let origin_window = expect_ok(
-        runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime_a.list_events_for_principal_kind(RealtimeEventWindowQuery {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+after_seq: 0,
+limit: 10,
+}),
     );
     assert_eq!(origin_window.items.len(), 0);
 }
@@ -269,7 +277,15 @@ fn test_direct_rebind_self_heals_stale_route_when_previous_runtime_is_missing() 
     assert_eq!(publish.delivered, 1);
 
     let target_window = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime_b.list_events_for_principal_kind(RealtimeEventWindowQuery {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+after_seq: 0,
+limit: 10,
+}),
     );
     assert_eq!(target_window.items.len(), 1);
     assert_eq!(target_window.items[0].event_type, "message.posted");
@@ -357,15 +373,15 @@ fn test_disconnect_fence_requires_resume_until_cleared() {
     cluster.bind_node_runtime("node_a", runtime);
 
     cluster
-        .mark_client_route_disconnected_for_principal_kind(
-            "100001",
-                "default",
-                "1",
-            "user",
-            "d_pad",
-            Some("s_old"),
-            "node_a",
-        )
+        .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+session_id: Some("s_old"),
+owner_node_id: "node_a",
+})
         .expect("disconnect fence should persist");
 
     let error = cluster
@@ -421,15 +437,15 @@ fn test_disconnect_fence_survives_bridge_rebuild_with_shared_store() {
     let runtime_a = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());
     cluster_a.bind_node_runtime("node_a", runtime_a);
     cluster_a
-        .mark_client_route_disconnected_for_principal_kind(
-            "100001",
-                "default",
-                "1",
-            "user",
-            "d_pad",
-            Some("s_old"),
-            "node_a",
-        )
+        .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+session_id: Some("s_old"),
+owner_node_id: "node_a",
+})
         .expect("disconnect fence should persist");
 
     let cluster_b = RealtimeClusterBridge::with_disconnect_fence_store(store);
@@ -575,15 +591,15 @@ fn test_disconnect_fence_store_failures_surface_as_controlled_cluster_errors() {
     cluster.bind_node_runtime("node_a", runtime);
 
     let save_error = cluster
-        .mark_client_route_disconnected_for_principal_kind(
-            "100001",
-                "default",
-                "1",
-            "user",
-            "d_pad",
-            Some("s_old"),
-            "node_a",
-        )
+        .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+session_id: Some("s_old"),
+owner_node_id: "node_a",
+})
         .expect_err("save failure should not panic");
     assert_eq!(save_error.code, "disconnect_fence_store_unavailable");
 

@@ -2,9 +2,10 @@
 
 use std::sync::Arc;
 
-use axum::Router;
 use crate::anomaly_detector::AnomalyDetector;
 use crate::gateway_protection::CircuitBreakerRegistry;
+use crate::openapi::OpenApiAggregateCache;
+use axum::Router;
 use reqwest::Client;
 use sdkwork_im_api_registry::RouteRegistry;
 use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
@@ -25,5 +26,6 @@ pub struct GatewayState {
     pub(crate) realtime_auth: RealtimeAuthContextResolver,
     pub(crate) circuit_breakers: CircuitBreakerRegistry,
     pub(crate) anomaly_detector: Arc<AnomalyDetector>,
+    pub(crate) openapi_aggregate_cache: OpenApiAggregateCache,
     pub(crate) websocket_connection_semaphore: Arc<Semaphore>,
 }

@@ -8,7 +8,9 @@ use im_app_context::AppContext;
 use im_domain_core::automation::{
     AgentToolCall, AgentToolCallState, AutomationExecution, AutomationExecutionState,
 };
-use im_domain_core::stream::{StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState};
+use im_domain_core::stream::{
+    StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
+};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_agent::{
@@ -221,6 +223,23 @@ impl AutomationRuntime {
     where
         J: CommitJournal + Send + Sync + 'static,
         S: AutomationExecutionStore + 'static,
+    {
+        Self {
+            executions: Mutex::new(HashMap::new()),
+            agent_responses: Mutex::new(AgentResponseRuntimeStore::default()),
+            tool_calls: Mutex::new(AgentToolCallRuntimeStore::default()),
+            event_orders: Mutex::new(HashMap::new()),
+            journal,
+            execution_store,
+        }
+    }
+
+    pub fn with_dyn_execution_store<J>(
+        journal: Arc<J>,
+        execution_store: Arc<dyn AutomationExecutionStore>,
+    ) -> Self
+    where
+        J: CommitJournal + Send + Sync + 'static,
     {
         Self {
             executions: Mutex::new(HashMap::new()),

@@ -20,15 +20,17 @@ pub fn build_control_public_app(social_runtime: Arc<SocialRuntime>) -> Router {
 
 /// Embedded gateway assembly: domain routes only; outer gateway owns infra probes.
 pub fn build_control_embedded_public_app(social_runtime: Arc<SocialRuntime>) -> Router {
-    web_bootstrap::wrap_router(routes::build_control_app(social_service::friendship::AppState {
-        social_runtime,
-    }))
+    web_bootstrap::wrap_router(routes::build_control_app(
+        social_service::friendship::AppState { social_runtime },
+    ))
 }
 
 pub fn gateway_route_manifest() -> sdkwork_web_core::HttpRouteManifest {
     backend_route_manifest()
 }
 
-pub fn gateway_mount(social_runtime: std::sync::Arc<social_service::SocialRuntime>) -> axum::Router {
+pub fn gateway_mount(
+    social_runtime: std::sync::Arc<social_service::SocialRuntime>,
+) -> axum::Router {
     build_control_public_app(social_runtime)
 }

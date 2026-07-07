@@ -5,7 +5,7 @@ import type { AckResponse, RealtimeEventAckRequest, RealtimeEventView, RealtimeS
 
 
 export interface RealtimeEventsListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -25,7 +25,7 @@ export class RealtimeEventsApi {
 /** List pending realtime events */
   async list(params?: RealtimeEventsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/realtime/events`), query));

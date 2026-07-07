@@ -239,7 +239,8 @@ fn test_session_gateway_realtime_window_store_uses_sequence_index() {
         "realtime delivery windows should use BTreeMap<u64, RealtimeEvent> per client route scope"
     );
     assert!(
-        realtime_source.contains("let effective_after_seq = after_seq.max(trimmed_through_seq);"),
+        realtime_source
+            .contains("let effective_after_seq = query.after_seq.max(trimmed_through_seq);"),
         "realtime list_events should clamp the read cursor to the trimmed boundary"
     );
     assert!(
@@ -726,7 +727,8 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
         "services/session-gateway/src/websocket_route.rs should delegate route preflight instead of calling register_client_route directly"
     );
 
-    for required_symbol in ["fn prepare_active_client_route("] {
+    {
+        let required_symbol = "fn prepare_active_client_route(";
         assert!(
             lib_source.contains(required_symbol),
             "services/session-gateway/src/lib.rs should expose the route preflight owner seam: {required_symbol}"

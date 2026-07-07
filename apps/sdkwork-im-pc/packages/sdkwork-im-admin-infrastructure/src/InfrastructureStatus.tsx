@@ -46,7 +46,7 @@ export const InfrastructureStatus = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ServerMetric title={data.metrics.connectionPool.title} value={data.metrics.connectionPool.value} usage={data.metrics.connectionPool.usage} icon={Network} color="indigo" />
         <ServerMetric title={data.metrics.dbIops.title} value={data.metrics.dbIops.value} usage={data.metrics.dbIops.usage} icon={Database} color="emerald" />
-        <ServerMetric title={data.metrics.redisHitRate.title} value={data.metrics.redisHitRate.value} usage={data.metrics.redisHitRate.usage} icon={MemoryStick} color="amber" reverse />
+        <ServerMetric title={data.metrics.realtimeWindowHealth.title} value={data.metrics.realtimeWindowHealth.value} usage={data.metrics.realtimeWindowHealth.usage} icon={MemoryStick} color="amber" reverse />
       </div>
 
       <div className="bg-admin-bg-panel border border-admin-border rounded-2xl p-6 shadow-xl relative overflow-hidden">

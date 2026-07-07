@@ -24,11 +24,14 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("automation-service failed to bind local listener: {error}"))?;
 
-    axum::serve(listener, sdkwork_routes_im_automation_app_api::build_public_app())
-        .with_graceful_shutdown(async {
-            sdkwork_im_service_readiness::shutdown_signal().await;
-        })
-        .await
-        .map_err(|error| format!("automation-service server should run: {error}"))?;
+    axum::serve(
+        listener,
+        sdkwork_routes_im_automation_app_api::build_public_app(),
+    )
+    .with_graceful_shutdown(async {
+        sdkwork_im_service_readiness::shutdown_signal().await;
+    })
+    .await
+    .map_err(|error| format!("automation-service server should run: {error}"))?;
     Ok(())
 }

@@ -9,25 +9,25 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 class RealtimeApi(private val client: HttpClient) {
 
     /** Sync realtime subscription targets */
-    suspend fun subscriptionsSync(body: RealtimeSubscriptionSyncRequest): RealtimeSubscriptionSyncResponse? {
+    suspend fun subscriptionsSync(body: RealtimeSubscriptionSyncRequest): RealtimeSubscriptionsSyncResponse? {
         val raw = client.post(ApiPaths.imPath("/realtime/subscriptions/sync"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<RealtimeSubscriptionSyncResponse>() {})
+        return client.convertValue(raw, object : TypeReference<RealtimeSubscriptionsSyncResponse>() {})
     }
 
     /** Acknowledge realtime events */
-    suspend fun eventsAck(body: RealtimeEventAckRequest): AckResponse? {
+    suspend fun eventsAck(body: RealtimeEventAckRequest): RealtimeEventsAckResponse? {
         val raw = client.post(ApiPaths.imPath("/realtime/events/ack"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<AckResponse>() {})
+        return client.convertValue(raw, object : TypeReference<RealtimeEventsAckResponse>() {})
     }
 
     /** List pending realtime events */
-    suspend fun eventsList(limit: Int? = null, cursor: String? = null): RealtimeEventsResponse? {
+    suspend fun eventsList(pageSize: Int? = null, cursor: String? = null): RealtimeEventsListResponse? {
         val query = buildQueryString(listOf(
-            QueryParameterSpec("limit", limit, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/realtime/events"), query))
-        return client.convertValue(raw, object : TypeReference<RealtimeEventsResponse>() {})
+        return client.convertValue(raw, object : TypeReference<RealtimeEventsListResponse>() {})
     }
 
 

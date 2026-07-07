@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_web_core::{
-    WebFrameworkError, WebFrameworkErrorKind, problem_response, ProblemCorrelation,
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, problem_response,
 };
 
 #[derive(Debug)]
@@ -48,7 +48,11 @@ impl AutomationError {
         }
     }
 
-    pub(crate) fn payload_too_large(field: &'static str, max_bytes: usize, actual_bytes: usize) -> Self {
+    pub(crate) fn payload_too_large(
+        field: &'static str,
+        max_bytes: usize,
+        actual_bytes: usize,
+    ) -> Self {
         Self {
             status: StatusCode::PAYLOAD_TOO_LARGE,
             code: "payload_too_large",

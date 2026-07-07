@@ -64,19 +64,26 @@ fn test_social_payloads_serialize_expected_shape() {
         target_user_id: "user_b".into(),
         request_message: None,
         requested_at: "2026-04-10T10:00:00Z".into(),
+        expires_at: None,
     };
     let accepted = FriendRequestAcceptedPayload {
         request_id: "fr_demo".into(),
+        requester_user_id: "user_a".into(),
+        target_user_id: "user_b".into(),
         accepted_by_user_id: "user_b".into(),
         accepted_at: "2026-04-10T10:00:30Z".into(),
     };
     let declined = FriendRequestDeclinedPayload {
         request_id: "fr_demo".into(),
+        requester_user_id: "user_a".into(),
+        target_user_id: "user_b".into(),
         declined_by_user_id: "user_b".into(),
         declined_at: "2026-04-10T10:00:45Z".into(),
     };
     let canceled = FriendRequestCanceledPayload {
         request_id: "fr_demo".into(),
+        requester_user_id: "user_a".into(),
+        target_user_id: "user_b".into(),
         canceled_by_user_id: "user_a".into(),
         canceled_at: "2026-04-10T10:00:50Z".into(),
     };

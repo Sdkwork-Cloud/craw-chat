@@ -27,7 +27,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-const result = await client.notifications.list();
+const result = await client.portal.access.retrieve();
 ```
 
 ## Authentication
@@ -85,7 +85,11 @@ const result = await client.automation.agentResponses.create(body);
 
 ```typescript
 // List notifications for the current principal
-const result = await client.notifications.list();
+const params = {
+  page_size: 1,
+  cursor: 'cursor',
+};
+const result = await client.notifications.list(params);
 ```
 
 ### portal
@@ -108,7 +112,7 @@ const result = await client.provider.mediaHealth.retrieve();
 import { SdkworkImAppClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork-internal/im-app-api-generated';
 
 try {
-  const result = await client.notifications.list();
+  const result = await client.portal.access.retrieve();
 } catch (error) {
   if (error instanceof AuthenticationError) {
     console.error('Authentication failed:', error.message);

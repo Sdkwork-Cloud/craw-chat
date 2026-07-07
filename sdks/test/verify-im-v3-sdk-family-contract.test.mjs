@@ -214,8 +214,10 @@ const appRefreshSource = read('sdkwork-im-app-sdk/bin/refresh-live-openapi-sourc
 const backendRefreshSource = read('sdkwork-im-backend-sdk/bin/refresh-live-openapi-source.mjs');
 const imPrepareSource = read('sdkwork-im-sdk/bin/prepare-openapi-source.mjs');
 const imRefreshSource = read('sdkwork-im-sdk/bin/refresh-live-openapi-source.mjs');
+const imSeedMaterializerSource = read('sdkwork-im-sdk/bin/materialize-local-openapi-seed.mjs');
 const imGeneratePowerShellSource = read('sdkwork-im-sdk/bin/generate-sdk.ps1');
 const imGenerateShellSource = read('sdkwork-im-sdk/bin/generate-sdk.sh');
+const pageSizeWireAlignmentSource = readRepo('scripts/dev/align-im-openapi-page-size-wire.mjs');
 const sdkWorkspaceIndexSource = read('README.md');
 const appReadmeSource = read('sdkwork-im-app-sdk/README.md');
 const appTypeScriptSrcSdkSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/sdk.ts');
@@ -1302,6 +1304,26 @@ assert.match(
   imGenerateSource,
   /shouldAssembleTypeScriptRoot/,
   'IM generate entrypoint must only run TypeScript root single-package assembly when TypeScript is selected or all languages are generated.',
+);
+assert.match(
+  imSeedMaterializerSource,
+  /PageSizeQuery:\s*parameter\('page_size',\s*'query'/,
+  'IM local OpenAPI seed must generate canonical page_size query wire name for PageSizeQuery.',
+);
+assert.doesNotMatch(
+  imSeedMaterializerSource,
+  /PageSizeQuery:\s*parameter\('pageSize',\s*'query'/,
+  'IM local OpenAPI seed must not generate pageSize as an HTTP query parameter.',
+);
+assert.match(
+  pageSizeWireAlignmentSource,
+  /forbiddenPageSizeAliases\s*=\s*\[[^\]]*'pageSize'/,
+  'OpenAPI page-size wire alignment check must reject the pageSize query alias.',
+);
+assert.match(
+  pageSizeWireAlignmentSource,
+  /page_size wire name/,
+  'OpenAPI page-size wire alignment check must describe page_size as the HTTP wire standard.',
 );
 assert.doesNotMatch(
   imGenerateSource,

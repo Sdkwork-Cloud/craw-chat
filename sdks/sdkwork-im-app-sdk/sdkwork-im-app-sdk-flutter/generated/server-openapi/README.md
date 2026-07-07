@@ -21,7 +21,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-final result = await client.notifications.list();
+final result = await client.portal.accessRetrieve();
 print(result);
 ```
 
@@ -70,7 +70,11 @@ print(result);
 ### notifications
 ```dart
 // List notifications for the current principal
-final result = await client.notifications.list();
+final params = <String, dynamic>{
+  'page_size': 1,
+  'cursor': 'cursor',
+};
+final result = await client.notifications.list(params);
 print(result);
 ```
 
@@ -92,7 +96,7 @@ print(result);
 
 ```dart
 try {
-  final result = await client.notifications.list();
+  final result = await client.portal.accessRetrieve();
   print(result);
 } catch (e) {
   print('Error: $e');

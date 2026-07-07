@@ -1,8 +1,8 @@
 //! Sensitive data redaction for logging and audit trails.
 //!
-//! This module provides automatic redaction of sensitive data in logs,
-//! ensuring that tokens, passwords, and other confidential information
-//! are never exposed in log output or audit trails.
+//! This module provides redaction utilities for sensitive log and audit fields.
+//! Callers must route emitted log fields through these utilities or through a
+//! subscriber that consumes the collected redacted fields.
 //!
 //! ## Redaction Patterns
 //!
@@ -284,8 +284,10 @@ impl RedactingLayer {
             redactor: Arc::new(redactor),
         }
     }
+}
 
-    pub fn default() -> Self {
+impl Default for RedactingLayer {
+    fn default() -> Self {
         Self::new(SensitiveDataRedactor::new())
     }
 }
@@ -299,16 +301,11 @@ where
         event: &tracing::Event<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        // Collect event fields
         let mut visitor = RedactingVisitor {
             fields: HashMap::new(),
             redactor: Arc::clone(&self.redactor),
         };
         event.record(&mut visitor);
-
-        // Note: In a full implementation, this would intercept the log output
-        // and apply redaction before writing. For simplicity, this example
-        // shows the visitor pattern for field collection.
     }
 }
 
@@ -368,34 +365,36 @@ pub struct RedactedAuditEntry {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+pub struct RawAuditEntry {
+    pub timestamp: String,
+    pub action: String,
+    pub tenant_id: String,
+    pub user_id: Option<String>,
+    pub client_ip: String,
+    pub request_details: serde_json::Value,
+    pub response_status: u16,
+    pub duration_ms: u64,
+    pub error: Option<String>,
+}
+
 impl RedactedAuditEntry {
     /// Create from raw audit data with automatic redaction.
-    pub fn from_raw(
-        redactor: &SensitiveDataRedactor,
-        timestamp: String,
-        action: String,
-        tenant_id: String,
-        user_id: Option<String>,
-        client_ip: String,
-        request_details: serde_json::Value,
-        response_status: u16,
-        duration_ms: u64,
-        error: Option<String>,
-    ) -> Self {
+    pub fn from_raw(redactor: &SensitiveDataRedactor, raw: RawAuditEntry) -> Self {
         Self {
-            timestamp,
-            action,
-            tenant_id,
-            user_id,
+            timestamp: raw.timestamp,
+            action: raw.action,
+            tenant_id: raw.tenant_id,
+            user_id: raw.user_id,
             client_ip: if redactor.redact_ips {
                 "[IP_REDACTED]".to_string()
             } else {
-                client_ip
+                raw.client_ip
             },
-            request_details: redactor.redact_json(&request_details),
-            response_status,
-            duration_ms,
-            error: error.map(|e| redactor.redact(&e)),
+            request_details: redactor.redact_json(&raw.request_details),
+            response_status: raw.response_status,
+            duration_ms: raw.duration_ms,
+            error: raw.error.map(|e| redactor.redact(&e)),
         }
     }
 }
@@ -465,17 +464,19 @@ mod tests {
         let redactor = SensitiveDataRedactor::new().with_ip_redaction(true);
         let entry = RedactedAuditEntry::from_raw(
             &redactor,
-            "2026-01-01T00:00:00Z".to_string(),
-            "login".to_string(),
-            "tenant_1".to_string(),
-            Some("user_1".to_string()),
-            "192.168.1.1".to_string(),
-            serde_json::json!({
-                "access_token": "abc123"
-            }),
-            200,
-            100,
-            None,
+            RawAuditEntry {
+                timestamp: "2026-01-01T00:00:00Z".to_string(),
+                action: "login".to_string(),
+                tenant_id: "tenant_1".to_string(),
+                user_id: Some("user_1".to_string()),
+                client_ip: "192.168.1.1".to_string(),
+                request_details: serde_json::json!({
+                    "access_token": "abc123"
+                }),
+                response_status: 200,
+                duration_ms: 100,
+                error: None,
+            },
         );
 
         assert_eq!(entry.client_ip, "[IP_REDACTED]");

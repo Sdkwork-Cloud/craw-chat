@@ -175,13 +175,15 @@ impl ClientRouteRegistration {
         let _ = self
             .realtime_cluster
             .mark_client_route_disconnected_for_principal_kind(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                auth.actor_id.as_str(),
-                auth.actor_kind.as_str(),
-                device_id,
-                auth.session_id.as_deref(),
-                self.node_id.as_str(),
+                crate::cluster::ClientRouteDisconnectCommand {
+                    tenant_id: auth.tenant_id.as_str(),
+                    organization_id: auth.organization_id.as_str(),
+                    principal_id: auth.actor_id.as_str(),
+                    principal_kind: auth.actor_kind.as_str(),
+                    device_id,
+                    session_id: auth.session_id.as_deref(),
+                    owner_node_id: self.node_id.as_str(),
+                },
             );
         let _ = runtime.signal_device_disconnect_for_principal_kind(
             auth.tenant_id.as_str(),

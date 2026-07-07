@@ -22,12 +22,13 @@ pub mod user_settings_store;
 pub mod wire_id;
 
 pub use materialize_writes::materialize_commits_in_transaction;
+pub use member_capacity::MemberInsertOutcome;
 pub use space_materialize_writes::materialize_space_commits_in_transaction;
 pub use space_materializer::SpacePostgresMaterializer;
-pub use member_capacity::MemberInsertOutcome;
 
 pub use config::SocialPostgresConfig;
 
+use chrono::{DateTime, Utc};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 
@@ -75,11 +76,22 @@ fn drop_social_postgres_pool_off_runtime(pool: Pool<SocialPostgresConnectionMana
 }
 
 /// Run a blocking PostgreSQL operation off the async runtime.
+///
+/// When called from a multi-threaded Tokio runtime worker thread, uses
+/// [`tokio::task::block_in_place`] to move other tasks on the current worker
+/// to other workers, preventing async runtime starvation under concurrent
+/// load. Falls back to [`std::thread::scope`] for non-Tokio contexts and
+/// current-thread runtimes (e.g., `#[tokio::test]`).
 pub(crate) fn run_postgres_io<F, T>(f: F) -> Result<T, im_platform_contracts::ContractError>
 where
     F: FnOnce() -> Result<T, im_platform_contracts::ContractError> + Send,
     T: Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        return tokio::task::block_in_place(f);
+    }
     std::thread::scope(|scope| {
         scope
             .spawn(f)
@@ -116,9 +128,7 @@ fn build_social_pool_local(
     let database_url = config.database_url();
     verify_production_sslmode(database_url);
     let pg_config = database_url.parse().map_err(|error| {
-        im_platform_contracts::ContractError::Unavailable(format!(
-            "invalid postgres url: {error}"
-        ))
+        im_platform_contracts::ContractError::Unavailable(format!("invalid postgres url: {error}"))
     })?;
     let tls = make_tls_connector().map_err(|error| {
         im_platform_contracts::ContractError::Unavailable(format!(
@@ -156,7 +166,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }
@@ -171,6 +184,31 @@ fn verify_production_sslmode(database_url: &str) {
             "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
         );
     }
+}
+
+/// Parse an RFC3339 timestamp for `TIMESTAMPTZ` bind parameters.
+pub(crate) fn postgres_timestamptz(
+    value: &str,
+    field: &'static str,
+) -> Result<DateTime<Utc>, im_platform_contracts::ContractError> {
+    DateTime::parse_from_rfc3339(value.trim())
+        .map(|instant| instant.with_timezone(&Utc))
+        .or_else(|_| value.trim().parse::<DateTime<Utc>>())
+        .map_err(|error| {
+            im_platform_contracts::ContractError::Invalid(format!(
+                "postgres social {field} must be RFC3339: {error}"
+            ))
+        })
+}
+
+/// Parse an optional RFC3339 timestamp for nullable `TIMESTAMPTZ` columns.
+pub(crate) fn optional_postgres_timestamptz(
+    value: Option<&str>,
+    field: &'static str,
+) -> Result<Option<DateTime<Utc>>, im_platform_contracts::ContractError> {
+    value
+        .map(|raw| postgres_timestamptz(raw, field))
+        .transpose()
 }
 
 /// Map a postgres error to ContractError, redacting the connection URL.

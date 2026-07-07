@@ -9,43 +9,43 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 class StreamsApi(private val client: HttpClient) {
 
     /** Open a stream */
-    suspend fun create(body: OpenStreamRequest): StreamView? {
+    suspend fun create(body: OpenStreamRequest): StreamsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/streams"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<StreamView>() {})
+        return client.convertValue(raw, object : TypeReference<StreamsCreateResponse201>() {})
     }
 
     /** List stream frames */
-    suspend fun framesList(streamId: String, limit: Int? = null, cursor: String? = null): StreamFramesResponse? {
+    suspend fun framesList(streamId: String, pageSize: Int? = null, cursor: String? = null): StreamsFramesListResponse? {
         val query = buildQueryString(listOf(
-            QueryParameterSpec("limit", limit, "form", true, false, null),
+            QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/streams/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/frames"), query))
-        return client.convertValue(raw, object : TypeReference<StreamFramesResponse>() {})
+        return client.convertValue(raw, object : TypeReference<StreamsFramesListResponse>() {})
     }
 
     /** Append a stream frame */
-    suspend fun framesCreate(streamId: String, body: AppendStreamFrameRequest): StreamFrameView? {
+    suspend fun framesCreate(streamId: String, body: AppendStreamFrameRequest): StreamsFramesCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/streams/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/frames"), body, null, null, "application/json")
-        return client.convertValue(raw, object : TypeReference<StreamFrameView>() {})
+        return client.convertValue(raw, object : TypeReference<StreamsFramesCreateResponse201>() {})
     }
 
     /** Checkpoint a stream */
-    suspend fun checkpointCreate(streamId: String): StreamView? {
+    suspend fun checkpoint(streamId: String): StreamsCheckpointResponse? {
         val raw = client.post(ApiPaths.imPath("/streams/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/checkpoint"), null)
-        return client.convertValue(raw, object : TypeReference<StreamView>() {})
+        return client.convertValue(raw, object : TypeReference<StreamsCheckpointResponse>() {})
     }
 
     /** Complete a stream */
-    suspend fun complete(streamId: String): StreamView? {
+    suspend fun complete(streamId: String): StreamsCompleteResponse? {
         val raw = client.post(ApiPaths.imPath("/streams/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/complete"), null)
-        return client.convertValue(raw, object : TypeReference<StreamView>() {})
+        return client.convertValue(raw, object : TypeReference<StreamsCompleteResponse>() {})
     }
 
     /** Abort a stream */
-    suspend fun abort(streamId: String): StreamView? {
+    suspend fun abort(streamId: String): StreamsAbortResponse? {
         val raw = client.post(ApiPaths.imPath("/streams/${serializePathParameter(streamId, PathParameterSpec("streamId", "simple", false))}/abort"), null)
-        return client.convertValue(raw, object : TypeReference<StreamView>() {})
+        return client.convertValue(raw, object : TypeReference<StreamsAbortResponse>() {})
     }
 
     private data class PathParameterSpec(val name: String, val style: String, val explode: Boolean)

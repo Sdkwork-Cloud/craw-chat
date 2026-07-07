@@ -96,7 +96,7 @@ async function main(): Promise<void> {
     calls.at(-1),
     {
       method: 'social.users.list',
-      params: { q: 'alice', limit: 20 },
+      params: { q: 'alice', pageSize: 20 },
     },
     'add-friend search must query the generated IM SDK social user search endpoint',
   );
@@ -158,7 +158,7 @@ async function main(): Promise<void> {
     [
       {
         method: 'social.users.list',
-        params: { q: 'alice', limit: 20 },
+        params: { q: 'alice', pageSize: 20 },
       },
       {
         method: 'social.friendRequests.create',
@@ -183,7 +183,7 @@ async function main(): Promise<void> {
     [
       {
         method: 'social.users.list',
-        params: { q: 'cc8k2m7q4x9p', limit: 20 },
+        params: { q: 'cc8k2m7q4x9p', pageSize: 20 },
       },
       {
         method: 'social.friendRequests.create',
@@ -201,7 +201,7 @@ async function main(): Promise<void> {
     [
       {
         method: 'social.users.list',
-        params: { q: 'alice@example.com', limit: 20 },
+        params: { q: 'alice@example.com', pageSize: 20 },
       },
       {
         method: 'social.friendRequests.create',
@@ -219,7 +219,7 @@ async function main(): Promise<void> {
     [
       {
         method: 'social.users.list',
-        params: { q: '+12025550100', limit: 20 },
+        params: { q: '+12025550100', pageSize: 20 },
       },
       {
         method: 'social.friendRequests.create',

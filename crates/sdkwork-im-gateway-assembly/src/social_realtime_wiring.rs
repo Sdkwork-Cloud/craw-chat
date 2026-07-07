@@ -9,8 +9,8 @@ use conversation_runtime::{
 use im_platform_contracts::CommitEnvelope;
 use session_gateway::RealtimeDeliveryRuntime;
 use social_service::{
-    social_realtime_recipients_for_commit, BindDirectChatConversationInput,
-    DirectChatConversationBinder, SocialRealtimeFanout,
+    BindDirectChatConversationInput, DirectChatConversationBinder, SocialRealtimeFanout,
+    social_realtime_recipients_for_commit,
 };
 
 pub struct SessionGatewaySocialRealtimeFanout {

@@ -1,7 +1,7 @@
 //! Prometheus metrics for space supplemental Postgres materialization and journal ordering.
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 static POSTGRES_MATERIALIZATION_FAILURES: OnceLock<AtomicU64> = OnceLock::new();
 static POSTGRES_JOURNAL_APPEND_FAILURES_AFTER_MATERIALIZE: OnceLock<AtomicU64> = OnceLock::new();

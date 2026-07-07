@@ -21,10 +21,7 @@ pub(crate) const COMMERCE_T1_ROUTE_GROUPS: &[(&str, &[&str])] = &[
             "refunds",
         ],
     ),
-    (
-        "sdkwork-payment-app-api",
-        &["payments", "recharges"],
-    ),
+    ("sdkwork-payment-app-api", &["payments", "recharges"]),
     ("sdkwork-shop-app-api", &["shops"]),
     ("sdkwork-membership-app-api", &["memberships"]),
     ("sdkwork-promotion-app-api", &["promotions"]),
@@ -47,13 +44,28 @@ pub(crate) const WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS: u64 = 5;
 pub(crate) const GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES: usize = 512 * 1024;
 pub(crate) const GATEWAY_MAX_WEBSOCKET_FRAME_BYTES: usize = 256 * 1024;
 
-pub(crate) const GATEWAY_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_GATEWAY_MAX_REQUEST_BODY_BYTES";
+pub(crate) const GATEWAY_MAX_REQUEST_BODY_BYTES_ENV: &str =
+    "SDKWORK_IM_GATEWAY_MAX_REQUEST_BODY_BYTES";
 pub(crate) const GATEWAY_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 pub(crate) const GATEWAY_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 
-pub(crate) const GATEWAY_UPSTREAM_TIMEOUT_SECONDS_ENV: &str = "SDKWORK_IM_GATEWAY_UPSTREAM_TIMEOUT_SECONDS";
+pub(crate) const GATEWAY_UPSTREAM_TIMEOUT_SECONDS_ENV: &str =
+    "SDKWORK_IM_GATEWAY_UPSTREAM_TIMEOUT_SECONDS";
 pub(crate) const GATEWAY_UPSTREAM_TIMEOUT_SECONDS_DEFAULT: u64 = 60;
 pub(crate) const GATEWAY_UPSTREAM_TIMEOUT_SECONDS_MAX: u64 = 300;
+
+/// Framework-level request timeout for the entire HTTP request lifecycle at the
+/// gateway, including upstream proxy forwarding. Must be >=
+/// `GATEWAY_UPSTREAM_TIMEOUT_SECONDS` to allow upstream responses to complete
+/// and return through the gateway interceptor pipeline.
+pub(crate) const GATEWAY_REQUEST_TIMEOUT_SECS_ENV: &str = "SDKWORK_IM_GATEWAY_REQUEST_TIMEOUT_SECS";
+pub(crate) const GATEWAY_REQUEST_TIMEOUT_SECS_DEFAULT: u64 = 90;
+pub(crate) const GATEWAY_REQUEST_TIMEOUT_SECS_MAX: u64 = 300;
+
+pub(crate) const GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_ENV: &str =
+    "SDKWORK_IM_GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS";
+pub(crate) const GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_DEFAULT: u64 = 5;
+pub(crate) const GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_MAX: u64 = 30;
 
 pub(crate) const GATEWAY_MAX_UPSTREAM_RESPONSE_BODY_BYTES_ENV: &str =
     "SDKWORK_IM_GATEWAY_MAX_UPSTREAM_RESPONSE_BODY_BYTES";

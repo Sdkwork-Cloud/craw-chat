@@ -4,11 +4,17 @@ use std::sync::{Arc, OnceLock};
 
 use im_adapters_local_disk::FileNotificationTaskStore;
 use im_adapters_local_memory::MemoryNotificationTaskStore;
-use im_adapters_postgres_journal::{PostgresCommitJournal, PostgresJournalConfig};
-use im_app_context::{allows_header_only_app_context_fallback, resolve_web_environment_from_process_env};
+use im_adapters_postgres_journal::{
+    PostgresCommitJournal, PostgresJournalConfig, PostgresNotificationTaskStore,
+};
+use im_app_context::{
+    allows_header_only_app_context_fallback, resolve_web_environment_from_process_env,
+};
+use projection_service::TimelineProjectionService;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
+use sdkwork_im_contract_notification::NotificationTaskStore;
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
 
@@ -44,28 +50,13 @@ pub fn ensure_durable_notification_runtime_from_env() -> Result<(), String> {
 
 pub fn build_runtime_from_env() -> Result<Arc<NotificationRuntime>, String> {
     let journal = resolve_notification_commit_journal_from_env()?;
-    if let Some(path) = resolve_notification_task_store_path_from_env() {
-        info!(
-            path = %path,
-            "notification-service using file-backed notification task store"
-        );
-        return Ok(Arc::new(NotificationRuntime::with_journal_and_store(
+    let store = resolve_notification_task_store_from_env(&journal)?;
+    Ok(Arc::new(
+        NotificationRuntime::with_dyn_task_store_and_projection(
             journal,
-            Arc::new(FileNotificationTaskStore::new(path)),
-        )));
-    }
-
-    let environment = resolve_web_environment_from_process_env();
-    if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
-        info!("notification-service using in-memory notification task store (development only)");
-        return Ok(Arc::new(NotificationRuntime::with_journal_and_store(
-            journal,
-            Arc::new(MemoryNotificationTaskStore::default()),
-        )));
-    }
-
-    Err(format!(
-        "durable notification task store is required in production: set {NOTIFICATION_TASK_STORE_FILE_ENV}"
+            store,
+            Arc::new(TimelineProjectionService::default()),
+        ),
     ))
 }
 
@@ -107,13 +98,44 @@ impl CommitJournal for NotificationCommitJournal {
     }
 }
 
-fn resolve_notification_commit_journal_from_env(
-) -> Result<Arc<NotificationCommitJournal>, String> {
+fn resolve_notification_task_store_from_env(
+    journal: &Arc<NotificationCommitJournal>,
+) -> Result<Arc<dyn NotificationTaskStore>, String> {
+    if let Some(path) = resolve_notification_task_store_path_from_env() {
+        info!(
+            path = %path,
+            "notification-service using file-backed notification task store"
+        );
+        return Ok(Arc::new(FileNotificationTaskStore::new(path)));
+    }
+
+    if let NotificationCommitJournal::Postgres(pg_journal) = journal.as_ref() {
+        info!("notification-service using postgres notification task store");
+        return Ok(Arc::new(PostgresNotificationTaskStore::from_pool(
+            pg_journal.pool().clone(),
+        )));
+    }
+
+    let environment = resolve_web_environment_from_process_env();
+    if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
+        info!("notification-service using in-memory notification task store (development only)");
+        return Ok(Arc::new(MemoryNotificationTaskStore::default()));
+    }
+
+    Err(format!(
+        "durable notification task store is required in production: set {IM_DATABASE_URL_ENV} or {NOTIFICATION_TASK_STORE_FILE_ENV}"
+    ))
+}
+
+fn resolve_notification_commit_journal_from_env() -> Result<Arc<NotificationCommitJournal>, String>
+{
     if let Ok(config) = DatabaseConfig::from_env("IM") {
         if config.engine == DatabaseEngine::Postgres {
             let journal = PostgresJournalConfig::from_database_config(&config)
                 .connect()
-                .map_err(|error| format!("postgres notification journal bootstrap failed: {error:?}"))?;
+                .map_err(|error| {
+                    format!("postgres notification journal bootstrap failed: {error:?}")
+                })?;
             info!("notification-service using postgres commit journal");
             return Ok(Arc::new(NotificationCommitJournal::Postgres(journal)));
         }
@@ -122,7 +144,9 @@ fn resolve_notification_commit_journal_from_env(
     if let Some(database_url) = resolve_im_database_url_from_env() {
         let journal = PostgresJournalConfig::new(database_url)
             .connect()
-            .map_err(|error| format!("postgres notification journal bootstrap failed: {error:?}"))?;
+            .map_err(|error| {
+                format!("postgres notification journal bootstrap failed: {error:?}")
+            })?;
         info!("notification-service using postgres commit journal");
         return Ok(Arc::new(NotificationCommitJournal::Postgres(journal)));
     }

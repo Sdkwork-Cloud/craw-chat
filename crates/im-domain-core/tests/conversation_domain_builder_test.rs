@@ -128,7 +128,7 @@ fn test_conversation_roster_tracks_active_member_and_default_cursor() {
     );
     assert_eq!(
         roster
-            .read_cursor(member.member_id.as_str())
+            .read_cursor(member.member_id.as_str(), None)
             .map(|cursor| cursor.updated_at.as_str()),
         Some("2026-04-07T12:03:00.000Z")
     );
@@ -215,6 +215,52 @@ fn test_conversation_roster_member_episode_isolated_by_principal_kind() {
 }
 
 #[test]
+fn test_conversation_roster_active_member_window_skips_inactive_members() {
+    let mut roster = ConversationRoster::default();
+    for (principal_id, joined_at) in [
+        ("u_active_1", "2026-04-07T12:01:00.000Z"),
+        ("u_active_2", "2026-04-07T12:02:00.000Z"),
+        ("u_removed", "2026-04-07T12:03:00.000Z"),
+    ] {
+        roster.upsert_member(build_conversation_member(
+            "100001",
+            "c_window",
+            member_id("c_window", "user", principal_id),
+            principal_id,
+            "user",
+            MembershipRole::Member,
+            None,
+            joined_at.into(),
+        ));
+    }
+    let removed = im_domain_core::conversation::ConversationMember {
+        state: MembershipState::Removed,
+        removed_at: Some("2026-04-07T12:04:00.000Z".into()),
+        ..build_conversation_member(
+            "100001",
+            "c_window",
+            member_id("c_window", "user", "u_removed"),
+            "u_removed",
+            "user",
+            MembershipRole::Member,
+            None,
+            "2026-04-07T12:03:00.000Z".into(),
+        )
+    };
+    roster.deactivate_member(removed);
+
+    let first_page = roster.list_active_members_window(0, 1);
+    assert_eq!(first_page.items.len(), 1);
+    assert!(first_page.has_more);
+    assert_eq!(first_page.items[0].principal_id, "u_active_1");
+
+    let second_page = roster.list_active_members_window(1, 1);
+    assert_eq!(second_page.items.len(), 1);
+    assert!(!second_page.has_more);
+    assert_eq!(second_page.items[0].principal_id, "u_active_2");
+}
+
+#[test]
 fn test_conversation_roster_keeps_invited_member_history_visible_but_not_active() {
     let mut roster = ConversationRoster::default();
     let mut invited_member = build_conversation_member(
@@ -244,7 +290,7 @@ fn test_conversation_roster_keeps_invited_member_history_visible_but_not_active(
     );
     assert_eq!(
         roster
-            .read_cursor(invited_member.member_id.as_str())
+            .read_cursor(invited_member.member_id.as_str(), None)
             .map(|cursor| cursor.updated_at.as_str()),
         Some("2026-04-07T12:06:30.000Z")
     );
@@ -666,13 +712,13 @@ fn test_conversation_aggregate_state_owns_type_epochs_and_handoff_status() {
         )
         .expect("handoff accept should succeed");
     assert_eq!(accept.previous_status, "open");
-    assert_eq!(accept.ordering_seq, 1);
+    assert_eq!(accept.ordering_seq, 7);
     assert_eq!(
         accept.outcome,
         ConversationHandoffTransitionOutcome::Mutated
     );
     assert_eq!(accept.state.status, "accepted");
-    assert_eq!(aggregate.handoff_status_epoch(), 1);
+    assert_eq!(aggregate.handoff_status_epoch(), 7);
     assert_eq!(
         aggregate.handoff_state().map(|state| state.status.as_str()),
         Some("accepted")
@@ -689,8 +735,8 @@ fn test_conversation_aggregate_state_owns_type_epochs_and_handoff_status() {
         accept_idempotent.outcome,
         ConversationHandoffTransitionOutcome::Idempotent
     );
-    assert_eq!(accept_idempotent.ordering_seq, 1);
-    assert_eq!(aggregate.handoff_status_epoch(), 1);
+    assert_eq!(accept_idempotent.ordering_seq, 7);
+    assert_eq!(aggregate.handoff_status_epoch(), 7);
 
     let close = aggregate
         .transition_handoff_status(
@@ -700,7 +746,7 @@ fn test_conversation_aggregate_state_owns_type_epochs_and_handoff_status() {
         )
         .expect("handoff close should succeed");
     assert_eq!(close.previous_status, "accepted");
-    assert_eq!(close.ordering_seq, 2);
+    assert_eq!(close.ordering_seq, 8);
     assert!(aggregate.has_closed_handoff());
 }
 

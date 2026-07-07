@@ -29,7 +29,6 @@ impl RedisSignalRateLimiter {
         max_signals: u32,
         window_secs: u64,
     ) -> Result<bool, im_platform_contracts::ContractError> {
-        self.inner
-            .allow(sender_key, max_signals, window_secs)
+        self.inner.allow(sender_key, max_signals, window_secs)
     }
 }

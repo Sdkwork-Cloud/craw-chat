@@ -2,15 +2,14 @@
 //!
 //! Keys: `{prefix}{bucket_key}` with TTL = window seconds on first increment.
 
-use redis::Commands;
-
-use crate::redis_unavailable;
+use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
 
 /// Redis-backed fixed-window counter limiter for horizontally scaled services.
 #[derive(Clone, Debug)]
 pub struct RedisFixedWindowRateLimiter {
     client: redis::Client,
     key_prefix: String,
+    timeouts: RedisBlockingTimeouts,
 }
 
 impl RedisFixedWindowRateLimiter {
@@ -18,6 +17,7 @@ impl RedisFixedWindowRateLimiter {
         Self {
             client,
             key_prefix: key_prefix.into(),
+            timeouts: RedisBlockingTimeouts::gateway_rate_limit_from_env(),
         }
     }
 
@@ -43,20 +43,26 @@ impl RedisFixedWindowRateLimiter {
         max_count: u32,
         window_secs: u64,
     ) -> Result<bool, im_platform_contracts::ContractError> {
-        let mut connection = self
-            .client
-            .get_connection()
-            .map_err(|error| redis_unavailable("fixed_window_rate_connect", error))?;
         let key = self.key(bucket_key);
-        let count: u32 = redis::cmd("INCR")
-            .arg(&key)
-            .query(&mut connection)
-            .map_err(|error| redis_unavailable("fixed_window_rate_incr", error))?;
-        if count == 1 {
-            let _: () = connection
-                .expire(&key, window_secs as i64)
-                .map_err(|error| redis_unavailable("fixed_window_rate_expire", error))?;
-        }
+        let count: u32 = run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "fixed_window_rate",
+            move |mut connection| async move {
+                let count: u32 = redis::cmd("INCR")
+                    .arg(&key)
+                    .query_async(&mut connection)
+                    .await?;
+                if count == 1 {
+                    redis::cmd("EXPIRE")
+                        .arg(&key)
+                        .arg(window_secs as i64)
+                        .query_async::<()>(&mut connection)
+                        .await?;
+                }
+                Ok(count)
+            },
+        )?;
         Ok(count <= max_count)
     }
 
@@ -66,21 +72,26 @@ impl RedisFixedWindowRateLimiter {
         bucket_key: &str,
         window_secs: u64,
     ) -> Result<u32, im_platform_contracts::ContractError> {
-        let mut connection = self
-            .client
-            .get_connection()
-            .map_err(|error| redis_unavailable("fixed_window_rate_connect", error))?;
         let key = self.key(bucket_key);
-        let count: u32 = redis::cmd("INCR")
-            .arg(&key)
-            .query(&mut connection)
-            .map_err(|error| redis_unavailable("fixed_window_rate_incr", error))?;
-        if count == 1 {
-            let _: () = connection
-                .expire(&key, window_secs as i64)
-                .map_err(|error| redis_unavailable("fixed_window_rate_expire", error))?;
-        }
-        Ok(count)
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "fixed_window_rate",
+            move |mut connection| async move {
+                let count: u32 = redis::cmd("INCR")
+                    .arg(&key)
+                    .query_async(&mut connection)
+                    .await?;
+                if count == 1 {
+                    redis::cmd("EXPIRE")
+                        .arg(&key)
+                        .arg(window_secs as i64)
+                        .query_async::<()>(&mut connection)
+                        .await?;
+                }
+                Ok(count)
+            },
+        )
     }
 }
 
@@ -129,6 +140,9 @@ pub fn gateway_rate_limit_redis_fail_closed_from_env() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::TcpListener;
+    use std::thread;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn resolve_gateway_rate_limit_redis_url_prefers_override() {
@@ -141,6 +155,40 @@ mod tests {
             resolve_gateway_rate_limit_redis_url_from_env().as_deref(),
             Some("redis://override:6379")
         );
+    }
+
+    #[test]
+    fn fixed_window_rate_limiter_fails_fast_when_redis_stops_responding() {
+        let _connect_timeout = TestEnvGuard::set(
+            "SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_CONNECT_TIMEOUT_MS",
+            "50",
+        );
+        let _command_timeout = TestEnvGuard::set(
+            "SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_COMMAND_TIMEOUT_MS",
+            "50",
+        );
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind local redis stub");
+        let address = listener.local_addr().expect("local redis stub addr");
+        let handle = thread::spawn(move || {
+            let Ok((_socket, _peer)) = listener.accept() else {
+                return;
+            };
+            thread::sleep(Duration::from_millis(400));
+        });
+
+        let limiter =
+            RedisFixedWindowRateLimiter::try_from_url(&format!("redis://{address}/"), "test:")
+                .expect("local redis stub client");
+
+        let started = Instant::now();
+        let result = limiter.allow("bucket", 1, 60);
+
+        assert!(result.is_err());
+        assert!(
+            started.elapsed() < Duration::from_millis(250),
+            "redis rate limiter must fail fast instead of leaving API calls pending"
+        );
+        handle.join().expect("redis stub thread should finish");
     }
 
     struct TestEnvGuard {

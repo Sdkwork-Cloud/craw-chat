@@ -18,131 +18,155 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Search social users
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialUserSearchResponse?> UsersListAsync(string? q = null, int? limit = null, string? cursor = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialUsersListResponse?> UsersListAsync(string? q = null, int? pageSize = null, string? cursor = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("q", q, "form", true, false, null),
-                new QueryParameterSpec("limit", limit, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SocialUserSearchResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/users"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SocialUsersListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/users"), queryString));
         }
 
         /// <summary>
         /// List friend requests
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestListResponse?> FriendRequestsListAsync(string? direction = null, string? status = null, int? limit = null, string? cursor = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SdkWorkListResponse?> FriendRequestsListAsync(string? direction = null, string? status = null, int? pageSize = null, string? cursor = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("direction", direction, "form", true, false, null),
                 new QueryParameterSpec("status", status, "form", true, false, null),
-                new QueryParameterSpec("limit", limit, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/friend_requests"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/friend_requests"), queryString));
         }
 
         /// <summary>
         /// Create a friend request
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestMutationResponse?> FriendRequestsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.SubmitFriendRequestRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsCreateResponse201?> FriendRequestsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.SubmitFriendRequestRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestMutationResponse>(ApiPaths.ImPath("/social/friend_requests"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsCreateResponse201>(ApiPaths.ImPath("/social/friend_requests"), body, null, null, "application/json");
+        }
+
+        /// <summary>
+        /// Retrieve pending incoming friend request count
+        /// </summary>
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsPendingCountRetrieveResponse?> FriendRequestsPendingCountRetrieveAsync()
+        {
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsPendingCountRetrieveResponse>(ApiPaths.ImPath("/social/friend_requests/pending/count"));
         }
 
         /// <summary>
         /// Accept a friend request
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestAcceptanceResponse?> FriendRequestsAcceptAsync(string requestId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsAcceptResponse?> FriendRequestsAcceptAsync(string friendRequestId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestAcceptanceResponse>(ApiPaths.ImPath($"/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/accept"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsAcceptResponse>(ApiPaths.ImPath($"/social/friend_requests/{SerializePathParameter(friendRequestId, new PathParameterSpec("friendRequestId", "simple", false))}/accept"), null);
         }
 
         /// <summary>
         /// Decline a friend request
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestMutationResponse?> FriendRequestsDeclineAsync(string requestId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsDeclineResponse?> FriendRequestsDeclineAsync(string friendRequestId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestMutationResponse>(ApiPaths.ImPath($"/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/decline"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsDeclineResponse>(ApiPaths.ImPath($"/social/friend_requests/{SerializePathParameter(friendRequestId, new PathParameterSpec("friendRequestId", "simple", false))}/decline"), null);
         }
 
         /// <summary>
         /// Cancel a friend request
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestMutationResponse?> FriendRequestsCancelAsync(string requestId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsCancelResponse?> FriendRequestsCancelAsync(string friendRequestId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestMutationResponse>(ApiPaths.ImPath($"/social/friend_requests/{SerializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false))}/cancel"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendRequestsCancelResponse>(ApiPaths.ImPath($"/social/friend_requests/{SerializePathParameter(friendRequestId, new PathParameterSpec("friendRequestId", "simple", false))}/cancel"), null);
         }
 
         /// <summary>
         /// Remove a friendship
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendshipMutationResponse?> FriendshipsRemoveAsync(string friendshipId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialFriendshipsRemoveResponse?> FriendshipsRemoveAsync(string friendshipId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendshipMutationResponse>(ApiPaths.ImPath($"/social/friendships/{SerializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false))}/remove"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialFriendshipsRemoveResponse>(ApiPaths.ImPath($"/social/friendships/{SerializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false))}/remove"), null);
+        }
+
+        /// <summary>
+        /// Block a social user
+        /// </summary>
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialUserBlocksCreateResponse201?> UserBlocksCreateAsync(Sdkwork.Im.Sdk.Generated.Models.BlockUserRequest body)
+        {
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialUserBlocksCreateResponse201>(ApiPaths.ImPath("/social/user_blocks"), body, null, null, "application/json");
+        }
+
+        /// <summary>
+        /// Release a social user block
+        /// </summary>
+        public async Task UserBlocksDeleteAsync(string blockId)
+        {
+            await _client.DeleteAsync<object>(ApiPaths.ImPath($"/social/user_blocks/{SerializePathParameter(blockId, new PathParameterSpec("blockId", "simple", false))}"));
         }
 
         /// <summary>
         /// List contact tags
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactTagsResponse?> ContactsTagsListAsync(int? limit = null, string? cursor = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SdkWorkListResponse?> ContactsTagsListAsync(int? pageSize = null, string? cursor = null)
         {
             var queryString = BuildQueryString(new[]
             {
-                new QueryParameterSpec("limit", limit, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ContactTagsResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/contacts/tags"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SdkWorkListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/social/contacts/tags"), queryString));
         }
 
         /// <summary>
         /// Create a contact tag
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactTagView?> ContactsTagsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateContactTagRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialContactsTagsCreateResponse201?> ContactsTagsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateContactTagRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.ContactTagView>(ApiPaths.ImPath("/social/contacts/tags"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsTagsCreateResponse201>(ApiPaths.ImPath("/social/contacts/tags"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Update a contact tag
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactTagView?> ContactsTagsUpdateAsync(string tagId, Sdkwork.Im.Sdk.Generated.Models.UpdateContactTagRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialContactsTagsUpdateResponse?> ContactsTagsUpdateAsync(string tagId, Sdkwork.Im.Sdk.Generated.Models.UpdateContactTagRequest body)
         {
-            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.ContactTagView>(ApiPaths.ImPath($"/social/contacts/tags/{SerializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false))}"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsTagsUpdateResponse>(ApiPaths.ImPath($"/social/contacts/tags/{SerializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false))}"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Delete a contact tag
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.DeleteContactTagResponse?> ContactsTagsDeleteAsync(string tagId)
+        public async Task ContactsTagsDeleteAsync(string tagId)
         {
-            return await _client.DeleteAsync<Sdkwork.Im.Sdk.Generated.Models.DeleteContactTagResponse>(ApiPaths.ImPath($"/social/contacts/tags/{SerializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false))}"));
+            await _client.DeleteAsync<object>(ApiPaths.ImPath($"/social/contacts/tags/{SerializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false))}"));
         }
 
         /// <summary>
         /// Create a contact recommendation
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactRecommendationView?> ContactsRecommendationsCreateAsync(string targetUserId, Sdkwork.Im.Sdk.Generated.Models.CreateContactRecommendationRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialContactsRecommendationsCreateResponse201?> ContactsRecommendationsCreateAsync(string targetUserId, Sdkwork.Im.Sdk.Generated.Models.CreateContactRecommendationRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.ContactRecommendationView>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/recommendations"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsRecommendationsCreateResponse201>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/recommendations"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Retrieve contact preferences
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactPreferencesView?> ContactsPreferencesRetrieveAsync(string targetUserId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialContactsPreferencesRetrieveResponse?> ContactsPreferencesRetrieveAsync(string targetUserId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ContactPreferencesView>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/preferences"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsPreferencesRetrieveResponse>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/preferences"));
         }
 
         /// <summary>
         /// Update contact preferences
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ContactPreferencesView?> ContactsPreferencesUpdateAsync(string targetUserId, Sdkwork.Im.Sdk.Generated.Models.UpdateContactPreferencesRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SocialContactsPreferencesUpdateResponse?> ContactsPreferencesUpdateAsync(string targetUserId, Sdkwork.Im.Sdk.Generated.Models.UpdateContactPreferencesRequest body)
         {
-            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.ContactPreferencesView>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/preferences"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SocialContactsPreferencesUpdateResponse>(ApiPaths.ImPath($"/social/contacts/{SerializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false))}/preferences"), body, null, null, "application/json");
         }
 
         private sealed record PathParameterSpec(string Name, string Style, bool Explode);

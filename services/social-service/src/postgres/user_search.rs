@@ -2,11 +2,11 @@
 
 use axum::extract::{Extension, Query, State};
 use axum::response::Response;
+use im_adapters_social_postgres::{SocialPostgresPool, postgres_pool_client};
 use im_app_context::AppContext;
 use im_domain_core::social::normalize_user_pair;
-use im_adapters_social_postgres::{postgres_pool_client, SocialPostgresPool};
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
-use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkCursorListQuery, SdkWorkPageData};
+use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkPageData, cursor_list_page_data};
 use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
@@ -73,12 +73,7 @@ pub async fn search_users(
     let search_tenant_id = tenant_id.clone();
 
     let rows = match tokio::task::spawn_blocking(move || {
-        search_iam_users(
-            &pool,
-            search_tenant_id.as_str(),
-            keyword.as_str(),
-            limit,
-        )
+        search_iam_users(&pool, search_tenant_id.as_str(), keyword.as_str(), limit)
     })
     .await
     {
@@ -92,23 +87,34 @@ pub async fn search_users(
         Err(_) => {
             return finish_api_json::<SdkWorkPageData<SocialUserSearchResult>>(
                 &ctx,
-                Err(ApiProblem::internal_server_error("iam user search worker panicked")),
+                Err(ApiProblem::internal_server_error(
+                    "iam user search worker panicked",
+                )),
             );
         }
     };
 
     let user_block_store = state.user_block_store.clone();
+    let friend_request_store = state.friend_request_store.clone();
     let candidate_user_ids: Vec<String> = rows.iter().map(|row| row.user_id.clone()).collect();
 
-    let relationship_context = match tokio::task::spawn_blocking({
+    let relationship_context: (
+        std::collections::HashSet<String>,
+        std::collections::HashSet<String>,
+        std::collections::HashSet<String>,
+        std::collections::HashSet<String>,
+    ) = tokio::task::spawn_blocking({
         let friendship_store = friendship_store.clone();
         let user_block_store = user_block_store.clone();
+        let friend_request_store = friend_request_store.clone();
         let tenant_id = tenant_id.clone();
         let organization_id = organization_id.clone();
         let current_user_id = current_user_id.clone();
         move || {
             let mut active_friend_ids = std::collections::HashSet::new();
             let mut blocked_user_ids = std::collections::HashSet::new();
+            let mut pending_incoming_ids = std::collections::HashSet::new();
+            let mut pending_outgoing_ids = std::collections::HashSet::new();
             for user_id in candidate_user_ids {
                 if user_id == current_user_id {
                     continue;
@@ -121,27 +127,15 @@ pub async fn search_users(
                     Err(_) => continue,
                 };
                 if user_block_store
-                    .find_active_block(
+                    .find_active_friendship_block(
                         tenant_id.as_str(),
                         organization_id.as_str(),
                         current_user_id.as_str(),
                         user_id.as_str(),
-                        "social",
                     )
                     .ok()
                     .flatten()
                     .is_some()
-                    || user_block_store
-                        .find_active_block(
-                            tenant_id.as_str(),
-                            organization_id.as_str(),
-                            user_id.as_str(),
-                            current_user_id.as_str(),
-                            "social",
-                        )
-                        .ok()
-                        .flatten()
-                        .is_some()
                 {
                     blocked_user_ids.insert(user_id);
                     continue;
@@ -158,17 +152,50 @@ pub async fn search_users(
                     .is_some_and(|record| record.status == "active")
                 {
                     active_friend_ids.insert(user_id);
+                    continue;
+                }
+                if friend_request_store
+                    .find_by_pair_and_status(
+                        tenant_id.as_str(),
+                        organization_id.as_str(),
+                        current_user_id.as_str(),
+                        user_id.as_str(),
+                        "pending",
+                    )
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    pending_outgoing_ids.insert(user_id);
+                    continue;
+                }
+                if friend_request_store
+                    .find_by_pair_and_status(
+                        tenant_id.as_str(),
+                        organization_id.as_str(),
+                        user_id.as_str(),
+                        current_user_id.as_str(),
+                        "pending",
+                    )
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    pending_incoming_ids.insert(user_id);
                 }
             }
-            (active_friend_ids, blocked_user_ids)
+            (
+                active_friend_ids,
+                blocked_user_ids,
+                pending_incoming_ids,
+                pending_outgoing_ids,
+            )
         }
     })
     .await
-    {
-        Ok(context) => context,
-        _ => (std::collections::HashSet::new(), std::collections::HashSet::new()),
-    };
-    let (active_friend_ids, blocked_user_ids) = relationship_context;
+    .unwrap_or_default();
+    let (active_friend_ids, blocked_user_ids, pending_incoming_ids, pending_outgoing_ids) =
+        relationship_context;
 
     let mut items = Vec::with_capacity(rows.len());
     for row in rows {
@@ -179,6 +206,10 @@ pub async fn search_users(
             "self".to_owned()
         } else if active_friend_ids.contains(row.user_id.as_str()) {
             "active".to_owned()
+        } else if pending_incoming_ids.contains(row.user_id.as_str()) {
+            "pending_incoming".to_owned()
+        } else if pending_outgoing_ids.contains(row.user_id.as_str()) {
+            "pending_outgoing".to_owned()
         } else {
             "none".to_owned()
         };
@@ -224,16 +255,16 @@ fn search_iam_users(
     keyword: &str,
     limit: i64,
 ) -> Result<Vec<IamUserRow>, im_platform_contracts::ContractError> {
-    let pool = pool.inner();
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                let mut client = postgres_pool_client(pool, "iam user search")?;
-                let pattern = format!("%{keyword}%");
-                let exact = keyword;
-                let rows = client
-                    .query(
-                        r#"
+    let pool = pool.inner().clone();
+    let tenant_id = tenant_id.to_owned();
+    let keyword = keyword.to_owned();
+    let operation = move || {
+        let mut client = postgres_pool_client(&pool, "iam user search")?;
+        let pattern = format!("%{keyword}%");
+        let exact = keyword;
+        let rows = client
+            .query(
+                r#"
 SELECT id, username, display_name, email, phone
 FROM iam_user
 WHERE tenant_id = $1
@@ -248,31 +279,36 @@ WHERE tenant_id = $1
 ORDER BY display_name, username, id
 LIMIT $4
 "#,
-                        &[&tenant_id, &exact, &pattern, &limit],
-                    )
-                    .map_err(|error| {
-                        im_platform_contracts::ContractError::Unavailable(format!(
-                            "iam user search failed: {error}"
-                        ))
-                    })?;
+                &[&tenant_id, &exact, &pattern, &limit],
+            )
+            .map_err(|error| {
+                im_platform_contracts::ContractError::Unavailable(format!(
+                    "iam user search failed: {error}"
+                ))
+            })?;
 
-                Ok(rows
-                    .iter()
-                    .map(|row| IamUserRow {
-                        user_id: row.get("id"),
-                        username: row.get("username"),
-                        display_name: row.get("display_name"),
-                        email: row.get("email"),
-                        phone: row.get("phone"),
-                    })
-                    .collect())
+        Ok(rows
+            .iter()
+            .map(|row| IamUserRow {
+                user_id: row.get("id"),
+                username: row.get("username"),
+                display_name: row.get("display_name"),
+                email: row.get("email"),
+                phone: row.get("phone"),
             })
-            .join()
-            .map_err(|_| {
-                im_platform_contracts::ContractError::Unavailable(
-                    "iam user search worker panicked".into(),
-                )
-            })?
+            .collect())
+    };
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        return tokio::task::block_in_place(operation);
+    }
+    std::thread::scope(|scope| {
+        scope.spawn(operation).join().map_err(|_| {
+            im_platform_contracts::ContractError::Unavailable(
+                "iam user search worker panicked".into(),
+            )
+        })?
     })
 }
 

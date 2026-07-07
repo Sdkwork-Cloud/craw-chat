@@ -30,13 +30,13 @@ pub use dto::{
 };
 
 // Re-export error and state types.
-pub use error::AutomationError;
-pub use runtime::AutomationRuntime;
-pub use state::AppState;
 pub use bootstrap::{
     build_runtime_from_env, default_app_state, default_automation_runtime,
     ensure_durable_automation_runtime_from_env,
 };
+pub use error::AutomationError;
+pub use runtime::AutomationRuntime;
+pub use state::AppState;
 
 // Re-export app builders and router constructors.
 pub use app::{
@@ -45,4 +45,6 @@ pub use app::{
 };
 
 // Re-export public governance helpers.
-pub use helpers::{automation_operator_override_permission, automation_tool_requires_operator_override};
+pub use helpers::{
+    automation_operator_override_permission, automation_tool_requires_operator_override,
+};

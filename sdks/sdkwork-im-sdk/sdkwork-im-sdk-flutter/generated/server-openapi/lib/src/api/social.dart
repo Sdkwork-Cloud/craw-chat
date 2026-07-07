@@ -12,148 +12,168 @@ class SocialApi {
   SocialApi(this._client);
 
   /// Search social users
-  Future<SocialUserSearchResponse?> usersList([String? q, int? limit, String? cursor]) async {
+  Future<SocialUsersListResponse?> usersList([String? q, int? pageSize, String? cursor]) async {
     final query = buildQueryString([
       QueryParameterSpec('q', q, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/social/users'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialUserSearchResponse.fromJson(map);
+      return map == null ? null : SocialUsersListResponse.fromJson(map);
     })();
   }
 
   /// List friend requests
-  Future<SocialFriendRequestListResponse?> friendRequestsList([String? direction, String? status, int? limit, String? cursor]) async {
+  Future<SdkWorkListResponse?> friendRequestsList([String? direction, String? status, int? pageSize, String? cursor]) async {
     final query = buildQueryString([
       QueryParameterSpec('direction', direction, 'form', true, false, null),
       QueryParameterSpec('status', status, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/social/friend_requests'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestListResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Create a friend request
-  Future<SocialFriendRequestMutationResponse?> friendRequestsCreate(SubmitFriendRequestRequest body) async {
+  Future<SocialFriendRequestsCreateResponse201?> friendRequestsCreate(SubmitFriendRequestRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/social/friend_requests'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestMutationResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsCreateResponse201.fromJson(map);
+    })();
+  }
+
+  /// Retrieve pending incoming friend request count
+  Future<SocialFriendRequestsPendingCountRetrieveResponse?> friendRequestsPendingCountRetrieve() async {
+    final response = await _client.get(ApiPaths.imPath('/social/friend_requests/pending/count'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SocialFriendRequestsPendingCountRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Accept a friend request
-  Future<SocialFriendRequestAcceptanceResponse?> friendRequestsAccept(String requestId) async {
-    final response = await _client.post(ApiPaths.imPath('/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}/accept'));
+  Future<SocialFriendRequestsAcceptResponse?> friendRequestsAccept(String friendRequestId) async {
+    final response = await _client.post(ApiPaths.imPath('/social/friend_requests/${serializePathParameter(friendRequestId, const PathParameterSpec('friendRequestId', 'simple', false))}/accept'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestAcceptanceResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsAcceptResponse.fromJson(map);
     })();
   }
 
   /// Decline a friend request
-  Future<SocialFriendRequestMutationResponse?> friendRequestsDecline(String requestId) async {
-    final response = await _client.post(ApiPaths.imPath('/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}/decline'));
+  Future<SocialFriendRequestsDeclineResponse?> friendRequestsDecline(String friendRequestId) async {
+    final response = await _client.post(ApiPaths.imPath('/social/friend_requests/${serializePathParameter(friendRequestId, const PathParameterSpec('friendRequestId', 'simple', false))}/decline'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestMutationResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsDeclineResponse.fromJson(map);
     })();
   }
 
   /// Cancel a friend request
-  Future<SocialFriendRequestMutationResponse?> friendRequestsCancel(String requestId) async {
-    final response = await _client.post(ApiPaths.imPath('/social/friend_requests/${serializePathParameter(requestId, const PathParameterSpec('requestId', 'simple', false))}/cancel'));
+  Future<SocialFriendRequestsCancelResponse?> friendRequestsCancel(String friendRequestId) async {
+    final response = await _client.post(ApiPaths.imPath('/social/friend_requests/${serializePathParameter(friendRequestId, const PathParameterSpec('friendRequestId', 'simple', false))}/cancel'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendRequestMutationResponse.fromJson(map);
+      return map == null ? null : SocialFriendRequestsCancelResponse.fromJson(map);
     })();
   }
 
   /// Remove a friendship
-  Future<SocialFriendshipMutationResponse?> friendshipsRemove(String friendshipId) async {
+  Future<SocialFriendshipsRemoveResponse?> friendshipsRemove(String friendshipId) async {
     final response = await _client.post(ApiPaths.imPath('/social/friendships/${serializePathParameter(friendshipId, const PathParameterSpec('friendshipId', 'simple', false))}/remove'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : SocialFriendshipMutationResponse.fromJson(map);
+      return map == null ? null : SocialFriendshipsRemoveResponse.fromJson(map);
     })();
   }
 
+  /// Block a social user
+  Future<SocialUserBlocksCreateResponse201?> userBlocksCreate(BlockUserRequest body) async {
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.imPath('/social/user_blocks'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : SocialUserBlocksCreateResponse201.fromJson(map);
+    })();
+  }
+
+  /// Release a social user block
+  Future<void> userBlocksDelete(String blockId) async {
+    await _client.delete(ApiPaths.imPath('/social/user_blocks/${serializePathParameter(blockId, const PathParameterSpec('blockId', 'simple', false))}'));
+  }
+
   /// List contact tags
-  Future<ContactTagsResponse?> contactsTagsList([int? limit, String? cursor]) async {
+  Future<SdkWorkListResponse?> contactsTagsList([int? pageSize, String? cursor]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/social/contacts/tags'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactTagsResponse.fromJson(map);
+      return map == null ? null : SdkWorkListResponse.fromJson(map);
     })();
   }
 
   /// Create a contact tag
-  Future<ContactTagView?> contactsTagsCreate(CreateContactTagRequest body) async {
+  Future<SocialContactsTagsCreateResponse201?> contactsTagsCreate(CreateContactTagRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/social/contacts/tags'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactTagView.fromJson(map);
+      return map == null ? null : SocialContactsTagsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Update a contact tag
-  Future<ContactTagView?> contactsTagsUpdate(String tagId, UpdateContactTagRequest body) async {
+  Future<SocialContactsTagsUpdateResponse?> contactsTagsUpdate(String tagId, UpdateContactTagRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/social/contacts/tags/${serializePathParameter(tagId, const PathParameterSpec('tagId', 'simple', false))}'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactTagView.fromJson(map);
+      return map == null ? null : SocialContactsTagsUpdateResponse.fromJson(map);
     })();
   }
 
   /// Delete a contact tag
-  Future<DeleteContactTagResponse?> contactsTagsDelete(String tagId) async {
-    final response = await _client.delete(ApiPaths.imPath('/social/contacts/tags/${serializePathParameter(tagId, const PathParameterSpec('tagId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : DeleteContactTagResponse.fromJson(map);
-    })();
+  Future<void> contactsTagsDelete(String tagId) async {
+    await _client.delete(ApiPaths.imPath('/social/contacts/tags/${serializePathParameter(tagId, const PathParameterSpec('tagId', 'simple', false))}'));
   }
 
   /// Create a contact recommendation
-  Future<ContactRecommendationView?> contactsRecommendationsCreate(String targetUserId, CreateContactRecommendationRequest body) async {
+  Future<SocialContactsRecommendationsCreateResponse201?> contactsRecommendationsCreate(String targetUserId, CreateContactRecommendationRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/social/contacts/${serializePathParameter(targetUserId, const PathParameterSpec('targetUserId', 'simple', false))}/recommendations'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactRecommendationView.fromJson(map);
+      return map == null ? null : SocialContactsRecommendationsCreateResponse201.fromJson(map);
     })();
   }
 
   /// Retrieve contact preferences
-  Future<ContactPreferencesView?> contactsPreferencesRetrieve(String targetUserId) async {
+  Future<SocialContactsPreferencesRetrieveResponse?> contactsPreferencesRetrieve(String targetUserId) async {
     final response = await _client.get(ApiPaths.imPath('/social/contacts/${serializePathParameter(targetUserId, const PathParameterSpec('targetUserId', 'simple', false))}/preferences'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactPreferencesView.fromJson(map);
+      return map == null ? null : SocialContactsPreferencesRetrieveResponse.fromJson(map);
     })();
   }
 
   /// Update contact preferences
-  Future<ContactPreferencesView?> contactsPreferencesUpdate(String targetUserId, UpdateContactPreferencesRequest body) async {
+  Future<SocialContactsPreferencesUpdateResponse?> contactsPreferencesUpdate(String targetUserId, UpdateContactPreferencesRequest body) async {
     final payload = body.toJson();
     final response = await _client.patch(ApiPaths.imPath('/social/contacts/${serializePathParameter(targetUserId, const PathParameterSpec('targetUserId', 'simple', false))}/preferences'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ContactPreferencesView.fromJson(map);
+      return map == null ? null : SocialContactsPreferencesUpdateResponse.fromJson(map);
     })();
   }
 }

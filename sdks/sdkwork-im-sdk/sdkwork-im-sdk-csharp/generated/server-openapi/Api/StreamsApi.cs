@@ -18,54 +18,54 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Open a stream
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamView?> CreateAsync(Sdkwork.Im.Sdk.Generated.Models.OpenStreamRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamsCreateResponse201?> CreateAsync(Sdkwork.Im.Sdk.Generated.Models.OpenStreamRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamView>(ApiPaths.ImPath("/streams"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamsCreateResponse201>(ApiPaths.ImPath("/streams"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// List stream frames
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamFramesResponse?> FramesListAsync(string streamId, int? limit = null, string? cursor = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamsFramesListResponse?> FramesListAsync(string streamId, int? pageSize = null, string? cursor = null)
         {
             var queryString = BuildQueryString(new[]
             {
-                new QueryParameterSpec("limit", limit, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
                 new QueryParameterSpec("cursor", cursor, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.StreamFramesResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/frames"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.StreamsFramesListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/frames"), queryString));
         }
 
         /// <summary>
         /// Append a stream frame
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamFrameView?> FramesCreateAsync(string streamId, Sdkwork.Im.Sdk.Generated.Models.AppendStreamFrameRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamsFramesCreateResponse201?> FramesCreateAsync(string streamId, Sdkwork.Im.Sdk.Generated.Models.AppendStreamFrameRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamFrameView>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/frames"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamsFramesCreateResponse201>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/frames"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// Checkpoint a stream
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamView?> CheckpointCreateAsync(string streamId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamsCheckpointResponse?> CheckpointAsync(string streamId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamView>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/checkpoint"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamsCheckpointResponse>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/checkpoint"), null);
         }
 
         /// <summary>
         /// Complete a stream
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamView?> CompleteAsync(string streamId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamsCompleteResponse?> CompleteAsync(string streamId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamView>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/complete"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamsCompleteResponse>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/complete"), null);
         }
 
         /// <summary>
         /// Abort a stream
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamView?> AbortAsync(string streamId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.StreamsAbortResponse?> AbortAsync(string streamId)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamView>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/abort"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.StreamsAbortResponse>(ApiPaths.ImPath($"/streams/{SerializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false))}/abort"), null);
         }
 
         private sealed record PathParameterSpec(string Name, string Style, bool Explode);

@@ -1,30 +1,30 @@
-pub mod block;
 mod api_payload;
+pub mod block;
 pub mod commit_materializer;
-pub mod direct_chat;
-pub mod direct_chat_binder;
-pub mod external;
-pub mod friendship;
-pub mod friend_request_expiration;
-mod friend_request_rate_limit;
-pub mod journal_bootstrap;
-pub mod projection_bridge;
-pub mod shared_channel;
-pub mod social_realtime;
 mod contact_open_api_backend;
 mod control_access;
 mod control_routes;
+pub mod direct_chat;
+pub mod direct_chat_binder;
 mod envelope;
+pub mod external;
+pub mod friend_request_expiration;
+mod friend_request_rate_limit;
+pub mod friendship;
 mod http;
+pub mod journal_bootstrap;
 mod openapi;
 mod openapi_contacts;
 pub mod postgres;
+pub mod projection_bridge;
 mod runtime;
 mod runtime_control;
+pub mod shared_channel;
 mod shared_channel_sync_metrics;
-mod social_materializer_metrics;
 mod shared_channel_sync_runtime;
 mod shared_channel_sync_scheduler;
+mod social_materializer_metrics;
+pub mod social_realtime;
 mod user_directory;
 
 use serde::{Deserialize, Serialize};
@@ -49,19 +49,18 @@ pub async fn init_id_generators() {
     contact_open_api_backend::init_contact_postgres_store().await;
 }
 pub use commit_materializer::SocialPostgresMaterializer;
-pub use direct_chat_binder::{
-    BindDirectChatConversationInput, DirectChatConversationBinder,
-};
-pub use journal_bootstrap::build_social_runtime_from_env;
+pub use direct_chat_binder::{BindDirectChatConversationInput, DirectChatConversationBinder};
 pub use friend_request_expiration::spawn_friend_request_expiration_scheduler_from_env;
+pub use journal_bootstrap::build_social_runtime_from_env;
 pub use runtime::SocialRuntime;
-pub use social_realtime::{
-    build_social_realtime_outbox_record, social_realtime_recipients_for_commit,
-    LoggingSocialRealtimeFanout, SocialRealtimeFanout, SOCIAL_OUTBOX_AGGREGATE_TYPE,
-};
 pub use shared_channel_sync_metrics::{
-    render_shared_channel_sync_prometheus_from_env, shared_channel_sync_metrics,
-    SharedChannelSyncMetrics,
+    SharedChannelSyncMetrics, render_shared_channel_sync_prometheus_from_env,
+    shared_channel_sync_metrics,
+};
+pub use shared_channel_sync_scheduler::{
+    SharedChannelSyncStaleReclaimSchedulerConfig,
+    spawn_shared_channel_sync_stale_reclaim_scheduler,
+    spawn_shared_channel_sync_stale_reclaim_scheduler_from_env,
 };
 pub use social_materializer_metrics::{
     postgres_journal_append_failure_after_materialize_count,
@@ -70,10 +69,9 @@ pub use social_materializer_metrics::{
     record_postgres_materialization_failures,
     render_prometheus as render_social_materializer_prometheus,
 };
-pub use shared_channel_sync_scheduler::{
-    spawn_shared_channel_sync_stale_reclaim_scheduler,
-    spawn_shared_channel_sync_stale_reclaim_scheduler_from_env,
-    SharedChannelSyncStaleReclaimSchedulerConfig,
+pub use social_realtime::{
+    LoggingSocialRealtimeFanout, SOCIAL_OUTBOX_AGGREGATE_TYPE, SocialRealtimeFanout,
+    build_social_realtime_outbox_record, social_realtime_recipients_for_commit,
 };
 
 pub const SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD: u32 = 3;

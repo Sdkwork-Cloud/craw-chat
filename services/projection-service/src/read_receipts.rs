@@ -1,8 +1,8 @@
-use im_domain_core::conversation::{best_read_cursor_for_member_at_seq, ConversationReadCursor};
+use im_domain_core::conversation::{ConversationReadCursor, best_read_cursor_for_member_at_seq};
 
 use crate::model::{MessageReadReceiptReaderView, MessageReadReceiptSummaryView};
 use crate::scope::scope_key;
-use crate::{lock_projection_mutex, TimelineProjectionService};
+use crate::{TimelineProjectionService, lock_projection_mutex};
 
 pub(crate) const READ_RECEIPT_MAX_READERS: usize = 50;
 
@@ -37,9 +37,11 @@ impl TimelineProjectionService {
             if should_exclude_reader(&member, exclude_principal) {
                 continue;
             }
-            let Some(cursor) =
-                best_read_cursor_for_member_at_seq(cursors.values(), member.member_id.as_str(), message_seq)
-            else {
+            let Some(cursor) = best_read_cursor_for_member_at_seq(
+                cursors.values(),
+                member.member_id.as_str(),
+                message_seq,
+            ) else {
                 continue;
             };
             readers.push(reader_view_from_cursor(&member, cursor));
@@ -111,7 +113,12 @@ mod tests {
 
     use super::*;
 
-    fn member_joined(event_id: &str, member_id: &str, principal_id: &str, ordering_seq: u64) -> CommitEnvelope {
+    fn member_joined(
+        event_id: &str,
+        member_id: &str,
+        principal_id: &str,
+        ordering_seq: u64,
+    ) -> CommitEnvelope {
         CommitEnvelope::minimal(
             event_id,
             "100001",
@@ -214,13 +221,8 @@ mod tests {
         assert_eq!(excluding_sender.active_member_count, 2);
         assert_eq!(excluding_sender.read_count, 0);
 
-        let including_sender = service.read_receipt_summary_for_message(
-            "100001",
-            "default",
-            "c_rr",
-            2,
-            None,
-        );
+        let including_sender =
+            service.read_receipt_summary_for_message("100001", "default", "c_rr", 2, None);
         assert_eq!(including_sender.read_count, 1);
         assert_eq!(including_sender.readers[0].principal_id, "user_a");
     }
@@ -254,7 +256,13 @@ mod tests {
             .apply(&read_cursor_updated("cm_a", "user_a", 1, 12, Some("phone")))
             .expect("phone cursor updated");
         service
-            .apply(&read_cursor_updated("cm_a", "user_a", 3, 13, Some("desktop")))
+            .apply(&read_cursor_updated(
+                "cm_a",
+                "user_a",
+                3,
+                13,
+                Some("desktop"),
+            ))
             .expect("desktop cursor updated");
 
         let summary = service.read_receipt_summary_for_message(

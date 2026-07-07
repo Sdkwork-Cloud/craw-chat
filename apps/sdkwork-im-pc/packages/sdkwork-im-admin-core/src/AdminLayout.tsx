@@ -1,4 +1,3 @@
-import { AdminDashboard } from '@sdkwork/im-admin-dashboard';
 import React from 'react';
 import { 
   Building2, Server, CreditCard, ShieldAlert,
@@ -6,14 +5,27 @@ import {
   Globe, LogOut, BarChart3, Search, Bell
 } from 'lucide-react';
 import { cn, I18nProvider, useTranslation } from '@sdkwork/im-pc-commons';
-import { PlatformTenants, AdminUsers } from '@sdkwork/im-admin-tenants';
-import { InfrastructureStatus, AdminBilling } from '@sdkwork/im-admin-infrastructure';
-import { AdminAnnouncements, AdminCompliance, AdminSettings } from '@sdkwork/im-admin-operations';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
 type AdminPage = 'overview' | 'tenants' | 'users' | 'infrastructure' | 'billing' | 'announcements' | 'compliance' | 'settings';
 
-export const AdminLayoutInner: React.FC<{ onSwitchToClient?: () => void }> = ({ onSwitchToClient }) => {
+export type AdminLayoutRouteElements = Partial<Record<AdminPage, React.ReactNode>>;
+
+export interface AdminLayoutProps {
+  onSwitchToClient?: () => void;
+  routes?: AdminLayoutRouteElements;
+}
+
+function renderMissingAdminRoute(label: string): React.ReactElement {
+  return (
+    <div className="w-full h-64 border border-admin-border border-dashed rounded-2xl flex flex-col items-center justify-center text-admin-text-muted bg-admin-bg-panel/50 backdrop-blur-sm">
+      <Settings size={32} className="text-gray-600 mb-3" />
+      <p className="tracking-wide">{label}</p>
+    </div>
+  );
+}
+
+export const AdminLayoutInner: React.FC<AdminLayoutProps> = ({ onSwitchToClient, routes = {} }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, language, setLanguage } = useTranslation();
@@ -126,14 +138,14 @@ export const AdminLayoutInner: React.FC<{ onSwitchToClient?: () => void }> = ({ 
           <div className="w-full max-w-full mx-auto relative z-10 h-full flex flex-col">
             <Routes>
               <Route path="/" element={<Navigate to="/admin/overview" replace />} />
-              <Route path="overview" element={<AdminDashboard />} />
-              <Route path="tenants" element={<PlatformTenants />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="infrastructure" element={<InfrastructureStatus />} />
-              <Route path="billing" element={<AdminBilling />} />
-              <Route path="announcements" element={<AdminAnnouncements />} />
-              <Route path="compliance" element={<AdminCompliance />} />
-              <Route path="settings" element={<AdminSettings />} />
+              <Route path="overview" element={routes.overview ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="tenants" element={routes.tenants ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="users" element={routes.users ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="infrastructure" element={routes.infrastructure ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="billing" element={routes.billing ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="announcements" element={routes.announcements ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="compliance" element={routes.compliance ?? renderMissingAdminRoute(t('admin.under_construction'))} />
+              <Route path="settings" element={routes.settings ?? renderMissingAdminRoute(t('admin.under_construction'))} />
               <Route path="*" element={
                 <div className="w-full h-64 border border-admin-border border-dashed rounded-2xl flex flex-col items-center justify-center text-admin-text-muted bg-admin-bg-panel/50 backdrop-blur-sm">
                   <Settings size={32} className="text-gray-600 mb-3" />
@@ -148,7 +160,7 @@ export const AdminLayoutInner: React.FC<{ onSwitchToClient?: () => void }> = ({ 
   );
 };
 
-export const AdminLayout: React.FC<{ onSwitchToClient?: () => void }> = (props) => (
+export const AdminLayout: React.FC<AdminLayoutProps> = (props) => (
   <I18nProvider>
     <AdminLayoutInner {...props} />
   </I18nProvider>

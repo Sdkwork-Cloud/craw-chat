@@ -12,13 +12,11 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use sdkwork_im_web_bootstrap::{
-    im_service_router_config, mount_im_infra_routes,
-};
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
 use sdkwork_web_core::{
-    WebFrameworkError, WebFrameworkErrorKind, WebRequestContext, problem_response,
-    ProblemCorrelation,
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
+    problem_response,
 };
 use tokio::sync::Semaphore;
 
@@ -193,10 +191,7 @@ pub fn build_domain_api_router(state: AppState) -> Router {
 }
 
 pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
-    mount_im_infra_routes(
-        build_business_router(runtime),
-        im_service_router_config(),
-    )
+    mount_im_infra_routes(build_business_router(runtime), im_service_router_config())
 }
 
 fn build_business_router(runtime: Arc<MediaRuntime>) -> Router {
@@ -315,8 +310,8 @@ async fn enforce_in_flight_gate(
             return MediaError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
             }
             .into_response();
         }

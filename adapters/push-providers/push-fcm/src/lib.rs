@@ -93,10 +93,7 @@ impl FcmPushProvider {
         }
     }
 
-    fn make_request(
-        &self,
-        message: &PushMessage,
-    ) -> Result<PushDeliveryResult, ContractError> {
+    fn make_request(&self, message: &PushMessage) -> Result<PushDeliveryResult, ContractError> {
         if self.config.oauth_transport_configured() {
             return self.send_oauth_v1(message);
         }
@@ -130,14 +127,18 @@ impl FcmPushProvider {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(FCM_REQUEST_TIMEOUT_SECONDS))
             .build()
-            .map_err(|error| ContractError::Unavailable(format!("fcm client init failed: {error}")))?;
+            .map_err(|error| {
+                ContractError::Unavailable(format!("fcm client init failed: {error}"))
+            })?;
         let response = client
             .post(self.config.endpoint())
             .header("Authorization", format!("Bearer {access_token}"))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
-            .map_err(|error| ContractError::Unavailable(format!("fcm v1 request failed: {error}")))?;
+            .map_err(|error| {
+                ContractError::Unavailable(format!("fcm v1 request failed: {error}"))
+            })?;
         let status = response.status();
         let payload: Value = response.json().map_err(|error| {
             ContractError::Unavailable(format!("fcm v1 response decode failed: {error}"))
@@ -173,7 +174,9 @@ impl FcmPushProvider {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(FCM_REQUEST_TIMEOUT_SECONDS))
             .build()
-            .map_err(|error| ContractError::Unavailable(format!("fcm client init failed: {error}")))?;
+            .map_err(|error| {
+                ContractError::Unavailable(format!("fcm client init failed: {error}"))
+            })?;
         let response = client
             .post(FCM_LEGACY_URL)
             .header("Authorization", format!("key={server_key}"))
@@ -220,16 +223,19 @@ fn fetch_oauth_access_token(
         exp: now + 3600,
     };
     let header = Header::new(Algorithm::RS256);
-    let encoding_key = EncodingKey::from_rsa_pem(credentials.private_key.as_bytes()).map_err(
-        |error| ContractError::Unavailable(format!("invalid FCM service account private key: {error}")),
-    )?;
+    let encoding_key =
+        EncodingKey::from_rsa_pem(credentials.private_key.as_bytes()).map_err(|error| {
+            ContractError::Unavailable(format!("invalid FCM service account private key: {error}"))
+        })?;
     let assertion = jsonwebtoken::encode(&header, &claims, &encoding_key).map_err(|error| {
         ContractError::Unavailable(format!("failed to sign FCM OAuth JWT: {error}"))
     })?;
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(FCM_REQUEST_TIMEOUT_SECONDS))
         .build()
-        .map_err(|error| ContractError::Unavailable(format!("fcm oauth client init failed: {error}")))?;
+        .map_err(|error| {
+            ContractError::Unavailable(format!("fcm oauth client init failed: {error}"))
+        })?;
     let response = client
         .post(credentials.token_uri.as_str())
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -237,7 +243,9 @@ fn fetch_oauth_access_token(
             "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion={assertion}"
         ))
         .send()
-        .map_err(|error| ContractError::Unavailable(format!("fcm oauth token request failed: {error}")))?;
+        .map_err(|error| {
+            ContractError::Unavailable(format!("fcm oauth token request failed: {error}"))
+        })?;
     let status = response.status();
     let payload: Value = response.json().map_err(|error| {
         ContractError::Unavailable(format!("fcm oauth token response decode failed: {error}"))
@@ -249,7 +257,9 @@ fn fetch_oauth_access_token(
         )));
     }
     let token = serde_json::from_value::<OAuthTokenResponse>(payload).map_err(|error| {
-        ContractError::Unavailable(format!("fcm oauth token response missing access_token: {error}"))
+        ContractError::Unavailable(format!(
+            "fcm oauth token response missing access_token: {error}"
+        ))
     })?;
     Ok(token.access_token)
 }
@@ -295,7 +305,9 @@ fn parse_v1_fcm_response(
         return Ok(PushDeliveryResult {
             accepted: false,
             provider_message_id: None,
-            error: Some(format!("fcm v1 authorization failed with HTTP {status_code}")),
+            error: Some(format!(
+                "fcm v1 authorization failed with HTTP {status_code}"
+            )),
             token_invalid: false,
         });
     }
@@ -323,7 +335,9 @@ fn parse_v1_fcm_response(
         return Ok(PushDeliveryResult {
             accepted: false,
             provider_message_id: None,
-            error: Some(format!("fcm v1 request failed with HTTP {status_code}: {message}")),
+            error: Some(format!(
+                "fcm v1 request failed with HTTP {status_code}: {message}"
+            )),
             token_invalid: false,
         });
     }
@@ -361,10 +375,7 @@ fn parse_legacy_fcm_response(
             token_invalid: false,
         });
     }
-    let success = payload
-        .get("success")
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let success = payload.get("success").and_then(Value::as_i64).unwrap_or(0);
     if success == 1 {
         let message_id = payload
             .get("message_id")
@@ -563,7 +574,10 @@ mod tests {
         assert_eq!(body["message"]["token"], "token");
         assert_eq!(body["message"]["notification"]["title"], "Hello");
         assert_eq!(body["message"]["data"]["category"], "message.new");
-        assert_eq!(body["message"]["apns"]["payload"]["aps"]["content-available"], 1);
+        assert_eq!(
+            body["message"]["apns"]["payload"]["aps"]["content-available"],
+            1
+        );
     }
 
     #[test]

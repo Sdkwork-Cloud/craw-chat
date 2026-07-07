@@ -5,13 +5,15 @@ use std::sync::Arc;
 use im_domain_core::message::{Message, MessageEdited, MessageRecalled};
 use im_platform_contracts::{
     CommitJournal, OutboxEventRecord, OutboxPublishStatus, RealtimeEventPublisher,
-    RealtimeEventRecipient,
+    RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
 };
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::sha256_hash;
 use serde::Serialize;
 
-use super::{ConversationRuntime, DirectMessageAccessGate, RuntimeError};
+use super::{
+    CONVERSATION_MEMBER_LIST_MAX_LIMIT, ConversationRuntime, DirectMessageAccessGate, RuntimeError,
+};
 
 const CONVERSATION_SCOPE_TYPE: &str = "conversation";
 const CONVERSATION_OUTBOX_AGGREGATE_TYPE: &str = "conversation";
@@ -54,10 +56,7 @@ where
             .or_else(crate::embedded_wiring::resolve_embedded_realtime_publisher)
     }
 
-    pub fn with_realtime_publisher(
-        mut self,
-        publisher: Arc<dyn RealtimeEventPublisher>,
-    ) -> Self {
+    pub fn with_realtime_publisher(mut self, publisher: Arc<dyn RealtimeEventPublisher>) -> Self {
         self.realtime_publisher = Some(publisher);
         self
     }
@@ -104,16 +103,32 @@ where
                 .summary_or_derived()
                 .unwrap_or_else(|| "[message]".into()),
         };
-        self.publish_durable_conversation_event(
+        let payload_json = serde_json::to_string(&payload).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "message.posted realtime payload encode failed: {error}"
+            ))
+        })?;
+        // The journal commit has already persisted the message; realtime push is a
+        // best-effort side-effect. If the publisher is temporarily unavailable the
+        // outbox relay (when configured) will eventually deliver the event. Logging
+        // the error and returning Ok avoids cascading 503 (code 50301) failures for
+        // every message send when the realtime backend blips.
+        if let Err(error) = self.publish_durable_conversation_event(
             publisher.as_ref(),
             tenant_id,
             organization_id,
             message.conversation_id.as_str(),
             "message.posted",
-            serde_json::to_string(&payload).map_err(|error| {
-                RuntimeError::InvalidInput(format!("message.posted realtime payload encode failed: {error}"))
-            })?,
-        )
+            payload_json,
+        ) {
+            tracing::warn!(
+                conversation_id = %message.conversation_id,
+                message_id = %message.message_id,
+                error = %error,
+                "message.posted realtime publish failed; relying on outbox relay for eventual delivery"
+            );
+        }
+        Ok(())
     }
 
     pub(crate) fn publish_message_edited_realtime(
@@ -133,7 +148,9 @@ where
                 .unwrap_or_else(|| "[message]".into()),
         };
         let payload_json = serde_json::to_string(&payload_body).map_err(|error| {
-            RuntimeError::InvalidInput(format!("message.edited realtime payload encode failed: {error}"))
+            RuntimeError::InvalidInput(format!(
+                "message.edited realtime payload encode failed: {error}"
+            ))
         })?;
         self.publish_or_enqueue_message_mutation_realtime(
             tenant_id,
@@ -173,6 +190,81 @@ where
         )
     }
 
+    fn publish_durable_scope_event_to_active_members_in_batches(
+        &self,
+        publisher: &dyn RealtimeEventPublisher,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        event_type: &str,
+        payload_json: String,
+    ) -> Result<(), RuntimeError> {
+        let mut cursor: Option<String> = None;
+        loop {
+            let window = self.list_members_window(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                Some(CONVERSATION_MEMBER_LIST_MAX_LIMIT),
+                cursor.as_deref(),
+            )?;
+            let recipients = window
+                .items
+                .into_iter()
+                .map(|member| {
+                    RealtimeEventRecipient::new(member.principal_id, member.principal_kind)
+                })
+                .collect::<Vec<_>>();
+            if !recipients.is_empty() {
+                publisher
+                    .publish_durable_scope_event_to_recipients(RealtimeScopeEventPublishCommand {
+                        tenant_id,
+                        organization_id,
+                        scope_type: CONVERSATION_SCOPE_TYPE,
+                        scope_id: conversation_id,
+                        event_type,
+                        payload: payload_json.clone(),
+                        recipients,
+                    })
+                    .map_err(RuntimeError::from)?;
+            }
+            if window.page_info.has_more != Some(true) {
+                break;
+            }
+            cursor = window.page_info.next_cursor.clone();
+        }
+        Ok(())
+    }
+
+    fn collect_active_member_principal_pairs(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+        let mut principal_ids = Vec::new();
+        let mut principal_kinds = Vec::new();
+        let mut cursor: Option<String> = None;
+        loop {
+            let window = self.list_members_window(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                Some(CONVERSATION_MEMBER_LIST_MAX_LIMIT),
+                cursor.as_deref(),
+            )?;
+            for member in window.items {
+                principal_ids.push(member.principal_id);
+                principal_kinds.push(member.principal_kind);
+            }
+            if window.page_info.has_more != Some(true) {
+                break;
+            }
+            cursor = window.page_info.next_cursor.clone();
+        }
+        Ok((principal_ids, principal_kinds))
+    }
+
     fn publish_or_enqueue_message_mutation_realtime(
         &self,
         tenant_id: &str,
@@ -183,26 +275,26 @@ where
         payload_json: String,
     ) -> Result<(), RuntimeError> {
         if let Some(publisher) = self.resolve_realtime_publisher() {
-            publisher
-                .publish_durable_scope_event_to_recipients(
-                    tenant_id,
-                    organization_id,
-                    CONVERSATION_SCOPE_TYPE,
-                    conversation_id,
-                    event_type,
-                    payload_json,
-                    self.list_members(tenant_id, organization_id, conversation_id)?
-                        .into_iter()
-                        .map(|member| {
-                            RealtimeEventRecipient::new(
-                                member.principal_id,
-                                member.principal_kind,
-                            )
-                        })
-                        .collect(),
-                )
-                .map(|_| ())
-                .map_err(RuntimeError::from)?;
+            // The journal commit has already persisted the mutation; realtime push
+            // is a best-effort side-effect. If the publisher is temporarily
+            // unavailable, log and continue rather than failing the request with
+            // 503 (code 50301). The outbox relay provides eventual delivery when
+            // configured.
+            if let Err(error) = self.publish_durable_scope_event_to_active_members_in_batches(
+                publisher.as_ref(),
+                tenant_id,
+                organization_id,
+                conversation_id,
+                event_type,
+                payload_json,
+            ) {
+                tracing::warn!(
+                    conversation_id = %conversation_id,
+                    event_type = %event_type,
+                    error = %error,
+                    "message mutation realtime publish failed; relying on outbox relay for eventual delivery"
+                );
+            }
             return Ok(());
         }
 
@@ -289,17 +381,20 @@ where
         );
         let payload_json = serde_json::to_string(&serde_json::Value::Object(payload_object))
             .map_err(|error| {
-            RuntimeError::InvalidInput(format!(
-                "{event_type} outbox payload encode failed: {error}"
-            ))
-        })?;
+                RuntimeError::InvalidInput(format!(
+                    "{event_type} outbox payload encode failed: {error}"
+                ))
+            })?;
         let payload_hash = sha256_hash(payload_json.as_bytes());
         let now = utc_now_rfc3339_millis();
         let id_generator = self
             .id_generator
             .as_ref()
             .expect("id_generator checked above");
-        let outbox_id = id_generator.next_id().map_err(RuntimeError::from)?.to_string();
+        let outbox_id = id_generator
+            .next_id()
+            .map_err(RuntimeError::from)?
+            .to_string();
         let outbox_event_id = format!("conversation:{event_type}:{event_id}");
         Ok(Some(OutboxEventRecord {
             tenant_id: tenant_id.to_owned(),
@@ -329,31 +424,14 @@ where
         event_type: &str,
         payload: String,
     ) -> Result<(), RuntimeError> {
-        let members = self.list_members(tenant_id, organization_id, conversation_id)?;
-        let recipients = members
-            .iter()
-            .map(|member| {
-                RealtimeEventRecipient::new(
-                    member.principal_id.clone(),
-                    member.principal_kind.clone(),
-                )
-            })
-            .collect::<Vec<_>>();
-        if recipients.is_empty() {
-            return Ok(());
-        }
-        publisher
-            .publish_durable_scope_event_to_recipients(
-                tenant_id,
-                organization_id,
-                CONVERSATION_SCOPE_TYPE,
-                conversation_id,
-                event_type,
-                payload,
-                recipients,
-            )
-            .map_err(RuntimeError::from)?;
-        Ok(())
+        self.publish_durable_scope_event_to_active_members_in_batches(
+            publisher,
+            tenant_id,
+            organization_id,
+            conversation_id,
+            event_type,
+            payload,
+        )
     }
 
     pub(crate) fn build_message_posted_outbox_record(
@@ -378,18 +456,15 @@ where
                 .summary_or_derived()
                 .unwrap_or_else(|| "[message]".into()),
         };
-        let members = self.list_members(tenant_id, organization_id, message.conversation_id.as_str())?;
-        if members.is_empty() {
+        let (recipient_principal_ids, recipient_principal_kinds) = self
+            .collect_active_member_principal_pairs(
+                tenant_id,
+                organization_id,
+                message.conversation_id.as_str(),
+            )?;
+        if recipient_principal_ids.is_empty() {
             return Ok(None);
         }
-        let recipient_principal_ids = members
-            .iter()
-            .map(|member| member.principal_id.clone())
-            .collect::<Vec<_>>();
-        let recipient_principal_kinds = members
-            .iter()
-            .map(|member| member.principal_kind.clone())
-            .collect::<Vec<_>>();
         let payload_json = serde_json::json!({
             "conversationId": payload_body.conversation_id,
             "messageId": payload_body.message_id,
@@ -410,7 +485,10 @@ where
             .id_generator
             .as_ref()
             .expect("id_generator checked above");
-        let outbox_id = id_generator.next_id().map_err(RuntimeError::from)?.to_string();
+        let outbox_id = id_generator
+            .next_id()
+            .map_err(RuntimeError::from)?
+            .to_string();
         let event_id = format!("conversation:message.posted:{outbox_id}");
         Ok(Some(OutboxEventRecord {
             tenant_id: tenant_id.to_owned(),

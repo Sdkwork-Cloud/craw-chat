@@ -261,8 +261,7 @@ where
             }),
             _ => None,
         };
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let business_scope_key = business_binding.as_ref().map(|binding| {
             conversation_business_scope_key(
@@ -431,8 +430,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -464,21 +462,21 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let organization_id =
             im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
         {
-            let conversation = state
-                .conversations
-                .get_mut(scope_key.as_str())
-                .ok_or_else(|| {
-                    RuntimeError::Conflict(format!(
-                        "cannot replay event without conversation {}",
-                        envelope.scope_id
-                    ))
-                })?;
+            let conversation =
+                state
+                    .conversations
+                    .get_mut(scope_key.as_str())
+                    .ok_or_else(|| {
+                        RuntimeError::Conflict(format!(
+                            "cannot replay event without conversation {}",
+                            envelope.scope_id
+                        ))
+                    })?;
             conversation
                 .aggregate
                 .observe_member_epoch(envelope.ordering_seq);
@@ -500,21 +498,21 @@ where
                     envelope.event_type, envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let organization_id =
             im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
         {
-            let conversation = state
-                .conversations
-                .get_mut(scope_key.as_str())
-                .ok_or_else(|| {
-                    RuntimeError::Conflict(format!(
-                        "cannot replay event without conversation {}",
-                        envelope.scope_id
-                    ))
-                })?;
+            let conversation =
+                state
+                    .conversations
+                    .get_mut(scope_key.as_str())
+                    .ok_or_else(|| {
+                        RuntimeError::Conflict(format!(
+                            "cannot replay event without conversation {}",
+                            envelope.scope_id
+                        ))
+                    })?;
             conversation
                 .aggregate
                 .observe_member_epoch(envelope.ordering_seq);
@@ -532,8 +530,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -559,21 +556,21 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let organization_id =
             im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
         let members_to_sync = {
-            let conversation = state
-                .conversations
-                .get_mut(scope_key.as_str())
-                .ok_or_else(|| {
-                    RuntimeError::Conflict(format!(
-                        "cannot replay event without conversation {}",
-                        envelope.scope_id
-                    ))
-                })?;
+            let conversation =
+                state
+                    .conversations
+                    .get_mut(scope_key.as_str())
+                    .ok_or_else(|| {
+                        RuntimeError::Conflict(format!(
+                            "cannot replay event without conversation {}",
+                            envelope.scope_id
+                        ))
+                    })?;
             conversation
                 .aggregate
                 .observe_member_epoch(envelope.ordering_seq);
@@ -596,21 +593,21 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let organization_id =
             im_domain_events::normalize_commit_organization_id(envelope.organization_id.as_str());
         let updated_member = {
-            let conversation = state
-                .conversations
-                .get_mut(scope_key.as_str())
-                .ok_or_else(|| {
-                    RuntimeError::Conflict(format!(
-                        "cannot replay event without conversation {}",
-                        envelope.scope_id
-                    ))
-                })?;
+            let conversation =
+                state
+                    .conversations
+                    .get_mut(scope_key.as_str())
+                    .ok_or_else(|| {
+                        RuntimeError::Conflict(format!(
+                            "cannot replay event without conversation {}",
+                            envelope.scope_id
+                        ))
+                    })?;
             conversation
                 .aggregate
                 .observe_member_epoch(envelope.ordering_seq);
@@ -632,8 +629,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -664,8 +660,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         {
             let conversation =
@@ -721,8 +716,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -759,8 +753,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -797,8 +790,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -832,8 +824,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -867,8 +858,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations
@@ -899,8 +889,7 @@ where
                     envelope.event_id
                 ))
             })?;
-        let scope_key =
-            conversation_scope_key_for_envelope(envelope);
+        let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
         let conversation = state
             .conversations

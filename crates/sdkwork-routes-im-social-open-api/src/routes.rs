@@ -1,15 +1,12 @@
 use axum::Router;
 use axum::routing::get;
 use social_service::postgres::{
-    block, direct_chat, user_profile, user_search, user_settings, PostgresAppState,
+    PostgresAppState, block, direct_chat, user_profile, user_search, user_settings,
 };
 
 pub fn build_supplemental_app(state: PostgresAppState) -> Router {
     Router::new()
-        .route(
-            "/im/v3/api/social/users",
-            get(user_search::search_users),
-        )
+        .route("/im/v3/api/social/users", get(user_search::search_users))
         .route("/im/v3/api/social/user_blocks", get(block::list_blocks))
         .route(
             "/im/v3/api/social/direct_chats",

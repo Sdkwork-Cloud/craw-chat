@@ -18,31 +18,20 @@ export class PresenceMeApi {
   }
 }
 
-export class PresenceHeartbeatApi {
-  private client: HttpClient;
-
-  constructor(client: HttpClient) {
-    this.client = client;
-  }
-
-
-/** Publish current client route presence heartbeat */
-  async create(body: PresenceHeartbeatRequest): Promise<PresenceView> {
-    return this.client.post<PresenceView>(imApiPath(`/presence/heartbeat`), body, undefined, undefined, 'application/json');
-  }
-}
-
 export class PresenceApi {
   private client: HttpClient;
-  public readonly heartbeat: PresenceHeartbeatApi;
   public readonly me: PresenceMeApi;
 
   constructor(client: HttpClient) {
     this.client = client;
-    this.heartbeat = new PresenceHeartbeatApi(client);
     this.me = new PresenceMeApi(client);
   }
 
+
+/** Publish current client route presence heartbeat */
+  async heartbeat(body: PresenceHeartbeatRequest): Promise<PresenceView> {
+    return this.client.post<PresenceView>(imApiPath(`/presence/heartbeat`), body, undefined, undefined, 'application/json');
+  }
 }
 
 export function createPresenceApi(client: HttpClient): PresenceApi {

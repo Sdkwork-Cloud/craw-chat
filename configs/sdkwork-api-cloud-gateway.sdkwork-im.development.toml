@@ -37,6 +37,17 @@ apiPrefix = "/im/v3/api"
 runtimeMode = "split-or-embedded"
 sameOriginAllowed = true
 
+# Portal app-api surface -> upstream sdkwork-im-portal-http (127.0.0.1:18079).
+[[dependencySurfaces]]
+serviceId = "sdkwork-im-portal-http"
+workspace = "sdkwork-im"
+sdkFamily = "sdkwork-im-app-sdk"
+apiAuthority = "sdkwork-im-portal-http"
+surface = "app"
+apiPrefix = "/app/v3/api/portal"
+runtimeMode = "split-or-embedded"
+sameOriginAllowed = true
+
 # Backend HTTP API surface -> upstream sdkwork-im-backend-http (127.0.0.1:18079).
 # Generates the catch-all route `/backend/v3/api/{*path}` covering control/
 # ops/audit backend endpoints.

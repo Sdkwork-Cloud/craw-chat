@@ -16,9 +16,8 @@ use im_platform_contracts::{
 use r2d2_postgres::postgres::{Client, NoTls};
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
-const CORE_SCHEMA_SQL: &str = include_str!(
-    "../../../database/ddl/baseline/postgres/0001_im_baseline.sql"
-);
+const CORE_SCHEMA_SQL: &str =
+    include_str!("../../../database/ddl/baseline/postgres/0001_im_baseline.sql");
 
 #[test]
 fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured() {
@@ -273,7 +272,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
 
     let fence = RealtimeDisconnectFenceRecord {
         tenant_id: tenant_id.clone(),
-            organization_id: "0".into(),
+        organization_id: "0".into(),
         principal_kind: principal_kind.into(),
         principal_id: principal_id.clone(),
         device_id: realtime_device_id.clone(),
@@ -367,13 +366,15 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
     let expired = stores
         .presence
         .expire_online_state_if_seen_at_or_before(
-            tenant_id.as_str(),
-            organization_id,
-            principal_kind,
-            principal_id.as_str(),
-            realtime_device_id.as_str(),
-            "2026-05-09T10:00:04.000Z",
-            "2026-05-09T10:00:05.000Z",
+            im_platform_contracts::ExpireOnlinePresenceStateCommand {
+                tenant_id: tenant_id.as_str(),
+                organization_id,
+                principal_kind,
+                principal_id: principal_id.as_str(),
+                device_id: realtime_device_id.as_str(),
+                cutoff_seen_at: "2026-05-09T10:00:04.000Z",
+                expired_at: "2026-05-09T10:00:05.000Z",
+            },
         )
         .expect("presence stale expiration should use CAS update")
         .expect("presence state should expire");
@@ -445,7 +446,7 @@ fn presence_record(
 ) -> PresenceStateRecord {
     PresenceStateRecord {
         tenant_id: tenant_id.into(),
-            organization_id: "0".into(),
+        organization_id: "0".into(),
         principal_kind: principal_kind.into(),
         principal_id: principal_id.into(),
         device_id: device_id.into(),

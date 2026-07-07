@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:im_sdk_generated/src/http/client.dart';
 import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 
 const _appApiPrefix = '/app/v3/api';
@@ -47,7 +46,7 @@ class DriveUploaderRequest {
 class DriveAppSdkClient {
   DriveAppSdkClient._(this._http);
 
-  final HttpClient _http;
+  final BaseHttpClient _http;
 
   static DriveAppSdkClient create({
     required String applicationPublicHttpUrl,
@@ -55,8 +54,8 @@ class DriveAppSdkClient {
     String? authToken,
   }) {
     final baseUrl = _resolveAppApiBaseUrl(applicationPublicHttpUrl);
-    final client = HttpClient(
-      config: SdkConfig(
+    final client = BaseHttpClient(
+      SdkConfig(
         baseUrl: baseUrl,
         accessToken: accessToken,
         authToken: authToken,

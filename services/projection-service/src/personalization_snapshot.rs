@@ -83,12 +83,15 @@ impl TimelineProjectionService {
                 return Ok(false);
             }
 
-            let mut preferences =
-                lock_projection_mutex(&self.conversation_preferences, "conversation preferences store");
+            let mut preferences = lock_projection_mutex(
+                &self.conversation_preferences,
+                "conversation preferences store",
+            );
             preferences.clear();
             let mut favorites =
                 lock_projection_mutex(&self.message_favorites, "message favorites store");
             favorites.clear();
+            lock_projection_mutex(&self.message_favorites_index, "message favorites index").clear();
 
             for principal in principal_catalog {
                 let snapshot_scope = personalization_principal_snapshot_scope(
@@ -97,14 +100,13 @@ impl TimelineProjectionService {
                     principal.principal_kind.as_str(),
                     principal.principal_id.as_str(),
                 );
-                let snapshot = super::snapshot::load_metadata_snapshot::<
-                    PersonalizationPrincipalSnapshot,
-                >(
-                    metadata_store,
-                    snapshot_scope.as_str(),
-                    PERSONALIZATION_SNAPSHOT_KEY,
-                )?
-                .unwrap_or_default();
+                let snapshot =
+                    super::snapshot::load_metadata_snapshot::<PersonalizationPrincipalSnapshot>(
+                        metadata_store,
+                        snapshot_scope.as_str(),
+                        PERSONALIZATION_SNAPSHOT_KEY,
+                    )?
+                    .unwrap_or_default();
 
                 for preference in snapshot.conversation_preferences {
                     let organization_id = im_platform_contracts::normalize_realtime_organization_id(
@@ -132,7 +134,8 @@ impl TimelineProjectionService {
                         principal.principal_kind.as_str(),
                         principal.principal_id.as_str(),
                     );
-                    favorites.insert(key, favorite_map);
+                    favorites.insert(key.clone(), favorite_map.clone());
+                    self.rebuild_message_favorites_index_for_scope(key.as_str(), &favorite_map);
                 }
             }
 
@@ -176,7 +179,10 @@ impl TimelineProjectionService {
         }
 
         let mut principal_catalog = BTreeSet::new();
-        let mut snapshots = BTreeMap::<PersonalizationPrincipalCatalogEntry, PersonalizationPrincipalSnapshot>::new();
+        let mut snapshots = BTreeMap::<
+            PersonalizationPrincipalCatalogEntry,
+            PersonalizationPrincipalSnapshot,
+        >::new();
 
         for (storage_key, preference) in preferences {
             let Some((tenant_id, organization_id, conversation_id, principal_kind, principal_id)) =
@@ -193,7 +199,7 @@ impl TimelineProjectionService {
             principal_catalog.insert(entry.clone());
             snapshots
                 .entry(entry)
-                .or_insert_with(PersonalizationPrincipalSnapshot::default)
+                .or_default()
                 .conversation_preferences
                 .push(ConversationPreferencesView {
                     tenant_id,
@@ -221,10 +227,8 @@ impl TimelineProjectionService {
                 principal_id: principal_id.clone(),
             };
             principal_catalog.insert(entry.clone());
-            snapshots
-                .entry(entry)
-                .or_insert_with(PersonalizationPrincipalSnapshot::default)
-                .message_favorites = favorite_map.into_values().collect();
+            snapshots.entry(entry).or_default().message_favorites =
+                favorite_map.into_values().collect();
         }
 
         write_plan.push_metadata(
@@ -313,7 +317,6 @@ fn split_principal_storage_key(storage_key: &str) -> Option<(String, String, Str
     Some((scope_key, principal_kind, principal_id))
 }
 
-
 trait ProjectionStoreLock<T> {
     fn lock_projection(&self, lock_name: &'static str) -> std::sync::MutexGuard<'_, T>;
 }
@@ -331,7 +334,8 @@ mod tests {
     #[test]
     fn test_parse_conversation_preferences_storage_key_round_trip() {
         let key = conversation_preferences_key("100001", "default", "c_demo", "user", "42");
-        let parsed = parse_conversation_preferences_storage_key(key.as_str()).expect("key should parse");
+        let parsed =
+            parse_conversation_preferences_storage_key(key.as_str()).expect("key should parse");
         assert_eq!(parsed.0, "100001");
         assert_eq!(parsed.1, "0");
         assert_eq!(parsed.2, "c_demo");

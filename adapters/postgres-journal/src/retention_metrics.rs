@@ -42,8 +42,10 @@ impl RetentionPurgeMetrics {
             .fetch_add(report.outbox_events_deleted, Ordering::Relaxed);
         self.inbox_events_deleted_total
             .fetch_add(report.inbox_events_deleted, Ordering::Relaxed);
-        self.projection_timeline_entries_deleted_total
-            .fetch_add(report.projection_timeline_entries_deleted, Ordering::Relaxed);
+        self.projection_timeline_entries_deleted_total.fetch_add(
+            report.projection_timeline_entries_deleted,
+            Ordering::Relaxed,
+        );
         self.realtime_device_events_deleted_total
             .fetch_add(report.realtime_device_events_deleted, Ordering::Relaxed);
         self.rtc_sessions_deleted_total
@@ -76,7 +78,8 @@ impl RetentionPurgeMetrics {
             escape_label(deployment_profile),
             escape_label(runtime_target),
         );
-        let last_duration_seconds = self.last_duration_micros.load(Ordering::Relaxed) as f64 / 1_000_000.0;
+        let last_duration_seconds =
+            self.last_duration_micros.load(Ordering::Relaxed) as f64 / 1_000_000.0;
         format!(
             "# HELP im_retention_purge_batches_total Retention purge batch executions.\n\
              # TYPE im_retention_purge_batches_total counter\n\
@@ -108,12 +111,16 @@ impl RetentionPurgeMetrics {
             self.skipped_lock_total.load(Ordering::Relaxed),
             self.failures_total.load(Ordering::Relaxed),
             self.commit_journal_deleted_total.load(Ordering::Relaxed),
-            self.conversation_messages_deleted_total.load(Ordering::Relaxed),
-            self.message_media_refs_deleted_total.load(Ordering::Relaxed),
+            self.conversation_messages_deleted_total
+                .load(Ordering::Relaxed),
+            self.message_media_refs_deleted_total
+                .load(Ordering::Relaxed),
             self.outbox_events_deleted_total.load(Ordering::Relaxed),
             self.inbox_events_deleted_total.load(Ordering::Relaxed),
-            self.projection_timeline_entries_deleted_total.load(Ordering::Relaxed),
-            self.realtime_device_events_deleted_total.load(Ordering::Relaxed),
+            self.projection_timeline_entries_deleted_total
+                .load(Ordering::Relaxed),
+            self.realtime_device_events_deleted_total
+                .load(Ordering::Relaxed),
             self.rtc_sessions_deleted_total.load(Ordering::Relaxed),
             self.rtc_signals_deleted_total.load(Ordering::Relaxed),
         )
@@ -149,12 +156,7 @@ mod tests {
             },
             1_500_000,
         );
-        let body = metrics.render_prometheus(
-            "ops-service",
-            "test",
-            "standalone",
-            "server",
-        );
+        let body = metrics.render_prometheus("ops-service", "test", "standalone", "server");
         assert!(body.contains("im_retention_purge_batches_total"));
         assert!(body.contains("store=\"commit_journal\""));
         assert!(body.contains("im_retention_purge_last_duration_seconds"));

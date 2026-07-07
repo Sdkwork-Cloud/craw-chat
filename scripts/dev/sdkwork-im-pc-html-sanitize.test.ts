@@ -3,9 +3,10 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const requireFromImPcCommons = createRequire(
   path.resolve(
-    fileURLToPath(import.meta.url),
+    scriptDir,
     '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-commons/package.json',
   ),
 );

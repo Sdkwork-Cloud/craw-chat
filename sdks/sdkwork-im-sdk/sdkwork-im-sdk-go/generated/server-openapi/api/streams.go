@@ -18,67 +18,67 @@ func NewStreamsApi(client *sdkhttp.Client) *StreamsApi {
 }
 
 // Open a stream
-func (a *StreamsApi) Create(body sdktypes.OpenStreamRequest) (sdktypes.StreamView, error) {
+func (a *StreamsApi) Create(body sdktypes.OpenStreamRequest) (sdktypes.StreamsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath("/streams"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.StreamView
+        var zero sdktypes.StreamsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.StreamView](raw)
+    return decodeResult[sdktypes.StreamsCreateResponse201](raw)
 }
 
 // List stream frames
-func (a *StreamsApi) FramesList(streamId string, limit *int, cursor *string) (sdktypes.StreamFramesResponse, error) {
+func (a *StreamsApi) FramesList(streamId string, pageSize *int, cursor *string) (sdktypes.StreamsFramesListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
-        {Name: "limit", Value: func() interface{} { if limit == nil { return nil }; return *limit }(), Style: "form", Explode: true, AllowReserved: false},
+        {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "cursor", Value: func() interface{} { if cursor == nil { return nil }; return *cursor }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(ImApiPath(fmt.Sprintf("/streams/%s/frames", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), query), nil, nil)
     if err != nil {
-        var zero sdktypes.StreamFramesResponse
+        var zero sdktypes.StreamsFramesListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.StreamFramesResponse](raw)
+    return decodeResult[sdktypes.StreamsFramesListResponse](raw)
 }
 
 // Append a stream frame
-func (a *StreamsApi) FramesCreate(streamId string, body sdktypes.AppendStreamFrameRequest) (sdktypes.StreamFrameView, error) {
+func (a *StreamsApi) FramesCreate(streamId string, body sdktypes.AppendStreamFrameRequest) (sdktypes.StreamsFramesCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/streams/%s/frames", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.StreamFrameView
+        var zero sdktypes.StreamsFramesCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.StreamFrameView](raw)
+    return decodeResult[sdktypes.StreamsFramesCreateResponse201](raw)
 }
 
 // Checkpoint a stream
-func (a *StreamsApi) CheckpointCreate(streamId string) (sdktypes.StreamView, error) {
+func (a *StreamsApi) Checkpoint(streamId string) (sdktypes.StreamsCheckpointResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/streams/%s/checkpoint", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.StreamView
+        var zero sdktypes.StreamsCheckpointResponse
         return zero, err
     }
-    return decodeResult[sdktypes.StreamView](raw)
+    return decodeResult[sdktypes.StreamsCheckpointResponse](raw)
 }
 
 // Complete a stream
-func (a *StreamsApi) Complete(streamId string) (sdktypes.StreamView, error) {
+func (a *StreamsApi) Complete(streamId string) (sdktypes.StreamsCompleteResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/streams/%s/complete", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.StreamView
+        var zero sdktypes.StreamsCompleteResponse
         return zero, err
     }
-    return decodeResult[sdktypes.StreamView](raw)
+    return decodeResult[sdktypes.StreamsCompleteResponse](raw)
 }
 
 // Abort a stream
-func (a *StreamsApi) Abort(streamId string) (sdktypes.StreamView, error) {
+func (a *StreamsApi) Abort(streamId string) (sdktypes.StreamsAbortResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/streams/%s/abort", SerializePathParameter(streamId, PathParameterSpec{Name: "streamId", Style: "simple", Explode: false}))), nil, nil, nil, "")
     if err != nil {
-        var zero sdktypes.StreamView
+        var zero sdktypes.StreamsAbortResponse
         return zero, err
     }
-    return decodeResult[sdktypes.StreamView](raw)
+    return decodeResult[sdktypes.StreamsAbortResponse](raw)
 }
 
 type PathParameterSpec struct {

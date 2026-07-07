@@ -55,7 +55,7 @@ Three hosted gRPC service processes shipped:
 | --- | --- | --- |
 | `services/session-gateway-rpc-bin` | 50051 | RealtimeService, PresenceService |
 | `services/sdkwork-comms-conversation-rpc-bin` | 50052 | ConversationService, MessageService |
-| `services/sdkwork-comms-conversation-internal-rpc-bin` | 50053 | DistributedRuntime, MessageDispatch, RoomOrchestration |
+| `services/sdkwork-comms-conversation-internal-rpc-bin` | 50053 | RoomOrchestration, MessageDispatch (unary only) |
 
 All hosts:
 - Use `sdkwork-im-rpc-service-rust` dispatchers via `sdkwork-rpc-server`.
@@ -108,6 +108,7 @@ Legacy folder names (`social-service`, `space-service`) may appear as registrati
 ## Consequences
 
 - `specs/README.md` records discovery status as **Phase 2 Deferred** (Phase 1 RPC hosts complete via `sdkwork-rpc-framework`).
+- `distributed_runtime_service.proto` (RuntimeTopology, RouteLease, DomainEventRelay) is **contract-only** until Phase 2; do not expose to production orchestration clients.
 - `AGENTS.md` RPC and discovery boundary note remains accurate: three `*-rpc-bin` hosts ship; `sdkwork-discovery` product control plane is not yet integrated.
 - RPC contract work and RPC host operations can continue without the `sdkwork-discovery` product dependency.
 - Phase 2 will introduce a new CI/dev dependency on `sdkwork-discovery` for integration tests once business services consume RPC clients and the discovery product is checked out.

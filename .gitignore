@@ -43,6 +43,10 @@ Thumbs.db
 **/test-results/
 **/playwright-report/
 **/coverage/
+target-codex-verify/
+target-codex-*/
+clippy_output.txt
+/data/drive-objects/
 
 # Frontend dependency caches and build output
 **/node_modules/

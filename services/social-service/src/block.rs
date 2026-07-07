@@ -2,16 +2,17 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use sdkwork_web_core::WebRequestContext;
 use im_domain_core::social::{
-    BlockScope, FriendRequestStatus, FriendshipStatus, UserBlock, UserBlockStatus, normalize_user_pair,
+    BlockScope, FriendRequestStatus, FriendshipStatus, UserBlock, UserBlockStatus,
+    normalize_user_pair,
 };
 use im_domain_events::social::{
     FriendRequestCanceledPayload, FriendRequestDeclinedPayload, FriendshipRemovedPayload,
-    SocialCommitEnvelopeInput, SocialEventType, UserBlockedPayload, UserBlockReleasedPayload,
+    SocialCommitEnvelopeInput, SocialEventType, UserBlockReleasedPayload, UserBlockedPayload,
     social_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::api_payload::resource_item;
@@ -19,8 +20,8 @@ use crate::envelope::finish_enveloped_json;
 use crate::friendship::{AppState, SocialServiceError};
 use crate::runtime::{
     SocialControlState, SocialRuntime, SocialWritePersistence, StoredUserBlock,
-    active_friendship_record_for_pair, active_user_block_for_scope, archive_active_direct_chats_for_pair,
-    pending_friend_request_records_for_pair,
+    active_friendship_record_for_pair, active_user_block_for_scope,
+    archive_active_direct_chats_for_pair, pending_friend_request_records_for_pair,
 };
 
 const MAX_ID_BYTES: usize = 256;
@@ -239,6 +240,16 @@ impl SocialRuntime {
         auth: &AppContext,
         request: BlockUserRequest,
     ) -> Result<BlockedUser, SocialServiceError> {
+        self.block_user_with_write_lock(tenant_id, auth, request, false)
+    }
+
+    pub(crate) fn block_user_with_write_lock(
+        &self,
+        tenant_id: &str,
+        auth: &AppContext,
+        request: BlockUserRequest,
+        write_lock_already_held: bool,
+    ) -> Result<BlockedUser, SocialServiceError> {
         validate_payload_size("blockId", request.block_id.as_str(), MAX_ID_BYTES)?;
         validate_payload_size("eventId", request.event_id.as_str(), MAX_ID_BYTES)?;
         validate_payload_size(
@@ -347,8 +358,14 @@ impl SocialRuntime {
             updated_at: request.effective_at,
         };
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
-        self.refresh_state_from_authority_for_write()?;
+        let _write_lock = if write_lock_already_held {
+            None
+        } else {
+            Some(self.acquire_cross_instance_write_lock()?)
+        };
+        if !write_lock_already_held {
+            self.refresh_state_from_authority_for_write()?;
+        }
         let mut state = self
             .state
             .write()
@@ -417,16 +434,32 @@ impl SocialRuntime {
                 ));
             }
         }
-        if active_user_block_for_scope(
+        if let Some(existing_record) = active_user_block_for_scope(
             &next_state,
             tenant_id,
             user_block.blocker_user_id.as_str(),
             user_block.blocked_user_id.as_str(),
             &user_block.scope,
             user_block.direct_chat_id.as_deref(),
-        )
-        .is_some()
-        {
+        ) {
+            if existing_record.user_block.blocker_user_id == user_block.blocker_user_id {
+                let latest_commit = existing_record.commits.last().cloned().ok_or_else(|| {
+                    SocialServiceError::conflict(
+                        "user_block_scope_conflict",
+                        format!(
+                            "active user block already exists for {} -> {} scope {:?}",
+                            user_block.blocker_user_id,
+                            user_block.blocked_user_id,
+                            user_block.scope
+                        ),
+                    )
+                })?;
+                return Ok(BlockedUser {
+                    user_block: existing_record.user_block.clone(),
+                    latest_commit,
+                    persistence: self.repair_derived_snapshot_best_effort(&state),
+                });
+            }
             return Err(SocialServiceError::conflict(
                 "user_block_scope_conflict",
                 format!(
@@ -445,65 +478,63 @@ impl SocialRuntime {
         );
 
         let mut commits_to_persist = vec![commit.clone()];
-        if matches!(user_block.scope, BlockScope::All | BlockScope::Friendship) {
-            if let Ok(pair) = user_block.user_pair() {
-                if let Some(existing) = active_friendship_record_for_pair(
-                    &next_state,
-                    tenant_id,
-                    auth.organization_id.as_str(),
-                    pair.user_low_id.as_str(),
-                    pair.user_high_id.as_str(),
-                ) {
-                    let friendship_id = existing.friendship.friendship_id.clone();
-                    let removed_at = user_block.updated_at.clone();
-                    let removal_event_id =
-                        format!("{}:friendship-removed", request.event_id.as_str());
-                    let removal_payload = FriendshipRemovedPayload {
-                        friendship_id: friendship_id.clone(),
-                        user_low_id: existing.friendship.user_low_id.clone(),
-                        user_high_id: existing.friendship.user_high_id.clone(),
-                        removed_by_user_id: user_block.blocker_user_id.clone(),
-                        removed_at: removed_at.clone(),
-                    };
-                    let removal_payload_json = serde_json::to_string(&removal_payload)
-                        .expect("friendship removal payload should serialize into json");
-                    let removal_commit = social_commit_envelope(SocialCommitEnvelopeInput {
-                        event_id: removal_event_id.as_str(),
-                        tenant_id,
-                        organization_id: auth.organization_id.as_str(),
-                        aggregate_type: AggregateType::Friendship,
-                        aggregate_id: friendship_id.as_str(),
-                        event_type: SocialEventType::FriendshipRemoved,
-                        ordering_seq: existing.commits.len() as u64 + 1,
-                        actor: EventActor {
-                            actor_id: auth.actor_id.clone(),
-                            actor_kind: auth.actor_kind.clone(),
-                            actor_session_id: auth.session_id.clone(),
-                        },
-                        occurred_at: removed_at.as_str(),
-                        committed_at: removed_at.as_str(),
-                        payload: removal_payload_json.as_str(),
-                    });
-                    let mut record = next_state
-                        .friendships
-                        .get(friendship_id.as_str())
-                        .cloned()
-                        .expect("active friendship should exist after lookup");
-                    record.friendship.status = FriendshipStatus::Removed;
-                    record.friendship.updated_at = removed_at.clone();
-                    record.commits.push(removal_commit.clone());
-                    next_state.insert_friendship_record(friendship_id, record);
-                    archive_active_direct_chats_for_pair(
-                        &mut next_state,
-                        tenant_id,
-                        auth.organization_id.as_str(),
-                        pair.user_low_id.as_str(),
-                        pair.user_high_id.as_str(),
-                        removed_at.as_str(),
-                    );
-                    commits_to_persist.push(removal_commit);
-                }
-            }
+        if matches!(user_block.scope, BlockScope::All | BlockScope::Friendship)
+            && let Ok(pair) = user_block.user_pair()
+            && let Some(existing) = active_friendship_record_for_pair(
+                &next_state,
+                tenant_id,
+                auth.organization_id.as_str(),
+                pair.user_low_id.as_str(),
+                pair.user_high_id.as_str(),
+            )
+        {
+            let friendship_id = existing.friendship.friendship_id.clone();
+            let removed_at = user_block.updated_at.clone();
+            let removal_event_id = format!("{}:friendship-removed", request.event_id.as_str());
+            let removal_payload = FriendshipRemovedPayload {
+                friendship_id: friendship_id.clone(),
+                user_low_id: existing.friendship.user_low_id.clone(),
+                user_high_id: existing.friendship.user_high_id.clone(),
+                removed_by_user_id: user_block.blocker_user_id.clone(),
+                removed_at: removed_at.clone(),
+            };
+            let removal_payload_json = serde_json::to_string(&removal_payload)
+                .expect("friendship removal payload should serialize into json");
+            let removal_commit = social_commit_envelope(SocialCommitEnvelopeInput {
+                event_id: removal_event_id.as_str(),
+                tenant_id,
+                organization_id: auth.organization_id.as_str(),
+                aggregate_type: AggregateType::Friendship,
+                aggregate_id: friendship_id.as_str(),
+                event_type: SocialEventType::FriendshipRemoved,
+                ordering_seq: existing.commits.len() as u64 + 1,
+                actor: EventActor {
+                    actor_id: auth.actor_id.clone(),
+                    actor_kind: auth.actor_kind.clone(),
+                    actor_session_id: auth.session_id.clone(),
+                },
+                occurred_at: removed_at.as_str(),
+                committed_at: removed_at.as_str(),
+                payload: removal_payload_json.as_str(),
+            });
+            let mut record = next_state
+                .friendships
+                .get(friendship_id.as_str())
+                .cloned()
+                .expect("active friendship should exist after lookup");
+            record.friendship.status = FriendshipStatus::Removed;
+            record.friendship.updated_at = removed_at.clone();
+            record.commits.push(removal_commit.clone());
+            next_state.insert_friendship_record(friendship_id, record);
+            archive_active_direct_chats_for_pair(
+                &mut next_state,
+                tenant_id,
+                auth.organization_id.as_str(),
+                pair.user_low_id.as_str(),
+                pair.user_high_id.as_str(),
+                removed_at.as_str(),
+            );
+            commits_to_persist.push(removal_commit);
         }
 
         if matches!(user_block.scope, BlockScope::All | BlockScope::Friendship) {
@@ -571,7 +602,7 @@ impl SocialRuntime {
                 return Ok(());
             }
             let effective_at = im_time::utc_now_rfc3339_millis();
-            self.block_user(
+            self.block_user_with_write_lock(
                 tenant_id,
                 auth,
                 BlockUserRequest {
@@ -584,13 +615,14 @@ impl SocialRuntime {
                     expires_at: None,
                     effective_at,
                 },
+                true,
             )?;
             return Ok(());
         }
 
         if let Some(record) = existing {
             let released_at = im_time::utc_now_rfc3339_millis();
-            self.release_user_block(
+            self.release_user_block_with_write_lock(
                 tenant_id,
                 auth,
                 record.user_block.block_id.as_str(),
@@ -599,6 +631,7 @@ impl SocialRuntime {
                     released_by_user_id: owner_user_id.to_owned(),
                     released_at,
                 },
+                true,
             )?;
         }
         Ok(())
@@ -626,12 +659,47 @@ impl SocialRuntime {
         .is_some()
     }
 
+    fn replay_terminal_released_user_block(
+        &self,
+        state: &crate::runtime::SocialControlState,
+        block_id: &str,
+        stored: &crate::runtime::StoredUserBlock,
+    ) -> Result<BlockedUser, SocialServiceError> {
+        let release_commit = stored
+            .commits
+            .iter()
+            .find(|commit| commit.event_type == "user_block.released")
+            .cloned()
+            .ok_or_else(|| {
+                SocialServiceError::conflict(
+                    "user_block_not_active",
+                    format!("user block {block_id} is released but missing release commit"),
+                )
+            })?;
+        Ok(BlockedUser {
+            user_block: stored.user_block.clone(),
+            latest_commit: release_commit,
+            persistence: self.repair_derived_snapshot_best_effort(state),
+        })
+    }
+
     pub(crate) fn release_user_block(
         &self,
         tenant_id: &str,
         auth: &AppContext,
         block_id: &str,
         request: ReleaseUserBlockRequest,
+    ) -> Result<BlockedUser, SocialServiceError> {
+        self.release_user_block_with_write_lock(tenant_id, auth, block_id, request, false)
+    }
+
+    pub(crate) fn release_user_block_with_write_lock(
+        &self,
+        tenant_id: &str,
+        auth: &AppContext,
+        block_id: &str,
+        request: ReleaseUserBlockRequest,
+        write_lock_already_held: bool,
     ) -> Result<BlockedUser, SocialServiceError> {
         validate_payload_size("eventId", request.event_id.as_str(), MAX_ID_BYTES)?;
         validate_payload_size(
@@ -661,8 +729,14 @@ impl SocialRuntime {
             "releasedByUserId",
         )?;
 
-        let _write_lock = self.acquire_cross_instance_write_lock()?;
-        self.refresh_state_from_authority_for_write()?;
+        let _write_lock = if write_lock_already_held {
+            None
+        } else {
+            Some(self.acquire_cross_instance_write_lock()?)
+        };
+        if !write_lock_already_held {
+            self.refresh_state_from_authority_for_write()?;
+        }
         let mut state = self
             .state
             .write()
@@ -684,18 +758,32 @@ impl SocialRuntime {
                 "releasedByUserId must match the block owner",
             ));
         }
-        if !stored.user_block.status.is_active() {
+        let existing_ordering_seq = state
+            .committed_event(tenant_id, request.event_id.as_str())
+            .map(|existing| existing.commit().ordering_seq);
+        if !stored.user_block.status.is_active() && existing_ordering_seq.is_none() {
+            if matches!(stored.user_block.status, UserBlockStatus::Released) {
+                return self.replay_terminal_released_user_block(&state, block_id, &stored);
+            }
             return Err(SocialServiceError::conflict(
                 "user_block_not_active",
                 format!("user block {block_id} is not active"),
             ));
         }
 
+        let scope = serde_json::to_string(&stored.user_block.scope)
+            .expect("user block scope should serialize")
+            .trim_matches('"')
+            .to_owned();
         let release_payload = UserBlockReleasedPayload {
             block_id: block_id.to_owned(),
             blocker_user_id: stored.user_block.blocker_user_id.clone(),
             blocked_user_id: stored.user_block.blocked_user_id.clone(),
             released_at: request.released_at.clone(),
+            scope: Some(scope),
+            direct_chat_id: stored.user_block.direct_chat_id.clone(),
+            expires_at: stored.user_block.expires_at.clone(),
+            effective_at: Some(stored.user_block.created_at.clone()),
         };
         let release_payload_json = serde_json::to_string(&release_payload)
             .expect("user block release payload should serialize into json");
@@ -763,7 +851,7 @@ pub(crate) async fn block_user(
     State(state): State<AppState>,
     Json(request): Json<BlockUserRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let blocked = state
             .social_runtime
             .block_user(auth.tenant_id.as_str(), &auth, request)?;
@@ -774,8 +862,9 @@ pub(crate) async fn block_user(
             latest_commit: blocked.latest_commit.into(),
             persistence: blocked.persistence,
         }))
-    })();
-    finish_enveloped_json(&ctx, result)
+    })
+    .await;
+    crate::envelope::finish_created_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn user_block_snapshot(
@@ -784,11 +873,11 @@ pub(crate) async fn user_block_snapshot(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
-            .refresh_state_from_authority_for_write()?;
+            .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
             .user_block_snapshot(auth.tenant_id.as_str(), block_id.as_str())
@@ -813,7 +902,8 @@ pub(crate) async fn user_block_snapshot(
             user_block: snapshot.user_block,
             commits: snapshot.commits.into_iter().map(Into::into).collect(),
         }))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -867,7 +957,8 @@ fn append_block_pending_friend_request_terminations(
                     FriendRequestStatus::Declined,
                 )
             };
-        let termination_event_id = format!("{block_event_id}:friend-request-terminated:{request_id}");
+        let termination_event_id =
+            format!("{block_event_id}:friend-request-terminated:{request_id}");
         let commit = social_commit_envelope(SocialCommitEnvelopeInput {
             event_id: termination_event_id.as_str(),
             tenant_id,

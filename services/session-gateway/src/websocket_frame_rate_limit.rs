@@ -13,10 +13,8 @@ use im_adapters_redis_cache::{
 };
 use im_domain_core::rate_limiter::DomainRateLimiter;
 
-use crate::http_limits::{
-    resolve_websocket_frame_rate_burst, resolve_websocket_frame_rate_rpm,
-};
 use crate::ApiError;
+use crate::http_limits::{resolve_websocket_frame_rate_burst, resolve_websocket_frame_rate_rpm};
 
 const WS_FRAME_RATE_SCOPE: &str = "session.ws_frame";
 const WS_FRAME_RATE_WINDOW_SECS: u64 = 60;

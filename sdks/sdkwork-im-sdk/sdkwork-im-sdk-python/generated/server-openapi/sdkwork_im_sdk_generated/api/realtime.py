@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AckResponse, RealtimeEventAckRequest, RealtimeEventsResponse, RealtimeSubscriptionSyncRequest, RealtimeSubscriptionSyncResponse
+from ..models import RealtimeEventAckRequest, RealtimeEventsAckResponse, RealtimeEventsListResponse, RealtimeSubscriptionsSyncResponse, RealtimeSubscriptionSyncRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -139,7 +139,7 @@ class RealtimeSubscriptionsApi:
         self._client = client
 
 
-    def create_sync(self, body: RealtimeSubscriptionSyncRequest) -> RealtimeSubscriptionSyncResponse:
+    def create_sync(self, body: RealtimeSubscriptionSyncRequest) -> RealtimeSubscriptionsSyncResponse:
         """Sync realtime subscription targets"""
         return self._client.post(f"/im/v3/api/realtime/subscriptions/sync", json=body)
 
@@ -150,14 +150,14 @@ class RealtimeEventsApi:
         self._client = client
 
 
-    def create_ack(self, body: RealtimeEventAckRequest) -> AckResponse:
+    def create_ack(self, body: RealtimeEventAckRequest) -> RealtimeEventsAckResponse:
         """Acknowledge realtime events"""
         return self._client.post(f"/im/v3/api/realtime/events/ack", json=body)
 
-    def list(self, limit: Optional[int] = None, cursor: Optional[str] = None) -> RealtimeEventsResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> RealtimeEventsListResponse:
         """List pending realtime events"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/realtime/events", query))

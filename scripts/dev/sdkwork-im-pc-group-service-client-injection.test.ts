@@ -34,8 +34,8 @@ function createMember(conversationId: string, principalId: string): Conversation
 const fakeClient = {
   chat: {
     inbox: {
-      async retrieve(params?: Record<string, unknown>) {
-        calls.push({ method: 'chat.inbox.retrieve', params });
+      async list(params?: Record<string, unknown>) {
+        calls.push({ method: 'chat.inbox.list', params });
         if (scenario === 'many-projected-groups') {
           return {
             hasMore: false,
@@ -178,7 +178,7 @@ async function main(): Promise<void> {
   assert.deepEqual(
     calls.map((call) => call.method),
     [
-      'chat.inbox.retrieve',
+      'chat.inbox.list',
       'conversations.getPreferences',
       'conversations.getProfile',
       'conversations.list',

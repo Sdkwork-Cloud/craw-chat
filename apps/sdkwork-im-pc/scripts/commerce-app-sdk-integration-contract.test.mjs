@@ -30,6 +30,14 @@ function readRepoJson(...segments) {
   return JSON.parse(readRepoText(...segments));
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function pathRegex(value) {
+  return value.replace(/\\/g, '/').split('/').map(escapeRegExp).join('[\\\\/]');
+}
+
 const packageJson = readJson('package.json');
 const tsconfigSource = readText('tsconfig.json');
 const viteConfigSource = readText('vite.config.ts');
@@ -59,28 +67,34 @@ assert.equal(
 
 for (const [capability, packageName] of Object.entries(COMMERCE_T1_APP_SDK_PACKAGES)) {
   const workspaceRelative = COMMERCE_T1_APP_SDK_WORKSPACE_PATHS[capability];
-  const workspaceRelativeFromApp = path
-    .relative(appRoot, path.resolve(repoRoot, workspaceRelative))
+  const workspacePackageRoot = workspaceRelative.replace(/\/src\/index\.ts$/u, '');
+  const facadeEntry = path.resolve(repoRoot, workspaceRelative);
+  const facadeEntryFromApp = path
+    .relative(appRoot, facadeEntry)
     .replace(/\\/g, '/');
-  const generatedEntry = path.resolve(repoRoot, workspaceRelative, 'src', 'index.ts');
   assert.ok(
-    fs.existsSync(generatedEntry),
-    `Generated ${packageName} transport must exist at ${generatedEntry}`,
+    fs.existsSync(facadeEntry),
+    `Composed ${packageName} facade must exist at ${facadeEntry}`,
   );
   assert.match(
     tsconfigSource,
-    new RegExp(`"${packageName.replaceAll('/', '\\/')}"[\\s\\S]*${workspaceRelativeFromApp.replaceAll('\\', '[\\\\/]')}`, 'u'),
-    `tsconfig must map ${packageName} to sibling generated transport`,
+    new RegExp(`"${escapeRegExp(packageName)}"[\\s\\S]*${pathRegex(facadeEntryFromApp)}`, 'u'),
+    `tsconfig must map ${packageName} to the sibling composed facade`,
   );
   assert.match(
     viteConfigSource,
     new RegExp(`find:\\s*'${packageName.replaceAll('/', '\\/')}'`, 'u'),
-    `Vite must alias ${packageName} to sibling generated transport`,
+    `Vite must alias ${packageName} to the sibling composed facade`,
   );
   assert.match(
     pnpmWorkspaceSource,
-    new RegExp(workspaceRelative.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
-    `repository root pnpm-workspace.yaml must include ${packageName} composed facade`,
+    new RegExp(escapeRegExp(workspacePackageRoot), 'u'),
+    `repository root pnpm-workspace.yaml must include ${packageName} composed facade package`,
+  );
+  assert.doesNotMatch(
+    pnpmWorkspaceSource,
+    new RegExp(escapeRegExp(`${workspacePackageRoot}/generated/server-openapi`), 'u'),
+    `repository root pnpm-workspace.yaml must not include ${packageName} generated transport as a consumer workspace entry`,
   );
 }
 

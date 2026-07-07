@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-06-29
+Updated: 2026-07-07
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, SECURITY_SPEC.md, OPERATIONS_SPEC.md
 
 ## 1. System Overview
@@ -15,7 +15,7 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
 - **Multi-Tenant Isolation**: Every organization-scoped table enforces `(tenant_id, organization_id)` composite keys with `NOT NULL DEFAULT '0'` and CHECK constraints preventing empty values.
 - **Contract-First**: OpenAPI authorities under `apis/` drive SDK generation for 9 languages; no hand-written HTTP clients in consumers.
 - **High Availability**: Gateway and session services support horizontal scaling; disconnect fence and presence state use Redis-backed storage in HA topologies.
-- **Defense in Depth**: Trusted-proxy IP validation, per-service circuit breakers, bounded rate limiter memory, two-layer rate limiting (per-IP pre-auth + per-tenant post-auth), and Docker/Kubernetes `_FILE` secret injection.
+- **Defense in Depth**: Trusted-proxy IP validation, per-service circuit breakers, bounded rate limiter memory, one edge per-IP limiter per gateway ingress, post-auth per-tenant limiting, and Docker/Kubernetes `_FILE` secret injection.
 - **Production Readiness**: Graceful shutdown with connection draining, Kubernetes health probes (liveness/readiness/startup), capacity management with multi-dimensional resource tracking.
 
 ### Topology
@@ -57,15 +57,18 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
 
 1. **Trusted-Proxy IP Extraction** (`SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`): Only honours `X-Forwarded-For` / `X-Real-IP` when the direct TCP peer (via `ConnectInfo<SocketAddr>`) is in the configured trusted-proxy list. Prevents IP-spoofing bypass of rate limits. When no trusted proxies are configured, the direct peer IP is used exclusively.
 
-2. **Rate Limiting (two layers)**:
-   - **Layer 1 — per-IP token bucket** (default 600 RPM / 50 burst): Runs pre-auth, before IAM context resolution. Uses `DashMap` for lock-free concurrent access. Retry-after is dynamically calculated based on actual RPM: `ceil(60 / max_rpm)` seconds. Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs. When real client IP cannot be determined (no trusted proxies, no ConnectInfo), a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket.
-   - **Layer 2 — per-tenant token bucket** (default 60 000 RPM / 2 000 burst): Runs post-auth, after `AppContext` is resolved by the IAM interceptor chain. Each authenticated tenant has an independent bucket so that a noisy tenant on a shared NAT egress IP cannot exhaust the IP-level budget for other tenants. Configurable via `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_RPM`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_BURST`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_MAX_ENTRIES` (default 10 000). Unauthenticated public routes are governed solely by Layer 1.
+2. **Rate Limiting**:
+   - **Edge per-IP limiter** (default 600 RPM / 50 burst): Runs before business dispatch and uses `HybridIpRateLimiter`. Redis-backed fixed-window counters are used when configured; otherwise the gateway uses a bounded local `DashMap` token bucket. Retry-after is dynamically calculated from actual RPM: `ceil(60 / max_rpm)` seconds. Bounded eviction at `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` (default 5000) prevents unbounded memory growth from rotating client IPs. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt.
+   - **Standalone ingress placement**: `sdkwork-im-standalone-gateway` disables the inner cloud-gateway IP limiter while assembling IM routes, then applies one final edge limiter after IM, IAM, and embedded dependency routers are merged. This avoids double-counting IM requests while keeping dependency routes protected.
+   - **Post-auth per-tenant limiter** (default 60 000 RPM / 2 000 burst): Runs after `AppContext` is resolved by the IAM interceptor chain. Each authenticated tenant has an independent bucket so that a noisy tenant on a shared NAT egress IP cannot exhaust the tenant-level budget for other tenants. Configurable via `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_RPM`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_BURST`, `SDKWORK_IM_GATEWAY_TENANT_RATE_LIMIT_MAX_ENTRIES` (default 10 000). Unauthenticated public routes are governed by the edge IP limiter.
 
 3. **Per-Service Circuit Breaker** (`CircuitBreakerRegistry`): Each upstream service has an independent circuit breaker. Failures in one service do not trip the breaker for others. HalfOpen state allows only a single probe request at a time. Configurable via `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` (default 10) and `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` (default 30).
 
 4. **CORS Production Safety**: Both gateways reject `allow_any_origin=true` in production. If no explicit origins are configured in production, safe defaults are applied.
 
 5. **Body Size Limit**: Gateway proxy requests are capped at 5 MB (configurable via `SDKWORK_IM_GATEWAY_MAX_REQUEST_BODY_BYTES`, hard max 20 MB). Large file uploads should use presigned URL direct-to-storage, not gateway proxy.
+
+6. **OpenAPI Aggregation Guard**: `GET /openapi.json` skips upstream schema fetches whose `{baseUrl}/openapi.json` resolves to the gateway's own aggregate endpoint. Successful aggregate documents are cached for `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` seconds (default 60), and concurrent cache misses are coalesced into one upstream refresh. This prevents recursive OpenAPI fan-out from exhausting sockets and leaving unrelated API requests pending.
 
 ### 2.2 Session Gateway
 
@@ -88,7 +91,7 @@ Event-sourced conversation engine:
 
 ### 2.4 Social Service
 
-Contact directory and friend request management with `organization_id`-scoped queries.
+Contact directory and friend request management with `organization_id`-scoped queries. HTTP handlers use SDKWork response mapping: create operations return `201`, delete operations return `204` without a body, and list/retrieve/update operations return `200` `SdkWorkApiResponse` envelopes. List inputs use canonical `page_size` and `cursor`; historical HTTP query aliases such as `pageSize` and `limit` are not accepted in pre-launch runtime.
 
 ### 2.5 Supporting Services
 
@@ -291,15 +294,16 @@ Conversation preferences and message favorites are hot-path in-memory projection
 ### 5.3 Supply Chain
 
 - `checksumRequired: true` — all release artifacts must have SHA-256 checksums
-- `signatureRequired: false` — code signing infrastructure pending (pre-launch)
-- `sbomRequired: true` — SBOM generation in CI pipeline
-- CI validation script rejects fake/placeholder checksums
+- `signatureRequired: true` — direct distribution packages must carry signing/notarization evidence before commercial sign-off
+- `sbomRequired: true` — direct distribution packages must carry SBOM and provenance/attestation evidence before commercial sign-off
+- CI and commercial readiness validation reject fake/placeholder checksums, missing signing evidence, missing SBOM/provenance evidence, and catalog media still marked with `metadata.generatedPlaceholder=true`
 
 ### 5.4 Network Security
 
 - **Trusted-Proxy IP Extraction**: `X-Forwarded-For` only honoured from trusted proxy IPs (configurable via `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES`). When no trusted proxies are configured and no `ConnectInfo` is available, a header-based hash generates a unique fallback IP to prevent all unknown-IP requests from sharing a single rate-limit bucket.
-- **Rate limiting**: Per-IP token bucket at gateway layer with bounded memory. Uses `DashMap` for lock-free concurrent access. Dynamic retry-after calculation based on actual RPM.
+- **Rate limiting**: One edge per-IP limiter per gateway ingress with bounded memory and optional Redis shared counters. Standalone applies the edge limiter only after IM, IAM, and embedded dependency routers are merged. Dynamic retry-after calculation is based on actual RPM.
 - **Circuit breaker**: Per-upstream-service consecutive failure detection prevents cascade failures
+- **OpenAPI aggregation**: Self-referential upstream OpenAPI endpoints are skipped and aggregate results are cached with single-flight refresh to prevent recursive request storms.
 - **CORS**: Explicit origin allowlist in production; `allow_any_origin` rejected in production
 - **WebSocket auth**: `auth.init` frame-based authentication; query-token auth rejected in production
 - **Anomaly Detection**: Configuration errors are handled gracefully with safe defaults rather than panics. Invalid `message_rate_threshold`, `failed_auth_threshold`, or `max_log_entries` values are logged as warnings and replaced with sensible defaults, ensuring service availability even with misconfiguration.
@@ -320,7 +324,10 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 
 ### 6.3 Database
 
-- **PostgreSQL**: Production and development (schema in `database/ddl/baseline/postgres/`)
+- **PostgreSQL**: Production, staging, and default development IM persistence authority (schema in `database/ddl/baseline/postgres/`)
+- **SQLite**: Lifecycle parity and desktop gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); IM journal, projections, social materializer, and message search do not persist to SQLite
+- Both DDL files are consolidated baselines with `organization_id` dual isolation from Migration 010+
+- SQLite DDL uses SQLite-compatible syntax: `TEXT` for JSONB/TIMESTAMPTZ, `json_valid()` CHECK constraints, no `DO $$`/`pg_constraint`/`USING GIN`
 - Migrations in `database/migrations/postgres/` (0001–0005)
 - All migrations are idempotent and safe to re-execute
 
@@ -328,7 +335,7 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 
 - **Tracing**: `tracing` crate with `tracing-subscriber` env-filter
 - **Structured Events**: All gateway events use `target: "sdkwork.im.gateway"` with structured fields
-- **Health Checks**: `/healthz` endpoint on gateway
+- **Health Checks**: `/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, and `/metrics` are mounted through the gateway/bootstrap layer and are exempt from edge IP rate limiting.
 - **Startup Summary**: Gateway prints route registry and configuration summary on boot
 - **Circuit Breaker Observability**: Per-service breaker state available via `CircuitBreakerRegistry::state_for(service_id)`
 
@@ -347,6 +354,7 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 |---|---|---|
 | Multi-tenant isolation | `node scripts/dev/sdkwork-im-multi-tenant-isolation-contract.test.mjs` | SQL query org_id filtering |
 | Gateway rate limit | `cargo test -p sdkwork-im-cloud-gateway gateway_protection` | Token bucket, circuit breaker, trusted proxy |
+| Gateway OpenAPI aggregation | `cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test -- --nocapture` | Self-reference skip, aggregate cache, single-flight refresh |
 | Database naming | `pnpm test scripts/dev/sdkwork-im-database-naming-standard.test.mjs` | DDL convention compliance |
 | Runtime ID | `pnpm test scripts/dev/sdkwork-im-runtime-id-standard.test.mjs` | Snowflake ID format |
 | Full verify | `pnpm verify` | All checks |
@@ -362,6 +370,7 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 | `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` | `30` | Seconds before half-open retry |
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs |
 | `SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS` | `false` | Allow WebSocket query-token auth (non-production only) |
+| `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` | `60` | Aggregate `/openapi.json` cache TTL; successful refreshes only |
 | `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET_FILE` | _(empty)_ | Path to file containing HMAC signing secret |
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE` | _(empty)_ | Path to file containing JWT signing secret |
 | `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` | `30` | WebSocket heartbeat interval |
@@ -459,7 +468,7 @@ Index optimization is performed inline during baseline schema creation. Run `pnp
 ## 13. Production Deployment Checklist
 
 - [ ] Configure `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` for your load balancer IPs
-- [ ] Set up Kubernetes health probes using `/healthz`, `/readyz`, `/startupz`
+- [ ] Set up Kubernetes health probes using `/healthz`, `/livez`, and `/readyz`
 - [ ] Configure `ResourceQuota` limits per tenant based on subscription tier
 - [ ] Enable audit logging to external SIEM
 - [ ] Set up capacity monitoring dashboards

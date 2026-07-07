@@ -5,11 +5,7 @@ use std::sync::Arc;
 use im_platform_contracts::{OutboxEventRecord, OutboxStore};
 use tracing::warn;
 
-pub fn mark_outbox_failed(
-    outbox: &Arc<dyn OutboxStore>,
-    event: &OutboxEventRecord,
-    reason: &str,
-) {
+pub fn mark_outbox_failed(outbox: &Arc<dyn OutboxStore>, event: &OutboxEventRecord, reason: &str) {
     let _ = outbox.mark_failed(
         event.tenant_id.as_str(),
         event.organization_id.as_str(),

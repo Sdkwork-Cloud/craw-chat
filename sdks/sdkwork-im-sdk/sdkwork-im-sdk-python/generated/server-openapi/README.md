@@ -71,7 +71,7 @@ print(result)
 ```python
 # List pending realtime events
 params = {
-    'limit': 1,
+    'page_size': 1,
     'cursor': 'cursor',
 }
 result = client.realtime.events.list(params)
@@ -94,12 +94,8 @@ print(result)
 ### social
 
 ```python
-# List contact tags
-params = {
-    'limit': 1,
-    'cursor': 'cursor',
-}
-result = client.social.contacts.tags.list(params)
+# Retrieve pending incoming friend request count
+result = client.social.friend_requests.pending.count.list()
 print(result)
 ```
 
@@ -108,7 +104,7 @@ print(result)
 ```python
 # List IM contacts
 params = {
-    'limit': 1,
+    'page_size': 1,
     'cursor': 'cursor',
 }
 result = client.chat.contacts.list(params)
@@ -131,7 +127,11 @@ print(result)
 
 ```python
 # List spaces
-result = client.spaces.list()
+params = {
+    'page_size': 1,
+    'cursor': 'cursor',
+}
+result = client.spaces.list(params)
 print(result)
 ```
 

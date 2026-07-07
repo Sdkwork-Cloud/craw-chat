@@ -9,8 +9,11 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use im_adapters_redis_cache::RedisJwtReplayStore;
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
-use sdkwork_utils_rust::{base64url_decode, base64url_encode, hmac_sha256_base64url, secure_compare};
+use sdkwork_utils_rust::{
+    base64url_decode, base64url_encode, hmac_sha256_base64url, secure_compare,
+};
 use sdkwork_web_core::{
     EnvBootstrapTenantSigningKeyLookup, JwtProductionClaimPolicy, JwtVerifier, ServerRequestId,
     TenantBoundJwtVerifier, WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment,
@@ -27,8 +30,7 @@ const APP_CONTEXT_JWT_KEY_ID_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID";
 const APP_CONTEXT_JWT_SIGNING_SECRET_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET";
 const APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV: &str =
     "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE";
-const DEV_JWT_SIGNING_SECRET_FALLBACK: &str =
-    "sdkwork-im-dev-jwt-secret-not-for-production-use";
+const DEV_JWT_SIGNING_SECRET_FALLBACK: &str = "sdkwork-im-dev-jwt-secret-not-for-production-use";
 // P0-10 (SECURITY_SPEC §1 / IAM_SPEC): production JWT iss/aud allow-lists and
 // jti replay protection. In production, iss/aud MUST be configured; otherwise
 // verification fails closed to prevent cross-service token confusion and
@@ -1204,8 +1206,7 @@ fn resolve_jwt_claim_policy() -> Result<Option<JwtProductionClaimPolicy>, AppCon
     }
 
     Ok(Some(JwtProductionClaimPolicy::saas_production(
-        issuers,
-        audiences,
+        issuers, audiences,
     )))
 }
 
@@ -1253,17 +1254,16 @@ fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
         ));
     }
 
-    if !dev_or_test {
-        if let Some(secret) = resolve_secret_from_env_or_file(
+    if !dev_or_test
+        && let Some(secret) = resolve_secret_from_env_or_file(
             APP_CONTEXT_JWT_SIGNING_SECRET_ENV,
             APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV,
-        ) {
-            if secret.trim() == DEV_JWT_SIGNING_SECRET_FALLBACK {
-                return Err(AppContextError::invalid(format!(
-                    "Production environment must not use the built-in dev/test JWT signing secret ({DEV_JWT_SIGNING_SECRET_FALLBACK})"
-                )));
-            }
-        }
+        )
+        && secret.trim() == DEV_JWT_SIGNING_SECRET_FALLBACK
+    {
+        return Err(AppContextError::invalid(format!(
+            "Production environment must not use the built-in dev/test JWT signing secret ({DEV_JWT_SIGNING_SECRET_FALLBACK})"
+        )));
     }
 
     if let Some(lookup) = tenant_signing_lookup_from_env() {
@@ -1291,16 +1291,20 @@ fn validate_jwt_token(raw: &str) -> Result<(), AppContextError> {
     Ok(())
 }
 
-/// Process-local jti replay cache.
+/// Process-local jti replay cache fallback when Redis is unavailable.
 ///
-/// P0-10 (SECURITY_SPEC §1): defends against JWT replay attacks within a
-/// single process. Entries expire after the configured TTL to bound memory
-/// growth and align with short-lived token lifetimes. Multi-instance
-/// deployments SHOULD additionally back this with a shared store (Redis) in
-/// a follow-up; the in-process cache is the minimum viable baseline.
+/// Multi-instance deployments SHOULD configure `SDKWORK_IM_JWT_REPLAY_REDIS_URL`
+/// (or gateway rate-limit Redis) so replay protection is shared across replicas.
 fn jti_replay_cache() -> &'static Mutex<BTreeMap<String, Instant>> {
     static CACHE: OnceLock<Mutex<BTreeMap<String, Instant>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn redis_jti_replay_store() -> Option<&'static RedisJwtReplayStore> {
+    static STORE: OnceLock<Option<RedisJwtReplayStore>> = OnceLock::new();
+    STORE
+        .get_or_init(RedisJwtReplayStore::try_from_env)
+        .as_ref()
 }
 
 fn resolve_jti_replay_ttl() -> Option<Duration> {
@@ -1316,7 +1320,12 @@ fn resolve_jti_replay_ttl() -> Option<Duration> {
 fn require_jti_claim() -> bool {
     std::env::var(APP_CONTEXT_JWT_REQUIRE_JTI_ENV)
         .ok()
-        .map(|raw| matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|raw| {
+            matches!(
+                raw.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -1357,11 +1366,29 @@ fn enforce_jti_replay_protection(payload: &Value) -> Result<(), AppContextError>
         return Ok(());
     };
 
+    if let Some(store) = redis_jti_replay_store() {
+        let ttl_secs = ttl.as_secs().max(1);
+        match store.try_claim_jti(jti.as_str(), ttl_secs) {
+            Ok(true) => return Ok(()),
+            Ok(false) => {
+                return Err(AppContextError::invalid(format!(
+                    "JWT jti `{jti}` has been replayed within the replay cache TTL"
+                )));
+            }
+            Err(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    "redis jti replay store unavailable; falling back to process-local cache"
+                );
+            }
+        }
+    }
+
     let now = Instant::now();
     let cache = jti_replay_cache();
-    let mut guard = cache.lock().map_err(|error| {
-        AppContextError::invalid(format!("jti replay cache poisoned: {error}"))
-    })?;
+    let mut guard = cache
+        .lock()
+        .map_err(|error| AppContextError::invalid(format!("jti replay cache poisoned: {error}")))?;
 
     // Lazy cleanup of expired entries to bound memory growth.
     let expired_keys: Vec<String> = guard

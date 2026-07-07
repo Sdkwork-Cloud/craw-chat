@@ -140,7 +140,7 @@ async function main(): Promise<void> {
   const unnamedGroup = await service.createGroup('  ', ['u_bob']);
   assert.equal(
     unnamedGroup.name,
-    '群聊(2�?',
+    '群聊(2人)',
     'empty group names from the create-group modal must persist a readable standard default name',
   );
   assert.deepEqual(
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
       conversationId: unnamedGroup.id,
       body: {
         avatarUrl: unnamedGroup.avatar,
-        displayName: '群聊(2�?',
+        displayName: '群聊(2人)',
       },
     },
     'empty group names must update the real backend conversation profile with the same readable default name',

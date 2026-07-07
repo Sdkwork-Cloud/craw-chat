@@ -103,7 +103,7 @@ async function main(): Promise<void> {
   assert.equal(postMessageCalls.length, 1);
   assert.deepEqual(
     timelineCalls,
-    [{ conversationId: 'chat-1', params: { afterSeq: 0, limit: 50 } }],
+    [{ conversationId: 'chat-1', params: { afterSeq: 0, pageSize: 20 } }],
     'message history must still use the paginated IM SDK timeline contract',
   );
   assert.deepEqual(

@@ -71,7 +71,7 @@ function sdkLabel(page, route, method) {
   const labels = {
     "im/session-and-realtime": "`@sdkwork/im-sdk` / presence and realtime helpers",
     "im/conversations": isRoute(route, "/chat/inbox") || isRoute(route, "/inbox")
-      ? "`@sdkwork/im-sdk` / `sdk.generated.inbox.getInbox()`"
+      ? "`@sdkwork/im-sdk` / `sdk.transport.chat.inbox.list()`"
       : "`@sdkwork/im-sdk` / `sdk.conversations`",
     "im/membership-and-read-state": "`@sdkwork/im-sdk` / `sdk.conversations`",
     "im/messages": "`@sdkwork/im-sdk` / `sdk.messages`",

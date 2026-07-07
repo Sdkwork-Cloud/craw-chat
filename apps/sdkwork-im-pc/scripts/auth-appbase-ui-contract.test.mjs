@@ -936,8 +936,13 @@ assertWorkspacePackagePath(
 
 assertWorkspaceDependency('@sdkwork/iam-app-sdk');
 assertWorkspacePackagePath(
+  iamSourcePathRegex('sdks', 'sdkwork-iam-app-sdk', 'sdkwork-iam-app-sdk-typescript'),
+  'pnpm-workspace.yaml must declare @sdkwork/iam-app-sdk canonical sdkwork-iam composed facade package.',
+);
+assert.doesNotMatch(
+  pnpmWorkspaceSource,
   iamSourcePathRegex('sdks', 'sdkwork-iam-app-sdk', 'sdkwork-iam-app-sdk-typescript', 'generated', 'server-openapi'),
-  'pnpm-workspace.yaml must declare @sdkwork/iam-app-sdk canonical sdkwork-iam app SDK source path.',
+  'pnpm-workspace.yaml must not declare @sdkwork/iam-app-sdk generated transport as the consumer workspace entry.',
 );
 
 assertWorkspaceDependency('@sdkwork/i18n-pc-react');
@@ -976,12 +981,10 @@ assert.match(
     'sdks',
     'sdkwork-iam-app-sdk',
     'sdkwork-iam-app-sdk-typescript',
-    'generated',
-    'server-openapi',
     'src',
     'index.ts',
   ),
-  'tsconfig must resolve @sdkwork/iam-app-sdk from canonical sdkwork-iam app SDK.',
+  'tsconfig must resolve @sdkwork/iam-app-sdk from canonical sdkwork-iam composed facade.',
 );
 
 assert.match(

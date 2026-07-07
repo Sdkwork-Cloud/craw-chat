@@ -86,7 +86,7 @@ async function main(): Promise<void> {
       method: 'messages.favorites.list',
       params: {
         favoriteType: 'chat',
-        limit: 100,
+        pageSize: 20,
       },
     },
     {

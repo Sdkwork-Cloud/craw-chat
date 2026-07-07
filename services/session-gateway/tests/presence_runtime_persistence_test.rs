@@ -128,23 +128,9 @@ impl PresenceStateStore for HeartbeatAfterStaleListStore {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        device_id: &str,
-        cutoff_seen_at: &str,
-        expired_at: &str,
+        command: sdkwork_im_contract_control::ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
-        self.inner.expire_online_state_if_seen_at_or_before(
-            tenant_id,
-            organization_id,
-            principal_kind,
-            principal_id,
-            device_id,
-            cutoff_seen_at,
-            expired_at,
-        )
+        self.inner.expire_online_state_if_seen_at_or_before(command)
     }
 }
 

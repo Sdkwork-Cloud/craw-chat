@@ -661,10 +661,7 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
         .iter()
         .map(|task| task.recipient_id.as_str())
         .collect::<BTreeSet<_>>();
-    assert_eq!(
-        recipient_ids,
-        BTreeSet::from(["1108", "1100"])
-    );
+    assert_eq!(recipient_ids, BTreeSet::from(["1108", "1100"]));
 
     let events = journal.recorded();
     assert_eq!(events.len(), 4);

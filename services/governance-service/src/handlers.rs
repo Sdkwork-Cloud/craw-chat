@@ -1,13 +1,16 @@
+use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::{Html, Response};
-use axum::Json;
 use im_app_context::AppContext;
 use im_platform_contracts::ProviderPolicyPreview;
-use session_gateway::{RealtimeNodeLifecycleView, RealtimeRouteMigrationResult};
 use sdkwork_im_openapi::render_docs_html;
-use sdkwork_routes_web_framework_backend_api::response::{ApiResult, finish_api_json};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiResult, created_json, finish_api_json, finish_api_response,
+};
+use sdkwork_utils_rust::SdkWorkResourceData;
 use sdkwork_web_core::WebRequestContext;
 use serde_json::Value as JsonValue;
+use session_gateway::{RealtimeNodeLifecycleView, RealtimeRouteMigrationResult};
 
 use crate::dto::{
     MigrateRoutesRequest, ProtocolGovernanceResponse, ProtocolRegistryResponse,
@@ -21,13 +24,16 @@ use crate::helpers::{
     compatibility_response, ensure_control_read_access, ensure_control_write_access,
     governance_response, mirror_all_provider_bindings_into_ops_runtime,
     mirror_node_into_ops_runtime, mirror_provider_bindings_into_ops_runtime,
-    provider_binding_commit_response, provider_bindings_response,
-    provider_policy_diff_response, provider_policy_history_response,
-    provider_registry_snapshot_response, record_control_plane_audit, schema_response,
-    validate_optional_tenant_id,
+    provider_binding_commit_response, provider_bindings_response, provider_policy_diff_response,
+    provider_policy_history_response, provider_registry_snapshot_response,
+    record_control_plane_audit, schema_response, validate_optional_tenant_id,
 };
 use crate::openapi::{control_plane_openapi_document, control_plane_openapi_spec};
 use crate::state::AppState;
+
+fn resource_item<T>(item: T) -> SdkWorkResourceData<T> {
+    SdkWorkResourceData { item }
+}
 
 pub(crate) async fn openapi_document() -> Json<JsonValue> {
     Json(control_plane_openapi_document())
@@ -125,7 +131,7 @@ pub(crate) async fn upsert_provider_binding_policy(
     State(state): State<AppState>,
     Json(request): Json<UpsertProviderBindingPolicyRequest>,
 ) -> Response {
-    let result: ApiResult<ProviderBindingCommitResponse> = (|| {
+    let result: ApiResult<SdkWorkResourceData<ProviderBindingCommitResponse>> = (|| {
         ensure_control_write_access(&auth)?;
         let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
         let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
@@ -137,13 +143,14 @@ pub(crate) async fn upsert_provider_binding_policy(
 
         let (action, aggregate_id, selection_source, commit) =
             if let Some(tenant_id) = tenant_id.as_deref() {
-                let commit = provider_registry.commit_upsert(
-                    Some(tenant_id),
-                    request.domain,
-                    request.plugin_id.as_str(),
-                    request.expected_base_version,
-                )
-                .map_err(ControlPlaneError::from)?;
+                let commit = provider_registry
+                    .commit_upsert(
+                        Some(tenant_id),
+                        request.domain,
+                        request.plugin_id.as_str(),
+                        request.expected_base_version,
+                    )
+                    .map_err(ControlPlaneError::from)?;
                 (
                     "control.provider_tenant_override_updated",
                     format!(
@@ -154,16 +161,20 @@ pub(crate) async fn upsert_provider_binding_policy(
                     commit,
                 )
             } else {
-                let commit = provider_registry.commit_upsert(
-                    None,
-                    request.domain,
-                    request.plugin_id.as_str(),
-                    request.expected_base_version,
-                )
-                .map_err(ControlPlaneError::from)?;
+                let commit = provider_registry
+                    .commit_upsert(
+                        None,
+                        request.domain,
+                        request.plugin_id.as_str(),
+                        request.expected_base_version,
+                    )
+                    .map_err(ControlPlaneError::from)?;
                 (
                     "control.provider_deployment_profile_updated",
-                    format!("deployment:{}", crate::helpers::provider_domain_name(request.domain)),
+                    format!(
+                        "deployment:{}",
+                        crate::helpers::provider_domain_name(request.domain)
+                    ),
                     "deployment_profile",
                     commit,
                 )
@@ -191,9 +202,11 @@ pub(crate) async fn upsert_provider_binding_policy(
             );
         }
 
-        Ok(provider_binding_commit_response(response, commit))
+        Ok(resource_item(provider_binding_commit_response(
+            response, commit,
+        )))
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 pub(crate) async fn provider_policy_history(

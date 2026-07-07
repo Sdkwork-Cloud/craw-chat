@@ -5,7 +5,9 @@
 //! constant documents and execute multi-statement mutations in one transaction.
 
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
-use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
+use sdkwork_im_contract_control::{
+    RealtimeCheckpointRecord, RealtimeSubscriptionRecord, normalize_realtime_organization_id,
+};
 
 pub const LOAD_REALTIME_CHECKPOINT_SQL: &str = r#"
 select
@@ -670,7 +672,7 @@ pub fn realtime_postgres_bind_checkpoint_upsert(
         UPSERT_REALTIME_CHECKPOINT_BINDINGS,
         vec![
             text(checkpoint.tenant_id.as_str()),
-            text(checkpoint.organization_id.as_str()),
+            organization_text(checkpoint.organization_id.as_str()),
             text(client_route_scope_key),
             text(checkpoint.principal_kind.as_str()),
             text(checkpoint.principal_id.as_str()),
@@ -712,7 +714,7 @@ pub fn realtime_postgres_bind_client_route_event_upsert<'a>(
         UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS,
         vec![
             text(event.tenant_id.as_str()),
-            text(organization_id),
+            organization_text(organization_id),
             text(client_route_scope_key),
             bigint("realtime_seq", event.realtime_seq)?,
             text(principal_kind),
@@ -743,7 +745,7 @@ pub fn realtime_postgres_bind_trim_client_route_events(
         TRIM_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS,
         vec![
             text(tenant_id),
-            text(organization_id),
+            organization_text(organization_id),
             text(client_route_scope_key),
             bigint("acked_through_seq", acked_through_seq)?,
         ],
@@ -765,7 +767,7 @@ pub fn realtime_postgres_bind_subscription_upsert(
         UPSERT_REALTIME_SUBSCRIPTION_BINDINGS,
         vec![
             text(record.tenant_id.as_str()),
-            text(record.organization_id.as_str()),
+            organization_text(record.organization_id.as_str()),
             text(client_route_scope_key),
             text(record.principal_kind.as_str()),
             text(record.principal_id.as_str()),
@@ -791,7 +793,7 @@ pub fn realtime_postgres_bind_subscription_scope_clear(
         CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_BINDINGS,
         vec![
             text(tenant_id),
-            text(organization_id),
+            organization_text(organization_id),
             text(client_route_scope_key),
             timestamptz(cutoff_synced_at),
         ],
@@ -817,7 +819,7 @@ pub fn realtime_postgres_bind_subscription_scope_replacements(
                         REPLACE_REALTIME_SUBSCRIPTION_SCOPES_BINDINGS,
                         vec![
                             text(record.tenant_id.as_str()),
-                            text(record.organization_id.as_str()),
+                            organization_text(record.organization_id.as_str()),
                             text(record.principal_kind.as_str()),
                             text(record.principal_id.as_str()),
                             text(subscription.scope_type.as_str()),
@@ -1004,6 +1006,10 @@ fn text(value: &str) -> RealtimePostgresBindingValue {
     RealtimePostgresBindingValue::Text(value.into())
 }
 
+fn organization_text(organization_id: &str) -> RealtimePostgresBindingValue {
+    RealtimePostgresBindingValue::Text(normalize_realtime_organization_id(organization_id))
+}
+
 fn json(value: &str) -> RealtimePostgresBindingValue {
     RealtimePostgresBindingValue::Json(value.into())
 }
@@ -1048,7 +1054,13 @@ fn subscription_scope_replacement_count(items: &[RealtimeSubscription]) -> usize
 
 const DEVICE_SCOPE_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", "Tenant partition key."),
-    binding(2, "organization_id", "&str", "text", "Organization partition key."),
+    binding(
+        2,
+        "organization_id",
+        "&str",
+        "text",
+        "Organization partition key.",
+    ),
     binding(
         3,
         "client_route_scope_key",

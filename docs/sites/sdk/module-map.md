@@ -12,7 +12,7 @@ to the exact App API page when needed.
 | replace subscriptions or run durable catch-up | [/sdk/modules/realtime](/sdk/modules/realtime) | [/api-reference/im/session-and-realtime](/api-reference/im/session-and-realtime) | `realtime.replaceSubscriptions`, `sync.catchUp`, `realtime().list_events` |
 | read the app inbox | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/im/conversations](/api-reference/im/conversations) | `inbox.list`, `inbox().list` |
 | create or inspect conversations | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/im/conversations](/api-reference/im/conversations) | `conversations.create`, `conversations.get`, `conversations().create` |
-| create or join live/chat/game rooms | [/sdk/modules/rooms](/sdk/modules/rooms) | [/api-reference/im/rooms](/api-reference/im/rooms) | `rooms.create`, `rooms.enter`, `rooms.get`, `rooms.leave` |
+| create or join live/chat/game rooms | [/sdk/modules/rooms](/sdk/modules/rooms) | [/api-reference/im/rooms](/api-reference/im/rooms) | `rooms.create`, `rooms.enter`, `rooms.retrieve`, `rooms.leave` |
 | manage members or read cursors | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/im/membership-and-read-state](/api-reference/im/membership-and-read-state) | `listMembers`, `addMember`, `updateReadCursor` |
 | send, edit, or recall messages | [/sdk/modules/messages](/sdk/modules/messages) | [/api-reference/im/messages](/api-reference/im/messages) | `conversations.postText`, `messages.editText`, `messages.recall` |
 | upload or attach media | [/sdk/modules/media](/sdk/modules/media) | [/api-reference/im/media](/api-reference/im/media) | `media.createUpload`, `media.completeUpload`, `media.attachText` |

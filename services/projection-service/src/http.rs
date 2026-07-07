@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::extract::rejection::QueryRejection;
 use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
-use axum::http::Request;
+use axum::http::{HeaderName, HeaderValue, Request, StatusCode, Uri, header};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{
@@ -10,27 +10,26 @@ use axum::{
     routing::{delete, get, post},
 };
 use im_app_context::AppContext;
-use im_domain_core::conversation::ConversationReadCursorView;
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
-use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkPageData, SdkWorkSeqWindowQuery};
+use sdkwork_utils_rust::{
+    MAX_LIST_PAGE_SIZE, SDKWORK_TRACE_ID_HEADER, SdkWorkCursorListQuery, SdkWorkProblemDetail,
+    SdkWorkResultCode, SdkWorkSeqWindowQuery,
+};
 use sdkwork_web_core::{
-    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind,
-    WebRequestContext, problem_response,
+    ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
+    problem_response,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
 use super::{
-    ContactWindowView, ConversationMemberDirectoryEntry, ConversationPreferencesView,
-    ConversationProfileView, ConversationSummaryView, DeleteMessageFavoriteResponse,
-    FavoriteMessageRequest, FavoriteMessagesWindowView, InboxWindowView, MessageFavoriteView,
-    MessageInteractionSummaryView, MessageVisibilityMutationResult, ProjectionAccessError,
-    ProjectionRuntime, TimelineProjectionService, TimelineWindowView,
+    ConversationPreferencesView, ConversationProfileView, FavoriteMessageRequest,
+    MessageFavoriteView, ProjectionAccessError, ProjectionRuntime, TimelineProjectionService,
     UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
 };
 
@@ -43,8 +42,6 @@ struct SearchMessagesQuery {
     pub paging: SdkWorkCursorListQuery,
 }
 
-type MessageSearchResponse = super::MessageSearchWindowView;
-
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct FavoriteMessagesQuery {
@@ -53,13 +50,6 @@ struct FavoriteMessagesQuery {
     favorite_type: Option<String>,
     q: Option<String>,
 }
-
-type TimelineResponse = TimelineWindowView;
-type InboxResponse = InboxWindowView;
-type ContactsResponse = ContactWindowView;
-
-type MemberDirectoryResponse = SdkWorkPageData<ConversationMemberDirectoryEntry>;
-type PinnedMessagesResponse = SdkWorkPageData<MessageInteractionSummaryView>;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,18 +69,14 @@ struct MessageFavoriteItemResponse {
     item: MessageFavoriteView,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageVisibilityItemResponse {
-    item: MessageVisibilityMutationResult,
-}
-
 const PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_PROJECTION_MAX_IN_FLIGHT_REQUESTS";
 const PROJECTION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const PROJECTION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
 const PROJECTION_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_PROJECTION_MAX_REQUEST_BODY_BYTES";
 const PROJECTION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const PROJECTION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const FORBIDDEN_PAGINATION_QUERY_ALIASES: &[&str] =
+    &["pageSize", "limit", "page_no", "pageNo", "per_page", "size"];
 
 #[derive(Clone)]
 struct PublicAppGuardrails {
@@ -177,17 +163,112 @@ impl IntoResponse for ProjectionApiError {
     }
 }
 
-fn map_cursor_list_query_error(error: sdkwork_utils_rust::SdkWorkResultCode) -> ProjectionApiError {
-    ProjectionApiError {
-        status: axum::http::StatusCode::BAD_REQUEST,
-        code: "invalid_parameter",
-        message: match error {
-            sdkwork_utils_rust::SdkWorkResultCode::InvalidParameter => {
-                "list pagination parameters are invalid".into()
-            }
-            other => format!("list pagination failed: {other:?}"),
-        },
+fn map_blocking_join_error(error: tokio::task::JoinError) -> ApiProblem {
+    ApiProblem::internal_server_error(format!("projection_runtime_blocking_join_failed: {error}"))
+}
+
+/// Run in-memory projection reads and writes off the Tokio async worker pool.
+///
+/// Projection handlers acquire process-local mutexes and may perform synchronous
+/// journal/Postgres adapter work. Executing that work on async workers starves
+/// the standalone gateway runtime and can wedge unrelated routes such as `/healthz`.
+async fn run_blocking_projection<F, T>(
+    service: Arc<TimelineProjectionService>,
+    auth: AppContext,
+    operation: F,
+) -> ApiResult<T>
+where
+    F: FnOnce(Arc<TimelineProjectionService>, AppContext) -> ApiResult<T> + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(move || operation(service, auth))
+        .await
+        .map_err(map_blocking_join_error)?
+}
+
+fn finish_query_rejection(ctx: &WebRequestContext, rejection: QueryRejection) -> Response {
+    finish_api_json(
+        ctx,
+        Err::<(), ApiProblem>(ProjectionApiError::from_query_rejection(rejection).into()),
+    )
+}
+
+fn invalid_parameter_response(ctx: &WebRequestContext, detail: impl Into<String>) -> Response {
+    let trace_id = ctx.resolved_trace_id();
+    let problem = SdkWorkProblemDetail::platform(
+        SdkWorkResultCode::InvalidParameter,
+        detail,
+        trace_id.clone(),
+    );
+    let status = StatusCode::from_u16(problem.status).unwrap_or(StatusCode::BAD_REQUEST);
+    let mut response = (status, Json(problem)).into_response();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/problem+json"),
+    );
+    if let Ok(value) = HeaderValue::from_str(trace_id.as_str()) {
+        if let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes()) {
+            response.headers_mut().insert(header_name, value);
+        }
     }
+    response
+}
+
+fn finish_api_no_content(ctx: &WebRequestContext, result: ApiResult<()>) -> Response {
+    match result {
+        Ok(()) => {
+            let trace_id = ctx.resolved_trace_id();
+            let mut response = StatusCode::NO_CONTENT.into_response();
+            if let Ok(value) = HeaderValue::from_str(trace_id.as_str()) {
+                if let Ok(header_name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes())
+                {
+                    response.headers_mut().insert(header_name, value);
+                }
+            }
+            response
+        }
+        Err(problem) => finish_api_json(ctx, Err::<(), ApiProblem>(problem)),
+    }
+}
+
+fn query_key(raw_pair: &str) -> &str {
+    raw_pair
+        .split_once('=')
+        .map(|(key, _)| key)
+        .unwrap_or(raw_pair)
+}
+
+fn raw_query_has_key(query: &str, expected_key: &str) -> bool {
+    query
+        .split('&')
+        .map(query_key)
+        .any(|key| key == expected_key)
+}
+
+fn forbidden_pagination_alias(query: &str) -> Option<&'static str> {
+    FORBIDDEN_PAGINATION_QUERY_ALIASES
+        .iter()
+        .copied()
+        .find(|alias| raw_query_has_key(query, alias))
+}
+
+fn reject_non_standard_list_query(ctx: &WebRequestContext, uri: &Uri) -> Option<Response> {
+    let query = uri.query()?;
+    if let Some(alias) = forbidden_pagination_alias(query) {
+        return Some(invalid_parameter_response(
+            ctx,
+            format!(
+                "query parameter `{alias}` is not supported; use canonical `page_size` for list pagination"
+            ),
+        ));
+    }
+    if raw_query_has_key(query, "page") && raw_query_has_key(query, "cursor") {
+        return Some(invalid_parameter_response(
+            ctx,
+            "query parameters `page` and `cursor` must not be combined",
+        ));
+    }
+    None
 }
 
 pub fn default_projection_service() -> Arc<TimelineProjectionService> {
@@ -352,7 +433,7 @@ pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
 /// Integration-test router that resolves dual-token headers into handler extensions.
 pub fn build_integration_test_app(service: Arc<TimelineProjectionService>) -> Router {
     use axum::extract::Request;
-    use axum::middleware::{from_fn, Next};
+    use axum::middleware::{Next, from_fn};
 
     async fn inject_test_auth_context(request: Request, next: Next) -> Response {
         let path = request.uri().path().to_owned();
@@ -497,32 +578,60 @@ fn projection_service_method_display(method: HttpMethod) -> &'static str {
     }
 }
 
-/// Pass raw query page size into access-layer validators (`limit=0` must fail closed).
-fn list_page_size_for_validation(page_size: Option<i32>) -> Option<usize> {
-    page_size.map(|value| if value <= 0 { 0 } else { value as usize })
+fn validate_list_page_size(page_size: Option<i32>) -> Result<Option<usize>, SdkWorkResultCode> {
+    match page_size {
+        Some(value) if !(1..=MAX_LIST_PAGE_SIZE).contains(&value) => {
+            Err(SdkWorkResultCode::InvalidParameter)
+        }
+        Some(value) => Ok(Some(value as usize)),
+        None => Ok(None),
+    }
+}
+
+fn resolve_list_page_size(
+    ctx: &WebRequestContext,
+    page_size: Option<i32>,
+) -> Result<Option<usize>, Response> {
+    validate_list_page_size(page_size)
+        .map_err(|_| invalid_parameter_response(ctx, "list pagination parameters are invalid"))
 }
 
 async fn search_messages(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    uri: Uri,
     query: Result<Query<SearchMessagesQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<MessageSearchResponse> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let search_query = query.q.clone();
+    let conversation_id = query
+        .conversation_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+    let page_size = match resolve_list_page_size(&ctx, query.paging.page_size) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    let cursor = query.paging.cursor.clone();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(service.search_messages_from_auth_context(
             &auth,
-            query.q.as_deref().unwrap_or_default(),
-            query
-                .conversation_id
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty()),
-            list_page_size_for_validation(query.paging.page_size),
-            query.paging.cursor.as_deref(),
+            search_query.as_deref().unwrap_or_default(),
+            conversation_id.as_deref(),
+            page_size,
+            cursor.as_deref(),
         )?)
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -530,55 +639,83 @@ async fn get_timeline(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
+    uri: Uri,
     query: Result<Query<SdkWorkSeqWindowQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<TimelineResponse> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let after_seq = query.after_seq;
+    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(service.timeline_window_from_auth_context(
             &auth,
             conversation_id.as_str(),
-            query.after_seq,
-            list_page_size_for_validation(query.page_size),
+            after_seq,
+            page_size,
         )?)
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
 async fn get_inbox(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    uri: Uri,
     query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<InboxResponse> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
-        Ok(service.inbox_window_from_auth_context(
-            &auth,
-            list_page_size_for_validation(query.page_size),
-            query.cursor.as_deref(),
-        )?)
-    })();
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    let cursor = query.cursor.clone();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        Ok(service.inbox_window_from_auth_context(&auth, page_size, cursor.as_deref())?)
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
 async fn get_contacts(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    uri: Uri,
     query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<ContactsResponse> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
-        Ok(service.contact_window_from_auth_context(
-            &auth,
-            list_page_size_for_validation(query.page_size),
-            query.cursor.as_deref(),
-        )?)
-    })();
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    let cursor = query.cursor.clone();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        Ok(service.contact_window_from_auth_context(&auth, page_size, cursor.as_deref())?)
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -588,16 +725,19 @@ async fn get_conversation_summary(
     Path(conversation_id): Path<String>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<ConversationSummaryView> = (|| {
-        let summary = service
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        service
             .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
-            .ok_or_else(|| ProjectionApiError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "conversation_summary_not_found",
-                message: format!("conversation summary not found: {conversation_id}"),
-            })?;
-        Ok(summary)
-    })();
+            .ok_or_else(|| {
+                ProjectionApiError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "conversation_summary_not_found",
+                    message: format!("conversation summary not found: {conversation_id}"),
+                }
+                .into()
+            })
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -607,16 +747,19 @@ async fn get_read_cursor(
     Path(conversation_id): Path<String>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<ConversationReadCursorView> = (|| {
-        let cursor = service
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        service
             .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
-            .ok_or_else(|| ProjectionApiError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "conversation_read_cursor_not_found",
-                message: format!("conversation read cursor not found: {conversation_id}"),
-            })?;
-        Ok(cursor)
-    })();
+            .ok_or_else(|| {
+                ProjectionApiError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "conversation_read_cursor_not_found",
+                    message: format!("conversation read cursor not found: {conversation_id}"),
+                }
+                .into()
+            })
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -624,19 +767,31 @@ async fn get_member_directory(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
+    uri: Uri,
     query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<MemberDirectoryResponse> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    let cursor = query.cursor.clone();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(service.member_directory_window_from_auth_context(
             &auth,
             conversation_id.as_str(),
-            list_page_size_for_validation(query.page_size),
-            query.cursor.as_deref(),
+            page_size,
+            cursor.as_deref(),
         )?)
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -644,19 +799,31 @@ async fn get_pinned_messages(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
     Path(conversation_id): Path<String>,
+    uri: Uri,
     query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<PinnedMessagesResponse> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+        Ok(value) => value,
+        Err(response) => return response,
+    };
+    let cursor = query.cursor.clone();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(service.pinned_messages_window_from_auth_context(
             &auth,
             conversation_id.as_str(),
-            list_page_size_for_validation(query.page_size),
-            query.cursor.as_deref(),
+            page_size,
+            cursor.as_deref(),
         )?)
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -666,22 +833,25 @@ async fn get_message_interaction_summary(
     Path((conversation_id, message_id)): Path<(String, String)>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<MessageInteractionSummaryView> = (|| {
-        let summary = service
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        service
             .message_interaction_summary_from_auth_context(
                 &auth,
                 conversation_id.as_str(),
                 message_id.as_str(),
             )?
-            .ok_or_else(|| ProjectionApiError {
-                status: axum::http::StatusCode::NOT_FOUND,
-                code: "message_interaction_summary_not_found",
-                message: format!(
-                    "message interaction summary not found: {conversation_id}/{message_id}"
-                ),
-            })?;
-        Ok(summary)
-    })();
+            .ok_or_else(|| {
+                ProjectionApiError {
+                    status: axum::http::StatusCode::NOT_FOUND,
+                    code: "message_interaction_summary_not_found",
+                    message: format!(
+                        "message interaction summary not found: {conversation_id}/{message_id}"
+                    ),
+                }
+                .into()
+            })
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -691,12 +861,13 @@ async fn get_conversation_profile(
     Path(conversation_id): Path<String>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<ConversationProfileItemResponse> = (|| {
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(ConversationProfileItemResponse {
             item: service
                 .conversation_profile_from_auth_context(&auth, conversation_id.as_str())?,
         })
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -707,7 +878,7 @@ async fn patch_conversation_profile(
     State(service): State<Arc<TimelineProjectionService>>,
     Json(body): Json<UpdateConversationProfileRequest>,
 ) -> Response {
-    let result: ApiResult<ConversationProfileItemResponse> = (|| {
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(ConversationProfileItemResponse {
             item: service.update_conversation_profile_from_auth_context(
                 &auth,
@@ -715,7 +886,8 @@ async fn patch_conversation_profile(
                 body,
             )?,
         })
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -725,12 +897,13 @@ async fn get_conversation_preferences(
     Path(conversation_id): Path<String>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<ConversationPreferencesItemResponse> = (|| {
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(ConversationPreferencesItemResponse {
             item: service
                 .conversation_preferences_from_auth_context(&auth, conversation_id.as_str())?,
         })
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -741,7 +914,7 @@ async fn patch_conversation_preferences(
     State(service): State<Arc<TimelineProjectionService>>,
     Json(body): Json<UpdateConversationPreferencesRequest>,
 ) -> Response {
-    let result: ApiResult<ConversationPreferencesItemResponse> = (|| {
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(ConversationPreferencesItemResponse {
             item: service.update_conversation_preferences_from_auth_context(
                 &auth,
@@ -749,31 +922,50 @@ async fn patch_conversation_preferences(
                 body,
             )?,
         })
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
 async fn list_message_favorites(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
+    uri: Uri,
     query: Result<Query<FavoriteMessagesQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<FavoriteMessagesWindowView> = (|| {
-        let Query(query) = query
-            .map_err(|rejection| ApiProblem::from(ProjectionApiError::from_query_rejection(rejection)))?;
-        let paging = query
-            .paging
-            .resolve()
-            .map_err(map_cursor_list_query_error)?;
+    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
+        return response;
+    }
+    let Query(query) = match query {
+        Ok(value) => value,
+        Err(rejection) => return finish_query_rejection(&ctx, rejection),
+    };
+    let paging = match query.paging.resolve() {
+        Ok(value) => value,
+        Err(error) => {
+            let detail = match error {
+                SdkWorkResultCode::InvalidParameter => {
+                    "list pagination parameters are invalid".to_owned()
+                }
+                other => format!("list pagination failed: {other:?}"),
+            };
+            return invalid_parameter_response(&ctx, detail);
+        }
+    };
+    let cursor = query.paging.cursor.clone();
+    let favorite_type = query.favorite_type.clone();
+    let search_query = query.q.clone();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(service.message_favorites_window_from_auth_context(
             &auth,
             Some(paging.page_size),
-            query.paging.cursor.as_deref(),
-            query.favorite_type.as_deref(),
-            query.q.as_deref(),
+            cursor.as_deref(),
+            favorite_type.as_deref(),
+            search_query.as_deref(),
         )?)
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -784,7 +976,7 @@ async fn create_message_favorite(
     State(service): State<Arc<TimelineProjectionService>>,
     Json(body): Json<FavoriteMessageRequest>,
 ) -> Response {
-    let result: ApiResult<MessageFavoriteItemResponse> = (|| {
+    let result = run_blocking_projection(service, auth, move |service, auth| {
         Ok(MessageFavoriteItemResponse {
             item: service.create_message_favorite_from_auth_context(
                 &auth,
@@ -792,7 +984,8 @@ async fn create_message_favorite(
                 body,
             )?,
         })
-    })();
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -802,8 +995,10 @@ async fn delete_message_favorite(
     Path(favorite_id): Path<String>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<DeleteMessageFavoriteResponse> =
-        (|| Ok(service.delete_message_favorite_from_auth_context(&auth, favorite_id.as_str())?))();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        Ok(service.delete_message_favorite_from_auth_context(&auth, favorite_id.as_str())?)
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -813,9 +1008,9 @@ async fn delete_message_visibility(
     Path(message_id): Path<String>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
-    let result: ApiResult<MessageVisibilityItemResponse> = (|| {
-        let item = service.delete_message_visibility_from_auth_context(&auth, message_id.as_str())?;
-        let runtime = default_projection_runtime();
+    let runtime = default_projection_runtime();
+    let result = run_blocking_projection(service, auth, move |service, auth| {
+        service.delete_message_visibility_from_auth_context(&auth, message_id.as_str())?;
         if let Err(error) = runtime.persist_durable_state() {
             if runtime.requires_durable_persist() {
                 return Err(ProjectionApiError::internal(
@@ -829,9 +1024,10 @@ async fn delete_message_visibility(
                 "failed to persist message visibility snapshot after delete; in-memory state remains authoritative until next durable flush"
             );
         }
-        Ok(MessageVisibilityItemResponse { item })
-    })();
-    finish_api_json(&ctx, result)
+        Ok(())
+    })
+    .await;
+    finish_api_no_content(&ctx, result)
 }
 
 fn resolve_max_in_flight_requests() -> usize {
