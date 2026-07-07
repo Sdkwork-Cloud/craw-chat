@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::redis_unavailable;
+use redis::aio::{ConnectionManager, ConnectionManagerConfig};
 
 const GATEWAY_RATE_LIMIT_REDIS_CONNECT_TIMEOUT_MS_ENV: &str =
     "SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_CONNECT_TIMEOUT_MS";
@@ -47,6 +48,12 @@ impl RedisBlockingTimeouts {
                 DEFAULT_REDIS_COMMAND_TIMEOUT_MS,
             ),
         }
+    }
+
+    fn connection_manager_config(self) -> ConnectionManagerConfig {
+        ConnectionManagerConfig::new()
+            .set_connection_timeout(self.connect_timeout)
+            .set_response_timeout(self.command_timeout)
     }
 }
 
@@ -99,6 +106,13 @@ where
         command(connection).await
     };
     run_redis_future(future).map_err(|error| redis_unavailable(operation, error))
+}
+
+pub(crate) async fn bounded_connection_manager(
+    client: redis::Client,
+    timeouts: RedisBlockingTimeouts,
+) -> redis::RedisResult<ConnectionManager> {
+    ConnectionManager::new_with_config(client, timeouts.connection_manager_config()).await
 }
 
 fn run_redis_future<T, Fut>(future: Fut) -> redis::RedisResult<T>

@@ -2662,7 +2662,7 @@ dependencies = [
  "chrono",
  "im-domain-core",
  "im-platform-contracts",
- "redis",
+ "redis 0.27.6",
  "sdkwork-communication-rtc-service",
  "sdkwork-im-contract-control",
  "sdkwork-im-contract-core",
@@ -4404,6 +4404,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis"
+version = "0.28.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e37ec3fd44bea2ec947ba6cc7634d7999a6590aca7c35827c250bc0de502bda6"
+dependencies = [
+ "arc-swap",
+ "backon",
+ "bytes",
+ "combine",
+ "futures-channel",
+ "futures-util",
+ "itoa",
+ "num-bigint",
+ "percent-encoding",
+ "pin-project-lite",
+ "ryu",
+ "sha1_smol",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5103,7 +5126,7 @@ dependencies = [
  "im-time",
  "projection-service",
  "prost 0.14.4",
- "redis",
+ "redis 0.27.6",
  "sdkwork-database-config",
  "sdkwork-im-api-registry",
  "sdkwork-im-contract-core",
@@ -5442,6 +5465,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "http 1.4.2",
+ "redis 0.28.2",
  "sdkwork-drive-config",
  "sdkwork-drive-observability",
  "sdkwork-drive-security",
@@ -6092,7 +6116,7 @@ dependencies = [
  "native-tls",
  "postgres",
  "postgres-native-tls",
- "redis",
+ "redis 0.27.6",
  "sdkwork-database-sqlx",
  "sdkwork-im-database-pool",
  "sdkwork-web-bootstrap",
@@ -8303,7 +8327,7 @@ name = "sdkwork-web-store-redis"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "redis",
+ "redis 0.27.6",
  "sdkwork-web-core",
  "serde",
  "serde_json",
@@ -8495,7 +8519,7 @@ dependencies = [
  "prost 0.14.4",
  "quinn",
  "rcgen",
- "redis",
+ "redis 0.27.6",
  "rustls 0.23.41",
  "rustls-pemfile",
  "sdkwork-database-sqlx",
