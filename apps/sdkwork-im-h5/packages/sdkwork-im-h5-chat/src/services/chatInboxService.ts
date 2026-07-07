@@ -1,25 +1,25 @@
-import type { InboxResponse } from "@sdkwork/im-sdk";
+import type { ConversationInboxPage } from "@sdkwork/im-sdk";
 import { getImSdkClient } from "@sdkwork/im-h5-core";
 
 import { readCursorPageInfo } from "./chatTimelineUtils";
 
 const INBOX_PAGE_SIZE = 20;
 
-export async function fetchChatInbox(pageSize = INBOX_PAGE_SIZE): Promise<InboxResponse> {
+export async function fetchChatInbox(pageSize = INBOX_PAGE_SIZE): Promise<ConversationInboxPage> {
   return fetchChatInboxPage({ pageSize });
 }
 
 export async function fetchChatInboxPage(options?: {
   pageSize?: number;
   cursor?: string;
-}): Promise<InboxResponse> {
+}): Promise<ConversationInboxPage> {
   return getImSdkClient().conversations.list({
     pageSize: options?.pageSize ?? INBOX_PAGE_SIZE,
     ...(options?.cursor ? { cursor: options.cursor } : {}),
   });
 }
 
-export function readInboxPageState(response: InboxResponse) {
+export function readInboxPageState(response: ConversationInboxPage) {
   return readCursorPageInfo(response.pageInfo);
 }
 

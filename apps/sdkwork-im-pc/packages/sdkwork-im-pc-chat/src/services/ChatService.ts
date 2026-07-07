@@ -1,9 +1,9 @@
 import type {
   ContactPreferencesView,
   ContentPart,
+  ConversationInboxEntry,
   ConversationMember,
   DriveReference,
-  InboxResponse,
   ConversationProfileView,
   ImDecodedMessage,
   ImMessageContext,
@@ -60,7 +60,6 @@ import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
   readAppSdkSessionTokens,
   resolveAppSdkOrganizationId,
-  resolveAppSdkTenantId,
   resolveAppSdkUserId,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
@@ -70,7 +69,6 @@ import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
 import i18n from '../i18n';
 
-type ConversationInboxEntry = InboxResponse['items'][number];
 type TimelineViewEntry = TimelineResponse['items'][number];
 type ChatListHandler = (chats: Chat[]) => void;
 type MessageHandler = (message: Message) => void;
@@ -203,7 +201,6 @@ const CHAT_LIST_REALTIME_EVENT_TYPES = [
 ];
 const CHAT_DRIVE_SCENE = 'im';
 const CHAT_DRIVE_SOURCE = 'chat_message';
-const CHAT_DRIVE_APP_ID = 'chat';
 const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
 const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
   'applet',
@@ -892,14 +889,6 @@ function resolveChatUploadUserId(session: SdkworkChatSession | null | undefined)
   return userId;
 }
 
-function resolveChatUploadTenantId(session: SdkworkChatSession | null | undefined): string {
-  const tenantId = resolveAppSdkTenantId(session ?? null);
-  if (!tenantId) {
-    throw new Error('Chat media upload requires tenant_id in the authenticated session.');
-  }
-  return tenantId;
-}
-
 function parseFileSizeBytes(value: string | undefined): string | undefined {
   const normalized = value?.trim();
   if (!normalized) {
@@ -1100,16 +1089,12 @@ async function uploadChatMediaFile({
   }
 
   const session = getSession();
-  const tenantId = resolveChatUploadTenantId(session);
   const organizationId = resolveAppSdkOrganizationId(session ?? null);
-  const userId = resolveChatUploadUserId(session);
+  resolveChatUploadUserId(session);
   const originalFileName = resolveMediaUploadFileName(type, file, extraInfo);
   const uploadRequest: DriveUploaderRequest = {
     file,
-    tenantId,
     ...(organizationId ? { organizationId } : {}),
-    userId,
-    appId: CHAT_DRIVE_APP_ID,
     appResourceType: CHAT_DRIVE_APP_RESOURCE_TYPE,
     appResourceId: chatId,
     scene: CHAT_DRIVE_SCENE,

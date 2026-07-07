@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sdkwork/communication/internal/v1/room_orchestration_service.proto.
  */
 export const file_sdkwork_communication_internal_v1_room_orchestration_service: GenFile = /*@__PURE__*/
-  fileDesc("CkJzZGt3b3JrL2NvbW11bmljYXRpb24vaW50ZXJuYWwvdjEvcm9vbV9vcmNoZXN0cmF0aW9uX3NlcnZpY2UucHJvdG8SIXNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MSKFAQoUT3JjaGVzdHJhdGVkUm9vbVZpZXcSDwoHcm9vbV9pZBgBIAEoCRIRCglyb29tX2tpbmQYAiABKAkSFwoPY29udmVyc2F0aW9uX2lkGAMgASgJEhsKE2FjdGl2ZV9tZW1iZXJfY291bnQYBCABKAUSEwoLbWF4X21lbWJlcnMYBSABKAUi4wEKHE9yY2hlc3RyYXRlQ3JlYXRlUm9vbVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhcKD29yZ2FuaXphdGlvbl9pZBgCIAEoCRIQCghhY3Rvcl9pZBgDIAEoCRISCgphY3Rvcl9raW5kGAQgASgJEhcKD2NvbnZlcnNhdGlvbl9pZBgFIAEoCRIPCgdyb29tX2lkGAYgASgJEhEKCXJvb21fa2luZBgHIAEoCRI0CghtZXRhZGF0YRgPIAEoCzIiLnNka3dvcmsuY29tbW9uLnYxLlJlcXVlc3RNZXRhZGF0YSLIAQodT3JjaGVzdHJhdGVDcmVhdGVSb29tUmVzcG9uc2USFwoPY29udmVyc2F0aW9uX2lkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJEkUKBHJvb20YAyABKAsyNy5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuT3JjaGVzdHJhdGVkUm9vbVZpZXcSNQoIbWV0YWRhdGEYDyABKAsyIy5zZGt3b3JrLmNvbW1vbi52MS5SZXNwb25zZU1ldGFkYXRhIpMBCh5PcmNoZXN0cmF0ZVJldHJpZXZlUm9vbVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhcKD29yZ2FuaXphdGlvbl9pZBgCIAEoCRIPCgdyb29tX2lkGAMgASgJEjQKCG1ldGFkYXRhGA8gASgLMiIuc2Rrd29yay5jb21tb24udjEuUmVxdWVzdE1ldGFkYXRhIp8BCh9PcmNoZXN0cmF0ZVJldHJpZXZlUm9vbVJlc3BvbnNlEkUKBHJvb20YASABKAsyNy5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuT3JjaGVzdHJhdGVkUm9vbVZpZXcSNQoIbWV0YWRhdGEYDyABKAsyIy5zZGt3b3JrLmNvbW1vbi52MS5SZXNwb25zZU1ldGFkYXRhIr4BChtPcmNoZXN0cmF0ZUVudGVyUm9vbVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhcKD29yZ2FuaXphdGlvbl9pZBgCIAEoCRIPCgdyb29tX2lkGAMgASgJEhQKDHByaW5jaXBhbF9pZBgEIAEoCRIWCg5wcmluY2lwYWxfa2luZBgFIAEoCRI0CghtZXRhZGF0YRgPIAEoCzIiLnNka3dvcmsuY29tbW9uLnYxLlJlcXVlc3RNZXRhZGF0YSKBAQocT3JjaGVzdHJhdGVFbnRlclJvb21SZXNwb25zZRIRCgltZW1iZXJfaWQYASABKAkSFwoPY29udmVyc2F0aW9uX2lkGAIgASgJEjUKCG1ldGFkYXRhGA8gASgLMiMuc2Rrd29yay5jb21tb24udjEuUmVzcG9uc2VNZXRhZGF0YSK+AQobT3JjaGVzdHJhdGVMZWF2ZVJvb21SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIXCg9vcmdhbml6YXRpb25faWQYAiABKAkSDwoHcm9vbV9pZBgDIAEoCRIUCgxwcmluY2lwYWxfaWQYBCABKAkSFgoOcHJpbmNpcGFsX2tpbmQYBSABKAkSNAoIbWV0YWRhdGEYDyABKAsyIi5zZGt3b3JrLmNvbW1vbi52MS5SZXF1ZXN0TWV0YWRhdGEikQEKHE9yY2hlc3RyYXRlTGVhdmVSb29tUmVzcG9uc2USEQoJbWVtYmVyX2lkGAEgASgJEhcKD2NvbnZlcnNhdGlvbl9pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSNQoIbWV0YWRhdGEYDyABKAsyIy5zZGt3b3JrLmNvbW1vbi52MS5SZXNwb25zZU1ldGFkYXRhMuIEChhSb29tT3JjaGVzdHJhdGlvblNlcnZpY2USjwEKCkNyZWF0ZVJvb20SPy5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuT3JjaGVzdHJhdGVDcmVhdGVSb29tUmVxdWVzdBpALnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5PcmNoZXN0cmF0ZUNyZWF0ZVJvb21SZXNwb25zZRKVAQoMUmV0cmlldmVSb29tEkEuc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxLk9yY2hlc3RyYXRlUmV0cmlldmVSb29tUmVxdWVzdBpCLnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5PcmNoZXN0cmF0ZVJldHJpZXZlUm9vbVJlc3BvbnNlEowBCglFbnRlclJvb20SPi5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuT3JjaGVzdHJhdGVFbnRlclJvb21SZXF1ZXN0Gj8uc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxLk9yY2hlc3RyYXRlRW50ZXJSb29tUmVzcG9uc2USjAEKCUxlYXZlUm9vbRI+LnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5PcmNoZXN0cmF0ZUxlYXZlUm9vbVJlcXVlc3QaPy5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuT3JjaGVzdHJhdGVMZWF2ZVJvb21SZXNwb25zZUKVAQolY29tLnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MVABWmpnaXRodWIuY29tL3Nka3dvcmsvaW0tcnBjLXNkay1nby9nZW5lcmF0ZWQvcHJvdG8vc2Rrd29yay9jb21tdW5pY2F0aW9uL2ludGVybmFsL3YxO2NvbW11bmljYXRpb25pbnRlcm5hbHYxYgZwcm90bzM", [file_sdkwork_common_v1_context]);
+  fileDesc("CkJzZGt3b3JrL2NvbW11bmljYXRpb24vaW50ZXJuYWwvdjEvcm9vbV9vcmNoZXN0cmF0aW9uX3NlcnZpY2UucHJvdG8SIXNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MSKFAQoUT3JjaGVzdHJhdGVkUm9vbVZpZXcSDwoHcm9vbV9pZBgBIAEoCRIRCglyb29tX2tpbmQYAiABKAkSFwoPY29udmVyc2F0aW9uX2lkGAMgASgJEhsKE2FjdGl2ZV9tZW1iZXJfY291bnQYBCABKAUSEwoLbWF4X21lbWJlcnMYBSABKAUi2AEKEUNyZWF0ZVJvb21SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIXCg9vcmdhbml6YXRpb25faWQYAiABKAkSEAoIYWN0b3JfaWQYAyABKAkSEgoKYWN0b3Jfa2luZBgEIAEoCRIXCg9jb252ZXJzYXRpb25faWQYBSABKAkSDwoHcm9vbV9pZBgGIAEoCRIRCglyb29tX2tpbmQYByABKAkSNAoIbWV0YWRhdGEYDyABKAsyIi5zZGt3b3JrLmNvbW1vbi52MS5SZXF1ZXN0TWV0YWRhdGEivQEKEkNyZWF0ZVJvb21SZXNwb25zZRIXCg9jb252ZXJzYXRpb25faWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkSRQoEcm9vbRgDIAEoCzI3LnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5PcmNoZXN0cmF0ZWRSb29tVmlldxI1CghtZXRhZGF0YRgPIAEoCzIjLnNka3dvcmsuY29tbW9uLnYxLlJlc3BvbnNlTWV0YWRhdGEiiAEKE1JldHJpZXZlUm9vbVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhcKD29yZ2FuaXphdGlvbl9pZBgCIAEoCRIPCgdyb29tX2lkGAMgASgJEjQKCG1ldGFkYXRhGA8gASgLMiIuc2Rrd29yay5jb21tb24udjEuUmVxdWVzdE1ldGFkYXRhIpQBChRSZXRyaWV2ZVJvb21SZXNwb25zZRJFCgRyb29tGAEgASgLMjcuc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxLk9yY2hlc3RyYXRlZFJvb21WaWV3EjUKCG1ldGFkYXRhGA8gASgLMiMuc2Rrd29yay5jb21tb24udjEuUmVzcG9uc2VNZXRhZGF0YSKzAQoQRW50ZXJSb29tUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSFwoPb3JnYW5pemF0aW9uX2lkGAIgASgJEg8KB3Jvb21faWQYAyABKAkSFAoMcHJpbmNpcGFsX2lkGAQgASgJEhYKDnByaW5jaXBhbF9raW5kGAUgASgJEjQKCG1ldGFkYXRhGA8gASgLMiIuc2Rrd29yay5jb21tb24udjEuUmVxdWVzdE1ldGFkYXRhInYKEUVudGVyUm9vbVJlc3BvbnNlEhEKCW1lbWJlcl9pZBgBIAEoCRIXCg9jb252ZXJzYXRpb25faWQYAiABKAkSNQoIbWV0YWRhdGEYDyABKAsyIy5zZGt3b3JrLmNvbW1vbi52MS5SZXNwb25zZU1ldGFkYXRhIrMBChBMZWF2ZVJvb21SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIXCg9vcmdhbml6YXRpb25faWQYAiABKAkSDwoHcm9vbV9pZBgDIAEoCRIUCgxwcmluY2lwYWxfaWQYBCABKAkSFgoOcHJpbmNpcGFsX2tpbmQYBSABKAkSNAoIbWV0YWRhdGEYDyABKAsyIi5zZGt3b3JrLmNvbW1vbi52MS5SZXF1ZXN0TWV0YWRhdGEihgEKEUxlYXZlUm9vbVJlc3BvbnNlEhEKCW1lbWJlcl9pZBgBIAEoCRIXCg9jb252ZXJzYXRpb25faWQYAiABKAkSDgoGc3RhdHVzGAMgASgJEjUKCG1ldGFkYXRhGA8gASgLMiMuc2Rrd29yay5jb21tb24udjEuUmVzcG9uc2VNZXRhZGF0YTKGBAoYUm9vbU9yY2hlc3RyYXRpb25TZXJ2aWNlEnkKCkNyZWF0ZVJvb20SNC5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuQ3JlYXRlUm9vbVJlcXVlc3QaNS5zZGt3b3JrLmNvbW11bmljYXRpb24uaW50ZXJuYWwudjEuQ3JlYXRlUm9vbVJlc3BvbnNlEn8KDFJldHJpZXZlUm9vbRI2LnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5SZXRyaWV2ZVJvb21SZXF1ZXN0Gjcuc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxLlJldHJpZXZlUm9vbVJlc3BvbnNlEnYKCUVudGVyUm9vbRIzLnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5FbnRlclJvb21SZXF1ZXN0GjQuc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxLkVudGVyUm9vbVJlc3BvbnNlEnYKCUxlYXZlUm9vbRIzLnNka3dvcmsuY29tbXVuaWNhdGlvbi5pbnRlcm5hbC52MS5MZWF2ZVJvb21SZXF1ZXN0GjQuc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxLkxlYXZlUm9vbVJlc3BvbnNlQpUBCiVjb20uc2Rrd29yay5jb21tdW5pY2F0aW9uLmludGVybmFsLnYxUAFaamdpdGh1Yi5jb20vc2Rrd29yay9pbS1ycGMtc2RrLWdvL2dlbmVyYXRlZC9wcm90by9zZGt3b3JrL2NvbW11bmljYXRpb24vaW50ZXJuYWwvdjE7Y29tbXVuaWNhdGlvbmludGVybmFsdjFiBnByb3RvMw", [file_sdkwork_common_v1_context]);
 
 /**
  * @generated from message sdkwork.communication.internal.v1.OrchestratedRoomView
@@ -52,9 +52,9 @@ export const OrchestratedRoomViewSchema: GenMessage<OrchestratedRoomView> = /*@_
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 0);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest
+ * @generated from message sdkwork.communication.internal.v1.CreateRoomRequest
  */
-export type OrchestrateCreateRoomRequest = Message<"sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest"> & {
+export type CreateRoomRequest = Message<"sdkwork.communication.internal.v1.CreateRoomRequest"> & {
   /**
    * @generated from field: string tenant_id = 1;
    */
@@ -97,16 +97,16 @@ export type OrchestrateCreateRoomRequest = Message<"sdkwork.communication.intern
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.
- * Use `create(OrchestrateCreateRoomRequestSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.CreateRoomRequest.
+ * Use `create(CreateRoomRequestSchema)` to create a new message.
  */
-export const OrchestrateCreateRoomRequestSchema: GenMessage<OrchestrateCreateRoomRequest> = /*@__PURE__*/
+export const CreateRoomRequestSchema: GenMessage<CreateRoomRequest> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 1);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse
+ * @generated from message sdkwork.communication.internal.v1.CreateRoomResponse
  */
-export type OrchestrateCreateRoomResponse = Message<"sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse"> & {
+export type CreateRoomResponse = Message<"sdkwork.communication.internal.v1.CreateRoomResponse"> & {
   /**
    * @generated from field: string conversation_id = 1;
    */
@@ -129,16 +129,16 @@ export type OrchestrateCreateRoomResponse = Message<"sdkwork.communication.inter
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse.
- * Use `create(OrchestrateCreateRoomResponseSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.CreateRoomResponse.
+ * Use `create(CreateRoomResponseSchema)` to create a new message.
  */
-export const OrchestrateCreateRoomResponseSchema: GenMessage<OrchestrateCreateRoomResponse> = /*@__PURE__*/
+export const CreateRoomResponseSchema: GenMessage<CreateRoomResponse> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 2);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest
+ * @generated from message sdkwork.communication.internal.v1.RetrieveRoomRequest
  */
-export type OrchestrateRetrieveRoomRequest = Message<"sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest"> & {
+export type RetrieveRoomRequest = Message<"sdkwork.communication.internal.v1.RetrieveRoomRequest"> & {
   /**
    * @generated from field: string tenant_id = 1;
    */
@@ -161,16 +161,16 @@ export type OrchestrateRetrieveRoomRequest = Message<"sdkwork.communication.inte
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest.
- * Use `create(OrchestrateRetrieveRoomRequestSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.RetrieveRoomRequest.
+ * Use `create(RetrieveRoomRequestSchema)` to create a new message.
  */
-export const OrchestrateRetrieveRoomRequestSchema: GenMessage<OrchestrateRetrieveRoomRequest> = /*@__PURE__*/
+export const RetrieveRoomRequestSchema: GenMessage<RetrieveRoomRequest> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 3);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse
+ * @generated from message sdkwork.communication.internal.v1.RetrieveRoomResponse
  */
-export type OrchestrateRetrieveRoomResponse = Message<"sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse"> & {
+export type RetrieveRoomResponse = Message<"sdkwork.communication.internal.v1.RetrieveRoomResponse"> & {
   /**
    * @generated from field: sdkwork.communication.internal.v1.OrchestratedRoomView room = 1;
    */
@@ -183,16 +183,16 @@ export type OrchestrateRetrieveRoomResponse = Message<"sdkwork.communication.int
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse.
- * Use `create(OrchestrateRetrieveRoomResponseSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.RetrieveRoomResponse.
+ * Use `create(RetrieveRoomResponseSchema)` to create a new message.
  */
-export const OrchestrateRetrieveRoomResponseSchema: GenMessage<OrchestrateRetrieveRoomResponse> = /*@__PURE__*/
+export const RetrieveRoomResponseSchema: GenMessage<RetrieveRoomResponse> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 4);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest
+ * @generated from message sdkwork.communication.internal.v1.EnterRoomRequest
  */
-export type OrchestrateEnterRoomRequest = Message<"sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest"> & {
+export type EnterRoomRequest = Message<"sdkwork.communication.internal.v1.EnterRoomRequest"> & {
   /**
    * @generated from field: string tenant_id = 1;
    */
@@ -225,16 +225,16 @@ export type OrchestrateEnterRoomRequest = Message<"sdkwork.communication.interna
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest.
- * Use `create(OrchestrateEnterRoomRequestSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.EnterRoomRequest.
+ * Use `create(EnterRoomRequestSchema)` to create a new message.
  */
-export const OrchestrateEnterRoomRequestSchema: GenMessage<OrchestrateEnterRoomRequest> = /*@__PURE__*/
+export const EnterRoomRequestSchema: GenMessage<EnterRoomRequest> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 5);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse
+ * @generated from message sdkwork.communication.internal.v1.EnterRoomResponse
  */
-export type OrchestrateEnterRoomResponse = Message<"sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse"> & {
+export type EnterRoomResponse = Message<"sdkwork.communication.internal.v1.EnterRoomResponse"> & {
   /**
    * @generated from field: string member_id = 1;
    */
@@ -252,16 +252,16 @@ export type OrchestrateEnterRoomResponse = Message<"sdkwork.communication.intern
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse.
- * Use `create(OrchestrateEnterRoomResponseSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.EnterRoomResponse.
+ * Use `create(EnterRoomResponseSchema)` to create a new message.
  */
-export const OrchestrateEnterRoomResponseSchema: GenMessage<OrchestrateEnterRoomResponse> = /*@__PURE__*/
+export const EnterRoomResponseSchema: GenMessage<EnterRoomResponse> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 6);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest
+ * @generated from message sdkwork.communication.internal.v1.LeaveRoomRequest
  */
-export type OrchestrateLeaveRoomRequest = Message<"sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest"> & {
+export type LeaveRoomRequest = Message<"sdkwork.communication.internal.v1.LeaveRoomRequest"> & {
   /**
    * @generated from field: string tenant_id = 1;
    */
@@ -294,16 +294,16 @@ export type OrchestrateLeaveRoomRequest = Message<"sdkwork.communication.interna
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest.
- * Use `create(OrchestrateLeaveRoomRequestSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.LeaveRoomRequest.
+ * Use `create(LeaveRoomRequestSchema)` to create a new message.
  */
-export const OrchestrateLeaveRoomRequestSchema: GenMessage<OrchestrateLeaveRoomRequest> = /*@__PURE__*/
+export const LeaveRoomRequestSchema: GenMessage<LeaveRoomRequest> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 7);
 
 /**
- * @generated from message sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse
+ * @generated from message sdkwork.communication.internal.v1.LeaveRoomResponse
  */
-export type OrchestrateLeaveRoomResponse = Message<"sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse"> & {
+export type LeaveRoomResponse = Message<"sdkwork.communication.internal.v1.LeaveRoomResponse"> & {
   /**
    * @generated from field: string member_id = 1;
    */
@@ -326,10 +326,10 @@ export type OrchestrateLeaveRoomResponse = Message<"sdkwork.communication.intern
 };
 
 /**
- * Describes the message sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.
- * Use `create(OrchestrateLeaveRoomResponseSchema)` to create a new message.
+ * Describes the message sdkwork.communication.internal.v1.LeaveRoomResponse.
+ * Use `create(LeaveRoomResponseSchema)` to create a new message.
  */
-export const OrchestrateLeaveRoomResponseSchema: GenMessage<OrchestrateLeaveRoomResponse> = /*@__PURE__*/
+export const LeaveRoomResponseSchema: GenMessage<LeaveRoomResponse> = /*@__PURE__*/
   messageDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 8);
 
 /**
@@ -341,32 +341,32 @@ export const RoomOrchestrationService: GenService<{
    */
   createRoom: {
     methodKind: "unary";
-    input: typeof OrchestrateCreateRoomRequestSchema;
-    output: typeof OrchestrateCreateRoomResponseSchema;
+    input: typeof CreateRoomRequestSchema;
+    output: typeof CreateRoomResponseSchema;
   },
   /**
    * @generated from rpc sdkwork.communication.internal.v1.RoomOrchestrationService.RetrieveRoom
    */
   retrieveRoom: {
     methodKind: "unary";
-    input: typeof OrchestrateRetrieveRoomRequestSchema;
-    output: typeof OrchestrateRetrieveRoomResponseSchema;
+    input: typeof RetrieveRoomRequestSchema;
+    output: typeof RetrieveRoomResponseSchema;
   },
   /**
    * @generated from rpc sdkwork.communication.internal.v1.RoomOrchestrationService.EnterRoom
    */
   enterRoom: {
     methodKind: "unary";
-    input: typeof OrchestrateEnterRoomRequestSchema;
-    output: typeof OrchestrateEnterRoomResponseSchema;
+    input: typeof EnterRoomRequestSchema;
+    output: typeof EnterRoomResponseSchema;
   },
   /**
    * @generated from rpc sdkwork.communication.internal.v1.RoomOrchestrationService.LeaveRoom
    */
   leaveRoom: {
     methodKind: "unary";
-    input: typeof OrchestrateLeaveRoomRequestSchema;
-    output: typeof OrchestrateLeaveRoomResponseSchema;
+    input: typeof LeaveRoomRequestSchema;
+    output: typeof LeaveRoomResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_sdkwork_communication_internal_v1_room_orchestration_service, 0);

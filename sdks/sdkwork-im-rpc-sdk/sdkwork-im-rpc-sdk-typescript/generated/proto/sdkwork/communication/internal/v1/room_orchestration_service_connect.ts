@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { OrchestrateCreateRoomRequest, OrchestrateCreateRoomResponse, OrchestrateEnterRoomRequest, OrchestrateEnterRoomResponse, OrchestrateLeaveRoomRequest, OrchestrateLeaveRoomResponse, OrchestrateRetrieveRoomRequest, OrchestrateRetrieveRoomResponse } from "./room_orchestration_service_pb.js";
+import { CreateRoomRequest, CreateRoomResponse, EnterRoomRequest, EnterRoomResponse, LeaveRoomRequest, LeaveRoomResponse, RetrieveRoomRequest, RetrieveRoomResponse } from "./room_orchestration_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -17,8 +17,8 @@ export const RoomOrchestrationService = {
      */
     createRoom: {
       name: "CreateRoom",
-      I: OrchestrateCreateRoomRequest,
-      O: OrchestrateCreateRoomResponse,
+      I: CreateRoomRequest,
+      O: CreateRoomResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -26,8 +26,8 @@ export const RoomOrchestrationService = {
      */
     retrieveRoom: {
       name: "RetrieveRoom",
-      I: OrchestrateRetrieveRoomRequest,
-      O: OrchestrateRetrieveRoomResponse,
+      I: RetrieveRoomRequest,
+      O: RetrieveRoomResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -35,8 +35,8 @@ export const RoomOrchestrationService = {
      */
     enterRoom: {
       name: "EnterRoom",
-      I: OrchestrateEnterRoomRequest,
-      O: OrchestrateEnterRoomResponse,
+      I: EnterRoomRequest,
+      O: EnterRoomResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -44,8 +44,8 @@ export const RoomOrchestrationService = {
      */
     leaveRoom: {
       name: "LeaveRoom",
-      I: OrchestrateLeaveRoomRequest,
-      O: OrchestrateLeaveRoomResponse,
+      I: LeaveRoomRequest,
+      O: LeaveRoomResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -322,10 +322,10 @@
       "compatibility": "v3"
     },
     {
-      "methodKey": "sdkwork.communication.app.v3.ConversationService/RetrieveInbox",
+      "methodKey": "sdkwork.communication.app.v3.ConversationService/ListInbox",
       "package": "sdkwork.communication.app.v3",
       "service": "ConversationService",
-      "method": "RetrieveInbox",
+      "method": "ListInbox",
       "surface": "app",
       "operationId": "inbox.list",
       "auth": "app-session",

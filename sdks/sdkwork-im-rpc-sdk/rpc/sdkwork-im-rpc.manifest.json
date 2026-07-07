@@ -39,7 +39,7 @@
         { "method": "CreateThread", "operationId": "conversations.threads.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "BindDirectChat", "operationId": "conversations.directChats.bind", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "RetrieveConversation", "operationId": "conversations.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
-        { "method": "RetrieveInbox", "operationId": "inbox.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "ListInbox", "operationId": "inbox.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "ListConversationMembers", "operationId": "conversations.members.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "AddConversationMember", "operationId": "conversations.members.add", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "RemoveConversationMember", "operationId": "conversations.members.remove", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },

@@ -2,6 +2,10 @@
 // @generated from file sdkwork/communication/internal/v1/distributed_runtime_service.proto (package sdkwork.communication.internal.v1, syntax proto3)
 /* eslint-disable */
 
+// Phase 2 deferred: RuntimeTopologyService, RouteLeaseService, and DomainEventRelayService
+// are contract-only until distributed-runtime orchestration ships. Do not call from production
+// clients; use static topology env vars per ADR-20260619-im-rpc-discovery-integration-deferred.md.
+
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { PageRequest, PageResponse, RequestMetadata, ResponseMetadata } from "../../../common/v1/context_pb";

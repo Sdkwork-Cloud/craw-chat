@@ -11,6 +11,7 @@ import {
 } from '@sdkwork/im-pc-core/sdk/session';
 import {
   acquirePcLiveConnectionLease,
+  configurePcRealtimeConnectionManager,
   ensurePcLiveConnection,
 } from '@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
@@ -222,6 +223,7 @@ class SdkworkImCallService implements CallService {
     this.getClient = dependencies.getClient ?? ((session) => getImSdkClientWithSession(session));
     this.readSession = dependencies.readSession ?? readAppSdkSessionTokens;
     this.rtcMediaService = dependencies.rtcMediaService ?? rtcMediaService;
+    this.configureRealtimeConnectionManager();
   }
 
   getSnapshot(): SdkworkCallSnapshot {
@@ -362,11 +364,7 @@ class SdkworkImCallService implements CallService {
     try {
       const session = this.readSession();
       const imClient = this.getClient(session);
-      this.incomingConnectionLease?.();
-      this.incomingConnectionLease = acquirePcLiveConnectionLease('calls-incoming-watch', {
-        conversationIds: normalizedConversationIds,
-      });
-      const connection = await ensurePcLiveConnection();
+      this.configureRealtimeConnectionManager();
       this.incomingSubscription?.();
       this.incomingSubscription = imClient.calls.subscribe((callSession) => {
         if (!normalizedConversationIds.includes(callSession.conversationId ?? '')) {
@@ -407,6 +405,11 @@ class SdkworkImCallService implements CallService {
           state: incomingState,
         });
       });
+      this.incomingConnectionLease?.();
+      this.incomingConnectionLease = acquirePcLiveConnectionLease('calls-incoming-watch', {
+        conversationIds: normalizedConversationIds,
+      });
+      const connection = await ensurePcLiveConnection();
       const incoming = await imClient.calls.watchIncoming({
         connection,
         conversationIds: normalizedConversationIds,
@@ -429,6 +432,8 @@ class SdkworkImCallService implements CallService {
         });
       }
     } catch (error) {
+      this.incomingSubscription?.();
+      this.incomingSubscription = undefined;
       this.incomingConnectionLease?.();
       this.incomingConnectionLease = undefined;
       this.applySnapshot({
@@ -628,6 +633,14 @@ class SdkworkImCallService implements CallService {
         && this.snapshot.state !== 'rejected'
         && this.snapshot.state !== 'errored',
     );
+  }
+
+  private configureRealtimeConnectionManager(): void {
+    configurePcRealtimeConnectionManager({
+      getClient: () => this.getClient(this.readSession()),
+      getDeviceId: resolveSdkworkChatPcClientId,
+      getSession: this.readSession,
+    });
   }
 
   private applyUnavailableIncomingSnapshot(): void {

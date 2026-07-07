@@ -1318,7 +1318,7 @@ func (x *RetrieveConversationResponse) GetMetadata() *v1.ResponseMetadata {
 	return nil
 }
 
-type RetrieveInboxRequest struct {
+type ListInboxRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Page          *v1.PageRequest        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	Metadata      *v1.RequestMetadata    `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
@@ -1326,20 +1326,20 @@ type RetrieveInboxRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RetrieveInboxRequest) Reset() {
-	*x = RetrieveInboxRequest{}
+func (x *ListInboxRequest) Reset() {
+	*x = ListInboxRequest{}
 	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RetrieveInboxRequest) String() string {
+func (x *ListInboxRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RetrieveInboxRequest) ProtoMessage() {}
+func (*ListInboxRequest) ProtoMessage() {}
 
-func (x *RetrieveInboxRequest) ProtoReflect() protoreflect.Message {
+func (x *ListInboxRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1351,26 +1351,26 @@ func (x *RetrieveInboxRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RetrieveInboxRequest.ProtoReflect.Descriptor instead.
-func (*RetrieveInboxRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListInboxRequest.ProtoReflect.Descriptor instead.
+func (*ListInboxRequest) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *RetrieveInboxRequest) GetPage() *v1.PageRequest {
+func (x *ListInboxRequest) GetPage() *v1.PageRequest {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-func (x *RetrieveInboxRequest) GetMetadata() *v1.RequestMetadata {
+func (x *ListInboxRequest) GetMetadata() *v1.RequestMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type RetrieveInboxResponse struct {
+type ListInboxResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Conversations []*ConversationView    `protobuf:"bytes,1,rep,name=conversations,proto3" json:"conversations,omitempty"`
 	Page          *v1.PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
@@ -1379,20 +1379,20 @@ type RetrieveInboxResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RetrieveInboxResponse) Reset() {
-	*x = RetrieveInboxResponse{}
+func (x *ListInboxResponse) Reset() {
+	*x = ListInboxResponse{}
 	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RetrieveInboxResponse) String() string {
+func (x *ListInboxResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RetrieveInboxResponse) ProtoMessage() {}
+func (*ListInboxResponse) ProtoMessage() {}
 
-func (x *RetrieveInboxResponse) ProtoReflect() protoreflect.Message {
+func (x *ListInboxResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_app_v3_conversation_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1404,26 +1404,26 @@ func (x *RetrieveInboxResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RetrieveInboxResponse.ProtoReflect.Descriptor instead.
-func (*RetrieveInboxResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListInboxResponse.ProtoReflect.Descriptor instead.
+func (*ListInboxResponse) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_app_v3_conversation_service_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *RetrieveInboxResponse) GetConversations() []*ConversationView {
+func (x *ListInboxResponse) GetConversations() []*ConversationView {
 	if x != nil {
 		return x.Conversations
 	}
 	return nil
 }
 
-func (x *RetrieveInboxResponse) GetPage() *v1.PageResponse {
+func (x *ListInboxResponse) GetPage() *v1.PageResponse {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-func (x *RetrieveInboxResponse) GetMetadata() *v1.ResponseMetadata {
+func (x *ListInboxResponse) GetMetadata() *v1.ResponseMetadata {
 	if x != nil {
 		return x.Metadata
 	}
@@ -4044,11 +4044,11 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xb3\x01\n" +
 	"\x1cRetrieveConversationResponse\x12R\n" +
 	"\fconversation\x18\x01 \x01(\v2..sdkwork.communication.app.v3.ConversationViewR\fconversation\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\x8a\x01\n" +
-	"\x14RetrieveInboxRequest\x122\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\x86\x01\n" +
+	"\x10ListInboxRequest\x122\n" +
 	"\x04page\x18\x01 \x01(\v2\x1e.sdkwork.common.v1.PageRequestR\x04page\x12>\n" +
-	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xe3\x01\n" +
-	"\x15RetrieveInboxResponse\x12T\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xdf\x01\n" +
+	"\x11ListInboxResponse\x12T\n" +
 	"\rconversations\x18\x01 \x03(\v2..sdkwork.communication.app.v3.ConversationViewR\rconversations\x123\n" +
 	"\x04page\x18\x02 \x01(\v2\x1f.sdkwork.common.v1.PageResponseR\x04page\x12?\n" +
 	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xbd\x01\n" +
@@ -4215,7 +4215,7 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xbb\x01\n" +
 	" UpdateContactPreferencesResponse\x12V\n" +
 	"\vpreferences\x18\x01 \x01(\v24.sdkwork.communication.app.v3.ContactPreferencesViewR\vpreferences\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\xba\x19\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\xae\x19\n" +
 	"\x13ConversationService\x12\x87\x01\n" +
 	"\x12CreateConversation\x127.sdkwork.communication.app.v3.CreateConversationRequest\x1a8.sdkwork.communication.app.v3.CreateConversationResponse\x12\x84\x01\n" +
 	"\x11CreateAgentDialog\x126.sdkwork.communication.app.v3.CreateAgentDialogRequest\x1a7.sdkwork.communication.app.v3.CreateAgentDialogResponse\x12\x87\x01\n" +
@@ -4223,8 +4223,8 @@ const file_sdkwork_communication_app_v3_conversation_service_proto_rawDesc = "" 
 	"\x13CreateSystemChannel\x128.sdkwork.communication.app.v3.CreateSystemChannelRequest\x1a9.sdkwork.communication.app.v3.CreateSystemChannelResponse\x12u\n" +
 	"\fCreateThread\x121.sdkwork.communication.app.v3.CreateThreadRequest\x1a2.sdkwork.communication.app.v3.CreateThreadResponse\x12{\n" +
 	"\x0eBindDirectChat\x123.sdkwork.communication.app.v3.BindDirectChatRequest\x1a4.sdkwork.communication.app.v3.BindDirectChatResponse\x12\x8d\x01\n" +
-	"\x14RetrieveConversation\x129.sdkwork.communication.app.v3.RetrieveConversationRequest\x1a:.sdkwork.communication.app.v3.RetrieveConversationResponse\x12x\n" +
-	"\rRetrieveInbox\x122.sdkwork.communication.app.v3.RetrieveInboxRequest\x1a3.sdkwork.communication.app.v3.RetrieveInboxResponse\x12\x96\x01\n" +
+	"\x14RetrieveConversation\x129.sdkwork.communication.app.v3.RetrieveConversationRequest\x1a:.sdkwork.communication.app.v3.RetrieveConversationResponse\x12l\n" +
+	"\tListInbox\x12..sdkwork.communication.app.v3.ListInboxRequest\x1a/.sdkwork.communication.app.v3.ListInboxResponse\x12\x96\x01\n" +
 	"\x17ListConversationMembers\x12<.sdkwork.communication.app.v3.ListConversationMembersRequest\x1a=.sdkwork.communication.app.v3.ListConversationMembersResponse\x12\x90\x01\n" +
 	"\x15AddConversationMember\x12:.sdkwork.communication.app.v3.AddConversationMemberRequest\x1a;.sdkwork.communication.app.v3.AddConversationMemberResponse\x12\x99\x01\n" +
 	"\x18RemoveConversationMember\x12=.sdkwork.communication.app.v3.RemoveConversationMemberRequest\x1a>.sdkwork.communication.app.v3.RemoveConversationMemberResponse\x12\x9c\x01\n" +
@@ -4286,8 +4286,8 @@ var file_sdkwork_communication_app_v3_conversation_service_proto_goTypes = []any
 	(*BindDirectChatResponse)(nil),                  // 19: sdkwork.communication.app.v3.BindDirectChatResponse
 	(*RetrieveConversationRequest)(nil),             // 20: sdkwork.communication.app.v3.RetrieveConversationRequest
 	(*RetrieveConversationResponse)(nil),            // 21: sdkwork.communication.app.v3.RetrieveConversationResponse
-	(*RetrieveInboxRequest)(nil),                    // 22: sdkwork.communication.app.v3.RetrieveInboxRequest
-	(*RetrieveInboxResponse)(nil),                   // 23: sdkwork.communication.app.v3.RetrieveInboxResponse
+	(*ListInboxRequest)(nil),                        // 22: sdkwork.communication.app.v3.ListInboxRequest
+	(*ListInboxResponse)(nil),                       // 23: sdkwork.communication.app.v3.ListInboxResponse
 	(*ListConversationMembersRequest)(nil),          // 24: sdkwork.communication.app.v3.ListConversationMembersRequest
 	(*ListConversationMembersResponse)(nil),         // 25: sdkwork.communication.app.v3.ListConversationMembersResponse
 	(*AddConversationMemberRequest)(nil),            // 26: sdkwork.communication.app.v3.AddConversationMemberRequest
@@ -4359,11 +4359,11 @@ var file_sdkwork_communication_app_v3_conversation_service_proto_depIdxs = []int
 	68,  // 18: sdkwork.communication.app.v3.RetrieveConversationRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
 	0,   // 19: sdkwork.communication.app.v3.RetrieveConversationResponse.conversation:type_name -> sdkwork.communication.app.v3.ConversationView
 	69,  // 20: sdkwork.communication.app.v3.RetrieveConversationResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	70,  // 21: sdkwork.communication.app.v3.RetrieveInboxRequest.page:type_name -> sdkwork.common.v1.PageRequest
-	68,  // 22: sdkwork.communication.app.v3.RetrieveInboxRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,   // 23: sdkwork.communication.app.v3.RetrieveInboxResponse.conversations:type_name -> sdkwork.communication.app.v3.ConversationView
-	71,  // 24: sdkwork.communication.app.v3.RetrieveInboxResponse.page:type_name -> sdkwork.common.v1.PageResponse
-	69,  // 25: sdkwork.communication.app.v3.RetrieveInboxResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	70,  // 21: sdkwork.communication.app.v3.ListInboxRequest.page:type_name -> sdkwork.common.v1.PageRequest
+	68,  // 22: sdkwork.communication.app.v3.ListInboxRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,   // 23: sdkwork.communication.app.v3.ListInboxResponse.conversations:type_name -> sdkwork.communication.app.v3.ConversationView
+	71,  // 24: sdkwork.communication.app.v3.ListInboxResponse.page:type_name -> sdkwork.common.v1.PageResponse
+	69,  // 25: sdkwork.communication.app.v3.ListInboxResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
 	70,  // 26: sdkwork.communication.app.v3.ListConversationMembersRequest.page:type_name -> sdkwork.common.v1.PageRequest
 	68,  // 27: sdkwork.communication.app.v3.ListConversationMembersRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
 	1,   // 28: sdkwork.communication.app.v3.ListConversationMembersResponse.members:type_name -> sdkwork.communication.app.v3.ConversationMemberView
@@ -4443,7 +4443,7 @@ var file_sdkwork_communication_app_v3_conversation_service_proto_depIdxs = []int
 	16,  // 102: sdkwork.communication.app.v3.ConversationService.CreateThread:input_type -> sdkwork.communication.app.v3.CreateThreadRequest
 	18,  // 103: sdkwork.communication.app.v3.ConversationService.BindDirectChat:input_type -> sdkwork.communication.app.v3.BindDirectChatRequest
 	20,  // 104: sdkwork.communication.app.v3.ConversationService.RetrieveConversation:input_type -> sdkwork.communication.app.v3.RetrieveConversationRequest
-	22,  // 105: sdkwork.communication.app.v3.ConversationService.RetrieveInbox:input_type -> sdkwork.communication.app.v3.RetrieveInboxRequest
+	22,  // 105: sdkwork.communication.app.v3.ConversationService.ListInbox:input_type -> sdkwork.communication.app.v3.ListInboxRequest
 	24,  // 106: sdkwork.communication.app.v3.ConversationService.ListConversationMembers:input_type -> sdkwork.communication.app.v3.ListConversationMembersRequest
 	26,  // 107: sdkwork.communication.app.v3.ConversationService.AddConversationMember:input_type -> sdkwork.communication.app.v3.AddConversationMemberRequest
 	28,  // 108: sdkwork.communication.app.v3.ConversationService.RemoveConversationMember:input_type -> sdkwork.communication.app.v3.RemoveConversationMemberRequest
@@ -4473,7 +4473,7 @@ var file_sdkwork_communication_app_v3_conversation_service_proto_depIdxs = []int
 	17,  // 132: sdkwork.communication.app.v3.ConversationService.CreateThread:output_type -> sdkwork.communication.app.v3.CreateThreadResponse
 	19,  // 133: sdkwork.communication.app.v3.ConversationService.BindDirectChat:output_type -> sdkwork.communication.app.v3.BindDirectChatResponse
 	21,  // 134: sdkwork.communication.app.v3.ConversationService.RetrieveConversation:output_type -> sdkwork.communication.app.v3.RetrieveConversationResponse
-	23,  // 135: sdkwork.communication.app.v3.ConversationService.RetrieveInbox:output_type -> sdkwork.communication.app.v3.RetrieveInboxResponse
+	23,  // 135: sdkwork.communication.app.v3.ConversationService.ListInbox:output_type -> sdkwork.communication.app.v3.ListInboxResponse
 	25,  // 136: sdkwork.communication.app.v3.ConversationService.ListConversationMembers:output_type -> sdkwork.communication.app.v3.ListConversationMembersResponse
 	27,  // 137: sdkwork.communication.app.v3.ConversationService.AddConversationMember:output_type -> sdkwork.communication.app.v3.AddConversationMemberResponse
 	29,  // 138: sdkwork.communication.app.v3.ConversationService.RemoveConversationMember:output_type -> sdkwork.communication.app.v3.RemoveConversationMemberResponse

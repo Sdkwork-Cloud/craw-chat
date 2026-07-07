@@ -529,14 +529,14 @@ pub struct RetrieveConversationResponse {
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RetrieveInboxRequest {
+pub struct ListInboxRequest {
     #[prost(message, optional, tag="1")]
     pub page: ::core::option::Option<super::super::super::common::v1::PageRequest>,
     #[prost(message, optional, tag="15")]
     pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RetrieveInboxResponse {
+pub struct ListInboxResponse {
     #[prost(message, repeated, tag="1")]
     pub conversations: ::prost::alloc::vec::Vec<ConversationView>,
     #[prost(message, optional, tag="2")]

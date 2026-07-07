@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { ImSdkClient } from '@sdkwork/im-sdk';
+import type { ImLiveConnection, ImSdkClient } from '@sdkwork/im-sdk';
 import { createSdkworkCallService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/CallService';
 import type { SdkworkRtcMediaService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/RtcMediaService';
 
@@ -61,6 +61,38 @@ const fakeClient = {
 
 type CallSessionListener = Parameters<NonNullable<ImSdkClient['calls']['subscribe']>>[0];
 
+function createOpenLiveConnection(): ImLiveConnection {
+  return {
+    disconnect() {},
+    events: {
+      onConversation: () => () => undefined,
+      onScope: () => () => undefined,
+    },
+    lifecycle: {
+      onError: () => () => undefined,
+      onStateChange: (handler) => {
+        handler({ status: 'open' });
+        return () => undefined;
+      },
+    },
+    messages: {
+      onConversation: () => () => undefined,
+    },
+    subscriptions: {
+      syncConversations() {},
+      syncScopes() {},
+    },
+  };
+}
+
+function withRealtimeClient(client: ImSdkClient): ImSdkClient {
+  const maybeRealtimeClient = client as ImSdkClient & { connect?: ImSdkClient['connect'] };
+  return {
+    ...client,
+    connect: maybeRealtimeClient.connect ?? (async () => createOpenLiveConnection()),
+  };
+}
+
 function createSession(rtcSessionId: string, state: 'accepted' | 'ended' | 'rejected' | 'started') {
   return {
     tenantId: '100001',
@@ -105,9 +137,10 @@ function createDeferred<T>(): {
 
 async function main(): Promise<void> {
   const service = createSdkworkCallService({
-    getClient: () => fakeClient,
+    getClient: () => withRealtimeClient(fakeClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -220,9 +253,10 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
   const watchService = createSdkworkCallService({
-    getClient: () => watchClient,
+    getClient: () => withRealtimeClient(watchClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -296,9 +330,10 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
   const liveIncomingService = createSdkworkCallService({
-    getClient: () => liveIncomingClient,
+    getClient: () => withRealtimeClient(liveIncomingClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -390,9 +425,10 @@ async function main(): Promise<void> {
   unsubscribeLiveIncomingService();
 
   const closingOnlyService = createSdkworkCallService({
-    getClient: () => liveIncomingClient,
+    getClient: () => withRealtimeClient(liveIncomingClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -435,9 +471,10 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
   const watchRaceService = createSdkworkCallService({
-    getClient: () => watchRaceClient,
+    getClient: () => withRealtimeClient(watchRaceClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -541,9 +578,10 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
   const outgoingService = createSdkworkCallService({
-    getClient: () => outgoingClient,
+    getClient: () => withRealtimeClient(outgoingClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -652,9 +690,10 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
   const racingService = createSdkworkCallService({
-    getClient: () => racingClient,
+    getClient: () => withRealtimeClient(racingClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -718,9 +757,10 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
   const failingCredentialService = createSdkworkCallService({
-    getClient: () => failingCredentialClient,
+    getClient: () => withRealtimeClient(failingCredentialClient),
     rtcMediaService: noopRtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {

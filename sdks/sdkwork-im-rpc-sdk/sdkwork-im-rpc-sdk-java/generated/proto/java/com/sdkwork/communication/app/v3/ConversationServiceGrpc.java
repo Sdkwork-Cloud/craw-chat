@@ -229,35 +229,35 @@ public final class ConversationServiceGrpc {
     return getRetrieveConversationMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveInboxRequest,
-      com.sdkwork.communication.app.v3.RetrieveInboxResponse> getRetrieveInboxMethod;
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.ListInboxRequest,
+      com.sdkwork.communication.app.v3.ListInboxResponse> getListInboxMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
-      fullMethodName = SERVICE_NAME + '/' + "RetrieveInbox",
-      requestType = com.sdkwork.communication.app.v3.RetrieveInboxRequest.class,
-      responseType = com.sdkwork.communication.app.v3.RetrieveInboxResponse.class,
+      fullMethodName = SERVICE_NAME + '/' + "ListInbox",
+      requestType = com.sdkwork.communication.app.v3.ListInboxRequest.class,
+      responseType = com.sdkwork.communication.app.v3.ListInboxResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveInboxRequest,
-      com.sdkwork.communication.app.v3.RetrieveInboxResponse> getRetrieveInboxMethod() {
-    io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.RetrieveInboxRequest, com.sdkwork.communication.app.v3.RetrieveInboxResponse> getRetrieveInboxMethod;
-    if ((getRetrieveInboxMethod = ConversationServiceGrpc.getRetrieveInboxMethod) == null) {
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.ListInboxRequest,
+      com.sdkwork.communication.app.v3.ListInboxResponse> getListInboxMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.ListInboxRequest, com.sdkwork.communication.app.v3.ListInboxResponse> getListInboxMethod;
+    if ((getListInboxMethod = ConversationServiceGrpc.getListInboxMethod) == null) {
       synchronized (ConversationServiceGrpc.class) {
-        if ((getRetrieveInboxMethod = ConversationServiceGrpc.getRetrieveInboxMethod) == null) {
-          ConversationServiceGrpc.getRetrieveInboxMethod = getRetrieveInboxMethod =
-              io.grpc.MethodDescriptor.<com.sdkwork.communication.app.v3.RetrieveInboxRequest, com.sdkwork.communication.app.v3.RetrieveInboxResponse>newBuilder()
+        if ((getListInboxMethod = ConversationServiceGrpc.getListInboxMethod) == null) {
+          ConversationServiceGrpc.getListInboxMethod = getListInboxMethod =
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.app.v3.ListInboxRequest, com.sdkwork.communication.app.v3.ListInboxResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
-              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "RetrieveInbox"))
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "ListInbox"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.app.v3.RetrieveInboxRequest.getDefaultInstance()))
+                  com.sdkwork.communication.app.v3.ListInboxRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.app.v3.RetrieveInboxResponse.getDefaultInstance()))
-              .setSchemaDescriptor(new ConversationServiceMethodDescriptorSupplier("RetrieveInbox"))
+                  com.sdkwork.communication.app.v3.ListInboxResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ConversationServiceMethodDescriptorSupplier("ListInbox"))
               .build();
         }
       }
     }
-    return getRetrieveInboxMethod;
+    return getListInboxMethod;
   }
 
   private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.app.v3.ListConversationMembersRequest,
@@ -808,9 +808,9 @@ public final class ConversationServiceGrpc {
 
     /**
      */
-    default void retrieveInbox(com.sdkwork.communication.app.v3.RetrieveInboxRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveInboxResponse> responseObserver) {
-      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getRetrieveInboxMethod(), responseObserver);
+    default void listInbox(com.sdkwork.communication.app.v3.ListInboxRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.ListInboxResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getListInboxMethod(), responseObserver);
     }
 
     /**
@@ -997,10 +997,10 @@ public final class ConversationServiceGrpc {
 
     /**
      */
-    public void retrieveInbox(com.sdkwork.communication.app.v3.RetrieveInboxRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveInboxResponse> responseObserver) {
+    public void listInbox(com.sdkwork.communication.app.v3.ListInboxRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.ListInboxResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
-          getChannel().newCall(getRetrieveInboxMethod(), getCallOptions()), request, responseObserver);
+          getChannel().newCall(getListInboxMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
@@ -1183,9 +1183,9 @@ public final class ConversationServiceGrpc {
 
     /**
      */
-    public com.sdkwork.communication.app.v3.RetrieveInboxResponse retrieveInbox(com.sdkwork.communication.app.v3.RetrieveInboxRequest request) throws io.grpc.StatusException {
+    public com.sdkwork.communication.app.v3.ListInboxResponse listInbox(com.sdkwork.communication.app.v3.ListInboxRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
-          getChannel(), getRetrieveInboxMethod(), getCallOptions(), request);
+          getChannel(), getListInboxMethod(), getCallOptions(), request);
     }
 
     /**
@@ -1354,9 +1354,9 @@ public final class ConversationServiceGrpc {
 
     /**
      */
-    public com.sdkwork.communication.app.v3.RetrieveInboxResponse retrieveInbox(com.sdkwork.communication.app.v3.RetrieveInboxRequest request) {
+    public com.sdkwork.communication.app.v3.ListInboxResponse listInbox(com.sdkwork.communication.app.v3.ListInboxRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
-          getChannel(), getRetrieveInboxMethod(), getCallOptions(), request);
+          getChannel(), getListInboxMethod(), getCallOptions(), request);
     }
 
     /**
@@ -1532,10 +1532,10 @@ public final class ConversationServiceGrpc {
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.app.v3.RetrieveInboxResponse> retrieveInbox(
-        com.sdkwork.communication.app.v3.RetrieveInboxRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.app.v3.ListInboxResponse> listInbox(
+        com.sdkwork.communication.app.v3.ListInboxRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
-          getChannel().newCall(getRetrieveInboxMethod(), getCallOptions()), request);
+          getChannel().newCall(getListInboxMethod(), getCallOptions()), request);
     }
 
     /**
@@ -1658,7 +1658,7 @@ public final class ConversationServiceGrpc {
   private static final int METHODID_CREATE_THREAD = 4;
   private static final int METHODID_BIND_DIRECT_CHAT = 5;
   private static final int METHODID_RETRIEVE_CONVERSATION = 6;
-  private static final int METHODID_RETRIEVE_INBOX = 7;
+  private static final int METHODID_LIST_INBOX = 7;
   private static final int METHODID_LIST_CONVERSATION_MEMBERS = 8;
   private static final int METHODID_ADD_CONVERSATION_MEMBER = 9;
   private static final int METHODID_REMOVE_CONVERSATION_MEMBER = 10;
@@ -1719,9 +1719,9 @@ public final class ConversationServiceGrpc {
           serviceImpl.retrieveConversation((com.sdkwork.communication.app.v3.RetrieveConversationRequest) request,
               (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveConversationResponse>) responseObserver);
           break;
-        case METHODID_RETRIEVE_INBOX:
-          serviceImpl.retrieveInbox((com.sdkwork.communication.app.v3.RetrieveInboxRequest) request,
-              (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.RetrieveInboxResponse>) responseObserver);
+        case METHODID_LIST_INBOX:
+          serviceImpl.listInbox((com.sdkwork.communication.app.v3.ListInboxRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.app.v3.ListInboxResponse>) responseObserver);
           break;
         case METHODID_LIST_CONVERSATION_MEMBERS:
           serviceImpl.listConversationMembers((com.sdkwork.communication.app.v3.ListConversationMembersRequest) request,
@@ -1847,12 +1847,12 @@ public final class ConversationServiceGrpc {
               com.sdkwork.communication.app.v3.RetrieveConversationResponse>(
                 service, METHODID_RETRIEVE_CONVERSATION)))
         .addMethod(
-          getRetrieveInboxMethod(),
+          getListInboxMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
-              com.sdkwork.communication.app.v3.RetrieveInboxRequest,
-              com.sdkwork.communication.app.v3.RetrieveInboxResponse>(
-                service, METHODID_RETRIEVE_INBOX)))
+              com.sdkwork.communication.app.v3.ListInboxRequest,
+              com.sdkwork.communication.app.v3.ListInboxResponse>(
+                service, METHODID_LIST_INBOX)))
         .addMethod(
           getListConversationMembersMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
@@ -2006,7 +2006,7 @@ public final class ConversationServiceGrpc {
               .addMethod(getCreateThreadMethod())
               .addMethod(getBindDirectChatMethod())
               .addMethod(getRetrieveConversationMethod())
-              .addMethod(getRetrieveInboxMethod())
+              .addMethod(getListInboxMethod())
               .addMethod(getListConversationMembersMethod())
               .addMethod(getAddConversationMemberMethod())
               .addMethod(getRemoveConversationMemberMethod())

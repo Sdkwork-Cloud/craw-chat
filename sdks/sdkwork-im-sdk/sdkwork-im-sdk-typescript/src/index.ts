@@ -6,7 +6,7 @@ export type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
   FriendRequest,
-  InboxResponse,
+  ConversationInboxPage,
   ListMembersResponse,
   PinnedMessagesResponse,
   SdkWorkListPageInfo,

@@ -375,6 +375,13 @@ for (const service of manifest.services) {
     assert.ok(method.auth, `${key} must declare auth.`);
     assert.ok(method.owner, `${key} must declare owner.`);
     assert.ok(method.compatibility, `${key} must declare compatibility.`);
+    if (method.operationId.endsWith('.list')) {
+      assert.match(
+        method.method,
+        /^List[A-Z]/u,
+        `${key} maps to ${method.operationId} and must use the RPC list method verb.`,
+      );
+    }
   }
 }
 

@@ -1265,7 +1265,7 @@ pub type ListMembersResult = SdkWorkPageData<ConversationMember>;
 
 pub type ListPinnedMessagesResult = SdkWorkPageData<String>;
 
-pub type InboxRetrieveResult = SdkWorkPageData<String>;
+pub type InboxListResult = SdkWorkPageData<String>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

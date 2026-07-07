@@ -26,7 +26,7 @@ const (
 	ConversationService_CreateThread_FullMethodName                    = "/sdkwork.communication.app.v3.ConversationService/CreateThread"
 	ConversationService_BindDirectChat_FullMethodName                  = "/sdkwork.communication.app.v3.ConversationService/BindDirectChat"
 	ConversationService_RetrieveConversation_FullMethodName            = "/sdkwork.communication.app.v3.ConversationService/RetrieveConversation"
-	ConversationService_RetrieveInbox_FullMethodName                   = "/sdkwork.communication.app.v3.ConversationService/RetrieveInbox"
+	ConversationService_ListInbox_FullMethodName                       = "/sdkwork.communication.app.v3.ConversationService/ListInbox"
 	ConversationService_ListConversationMembers_FullMethodName         = "/sdkwork.communication.app.v3.ConversationService/ListConversationMembers"
 	ConversationService_AddConversationMember_FullMethodName           = "/sdkwork.communication.app.v3.ConversationService/AddConversationMember"
 	ConversationService_RemoveConversationMember_FullMethodName        = "/sdkwork.communication.app.v3.ConversationService/RemoveConversationMember"
@@ -54,7 +54,7 @@ type ConversationServiceClient interface {
 	CreateThread(ctx context.Context, in *CreateThreadRequest, opts ...grpc.CallOption) (*CreateThreadResponse, error)
 	BindDirectChat(ctx context.Context, in *BindDirectChatRequest, opts ...grpc.CallOption) (*BindDirectChatResponse, error)
 	RetrieveConversation(ctx context.Context, in *RetrieveConversationRequest, opts ...grpc.CallOption) (*RetrieveConversationResponse, error)
-	RetrieveInbox(ctx context.Context, in *RetrieveInboxRequest, opts ...grpc.CallOption) (*RetrieveInboxResponse, error)
+	ListInbox(ctx context.Context, in *ListInboxRequest, opts ...grpc.CallOption) (*ListInboxResponse, error)
 	ListConversationMembers(ctx context.Context, in *ListConversationMembersRequest, opts ...grpc.CallOption) (*ListConversationMembersResponse, error)
 	AddConversationMember(ctx context.Context, in *AddConversationMemberRequest, opts ...grpc.CallOption) (*AddConversationMemberResponse, error)
 	RemoveConversationMember(ctx context.Context, in *RemoveConversationMemberRequest, opts ...grpc.CallOption) (*RemoveConversationMemberResponse, error)
@@ -149,10 +149,10 @@ func (c *conversationServiceClient) RetrieveConversation(ctx context.Context, in
 	return out, nil
 }
 
-func (c *conversationServiceClient) RetrieveInbox(ctx context.Context, in *RetrieveInboxRequest, opts ...grpc.CallOption) (*RetrieveInboxResponse, error) {
+func (c *conversationServiceClient) ListInbox(ctx context.Context, in *ListInboxRequest, opts ...grpc.CallOption) (*ListInboxResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RetrieveInboxResponse)
-	err := c.cc.Invoke(ctx, ConversationService_RetrieveInbox_FullMethodName, in, out, cOpts...)
+	out := new(ListInboxResponse)
+	err := c.cc.Invoke(ctx, ConversationService_ListInbox_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ type ConversationServiceServer interface {
 	CreateThread(context.Context, *CreateThreadRequest) (*CreateThreadResponse, error)
 	BindDirectChat(context.Context, *BindDirectChatRequest) (*BindDirectChatResponse, error)
 	RetrieveConversation(context.Context, *RetrieveConversationRequest) (*RetrieveConversationResponse, error)
-	RetrieveInbox(context.Context, *RetrieveInboxRequest) (*RetrieveInboxResponse, error)
+	ListInbox(context.Context, *ListInboxRequest) (*ListInboxResponse, error)
 	ListConversationMembers(context.Context, *ListConversationMembersRequest) (*ListConversationMembersResponse, error)
 	AddConversationMember(context.Context, *AddConversationMemberRequest) (*AddConversationMemberResponse, error)
 	RemoveConversationMember(context.Context, *RemoveConversationMemberRequest) (*RemoveConversationMemberResponse, error)
@@ -355,8 +355,8 @@ func (UnimplementedConversationServiceServer) BindDirectChat(context.Context, *B
 func (UnimplementedConversationServiceServer) RetrieveConversation(context.Context, *RetrieveConversationRequest) (*RetrieveConversationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RetrieveConversation not implemented")
 }
-func (UnimplementedConversationServiceServer) RetrieveInbox(context.Context, *RetrieveInboxRequest) (*RetrieveInboxResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RetrieveInbox not implemented")
+func (UnimplementedConversationServiceServer) ListInbox(context.Context, *ListInboxRequest) (*ListInboxResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListInbox not implemented")
 }
 func (UnimplementedConversationServiceServer) ListConversationMembers(context.Context, *ListConversationMembersRequest) (*ListConversationMembersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListConversationMembers not implemented")
@@ -546,20 +546,20 @@ func _ConversationService_RetrieveConversation_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConversationService_RetrieveInbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RetrieveInboxRequest)
+func _ConversationService_ListInbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListInboxRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConversationServiceServer).RetrieveInbox(ctx, in)
+		return srv.(ConversationServiceServer).ListInbox(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ConversationService_RetrieveInbox_FullMethodName,
+		FullMethod: ConversationService_ListInbox_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConversationServiceServer).RetrieveInbox(ctx, req.(*RetrieveInboxRequest))
+		return srv.(ConversationServiceServer).ListInbox(ctx, req.(*ListInboxRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -852,8 +852,8 @@ var ConversationService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConversationService_RetrieveConversation_Handler,
 		},
 		{
-			MethodName: "RetrieveInbox",
-			Handler:    _ConversationService_RetrieveInbox_Handler,
+			MethodName: "ListInbox",
+			Handler:    _ConversationService_ListInbox_Handler,
 		},
 		{
 			MethodName: "ListConversationMembers",

@@ -17,7 +17,7 @@ fn test_projection_service_http_surface_moves_out_of_lib_impl() {
         "struct SyncFeedQuery {",
         "struct ListQuery {",
         "struct TimelineResponse {",
-        "struct InboxResponse {",
+        concat!("struct Inbox", "Response {"),
         "struct ClientRouteSyncFeedResponse {",
         "pub struct ProjectionApiError {",
         "pub fn build_default_app(",

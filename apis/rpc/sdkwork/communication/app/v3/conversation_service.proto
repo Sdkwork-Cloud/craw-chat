@@ -16,7 +16,7 @@ service ConversationService {
   rpc CreateThread(CreateThreadRequest) returns (CreateThreadResponse);
   rpc BindDirectChat(BindDirectChatRequest) returns (BindDirectChatResponse);
   rpc RetrieveConversation(RetrieveConversationRequest) returns (RetrieveConversationResponse);
-  rpc RetrieveInbox(RetrieveInboxRequest) returns (RetrieveInboxResponse);
+  rpc ListInbox(ListInboxRequest) returns (ListInboxResponse);
   rpc ListConversationMembers(ListConversationMembersRequest) returns (ListConversationMembersResponse);
   rpc AddConversationMember(AddConversationMemberRequest) returns (AddConversationMemberResponse);
   rpc RemoveConversationMember(RemoveConversationMemberRequest) returns (RemoveConversationMemberResponse);
@@ -173,12 +173,12 @@ message RetrieveConversationResponse {
   sdkwork.common.v1.ResponseMetadata metadata = 15;
 }
 
-message RetrieveInboxRequest {
+message ListInboxRequest {
   sdkwork.common.v1.PageRequest page = 1;
   sdkwork.common.v1.RequestMetadata metadata = 15;
 }
 
-message RetrieveInboxResponse {
+message ListInboxResponse {
   repeated ConversationView conversations = 1;
   sdkwork.common.v1.PageResponse page = 2;
   sdkwork.common.v1.ResponseMetadata metadata = 15;

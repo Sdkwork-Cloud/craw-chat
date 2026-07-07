@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { ImSdkClient } from '@sdkwork/im-sdk';
+import type { ImLiveConnection, ImSdkClient } from '@sdkwork/im-sdk';
 import { createSdkworkCallService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/CallService';
 import type {
   SdkworkRtcMediaJoinOptions,
@@ -9,6 +9,38 @@ import type {
 import { createSdkworkRtcMediaService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/RtcMediaService';
 
 type CallSessionListener = Parameters<NonNullable<ImSdkClient['calls']['subscribe']>>[0];
+
+function createOpenLiveConnection(): ImLiveConnection {
+  return {
+    disconnect() {},
+    events: {
+      onConversation: () => () => undefined,
+      onScope: () => () => undefined,
+    },
+    lifecycle: {
+      onError: () => () => undefined,
+      onStateChange: (handler) => {
+        handler({ status: 'open' });
+        return () => undefined;
+      },
+    },
+    messages: {
+      onConversation: () => () => undefined,
+    },
+    subscriptions: {
+      syncConversations() {},
+      syncScopes() {},
+    },
+  };
+}
+
+function withRealtimeClient(client: ImSdkClient): ImSdkClient {
+  const maybeRealtimeClient = client as ImSdkClient & { connect?: ImSdkClient['connect'] };
+  return {
+    ...client,
+    connect: maybeRealtimeClient.connect ?? (async () => createOpenLiveConnection()),
+  };
+}
 
 const mediaCalls: Array<{
   audioMuted?: boolean;
@@ -146,9 +178,10 @@ async function main(): Promise<void> {
   } as unknown as ImSdkClient;
 
   const service = createSdkworkCallService({
-    getClient: () => imClient,
+    getClient: () => withRealtimeClient(imClient),
     rtcMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -271,9 +304,10 @@ async function main(): Promise<void> {
     },
   };
   const muteRollbackService = createSdkworkCallService({
-    getClient: () => muteRollbackClient,
+    getClient: () => withRealtimeClient(muteRollbackClient),
     rtcMediaService: muteRollbackMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -361,9 +395,10 @@ async function main(): Promise<void> {
     },
   };
   const hangupSignalFailureService = createSdkworkCallService({
-    getClient: () => hangupSignalFailureClient,
+    getClient: () => withRealtimeClient(hangupSignalFailureClient),
     rtcMediaService: hangupSignalFailureMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -454,9 +489,10 @@ async function main(): Promise<void> {
     },
   };
   const hangupLeaveFailureService = createSdkworkCallService({
-    getClient: () => hangupLeaveFailureClient,
+    getClient: () => withRealtimeClient(hangupLeaveFailureClient),
     rtcMediaService: hangupLeaveFailureMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -528,9 +564,10 @@ async function main(): Promise<void> {
     },
   };
   const failingService = createSdkworkCallService({
-    getClient: () => failingImClient,
+    getClient: () => withRealtimeClient(failingImClient),
     rtcMediaService: failingMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -618,9 +655,10 @@ async function main(): Promise<void> {
     },
   };
   const joinFailureLeaveFailureService = createSdkworkCallService({
-    getClient: () => joinFailureLeaveFailureClient,
+    getClient: () => withRealtimeClient(joinFailureLeaveFailureClient),
     rtcMediaService: joinFailureLeaveFailureMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -692,9 +730,10 @@ async function main(): Promise<void> {
     },
   };
   const publishFailingService = createSdkworkCallService({
-    getClient: () => publishFailingClient,
+    getClient: () => withRealtimeClient(publishFailingClient),
     rtcMediaService: publishFailingMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {
@@ -766,9 +805,10 @@ async function main(): Promise<void> {
     },
   };
   const lateMediaServiceInstance = createSdkworkCallService({
-    getClient: () => lateMediaClient,
+    getClient: () => withRealtimeClient(lateMediaClient),
     rtcMediaService: lateMediaService,
     readSession: () => ({
+      accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       sessionId: 'session-1',
       context: {

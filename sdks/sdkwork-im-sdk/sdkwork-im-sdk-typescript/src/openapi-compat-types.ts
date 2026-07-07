@@ -17,8 +17,8 @@ export interface FriendRequest extends Omit<GeneratedFriendRequest, 'requestId'>
   requestId?: string;
 }
 
-/** Unwrapped inbox list payload aligned with `sdkwork-im-im.openapi.yaml` list `data`. */
-export interface InboxResponse {
+/** Unwrapped inbox list page aligned with `sdkwork-im-im.openapi.yaml` `data.items` + `data.pageInfo`. */
+export interface ConversationInboxPage {
   items: ConversationInboxEntry[];
   pageInfo: SdkWorkListPageInfo;
 }

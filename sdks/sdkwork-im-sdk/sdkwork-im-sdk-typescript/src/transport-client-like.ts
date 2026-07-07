@@ -25,7 +25,7 @@ import type {
   DeleteContactTagResponse,
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
-  InboxResponse,
+  ConversationInboxPage,
   ListMembersResponse,
   PinnedMessagesResponse,
   SocialFriendRequestListResponse,
@@ -69,7 +69,7 @@ export interface ImTransportClientLike {
       list(params?: QueryParams): Promise<ContactsResponse>;
     };
     inbox: {
-      list(params?: QueryParams): Promise<InboxResponse>;
+      list(params?: QueryParams): Promise<ConversationInboxPage>;
     };
     rooms: {
       create(body: CreateRoomRequest): Promise<CreateConversationResult>;

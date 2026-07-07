@@ -1960,9 +1960,9 @@ pub mod room_orchestration_service_client {
         }
         pub async fn create_room(
             &mut self,
-            request: impl tonic::IntoRequest<super::OrchestrateCreateRoomRequest>,
+            request: impl tonic::IntoRequest<super::CreateRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateCreateRoomResponse>,
+            tonic::Response<super::CreateRoomResponse>,
             tonic::Status,
         > {
             self.inner
@@ -1989,9 +1989,9 @@ pub mod room_orchestration_service_client {
         }
         pub async fn retrieve_room(
             &mut self,
-            request: impl tonic::IntoRequest<super::OrchestrateRetrieveRoomRequest>,
+            request: impl tonic::IntoRequest<super::RetrieveRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateRetrieveRoomResponse>,
+            tonic::Response<super::RetrieveRoomResponse>,
             tonic::Status,
         > {
             self.inner
@@ -2018,9 +2018,9 @@ pub mod room_orchestration_service_client {
         }
         pub async fn enter_room(
             &mut self,
-            request: impl tonic::IntoRequest<super::OrchestrateEnterRoomRequest>,
+            request: impl tonic::IntoRequest<super::EnterRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateEnterRoomResponse>,
+            tonic::Response<super::EnterRoomResponse>,
             tonic::Status,
         > {
             self.inner
@@ -2047,9 +2047,9 @@ pub mod room_orchestration_service_client {
         }
         pub async fn leave_room(
             &mut self,
-            request: impl tonic::IntoRequest<super::OrchestrateLeaveRoomRequest>,
+            request: impl tonic::IntoRequest<super::LeaveRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateLeaveRoomResponse>,
+            tonic::Response<super::LeaveRoomResponse>,
             tonic::Status,
         > {
             self.inner
@@ -2091,30 +2091,30 @@ pub mod room_orchestration_service_server {
     pub trait RoomOrchestrationService: std::marker::Send + std::marker::Sync + 'static {
         async fn create_room(
             &self,
-            request: tonic::Request<super::OrchestrateCreateRoomRequest>,
+            request: tonic::Request<super::CreateRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateCreateRoomResponse>,
+            tonic::Response<super::CreateRoomResponse>,
             tonic::Status,
         >;
         async fn retrieve_room(
             &self,
-            request: tonic::Request<super::OrchestrateRetrieveRoomRequest>,
+            request: tonic::Request<super::RetrieveRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateRetrieveRoomResponse>,
+            tonic::Response<super::RetrieveRoomResponse>,
             tonic::Status,
         >;
         async fn enter_room(
             &self,
-            request: tonic::Request<super::OrchestrateEnterRoomRequest>,
+            request: tonic::Request<super::EnterRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateEnterRoomResponse>,
+            tonic::Response<super::EnterRoomResponse>,
             tonic::Status,
         >;
         async fn leave_room(
             &self,
-            request: tonic::Request<super::OrchestrateLeaveRoomRequest>,
+            request: tonic::Request<super::LeaveRoomRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::OrchestrateLeaveRoomResponse>,
+            tonic::Response<super::LeaveRoomResponse>,
             tonic::Status,
         >;
     }
@@ -2200,16 +2200,16 @@ pub mod room_orchestration_service_server {
                     struct CreateRoomSvc<T: RoomOrchestrationService>(pub Arc<T>);
                     impl<
                         T: RoomOrchestrationService,
-                    > tonic::server::UnaryService<super::OrchestrateCreateRoomRequest>
+                    > tonic::server::UnaryService<super::CreateRoomRequest>
                     for CreateRoomSvc<T> {
-                        type Response = super::OrchestrateCreateRoomResponse;
+                        type Response = super::CreateRoomResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::OrchestrateCreateRoomRequest>,
+                            request: tonic::Request<super::CreateRoomRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -2249,18 +2249,16 @@ pub mod room_orchestration_service_server {
                     struct RetrieveRoomSvc<T: RoomOrchestrationService>(pub Arc<T>);
                     impl<
                         T: RoomOrchestrationService,
-                    > tonic::server::UnaryService<super::OrchestrateRetrieveRoomRequest>
+                    > tonic::server::UnaryService<super::RetrieveRoomRequest>
                     for RetrieveRoomSvc<T> {
-                        type Response = super::OrchestrateRetrieveRoomResponse;
+                        type Response = super::RetrieveRoomResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<
-                                super::OrchestrateRetrieveRoomRequest,
-                            >,
+                            request: tonic::Request<super::RetrieveRoomRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -2300,16 +2298,16 @@ pub mod room_orchestration_service_server {
                     struct EnterRoomSvc<T: RoomOrchestrationService>(pub Arc<T>);
                     impl<
                         T: RoomOrchestrationService,
-                    > tonic::server::UnaryService<super::OrchestrateEnterRoomRequest>
+                    > tonic::server::UnaryService<super::EnterRoomRequest>
                     for EnterRoomSvc<T> {
-                        type Response = super::OrchestrateEnterRoomResponse;
+                        type Response = super::EnterRoomResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::OrchestrateEnterRoomRequest>,
+                            request: tonic::Request<super::EnterRoomRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -2346,16 +2344,16 @@ pub mod room_orchestration_service_server {
                     struct LeaveRoomSvc<T: RoomOrchestrationService>(pub Arc<T>);
                     impl<
                         T: RoomOrchestrationService,
-                    > tonic::server::UnaryService<super::OrchestrateLeaveRoomRequest>
+                    > tonic::server::UnaryService<super::LeaveRoomRequest>
                     for LeaveRoomSvc<T> {
-                        type Response = super::OrchestrateLeaveRoomResponse;
+                        type Response = super::LeaveRoomResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::OrchestrateLeaveRoomRequest>,
+                            request: tonic::Request<super::LeaveRoomRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {

@@ -27,7 +27,7 @@ SdkworkImRpc is an SDKWork RPC SDK scaffold generated from proto packages and an
   - CreateThread: conversations.threads.create, unary, auth=app-session, idempotency=required
   - BindDirectChat: conversations.directChats.bind, unary, auth=app-session, idempotency=required
   - RetrieveConversation: conversations.retrieve, unary, auth=app-session, idempotency=none
-  - RetrieveInbox: inbox.list, unary, auth=app-session, idempotency=none
+  - ListInbox: inbox.list, unary, auth=app-session, idempotency=none
   - ListConversationMembers: conversations.members.list, unary, auth=app-session, idempotency=none
   - AddConversationMember: conversations.members.add, unary, auth=app-session, idempotency=required
   - RemoveConversationMember: conversations.members.remove, unary, auth=app-session, idempotency=required
