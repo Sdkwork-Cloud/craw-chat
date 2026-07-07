@@ -3,6 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
+// Phase 2 deferred: RuntimeTopologyService, RouteLeaseService, and DomainEventRelayService
+// are contract-only until distributed-runtime orchestration ships. Do not call from production
+// clients; use static topology env vars per ADR-20260619-im-rpc-discovery-integration-deferred.md.
+
 import { AckDomainEventRequest, AckDomainEventResponse, ClaimRouteLeaseRequest, ClaimRouteLeaseResponse, ListRouteLeasesRequest, ListRouteLeasesResponse, ListRuntimeCapabilitiesRequest, ListRuntimeCapabilitiesResponse, PublishDomainEventRequest, PublishDomainEventResponse, ReleaseRouteLeaseRequest, ReleaseRouteLeaseResponse, RenewRouteLeaseRequest, RenewRouteLeaseResponse, RetrieveRuntimeTopologyRequest, RetrieveRuntimeTopologyResponse, WatchDomainEventsRequest, WatchDomainEventsResponse, WatchRuntimeTopologyRequest, WatchRuntimeTopologyResponse } from "./distributed_runtime_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 

@@ -5,10 +5,9 @@ use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
 use prost::Message;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::MessageView;
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
-    DispatchConversationMessageRequest, DispatchConversationMessageResponse,
-    OrchestrateCreateRoomRequest, OrchestrateCreateRoomResponse, OrchestrateEnterRoomRequest,
-    OrchestrateEnterRoomResponse, OrchestrateLeaveRoomRequest, OrchestrateLeaveRoomResponse,
-    OrchestrateRetrieveRoomRequest, OrchestrateRetrieveRoomResponse, OrchestratedRoomView,
+    CreateRoomRequest, CreateRoomResponse, DispatchConversationMessageRequest,
+    DispatchConversationMessageResponse, EnterRoomRequest, EnterRoomResponse, LeaveRoomRequest,
+    LeaveRoomResponse, OrchestratedRoomView, RetrieveRoomRequest, RetrieveRoomResponse,
 };
 use sdkwork_im_rpc_service_rust::{
     ImRpcBoxFuture, ImRpcBoxStream, ImRpcError, ImRpcRuntimeDispatcher, ImRpcStreamRequest,
@@ -51,23 +50,19 @@ impl ImRpcRuntimeDispatcher for ConversationInternalRpcDispatcher {
             admit_internal_unary_request(request.binding, &request.metadata)?;
             match request.binding.operation_id {
                 "internal.rooms.create" => {
-                    let payload =
-                        OrchestrateCreateRoomRequest::decode(request.request_bytes.as_slice())?;
+                    let payload = CreateRoomRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_internal_create_room(&state, &request.metadata, payload).await
                 }
                 "internal.rooms.retrieve" => {
-                    let payload =
-                        OrchestrateRetrieveRoomRequest::decode(request.request_bytes.as_slice())?;
+                    let payload = RetrieveRoomRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_internal_retrieve_room(&state, payload).await
                 }
                 "internal.rooms.enter" => {
-                    let payload =
-                        OrchestrateEnterRoomRequest::decode(request.request_bytes.as_slice())?;
+                    let payload = EnterRoomRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_internal_enter_room(&state, payload).await
                 }
                 "internal.rooms.leave" => {
-                    let payload =
-                        OrchestrateLeaveRoomRequest::decode(request.request_bytes.as_slice())?;
+                    let payload = LeaveRoomRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_internal_leave_room(&state, payload).await
                 }
                 "internal.messages.dispatch" => {
@@ -102,7 +97,7 @@ impl ImRpcRuntimeDispatcher for ConversationInternalRpcDispatcher {
 async fn dispatch_internal_create_room(
     state: &AppState,
     metadata: &RpcMetadata,
-    request: OrchestrateCreateRoomRequest,
+    request: CreateRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let tenant_id = required_field(request.tenant_id, "tenant_id")?;
     let organization_id = optional_organization_id(request.organization_id);
@@ -146,7 +141,7 @@ async fn dispatch_internal_create_room(
         ))
     })?
     .map_err(map_runtime_error)?;
-    let response = OrchestrateCreateRoomResponse {
+    let response = CreateRoomResponse {
         conversation_id: result.conversation_id,
         event_id: result.event_id,
         room: Some(orchestrated_room_view_from_domain(&room)),
@@ -157,7 +152,7 @@ async fn dispatch_internal_create_room(
 
 async fn dispatch_internal_retrieve_room(
     state: &AppState,
-    request: OrchestrateRetrieveRoomRequest,
+    request: RetrieveRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let tenant_id = required_field(request.tenant_id, "tenant_id")?;
     let organization_id = optional_organization_id(request.organization_id);
@@ -177,7 +172,7 @@ async fn dispatch_internal_retrieve_room(
         ))
     })?
     .map_err(map_runtime_error)?;
-    let response = OrchestrateRetrieveRoomResponse {
+    let response = RetrieveRoomResponse {
         room: Some(orchestrated_room_view_from_domain(&room)),
         metadata: None,
     };
@@ -186,7 +181,7 @@ async fn dispatch_internal_retrieve_room(
 
 async fn dispatch_internal_enter_room(
     state: &AppState,
-    request: OrchestrateEnterRoomRequest,
+    request: EnterRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let tenant_id = required_field(request.tenant_id, "tenant_id")?;
     let organization_id = optional_organization_id(request.organization_id);
@@ -222,7 +217,7 @@ async fn dispatch_internal_enter_room(
         ))
     })?
     .map_err(map_runtime_error)?;
-    let response = OrchestrateEnterRoomResponse {
+    let response = EnterRoomResponse {
         member_id: member.member_id,
         conversation_id,
         metadata: None,
@@ -232,7 +227,7 @@ async fn dispatch_internal_enter_room(
 
 async fn dispatch_internal_leave_room(
     state: &AppState,
-    request: OrchestrateLeaveRoomRequest,
+    request: LeaveRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let tenant_id = required_field(request.tenant_id, "tenant_id")?;
     let organization_id = optional_organization_id(request.organization_id);
@@ -267,7 +262,7 @@ async fn dispatch_internal_leave_room(
         ))
     })?
     .map_err(map_runtime_error)?;
-    let response = OrchestrateLeaveRoomResponse {
+    let response = LeaveRoomResponse {
         member_id: member.member_id,
         conversation_id,
         status: membership_state_label(&member.state).into(),

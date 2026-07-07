@@ -239,7 +239,7 @@ pub struct OrchestratedRoomView {
     pub max_members: i32,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateCreateRoomRequest {
+pub struct CreateRoomRequest {
     #[prost(string, tag="1")]
     pub tenant_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
@@ -258,7 +258,7 @@ pub struct OrchestrateCreateRoomRequest {
     pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateCreateRoomResponse {
+pub struct CreateRoomResponse {
     #[prost(string, tag="1")]
     pub conversation_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
@@ -269,7 +269,7 @@ pub struct OrchestrateCreateRoomResponse {
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateRetrieveRoomRequest {
+pub struct RetrieveRoomRequest {
     #[prost(string, tag="1")]
     pub tenant_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
@@ -280,14 +280,14 @@ pub struct OrchestrateRetrieveRoomRequest {
     pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateRetrieveRoomResponse {
+pub struct RetrieveRoomResponse {
     #[prost(message, optional, tag="1")]
     pub room: ::core::option::Option<OrchestratedRoomView>,
     #[prost(message, optional, tag="15")]
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateEnterRoomRequest {
+pub struct EnterRoomRequest {
     #[prost(string, tag="1")]
     pub tenant_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
@@ -302,7 +302,7 @@ pub struct OrchestrateEnterRoomRequest {
     pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateEnterRoomResponse {
+pub struct EnterRoomResponse {
     #[prost(string, tag="1")]
     pub member_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
@@ -311,7 +311,7 @@ pub struct OrchestrateEnterRoomResponse {
     pub metadata: ::core::option::Option<super::super::super::common::v1::ResponseMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateLeaveRoomRequest {
+pub struct LeaveRoomRequest {
     #[prost(string, tag="1")]
     pub tenant_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
@@ -326,7 +326,7 @@ pub struct OrchestrateLeaveRoomRequest {
     pub metadata: ::core::option::Option<super::super::super::common::v1::RequestMetadata>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OrchestrateLeaveRoomResponse {
+pub struct LeaveRoomResponse {
     #[prost(string, tag="1")]
     pub member_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]

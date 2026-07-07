@@ -4,6 +4,10 @@
 // - protoc             (unknown)
 // source: sdkwork/communication/internal/v1/distributed_runtime_service.proto
 
+// Phase 2 deferred: RuntimeTopologyService, RouteLeaseService, and DomainEventRelayService
+// are contract-only until distributed-runtime orchestration ships. Do not call from production
+// clients; use static topology env vars per ADR-20260619-im-rpc-discovery-integration-deferred.md.
+
 package internalv1
 
 import (

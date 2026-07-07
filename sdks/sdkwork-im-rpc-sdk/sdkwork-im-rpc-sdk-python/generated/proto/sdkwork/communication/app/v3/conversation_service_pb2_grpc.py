@@ -49,10 +49,10 @@ class ConversationServiceStub:
                 request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationRequest.SerializeToString,
                 response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationResponse.FromString,
                 _registered_method=True)
-        self.RetrieveInbox = channel.unary_unary(
-                '/sdkwork.communication.app.v3.ConversationService/RetrieveInbox',
-                request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveInboxRequest.SerializeToString,
-                response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveInboxResponse.FromString,
+        self.ListInbox = channel.unary_unary(
+                '/sdkwork.communication.app.v3.ConversationService/ListInbox',
+                request_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListInboxRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListInboxResponse.FromString,
                 _registered_method=True)
         self.ListConversationMembers = channel.unary_unary(
                 '/sdkwork.communication.app.v3.ConversationService/ListConversationMembers',
@@ -171,7 +171,7 @@ class ConversationServiceServicer:
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def RetrieveInbox(self, request, context):
+    def ListInbox(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -299,10 +299,10 @@ def add_ConversationServiceServicer_to_server(servicer, server):
                     request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationRequest.FromString,
                     response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveConversationResponse.SerializeToString,
             ),
-            'RetrieveInbox': grpc.unary_unary_rpc_method_handler(
-                    servicer.RetrieveInbox,
-                    request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveInboxRequest.FromString,
-                    response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveInboxResponse.SerializeToString,
+            'ListInbox': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListInbox,
+                    request_deserializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListInboxRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListInboxResponse.SerializeToString,
             ),
             'ListConversationMembers': grpc.unary_unary_rpc_method_handler(
                     servicer.ListConversationMembers,
@@ -575,7 +575,7 @@ class ConversationService:
             _registered_method=True)
 
     @staticmethod
-    def RetrieveInbox(request,
+    def ListInbox(request,
             target,
             options=(),
             channel_credentials=None,
@@ -588,9 +588,9 @@ class ConversationService:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/sdkwork.communication.app.v3.ConversationService/RetrieveInbox',
-            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveInboxRequest.SerializeToString,
-            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.RetrieveInboxResponse.FromString,
+            '/sdkwork.communication.app.v3.ConversationService/ListInbox',
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListInboxRequest.SerializeToString,
+            sdkwork_dot_communication_dot_app_dot_v3_dot_conversation__service__pb2.ListInboxResponse.FromString,
             options,
             channel_credentials,
             insecure,

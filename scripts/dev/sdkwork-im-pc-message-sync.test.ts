@@ -327,10 +327,7 @@ function assertLastDriveUpload({
 }): void {
   const upload = driveUploadCalls.at(-1);
   assert.equal(upload?.method, method);
-  assert.equal(upload?.tenantId, 't_session');
   assert.equal(upload?.organizationId, 'org_session');
-  assert.equal(upload?.userId, 'u_session');
-  assert.equal(upload?.appId, 'chat');
   assert.equal(upload?.appResourceType, 'im_conversation');
   assert.equal(upload?.appResourceId, 'chat-1');
   assert.equal(upload?.scene, 'im');

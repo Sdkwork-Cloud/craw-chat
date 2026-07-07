@@ -260,26 +260,35 @@ async function main(): Promise<void> {
 
   const allCalls = friendRequestCalls.filter((call) => call.direction === 'all');
   const incomingCalls = friendRequestCalls.filter((call) => call.direction === 'incoming');
+  const outgoingCalls = friendRequestCalls.filter((call) => call.direction === 'outgoing');
 
   assert.deepEqual(
-    allCalls,
+    incomingCalls,
     [
-      { direction: 'all', status: 'pending', pageSize: 20 },
-      { direction: 'all', status: 'pending', pageSize: 20, cursor: '1' },
+      { direction: 'incoming', status: 'pending', pageSize: 20 },
+      { direction: 'incoming', status: 'pending', pageSize: 20, cursor: '1' },
     ],
-    'friend request inbox sync must use direction=all and continue until nextCursor is exhausted',
+    'friend request inbox sync must page through pending incoming requests',
+  );
+  assert.deepEqual(
+    outgoingCalls,
+    [
+      { direction: 'outgoing', status: 'pending', pageSize: 20 },
+      { direction: 'outgoing', status: 'pending', pageSize: 20, cursor: '1' },
+    ],
+    'friend request inbox sync must page through pending outgoing requests',
   );
   assert.equal(
-    incomingCalls.length,
+    allCalls.length,
     0,
-    'getFriendRequests must not fan out separate incoming/outgoing list calls',
+    'getFriendRequests must not rely on direction=all when the UI needs incoming/outgoing action semantics',
   );
   assert.deepEqual(
     requests.map((request) => request.name),
     [
       'Profile incoming-peer-incoming-1',
-      'Profile outgoing-peer-outgoing-1',
       'Profile incoming-peer-incoming-2',
+      'Profile outgoing-peer-outgoing-1',
       'Profile outgoing-peer-outgoing-2',
     ],
     'friend request list must resolve peer names through the real social user search endpoint',
@@ -288,8 +297,8 @@ async function main(): Promise<void> {
     requests.map((request) => request.avatar),
     [
       'https://cdn.example.test/incoming-peer-incoming-1.png',
-      'https://cdn.example.test/outgoing-peer-outgoing-1.png',
       'https://cdn.example.test/incoming-peer-incoming-2.png',
+      'https://cdn.example.test/outgoing-peer-outgoing-1.png',
       'https://cdn.example.test/outgoing-peer-outgoing-2.png',
     ],
     'friend request list must resolve peer avatars through the real social user search endpoint',
@@ -298,8 +307,8 @@ async function main(): Promise<void> {
     userSearchCalls,
     [
       { q: 'incoming-peer-incoming-1', pageSize: 20 },
-      { q: 'outgoing-peer-outgoing-1', pageSize: 20 },
       { q: 'incoming-peer-incoming-2', pageSize: 20 },
+      { q: 'outgoing-peer-outgoing-1', pageSize: 20 },
       { q: 'outgoing-peer-outgoing-2', pageSize: 20 },
     ],
   );

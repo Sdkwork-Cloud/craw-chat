@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddConversationMemberRequest, AddConversationMemberResponse, BindDirectChatRequest, BindDirectChatResponse, ChangeConversationMemberRoleRequest, ChangeConversationMemberRoleResponse, CreateAgentDialogRequest, CreateAgentDialogResponse, CreateAgentHandoffRequest, CreateAgentHandoffResponse, CreateContactRecommendationRequest, CreateContactRecommendationResponse, CreateContactTagRequest, CreateContactTagResponse, CreateConversationRequest, CreateConversationResponse, CreateSystemChannelRequest, CreateSystemChannelResponse, CreateThreadRequest, CreateThreadResponse, DeleteContactTagRequest, DeleteContactTagResponse, LeaveConversationRequest, LeaveConversationResponse, ListContactsRequest, ListContactsResponse, ListContactTagsRequest, ListContactTagsResponse, ListConversationMemberDirectoryRequest, ListConversationMemberDirectoryResponse, ListConversationMembersRequest, ListConversationMembersResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, RemoveConversationMemberRequest, RemoveConversationMemberResponse, RetrieveContactPreferencesRequest, RetrieveContactPreferencesResponse, RetrieveConversationPreferencesRequest, RetrieveConversationPreferencesResponse, RetrieveConversationProfileRequest, RetrieveConversationProfileResponse, RetrieveConversationRequest, RetrieveConversationResponse, RetrieveInboxRequest, RetrieveInboxResponse, RetrieveReadCursorRequest, RetrieveReadCursorResponse, TransferConversationOwnerRequest, TransferConversationOwnerResponse, UpdateContactPreferencesRequest, UpdateContactPreferencesResponse, UpdateContactTagRequest, UpdateContactTagResponse, UpdateConversationPreferencesRequest, UpdateConversationPreferencesResponse, UpdateConversationProfileRequest, UpdateConversationProfileResponse, UpdateReadCursorRequest, UpdateReadCursorResponse } from "./conversation_service_pb.js";
+import { AddConversationMemberRequest, AddConversationMemberResponse, BindDirectChatRequest, BindDirectChatResponse, ChangeConversationMemberRoleRequest, ChangeConversationMemberRoleResponse, CreateAgentDialogRequest, CreateAgentDialogResponse, CreateAgentHandoffRequest, CreateAgentHandoffResponse, CreateContactRecommendationRequest, CreateContactRecommendationResponse, CreateContactTagRequest, CreateContactTagResponse, CreateConversationRequest, CreateConversationResponse, CreateSystemChannelRequest, CreateSystemChannelResponse, CreateThreadRequest, CreateThreadResponse, DeleteContactTagRequest, DeleteContactTagResponse, LeaveConversationRequest, LeaveConversationResponse, ListContactsRequest, ListContactsResponse, ListContactTagsRequest, ListContactTagsResponse, ListConversationMemberDirectoryRequest, ListConversationMemberDirectoryResponse, ListConversationMembersRequest, ListConversationMembersResponse, ListInboxRequest, ListInboxResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, RemoveConversationMemberRequest, RemoveConversationMemberResponse, RetrieveContactPreferencesRequest, RetrieveContactPreferencesResponse, RetrieveConversationPreferencesRequest, RetrieveConversationPreferencesResponse, RetrieveConversationProfileRequest, RetrieveConversationProfileResponse, RetrieveConversationRequest, RetrieveConversationResponse, RetrieveReadCursorRequest, RetrieveReadCursorResponse, TransferConversationOwnerRequest, TransferConversationOwnerResponse, UpdateContactPreferencesRequest, UpdateContactPreferencesResponse, UpdateContactTagRequest, UpdateContactTagResponse, UpdateConversationPreferencesRequest, UpdateConversationPreferencesResponse, UpdateConversationProfileRequest, UpdateConversationProfileResponse, UpdateReadCursorRequest, UpdateReadCursorResponse } from "./conversation_service_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -76,12 +76,12 @@ export const ConversationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc sdkwork.communication.app.v3.ConversationService.RetrieveInbox
+     * @generated from rpc sdkwork.communication.app.v3.ConversationService.ListInbox
      */
-    retrieveInbox: {
-      name: "RetrieveInbox",
-      I: RetrieveInboxRequest,
-      O: RetrieveInboxResponse,
+    listInbox: {
+      name: "ListInbox",
+      I: ListInboxRequest,
+      O: ListInboxResponse,
       kind: MethodKind.Unary,
     },
     /**

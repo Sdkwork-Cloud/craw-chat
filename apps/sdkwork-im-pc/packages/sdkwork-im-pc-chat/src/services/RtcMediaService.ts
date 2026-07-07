@@ -304,14 +304,19 @@ export class SdkworkStandardRtcMediaService implements SdkworkRtcMediaService {
 
   private async syncRemoteVideoBinding(): Promise<void> {
     const client = this.client;
-    const engine = this.getVolcengineLocalVideoEngine(client);
     const remoteUserId = this.remoteVideoUserId;
-    if (!engine?.setRemoteVideoPlayer || !remoteUserId) {
+    if (!remoteUserId) {
       await this.unbindRemoteVideo(client);
       return;
     }
 
     if (!this.remoteVideoElement) {
+      await this.unbindRemoteVideo(client);
+      return;
+    }
+
+    const engine = this.getVolcengineLocalVideoEngine(client);
+    if (!engine?.setRemoteVideoPlayer) {
       await this.unbindRemoteVideo(client);
       return;
     }

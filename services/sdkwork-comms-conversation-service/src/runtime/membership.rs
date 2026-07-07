@@ -1667,12 +1667,12 @@ where
         ))
     }
 
-    pub fn retrieve_inbox_from_auth_context(
+    pub fn list_inbox_from_auth_context(
         &self,
         auth: &AppContext,
         limit: usize,
         cursor: Option<&str>,
-    ) -> Result<InboxRetrieveResult, RuntimeError> {
+    ) -> Result<InboxListResult, RuntimeError> {
         let state = read_runtime_state(&self.state, "conversation-runtime.state.inbox");
         let offset = parse_member_list_cursor(cursor)?;
         let limit = limit.max(1);

@@ -7,7 +7,7 @@ const calls: Array<{
   method: string;
   params?: Record<string, unknown>;
 }> = [];
-let scenario: 'default' | 'many-projected-groups' = 'default';
+let scenario: 'default' | 'empty-leading-inbox-page' | 'many-projected-groups' = 'default';
 let activeMemberLookups = 0;
 let maxActiveMemberLookups = 0;
 
@@ -36,6 +36,43 @@ const fakeClient = {
     inbox: {
       async list(params?: Record<string, unknown>) {
         calls.push({ method: 'chat.inbox.list', params });
+        if (scenario === 'empty-leading-inbox-page') {
+          if (params?.cursor === 'cursor-1') {
+            return {
+              items: [
+                {
+                  avatarUrl: 'https://cdn.example.test/group-2.png',
+                  conversationId: 'group-2',
+                  conversationType: 'group',
+                  displayName: 'Paged Group',
+                  lastActivityAt: '2026-06-04T10:30:00.000Z',
+                  lastMessageSeq: 3,
+                  unreadCount: 0,
+                },
+              ],
+              pageInfo: {
+                hasMore: false,
+                mode: 'cursor',
+              },
+            };
+          }
+          return {
+            items: [
+              {
+                conversationId: 'single-leading-page',
+                conversationType: 'single',
+                lastActivityAt: '2026-06-04T10:00:00.000Z',
+                lastMessageSeq: 2,
+                unreadCount: 0,
+              },
+            ],
+            pageInfo: {
+              hasMore: true,
+              mode: 'cursor',
+              nextCursor: 'cursor-1',
+            },
+          };
+        }
         if (scenario === 'many-projected-groups') {
           return {
             hasMore: false,
@@ -119,7 +156,7 @@ const fakeClient = {
     },
     async list(params?: Record<string, unknown>) {
       calls.push({ method: 'conversations.list', params });
-      if (scenario === 'many-projected-groups') {
+      if (scenario === 'empty-leading-inbox-page' || scenario === 'many-projected-groups') {
         return {
           hasMore: false,
           items: [],
@@ -181,10 +218,10 @@ async function main(): Promise<void> {
       'chat.inbox.list',
       'conversations.getPreferences',
       'conversations.getProfile',
+      'conversations.listMembers',
       'conversations.list',
       'conversations.getPreferences',
       'conversations.getProfile',
-      'conversations.listMembers',
       'conversations.listMembers',
     ],
     'group service must read group inbox projections directly and must not trigger chatClient.getChats single-chat hydration while still profile-hydrating missing group names',
@@ -204,6 +241,23 @@ async function main(): Promise<void> {
     calls.filter((call) => call.method === 'conversations.getProfile').length,
     0,
     'complete group inbox projection must not perform per-group profile hydration',
+  );
+
+  scenario = 'empty-leading-inbox-page';
+  calls.length = 0;
+  const groupsAfterEmptyLeadingInboxPage = await service.getGroups();
+  assert.deepEqual(
+    groupsAfterEmptyLeadingInboxPage.map((group) => group.id),
+    ['group-2'],
+    'getGroups must continue cursor pagination when an inbox page contains no group entries after server-page filtering',
+  );
+  assert.deepEqual(
+    calls.filter((call) => call.method === 'chat.inbox.list').map((call) => call.params),
+    [
+      { pageSize: 20 },
+      { pageSize: 20, cursor: 'cursor-1' },
+    ],
+    'getGroups must request bounded cursor pages through the SDK inbox list rather than stopping on an empty filtered page',
   );
 
   console.log('sdkwork-im-pc group service client injection contract passed');

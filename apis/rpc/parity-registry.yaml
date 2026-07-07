@@ -89,7 +89,7 @@ entries:
     httpPath: /im/v3/api/chat/inbox
     rpcPackage: sdkwork.communication.app.v3
     rpcService: ConversationService
-    rpcMethod: RetrieveInbox
+    rpcMethod: ListInbox
     rpcSurface: app
     parityStatus: partial
     owner: im-open-api

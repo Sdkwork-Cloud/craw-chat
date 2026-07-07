@@ -22,17 +22,18 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     ListConversationMemberDirectoryRequest, ListConversationMemberDirectoryResponse,
     ListConversationMembersRequest, ListConversationMembersResponse,
     ListConversationMessagesRequest, ListConversationMessagesResponse, ListFavoriteMessagesRequest,
-    ListPinnedMessagesRequest, ListPinnedMessagesResponse, MessageBodyPart,
-    MessageInteractionSummaryView, MessageMutationResponse, MessageView, PinMessageRequest,
-    PinMessageResponse, PublishSystemChannelMessageRequest, PublishSystemChannelMessageResponse,
-    ReadCursorView, RecallMessageRequest, RecallMessageResponse, RemoveConversationMemberRequest,
-    RemoveConversationMemberResponse, RetrieveConversationPreferencesRequest,
-    RetrieveConversationProfileRequest, RetrieveConversationRequest, RetrieveConversationResponse,
-    RetrieveInboxRequest, RetrieveInboxResponse, RetrieveMessageInteractionSummaryRequest,
-    RetrieveMessageInteractionSummaryResponse, RetrieveReadCursorRequest,
-    RetrieveReadCursorResponse, RetrieveRoomRequest, RetrieveRoomResponse, RoomView,
-    TransferConversationOwnerRequest, TransferConversationOwnerResponse, UnpinMessageRequest,
-    UnpinMessageResponse, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
+    ListInboxRequest, ListInboxResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse,
+    MessageBodyPart, MessageInteractionSummaryView, MessageMutationResponse, MessageView,
+    PinMessageRequest, PinMessageResponse, PublishSystemChannelMessageRequest,
+    PublishSystemChannelMessageResponse, ReadCursorView, RecallMessageRequest,
+    RecallMessageResponse, RemoveConversationMemberRequest, RemoveConversationMemberResponse,
+    RetrieveConversationPreferencesRequest, RetrieveConversationProfileRequest,
+    RetrieveConversationRequest, RetrieveConversationResponse,
+    RetrieveMessageInteractionSummaryRequest, RetrieveMessageInteractionSummaryResponse,
+    RetrieveReadCursorRequest, RetrieveReadCursorResponse, RetrieveRoomRequest,
+    RetrieveRoomResponse, RoomView, TransferConversationOwnerRequest,
+    TransferConversationOwnerResponse, UnpinMessageRequest, UnpinMessageResponse,
+    UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
     UpdateReadCursorRequest, UpdateReadCursorResponse,
 };
 use sdkwork_im_rpc_service_rust::{
@@ -119,8 +120,8 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     dispatch_retrieve_conversation(&state, &auth, payload).await
                 }
                 "inbox.list" => {
-                    let payload = RetrieveInboxRequest::decode(request.request_bytes.as_slice())?;
-                    dispatch_retrieve_inbox(&state, &auth, payload).await
+                    let payload = ListInboxRequest::decode(request.request_bytes.as_slice())?;
+                    dispatch_list_inbox(&state, &auth, payload).await
                 }
                 "conversations.members.list" => {
                     let payload =
@@ -704,18 +705,20 @@ async fn dispatch_retrieve_conversation(
     ImRpcUnaryResponse::from_message(response)
 }
 
-async fn dispatch_retrieve_inbox(
+async fn dispatch_list_inbox(
     state: &AppState,
     auth: &AppContext,
-    request: RetrieveInboxRequest,
+    request: ListInboxRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let (limit, cursor) = page_request(request.page);
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let (conversations, next_cursor, has_more) = tokio::task::spawn_blocking(move || {
-        let inbox = blocking_state
-            .rpc_runtime()
-            .retrieve_inbox_from_auth_context(&blocking_auth, limit, cursor.as_deref())?;
+        let inbox = blocking_state.rpc_runtime().list_inbox_from_auth_context(
+            &blocking_auth,
+            limit,
+            cursor.as_deref(),
+        )?;
         let next_cursor = inbox.page_info.next_cursor.clone();
         let has_more = inbox.page_info.has_more == Some(true);
         let mut conversations = Vec::with_capacity(inbox.items.len());
@@ -744,7 +747,7 @@ async fn dispatch_retrieve_inbox(
         })
         .collect();
     let conversation_count = conversations.len();
-    let response = RetrieveInboxResponse {
+    let response = ListInboxResponse {
         conversations,
         page: Some(page_response(next_cursor, has_more, conversation_count)),
         metadata: None,

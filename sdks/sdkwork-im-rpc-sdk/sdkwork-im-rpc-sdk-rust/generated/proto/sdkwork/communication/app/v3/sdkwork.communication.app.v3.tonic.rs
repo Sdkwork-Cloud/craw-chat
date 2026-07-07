@@ -2094,11 +2094,11 @@ pub mod conversation_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        pub async fn retrieve_inbox(
+        pub async fn list_inbox(
             &mut self,
-            request: impl tonic::IntoRequest<super::RetrieveInboxRequest>,
+            request: impl tonic::IntoRequest<super::ListInboxRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::RetrieveInboxResponse>,
+            tonic::Response<super::ListInboxResponse>,
             tonic::Status,
         > {
             self.inner
@@ -2111,14 +2111,14 @@ pub mod conversation_service_client {
                 })?;
             let codec = tonic_prost::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/sdkwork.communication.app.v3.ConversationService/RetrieveInbox",
+                "/sdkwork.communication.app.v3.ConversationService/ListInbox",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
                     GrpcMethod::new(
                         "sdkwork.communication.app.v3.ConversationService",
-                        "RetrieveInbox",
+                        "ListInbox",
                     ),
                 );
             self.inner.unary(req, path, codec).await
@@ -2597,11 +2597,11 @@ pub mod conversation_service_server {
             tonic::Response<super::RetrieveConversationResponse>,
             tonic::Status,
         >;
-        async fn retrieve_inbox(
+        async fn list_inbox(
             &self,
-            request: tonic::Request<super::RetrieveInboxRequest>,
+            request: tonic::Request<super::ListInboxRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::RetrieveInboxResponse>,
+            tonic::Response<super::ListInboxResponse>,
             tonic::Status,
         >;
         async fn list_conversation_members(
@@ -3119,25 +3119,25 @@ pub mod conversation_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/sdkwork.communication.app.v3.ConversationService/RetrieveInbox" => {
+                "/sdkwork.communication.app.v3.ConversationService/ListInbox" => {
                     #[allow(non_camel_case_types)]
-                    struct RetrieveInboxSvc<T: ConversationService>(pub Arc<T>);
+                    struct ListInboxSvc<T: ConversationService>(pub Arc<T>);
                     impl<
                         T: ConversationService,
-                    > tonic::server::UnaryService<super::RetrieveInboxRequest>
-                    for RetrieveInboxSvc<T> {
-                        type Response = super::RetrieveInboxResponse;
+                    > tonic::server::UnaryService<super::ListInboxRequest>
+                    for ListInboxSvc<T> {
+                        type Response = super::ListInboxResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::RetrieveInboxRequest>,
+                            request: tonic::Request<super::ListInboxRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ConversationService>::retrieve_inbox(&inner, request)
+                                <T as ConversationService>::list_inbox(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -3149,7 +3149,7 @@ pub mod conversation_service_server {
                     let max_encoding_message_size = self.max_encoding_message_size;
                     let inner = self.inner.clone();
                     let fut = async move {
-                        let method = RetrieveInboxSvc(inner);
+                        let method = ListInboxSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

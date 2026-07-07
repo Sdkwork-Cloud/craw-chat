@@ -1,5 +1,5 @@
 import type {
-  InboxResponse,
+  ConversationInboxEntry,
   ConversationMember,
   ImSdkClient,
 } from '@sdkwork/im-sdk';
@@ -43,7 +43,7 @@ type GroupViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'memberCount
 export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>> & {
   groupId: string;
 };
-type ConversationListEntry = InboxResponse['items'][number];
+type ConversationListEntry = ConversationInboxEntry;
 const GROUP_INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const GROUP_MEMBERS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const GROUPS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
@@ -252,6 +252,17 @@ function hasGroupDisplayProjection(entry: ConversationListEntry): boolean {
   return Boolean(pickString(entryRecord.displayName, entryRecord.display_name));
 }
 
+function normalizeGroupPageSize(pageSize: number | undefined): number {
+  if (pageSize === undefined) {
+    return GROUP_INBOX_PAGE_LIMIT;
+  }
+  const normalizedPageSize = Math.floor(pageSize);
+  if (!Number.isFinite(normalizedPageSize) || normalizedPageSize <= 0) {
+    return GROUP_INBOX_PAGE_LIMIT;
+  }
+  return Math.min(normalizedPageSize, SDKWORK_MAX_PAGE_SIZE);
+}
+
 class SdkworkGroupService implements GroupService {
   private readonly groupViewState = new Map<string, GroupViewState>();
   private readonly chatClient: ChatService;
@@ -297,24 +308,6 @@ class SdkworkGroupService implements GroupService {
       { maxItems: MAX_GROUP_MEMBERS_PER_CONVERSATION },
     );
     return mapActiveMemberIds(members);
-  }
-
-  private async listInboxGroupEntriesPage(
-    cursor?: string,
-  ): Promise<{ items: ConversationListEntry[]; hasMore: boolean; nextCursor?: string }> {
-    const response = await this.client().chat?.inbox?.list({
-      pageSize: GROUP_INBOX_PAGE_LIMIT,
-      ...(cursor ? { cursor } : {}),
-    });
-    if (!response) {
-      return { items: [], hasMore: false };
-    }
-    const page = readSdkCursorPageInfo(response.pageInfo);
-    return {
-      items: response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'),
-      hasMore: page.hasMore,
-      nextCursor: page.nextCursor,
-    };
   }
 
   private async listConversationGroupEntriesPage(
@@ -443,7 +436,7 @@ class SdkworkGroupService implements GroupService {
   }
 
   async listGroupsPage(params?: { cursor?: string; pageSize?: number }): Promise<GroupListPage> {
-    const pageSize = params?.pageSize ?? GROUP_INBOX_PAGE_LIMIT;
+    const pageSize = normalizeGroupPageSize(params?.pageSize);
     const inboxPage = await this.client().chat?.inbox?.list({
       pageSize,
       ...(params?.cursor ? { cursor: params.cursor } : {}),
@@ -517,16 +510,36 @@ class SdkworkGroupService implements GroupService {
   }
 
   async getGroups(): Promise<Chat[]> {
-    const inboxPage = await this.listInboxGroupEntriesPage();
-    const inboxGroups = await this.hydrateConversationEntryGroups(inboxPage.items);
+    const inboxGroups: Chat[] = [];
+    let cursor: string | undefined;
+    let scannedPages = 0;
+    const maxInboxPages = Math.ceil(MAX_GROUP_INBOX_ENTRIES / GROUP_INBOX_PAGE_LIMIT);
+
+    while (scannedPages < maxInboxPages && inboxGroups.length < MAX_GROUP_INBOX_ENTRIES) {
+      const inboxPage = await this.listGroupsPage({
+        pageSize: GROUP_INBOX_PAGE_LIMIT,
+        ...(cursor ? { cursor } : {}),
+      });
+      const remainingGroups = MAX_GROUP_INBOX_ENTRIES - inboxGroups.length;
+      inboxGroups.push(...inboxPage.items.slice(0, remainingGroups));
+      scannedPages += 1;
+
+      if (!inboxPage.hasMore || !inboxPage.nextCursor || inboxPage.nextCursor === cursor) {
+        break;
+      }
+      cursor = inboxPage.nextCursor;
+    }
+
     const knownGroupIds = new Set(inboxGroups.map((group) => group.id));
     const missingConversationEntries = await this.listMissingConversationGroupEntries(knownGroupIds);
     const missingConversationGroups = await this.hydrateConversationEntryGroups(missingConversationEntries);
-    return (await mapWithConcurrencyLimit(
-      [...inboxGroups, ...missingConversationGroups],
+    const missingGroupsWithMemberState = await mapWithConcurrencyLimit(
+      missingConversationGroups,
       GROUP_LIST_HYDRATION_CONCURRENCY,
       async (group) => this.withMemberState(group),
-    )).sort((left, right) => right.updatedAt - left.updatedAt);
+    );
+    return [...inboxGroups, ...missingGroupsWithMemberState]
+      .sort((left, right) => right.updatedAt - left.updatedAt);
   }
 
   async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {

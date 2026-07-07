@@ -16,7 +16,8 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     CreateRoomRequest, EnterRoomRequest, room_service_client::RoomServiceClient,
 };
 use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
-    DispatchConversationMessageRequest, OrchestrateCreateRoomRequest, OrchestrateEnterRoomRequest,
+    CreateRoomRequest as InternalCreateRoomRequest, DispatchConversationMessageRequest,
+    EnterRoomRequest as InternalEnterRoomRequest,
     message_dispatch_service_client::MessageDispatchServiceClient,
     room_orchestration_service_client::RoomOrchestrationServiceClient,
 };
@@ -172,7 +173,7 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
         .await
         .expect("message dispatch client should connect");
 
-    let mut create_request = Request::new(OrchestrateCreateRoomRequest {
+    let mut create_request = Request::new(InternalCreateRoomRequest {
         tenant_id: "100001".into(),
         organization_id: "org_a".into(),
         actor_id: "1".into(),
@@ -195,7 +196,7 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
         "c_rpc_smoke_internal"
     );
 
-    let mut enter_request = Request::new(OrchestrateEnterRoomRequest {
+    let mut enter_request = Request::new(InternalEnterRoomRequest {
         tenant_id: "100001".into(),
         organization_id: "org_a".into(),
         room_id: "room_rpc_smoke_internal".into(),
@@ -292,7 +293,7 @@ async fn test_internal_rpc_host_rejects_app_session_without_service_identity() {
     let mut client = RoomOrchestrationServiceClient::connect(format!("http://{addr}"))
         .await
         .expect("room orchestration client should connect");
-    let mut request = Request::new(OrchestrateCreateRoomRequest {
+    let mut request = Request::new(InternalCreateRoomRequest {
         tenant_id: "100001".into(),
         organization_id: "org_a".into(),
         actor_id: "1".into(),

@@ -781,7 +781,11 @@ class SdkworkContactService implements ContactService {
     }
 
     this.friendRequestsListSync = (async () => {
-      const requests = await this.syncFriendRequestsFromServer('all', 'pending');
+      const [incomingRequests, outgoingRequests] = await Promise.all([
+        this.syncFriendRequestsFromServer('incoming', 'pending'),
+        this.syncFriendRequestsFromServer('outgoing', 'pending'),
+      ]);
+      const requests = [...incomingRequests, ...outgoingRequests];
       await this.loadFriendRequestPeerProfiles(requests);
       return requests.map((request) => this.mapFriendRequest(request));
     })().finally(() => {
