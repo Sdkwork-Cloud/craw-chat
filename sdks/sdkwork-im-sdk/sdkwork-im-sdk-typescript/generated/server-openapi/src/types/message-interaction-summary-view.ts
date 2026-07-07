@@ -1,6 +1,5 @@
 import type { MessagePinView } from './message-pin-view';
 import type { MessageReactionCountView } from './message-reaction-count-view';
-import type { MessageReadReceiptSummaryView } from './message-read-receipt-summary-view';
 
 export interface MessageInteractionSummaryView {
   tenantId: string;
@@ -10,5 +9,4 @@ export interface MessageInteractionSummaryView {
   totalReactionCount: number;
   reactionCounts: MessageReactionCountView[];
   pin?: MessagePinView | null;
-  readReceipt: MessageReadReceiptSummaryView;
 }

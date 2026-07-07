@@ -5,15 +5,16 @@ use im_domain_core::social::DirectChatStatus;
 use im_domain_events::CommitEnvelope;
 use im_domain_events::social::{
     DirectChatBoundPayload, FriendshipActivatedPayload, FriendshipRemovedPayload,
-    UserBlockedPayload, UserBlockReleasedPayload,
+    UserBlockReleasedPayload, UserBlockedPayload,
 };
 use im_time::{max_rfc3339_string, rfc3339_cmp};
+use sdkwork_utils_rust::SdkWorkPageData;
 
 use im_platform_contracts::normalize_realtime_organization_id;
 
-use crate::model::ContactListCursor;
 use crate::client_route_sync::registered_client_routes_for_principal_kind;
 use crate::model::ContactDirectChatBindingView;
+use crate::model::ContactListCursor;
 use crate::{ContactView, TimelineProjectionService};
 
 use super::projection::ProjectionError;
@@ -266,7 +267,7 @@ impl TimelineProjectionService {
         owner_user_id: &str,
         limit: usize,
         cursor: crate::model::ContactListCursor,
-    ) -> crate::ContactWindowView {
+    ) -> SdkWorkPageData<crate::ContactView> {
         let scope = contact_runtime_scope(tenant_id, organization_id, owner_user_id);
         let list_cursor = match cursor {
             crate::model::ContactListCursor::Start => None,
@@ -288,11 +289,7 @@ impl TimelineProjectionService {
         } else {
             None
         };
-        crate::ContactWindowView {
-            items,
-            next_cursor,
-            has_more,
-        }
+        super::list_page::cursor_page(items, limit, next_cursor, has_more)
     }
 
     pub(super) fn apply_friendship_activated(
@@ -414,10 +411,7 @@ impl TimelineProjectionService {
         Ok(())
     }
 
-    pub(super) fn apply_user_blocked(
-        &self,
-        event: &CommitEnvelope,
-    ) -> Result<(), ProjectionError> {
+    pub(super) fn apply_user_blocked(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
         let payload: UserBlockedPayload =
             serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
         let organization_id = projection_organization_id_for_event(event);
@@ -459,13 +453,13 @@ impl TimelineProjectionService {
         let scope = contact_runtime_scope(tenant_id, organization_id, blocker_user_id);
         let key = contact_entry_key("friendship", blocked_user_id);
         let mut contacts = self.lock_contact_store("mark_friendship_contacts_blocked");
-        if let Some(scope_contacts) = contacts.get_mut(&scope) {
-            if let Some(contact) = scope_contacts.get_mut(key.as_str()) {
-                contact.relationship_state = "blocked".into();
-                contact.last_interaction_at =
-                    max_rfc3339(contact.last_interaction_at.as_str(), blocked_at).to_owned();
-                scope_contacts.rebuild_order();
-            }
+        if let Some(scope_contacts) = contacts.get_mut(&scope)
+            && let Some(contact) = scope_contacts.get_mut(key.as_str())
+        {
+            contact.relationship_state = "blocked".into();
+            contact.last_interaction_at =
+                max_rfc3339(contact.last_interaction_at.as_str(), blocked_at).to_owned();
+            scope_contacts.rebuild_order();
         }
     }
 
@@ -481,16 +475,15 @@ impl TimelineProjectionService {
         let key = contact_entry_key("friendship", blocked_user_id);
         let mut contacts =
             self.lock_contact_store("restore_friendship_contacts_after_block_release");
-        if let Some(scope_contacts) = contacts.get_mut(&scope) {
-            if let Some(contact) = scope_contacts.get_mut(key.as_str())
-                && contact.relationship_state == "blocked"
-                && !contact.friendship_id.trim().is_empty()
-            {
-                contact.relationship_state = "active".into();
-                contact.last_interaction_at =
-                    max_rfc3339(contact.last_interaction_at.as_str(), released_at).to_owned();
-                scope_contacts.rebuild_order();
-            }
+        if let Some(scope_contacts) = contacts.get_mut(&scope)
+            && let Some(contact) = scope_contacts.get_mut(key.as_str())
+            && contact.relationship_state == "blocked"
+            && !contact.friendship_id.trim().is_empty()
+        {
+            contact.relationship_state = "active".into();
+            contact.last_interaction_at =
+                max_rfc3339(contact.last_interaction_at.as_str(), released_at).to_owned();
+            scope_contacts.rebuild_order();
         }
     }
 
@@ -814,10 +807,7 @@ fn max_rfc3339<'a>(left: &'a str, right: &'a str) -> &'a str {
     }
 }
 
-fn contact_entry_after_keyset_cursor(
-    contact: &ContactView,
-    cursor: &(String, String),
-) -> bool {
+fn contact_entry_after_keyset_cursor(contact: &ContactView, cursor: &(String, String)) -> bool {
     use std::cmp::Ordering;
 
     match rfc3339_cmp(cursor.0.as_str(), contact.last_interaction_at.as_str()) {
@@ -889,6 +879,39 @@ mod tests {
     }
 
     #[test]
+    fn contact_window_concurrent_reads_do_not_deadlock() {
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let service = Arc::new(TimelineProjectionService::default());
+        let barrier = Arc::new(Barrier::new(8));
+        let handles = (0..8)
+            .map(|_| {
+                let service = Arc::clone(&service);
+                let barrier = Arc::clone(&barrier);
+                thread::spawn(move || {
+                    barrier.wait();
+                    for _ in 0..32 {
+                        let _window = service.contact_window(
+                            "100001",
+                            "default",
+                            "user_contact_deadlock",
+                            20,
+                            crate::model::ContactListCursor::Start,
+                        );
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for handle in handles {
+            handle
+                .join()
+                .expect("concurrent contact reads must not deadlock projection mutexes");
+        }
+    }
+
+    #[test]
     fn test_max_rfc3339_compares_by_instant() {
         assert_eq!(
             max_rfc3339("2026-05-06T00:00:00Z", "2026-05-06T00:00:00.100Z"),
@@ -915,7 +938,7 @@ mod tests {
 
     #[test]
     fn test_user_block_projection_marks_and_restores_friendship_contacts() {
-        use im_domain_events::social::{UserBlockedPayload, UserBlockReleasedPayload};
+        use im_domain_events::social::{UserBlockReleasedPayload, UserBlockedPayload};
 
         let service = TimelineProjectionService::default();
         let friendship_payload = FriendshipActivatedPayload {
@@ -980,6 +1003,10 @@ mod tests {
             blocker_user_id: "1".to_owned(),
             blocked_user_id: "2".to_owned(),
             released_at: "2026-05-08T00:00:00.000Z".to_owned(),
+            scope: None,
+            direct_chat_id: None,
+            expires_at: None,
+            effective_at: None,
         };
         let mut released_event = CommitEnvelope::minimal(
             "evt_release",

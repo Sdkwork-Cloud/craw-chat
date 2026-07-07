@@ -40,6 +40,15 @@ Application ingress listens on `127.0.0.1:18079` in the default split-services d
 curl http://127.0.0.1:18079/healthz
 ```
 
+If `/healthz` or `/app/v3/api/auth/sessions/current` hang while TCP connects succeed, the unified
+`sdkwork-im-standalone-gateway` runtime is likely starved. Projection HTTP handlers run mutex-heavy
+reads on dedicated blocking threads; restart stale gateway processes before debugging client auth.
+
+```powershell
+taskkill /F /IM sdkwork-im-standalone-gateway.exe
+pnpm dev
+```
+
 ## Packaged Server Install
 
 For production-style install, service management, PostgreSQL-backed storage, and release bundles,

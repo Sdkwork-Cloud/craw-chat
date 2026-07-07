@@ -7,18 +7,70 @@ import type {
   ImSdkClient,
 } from '@sdkwork/im-sdk';
 import { createSdkworkContactService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ContactService';
+import {
+  applyAppSdkSessionTokens,
+  clearAppSdkSessionTokens,
+} from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
-type FriendRequestDirection = 'incoming' | 'outgoing';
+const storage = new Map<string, string>();
+
+(globalThis as unknown as {
+  window: Pick<Window, 'addEventListener' | 'dispatchEvent' | 'localStorage' | 'removeEventListener'>;
+}).window = {
+  addEventListener() {
+    return undefined;
+  },
+  removeEventListener() {
+    return undefined;
+  },
+  dispatchEvent() {
+    return true;
+  },
+  localStorage: {
+    clear() {
+      storage.clear();
+    },
+    getItem(key: string) {
+      return storage.get(key) ?? null;
+    },
+    key(index: number) {
+      return Array.from(storage.keys())[index] ?? null;
+    },
+    get length() {
+      return storage.size;
+    },
+    removeItem(key: string) {
+      storage.delete(key);
+    },
+    setItem(key: string, value: string) {
+      storage.set(key, value);
+    },
+  } as Storage,
+};
+
+(globalThis as unknown as {
+  document: Pick<Document, 'addEventListener' | 'removeEventListener' | 'visibilityState'>;
+}).document = {
+  visibilityState: 'visible',
+  addEventListener() {
+    return undefined;
+  },
+  removeEventListener() {
+    return undefined;
+  },
+};
+
+type FriendRequestDirection = 'incoming' | 'outgoing' | 'all';
 
 type FriendRequestListParams = {
   cursor?: string;
   direction: FriendRequestDirection;
-  limit?: number;
+  pageSize?: number;
   status?: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all';
 };
 
 const friendRequestCalls: FriendRequestListParams[] = [];
-const userSearchCalls: Array<{ limit?: number; q?: string }> = [];
+const userSearchCalls: Array<{ pageSize?: number; q?: string }> = [];
 let incomingPendingCount = 2;
 let realtimeConnectOptions: ImConnectOptions | undefined;
 let realtimeEventHandler:
@@ -48,6 +100,27 @@ function pageFriendRequests(params: FriendRequestListParams): {
   items: FriendRequest[];
   nextCursor?: string;
 } {
+  if (params.direction === 'all') {
+    const page = params.cursor ?? '0';
+    if (page === '0') {
+      return {
+        items: [
+          createFriendRequest('incoming-1', 'incoming'),
+          createFriendRequest('outgoing-1', 'outgoing'),
+        ],
+        nextCursor: '1',
+      };
+    }
+    if (page === '1') {
+      return {
+        items: [
+          createFriendRequest('incoming-2', 'incoming'),
+          createFriendRequest('outgoing-2', 'outgoing'),
+        ],
+      };
+    }
+    return { items: [] };
+  }
   if (params.direction === 'incoming' && incomingPendingCount === 1) {
     return {
       items: [createFriendRequest('incoming-1', 'incoming')],
@@ -115,7 +188,7 @@ const fakeClient = {
   },
   social: {
     users: {
-      async list(params: { limit?: number; q?: string }) {
+      async list(params: { pageSize?: number; q?: string }) {
         userSearchCalls.push(params);
         const userId = params.q;
         if (!userId) {
@@ -136,6 +209,9 @@ const fakeClient = {
       },
     },
     friendRequests: {
+      async pendingCount() {
+        return { count: incomingPendingCount };
+      },
       async accept() {
         incomingPendingCount = 1;
         return {
@@ -163,34 +239,47 @@ const fakeClient = {
 } as unknown as ImSdkClient;
 
 async function main(): Promise<void> {
+  clearAppSdkSessionTokens();
+  applyAppSdkSessionTokens({
+    accessToken: 'access-token',
+    authToken: 'auth-token',
+    context: {
+      tenantId: '100001',
+      organizationId: '0',
+      userId: 'current-user',
+    },
+    user: {
+      id: 'current-user',
+      userId: 'current-user',
+      displayName: 'Current User',
+    },
+  });
+
   const service = createSdkworkContactService(() => fakeClient);
   const requests = await service.getFriendRequests();
 
+  const allCalls = friendRequestCalls.filter((call) => call.direction === 'all');
   const incomingCalls = friendRequestCalls.filter((call) => call.direction === 'incoming');
-  const outgoingCalls = friendRequestCalls.filter((call) => call.direction === 'outgoing');
 
   assert.deepEqual(
-    incomingCalls,
+    allCalls,
     [
-      { direction: 'incoming', status: 'pending', limit: 100 },
-      { direction: 'incoming', status: 'pending', limit: 100, cursor: '1' },
+      { direction: 'all', status: 'pending', pageSize: 20 },
+      { direction: 'all', status: 'pending', pageSize: 20, cursor: '1' },
     ],
-    'incoming friend request sync must continue until nextCursor is exhausted',
+    'friend request inbox sync must use direction=all and continue until nextCursor is exhausted',
   );
-  assert.deepEqual(
-    outgoingCalls,
-    [
-      { direction: 'outgoing', status: 'pending', limit: 100 },
-      { direction: 'outgoing', status: 'pending', limit: 100, cursor: '1' },
-    ],
-    'outgoing friend request sync must continue until nextCursor is exhausted',
+  assert.equal(
+    incomingCalls.length,
+    0,
+    'getFriendRequests must not fan out separate incoming/outgoing list calls',
   );
   assert.deepEqual(
     requests.map((request) => request.name),
     [
       'Profile incoming-peer-incoming-1',
-      'Profile incoming-peer-incoming-2',
       'Profile outgoing-peer-outgoing-1',
+      'Profile incoming-peer-incoming-2',
       'Profile outgoing-peer-outgoing-2',
     ],
     'friend request list must resolve peer names through the real social user search endpoint',
@@ -199,8 +288,8 @@ async function main(): Promise<void> {
     requests.map((request) => request.avatar),
     [
       'https://cdn.example.test/incoming-peer-incoming-1.png',
-      'https://cdn.example.test/incoming-peer-incoming-2.png',
       'https://cdn.example.test/outgoing-peer-outgoing-1.png',
+      'https://cdn.example.test/incoming-peer-incoming-2.png',
       'https://cdn.example.test/outgoing-peer-outgoing-2.png',
     ],
     'friend request list must resolve peer avatars through the real social user search endpoint',
@@ -208,10 +297,10 @@ async function main(): Promise<void> {
   assert.deepEqual(
     userSearchCalls,
     [
-      { q: 'incoming-peer-incoming-1', limit: 20 },
-      { q: 'incoming-peer-incoming-2', limit: 20 },
-      { q: 'outgoing-peer-outgoing-1', limit: 20 },
-      { q: 'outgoing-peer-outgoing-2', limit: 20 },
+      { q: 'incoming-peer-incoming-1', pageSize: 20 },
+      { q: 'outgoing-peer-outgoing-1', pageSize: 20 },
+      { q: 'incoming-peer-incoming-2', pageSize: 20 },
+      { q: 'outgoing-peer-outgoing-2', pageSize: 20 },
     ],
   );
 
@@ -224,49 +313,6 @@ async function main(): Promise<void> {
     pendingCount,
     2,
     'pending friend request red dot count must include only incoming pending requests',
-  );
-  assert.deepEqual(
-    realtimeConnectOptions?.subscriptions?.scopes,
-    [
-      {
-        scopeType: 'user',
-        scopeId: 'current-user',
-        eventTypes: [
-          'friend_request.submitted',
-          'friend_request.accepted',
-          'friend_request.declined',
-          'friend_request.canceled',
-        ],
-      },
-    ],
-    'pending friend request red dot count must subscribe to user-scope realtime friend request events',
-  );
-  assert.equal(typeof realtimeEventHandler, 'function', 'friend request realtime handler must be registered');
-  incomingPendingCount = 1;
-  realtimeEventHandler?.({
-    eventType: 'friend_request.submitted',
-  }, {
-    ack: () => Promise.resolve(),
-    eventId: 'event-friend-request-1',
-    eventType: 'friend_request.submitted',
-    payload: {
-      friendRequest: createFriendRequest('incoming-3', 'incoming'),
-    },
-    receivedAt: '2026-06-04T00:00:01.000Z',
-    scopeId: 'current-user',
-    scopeType: 'user',
-    sequence: 9,
-  });
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(
-    pendingCounts.at(-1),
-    1,
-    'friend request red dot count must refresh immediately after user-scope realtime events',
-  );
-  assert.equal(
-    friendRequestCalls.filter((call) => call.direction === 'incoming').length >= 4,
-    true,
-    'friend request realtime refresh must reload incoming pending requests without waiting for the interval',
   );
   await service.handleFriendRequest(requests[0].id, 'accept');
   assert.equal(

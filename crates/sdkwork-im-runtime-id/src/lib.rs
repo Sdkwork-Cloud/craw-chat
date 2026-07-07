@@ -197,8 +197,11 @@ impl RuntimeSnowflakeIdGenerator {
     /// Allocate a node_id from the IM database and create a generator.
     ///
     /// This is the recommended constructor for production: it automatically
-    /// discovers a unique, stable `node_id` from the `sdkwork_node_registry`
-    /// table, eliminating manual `SDKWORK_IM_ID_NODE_ID` configuration.
+    /// discovers a unique, stable `node_id` from the platform-owned
+    /// `sdkwork_node_registry` table, eliminating manual
+    /// `SDKWORK_IM_ID_NODE_ID` configuration. The table is created by the
+    /// SDKWork database ID/platform initializer, not by the IM business
+    /// database baseline.
     ///
     /// The `service_name` parameter identifies the logical service (e.g.
     /// `"social-service"`, `"space-service"`) for the node registry.
@@ -226,8 +229,7 @@ impl RuntimeSnowflakeIdGenerator {
         service_name: &str,
     ) -> Result<Self, RuntimeIdError> {
         let config = NodeAllocatorConfig::from_service_name(service_name);
-        let (generator, lease) =
-            SnowflakeNodeAllocator::allocate_generator(pool, &config).await?;
+        let (generator, lease) = SnowflakeNodeAllocator::allocate_generator(pool, &config).await?;
         Ok(Self {
             inner: generator,
             _lease: Some(lease),

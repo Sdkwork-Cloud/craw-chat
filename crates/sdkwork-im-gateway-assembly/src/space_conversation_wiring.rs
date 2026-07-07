@@ -9,7 +9,7 @@ use conversation_runtime::{
     ConversationRuntime, CreateConversationCommand, CreateSystemChannelCommand,
     RemoveConversationMemberCommand, TransferConversationOwnerCommand,
 };
-use im_domain_core::conversation::{member_id, ConversationPolicy, MembershipRole};
+use im_domain_core::conversation::{ConversationPolicy, MembershipRole, member_id};
 use space_service::{
     CreateSpaceChannelConversationInput, CreateSpaceGroupConversationInput,
     SpaceChannelConversationBinder, SpaceGroupConversationBinder, SyncSpaceGroupMemberInput,
@@ -29,10 +29,7 @@ impl ConversationServiceSpaceConversationBinder {
     }
 }
 
-fn member_posting_attributes(
-    role: &str,
-    mute_until: Option<&str>,
-) -> BTreeMap<String, String> {
+fn member_posting_attributes(role: &str, mute_until: Option<&str>) -> BTreeMap<String, String> {
     let mut attributes = BTreeMap::new();
     if role == "muted" || is_mute_active(mute_until) {
         attributes.insert(POSTING_RESTRICTED_ATTRIBUTE.to_owned(), "true".to_owned());

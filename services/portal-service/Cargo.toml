@@ -1,0 +1,28 @@
+[package]
+name = "portal-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+audit-service = { path = "../audit-service" }
+im-app-context = { path = "../../crates/im-app-context" }
+im-portal-snapshots = { path = "../../crates/im-portal-snapshots" }
+ops-service = { path = "../ops-service" }
+serde.workspace = true
+serde_json.workspace = true
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
+sdkwork_routes_web_framework_backend_api.workspace = true
+sdkwork_utils_rust.workspace = true
+sdkwork_web_core.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+http-body-util.workspace = true
+tower.workspace = true
+im-app-context = { path = "../../crates/im-app-context" }
+sdkwork-routes-im-portal-app-api = { path = "../../crates/sdkwork-routes-im-portal-app-api" }

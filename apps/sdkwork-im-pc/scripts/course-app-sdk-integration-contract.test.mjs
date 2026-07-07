@@ -23,6 +23,14 @@ function readRepoJson(...segments) {
   return JSON.parse(readRepoText(...segments));
 }
 
+function extractCommercialRuntimeModuleIds(source) {
+  const match = source.match(
+    /export const COMMERCIAL_RUNTIME_MODULES = new Set<AppModuleId>\(\[([\s\S]*?)\]\)/u,
+  );
+  assert.ok(match, 'moduleRegistry must export COMMERCIAL_RUNTIME_MODULES as a Set literal');
+  return [...match[1].matchAll(/"([^"]+)"/gu)].map((item) => item[1]);
+}
+
 function functionBody(source, functionName) {
   const match = new RegExp(`function\\s+${functionName}\\s*\\(`, 'u').exec(source);
   assert.ok(match, `Expected ${functionName} in source.`);
@@ -277,10 +285,15 @@ assert.match(
   'IM standalone gateway must embed sdkwork-course routes in unified-process mode.',
 );
 
-assert.match(
-  moduleRegistrySource,
-  /COMMERCIAL_RUNTIME_MODULES[\s\S]*"course"/u,
-  'Course must be enabled in commercial runtime modules after SDK wiring.',
+const commercialRuntimeModuleIds = extractCommercialRuntimeModuleIds(moduleRegistrySource);
+assert.ok(
+  !commercialRuntimeModuleIds.includes('course'),
+  'Course SDK wiring may exist in core, but course must stay out of commercial runtime navigation until contracts ship.',
+);
+assert.doesNotMatch(
+  shellLoadersSource,
+  /import\('@sdkwork\/course-pc-course'\)/u,
+  'Shell capability loaders must not register course before commercial runtime promotion.',
 );
 
 assert.match(
@@ -335,12 +348,6 @@ assert.match(
   courseBootstrapSource,
   /bootstrapCoursePcForIm/u,
   'IM app bootstrap must wire sdkwork-course-pc host adapters.',
-);
-
-assert.match(
-  shellLoadersSource,
-  /import\('@sdkwork\/course-pc-course'\)/u,
-  'IM shell must lazy-load the sdkwork-course-pc-course capability package.',
 );
 
 assert.match(

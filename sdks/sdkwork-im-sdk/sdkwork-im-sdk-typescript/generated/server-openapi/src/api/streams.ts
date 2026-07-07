@@ -4,22 +4,8 @@ import type { HttpClient } from '../http/client';
 import type { AppendStreamFrameRequest, OpenStreamRequest, StreamFrameView, StreamView } from '../types';
 
 
-export class StreamsCheckpointApi {
-  private client: HttpClient;
-
-  constructor(client: HttpClient) {
-    this.client = client;
-  }
-
-
-/** Checkpoint a stream */
-  async create(streamId: string): Promise<StreamView> {
-    return this.client.post<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/checkpoint`));
-  }
-}
-
 export interface StreamsFramesListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -34,7 +20,7 @@ export class StreamsFramesApi {
 /** List stream frames */
   async list(streamId: string, params?: StreamsFramesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), query));
@@ -49,18 +35,21 @@ export class StreamsFramesApi {
 export class StreamsApi {
   private client: HttpClient;
   public readonly frames: StreamsFramesApi;
-  public readonly checkpoint: StreamsCheckpointApi;
 
   constructor(client: HttpClient) {
     this.client = client;
     this.frames = new StreamsFramesApi(client);
-    this.checkpoint = new StreamsCheckpointApi(client);
   }
 
 
 /** Open a stream */
   async create(body: OpenStreamRequest): Promise<StreamView> {
     return this.client.post<StreamView>(imApiPath(`/streams`), body, undefined, undefined, 'application/json');
+  }
+
+/** Checkpoint a stream */
+  async checkpoint(streamId: string): Promise<StreamView> {
+    return this.client.post<StreamView>(imApiPath(`/streams/${serializePathParameter(streamId, { name: 'streamId', style: 'simple', explode: false })}/checkpoint`));
   }
 
 /** Complete a stream */

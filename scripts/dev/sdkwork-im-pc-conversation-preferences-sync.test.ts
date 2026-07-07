@@ -20,7 +20,7 @@ const readCursorCalls: Array<{ conversationId: string; body: { readSeq: number; 
 const fakeClient = {
   chat: {
     inbox: {
-      async retrieve() {
+      async list() {
         return {
           items: [
             {

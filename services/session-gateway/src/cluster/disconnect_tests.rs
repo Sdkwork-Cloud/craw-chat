@@ -41,15 +41,15 @@ fn test_mark_client_route_disconnected_recovers_from_poisoned_disconnect_cache_l
     poison_mutex(&cluster.disconnect_fences);
 
     let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        cluster.mark_client_route_disconnected_for_principal_kind(
-            "100001",
-                "default",
-                "1",
-            "user",
-            "d_demo",
-            Some("s_demo"),
-            "node_a",
-        )
+        cluster.mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_demo",
+session_id: Some("s_demo"),
+owner_node_id: "node_a",
+})
     }));
     assert!(
         result.is_ok(),

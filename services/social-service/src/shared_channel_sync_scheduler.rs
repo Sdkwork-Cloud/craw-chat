@@ -10,7 +10,8 @@ use tracing::{info, warn};
 use crate::runtime::SocialRuntime;
 use crate::shared_channel_sync_metrics::shared_channel_sync_metrics;
 
-const SCHEDULER_ENABLED_ENV: &str = "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED";
+const SCHEDULER_ENABLED_ENV: &str =
+    "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED";
 const INTERVAL_SECONDS_ENV: &str = "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_INTERVAL_SECONDS";
 const DEFAULT_INTERVAL_SECONDS: u64 = 60;
 const MIN_INTERVAL_SECONDS: u64 = 15;
@@ -52,7 +53,9 @@ pub fn spawn_shared_channel_sync_stale_reclaim_scheduler_from_env(
         );
         return None;
     }
-    Some(spawn_shared_channel_sync_stale_reclaim_scheduler(runtime, config))
+    Some(spawn_shared_channel_sync_stale_reclaim_scheduler(
+        runtime, config,
+    ))
 }
 
 pub fn spawn_shared_channel_sync_stale_reclaim_scheduler(
@@ -95,14 +98,13 @@ pub fn spawn_shared_channel_sync_stale_reclaim_scheduler(
 }
 
 fn scheduler_enabled_from_env() -> bool {
-    match std::env::var(SCHEDULER_ENABLED_ENV)
-        .ok()
-        .map(|value| value.trim().to_ascii_lowercase())
-        .as_deref()
-    {
-        Some("0") | Some("false") | Some("off") | Some("no") => false,
-        _ => true,
-    }
+    !matches!(
+        std::env::var(SCHEDULER_ENABLED_ENV)
+            .ok()
+            .map(|value| value.trim().to_ascii_lowercase())
+            .as_deref(),
+        Some("0") | Some("false") | Some("off") | Some("no")
+    )
 }
 
 fn read_u64_env(name: &str, default: u64, min: u64, max: u64) -> u64 {

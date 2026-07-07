@@ -1,16 +1,18 @@
 use std::sync::Arc;
 
 use audit_service::AuditRuntime;
+use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::Request;
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::Router;
 use im_platform_contracts::{ProviderRegistry, RuntimeProviderRegistry};
 use ops_service::OpsRuntime;
 use sdkwork_im_ccp_registry::CcpRegistry;
-use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes, wrap_im_service_router};
+use sdkwork_im_web_bootstrap::{
+    im_service_router_config, mount_im_infra_routes, wrap_im_service_router,
+};
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 use sdkwork_web_core::WebRequestContext;
 use session_gateway::RealtimeClusterBridge;
@@ -18,16 +20,16 @@ use tokio::sync::Semaphore;
 
 use crate::error::ControlPlaneError;
 use crate::handlers::{
-    activate_node, drain_node, docs, migrate_node_routes, openapi_document,
+    activate_node, docs, drain_node, migrate_node_routes, openapi_document,
     protocol_governance_snapshot, protocol_registry_snapshot, provider_bindings_snapshot,
     provider_policy_diff, provider_policy_history, provider_policy_preview,
     provider_registry_snapshot, rollback_provider_policy, upsert_provider_binding_policy,
 };
 use crate::state::{
-    AppState, GovernanceLoop, PublicAppGuardrails, CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_DEFAULT,
+    AppState, CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_DEFAULT,
     CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_ENV, CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_MAX,
     CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_DEFAULT, CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_ENV,
-    CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_MAX,
+    CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_MAX, GovernanceLoop, PublicAppGuardrails,
 };
 
 pub fn build_app() -> Router {
@@ -264,8 +266,13 @@ async fn enforce_in_flight_gate(
 ) -> Response {
     if matches!(
         request.uri().path(),
-        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json"
-            | "/backend/v3/api/control/openapi.json" | "/docs"
+        "/healthz"
+            | "/readyz"
+            | "/livez"
+            | "/metrics"
+            | "/openapi.json"
+            | "/backend/v3/api/control/openapi.json"
+            | "/docs"
     ) {
         return next.run(request).await;
     }

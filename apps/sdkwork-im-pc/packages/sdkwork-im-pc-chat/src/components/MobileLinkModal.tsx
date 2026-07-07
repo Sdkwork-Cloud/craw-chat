@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Smartphone } from 'lucide-react';
-import { toast } from './Toast';
 
 interface MobileLinkModalProps {
   onClose: () => void;
@@ -39,25 +38,20 @@ export const MobileLinkModal: React.FC<MobileLinkModalProps> = ({ onClose }) => 
             连接移动设备
           </h3>
           <p className="text-sm text-gray-400 mb-8 relative z-10">
-            在手机端打开 Sdkwork IM 扫码登录，即可同步会话与文件。
+            移动端连接需要通过 appbase OAuth device authorization 创建授权会话。
           </p>
 
           <div className="w-48 h-48 bg-white mx-auto rounded-2xl p-3 mb-8 shadow-xl relative z-10">
-            <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=im://login/client_route_sync&color=000000&bgcolor=ffffff"
-              alt="QR Code"
-              className="w-full h-full"
-            />
+            <div className="w-full h-full rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+              <Smartphone size={56} />
+            </div>
           </div>
 
           <button
-            onClick={() => {
-              toast("已发送推送请求到您的默认移动设备", "success");
-              onClose();
-            }}
+            onClick={onClose}
             className="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-colors border border-white/10 relative z-10"
           >
-            发送连接校验指令
+            关闭
           </button>
         </div>
       </motion.div>

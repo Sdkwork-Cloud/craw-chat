@@ -28,11 +28,9 @@ const GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV: &str =
 
 fn ensure_gateway_dev_web_environment() {
     static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
-            std::env::set_var("SDKWORK_ENV", "dev");
-        }
+    INIT.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+        std::env::set_var("SDKWORK_ENV", "dev");
     });
 }
 
@@ -62,13 +60,7 @@ fn test_gateway_config(
 }
 
 fn gateway_test_app_context() -> AppContext {
-    let mut context = local_service_app_context(
-        "100001",
-        "30",
-        "user",
-        Some("device_real"),
-        ["*"],
-    );
+    let mut context = local_service_app_context("100001", "30", "user", Some("device_real"), ["*"]);
     context.session_id = Some("session_real".to_owned());
     context.app_id = Some("sdkwork-im-pc".to_owned());
     context
@@ -882,7 +874,7 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
 
 #[tokio::test]
 async fn gateway_accepts_registry_owned_websocket_query_tokens_when_enabled_and_strips_sensitive_query()
-{
+ {
     let _allow_query_tokens = ScopedEnvVar::set(GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV, "true");
     let appbase_app = Router::new().route(
         "/app/v3/api/auth/sessions/current",

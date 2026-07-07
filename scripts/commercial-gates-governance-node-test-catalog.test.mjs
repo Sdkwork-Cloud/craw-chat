@@ -34,6 +34,8 @@ test('commercial gates governance node test catalog publishes the exact governed
       'scripts/dev/sdkwork-im-iam-application-bootstrap-standard.test.mjs',
       'scripts/dev/sdkwork-im-bootstrap-access-token.test.mjs',
       'scripts/dev/sdkwork-im-rtc-signaling-boundary.test.mjs',
+      'scripts/dev/sdkwork-im-three-capabilities-standard.test.mjs',
+      'scripts/dev/sdkwork-im-portal-alignment-standard.test.mjs',
       'scripts/dev/sdkwork-im-runtime-standard.test.mjs',
       'scripts/dev/sdkwork-im-retention-enforcement-standard.test.mjs',
       'scripts/dev/sdkwork-im-observability-bootstrap-standard.test.mjs',

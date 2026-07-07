@@ -185,6 +185,3 @@ tables:
   - name: im_rtc_participant_credentials
     lifecycle_status: active
     owner: im-platform
-  - name: sdkwork_node_registry
-    lifecycle_status: active
-    owner: im-platform

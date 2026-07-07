@@ -5,21 +5,26 @@ use std::sync::Arc;
 
 use im_adapters_local_disk::FileCommitJournal;
 use im_adapters_local_memory::MemoryCommitJournal;
-use im_adapters_postgres_journal::{PostgresCommitJournal, PostgresJournalConfig, PostgresOutboxStore};
-use im_platform_contracts::OutboxStore;
+use im_adapters_postgres_journal::{
+    PostgresCommitJournal, PostgresJournalConfig, PostgresOutboxStore,
+};
 use im_app_context::resolve_web_environment_from_process_env;
-use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
+use im_platform_contracts::OutboxStore;
+use im_platform_contracts::{
+    CommitEnvelope, CommitJournal, CommitJournalAggregateScope, CommitJournalReplayCursor,
+    CommitJournalReplayPage, ContractError,
+};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_runtime_id::build_runtime_id_generator_blocking;
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
 
-use im_adapters_social_postgres::SocialPostgresConfig;
 use crate::projection_bridge::{
     replay_social_journal_to_postgres_read_model, replay_social_journal_to_projection,
     try_apply_social_commits_to_projection,
 };
 use crate::runtime::{SocialRuntime, SocialStateStore};
+use im_adapters_social_postgres::SocialPostgresConfig;
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
@@ -33,7 +38,10 @@ pub enum SocialCommitJournal {
 }
 
 impl CommitJournal for SocialCommitJournal {
-    fn append(&self, envelope: CommitEnvelope) -> Result<im_platform_contracts::CommitPosition, ContractError> {
+    fn append(
+        &self,
+        envelope: CommitEnvelope,
+    ) -> Result<im_platform_contracts::CommitPosition, ContractError> {
         let position = match self {
             Self::Memory(journal) => CommitJournal::append(journal, envelope.clone()),
             Self::File(journal) => CommitJournal::append(journal, envelope.clone()),
@@ -61,6 +69,37 @@ impl CommitJournal for SocialCommitJournal {
             Self::Memory(journal) => CommitJournal::recorded(journal),
             Self::File(journal) => CommitJournal::recorded(journal),
             Self::Postgres(journal) => CommitJournal::recorded(journal),
+        }
+    }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+            Self::File(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+            Self::Postgres(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+        }
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
+            Self::File(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
+            Self::Postgres(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
         }
     }
 }
@@ -98,9 +137,9 @@ pub fn build_social_runtime_from_env() -> Result<Arc<SocialRuntime>, String> {
         if let Some(pool) = resolve_social_postgres_pool_from_env() {
             runtime = runtime
                 .with_postgres_materializer(pool.clone())
-                .with_user_directory(crate::user_directory::resolve_social_user_directory_from_pool(
-                    Some(pool),
-                ));
+                .with_user_directory(
+                    crate::user_directory::resolve_social_user_directory_from_pool(Some(pool)),
+                );
         }
         replay_social_journal_to_projection(&runtime);
         if let Some(materializer) = runtime.postgres_materializer() {
@@ -109,10 +148,12 @@ pub fn build_social_runtime_from_env() -> Result<Arc<SocialRuntime>, String> {
         return Ok(Arc::new(runtime));
     }
 
-    if let Ok(runtime_dir) = std::env::var("SDKWORK_IM_RUNTIME_DIR") {
-        if !runtime_dir.trim().is_empty() {
-            return Ok(Arc::new(SocialRuntime::from_runtime_dir(runtime_dir.as_str())));
-        }
+    if let Ok(runtime_dir) = std::env::var("SDKWORK_IM_RUNTIME_DIR")
+        && !runtime_dir.trim().is_empty()
+    {
+        return Ok(Arc::new(SocialRuntime::from_runtime_dir(
+            runtime_dir.as_str(),
+        )));
     }
 
     Ok(Arc::new(SocialRuntime::new_with_journal_authority(
@@ -162,20 +203,20 @@ pub fn resolve_social_commit_journal_with_id_generator(
         return Ok(SocialCommitJournal::Postgres(journal));
     }
 
-    if let Ok(runtime_dir) = std::env::var("SDKWORK_IM_RUNTIME_DIR") {
-        if !runtime_dir.trim().is_empty() {
-            let journal_path = Path::new(runtime_dir.trim())
-                .join("state")
-                .join("social-commit-journal.json");
-            info!(
-                journal_path = %journal_path.display(),
-                "social-runtime using file commit journal"
-            );
-            return Ok(SocialCommitJournal::File(FileCommitJournal::new(
-                SOCIAL_COMMIT_PARTITION,
-                journal_path,
-            )));
-        }
+    if let Ok(runtime_dir) = std::env::var("SDKWORK_IM_RUNTIME_DIR")
+        && !runtime_dir.trim().is_empty()
+    {
+        let journal_path = Path::new(runtime_dir.trim())
+            .join("state")
+            .join("social-commit-journal.json");
+        info!(
+            journal_path = %journal_path.display(),
+            "social-runtime using file commit journal"
+        );
+        return Ok(SocialCommitJournal::File(FileCommitJournal::new(
+            SOCIAL_COMMIT_PARTITION,
+            journal_path,
+        )));
     }
 
     let environment = resolve_web_environment_from_process_env();
@@ -196,19 +237,18 @@ fn resolve_im_database_url_from_env() -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-pub fn resolve_social_postgres_pool_from_env(
-) -> Option<im_adapters_social_postgres::SocialPostgresPool> {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
-            return SocialPostgresConfig::from_database_config(&config)
-                .connect_pool()
-                .ok();
-        }
+pub fn resolve_social_postgres_pool_from_env()
+-> Option<im_adapters_social_postgres::SocialPostgresPool> {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres
+    {
+        return SocialPostgresConfig::from_database_config(&config)
+            .connect_pool()
+            .ok();
     }
 
-    resolve_im_database_url_from_env().and_then(|database_url| {
-        SocialPostgresConfig::new(database_url).connect_pool().ok()
-    })
+    resolve_im_database_url_from_env()
+        .and_then(|database_url| SocialPostgresConfig::new(database_url).connect_pool().ok())
 }
 
 #[cfg(test)]

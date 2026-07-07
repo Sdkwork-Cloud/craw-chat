@@ -17,11 +17,20 @@ const callServiceText = readFileSync(
   './packages/sdkwork-im-pc-chat/src/services/CallService.ts',
   'utf8',
 );
+const realtimeSdkText = readFileSync(
+  '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/realtime.ts',
+  'utf8',
+);
 
 assert.match(
   managerText,
   /sharedConnectionPromise/u,
   'PC realtime manager must dedupe in-flight connect attempts',
+);
+assert.match(
+  realtimeSdkText,
+  /events\.nack/u,
+  'IM SDK realtime client must support events.nack ARQ recovery',
 );
 assert.match(
   managerText,

@@ -1,9 +1,11 @@
 //! Runtime configuration and payload size limit constants for the automation service.
 
-pub(crate) const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_AUTOMATION_MAX_IN_FLIGHT_REQUESTS";
+pub(crate) const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
+    "SDKWORK_IM_AUTOMATION_MAX_IN_FLIGHT_REQUESTS";
 pub(crate) const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 pub(crate) const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
-pub(crate) const AUTOMATION_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_AUTOMATION_MAX_REQUEST_BODY_BYTES";
+pub(crate) const AUTOMATION_MAX_REQUEST_BODY_BYTES_ENV: &str =
+    "SDKWORK_IM_AUTOMATION_MAX_REQUEST_BODY_BYTES";
 pub(crate) const AUTOMATION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 pub(crate) const AUTOMATION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 
@@ -33,6 +35,7 @@ pub(crate) const AUTOMATION_AGENT_TOOL_CALL_MAX_RESULT_PAYLOAD_BYTES: usize = 25
 pub(crate) const AUTOMATION_CAPABILITY_PROFILE_ID: &str = "stable-agent";
 pub(crate) const AUTOMATION_GUARDRAIL_POLICY_ID: &str = "automation-tool-call-guardrail-v1";
 pub(crate) const AUTOMATION_OPERATOR_OVERRIDE_PERMISSION: &str = "automation.operator_override";
-pub(crate) const AUTOMATION_EXECUTION_DELIVERY_PROOF_VERSION: &str = "automation.execution.delivery-proof.v1";
+pub(crate) const AUTOMATION_EXECUTION_DELIVERY_PROOF_VERSION: &str =
+    "automation.execution.delivery-proof.v1";
 pub(crate) const AUTOMATION_ENABLED_CAPABILITIES: [&str; 2] = ["agent.response", "agent.tool_call"];
 pub(crate) const AUTOMATION_RESTRICTED_TOOL_PREFIXES: [&str; 2] = ["ops.", "admin."];

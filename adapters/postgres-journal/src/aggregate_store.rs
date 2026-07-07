@@ -7,7 +7,7 @@ use im_platform_contracts::{
     ConversationMemberRecord, ReadCursorRecord,
 };
 
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool};
+use crate::{PostgresJournalPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 /// PostgreSQL implementation of [`ConversationAggregateStore`].
 #[derive(Clone)]
@@ -66,7 +66,11 @@ select tenant_id, organization_id, conversation_id, member_id, device_id, princi
     read_seq, last_read_message_id, updated_at
 from im_projection_read_cursors
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+order by member_id asc, device_id asc
+limit $4 offset $5
 "#;
+
+const READ_CURSOR_RESTORE_BATCH_SIZE: i64 = 500;
 
 const LOAD_READ_CURSOR_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
@@ -259,13 +263,31 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "load_read_cursors")?;
-            let rows = client
-                .query(
-                    LOAD_READ_CURSORS_SQL,
-                    &[&tenant_id, &organization_id, &conversation_id],
-                )
-                .map_err(|error| postgres_unavailable("load_read_cursors", error))?;
-            Ok(rows.iter().map(row_to_cursor).collect())
+            let mut offset = 0i64;
+            let mut records = Vec::new();
+            loop {
+                let rows = client
+                    .query(
+                        LOAD_READ_CURSORS_SQL,
+                        &[
+                            &tenant_id,
+                            &organization_id,
+                            &conversation_id,
+                            &READ_CURSOR_RESTORE_BATCH_SIZE,
+                            &offset,
+                        ],
+                    )
+                    .map_err(|error| postgres_unavailable("load_read_cursors", error))?;
+                let batch_len = rows.len();
+                for row in rows {
+                    records.push(row_to_cursor(&row));
+                }
+                if batch_len < READ_CURSOR_RESTORE_BATCH_SIZE as usize {
+                    break;
+                }
+                offset = offset.saturating_add(READ_CURSOR_RESTORE_BATCH_SIZE);
+            }
+            Ok(records)
         })
     }
 
@@ -324,7 +346,8 @@ impl ConversationAggregateStore for PostgresAggregateStore {
     ) -> Result<ConversationAggregateState, ContractError> {
         let members = self.load_members(tenant_id, organization_id, conversation_id)?;
         let read_cursors = self.load_read_cursors(tenant_id, organization_id, conversation_id)?;
-        let high_watermark = self.read_high_watermark(tenant_id, organization_id, conversation_id)?;
+        let high_watermark =
+            self.read_high_watermark(tenant_id, organization_id, conversation_id)?;
         Ok(ConversationAggregateState {
             tenant_id: tenant_id.to_owned(),
             organization_id: organization_id.to_owned(),

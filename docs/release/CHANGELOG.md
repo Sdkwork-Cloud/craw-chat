@@ -1,5 +1,39 @@
 # CHANGELOG
 
+## v0.1.0 - 2026-07-07
+
+- Loop `87`
+- step `commercial-readiness / SDKWork standards alignment`
+- PC chat startup now consumes the generated IM SDK `chat.inbox.list` method for inbox loading.
+- Playwright IM fixtures now use SDKWork v3 envelopes:
+  - list responses return `code: 0`, `data.items`, `data.pageInfo`, and `traceId`;
+  - message create responses return HTTP `201` with `data.item`;
+  - legacy `requestId`, string `code`, and bare list bodies were removed from the touched fixtures.
+- Portal dashboard access now requires `portal.read`, so fallback AppContext without permissions does not satisfy authenticated snapshot access.
+- Dashboard `dataAvailability` remains `false` for default runtimes without real ops evidence; no fake metrics were introduced.
+- `@sdkwork/im-sdk` now declares package-local `typescript` tooling through the workspace catalog, so package `typecheck` runs without global `tsc`.
+- fresh verification:
+  - `pnpm.cmd --dir apps\sdkwork-im-pc run lint` = `passed`
+  - `pnpm.cmd --dir apps\sdkwork-im-pc run build` = `passed`
+  - `node scripts\dev\sdkwork-im-pc-playwright-e2e.test.mjs` = `4 passed`
+  - `cargo test -p portal-service --test http_smoke_test -- --nocapture` = `4 passed`
+  - `cargo fmt -p portal-service -p sdkwork-routes-im-portal-app-api` = `passed`
+  - `node ..\sdkwork-specs\tools\check-api-response-envelope.mjs --workspace .` = `passed`
+  - `node ..\sdkwork-specs\tools\check-api-operation-patterns.mjs --workspace .` = `passed`
+  - `node ..\sdkwork-specs\tools\check-pagination.mjs --workspace .` = `passed`
+  - `node ..\sdkwork-specs\tools\check-app-sdk-consumer-imports.mjs --workspace .` = `passed`
+  - `node sdks\sdkwork-im-sdk\bin\verify-sdk.mjs` = `passed`
+  - `pnpm.cmd --dir sdks\sdkwork-im-sdk\sdkwork-im-sdk-typescript run typecheck` = `passed`
+  - `pnpm.cmd run check:commercial-readiness` = blocked at app release evidence assessment after implementation gates
+- remaining blockers:
+  - four enabled direct distribution packages in `sdkwork.app.config.json` still lack SHA-256 checksum, signature, SBOM, and provenance or attestation evidence
+  - three catalog media assets still have `metadata.generatedPlaceholder=true`
+  - `cargo fmt --all` is blocked by a sibling workspace reference to missing `E:\sdkwork-course\crates\sdkwork-course-gateway-assembly\Cargo.toml`; package-level fmt for touched crates passed
+  - several ad-hoc `scripts/dev/*.test.ts` service contract scripts are blocked by the current PC `tsx` runner plus React `.d.ts` path mapping; direct removal of that mapping breaks PC lint through duplicate React types and missing JSX runtime resolution in sibling packages
+- closure:
+  - current app is still not commercially releasable
+  - do not replace missing release artifacts or media evidence with placeholder values or documentation-only claims
+
 ## v0.0.86 - 2026-04-12
 
 - Loop `86`

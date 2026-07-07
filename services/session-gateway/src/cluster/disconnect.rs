@@ -21,6 +21,17 @@ pub(super) struct RealtimeDisconnectFence {
     fence_token: String,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ClientRouteDisconnectCommand<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub principal_id: &'a str,
+    pub principal_kind: &'a str,
+    pub device_id: &'a str,
+    pub session_id: Option<&'a str>,
+    pub owner_node_id: &'a str,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct ClusterMemoryDisconnectFenceStore {
     fences: Arc<Mutex<HashMap<String, RealtimeDisconnectFenceRecord>>>,
@@ -186,58 +197,38 @@ impl ClusterMemoryDisconnectFenceStore {
 impl RealtimeClusterBridge {
     pub fn mark_client_route_disconnected_for_principal_kind(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
-        session_id: Option<&str>,
-        owner_node_id: &str,
+        command: ClientRouteDisconnectCommand<'_>,
     ) -> Result<(), RealtimeClusterError> {
-        self.mark_client_route_disconnected_internal(
-            tenant_id,
-            organization_id,
-            principal_id,
-            principal_kind,
-            device_id,
-            session_id,
-            owner_node_id,
-        )
+        self.mark_client_route_disconnected_internal(command)
     }
 
     fn mark_client_route_disconnected_internal(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
-        session_id: Option<&str>,
-        owner_node_id: &str,
+        command: ClientRouteDisconnectCommand<'_>,
     ) -> Result<(), RealtimeClusterError> {
         let scope_key = client_route_scope_key(
-            tenant_id,
-            organization_id,
-            principal_id,
-            principal_kind,
-            device_id,
+            command.tenant_id,
+            command.organization_id,
+            command.principal_id,
+            command.principal_kind,
+            command.device_id,
         );
         let disconnected_at = cluster_timestamp();
         let fence = RealtimeDisconnectFence {
-            tenant_id: tenant_id.into(),
-            organization_id: organization_id.into(),
-            principal_id: principal_id.into(),
-            principal_kind: principal_kind.into(),
-            device_id: device_id.into(),
-            session_id: session_id.map(str::to_owned),
-            owner_node_id: owner_node_id.into(),
+            tenant_id: command.tenant_id.into(),
+            organization_id: command.organization_id.into(),
+            principal_id: command.principal_id.into(),
+            principal_kind: command.principal_kind.into(),
+            device_id: command.device_id.into(),
+            session_id: command.session_id.map(str::to_owned),
+            owner_node_id: command.owner_node_id.into(),
             fence_token: disconnect_fence_token(
-                tenant_id,
-                principal_id,
-                principal_kind,
-                device_id,
-                session_id,
-                owner_node_id,
+                command.tenant_id,
+                command.principal_id,
+                command.principal_kind,
+                command.device_id,
+                command.session_id,
+                command.owner_node_id,
                 disconnected_at.as_str(),
             ),
             disconnected_at,
@@ -245,7 +236,11 @@ impl RealtimeClusterBridge {
         self.disconnect_fence_store
             .save_fence(fence.to_record())
             .map_err(|error| {
-                self.disconnect_fence_store_error("persist disconnect fence", owner_node_id, error)
+                self.disconnect_fence_store_error(
+                    "persist disconnect fence",
+                    command.owner_node_id,
+                    error,
+                )
             })?;
         self.disconnect_fences
             .lock_cluster_disconnect_fence_cache()
@@ -656,13 +651,15 @@ mod tests {
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             cluster.mark_client_route_disconnected_for_principal_kind(
-                "100001",
-                "default",
-                "1",
-                "user",
-                "d_demo",
-                Some("s_demo"),
-                "node_a",
+                ClientRouteDisconnectCommand {
+                    tenant_id: "100001",
+                    organization_id: "default",
+                    principal_id: "1",
+                    principal_kind: "user",
+                    device_id: "d_demo",
+                    session_id: Some("s_demo"),
+                    owner_node_id: "node_a",
+                },
             )
         }));
         assert!(

@@ -106,13 +106,9 @@ impl PostgresRtcStateConfig {
         let pg_config = self
             .database_url
             .parse::<r2d2_postgres::postgres::Config>()
-            .map_err(|err| {
-                RtcContractError::Unavailable(format!("invalid database_url: {err}"))
-            })?;
+            .map_err(|err| RtcContractError::Unavailable(format!("invalid database_url: {err}")))?;
         let tls = make_tls_connector().map_err(|err| {
-            RtcContractError::Unavailable(format!(
-                "postgres rtc TLS connector build failed: {err}"
-            ))
+            RtcContractError::Unavailable(format!("postgres rtc TLS connector build failed: {err}"))
         })?;
         let manager = PostgresConnectionManager::new(pg_config, tls);
         Pool::builder()
@@ -170,13 +166,15 @@ impl StateStore for PostgresRtcStateStore {
             let mut client = pool
                 .get()
                 .map_err(|err| RtcContractError::Unavailable(format!("pool get failed: {err}")))?;
-            let row = client.query_opt(
-                "SELECT payload_json::text FROM im_rtc_sessions
+            let row = client
+                .query_opt(
+                    "SELECT payload_json::text FROM im_rtc_sessions
                  WHERE tenant_id = $1 AND rtc_session_id = $2",
-                &[&tenant_id, &rtc_session_id],
-            ).map_err(|err| {
-                RtcContractError::Unavailable(format!("load_state query failed: {err}"))
-            })?;
+                    &[&tenant_id, &rtc_session_id],
+                )
+                .map_err(|err| {
+                    RtcContractError::Unavailable(format!("load_state query failed: {err}"))
+                })?;
             match row {
                 Some(row) => {
                     let payload: String = row.get(0);
@@ -267,8 +265,9 @@ impl StateStore for PostgresRtcStateStore {
             let retention_until = resolve_rtc_session_retention_until(&record);
 
             // UPSERT with full structured column update.
-            let affected = tx.execute(
-                "INSERT INTO im_rtc_sessions (
+            let affected = tx
+                .execute(
+                    "INSERT INTO im_rtc_sessions (
                     tenant_id, rtc_session_id, conversation_id, rtc_mode,
                     initiator_principal_kind, initiator_principal_id,
                     provider_plugin_id, provider_session_id, provider_region,
@@ -334,25 +333,43 @@ impl StateStore for PostgresRtcStateStore {
                     (EXCLUDED.payload_json::jsonb -> 'session' ->> 'epoch')::bigint,
                     0
                  )",
-                &[
-                    &tenant_id, &rtc_session_id, &conversation_id, &rtc_mode,
-                    &initiator_kind, &initiator_id,
-                    &provider_plugin_id, &provider_session_id, &provider_region,
-                    &access_endpoint, &session_state, &latest_signal_seq,
-                    &signaling_stream_id, &artifact_message_id,
-                    &started_at, &ended_at,
-                    &initiating_at, &ringing_at, &connecting_at, &connected_at,
-                    &on_hold_since, &reconnecting_since,
-                    &canceled_at, &failed_at, &timeout_at,
-                    &ended_reason, &failure_reason,
-                    &payload_json, &payload_hash,
-                    &retention_until,
-                    &updated_at,
-                ],
-            )
-            .map_err(|err| {
-                RtcContractError::Unavailable(format!("save_state upsert failed: {err}"))
-            })?;
+                    &[
+                        &tenant_id,
+                        &rtc_session_id,
+                        &conversation_id,
+                        &rtc_mode,
+                        &initiator_kind,
+                        &initiator_id,
+                        &provider_plugin_id,
+                        &provider_session_id,
+                        &provider_region,
+                        &access_endpoint,
+                        &session_state,
+                        &latest_signal_seq,
+                        &signaling_stream_id,
+                        &artifact_message_id,
+                        &started_at,
+                        &ended_at,
+                        &initiating_at,
+                        &ringing_at,
+                        &connecting_at,
+                        &connected_at,
+                        &on_hold_since,
+                        &reconnecting_since,
+                        &canceled_at,
+                        &failed_at,
+                        &timeout_at,
+                        &ended_reason,
+                        &failure_reason,
+                        &payload_json,
+                        &payload_hash,
+                        &retention_until,
+                        &updated_at,
+                    ],
+                )
+                .map_err(|err| {
+                    RtcContractError::Unavailable(format!("save_state upsert failed: {err}"))
+                })?;
             if affected == 0 {
                 return Err(RtcContractError::Conflict(
                     "concurrent rtc session save rejected by epoch fencing".into(),
@@ -367,24 +384,22 @@ impl StateStore for PostgresRtcStateStore {
         })
     }
 
-    fn clear_state(
-        &self,
-        tenant_id: &str,
-        rtc_session_id: &str,
-    ) -> Result<bool, RtcContractError> {
+    fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, RtcContractError> {
         let tenant_id = tenant_id.to_string();
         let rtc_session_id = rtc_session_id.to_string();
         self.run_blocking(move |pool| {
             let mut client = pool
                 .get()
                 .map_err(|err| RtcContractError::Unavailable(format!("pool get failed: {err}")))?;
-            let affected = client.execute(
-                "DELETE FROM im_rtc_sessions
+            let affected = client
+                .execute(
+                    "DELETE FROM im_rtc_sessions
                  WHERE tenant_id = $1 AND rtc_session_id = $2",
-                &[&tenant_id, &rtc_session_id],
-            ).map_err(|err| {
-                RtcContractError::Unavailable(format!("clear_state delete failed: {err}"))
-            })?;
+                    &[&tenant_id, &rtc_session_id],
+                )
+                .map_err(|err| {
+                    RtcContractError::Unavailable(format!("clear_state delete failed: {err}"))
+                })?;
             Ok(affected > 0)
         })
     }
@@ -452,7 +467,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }
@@ -476,8 +494,7 @@ fn resolve_rtc_session_retention_until(record: &RtcStateRecord) -> Option<String
     if !record.session.state.is_terminal() {
         return None;
     }
-    let anchor = terminal_retention_anchor(&record.session)
-        .unwrap_or(record.updated_at.as_str());
+    let anchor = terminal_retention_anchor(&record.session).unwrap_or(record.updated_at.as_str());
     retention_until_from_class("ephemeral", anchor)
 }
 

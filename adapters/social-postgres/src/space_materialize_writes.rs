@@ -11,7 +11,7 @@ use im_platform_contracts::CommitEnvelope;
 use crate::governance_store::SpaceMemberRecord;
 use crate::organization_store::{GroupMemberRecord, GroupRecord, SpaceRecord};
 use crate::wire_id::social_entity_id_to_i64;
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, SocialPostgresPool};
+use crate::{SocialPostgresPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 const SPACE_INSERT_SQL: &str = r#"
 INSERT INTO im_spaces (tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at, updated_at)
@@ -169,9 +169,8 @@ pub fn materialize_space_commits_in_transaction(
             .transaction()
             .map_err(|error| postgres_unavailable("materialize_space_commits_batch", error))?;
         for commit in &commits {
-            materialize_space_commit_on(&mut txn, commit).map_err(|message| {
-                im_platform_contracts::ContractError::Unavailable(message)
-            })?;
+            materialize_space_commit_on(&mut txn, commit)
+                .map_err(im_platform_contracts::ContractError::Unavailable)?;
         }
         txn.commit()
             .map_err(|error| postgres_unavailable("materialize_space_commits_batch", error))?;
@@ -236,7 +235,12 @@ fn materialize_space_updated(
     let payload: SpaceUpdatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid space.updated payload: {error}"))?;
     let space_id = social_entity_id_to_i64(payload.space_id.as_str());
-    let existing = load_space(txn, commit.tenant_id.as_str(), commit.organization_id.as_str(), space_id)?;
+    let existing = load_space(
+        txn,
+        commit.tenant_id.as_str(),
+        commit.organization_id.as_str(),
+        space_id,
+    )?;
     txn.execute(
         SPACE_UPDATE_SQL,
         &[
@@ -403,7 +407,12 @@ fn materialize_group_updated(
     let payload: GroupUpdatedPayload = serde_json::from_str(commit.payload.as_str())
         .map_err(|error| format!("invalid group.updated payload: {error}"))?;
     let group_id = social_entity_id_to_i64(payload.group_id.as_str());
-    let _existing = load_group(txn, commit.tenant_id.as_str(), commit.organization_id.as_str(), group_id)?;
+    let _existing = load_group(
+        txn,
+        commit.tenant_id.as_str(),
+        commit.organization_id.as_str(),
+        group_id,
+    )?;
     txn.execute(
         GROUP_UPDATE_SQL,
         &[
@@ -578,7 +587,10 @@ fn load_space(
     space_id: i64,
 ) -> Result<SpaceRecord, String> {
     let row = txn
-        .query_opt(SPACE_GET_BY_ID_SQL, &[&tenant_id, &organization_id, &space_id])
+        .query_opt(
+            SPACE_GET_BY_ID_SQL,
+            &[&tenant_id, &organization_id, &space_id],
+        )
         .map_err(|error| format!("space load failed: {error}"))?
         .ok_or_else(|| format!("space {space_id} not found"))?;
     Ok(SpaceRecord {
@@ -630,7 +642,10 @@ fn load_group(
     group_id: i64,
 ) -> Result<GroupRecord, String> {
     let row = txn
-        .query_opt(GROUP_GET_BY_ID_SQL, &[&tenant_id, &organization_id, &group_id])
+        .query_opt(
+            GROUP_GET_BY_ID_SQL,
+            &[&tenant_id, &organization_id, &group_id],
+        )
         .map_err(|error| format!("group load failed: {error}"))?
         .ok_or_else(|| format!("group {group_id} not found"))?;
     Ok(GroupRecord {
@@ -701,11 +716,7 @@ fn insert_space_member_within_capacity(
     let capacity_row = txn
         .query_opt(
             SPACE_MEMBER_RESERVE_CAPACITY_SQL,
-            &[
-                &record.tenant_id,
-                &record.organization_id,
-                &record.space_id,
-            ],
+            &[&record.tenant_id, &record.organization_id, &record.space_id],
         )
         .map_err(|error| format!("space member capacity check failed: {error}"))?;
     let Some(capacity_row) = capacity_row else {
@@ -756,11 +767,7 @@ fn insert_group_member_within_capacity(
     let capacity_row = txn
         .query_opt(
             GROUP_MEMBER_RESERVE_CAPACITY_SQL,
-            &[
-                &record.tenant_id,
-                &record.organization_id,
-                &record.group_id,
-            ],
+            &[&record.tenant_id, &record.organization_id, &record.group_id],
         )
         .map_err(|error| format!("group member capacity check failed: {error}"))?;
     let Some(capacity_row) = capacity_row else {

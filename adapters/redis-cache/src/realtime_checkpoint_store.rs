@@ -1,16 +1,17 @@
 //! Redis-backed [`RealtimeCheckpointStore`] implementation.
 //!
-//! Key pattern: `realtime:checkpoint:{tenant_id}:{principal_kind}:{principal_id}:{device_id}`
+//! Key pattern: `realtime:checkpoint:{length-prefixed tenant/org/principal/device scope}`
 //! Type: HASH (each checkpoint field is a hash field)
 //! TTL: 86400 seconds (24h)
 
-use redis::Commands;
 use sdkwork_im_contract_control::RealtimeCheckpointRecord;
 use sdkwork_im_contract_core::ContractError;
 
-use crate::redis_unavailable;
+use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
+use crate::redis_key::encode_redis_key_segments;
 
 const REALTIME_CHECKPOINT_TTL_SECONDS: u64 = 86400;
+const REALTIME_CHECKPOINT_KEY_PREFIX: &str = "realtime:checkpoint:";
 
 fn checkpoint_key(
     tenant_id: &str,
@@ -20,7 +21,14 @@ fn checkpoint_key(
     device_id: &str,
 ) -> String {
     format!(
-        "realtime:checkpoint:{tenant_id}:{organization_id}:{principal_kind}:{principal_id}:{device_id}"
+        "{REALTIME_CHECKPOINT_KEY_PREFIX}{}",
+        encode_redis_key_segments([
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        ])
     )
 }
 
@@ -28,17 +36,15 @@ fn checkpoint_key(
 #[derive(Clone)]
 pub struct RedisRealtimeCheckpointStore {
     client: redis::Client,
+    timeouts: RedisBlockingTimeouts,
 }
 
 impl RedisRealtimeCheckpointStore {
     pub fn new(client: redis::Client) -> Self {
-        Self { client }
-    }
-
-    fn connection(&self) -> Result<redis::Connection, ContractError> {
-        self.client
-            .get_connection()
-            .map_err(|e| redis_unavailable("connect", e))
+        Self {
+            client,
+            timeouts: RedisBlockingTimeouts::from_env(),
+        }
     }
 }
 
@@ -51,11 +57,24 @@ impl sdkwork_im_contract_control::RealtimeCheckpointStore for RedisRealtimeCheck
         principal_id: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
-        let key = checkpoint_key(tenant_id, organization_id, principal_kind, principal_id, device_id);
-        let mut conn = self.connection()?;
-        let fields: Vec<String> = conn
-            .hgetall(&key)
-            .map_err(|e| redis_unavailable("load_checkpoint", e))?;
+        let key = checkpoint_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            device_id,
+        );
+        let fields: Vec<String> = run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "load_checkpoint",
+            move |mut connection| async move {
+                redis::cmd("HGETALL")
+                    .arg(key)
+                    .query_async(&mut connection)
+                    .await
+            },
+        )?;
         if fields.is_empty() {
             return Ok(None);
         }
@@ -74,56 +93,62 @@ impl sdkwork_im_contract_control::RealtimeCheckpointStore for RedisRealtimeCheck
         &self,
         records: Vec<RealtimeCheckpointRecord>,
     ) -> Result<(), ContractError> {
-        let mut conn = self.connection()?;
-        for record in records {
-            let key = checkpoint_key(
-                record.tenant_id.as_str(),
-                record.organization_id.as_str(),
-                record.principal_kind.as_str(),
-                record.principal_id.as_str(),
-                record.device_id.as_str(),
-            );
-            let fields: &[(&str, String)] = &[
-                ("tenant_id", record.tenant_id.clone()),
-                ("organization_id", record.organization_id.clone()),
-                ("principal_kind", record.principal_kind.clone()),
-                ("principal_id", record.principal_id.clone()),
-                ("device_id", record.device_id.clone()),
-                (
-                    "latest_realtime_seq",
-                    record.latest_realtime_seq.to_string(),
-                ),
-                ("acked_through_seq", record.acked_through_seq.to_string()),
-                (
-                    "trimmed_through_seq",
-                    record.trimmed_through_seq.to_string(),
-                ),
-                (
-                    "capacity_trimmed_event_count",
-                    record.capacity_trimmed_event_count.to_string(),
-                ),
-                (
-                    "capacity_trimmed_through_seq",
-                    record.capacity_trimmed_through_seq.to_string(),
-                ),
-                (
-                    "last_capacity_trimmed_at",
-                    record.last_capacity_trimmed_at.clone().unwrap_or_default(),
-                ),
-                ("updated_at", record.updated_at.clone()),
-            ];
-            redis::cmd("HSET")
-                .arg(&key)
-                .arg(fields)
-                .query::<()>(&mut conn)
-                .map_err(|e| redis_unavailable("save_checkpoint", e))?;
-            redis::cmd("EXPIRE")
-                .arg(&key)
-                .arg(REALTIME_CHECKPOINT_TTL_SECONDS)
-                .query::<()>(&mut conn)
-                .map_err(|e| redis_unavailable("save_checkpoint_ttl", e))?;
-        }
-        Ok(())
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "save_checkpoint",
+            move |mut connection| async move {
+                for record in records {
+                    let key = checkpoint_key(
+                        record.tenant_id.as_str(),
+                        record.organization_id.as_str(),
+                        record.principal_kind.as_str(),
+                        record.principal_id.as_str(),
+                        record.device_id.as_str(),
+                    );
+                    let fields: &[(&str, String)] = &[
+                        ("tenant_id", record.tenant_id.clone()),
+                        ("organization_id", record.organization_id.clone()),
+                        ("principal_kind", record.principal_kind.clone()),
+                        ("principal_id", record.principal_id.clone()),
+                        ("device_id", record.device_id.clone()),
+                        (
+                            "latest_realtime_seq",
+                            record.latest_realtime_seq.to_string(),
+                        ),
+                        ("acked_through_seq", record.acked_through_seq.to_string()),
+                        (
+                            "trimmed_through_seq",
+                            record.trimmed_through_seq.to_string(),
+                        ),
+                        (
+                            "capacity_trimmed_event_count",
+                            record.capacity_trimmed_event_count.to_string(),
+                        ),
+                        (
+                            "capacity_trimmed_through_seq",
+                            record.capacity_trimmed_through_seq.to_string(),
+                        ),
+                        (
+                            "last_capacity_trimmed_at",
+                            record.last_capacity_trimmed_at.clone().unwrap_or_default(),
+                        ),
+                        ("updated_at", record.updated_at.clone()),
+                    ];
+                    redis::cmd("HSET")
+                        .arg(&key)
+                        .arg(fields)
+                        .query_async::<()>(&mut connection)
+                        .await?;
+                    redis::cmd("EXPIRE")
+                        .arg(&key)
+                        .arg(REALTIME_CHECKPOINT_TTL_SECONDS)
+                        .query_async::<()>(&mut connection)
+                        .await?;
+                }
+                Ok(())
+            },
+        )
     }
 }
 
@@ -174,7 +199,7 @@ mod tests {
     #[test]
     fn test_checkpoint_key_is_segment_safe() {
         let k1 = checkpoint_key("tenant:a", "default", "user", "b", "d1");
-        let k2 = checkpoint_key("tenant", "default", "user", "a:b", "d1");
+        let k2 = checkpoint_key("tenant", "a:default", "user", "b", "d1");
         assert_ne!(k1, k2, "segment-safe keys must not collide");
     }
 

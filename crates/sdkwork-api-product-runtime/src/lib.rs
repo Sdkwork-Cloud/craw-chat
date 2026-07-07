@@ -14,6 +14,7 @@ use sdkwork_api_config::{StandaloneConfig, StandaloneConfigLoader};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Component, Path as StdPath, PathBuf},
+    sync::{Arc, OnceLock},
 };
 use tokio::{fs, net::TcpListener, sync::oneshot};
 use url::{Host, Url};
@@ -21,6 +22,8 @@ use url::{Host, Url};
 mod admin_sandbox;
 
 use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
+use im_portal_snapshots::{build_portal_snapshot_for_section, build_portal_workspace_view};
+use ops_service::OpsRuntime;
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
@@ -372,14 +375,35 @@ async fn get_portal_snapshot(Path(section): Path<String>) -> Response {
         return json_error_response(StatusCode::NOT_FOUND, "Portal snapshot route not found.");
     }
 
-    json_response(StatusCode::OK, portal_snapshot_json(section))
+    let ops = portal_ops_runtime();
+    let snapshot = build_portal_snapshot_for_section(section, ops, None, None)
+        .unwrap_or_else(|| serde_json::json!({ "section": section, "dataAvailability": false }));
+    json_response(StatusCode::OK, portal_envelope_json(snapshot))
 }
 
 async fn get_portal_workspace() -> Response {
+    let workspace = build_portal_workspace_view();
     json_response(
         StatusCode::OK,
-        r#"{"name":"Sdkwork IM Local","slug":"sdkwork-im-local","tier":"local","region":"local","supportPlan":"local","seats":1,"activeBrands":1,"uptime":"local"}"#,
+        portal_envelope_json(
+            serde_json::to_value(workspace).unwrap_or_else(|_| serde_json::json!({})),
+        ),
     )
+}
+
+fn portal_ops_runtime() -> Arc<OpsRuntime> {
+    static OPS: OnceLock<Arc<OpsRuntime>> = OnceLock::new();
+    OPS.get_or_init(|| Arc::new(OpsRuntime::default())).clone()
+}
+
+fn portal_envelope_json(item: serde_json::Value) -> String {
+    let trace_id = format!("{:032x}", random::<u128>());
+    serde_json::json!({
+        "code": 0,
+        "data": { "item": item },
+        "traceId": trace_id,
+    })
+    .to_string()
 }
 
 async fn redirect_admin_root() -> Redirect {
@@ -788,39 +812,6 @@ async fn proxy_pc_product_api_request(
             format!("PC product API proxy request failed: {error}").as_str(),
         ),
     }
-}
-
-fn portal_snapshot_json(section: &str) -> String {
-    let modules = LOCAL_APP_MODULES
-        .iter()
-        .map(|module| format!("\"{}\"", escape_json_string(module)))
-        .collect::<Vec<_>>()
-        .join(",");
-    let section = escape_json_string(section);
-    format!(
-        concat!(
-            "{{",
-            "\"section\":\"{section}\",",
-            "\"enabledModules\":[{modules}],",
-            "\"sidebarModules\":[{modules}],",
-            "\"modules\":{{\"items\":[{modules}]}},",
-            "\"organizationDirectory\":{{",
-            "\"departments\":[",
-            "{{\"id\":\"dept-root\",\"name\":\"Sdkwork IM\",\"parentId\":null,\"order\":0}},",
-            "{{\"id\":\"dept-product\",\"name\":\"Product\",\"parentId\":\"dept-root\",\"order\":10}},",
-            "{{\"id\":\"dept-support\",\"name\":\"Support\",\"parentId\":\"dept-root\",\"order\":20}}",
-            "]",
-            "}},",
-            "\"features\":{{",
-            "\"chat\":true,",
-            "\"contacts\":true,",
-            "\"workspace\":true",
-            "}}",
-            "}}"
-        ),
-        section = section,
-        modules = modules,
-    )
 }
 
 fn json_response(status: StatusCode, body: impl Into<String>) -> Response {
@@ -1408,20 +1399,29 @@ mod tests {
             Some(JSON_CONTENT_TYPE),
         );
         let value = parse_json_response(response, "portal home snapshot").await;
+        assert_eq!(value.get("code").and_then(|value| value.as_i64()), Some(0));
         assert!(
-            value["enabledModules"]
+            value
+                .get("traceId")
+                .and_then(|value| value.as_str())
+                .is_some(),
+            "portal home snapshot must include SdkWorkApiResponse traceId"
+        );
+        let item = value
+            .get("data")
+            .and_then(|data| data.get("item"))
+            .expect("portal home snapshot should use SdkWorkApiResponse data.item");
+        assert!(
+            item["enabledModules"]
                 .as_array()
                 .expect("portal home should include enabledModules")
                 .contains(&serde_json::json!("chat")),
             "portal home snapshot must expose modules consumable by SettingsService"
         );
         assert!(
-            value["organizationDirectory"]["departments"]
-                .as_array()
-                .expect("portal home should include legacy department records")
-                .iter()
-                .any(|department| department["id"] == "dept-root"),
-            "portal home snapshot may keep legacy department hints, but the organization directory is served by IAM endpoints"
+            item.get("organizationDirectory")
+                .is_none_or(serde_json::Value::is_null),
+            "portal home snapshot must not embed legacy organization directory data; IAM directory endpoints own that surface"
         );
     }
 
@@ -1565,8 +1565,10 @@ mod tests {
         let dev_portal = repo_root.join(".runtime").join("dev-sites").join("portal");
         fs::create_dir_all(&dev_admin).expect("dev admin dir should be creatable");
         fs::create_dir_all(&dev_portal).expect("dev portal dir should be creatable");
-        fs::write(dev_admin.join("index.html"), "<!doctype html>").expect("dev admin index should be writable");
-        fs::write(dev_portal.join("index.html"), "<!doctype html>").expect("dev portal index should be writable");
+        fs::write(dev_admin.join("index.html"), "<!doctype html>")
+            .expect("dev admin index should be writable");
+        fs::write(dev_portal.join("index.html"), "<!doctype html>")
+            .expect("dev portal index should be writable");
 
         unsafe {
             std::env::remove_var("SDKWORK_IM_ADMIN_SITE_DIR");

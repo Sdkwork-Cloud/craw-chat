@@ -228,26 +228,18 @@ impl ConversationMessageLog {
 
     pub fn pinned_message_ids_page(&self, offset: usize, limit: usize) -> (Vec<String>, bool) {
         let limit = limit.max(1);
-        let mut window = if !self.pinned_message_ids_by_seq.is_empty() {
-            self.pinned_message_ids_by_seq
-                .values()
-                .skip(offset)
-                .take(limit + 1)
-                .cloned()
-                .collect::<Vec<_>>()
-        } else {
-            self.message_ids_by_seq
-                .values()
-                .filter_map(|message_id| {
-                    self.messages
-                        .get(message_id.as_str())
-                        .filter(|stored| stored.pin.is_some())
-                        .map(|_| message_id.clone())
-                })
-                .skip(offset)
-                .take(limit + 1)
-                .collect::<Vec<_>>()
-        };
+        let mut skipped = 0usize;
+        let mut window = Vec::with_capacity(limit.saturating_add(1));
+        for message_id in self.pinned_message_ids_by_seq.values() {
+            if skipped < offset {
+                skipped += 1;
+                continue;
+            }
+            window.push(message_id.clone());
+            if window.len() > limit {
+                break;
+            }
+        }
         let has_more = window.len() > limit;
         if has_more {
             window.truncate(limit);
@@ -726,4 +718,72 @@ fn compact_summary_text(value: &str) -> Option<String> {
     }
 
     Some(normalized)
+}
+
+#[cfg(test)]
+mod pinned_message_page_tests {
+    use std::collections::BTreeMap;
+
+    use super::*;
+
+    fn demo_sender() -> Sender {
+        Sender {
+            id: "u1".into(),
+            kind: "user".into(),
+            member_id: Some("cm_u1".into()),
+            device_id: None,
+            session_id: None,
+            metadata: BTreeMap::new(),
+        }
+    }
+
+    fn demo_pinned_message(seq: u64, message_id: &str) -> Message {
+        Message {
+            tenant_id: "100001".into(),
+            conversation_id: "c_pins".into(),
+            message_id: message_id.into(),
+            message_seq: seq,
+            sender: demo_sender(),
+            message_type: MessageType::Standard,
+            delivery_mode: "discrete".into(),
+            client_msg_id: Some(format!("client_{seq}")),
+            stream_session_id: None,
+            rtc_session_id: None,
+            body: MessageBody {
+                summary: Some("pinned".into()),
+                parts: vec![ContentPart::text("pinned")],
+                render_hints: BTreeMap::new(),
+                reply_to: None,
+            },
+            attributes: BTreeMap::new(),
+            metadata: BTreeMap::new(),
+            occurred_at: format!("2026-04-07T12:00:{seq:02}.000Z"),
+            committed_at: Some(format!("2026-04-07T12:00:{seq:02}.000Z")),
+        }
+    }
+
+    #[test]
+    fn pinned_message_ids_page_uses_maintained_index_without_full_scan() {
+        let mut log = ConversationMessageLog::default();
+        for (seq, message_id) in [(1_u64, "msg_1"), (2, "msg_2"), (3, "msg_3")] {
+            let message = demo_pinned_message(seq, message_id);
+            log.store_posted(message.clone());
+            log.apply_pinned(&MessagePinned {
+                tenant_id: message.tenant_id.clone(),
+                conversation_id: message.conversation_id.clone(),
+                message_id: message.message_id.clone(),
+                message_seq: message.message_seq,
+                pinned_by: message.sender.clone(),
+                pinned_at: format!("2026-04-07T12:00:{seq:02}.000Z"),
+            });
+        }
+
+        let (first_page, has_more) = log.pinned_message_ids_page(0, 2);
+        assert!(has_more);
+        assert_eq!(first_page, vec!["msg_1".to_string(), "msg_2".to_string()]);
+
+        let (second_page, has_more) = log.pinned_message_ids_page(2, 2);
+        assert!(!has_more);
+        assert_eq!(second_page, vec!["msg_3".to_string()]);
+    }
 }

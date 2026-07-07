@@ -13,7 +13,7 @@ use sdkwork_drive_workspace_service::infrastructure::outbox_dispatch::ensure_dom
 use sdkwork_drive_workspace_service::infrastructure::sql::connect_any_database_and_install_schema;
 use sdkwork_iam_embedded_application_bootstrap::ensure_tenant_application_from_app_root_with_env_and_fallback;
 use sdkwork_knowledgebase_gateway_assembly::{
-    resolve_database_url, validate_process_config, KnowledgebaseRuntime,
+    KnowledgebaseRuntime, resolve_database_url, validate_process_config,
 };
 
 pub struct EmbeddedDependencyRoutes {
@@ -83,24 +83,28 @@ static EMBEDDED_ACCOUNT_HOST: OnceLock<Arc<sdkwork_account_service_host::Account
     OnceLock::new();
 static EMBEDDED_CATALOG_HOST: OnceLock<Arc<sdkwork_catalog_service_host::CatalogServiceHost>> =
     OnceLock::new();
-static EMBEDDED_INVENTORY_HOST: OnceLock<Arc<sdkwork_inventory_service_host::InventoryServiceHost>> =
-    OnceLock::new();
+static EMBEDDED_INVENTORY_HOST: OnceLock<
+    Arc<sdkwork_inventory_service_host::InventoryServiceHost>,
+> = OnceLock::new();
 static EMBEDDED_INVOICE_HOST: OnceLock<Arc<sdkwork_invoice_service_host::InvoiceServiceHost>> =
     OnceLock::new();
-static EMBEDDED_MEMBERSHIP_HOST:
-    OnceLock<Arc<sdkwork_membership_service_host::MembershipServiceHost>> = OnceLock::new();
+static EMBEDDED_MEMBERSHIP_HOST: OnceLock<
+    Arc<sdkwork_membership_service_host::MembershipServiceHost>,
+> = OnceLock::new();
 static EMBEDDED_MERCHANDISE_HOST: OnceLock<Arc<sdkwork_merchandise_service_host::ShopServiceHost>> =
     OnceLock::new();
 static EMBEDDED_ORDER_HOST: OnceLock<Arc<sdkwork_order_service_host::OrderServiceHost>> =
     OnceLock::new();
 static EMBEDDED_PAYMENT_HOST: OnceLock<Arc<sdkwork_payment_service_host::PaymentServiceHost>> =
     OnceLock::new();
-static EMBEDDED_PROMOTION_HOST: OnceLock<Arc<sdkwork_promotion_service_host::PromotionServiceHost>> =
-    OnceLock::new();
+static EMBEDDED_PROMOTION_HOST: OnceLock<
+    Arc<sdkwork_promotion_service_host::PromotionServiceHost>,
+> = OnceLock::new();
 static EMBEDDED_SHOP_HOST: OnceLock<Arc<sdkwork_shop_service_host::ShopServiceHost>> =
     OnceLock::new();
 
-async fn embedded_account_service_host() -> Result<Arc<sdkwork_account_service_host::AccountServiceHost>, String> {
+async fn embedded_account_service_host()
+-> Result<Arc<sdkwork_account_service_host::AccountServiceHost>, String> {
     if let Some(host) = EMBEDDED_ACCOUNT_HOST.get() {
         return Ok(host.clone());
     }
@@ -113,7 +117,8 @@ async fn embedded_account_service_host() -> Result<Arc<sdkwork_account_service_h
     Ok(host)
 }
 
-async fn embedded_catalog_service_host() -> Result<Arc<sdkwork_catalog_service_host::CatalogServiceHost>, String> {
+async fn embedded_catalog_service_host()
+-> Result<Arc<sdkwork_catalog_service_host::CatalogServiceHost>, String> {
     if let Some(host) = EMBEDDED_CATALOG_HOST.get() {
         return Ok(host.clone());
     }
@@ -126,8 +131,8 @@ async fn embedded_catalog_service_host() -> Result<Arc<sdkwork_catalog_service_h
     Ok(host)
 }
 
-async fn embedded_inventory_service_host(
-) -> Result<Arc<sdkwork_inventory_service_host::InventoryServiceHost>, String> {
+async fn embedded_inventory_service_host()
+-> Result<Arc<sdkwork_inventory_service_host::InventoryServiceHost>, String> {
     if let Some(host) = EMBEDDED_INVENTORY_HOST.get() {
         return Ok(host.clone());
     }
@@ -140,7 +145,8 @@ async fn embedded_inventory_service_host(
     Ok(host)
 }
 
-async fn embedded_invoice_service_host() -> Result<Arc<sdkwork_invoice_service_host::InvoiceServiceHost>, String> {
+async fn embedded_invoice_service_host()
+-> Result<Arc<sdkwork_invoice_service_host::InvoiceServiceHost>, String> {
     if let Some(host) = EMBEDDED_INVOICE_HOST.get() {
         return Ok(host.clone());
     }
@@ -153,8 +159,8 @@ async fn embedded_invoice_service_host() -> Result<Arc<sdkwork_invoice_service_h
     Ok(host)
 }
 
-async fn embedded_membership_service_host(
-) -> Result<Arc<sdkwork_membership_service_host::MembershipServiceHost>, String> {
+async fn embedded_membership_service_host()
+-> Result<Arc<sdkwork_membership_service_host::MembershipServiceHost>, String> {
     if let Some(host) = EMBEDDED_MEMBERSHIP_HOST.get() {
         return Ok(host.clone());
     }
@@ -167,8 +173,8 @@ async fn embedded_membership_service_host(
     Ok(host)
 }
 
-async fn embedded_merchandise_service_host(
-) -> Result<Arc<sdkwork_merchandise_service_host::ShopServiceHost>, String> {
+async fn embedded_merchandise_service_host()
+-> Result<Arc<sdkwork_merchandise_service_host::ShopServiceHost>, String> {
     if let Some(host) = EMBEDDED_MERCHANDISE_HOST.get() {
         return Ok(host.clone());
     }
@@ -181,7 +187,8 @@ async fn embedded_merchandise_service_host(
     Ok(host)
 }
 
-async fn embedded_order_service_host() -> Result<Arc<sdkwork_order_service_host::OrderServiceHost>, String> {
+async fn embedded_order_service_host()
+-> Result<Arc<sdkwork_order_service_host::OrderServiceHost>, String> {
     if let Some(host) = EMBEDDED_ORDER_HOST.get() {
         return Ok(host.clone());
     }
@@ -194,8 +201,8 @@ async fn embedded_order_service_host() -> Result<Arc<sdkwork_order_service_host:
     Ok(host)
 }
 
-async fn embedded_payment_service_host(
-) -> Result<Arc<sdkwork_payment_service_host::PaymentServiceHost>, String> {
+async fn embedded_payment_service_host()
+-> Result<Arc<sdkwork_payment_service_host::PaymentServiceHost>, String> {
     if let Some(host) = EMBEDDED_PAYMENT_HOST.get() {
         return Ok(host.clone());
     }
@@ -209,8 +216,8 @@ async fn embedded_payment_service_host(
     Ok(host)
 }
 
-async fn embedded_promotion_service_host(
-) -> Result<Arc<sdkwork_promotion_service_host::PromotionServiceHost>, String> {
+async fn embedded_promotion_service_host()
+-> Result<Arc<sdkwork_promotion_service_host::PromotionServiceHost>, String> {
     if let Some(host) = EMBEDDED_PROMOTION_HOST.get() {
         return Ok(host.clone());
     }
@@ -223,7 +230,8 @@ async fn embedded_promotion_service_host(
     Ok(host)
 }
 
-async fn embedded_shop_service_host() -> Result<Arc<sdkwork_shop_service_host::ShopServiceHost>, String> {
+async fn embedded_shop_service_host()
+-> Result<Arc<sdkwork_shop_service_host::ShopServiceHost>, String> {
     if let Some(host) = EMBEDDED_SHOP_HOST.get() {
         return Ok(host.clone());
     }
@@ -263,6 +271,9 @@ pub fn apply_embedded_dependency_env() {
     // Avoid overlapping `/app/v3/api/recharges/*` routes: sdkwork-order owns the surface, while
     // sdkwork-payment only provides a deprecated proxy implementation.
     set_env_var("SDKWORK_PAYMENT_DISABLE_RECHARGE_PROXY", "true");
+    // Avoid overlapping `GET /app/v3/api/orders/{orderId}/payments`: sdkwork-order owns the
+    // list handler (`payments.orderPayments.list`); payment uses federated mount options.
+    set_env_var("SDKWORK_PAYMENT_FEDERATED_COMMERCE", "true");
     set_env_var(
         "SDKWORK_NOTARY_APP_ROOT",
         resolve_notary_app_root().to_string_lossy().as_ref(),
@@ -279,7 +290,8 @@ pub fn apply_embedded_dependency_env() {
 /// unified-process standalone gateways that mount sibling platform APIs in-process.
 pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
     sync_embedded_dependency_database("drive", sync_drive_embedded_database).await?;
-    sync_embedded_dependency_database("knowledgebase", sync_knowledgebase_embedded_database).await?;
+    sync_embedded_dependency_database("knowledgebase", sync_knowledgebase_embedded_database)
+        .await?;
     sync_optional_embedded_dependency_database("web_store", sync_webstore_embedded_database).await;
     sync_embedded_dependency_database("mail", sync_mail_embedded_database).await?;
     sync_embedded_dependency_database("notary", sync_notary_embedded_database).await?;
@@ -289,10 +301,8 @@ pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
     Ok(())
 }
 
-async fn sync_optional_embedded_dependency_database<F, Fut>(
-    dependency: &'static str,
-    bootstrap: F,
-) where
+async fn sync_optional_embedded_dependency_database<F, Fut>(dependency: &'static str, bootstrap: F)
+where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<(), String>>,
 {
@@ -337,7 +347,9 @@ where
         }
         Err(error) => {
             if embedded_dependency_database_env_is_configured(dependency) {
-                Err(format!("{dependency} database lifecycle sync failed: {error}"))
+                Err(format!(
+                    "{dependency} database lifecycle sync failed: {error}"
+                ))
             } else {
                 tracing::info!(
                     target: "sdkwork.im",
@@ -522,8 +534,10 @@ async fn sync_agents_embedded_database() -> Result<(), String> {
     ensure_embedded_dependency_app_root("SDKWORK_AGENTS", "sdkwork-agents");
     tokio::task::spawn_blocking(|| {
         use sdkwork_intelligence_agents_service::SyncPostgresAdapter;
-        let adapter = SyncPostgresAdapter::connect_from_agents_managed_store_env()
-            .map_err(|error| format!("connect agents managed store postgres adapter failed: {error}"))?;
+        let adapter =
+            SyncPostgresAdapter::connect_from_agents_managed_store_env().map_err(|error| {
+                format!("connect agents managed store postgres adapter failed: {error}")
+            })?;
         adapter
             .apply_managed_store_schema()
             .map_err(|error| format!("apply agents managed store postgres schema failed: {error}"))
@@ -550,9 +564,11 @@ fn embedded_dependency_database_env_is_configured(dependency: &str) -> bool {
         "payment" => database_env_is_configured("SDKWORK_PAYMENT"),
         "promotion" => database_env_is_configured("SDKWORK_PROMOTION"),
         "shop" => database_env_is_configured("SDKWORK_SHOP"),
-        "agents" => agents_database_env_is_configured("SDKWORK_AGENTS")
-            || agents_database_env_is_configured("SDKWORK_AGENTS_STORE")
-            || agents_database_env_is_configured("SDKWORK_AGENT_SERVER"),
+        "agents" => {
+            agents_database_env_is_configured("SDKWORK_AGENTS")
+                || agents_database_env_is_configured("SDKWORK_AGENTS_STORE")
+                || agents_database_env_is_configured("SDKWORK_AGENT_SERVER")
+        }
         _ => false,
     }
 }
@@ -611,7 +627,11 @@ fn normalize_embedded_dependency_database_urls() {
     for module in COMMERCE_T1_MODULES {
         normalize_postgres_database_env(module.env_prefix);
     }
-    for prefix in ["SDKWORK_AGENTS", "SDKWORK_AGENTS_STORE", "SDKWORK_AGENT_SERVER"] {
+    for prefix in [
+        "SDKWORK_AGENTS",
+        "SDKWORK_AGENTS_STORE",
+        "SDKWORK_AGENT_SERVER",
+    ] {
         normalize_postgres_database_env(prefix);
     }
 }
@@ -626,7 +646,8 @@ fn normalize_postgres_database_env(prefix: &str) {
         return;
     }
     let normalized_scheme = trimmed.to_ascii_lowercase();
-    if !normalized_scheme.starts_with("postgres://") && !normalized_scheme.starts_with("postgresql://")
+    if !normalized_scheme.starts_with("postgres://")
+        && !normalized_scheme.starts_with("postgresql://")
     {
         return;
     }
@@ -640,8 +661,14 @@ fn normalize_postgres_database_env(prefix: &str) {
 pub async fn bootstrap_embedded_dependency_routes() -> EmbeddedDependencyRoutes {
     let mut router = Router::new();
     router = merge_embedded_dependency(router, "drive", bootstrap_embedded_drive_routes).await;
-    router = merge_embedded_dependency(router, "knowledgebase", bootstrap_embedded_knowledgebase_routes).await;
-    router = merge_embedded_dependency(router, "commerce", bootstrap_embedded_commerce_routes).await;
+    router = merge_embedded_dependency(
+        router,
+        "knowledgebase",
+        bootstrap_embedded_knowledgebase_routes,
+    )
+    .await;
+    router =
+        merge_embedded_dependency(router, "commerce", bootstrap_embedded_commerce_routes).await;
     router = merge_embedded_dependency(router, "mail", bootstrap_embedded_mail_routes).await;
     router = merge_embedded_dependency(router, "notary", bootstrap_embedded_notary_routes).await;
     router = merge_embedded_dependency(router, "course", bootstrap_embedded_course_routes).await;
@@ -729,15 +756,17 @@ async fn bootstrap_embedded_agents_routes() -> Result<Router, String> {
     Ok(sdkwork_routes_agents_app_api::build_served_router(state).await)
 }
 
-fn build_embedded_agents_http_state(
-) -> Result<sdkwork_intelligence_agents_service::AgentHttpState, String> {
+fn build_embedded_agents_http_state()
+-> Result<sdkwork_intelligence_agents_service::AgentHttpState, String> {
     use sdkwork_intelligence_agents_service::{
-        AgentBusinessIdGenerator, AgentHttpState, IamGatedPolicyProvider, PostgresAgentAuditSink,
-        PostgresAgentRepository, SyncPostgresAdapter, AUDIT_SINK_NODE_ID,
+        AUDIT_SINK_NODE_ID, AgentBusinessIdGenerator, AgentHttpState, IamGatedPolicyProvider,
+        PostgresAgentAuditSink, PostgresAgentRepository, SyncPostgresAdapter,
     };
 
-    let repository_adapter = SyncPostgresAdapter::connect_from_agents_managed_store_env()
-        .map_err(|error| format!("connect agents managed store postgres adapter failed: {error}"))?;
+    let repository_adapter =
+        SyncPostgresAdapter::connect_from_agents_managed_store_env().map_err(|error| {
+            format!("connect agents managed store postgres adapter failed: {error}")
+        })?;
     repository_adapter
         .apply_managed_store_schema()
         .map_err(|error| format!("apply agents managed store postgres schema failed: {error}"))?;
@@ -745,7 +774,9 @@ fn build_embedded_agents_http_state(
     let audit_adapter = {
         let audit_pool = repository_adapter.pool().clone();
         let audit_id_generator = AgentBusinessIdGenerator::with_node_id(AUDIT_SINK_NODE_ID)
-            .map_err(|error| format!("build agents audit sink snowflake id generator failed: {error}"))?;
+            .map_err(|error| {
+                format!("build agents audit sink snowflake id generator failed: {error}")
+            })?;
         SyncPostgresAdapter::with_pool_and_id_generator(audit_pool, audit_id_generator)
     };
 
@@ -765,12 +796,9 @@ async fn bootstrap_embedded_commerce_routes() -> Result<Router, String> {
     router = merge_embedded_dependency(router, "invoice", bootstrap_embedded_invoice_routes).await;
     router =
         merge_embedded_dependency(router, "membership", bootstrap_embedded_membership_routes).await;
-    router = merge_embedded_dependency(
-        router,
-        "merchandise",
-        bootstrap_embedded_merchandise_routes,
-    )
-    .await;
+    router =
+        merge_embedded_dependency(router, "merchandise", bootstrap_embedded_merchandise_routes)
+            .await;
     router = merge_embedded_dependency(router, "order", bootstrap_embedded_order_routes).await;
     router = merge_embedded_dependency(router, "payment", bootstrap_embedded_payment_routes).await;
     router =
@@ -871,14 +899,12 @@ async fn bootstrap_embedded_shop_routes() -> Result<Router, String> {
 }
 
 async fn bootstrap_embedded_notary_routes() -> Result<Router, String> {
-    let assembly =
-        sdkwork_notary_gateway_assembly::assemble_application_business_router().await?;
+    let assembly = sdkwork_notary_gateway_assembly::assemble_application_business_router().await?;
     Ok(assembly.router)
 }
 
 async fn bootstrap_embedded_course_routes() -> Result<Router, String> {
-    let assembly =
-        sdkwork_course_gateway_assembly::assemble_application_business_router().await?;
+    let assembly = sdkwork_course_gateway_assembly::assemble_application_business_router().await?;
     Ok(assembly.router)
 }
 
@@ -887,9 +913,16 @@ fn apply_notary_database_env_from_im_shared_profile() -> Result<(), String> {
         return Ok(());
     }
 
-    let url = sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_NOTARY")
-        .map_err(|error| format!("resolve notary database URL from IM shared profile failed: {error}"))?;
-    bridge_database_env_from_im_shared_profile("SDKWORK_NOTARY", url.as_str(), Some("notary.sqlite"))
+    let url =
+        sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_NOTARY")
+            .map_err(|error| {
+                format!("resolve notary database URL from IM shared profile failed: {error}")
+            })?;
+    bridge_database_env_from_im_shared_profile(
+        "SDKWORK_NOTARY",
+        url.as_str(),
+        Some("notary.sqlite"),
+    )
 }
 
 fn apply_iam_database_env_from_im_shared_profile() {
@@ -921,18 +954,17 @@ fn apply_web_store_database_env_from_im_shared_profile() {
         sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_WEB_STORE")
     {
         let normalized = url.to_ascii_lowercase();
-        let resolved = if normalized.starts_with("postgres://")
-            || normalized.starts_with("postgresql://")
-        {
-            sdkwork_database_config::claw_database::postgres_url_with_search_path(
-                url.as_str(),
-                "SDKWORK_WEB_STORE",
-            )
-        } else if normalized.starts_with("sqlite:") {
-            sibling_sqlite_database_url(url.as_str(), "web-store.sqlite").unwrap_or(url)
-        } else {
-            url
-        };
+        let resolved =
+            if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://") {
+                sdkwork_database_config::claw_database::postgres_url_with_search_path(
+                    url.as_str(),
+                    "SDKWORK_WEB_STORE",
+                )
+            } else if normalized.starts_with("sqlite:") {
+                sibling_sqlite_database_url(url.as_str(), "web-store.sqlite").unwrap_or(url)
+            } else {
+                url
+            };
         set_env_var("SDKWORK_WEB_STORE_DATABASE_URL", resolved.as_str());
     }
 }
@@ -958,7 +990,9 @@ fn apply_drive_database_env_from_im_shared_profile() -> Result<(), String> {
     }
 
     let url = sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_DRIVE")
-        .map_err(|error| format!("resolve drive database URL from IM shared profile failed: {error}"))?;
+        .map_err(|error| {
+            format!("resolve drive database URL from IM shared profile failed: {error}")
+        })?;
     bridge_database_env_from_im_shared_profile("SDKWORK_DRIVE", url.as_str(), Some("drive.sqlite"))
 }
 
@@ -999,7 +1033,11 @@ fn apply_mail_database_env_from_im_shared_profile() {
     if let Ok(url) =
         sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_MAIL")
     {
-        let _ = bridge_database_env_from_im_shared_profile("SDKWORK_MAIL", url.as_str(), Some("mail.sqlite"));
+        let _ = bridge_database_env_from_im_shared_profile(
+            "SDKWORK_MAIL",
+            url.as_str(),
+            Some("mail.sqlite"),
+        );
     }
 }
 
@@ -1010,10 +1048,8 @@ fn bridge_database_env_from_im_shared_profile(
 ) -> Result<(), String> {
     let normalized = url.to_ascii_lowercase();
     if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://") {
-        let url = sdkwork_database_config::claw_database::postgres_url_with_search_path(
-            url,
-            prefix,
-        );
+        let url =
+            sdkwork_database_config::claw_database::postgres_url_with_search_path(url, prefix);
         set_env_var(&format!("{prefix}_DATABASE_URL"), url.as_str());
         return Ok(());
     }
@@ -1089,7 +1125,11 @@ fn apply_agents_runtime_env_from_im_shared_profile() {
 }
 
 fn apply_agents_database_env_from_im_shared_profile() {
-    for prefix in ["SDKWORK_AGENTS", "SDKWORK_AGENTS_STORE", "SDKWORK_AGENT_SERVER"] {
+    for prefix in [
+        "SDKWORK_AGENTS",
+        "SDKWORK_AGENTS_STORE",
+        "SDKWORK_AGENT_SERVER",
+    ] {
         if agents_database_env_is_configured(prefix) {
             continue;
         }
@@ -1143,17 +1183,17 @@ fn apply_course_runtime_env_from_im_shared_profile() {
         sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_COURSE")
     {
         let normalized = url.to_ascii_lowercase();
-        let resolved = if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://")
-        {
-            sdkwork_database_config::claw_database::postgres_url_with_search_path(
-                url.as_str(),
-                "SDKWORK_COURSE",
-            )
-        } else if normalized.starts_with("sqlite:") {
-            sibling_sqlite_database_url(url.as_str(), "course.sqlite").unwrap_or(url)
-        } else {
-            url
-        };
+        let resolved =
+            if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://") {
+                sdkwork_database_config::claw_database::postgres_url_with_search_path(
+                    url.as_str(),
+                    "SDKWORK_COURSE",
+                )
+            } else if normalized.starts_with("sqlite:") {
+                sibling_sqlite_database_url(url.as_str(), "course.sqlite").unwrap_or(url)
+            } else {
+                url
+            };
         set_env_var("SDKWORK_COURSE_DATABASE_URL", resolved.as_str());
     }
     bridge_course_integration_upstream_env(
@@ -1240,21 +1280,21 @@ fn apply_knowledgebase_runtime_env_from_im_shared_profile() {
     if knowledgebase_database_env_is_configured() {
         return;
     }
-    if let Ok(url) =
-        sdkwork_database_config::claw_database::resolve_unified_database_url("SDKWORK_KNOWLEDGEBASE")
-    {
+    if let Ok(url) = sdkwork_database_config::claw_database::resolve_unified_database_url(
+        "SDKWORK_KNOWLEDGEBASE",
+    ) {
         let normalized = url.to_ascii_lowercase();
-        let resolved = if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://")
-        {
-            sdkwork_database_config::claw_database::postgres_url_with_search_path(
-                url.as_str(),
-                "SDKWORK_KNOWLEDGEBASE",
-            )
-        } else if normalized.starts_with("sqlite:") {
-            sibling_sqlite_database_url(url.as_str(), "knowledgebase.db").unwrap_or(url)
-        } else {
-            url
-        };
+        let resolved =
+            if normalized.starts_with("postgres://") || normalized.starts_with("postgresql://") {
+                sdkwork_database_config::claw_database::postgres_url_with_search_path(
+                    url.as_str(),
+                    "SDKWORK_KNOWLEDGEBASE",
+                )
+            } else if normalized.starts_with("sqlite:") {
+                sibling_sqlite_database_url(url.as_str(), "knowledgebase.db").unwrap_or(url)
+            } else {
+                url
+            };
         set_env_var("SDKWORK_KNOWLEDGEBASE_DATABASE_URL", resolved.as_str());
     }
 }
@@ -1366,7 +1406,10 @@ fn normalize_knowledgebase_environment(raw: &str) -> &'static str {
     }
 }
 
-fn sibling_sqlite_database_url(base_sqlite_url: &str, sibling_filename: &str) -> Result<String, String> {
+fn sibling_sqlite_database_url(
+    base_sqlite_url: &str,
+    sibling_filename: &str,
+) -> Result<String, String> {
     let without_prefix = base_sqlite_url
         .trim()
         .strip_prefix("sqlite://")
@@ -1396,8 +1439,8 @@ fn sibling_sqlite_database_url(base_sqlite_url: &str, sibling_filename: &str) ->
 mod tests {
     use super::{
         apply_course_runtime_env_from_im_shared_profile,
-        apply_knowledgebase_runtime_env_from_im_shared_profile, normalize_knowledgebase_environment,
-        sibling_sqlite_database_url,
+        apply_knowledgebase_runtime_env_from_im_shared_profile,
+        normalize_knowledgebase_environment, sibling_sqlite_database_url,
     };
 
     #[test]
@@ -1437,24 +1480,27 @@ mod tests {
     #[test]
     fn normalize_knowledgebase_environment_maps_dev_aliases() {
         assert_eq!(normalize_knowledgebase_environment("dev"), "development");
-        assert_eq!(normalize_knowledgebase_environment("development"), "development");
+        assert_eq!(
+            normalize_knowledgebase_environment("development"),
+            "development"
+        );
     }
 
     #[test]
     fn sibling_sqlite_database_url_uses_data_dir_sibling_file() {
-        let url = sibling_sqlite_database_url("sqlite:///tmp/chat/data/chat.sqlite", "drive.sqlite")
-            .expect("sqlite sibling url should resolve");
+        let url =
+            sibling_sqlite_database_url("sqlite:///tmp/chat/data/chat.sqlite", "drive.sqlite")
+                .expect("sqlite sibling url should resolve");
         assert_eq!(url, "sqlite:///tmp/chat/data/drive.sqlite");
 
-        let commerce = sibling_sqlite_database_url(
-            "sqlite:///tmp/chat/data/chat.sqlite",
-            "commerce.sqlite",
-        )
-        .expect("commerce sqlite sibling url should resolve");
+        let commerce =
+            sibling_sqlite_database_url("sqlite:///tmp/chat/data/chat.sqlite", "commerce.sqlite")
+                .expect("commerce sqlite sibling url should resolve");
         assert_eq!(commerce, "sqlite:///tmp/chat/data/commerce.sqlite");
 
-        let mail = sibling_sqlite_database_url("sqlite:///tmp/chat/data/chat.sqlite", "mail.sqlite")
-            .expect("mail sqlite sibling url should resolve");
+        let mail =
+            sibling_sqlite_database_url("sqlite:///tmp/chat/data/chat.sqlite", "mail.sqlite")
+                .expect("mail sqlite sibling url should resolve");
         assert_eq!(mail, "sqlite:///tmp/chat/data/mail.sqlite");
     }
 }

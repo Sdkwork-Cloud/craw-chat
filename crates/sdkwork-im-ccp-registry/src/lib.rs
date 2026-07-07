@@ -442,7 +442,13 @@ impl CcpRegistry {
             "ccp/1.0",
             ["ccp/mqtt/1", "ccp/tcp/1", "ccp/udp/1", "ccp/quic/1"],
             ["json", "cbor"],
-            ["control", "negotiation", "auth", "session", "device.signature"],
+            [
+                "control",
+                "negotiation",
+                "auth",
+                "session",
+                "device.signature",
+            ],
             std::iter::empty::<&str>(),
         ));
 
@@ -488,10 +494,7 @@ impl CcpRegistry {
                 "runtime readers must consume effective protocol snapshot before cbor/mqtt rollout"
                     .into(),
             disabled_capabilities: ["payload.cbor"].into_iter().map(str::to_owned).collect(),
-            disabled_bindings: ["ccp/mqtt/1"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
+            disabled_bindings: ["ccp/mqtt/1"].into_iter().map(str::to_owned).collect(),
             disabled_codecs: ["cbor"].into_iter().map(str::to_owned).collect(),
         };
         let business_policy_vocabulary = BusinessPolicyVocabulary {

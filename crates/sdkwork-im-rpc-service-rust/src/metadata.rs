@@ -40,7 +40,7 @@ impl RpcMetadata {
 
     pub fn to_header_map(&self) -> MetadataMap {
         let mut headers = MetadataMap::new();
-        
+
         // Helper macro to insert optional metadata values
         macro_rules! insert_if_valid {
             ($field:expr, $key:expr) => {
@@ -51,7 +51,7 @@ impl RpcMetadata {
                 }
             };
         }
-        
+
         insert_if_valid!(&self.authorization, METADATA_AUTHORIZATION);
         insert_if_valid!(&self.access_token, METADATA_ACCESS_TOKEN);
         insert_if_valid!(&self.request_id, METADATA_REQUEST_ID);
@@ -60,7 +60,7 @@ impl RpcMetadata {
         insert_if_valid!(&self.request_hash, METADATA_REQUEST_HASH);
         insert_if_valid!(&self.client_version, METADATA_CLIENT_VERSION);
         insert_if_valid!(&self.service_identity, METADATA_SERVICE_IDENTITY);
-        
+
         headers
     }
 }

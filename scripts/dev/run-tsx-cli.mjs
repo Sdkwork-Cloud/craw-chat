@@ -2,6 +2,8 @@
 
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   ensureLocalNodeModules,
@@ -12,6 +14,63 @@ import {
 const REQUIRED_APP_PACKAGES = [
   'tsx',
 ];
+const RUNTIME_UNSAFE_PATH_ALIASES = [
+  'react',
+  'react/jsx-runtime',
+  'react-dom',
+  'react-router-dom',
+];
+
+function hasExplicitTsconfig(args) {
+  return args.some((arg) => arg === '--tsconfig' || arg.startsWith('--tsconfig='));
+}
+
+function materializeRuntimeTsconfig({ appRoot, tsconfigPath = path.join(appRoot, 'tsconfig.json') }) {
+  if (!fs.existsSync(tsconfigPath)) {
+    return undefined;
+  }
+
+  const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8'));
+  const paths = tsconfig.compilerOptions?.paths;
+  if (!paths || typeof paths !== 'object') {
+    return undefined;
+  }
+
+  const runtimePaths = { ...paths };
+  let changed = false;
+  for (const alias of RUNTIME_UNSAFE_PATH_ALIASES) {
+    if (Object.hasOwn(runtimePaths, alias)) {
+      delete runtimePaths[alias];
+      changed = true;
+    }
+  }
+
+  if (!changed) {
+    return undefined;
+  }
+
+  const runtimeConfigDir = path.join(appRoot, '.runtime', 'tsx');
+  fs.mkdirSync(runtimeConfigDir, { recursive: true });
+  const runtimeConfigPath = path.join(runtimeConfigDir, 'tsconfig.runtime.json');
+  const extendsPath = path.relative(runtimeConfigDir, tsconfigPath).replaceAll(path.sep, '/');
+  const baseUrl = path.relative(runtimeConfigDir, appRoot).replaceAll(path.sep, '/') || '.';
+  const runtimeConfig = {
+    extends: extendsPath,
+    compilerOptions: {
+      baseUrl,
+      paths: runtimePaths,
+    },
+  };
+  const runtimeConfigTempPath = path.join(
+    runtimeConfigDir,
+    `tsconfig.runtime.${process.pid}.${Date.now()}.json.tmp`,
+  );
+
+  fs.writeFileSync(runtimeConfigTempPath, `${JSON.stringify(runtimeConfig, null, 2)}\n`, 'utf8');
+  fs.renameSync(runtimeConfigTempPath, runtimeConfigPath);
+
+  return runtimeConfigPath;
+}
 
 export function resolveReadableTsxCliPath({
   appRoot,
@@ -37,11 +96,16 @@ ensureLocalNodeModules({
   requiredPackages: REQUIRED_APP_PACKAGES,
 });
 const tsxCliPath = resolveReadableTsxCliPath({ appRoot, donorRoots });
+const tsxArgs = process.argv.slice(2);
+const runtimeTsconfigPath = hasExplicitTsconfig(tsxArgs)
+  ? undefined
+  : materializeRuntimeTsconfig({ appRoot });
 
 process.argv = [
   process.argv[0],
   tsxCliPath,
-  ...process.argv.slice(2),
+  ...(runtimeTsconfigPath ? ['--tsconfig', runtimeTsconfigPath] : []),
+  ...tsxArgs,
 ];
 
 await import(pathToFileURL(tsxCliPath).href);

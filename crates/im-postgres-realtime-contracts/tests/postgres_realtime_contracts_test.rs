@@ -5,9 +5,8 @@ use im_postgres_realtime_contracts::{
     UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
 };
 
-const POSTGRES_CORE_SCHEMA: &str = include_str!(
-    "../../../database/ddl/baseline/postgres/0001_im_baseline.sql"
-);
+const POSTGRES_CORE_SCHEMA: &str =
+    include_str!("../../../database/ddl/baseline/postgres/0001_im_baseline.sql");
 
 #[test]
 fn test_postgres_realtime_contract_crate_exports_complete_executable_contract_set() {
@@ -35,7 +34,8 @@ fn test_postgres_realtime_contract_crate_keeps_runtime_safe_sql_shape() {
     let matching_subscriptions = LOAD_MATCHING_REALTIME_SUBSCRIPTIONS_SQL.to_lowercase();
 
     assert!(
-        checkpoint_upsert.contains("on conflict (tenant_id, organization_id, client_route_scope_key) do update")
+        checkpoint_upsert
+            .contains("on conflict (tenant_id, organization_id, client_route_scope_key) do update")
     );
     assert!(checkpoint_upsert.contains("latest_realtime_seq = greatest("));
     assert!(checkpoint_upsert.contains("capacity_trimmed_through_seq = least("));

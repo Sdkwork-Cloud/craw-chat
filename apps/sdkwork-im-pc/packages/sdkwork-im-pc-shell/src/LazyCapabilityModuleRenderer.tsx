@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 
 import { isShellCapabilityModule, resolveLazyCapabilityModule } from './capabilityModuleLoaders';
+import { isCommercialRuntimeModule } from './moduleRegistry';
 
 export interface LazyCapabilityModuleRendererProps {
   activeTab: string;
@@ -20,7 +21,7 @@ export const LazyCapabilityModuleRenderer: React.FC<LazyCapabilityModuleRenderer
   ),
   renderModule,
 }) => {
-  if (!isShellCapabilityModule(activeTab)) {
+  if (!isShellCapabilityModule(activeTab) || !isCommercialRuntimeModule(activeTab)) {
     return null;
   }
 

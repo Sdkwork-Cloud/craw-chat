@@ -344,6 +344,59 @@ fn test_file_commit_journal_writes_append_only_json_lines() {
 }
 
 #[test]
+fn test_file_commit_journal_recorded_page_streams_bounded_window() {
+    let file_path = unique_commit_journal_file();
+    let journal = FileCommitJournal::new("dev-file-journal", &file_path);
+    for seq in 0..3 {
+        let event_id = format!("evt_page_{seq}");
+        journal
+            .append(CommitEnvelope::minimal(
+                event_id.as_str(),
+                "100001",
+                "message.posted",
+                "conversation",
+                "c_demo",
+                seq,
+            ))
+            .expect("append should succeed");
+    }
+
+    let first_page = journal
+        .recorded_page(None, 2)
+        .expect("first journal page should load");
+    assert_eq!(
+        first_page
+            .items
+            .iter()
+            .map(|event| event.event_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["evt_page_0", "evt_page_1"]
+    );
+    assert_eq!(
+        first_page
+            .next_cursor
+            .as_ref()
+            .map(|cursor| cursor.commit_offset),
+        Some(2)
+    );
+
+    let second_page = journal
+        .recorded_page(first_page.next_cursor.as_ref(), 2)
+        .expect("second journal page should load");
+    assert_eq!(
+        second_page
+            .items
+            .iter()
+            .map(|event| event.event_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["evt_page_2"]
+    );
+    assert!(second_page.next_cursor.is_none());
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
 fn test_file_commit_journal_append_path_does_not_read_full_journal() {
     let source = include_str!("journal.rs");
     let append_impl = source
@@ -1654,7 +1707,7 @@ fn test_file_presence_state_store_lists_stale_online_devices_by_seen_at() {
         store
             .save_state(PresenceStateRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: device_id.into(),
@@ -1706,7 +1759,7 @@ fn test_file_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant() {
         store
             .save_state(PresenceStateRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: device_id.into(),
@@ -1771,13 +1824,15 @@ fn test_file_presence_state_store_conditionally_expires_only_stale_online_state(
 
     let expired = store
         .expire_online_state_if_seen_at_or_before(
-            "100001",
-            "default",
-            "user",
-            "1",
-            "d_pad",
-            "2026-05-06T00:00:01.000Z",
-            "2026-05-06T00:00:02.000Z",
+            im_platform_contracts::ExpireOnlinePresenceStateCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_kind: "user",
+                principal_id: "1",
+                device_id: "d_pad",
+                cutoff_seen_at: "2026-05-06T00:00:01.000Z",
+                expired_at: "2026-05-06T00:00:02.000Z",
+            },
         )
         .expect("conditional expire should succeed")
         .expect("stale online device should expire");
@@ -1787,13 +1842,15 @@ fn test_file_presence_state_store_conditionally_expires_only_stale_online_state(
 
     let replay = store
         .expire_online_state_if_seen_at_or_before(
-            "100001",
-            "default",
-            "user",
-            "1",
-            "d_pad",
-            "2026-05-06T00:00:03.000Z",
-            "2026-05-06T00:00:04.000Z",
+            im_platform_contracts::ExpireOnlinePresenceStateCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_kind: "user",
+                principal_id: "1",
+                device_id: "d_pad",
+                cutoff_seen_at: "2026-05-06T00:00:03.000Z",
+                expired_at: "2026-05-06T00:00:04.000Z",
+            },
         )
         .expect("replayed conditional expire should succeed");
     assert!(replay.is_none());

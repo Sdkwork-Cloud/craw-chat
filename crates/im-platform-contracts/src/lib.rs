@@ -18,20 +18,21 @@ pub use sdkwork_im_contract_agent::{
     AutomationExecutionStore,
 };
 pub use sdkwork_im_contract_control::{
+    ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
+    RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
+    RealtimeEventWindowHighRiskRecord, RealtimeEventWindowRecord, RealtimeEventWindowStore,
+    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
     normalize_realtime_organization_id, realtime_client_route_scope_key,
     realtime_principal_scope_key, realtime_scope_key_parts,
-    PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
-    RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
-    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
-    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
-    RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 pub use sdkwork_im_contract_core::{
     ContractError, LeaseGrant, LeaseStore, MetadataSnapshotRecord, MetadataStore, ObjectDescriptor,
     ObjectPutRequest, ObjectStore,
 };
 pub use sdkwork_im_contract_message::{
-    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionBatch,
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitEnvelope, CommitJournal, CommitJournalAggregateScope,
+    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition, TimelineProjectionBatch,
     TimelineProjectionRecord, TimelineProjectionStore,
 };
 pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
@@ -40,9 +41,7 @@ pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 pub use cluster_bus::ClusterEventBus;
 pub use push_provider::{PushDeliveryResult, PushMessage, PushProvider};
 pub use retention_scope_store::RetentionScopeStore;
-pub use search_provider::{
-    MessageSearchHit, SearchProvider, SearchResult, SearchableMessage,
-};
+pub use search_provider::{MessageSearchHit, SearchProvider, SearchResult, SearchableMessage};
 pub use seq_allocator::ConversationSeqAllocator;
 
 // 新增：消息真值存储契约
@@ -57,7 +56,9 @@ pub use conversation_member_access_gate::{
 pub use id_generator::{IdGenerator, IdGeneratorConfig};
 pub use message_store::{MessageStore, MessageWindow, StoredMessageRecord};
 pub use outbox_store::{OutboxEventRecord, OutboxPublishStatus, OutboxStore};
-pub use realtime_publisher::{RealtimeEventPublisher, RealtimeEventRecipient};
+pub use realtime_publisher::{
+    RealtimeEventPublisher, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
+};
 
 pub use sdkwork_communication_rtc_service::{
     RtcContractError, RtcCreateMediaSessionRequest, RtcMediaSessionMode, RtcParticipantCredential,

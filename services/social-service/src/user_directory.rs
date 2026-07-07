@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use im_adapters_social_postgres::{postgres_pool_client, SocialPostgresPool};
+use im_adapters_social_postgres::{SocialPostgresPool, postgres_pool_client};
 use serde_json::Value;
 
 use crate::friendship::SocialServiceError;
@@ -51,7 +51,7 @@ impl FriendRequestPrivacySettings {
     }
 }
 
-pub trait SocialUserDirectory: Send + Sync {
+pub(crate) trait SocialUserDirectory: Send + Sync {
     fn validate_friend_request_target(
         &self,
         tenant_id: &str,
@@ -61,7 +61,7 @@ pub trait SocialUserDirectory: Send + Sync {
 }
 
 #[derive(Clone, Default)]
-pub struct PermissiveSocialUserDirectory;
+pub(crate) struct PermissiveSocialUserDirectory;
 
 impl SocialUserDirectory for PermissiveSocialUserDirectory {
     fn validate_friend_request_target(
@@ -76,7 +76,7 @@ impl SocialUserDirectory for PermissiveSocialUserDirectory {
 
 /// Fail-closed directory used when Postgres IAM/profile stores are unavailable in production.
 #[derive(Clone, Default)]
-pub struct FailClosedSocialUserDirectory;
+pub(crate) struct FailClosedSocialUserDirectory;
 
 impl SocialUserDirectory for FailClosedSocialUserDirectory {
     fn validate_friend_request_target(
@@ -93,12 +93,12 @@ impl SocialUserDirectory for FailClosedSocialUserDirectory {
 }
 
 #[derive(Clone)]
-pub struct PostgresSocialUserDirectory {
+pub(crate) struct PostgresSocialUserDirectory {
     pool: SocialPostgresPool,
 }
 
 impl PostgresSocialUserDirectory {
-    pub fn new(pool: SocialPostgresPool) -> Self {
+    pub(crate) fn new(pool: SocialPostgresPool) -> Self {
         Self { pool }
     }
 
@@ -112,41 +112,45 @@ impl PostgresSocialUserDirectory {
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();
         let user_id = user_id.to_owned();
-        std::thread::scope(|scope| {
-            scope
-                .spawn(move || {
-                    let mut client = postgres_pool_client(&pool, "friend request target privacy lookup")
-                        .map_err(|error| {
-                            SocialServiceError::dependency_unavailable(
-                                "target_user_privacy_lookup_failed",
-                                format!("target user privacy lookup failed: {error:?}"),
-                            )
-                        })?;
-                    let row = client
-                        .query_opt(
-                            TARGET_PRIVACY_SQL,
-                            &[&tenant_id, &organization_id, &user_id],
-                        )
-                        .map_err(|error| {
-                            SocialServiceError::dependency_unavailable(
-                                "target_user_privacy_lookup_failed",
-                                format!("target user privacy lookup failed: {error}"),
-                            )
-                        })?;
-                    Ok::<FriendRequestPrivacySettings, SocialServiceError>(row
-                        .map(|record| {
-                            let settings: Value = record.get("im_privacy_settings");
-                            FriendRequestPrivacySettings::from_json(&settings)
-                        })
-                        .unwrap_or_default())
-                })
-                .join()
-                .map_err(|_| {
+        let operation = move || {
+            let mut client = postgres_pool_client(&pool, "friend request target privacy lookup")
+                .map_err(|error| {
                     SocialServiceError::dependency_unavailable(
                         "target_user_privacy_lookup_failed",
-                        "target user privacy lookup worker panicked",
+                        format!("target user privacy lookup failed: {error:?}"),
                     )
-                })?
+                })?;
+            let row = client
+                .query_opt(
+                    TARGET_PRIVACY_SQL,
+                    &[&tenant_id, &organization_id, &user_id],
+                )
+                .map_err(|error| {
+                    SocialServiceError::dependency_unavailable(
+                        "target_user_privacy_lookup_failed",
+                        format!("target user privacy lookup failed: {error}"),
+                    )
+                })?;
+            Ok::<FriendRequestPrivacySettings, SocialServiceError>(
+                row.map(|record| {
+                    let settings: Value = record.get("im_privacy_settings");
+                    FriendRequestPrivacySettings::from_json(&settings)
+                })
+                .unwrap_or_default(),
+            )
+        };
+        if let Ok(handle) = tokio::runtime::Handle::try_current()
+            && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+        {
+            return tokio::task::block_in_place(operation);
+        }
+        std::thread::scope(|scope| {
+            scope.spawn(operation).join().map_err(|_| {
+                SocialServiceError::dependency_unavailable(
+                    "target_user_privacy_lookup_failed",
+                    "target user privacy lookup worker panicked",
+                )
+            })?
         })
     }
 }
@@ -161,36 +165,52 @@ impl SocialUserDirectory for PostgresSocialUserDirectory {
         let pool = self.pool.inner().clone();
         let tenant_id_owned = tenant_id.to_owned();
         let target_user_id_owned = target_user_id.to_owned();
-        let exists = std::thread::scope(|scope| {
-            let tenant_id = tenant_id_owned.clone();
-            let target_user_id = target_user_id_owned.clone();
-            scope
-                .spawn(move || {
-                    let mut client = postgres_pool_client(&pool, "friend request target iam lookup")
-                        .map_err(|error| {
-                            SocialServiceError::dependency_unavailable(
-                                "target_user_lookup_failed",
-                                format!("target user lookup failed: {error:?}"),
-                            )
-                        })?;
-                    let row = client
-                        .query_opt(IAM_USER_EXISTS_SQL, &[&tenant_id, &target_user_id])
-                        .map_err(|error| {
-                            SocialServiceError::dependency_unavailable(
-                                "target_user_lookup_failed",
-                                format!("target user lookup failed: {error}"),
-                            )
-                        })?;
-                    Ok::<bool, SocialServiceError>(row.is_some())
+        let closure_tenant_id = tenant_id_owned.clone();
+        let closure_target_user_id = target_user_id_owned.clone();
+        let operation = move || {
+            let mut client = postgres_pool_client(&pool, "friend request target iam lookup")
+                .map_err(|error| {
+                    SocialServiceError::dependency_unavailable(
+                        "target_user_lookup_failed",
+                        format!("target user lookup failed: {error:?}"),
+                    )
+                })?;
+            let row = client
+                .query_opt(
+                    IAM_USER_EXISTS_SQL,
+                    &[&closure_tenant_id, &closure_target_user_id],
+                )
+                .map_err(|error| {
+                    SocialServiceError::dependency_unavailable(
+                        "target_user_lookup_failed",
+                        format!("target user lookup failed: {error}"),
+                    )
+                })?;
+            Ok::<bool, SocialServiceError>(row.is_some())
+        };
+        let exists = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread {
+                tokio::task::block_in_place(operation)
+            } else {
+                std::thread::scope(|scope| {
+                    scope.spawn(operation).join().map_err(|_| {
+                        SocialServiceError::dependency_unavailable(
+                            "target_user_lookup_failed",
+                            "target user lookup worker panicked",
+                        )
+                    })?
                 })
-                .join()
-                .map_err(|_| {
+            }
+        } else {
+            std::thread::scope(|scope| {
+                scope.spawn(operation).join().map_err(|_| {
                     SocialServiceError::dependency_unavailable(
                         "target_user_lookup_failed",
                         "target user lookup worker panicked",
                     )
                 })?
-        })?;
+            })
+        }?;
         if !exists {
             return Err(SocialServiceError::not_found(
                 "friend_request_target_not_found",
@@ -214,17 +234,19 @@ impl SocialUserDirectory for PostgresSocialUserDirectory {
     }
 }
 
-pub fn resolve_social_user_directory_from_pool(
+pub(crate) fn resolve_social_user_directory_from_pool(
     pool: Option<SocialPostgresPool>,
 ) -> Arc<dyn SocialUserDirectory> {
-    pool.map(|pool| Arc::new(PostgresSocialUserDirectory::new(pool)) as Arc<dyn SocialUserDirectory>)
-        .unwrap_or_else(|| {
-            if crate::friend_request_rate_limit::is_production_like_environment() {
-                Arc::new(FailClosedSocialUserDirectory)
-            } else {
-                Arc::new(PermissiveSocialUserDirectory)
-            }
-        })
+    pool.map(|pool| {
+        Arc::new(PostgresSocialUserDirectory::new(pool)) as Arc<dyn SocialUserDirectory>
+    })
+    .unwrap_or_else(|| {
+        if crate::friend_request_rate_limit::is_production_like_environment() {
+            Arc::new(FailClosedSocialUserDirectory)
+        } else {
+            Arc::new(PermissiveSocialUserDirectory)
+        }
+    })
 }
 
 #[cfg(test)]

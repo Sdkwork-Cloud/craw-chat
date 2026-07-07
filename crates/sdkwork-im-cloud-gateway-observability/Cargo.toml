@@ -5,6 +5,6 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-sdkwork-im-api-registry = { path = "../sdkwork-im-api-registry" }
-sdkwork-im-cloud-gateway-config = { path = "../sdkwork-im-cloud-gateway-config" }
+sdkwork-im-api-registry = { workspace = true }
+sdkwork-im-cloud-gateway-config = { workspace = true }
 serde.workspace = true

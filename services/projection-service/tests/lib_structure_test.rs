@@ -395,7 +395,8 @@ fn test_projection_service_timeline_store_uses_sequence_index() {
     let timeline_source = format!("{lib_source}\n{timeline_tier_source}");
 
     assert!(
-        timeline_source.contains("entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>"),
+        timeline_source
+            .contains("entries: Mutex<HashMap<String, BTreeMap<u64, TimelineViewEntry>>>"),
         "projection-service timeline store must be keyed by message_seq so cursor reads can seek instead of scanning a Vec"
     );
     assert!(
@@ -495,13 +496,12 @@ fn test_projection_service_direct_chat_binding_store_uses_conversation_index() {
         "projection-service contact conversation index must include organization_id"
     );
     assert!(
-        contacts_source.contains(
-            "direct_chat_id_by_conversation"
-        ),
+        contacts_source.contains("direct_chat_id_by_conversation"),
         "projection-service direct-chat binding runtime store must index tenant+organization+conversation to directChatId"
     );
     assert!(
-        contacts_source.contains("HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>"),
+        contacts_source
+            .contains("HashMap<ContactConversationIndexKey, ContactDirectChatBindingKey>"),
         "projection-service direct-chat binding runtime store must index tenant+organization+conversation to directChatId"
     );
     assert!(

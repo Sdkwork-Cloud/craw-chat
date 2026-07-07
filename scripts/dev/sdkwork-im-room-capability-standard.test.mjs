@@ -67,7 +67,7 @@ for (const [label, source] of [
 ]) {
   assert.match(source, /\/im\/v3\/api\/chat\/rooms:/, `${label} must declare rooms.create`);
   assert.match(source, /operationId: rooms\.create/, `${label} must declare rooms.create`);
-  assert.match(source, /operationId: rooms\.get/, `${label} must declare rooms.get`);
+  assert.match(source, /operationId: rooms\.retrieve/, `${label} must declare rooms.retrieve`);
   assert.match(source, /operationId: rooms\.enter/, `${label} must declare rooms.enter`);
   assert.match(source, /operationId: rooms\.leave/, `${label} must declare rooms.leave`);
   assert.match(source, /CreateRoomRequest:/, `${label} must declare CreateRoomRequest schema`);

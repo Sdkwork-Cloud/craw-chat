@@ -9,9 +9,10 @@ import { Avatar, MediaViewer, formatMessageTime } from '@sdkwork/im-pc-commons';
 import { cn } from '@sdkwork/im-pc-commons';
 import type { Message, User } from '@sdkwork/im-pc-types';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
-import { Copy, Reply, Forward, CheckSquare, Trash2, X, Check, Play, FileText, LayoutTemplate, Volume2, Video, Phone, Download, Smile, Star, Pencil, RotateCcw } from 'lucide-react';
+import { Copy, Reply, Forward, CheckSquare, Trash2, X, Check, Play, FileText, LayoutTemplate, Volume2, Video, Phone, Download, Smile, Star, Pencil, RotateCcw, Loader2 } from 'lucide-react';
 import { toast } from './Toast';
 import { ForwardModal } from './ForwardModal';
+import { ConfirmModal } from './ConfirmModal';
 import { TextMessageItem, ImageMessageItem, VideoMessageItem, VoiceMessageItem, VideoCallMessageItem, LinkMessageItem, AppletMessageItem, CardMessageItem, FileMessageItem, MusicMessageItem } from './MessageItems';
 
 interface MessageListProps {
@@ -233,6 +234,8 @@ export const MessageList: React.FC<MessageListProps> = ({
   const loadingOlderRef = useRef(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string> | null>(null);
+  const reactionInFlightRef = useRef<Set<string>>(new Set());
 
   const [viewerState, setViewerState] = useState({ isOpen: false, currentIndex: 0 });
   const fallbackMessageIds = React.useMemo(
@@ -422,20 +425,57 @@ export const MessageList: React.FC<MessageListProps> = ({
   };
 
   const handleDelete = async (idsToDelete: Set<string>) => {
-    try {
-      await Promise.all(Array.from(idsToDelete).map((messageId) => chatService.deleteMessage(chatId, messageId)));
-      setMessages(prev => prev.filter(msg => !idsToDelete.has(msg.id)));
+    const results = await Promise.allSettled(
+      Array.from(idsToDelete).map((messageId) => chatService.deleteMessage(chatId, messageId)),
+    );
+    const succeededIds = new Set<string>();
+    let failedCount = 0;
+    results.forEach((result, index) => {
+      const messageId = Array.from(idsToDelete)[index];
+      if (result.status === 'fulfilled') {
+        succeededIds.add(messageId);
+      } else {
+        failedCount += 1;
+      }
+    });
+
+    if (succeededIds.size > 0) {
+      setMessages((previous) => previous.filter((message) => !succeededIds.has(message.id)));
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
+        for (const messageId of succeededIds) {
+          next.delete(messageId);
+        }
+        return next;
+      });
+    }
+
+    if (failedCount === 0) {
       toast(
         idsToDelete.size > 1
-          ? t('chat.messageList.toast.deleteManySuccess', { count: idsToDelete.size })
+          ? t('chat.messageList.toast.deleteManySuccess', { count: succeededIds.size })
           : t('chat.messageList.toast.deleteSuccess'),
         'success',
       );
-      setIsMultiSelect(false);
-      setSelectedIds(new Set());
-    } catch {
-      toast(t('chat.messageList.toast.deleteFailed'), 'error');
+      if (succeededIds.size === idsToDelete.size) {
+        setIsMultiSelect(false);
+        setSelectedIds(new Set());
+      }
+      return;
     }
+
+    if (succeededIds.size > 0) {
+      toast(
+        t('chat.messageList.toast.deletePartial', {
+          succeeded: succeededIds.size,
+          failed: failedCount,
+        }),
+        'error',
+      );
+      return;
+    }
+
+    toast(t('chat.messageList.toast.deleteFailed'), 'error');
   };
 
   const handleRecall = async (messageId: string) => {
@@ -478,8 +518,19 @@ export const MessageList: React.FC<MessageListProps> = ({
       label: t('chat.messageList.contextMenu.copy'),
       icon: <Copy size={14} />,
       onClick: () => {
-        navigator.clipboard.writeText(contextMenu.msg.content);
-        toast(t('chat.messageList.toast.copySuccess'), 'success');
+        void (async () => {
+          const textToCopy = contextMenu.msg.content?.trim() ?? '';
+          if (!textToCopy) {
+            toast(t('chat.messageList.toast.copyEmpty'), 'error');
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(textToCopy);
+            toast(t('chat.messageList.toast.copySuccess'), 'success');
+          } catch {
+            toast(t('chat.messageList.toast.copyFailed'), 'error');
+          }
+        })();
       },
     };
     if (isFallbackMessage) {
@@ -488,6 +539,9 @@ export const MessageList: React.FC<MessageListProps> = ({
     const unknownUser = t('chat.messageList.unknownUser');
     const isOwnMessage = isCurrentUserMessage(contextMenu.msg, currentUser);
     const isRecalled = Boolean(contextMenu.msg.isRecalled);
+    if (isRecalled) {
+      return [copyItem];
+    }
     const isTextMessage = contextMenu.msg.type === 'text';
     const ownMessageItems: ContextMenuItem[] = isOwnMessage && !isRecalled
       ? [
@@ -518,7 +572,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       } },
       { id: 'select', label: t('chat.messageList.contextMenu.multiSelect'), icon: <CheckSquare size={14} />, onClick: () => { setIsMultiSelect(true); setSelectedIds(new Set([contextMenu.msg.id])); } },
       { id: 'div1', label: '', divider: true, onClick: () => {} },
-      { id: 'delete', label: t('chat.messageList.contextMenu.delete'), icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(new Set([contextMenu.msg.id])) },
+      { id: 'delete', label: t('chat.messageList.contextMenu.delete'), icon: <Trash2 size={14} />, danger: true, onClick: () => setPendingDeleteIds(new Set([contextMenu.msg.id])) },
     ];
   };
 
@@ -545,40 +599,76 @@ export const MessageList: React.FC<MessageListProps> = ({
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
-    const msg = messages.find(m => m.id === messageId);
-    if (!msg) return;
-    
+    const inFlightKey = `${messageId}:${emoji}`;
+    if (reactionInFlightRef.current.has(inFlightKey)) {
+      return;
+    }
+    reactionInFlightRef.current.add(inFlightKey);
+
+    const msg = messages.find((message) => message.id === messageId);
+    if (!msg) {
+      reactionInFlightRef.current.delete(inFlightKey);
+      return;
+    }
+
+    const reaction = msg.reactions?.find((entry) => entry.emoji === emoji);
+    const shouldRemove = Boolean(reaction?.hasReacted);
+
+    const applyReactionUpdate = (previousMessages: Message[]) => previousMessages.map((message) => {
+      if (message.id !== messageId) {
+        return message;
+      }
+      const nextReactions = [...(message.reactions ?? [])];
+      const reactionIndex = nextReactions.findIndex((entry) => entry.emoji === emoji);
+      if (shouldRemove) {
+        if (reactionIndex < 0) {
+          return message;
+        }
+        const nextCount = nextReactions[reactionIndex].count - 1;
+        if (nextCount <= 0) {
+          nextReactions.splice(reactionIndex, 1);
+        } else {
+          nextReactions[reactionIndex] = {
+            ...nextReactions[reactionIndex],
+            count: nextCount,
+            hasReacted: false,
+          };
+        }
+      } else if (reactionIndex >= 0) {
+        nextReactions[reactionIndex] = {
+          ...nextReactions[reactionIndex],
+          count: nextReactions[reactionIndex].count + (nextReactions[reactionIndex].hasReacted ? 0 : 1),
+          hasReacted: true,
+        };
+      } else {
+        nextReactions.push({ emoji, count: 1, hasReacted: true });
+      }
+      return { ...message, reactions: nextReactions };
+    });
+
+    const previousMessages = messages;
+    setMessages(applyReactionUpdate);
+
     try {
-      const reaction = msg.reactions?.find(r => r.emoji === emoji);
-      if (reaction && reaction.hasReacted) {
+      if (shouldRemove) {
         await chatService.removeReaction(chatId, messageId, emoji);
       } else {
         await chatService.addReaction(chatId, messageId, emoji);
       }
     } catch {
+      setMessages(previousMessages);
       toast(t('chat.messageList.toast.reactionFailed'), 'error');
-      return;
+    } finally {
+      reactionInFlightRef.current.delete(inFlightKey);
     }
-    
-    // Optimistic update
-    setMessages(prev => prev.map(m => {
-      if (m.id !== messageId) return m;
-      const nextReactions = [...(m.reactions || [])];
-      const rIdx = nextReactions.findIndex(r => r.emoji === emoji);
-      if (rIdx >= 0) {
-        if (nextReactions[rIdx].hasReacted) {
-           nextReactions[rIdx].count--;
-           nextReactions[rIdx].hasReacted = false;
-           if (nextReactions[rIdx].count <= 0) nextReactions.splice(rIdx, 1);
-        } else {
-           nextReactions[rIdx].count++;
-           nextReactions[rIdx].hasReacted = true;
-        }
-      } else {
-        nextReactions.push({ emoji, count: 1, hasReacted: true });
-      }
-      return { ...m, reactions: nextReactions };
-    }));
+  };
+
+  const handleRetrySend = async (message: Message) => {
+    try {
+      await chatService.retryFailedMessage(chatId, message.id);
+    } catch {
+      toast(t('chat.messageList.toast.retryFailed'), 'error');
+    }
   };
 
   const resolveDisplayName = useCallback((participantId: string | undefined, fallback: string) => {
@@ -672,7 +762,30 @@ export const MessageList: React.FC<MessageListProps> = ({
                       {msg.replyTo.content}
                     </div>
                   )}
-                  <div className="relative flex items-center">
+                  <div className="relative flex items-center gap-1.5">
+                    {isMe && msg.sendState === 'pending' && (
+                      <span
+                        className="shrink-0 text-gray-500"
+                        title={t('chat.messageList.sendState.pending')}
+                        aria-label={t('chat.messageList.sendState.pending')}
+                      >
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </span>
+                    )}
+                    {isMe && msg.sendState === 'failed' && (
+                      <button
+                        type="button"
+                        className="shrink-0 text-rose-400 hover:text-rose-300 transition-colors"
+                        title={t('chat.messageList.sendState.retry')}
+                        aria-label={t('chat.messageList.sendState.retry')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleRetrySend(msg);
+                        }}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
                     <div>
                       {msg.isRecalled ? (
                         <span className="text-[13px] text-gray-500 italic select-none">
@@ -744,7 +857,7 @@ export const MessageList: React.FC<MessageListProps> = ({
           </button>
           <button 
             className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50" 
-            onClick={() => handleDelete(selectedIds)}
+            onClick={() => setPendingDeleteIds(new Set(selectedIds))}
             disabled={selectedIds.size === 0}
           >
             <Trash2 size={16} /> {t('chat.messageList.multiSelect.delete')}
@@ -777,6 +890,23 @@ export const MessageList: React.FC<MessageListProps> = ({
         currentIndex={viewerState.currentIndex}
         onIndexChange={(idx) => setViewerState(prev => ({ ...prev, currentIndex: idx }))}
         onClose={() => setViewerState(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(pendingDeleteIds && pendingDeleteIds.size > 0)}
+        title={t('chat.messageList.confirm.deleteTitle')}
+        message={t('chat.messageList.confirm.deleteMessage', {
+          count: pendingDeleteIds?.size ?? 0,
+        })}
+        danger
+        onCancel={() => setPendingDeleteIds(null)}
+        onConfirm={() => {
+          const ids = pendingDeleteIds;
+          setPendingDeleteIds(null);
+          if (ids && ids.size > 0) {
+            void handleDelete(ids);
+          }
+        }}
       />
     </div>
   );

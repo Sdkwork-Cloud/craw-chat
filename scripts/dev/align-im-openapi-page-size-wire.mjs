@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Align OpenAPI list parameters: canonical pageSize (PageSizeQuery) replaces limit wire.
- * Handlers still accept legacy `limit` via SdkWorkCursorListQuery alias.
+ * Verify OpenAPI list parameters use canonical `page_size` HTTP wire name.
+ *
+ * `pageSize` remains valid for JSON bodies, response models, and language-level SDK options.
+ * It is not a valid HTTP query parameter for pre-launch SDKWork APIs.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,41 +12,75 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const targets = [
   'apis/open-api/im/sdkwork-im-im.openapi.yaml',
+  'apis/app-api/communication/sdkwork-im-app-api.openapi.yaml',
+  'apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml',
   'sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml',
+  'sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.sdkgen.yaml',
+  'sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.flutter.sdkgen.yaml',
+  'sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml',
+  'sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.sdkgen.yaml',
+  'sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.flutter.sdkgen.yaml',
+  'sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml',
+  'sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.sdkgen.yaml',
+  'sdks/sdkwork-im-sdk/openapi/im-spaces-paths.fragment.yaml',
 ];
 
-const PAGE_SIZE_PARAM = `    PageSizeQuery:
-      name: pageSize
-      in: query
-      required: false
-      description: Standard list page size per PAGINATION_SPEC.md and API_SPEC.md section 14.1.
-      schema:
-        type: integer
-        format: int32
-        minimum: 1
-        maximum: 200
-        default: 20`;
+let hasError = false;
+
+const forbiddenPageSizeAliases = ['pageSize', 'limit', 'page_no', 'pageNo', 'per_page', 'size'];
+
+function findQueryParameters(yaml) {
+  const matches = [];
+  const lines = yaml.split(/\r?\n/u);
+  for (let index = 0; index < lines.length; index += 1) {
+    const nameMatch = lines[index].match(/^\s*-?\s*name:\s*([A-Za-z0-9_]+)\s*$/u);
+    if (!nameMatch) {
+      continue;
+    }
+    const from = Math.max(0, index - 2);
+    const to = Math.min(lines.length - 1, index + 8);
+    for (let nearbyIndex = from; nearbyIndex <= to; nearbyIndex += 1) {
+      if (/^\s*in:\s*query\s*$/u.test(lines[nearbyIndex])) {
+        matches.push(nameMatch[1]);
+        break;
+      }
+    }
+  }
+  return matches;
+}
 
 for (const relativePath of targets) {
   const filePath = path.join(repoRoot, relativePath);
-  let yaml = fs.readFileSync(filePath, 'utf8');
+  if (!fs.existsSync(filePath)) {
+    continue;
+  }
+  const yaml = fs.readFileSync(filePath, 'utf8');
+  const queryParameters = findQueryParameters(yaml);
 
-  if (!yaml.includes('PageSizeQuery:')) {
-    yaml = yaml.replace(
-      /    LimitQuery:\n      name: limit\n/,
-      `${PAGE_SIZE_PARAM}\n    LimitQuery:\n      name: limit\n      deprecated: true\n      description: Legacy alias for pageSize; use PageSizeQuery instead.\n`,
-    );
+  if (yaml.includes('LimitQuery')) {
+    process.stderr.write(`ERROR: ${relativePath} still contains LimitQuery references\n`);
+    hasError = true;
   }
 
-  yaml = yaml.replaceAll(
-    "- $ref: '#/components/parameters/LimitQuery'",
-    "- $ref: '#/components/parameters/PageSizeQuery'",
-  );
-
-  if (yaml.includes("name: limit\n      in: query\n      required: false\n      schema:")) {
-    throw new Error(`${relativePath} still exposes undocumented limit parameters`);
+  for (const forbiddenName of forbiddenPageSizeAliases) {
+    if (queryParameters.includes(forbiddenName)) {
+      process.stderr.write(`ERROR: ${relativePath} exposes forbidden pagination query parameter ${forbiddenName}\n`);
+      hasError = true;
+    }
   }
 
-  fs.writeFileSync(filePath, yaml, 'utf8');
-  process.stdout.write(`aligned list pageSize wire in ${relativePath}\n`);
+  if (yaml.includes('PageSizeQuery:') && !queryParameters.includes('page_size')) {
+    process.stderr.write(`ERROR: ${relativePath} defines PageSizeQuery without page_size query wire name\n`);
+    hasError = true;
+  }
+
+  if (!yaml.includes('PageSizeQuery:') && relativePath.includes('sdkwork-im-im.')) {
+    process.stderr.write(`WARN: ${relativePath} does not contain PageSizeQuery definition\n`);
+  }
 }
+
+if (hasError) {
+  process.exit(1);
+}
+
+process.stdout.write('All OpenAPI list parameters aligned to page_size wire name\n');

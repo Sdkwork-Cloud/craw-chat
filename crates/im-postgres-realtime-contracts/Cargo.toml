@@ -5,6 +5,6 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-sdkwork-im-contract-control = { path = "../sdkwork-im-contract-control" }
+sdkwork-im-contract-control = { workspace = true }
 im-domain-core = { path = "../im-domain-core" }
 serde_json.workspace = true

@@ -18,33 +18,38 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Create a space
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceView?> CreateAsync(Sdkwork.Im.Sdk.Generated.Models.SpaceCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesCreateResponse201?> CreateAsync(Sdkwork.Im.Sdk.Generated.Models.SpaceCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceView>(ApiPaths.ImPath("/spaces"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesCreateResponse201>(ApiPaths.ImPath("/spaces"), body, null, null, "application/json");
         }
 
         /// <summary>
         /// List spaces
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceListResponse?> ListAsync()
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesListResponse?> ListAsync(int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceListResponse>(ApiPaths.ImPath("/spaces"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath("/spaces"), queryString));
         }
 
         /// <summary>
-        /// Get a space
+        /// Retrieve a space
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceView?> GetAsync(string spaceId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesRetrieveResponse?> RetrieveAsync(string spaceId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}"));
         }
 
         /// <summary>
         /// Update a space
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceView?> UpdateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceUpdateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesUpdateResponse?> UpdateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceUpdateRequest body)
         {
-            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesUpdateResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}"), body, null, null, "application/json");
         }
 
         /// <summary>
@@ -58,33 +63,38 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List spaces members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberListResponse?> MembersListAsync(string spaceId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersListResponse?> MembersListAsync(string spaceId, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members"), queryString));
         }
 
         /// <summary>
         /// Create spaces members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberView?> MembersCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceMemberCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersCreateResponse201?> MembersCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceMemberCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members"), body, null, null, "application/json");
         }
 
         /// <summary>
-        /// Get spaces members
+        /// retrieve spaces members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberView?> MembersGetAsync(string spaceId, string userId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersRetrieveResponse?> MembersRetrieveAsync(string spaceId, string userId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"));
         }
 
         /// <summary>
         /// Update spaces members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberView?> MembersUpdateAsync(string spaceId, string userId, Sdkwork.Im.Sdk.Generated.Models.SpaceMemberUpdateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersUpdateResponse?> MembersUpdateAsync(string spaceId, string userId, Sdkwork.Im.Sdk.Generated.Models.SpaceMemberUpdateRequest body)
         {
-            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceMemberView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesMembersUpdateResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"), body, null, null, "application/json");
         }
 
         /// <summary>
@@ -98,33 +108,38 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List spaces groups
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupListResponse?> GroupsListAsync(string spaceId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsListResponse?> GroupsListAsync(string spaceId, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups"), queryString));
         }
 
         /// <summary>
         /// Create spaces groups
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupView?> GroupsCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsCreateResponse201?> GroupsCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups"), body, null, null, "application/json");
         }
 
         /// <summary>
-        /// Get spaces groups
+        /// retrieve spaces groups
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupView?> GroupsGetAsync(string spaceId, string groupId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsRetrieveResponse?> GroupsRetrieveAsync(string spaceId, string groupId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}"));
         }
 
         /// <summary>
         /// Update spaces groups
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupView?> GroupsUpdateAsync(string spaceId, string groupId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupUpdateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsUpdateResponse?> GroupsUpdateAsync(string spaceId, string groupId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupUpdateRequest body)
         {
-            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsUpdateResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}"), body, null, null, "application/json");
         }
 
         /// <summary>
@@ -138,33 +153,38 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List spaces groups members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberListResponse?> GroupsMembersListAsync(string spaceId, string groupId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersListResponse?> GroupsMembersListAsync(string spaceId, string groupId, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members"), queryString));
         }
 
         /// <summary>
         /// Create spaces groups members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberView?> GroupsMembersCreateAsync(string spaceId, string groupId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersCreateResponse201?> GroupsMembersCreateAsync(string spaceId, string groupId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members"), body, null, null, "application/json");
         }
 
         /// <summary>
-        /// Get spaces groups members
+        /// retrieve spaces groups members
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberView?> GroupsMembersGetAsync(string spaceId, string groupId, string userId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersRetrieveResponse?> GroupsMembersRetrieveAsync(string spaceId, string groupId, string userId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"));
         }
 
         /// <summary>
         /// Update spaces groups members
         /// </summary>
-        public async Task GroupsMembersUpdateAsync(string spaceId, string groupId, string userId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberUpdateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersUpdateResponse?> GroupsMembersUpdateAsync(string spaceId, string groupId, string userId, Sdkwork.Im.Sdk.Generated.Models.SpaceGroupMemberUpdateRequest body)
         {
-            await _client.PatchAsync<object>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesGroupsMembersUpdateResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/groups/{SerializePathParameter(groupId, new PathParameterSpec("groupId", "simple", false))}/members/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"), body, null, null, "application/json");
         }
 
         /// <summary>
@@ -178,33 +198,38 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List spaces channels
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelListResponse?> ChannelsListAsync(string spaceId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsListResponse?> ChannelsListAsync(string spaceId, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels"), queryString));
         }
 
         /// <summary>
         /// Create spaces channels
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelView?> ChannelsCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceChannelCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsCreateResponse201?> ChannelsCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceChannelCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels"), body, null, null, "application/json");
         }
 
         /// <summary>
-        /// Get spaces channels
+        /// retrieve spaces channels
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelView?> ChannelsGetAsync(string spaceId, string channelId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsRetrieveResponse?> ChannelsRetrieveAsync(string spaceId, string channelId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}"));
         }
 
         /// <summary>
         /// Update spaces channels
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelView?> ChannelsUpdateAsync(string spaceId, string channelId, Sdkwork.Im.Sdk.Generated.Models.SpaceChannelUpdateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsUpdateResponse?> ChannelsUpdateAsync(string spaceId, string channelId, Sdkwork.Im.Sdk.Generated.Models.SpaceChannelUpdateRequest body)
         {
-            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}"), body, null, null, "application/json");
+            return await _client.PatchAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsUpdateResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}"), body, null, null, "application/json");
         }
 
         /// <summary>
@@ -218,17 +243,22 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List spaces channels access Rules
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelAccessRuleListResponse?> ChannelsAccessRulesListAsync(string spaceId, string channelId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsAccessRulesListResponse?> ChannelsAccessRulesListAsync(string spaceId, string channelId, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelAccessRuleListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}/access_rules"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsAccessRulesListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}/access_rules"), queryString));
         }
 
         /// <summary>
         /// Create spaces channels access Rules
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelAccessRuleView?> ChannelsAccessRulesCreateAsync(string spaceId, string channelId, Sdkwork.Im.Sdk.Generated.Models.SpaceChannelAccessRuleCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsAccessRulesCreateResponse201?> ChannelsAccessRulesCreateAsync(string spaceId, string channelId, Sdkwork.Im.Sdk.Generated.Models.SpaceChannelAccessRuleCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceChannelAccessRuleView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}/access_rules"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesChannelsAccessRulesCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/channels/{SerializePathParameter(channelId, new PathParameterSpec("channelId", "simple", false))}/access_rules"), body, null, null, "application/json");
         }
 
         /// <summary>
@@ -242,31 +272,37 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// List spaces invites
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceInviteListResponse?> InvitesListAsync(string spaceId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesInvitesListResponse?> InvitesListAsync(string spaceId, string? status = null, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceInviteListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("status", status, "form", true, false, null),
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesInvitesListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites"), queryString));
         }
 
         /// <summary>
         /// Create spaces invites
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceInviteView?> InvitesCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceInviteCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesInvitesCreateResponse201?> InvitesCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceInviteCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceInviteView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesInvitesCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites"), body, null, null, "application/json");
         }
 
         /// <summary>
-        /// Get spaces invites
+        /// retrieve spaces invites
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceInviteView?> InvitesGetAsync(string spaceId, string inviteCode)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesInvitesRetrieveResponse?> InvitesRetrieveAsync(string spaceId, string inviteCode)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceInviteView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites/{SerializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesInvitesRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites/{SerializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false))}"));
         }
 
         /// <summary>
-        /// Revoke spaces invites
+        /// Delete spaces invites
         /// </summary>
-        public async Task InvitesRevokeAsync(string spaceId, string inviteCode)
+        public async Task InvitesDeleteAsync(string spaceId, string inviteCode)
         {
             await _client.DeleteAsync<object>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites/{SerializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false))}"));
         }
@@ -274,33 +310,38 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Accept spaces invites
         /// </summary>
-        public async Task InvitesAcceptAsync(string spaceId, string inviteCode)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SdkWorkCommandResponse?> InvitesAcceptAsync(string spaceId, string inviteCode)
         {
-            await _client.PostAsync<object>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites/{SerializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false))}/accept"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SdkWorkCommandResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/invites/{SerializePathParameter(inviteCode, new PathParameterSpec("inviteCode", "simple", false))}/accept"), null);
         }
 
         /// <summary>
         /// List spaces bans
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceBanListResponse?> BansListAsync(string spaceId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesBansListResponse?> BansListAsync(string spaceId, int? pageSize = null, string? cursor = null)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceBanListResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/bans"));
+            var queryString = BuildQueryString(new[]
+            {
+                new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
+                new QueryParameterSpec("cursor", cursor, "form", true, false, null),
+            });
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesBansListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/bans"), queryString));
         }
 
         /// <summary>
         /// Create spaces bans
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceBanView?> BansCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceBanCreateRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesBansCreateResponse201?> BansCreateAsync(string spaceId, Sdkwork.Im.Sdk.Generated.Models.SpaceBanCreateRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceBanView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/bans"), body, null, null, "application/json");
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesBansCreateResponse201>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/bans"), body, null, null, "application/json");
         }
 
         /// <summary>
-        /// Get spaces bans
+        /// retrieve spaces bans
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpaceBanView?> BansGetAsync(string spaceId, string userId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.SpacesBansRetrieveResponse?> BansRetrieveAsync(string spaceId, string userId)
         {
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpaceBanView>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/bans/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.SpacesBansRetrieveResponse>(ApiPaths.ImPath($"/spaces/{SerializePathParameter(spaceId, new PathParameterSpec("spaceId", "simple", false))}/bans/{SerializePathParameter(userId, new PathParameterSpec("userId", "simple", false))}"));
         }
 
         /// <summary>
@@ -411,6 +452,132 @@ namespace Sdkwork.Im.Sdk.Generated.Api
             return style == "matrix" ? ";" + name + "=" : PathPrefix(name, style);
         }
 
+        private sealed record QueryParameterSpec(
+            string Name,
+            object? Value,
+            string Style,
+            bool Explode,
+            bool AllowReserved,
+            string? ContentType);
+
+        private static string BuildQueryString(IEnumerable<QueryParameterSpec> parameters)
+        {
+            var pairs = new List<string>();
+            foreach (var parameter in parameters)
+            {
+                AppendSerializedParameter(pairs, parameter);
+            }
+            return string.Join("&", pairs);
+        }
+
+        private static void AppendSerializedParameter(List<string> pairs, QueryParameterSpec parameter)
+        {
+            if (parameter.Value is null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(parameter.ContentType))
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(parameter.Value);
+                pairs.Add(Uri.EscapeDataString(parameter.Name) + "=" + EncodeQueryValue(json, parameter.AllowReserved));
+                return;
+            }
+
+            var style = string.IsNullOrWhiteSpace(parameter.Style) ? "form" : parameter.Style;
+            if (style == "deepObject" && parameter.Value is System.Collections.IDictionary deepObject)
+            {
+                AppendDeepObjectParameter(pairs, parameter.Name, deepObject, parameter.AllowReserved);
+            }
+            else if (parameter.Value is System.Collections.IEnumerable enumerable && parameter.Value is not string && parameter.Value is not System.Collections.IDictionary)
+            {
+                AppendArrayParameter(pairs, parameter.Name, enumerable, style, parameter.Explode, parameter.AllowReserved);
+            }
+            else if (parameter.Value is System.Collections.IDictionary dictionary)
+            {
+                AppendObjectParameter(pairs, parameter.Name, dictionary, style, parameter.Explode, parameter.AllowReserved);
+            }
+            else
+            {
+                pairs.Add(Uri.EscapeDataString(parameter.Name) + "=" + EncodeQueryValue(parameter.Value.ToString() ?? string.Empty, parameter.AllowReserved));
+            }
+        }
+
+        private static void AppendArrayParameter(List<string> pairs, string name, System.Collections.IEnumerable values, string style, bool explode, bool allowReserved)
+        {
+            var serialized = new List<string>();
+            foreach (var item in values)
+            {
+                if (item is not null)
+                {
+                    serialized.Add(item.ToString() ?? string.Empty);
+                }
+            }
+            if (serialized.Count == 0)
+            {
+                return;
+            }
+            if (style == "form" && explode)
+            {
+                foreach (var item in serialized)
+                {
+                    pairs.Add(Uri.EscapeDataString(name) + "=" + EncodeQueryValue(item, allowReserved));
+                }
+                return;
+            }
+            pairs.Add(Uri.EscapeDataString(name) + "=" + EncodeQueryValue(string.Join(",", serialized), allowReserved));
+        }
+
+        private static void AppendObjectParameter(List<string> pairs, string name, System.Collections.IDictionary values, string style, bool explode, bool allowReserved)
+        {
+            var serialized = new List<string>();
+            foreach (System.Collections.DictionaryEntry item in values)
+            {
+                if (item.Value is null)
+                {
+                    continue;
+                }
+                if (style == "form" && explode)
+                {
+                    pairs.Add(Uri.EscapeDataString(item.Key.ToString() ?? string.Empty) + "=" + EncodeQueryValue(item.Value.ToString() ?? string.Empty, allowReserved));
+                }
+                else
+                {
+                    serialized.Add(item.Key.ToString() ?? string.Empty);
+                    serialized.Add(item.Value.ToString() ?? string.Empty);
+                }
+            }
+            if (serialized.Count > 0)
+            {
+                pairs.Add(Uri.EscapeDataString(name) + "=" + EncodeQueryValue(string.Join(",", serialized), allowReserved));
+            }
+        }
+
+        private static void AppendDeepObjectParameter(List<string> pairs, string name, System.Collections.IDictionary values, bool allowReserved)
+        {
+            foreach (System.Collections.DictionaryEntry item in values)
+            {
+                if (item.Value is not null)
+                {
+                    pairs.Add(Uri.EscapeDataString(name + "[" + item.Key + "]") + "=" + EncodeQueryValue(item.Value.ToString() ?? string.Empty, allowReserved));
+                }
+            }
+        }
+
+        private static string EncodeQueryValue(string value, bool allowReserved)
+        {
+            var encoded = Uri.EscapeDataString(value);
+            if (!allowReserved)
+            {
+                return encoded;
+            }
+            return encoded
+                .Replace("%3A", ":").Replace("%2F", "/").Replace("%3F", "?").Replace("%23", "#")
+                .Replace("%5B", "[").Replace("%5D", "]").Replace("%40", "@").Replace("%21", "!")
+                .Replace("%24", "$").Replace("%26", "&").Replace("%27", "'").Replace("%28", "(")
+                .Replace("%29", ")").Replace("%2A", "*").Replace("%2B", "+").Replace("%2C", ",")
+                .Replace("%3B", ";").Replace("%3D", "=");
+        }
 
     }
 }

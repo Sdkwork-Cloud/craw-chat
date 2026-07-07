@@ -51,7 +51,10 @@ async fn test_public_app_exports_live_openapi_json() {
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Sdkwork IM Streaming Service API");
     assert_eq!(
-        value["paths"].as_object().map(|paths| paths.len()).unwrap_or(0),
+        value["paths"]
+            .as_object()
+            .map(|paths| paths.len())
+            .unwrap_or(0),
         0,
         "standalone streaming-service live OpenAPI export is metadata-only until route extraction covers nested mounts"
     );

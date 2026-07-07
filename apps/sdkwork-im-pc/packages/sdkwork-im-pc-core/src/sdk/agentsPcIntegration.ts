@@ -1,31 +1,17 @@
-import { configureAgentService, configureKnowledgeSelectionAdapter } from '@sdkwork/agents-pc-agents';
+import {
+  configureAgentService,
+  configureKnowledgeSelectionAdapter,
+  createKnowledgebaseSelectionAdapter,
+} from '@sdkwork/agents-pc-agents';
 
 import { getAgentAppSdkClientWithSession } from './agentAppSdkClient';
+import { getKnowledgebaseAppSdkClientWithSession } from './knowledgebaseAppSdkClient';
 
 export function bootstrapAgentsPcForIm(): void {
   configureAgentService(() => getAgentAppSdkClientWithSession() as never);
-  configureKnowledgeSelectionAdapter({
-    async getBases() {
-      const { knowledgeSelectionService } = await import('@sdkwork/knowledgebase-pc-knowledge');
-      const bases = await knowledgeSelectionService.getBases();
-      return bases.map((base) => ({
-        id: String(base.id ?? ''),
-        name: String(base.name ?? ''),
-        description: typeof base.description === 'string' ? base.description : undefined,
-        type: base.type === 'personal' || base.type === 'team' || base.type === 'all'
-          ? base.type
-          : undefined,
-        updatedAt: typeof base.updatedAt === 'number'
-          ? new Date(base.updatedAt).toISOString()
-          : typeof base.updatedAt === 'string'
-            ? base.updatedAt
-            : undefined,
-        documentCount: typeof base.count === 'number' ? base.count : undefined,
-        count: typeof base.count === 'number' ? base.count : undefined,
-        logo: typeof base.logo === 'string' ? base.logo : undefined,
-      }));
-    },
-  } as Parameters<typeof configureKnowledgeSelectionAdapter>[0]);
+  configureKnowledgeSelectionAdapter(
+    createKnowledgebaseSelectionAdapter(getKnowledgebaseAppSdkClientWithSession()),
+  );
 }
 
 export function resolveAgentsPcEmbedUrl(): string {

@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::routing::{delete, get, post};
-use im_platform_contracts::IdGenerator;
 use im_adapters_social_postgres::SocialPostgresPool;
+use im_platform_contracts::IdGenerator;
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 
 use crate::ban;
@@ -35,7 +35,8 @@ pub struct AppState {
         Arc<dyn im_adapters_social_postgres::governance_store::ChannelAccessRuleStore>,
     pub channel_store: Arc<dyn im_adapters_social_postgres::organization_store::ChannelStore>,
     pub id_generator: Arc<dyn IdGenerator>,
-    pub group_conversation_binder: Option<Arc<dyn crate::group_conversation_binder::SpaceGroupConversationBinder>>,
+    pub group_conversation_binder:
+        Option<Arc<dyn crate::group_conversation_binder::SpaceGroupConversationBinder>>,
     pub channel_conversation_binder:
         Option<Arc<dyn crate::channel_conversation_binder::SpaceChannelConversationBinder>>,
     pub write_authority: Option<Arc<crate::write_authority::SpaceWriteAuthority>>,
@@ -60,22 +61,20 @@ impl AppState {
 }
 
 pub fn build_embedded_app(state: AppState) -> Router {
-    build_space_api_routes(state)
+    build_domain_api_router(state)
 }
 
 fn build_business_router(state: AppState) -> Router {
-    build_space_api_routes(state)
+    build_space_standalone_business_router(state)
 }
 
 pub fn build_app(state: AppState) -> Router {
     mount_im_infra_routes(build_business_router(state), im_service_router_config())
 }
 
-fn build_space_api_routes(state: AppState) -> Router {
+/// Domain routes only — for unified-process gateway embedding (`APPLICATION_GATEWAY_SPEC.md` §5.7.1).
+pub fn build_domain_api_router(state: AppState) -> Router {
     Router::new()
-        // OpenAPI document + docs
-        .route("/openapi.json", get(openapi::openapi_json))
-        .route("/docs", get(openapi::docs))
         // Spaces
         .route(
             "/im/v3/api/spaces",
@@ -168,6 +167,13 @@ fn build_space_api_routes(state: AppState) -> Router {
             get(ban::get_ban).delete(ban::unban_user),
         )
         .with_state(state)
+}
+
+fn build_space_standalone_business_router(state: AppState) -> Router {
+    Router::new()
+        .route("/openapi.json", get(openapi::openapi_json))
+        .route("/docs", get(openapi::docs))
+        .merge(build_domain_api_router(state))
 }
 
 pub fn build_public_app(state: AppState) -> Router {

@@ -14,43 +14,43 @@ public class StreamsApi {
     }
 
     /** Open a stream */
-    public StreamView create(OpenStreamRequest body) throws Exception {
+    public StreamsCreateResponse201 create(OpenStreamRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/streams"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<StreamView>() {});
+        return client.convertValue(raw, new TypeReference<StreamsCreateResponse201>() {});
     }
 
     /** List stream frames */
-    public StreamFramesResponse framesList(String streamId, Integer limit, String cursor) throws Exception {
+    public StreamsFramesListResponse framesList(String streamId, Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/streams/" + serializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false)) + "/frames"), query));
-        return client.convertValue(raw, new TypeReference<StreamFramesResponse>() {});
+        return client.convertValue(raw, new TypeReference<StreamsFramesListResponse>() {});
     }
 
     /** Append a stream frame */
-    public StreamFrameView framesCreate(String streamId, AppendStreamFrameRequest body) throws Exception {
+    public StreamsFramesCreateResponse201 framesCreate(String streamId, AppendStreamFrameRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/streams/" + serializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false)) + "/frames"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<StreamFrameView>() {});
+        return client.convertValue(raw, new TypeReference<StreamsFramesCreateResponse201>() {});
     }
 
     /** Checkpoint a stream */
-    public StreamView checkpointCreate(String streamId) throws Exception {
+    public StreamsCheckpointResponse checkpoint(String streamId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/streams/" + serializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false)) + "/checkpoint"), null);
-        return client.convertValue(raw, new TypeReference<StreamView>() {});
+        return client.convertValue(raw, new TypeReference<StreamsCheckpointResponse>() {});
     }
 
     /** Complete a stream */
-    public StreamView complete(String streamId) throws Exception {
+    public StreamsCompleteResponse complete(String streamId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/streams/" + serializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false)) + "/complete"), null);
-        return client.convertValue(raw, new TypeReference<StreamView>() {});
+        return client.convertValue(raw, new TypeReference<StreamsCompleteResponse>() {});
     }
 
     /** Abort a stream */
-    public StreamView abort(String streamId) throws Exception {
+    public StreamsAbortResponse abort(String streamId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/streams/" + serializePathParameter(streamId, new PathParameterSpec("streamId", "simple", false)) + "/abort"), null);
-        return client.convertValue(raw, new TypeReference<StreamView>() {});
+        return client.convertValue(raw, new TypeReference<StreamsAbortResponse>() {});
     }
 
     private record PathParameterSpec(String name, String style, boolean explode) {}

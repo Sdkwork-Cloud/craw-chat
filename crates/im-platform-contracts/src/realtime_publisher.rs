@@ -31,6 +31,19 @@ impl RealtimeEventRecipient {
     }
 }
 
+/// Command payload for publishing a realtime scope event to selected
+/// principals.
+#[derive(Debug)]
+pub struct RealtimeScopeEventPublishCommand<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub scope_type: &'a str,
+    pub scope_id: &'a str,
+    pub event_type: &'a str,
+    pub payload: String,
+    pub recipients: Vec<RealtimeEventRecipient>,
+}
+
 /// Publish boundary for ephemeral (non-durable) realtime events.
 ///
 /// Ephemeral events:
@@ -62,13 +75,7 @@ pub trait RealtimeEventPublisher: Send + Sync {
     /// the publisher is unavailable.
     fn publish_ephemeral_scope_event_to_recipients(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        payload: String,
-        recipients: Vec<RealtimeEventRecipient>,
+        command: RealtimeScopeEventPublishCommand<'_>,
     ) -> Result<usize, ContractError>;
 
     /// Publish a durable scope event to conversation members for reconnect
@@ -77,23 +84,9 @@ pub trait RealtimeEventPublisher: Send + Sync {
     /// Default implementation is a no-op for hosts without a realtime plane.
     fn publish_durable_scope_event_to_recipients(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        payload: String,
-        recipients: Vec<RealtimeEventRecipient>,
+        command: RealtimeScopeEventPublishCommand<'_>,
     ) -> Result<usize, ContractError> {
-        let _ = (
-            tenant_id,
-            organization_id,
-            scope_type,
-            scope_id,
-            event_type,
-            payload,
-            recipients,
-        );
+        let _ = command;
         Ok(0)
     }
 }

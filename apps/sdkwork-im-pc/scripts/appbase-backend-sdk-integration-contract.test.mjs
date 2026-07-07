@@ -18,8 +18,11 @@ const coreIndexSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src
 const adminCoreSdkIndexSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/sdk/index.ts',
 );
-const appbaseBackendSdkClientSource = read(
+const adminCoreAppbaseBackendSdkCompatSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-admin-core/src/sdk/appbaseBackendSdkClient.ts',
+);
+const appbaseBackendSdkClientSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-admin-sdk/src/appbaseBackendSdkClient.ts',
 );
 const tenantServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-admin-tenants/src/services/TenantService.ts',
@@ -74,12 +77,17 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   coreIndexSource,
   /appbaseBackendSdkClient/u,
-  'PC core package must not export appbase backend SDK wrappers; backend SDK exports belong to admin-core/sdk.',
+  'PC core package must not export appbase backend SDK wrappers; backend SDK exports belong to im-pc-admin-sdk.',
 );
 assert.match(
   adminCoreSdkIndexSource,
   /export \* from ['"]\.\/appbaseBackendSdkClient['"]/u,
-  'Admin core sdk subpath must export the appbase backend SDK wrapper.',
+  'Admin core sdk subpath must keep a compatibility export for the appbase backend SDK wrapper.',
+);
+assert.match(
+  adminCoreAppbaseBackendSdkCompatSource,
+  /@sdkwork\/im-pc-admin-sdk\/appbaseBackendSdkClient/u,
+  'Admin core appbase backend SDK compatibility entrypoint must delegate to im-pc-admin-sdk.',
 );
 
 for (const [label, source] of [
@@ -88,8 +96,8 @@ for (const [label, source] of [
 ]) {
   assert.match(
     source,
-    /@sdkwork\/im-admin-core\/sdk[\s\S]*getAppbaseBackendSdkClientWithSession/u,
-    `${label} must consume IAM admin data through the admin-core appbase backend SDK wrapper.`,
+    /@sdkwork\/im-pc-admin-sdk[\s\S]*getAppbaseBackendSdkClientWithSession/u,
+    `${label} must consume IAM admin data through the im-pc-admin-sdk appbase backend SDK wrapper.`,
   );
   assert.match(
     source,

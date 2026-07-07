@@ -128,7 +128,7 @@
     "@sdkwork/course-backend-sdk": "workspace:*",
     "@sdkwork/course-pc-course": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
-    "@sdkwork/drive-pc-drive": "workspace:*",
+    "@sdkwork/drive-pc-drive": "workspace:sdkwork-drive-pc-drive@*",
     "@sdkwork/knowledgebase-app-sdk": "workspace:*",
     "@sdkwork/knowledgebase-pc-knowledge": "workspace:*",
     "@sdkwork/voice-app-sdk": "workspace:*",

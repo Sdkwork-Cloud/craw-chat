@@ -6,7 +6,10 @@ use im_domain_core::social::{Friendship, FriendshipStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
-use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    SocialPostgresConnectionManager, optional_postgres_timestamptz, postgres_pool_client,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
+};
 
 /// Friendship record for database storage.
 #[derive(Clone, Debug)]
@@ -20,6 +23,17 @@ pub struct FriendshipRecord {
     pub status: String,
     pub established_at: Option<String>,
     pub updated_at: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FriendshipInventoryQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub user_id: &'a str,
+    pub status: &'a str,
+    pub cursor_updated_at: Option<&'a str>,
+    pub cursor_friendship_id: Option<i64>,
+    pub limit: i64,
 }
 
 impl FriendshipRecord {
@@ -74,13 +88,7 @@ pub trait FriendshipStore: Send + Sync {
     /// Keyset page ordered by `updated_at DESC`, `friendship_id ASC`.
     fn list_by_user_inventory(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        user_id: &str,
-        status: &str,
-        cursor_updated_at: Option<&str>,
-        cursor_friendship_id: Option<i64>,
-        limit: i64,
+        query: FriendshipInventoryQuery<'_>,
     ) -> Result<Vec<FriendshipRecord>, ContractError>;
     fn update_status(
         &self,
@@ -96,7 +104,7 @@ const INSERT_SQL: &str = r#"
 INSERT INTO im_friendships (
     tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
     initiator_user_id, status, established_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz)
 ON CONFLICT (tenant_id, organization_id, friendship_id) DO NOTHING
 "#;
 
@@ -104,7 +112,7 @@ const UPSERT_ACTIVE_PAIR_SQL: &str = r#"
 INSERT INTO im_friendships (
     tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
     initiator_user_id, status, established_at, updated_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::timestamptz)
 ON CONFLICT (tenant_id, organization_id, user_low_id, user_high_id)
 DO UPDATE SET
     friendship_id = EXCLUDED.friendship_id,
@@ -116,14 +124,14 @@ DO UPDATE SET
 
 const GET_BY_ID_SQL: &str = r#"
 SELECT tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
-       initiator_user_id, status, established_at, updated_at
+       initiator_user_id, status, established_at::text, updated_at::text
 FROM im_friendships
 WHERE tenant_id = $1 AND organization_id = $2 AND friendship_id = $3
 "#;
 
 const FIND_BY_PAIR_SQL: &str = r#"
 SELECT tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
-       initiator_user_id, status, established_at, updated_at
+       initiator_user_id, status, established_at::text, updated_at::text
 FROM im_friendships
 WHERE tenant_id = $1 AND organization_id = $2 AND user_low_id = $3 AND user_high_id = $4
 LIMIT 1
@@ -131,7 +139,7 @@ LIMIT 1
 
 const LIST_BY_USER_SQL: &str = r#"
 SELECT tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
-       initiator_user_id, status, established_at, updated_at
+       initiator_user_id, status, established_at::text, updated_at::text
 FROM im_friendships
 WHERE tenant_id = $1 AND organization_id = $2
   AND (user_low_id = $3 OR user_high_id = $3)
@@ -142,15 +150,15 @@ LIMIT $5
 
 const LIST_BY_USER_INVENTORY_SQL: &str = r#"
 SELECT tenant_id, organization_id, friendship_id, user_low_id, user_high_id,
-       initiator_user_id, status, established_at, updated_at
+       initiator_user_id, status, established_at::text, updated_at::text
 FROM im_friendships
 WHERE tenant_id = $1 AND organization_id = $2
   AND (user_low_id = $3 OR user_high_id = $3)
   AND status = $4
   AND (
-    $5::text IS NULL
-    OR updated_at < $5::text
-    OR (updated_at = $5::text AND friendship_id > $6)
+    $5::timestamptz IS NULL
+    OR updated_at < $5::timestamptz
+    OR (updated_at = $5::timestamptz AND friendship_id > $6)
   )
 ORDER BY updated_at DESC, friendship_id ASC
 LIMIT $7
@@ -158,7 +166,7 @@ LIMIT $7
 
 const UPDATE_STATUS_SQL: &str = r#"
 UPDATE im_friendships
-SET status = $4, updated_at = $5
+SET status = $4, updated_at = $5::timestamptz
 WHERE tenant_id = $1 AND organization_id = $2 AND friendship_id = $3
 "#;
 
@@ -194,6 +202,9 @@ impl FriendshipStore for PostgresFriendshipStore {
         let r = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_friendship")?;
+            let established_at =
+                optional_postgres_timestamptz(r.established_at.as_deref(), "established_at")?;
+            let updated_at = postgres_timestamptz(r.updated_at.as_str(), "updated_at")?;
             client
                 .execute(
                     INSERT_SQL,
@@ -205,8 +216,8 @@ impl FriendshipStore for PostgresFriendshipStore {
                         &r.user_high_id,
                         &r.initiator_user_id,
                         &r.status,
-                        &r.established_at,
-                        &r.updated_at,
+                        &established_at,
+                        &updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_friendship", e))?;
@@ -219,6 +230,9 @@ impl FriendshipStore for PostgresFriendshipStore {
         let r = record.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "upsert_active_friendship")?;
+            let established_at =
+                optional_postgres_timestamptz(r.established_at.as_deref(), "established_at")?;
+            let updated_at = postgres_timestamptz(r.updated_at.as_str(), "updated_at")?;
             client
                 .execute(
                     UPSERT_ACTIVE_PAIR_SQL,
@@ -230,8 +244,8 @@ impl FriendshipStore for PostgresFriendshipStore {
                         &r.user_high_id,
                         &r.initiator_user_id,
                         &r.status,
-                        &r.established_at,
-                        &r.updated_at,
+                        &established_at,
+                        &updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("upsert_active_friendship", e))?;
@@ -302,22 +316,22 @@ impl FriendshipStore for PostgresFriendshipStore {
 
     fn list_by_user_inventory(
         &self,
-        tenant_id: &str,
-        org_id: &str,
-        user_id: &str,
-        status: &str,
-        cursor_updated_at: Option<&str>,
-        cursor_friendship_id: Option<i64>,
-        limit: i64,
+        query: FriendshipInventoryQuery<'_>,
     ) -> Result<Vec<FriendshipRecord>, ContractError> {
         let pool = self.pool.clone();
-        let tid = tenant_id.to_string();
-        let oid = org_id.to_string();
-        let uid = user_id.to_string();
-        let st = status.to_string();
-        let cursor_updated_at = cursor_updated_at.map(str::to_owned);
+        let tid = query.tenant_id.to_string();
+        let oid = query.organization_id.to_string();
+        let uid = query.user_id.to_string();
+        let st = query.status.to_string();
+        let cursor_updated_at = query.cursor_updated_at.map(str::to_owned);
+        let cursor_friendship_id = query.cursor_friendship_id;
+        let limit = query.limit;
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_friendships_by_user_inventory")?;
+            let cursor_updated_at_ts = optional_postgres_timestamptz(
+                cursor_updated_at.as_deref(),
+                "friendship_inventory_cursor_updated_at",
+            )?;
             let rows = client
                 .query(
                     LIST_BY_USER_INVENTORY_SQL,
@@ -326,7 +340,7 @@ impl FriendshipStore for PostgresFriendshipStore {
                         &oid,
                         &uid,
                         &st,
-                        &cursor_updated_at,
+                        &cursor_updated_at_ts,
                         &cursor_friendship_id,
                         &limit,
                     ],
@@ -351,8 +365,12 @@ impl FriendshipStore for PostgresFriendshipStore {
         let ua = updated_at.to_string();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "update_friendship_status")?;
+            let updated_at_ts = postgres_timestamptz(ua.as_str(), "updated_at")?;
             let updated = client
-                .execute(UPDATE_STATUS_SQL, &[&tid, &oid, &friendship_id, &st, &ua])
+                .execute(
+                    UPDATE_STATUS_SQL,
+                    &[&tid, &oid, &friendship_id, &st, &updated_at_ts],
+                )
                 .map_err(|e| postgres_unavailable("update_friendship_status", e))?;
             if updated == 0 {
                 return Err(ContractError::Conflict(

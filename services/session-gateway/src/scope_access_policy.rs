@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use im_platform_contracts::ConversationMemberAccessGate;
 use im_domain_core::realtime::RealtimeEvent;
+use im_platform_contracts::ConversationMemberAccessGate;
 use sdkwork_im_contract_core::ContractError;
 
 use crate::realtime::{RealtimeRuntimeError, RealtimeScopeAccessPolicy};

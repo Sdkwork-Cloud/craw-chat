@@ -68,7 +68,7 @@ await sdk.send(message);
 ## Generated transport when needed
 
 ```ts
-const inbox = await sdk.inbox.getInbox();
+const inbox = await sdk.transport.chat.inbox.list();
 console.log(inbox.items.length);
 ```
 
@@ -76,7 +76,7 @@ console.log(inbox.items.length);
 
 ```ts
 // Tokens are issued by sdkwork-appbase and passed into Sdkwork IM.
-await sdk.sync.catchUp({ limit: 20 });
+await sdk.sync.catchUp({ pageSize: 20 });
 
 const live = await sdk.connect({
   clientRouteId: "device-web-01",
@@ -93,4 +93,3 @@ live.messages.on((message, context) => {
 - [Module Map](/sdk/module-map)
 - [Messages Module](/sdk/modules/messages)
 - [Message and Media](/sdk/examples/message-and-media)
-

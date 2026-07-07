@@ -21,6 +21,7 @@ use crate::{
 
 mod disconnect;
 
+pub use disconnect::ClientRouteDisconnectCommand;
 use disconnect::{ClusterMemoryDisconnectFenceStore, RealtimeDisconnectFence};
 
 fn lock_cluster_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
@@ -210,41 +211,43 @@ impl RealtimeClusterBridge {
     /// Call this periodically (e.g., every 5 minutes) to prevent memory leaks
     /// from clients that disconnected without proper cleanup.
     pub fn cleanup_stale_route_epoch_notifiers(&self) {
-        let mut notifiers =
-            lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
-        let before_count = notifiers.len();
+        let scope_keys: Vec<String> = {
+            let notifiers =
+                lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+            notifiers.keys().cloned().collect()
+        };
 
-        // Keep only notifiers for routes that still exist
-        notifiers.retain(|scope_key, _| {
-            // Parse the scope key to extract route components
-            // Format: {tenant_id}:{organization_id}:{principal_kind}:{principal_id}:{device_id}
+        let mut stale_keys = Vec::new();
+        for scope_key in scope_keys {
             let parts: Vec<&str> = scope_key.split(':').collect();
             if parts.len() != 5 {
                 tracing::warn!(
                     scope_key = %scope_key,
                     "invalid route epoch notifier scope key format, removing"
                 );
-                return false;
+                stale_keys.push(scope_key);
+                continue;
             }
 
-            let tenant_id = parts[0];
-            let organization_id = parts[1];
-            let principal_kind = parts[2];
-            let principal_id = parts[3];
-            let device_id = parts[4];
+            let route_exists = self
+                .route_store
+                .lookup(parts[0], parts[1], parts[3], parts[2], parts[4])
+                .is_some();
+            if !route_exists {
+                stale_keys.push(scope_key);
+            }
+        }
 
-            // Check if route still exists
-            self.route_store
-                .lookup(
-                    tenant_id,
-                    organization_id,
-                    principal_id,
-                    principal_kind,
-                    device_id,
-                )
-                .is_some()
-        });
+        if stale_keys.is_empty() {
+            return;
+        }
 
+        let mut notifiers =
+            lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers");
+        let before_count = notifiers.len();
+        for scope_key in stale_keys {
+            notifiers.remove(scope_key.as_str());
+        }
         let removed_count = before_count - notifiers.len();
         if removed_count > 0 {
             tracing::info!(
@@ -698,22 +701,21 @@ impl RealtimeClusterBridge {
         if let Some(runtime) = lock_cluster_mutex(&self.node_runtimes, "node_runtimes")
             .get(owner_node_id)
             .cloned()
-        {
-            if let Err(error) = runtime.drop_client_route_state(
+            && let Err(error) = runtime.drop_client_route_state(
                 tenant_id,
                 organization_id,
                 principal_id,
                 principal_kind,
                 device_id,
-            ) {
-                tracing::warn!(
-                    error = ?error,
-                    tenant_id = %tenant_id,
-                    principal_id = %principal_id,
-                    device_id = %device_id,
-                    "failed to drop realtime client route state on disconnect"
-                );
-            }
+            )
+        {
+            tracing::warn!(
+                error = ?error,
+                tenant_id = %tenant_id,
+                principal_id = %principal_id,
+                device_id = %device_id,
+                "failed to drop realtime client route state on disconnect"
+            );
         }
 
         released
@@ -1415,7 +1417,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::RealtimeSubscriptionItemInput;
+    use crate::{RealtimeEventWindowQuery, RealtimeSubscriptionItemInput};
 
     fn expect_ok<T>(result: Result<T, crate::realtime::RealtimeRuntimeError>) -> T {
         result.expect("realtime runtime operation should succeed")
@@ -1595,10 +1597,17 @@ mod tests {
         assert_eq!(result.route_state, "target_runtime_missing");
         assert_eq!(result.delivered, 0);
 
-        let origin_window = expect_ok(
-            runtime_a
-                .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-        );
+        let origin_window = expect_ok(runtime_a.list_events_for_principal_kind(
+            RealtimeEventWindowQuery {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                after_seq: 0,
+                limit: 10,
+            },
+        ));
         assert_eq!(origin_window.items.len(), 0);
     }
 
@@ -1685,10 +1694,17 @@ mod tests {
         assert_eq!(publish.route_state, "resolved");
         assert_eq!(publish.delivered, 1);
 
-        let target_window = expect_ok(
-            runtime_b
-                .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-        );
+        let target_window = expect_ok(runtime_b.list_events_for_principal_kind(
+            RealtimeEventWindowQuery {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                after_seq: 0,
+                limit: 10,
+            },
+        ));
         assert_eq!(target_window.items.len(), 1);
         assert_eq!(target_window.items[0].event_type, "message.posted");
     }
@@ -1786,15 +1802,15 @@ mod tests {
         cluster.bind_node_runtime("node_a", runtime);
 
         cluster
-            .mark_client_route_disconnected_for_principal_kind(
-                "100001",
-                "default",
-                "1",
-                "user",
-                "d_pad",
-                Some("s_old"),
-                "node_a",
-            )
+            .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                session_id: Some("s_old"),
+                owner_node_id: "node_a",
+            })
             .expect("disconnect fence should persist");
 
         let error = cluster
@@ -1850,15 +1866,15 @@ mod tests {
         let runtime_a = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());
         cluster_a.bind_node_runtime("node_a", runtime_a);
         cluster_a
-            .mark_client_route_disconnected_for_principal_kind(
-                "100001",
-                "default",
-                "1",
-                "user",
-                "d_pad",
-                Some("s_old"),
-                "node_a",
-            )
+            .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                session_id: Some("s_old"),
+                owner_node_id: "node_a",
+            })
             .expect("disconnect fence should persist");
 
         let cluster_b = RealtimeClusterBridge::with_disconnect_fence_store(store);
@@ -2006,15 +2022,15 @@ mod tests {
         cluster.bind_node_runtime("node_a", runtime);
 
         let save_error = cluster
-            .mark_client_route_disconnected_for_principal_kind(
-                "100001",
-                "default",
-                "1",
-                "user",
-                "d_pad",
-                Some("s_old"),
-                "node_a",
-            )
+            .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                session_id: Some("s_old"),
+                owner_node_id: "node_a",
+            })
             .expect_err("save failure should not panic");
         assert_eq!(save_error.code, "disconnect_fence_store_unavailable");
 

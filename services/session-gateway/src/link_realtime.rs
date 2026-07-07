@@ -21,8 +21,8 @@ use crate::link_business_contract::{
 };
 use crate::link_framing::{FramedStreamCcpCodec, read_framed_envelope, write_framed_bytes};
 use crate::realtime::{
-    RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
-    RealtimeWindowCheckpoint,
+    RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeRuntimeError,
+    RealtimeSubscriptionItemInput, RealtimeWindowCheckpoint,
 };
 
 const REALTIME_HEARTBEAT_INTERVAL_SECS_ENV: &str = "SDKWORK_IM_REALTIME_HEARTBEAT_INTERVAL_SECS";
@@ -83,20 +83,46 @@ fn map_api_error(error: ApiError) -> String {
     format!("{}: {}", error.code, error.message)
 }
 
+pub(crate) struct RealtimeFramedSessionInput {
+    pub transport: TransportBinding,
+    pub auth: AppContext,
+    pub device_id: String,
+    pub resume_after_seq: Option<u64>,
+    pub runtime: Arc<RealtimeDeliveryRuntime>,
+    pub route_owner: ClientRouteRegistration,
+}
+
+#[derive(Clone, Copy)]
+struct FramedRealtimeSessionContext<'a> {
+    runtime: &'a Arc<RealtimeDeliveryRuntime>,
+    route_owner: &'a ClientRouteRegistration,
+    auth: &'a AppContext,
+    tenant_id: &'a str,
+    organization_id: &'a str,
+    principal_id: &'a str,
+    principal_kind: &'a str,
+    device_id: &'a str,
+    ccp: &'a FramedStreamCcpCodec,
+    route: &'a CcpRoute,
+}
+
 pub(crate) async fn serve_realtime_framed_session<R, W>(
     mut reader: R,
     mut writer: W,
-    transport: TransportBinding,
-    auth: AppContext,
-    device_id: String,
-    resume_after_seq: Option<u64>,
-    runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: ClientRouteRegistration,
+    session: RealtimeFramedSessionInput,
 ) -> Result<(), String>
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
 {
+    let RealtimeFramedSessionInput {
+        transport,
+        auth,
+        device_id,
+        resume_after_seq,
+        runtime,
+        route_owner,
+    } = session;
     let tenant_id = auth.tenant_id.clone();
     let organization_id = auth.organization_id.clone();
     let principal_id = auth.actor_id.clone();
@@ -251,15 +277,15 @@ where
         let catchup_after_seq = catchup_plan.after_seq;
         let catchup_batch_limit = catchup_plan.batch.limit;
         let catchup = tokio::task::spawn_blocking(move || {
-            catchup_runtime.list_events_for_principal_kind(
-                catchup_tenant.as_str(),
-                catchup_org.as_str(),
-                catchup_principal.as_str(),
-                catchup_kind.as_str(),
-                catchup_device.as_str(),
-                catchup_after_seq,
-                catchup_batch_limit,
-            )
+            catchup_runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: catchup_tenant.as_str(),
+                organization_id: catchup_org.as_str(),
+                principal_id: catchup_principal.as_str(),
+                principal_kind: catchup_kind.as_str(),
+                device_id: catchup_device.as_str(),
+                after_seq: catchup_after_seq,
+                limit: catchup_batch_limit,
+            })
         })
         .await
         .map_err(|join_error| format!("catchup blocking task failed: {join_error}"))?
@@ -298,18 +324,20 @@ where
                 let push_plan = outbound_queue.observe_latest_realtime_seq(latest_realtime_seq);
                 if !drain_framed_buffered_push(
                     &mut writer,
-                    &runtime,
-                    &route_owner,
-                    &auth,
-                    tenant_id.as_str(),
-                    organization_id.as_str(),
-                    principal_id.as_str(),
-                    principal_kind.as_str(),
-                    device_id.as_str(),
                     &mut outbound_queue,
                     push_plan,
-                    &ccp,
-                    &route,
+                    FramedRealtimeSessionContext {
+                        runtime: &runtime,
+                        route_owner: &route_owner,
+                        auth: &auth,
+                        tenant_id: tenant_id.as_str(),
+                        organization_id: organization_id.as_str(),
+                        principal_id: principal_id.as_str(),
+                        principal_kind: principal_kind.as_str(),
+                        device_id: device_id.as_str(),
+                        ccp: &ccp,
+                        route: &route,
+                    },
                 )
                 .await
                 {
@@ -385,18 +413,20 @@ where
                         }
                         if !handle_framed_client_envelope(
                             &mut writer,
-                            &runtime,
-                            &route_owner,
-                            &auth,
-                            tenant_id.as_str(),
-                            organization_id.as_str(),
-                            principal_id.as_str(),
-                            principal_kind.as_str(),
-                            device_id.as_str(),
                             &mut outbound_queue,
                             &envelope,
-                            &ccp,
-                            &route,
+                            FramedRealtimeSessionContext {
+                                runtime: &runtime,
+                                route_owner: &route_owner,
+                                auth: &auth,
+                                tenant_id: tenant_id.as_str(),
+                                organization_id: organization_id.as_str(),
+                                principal_id: principal_id.as_str(),
+                                principal_kind: principal_kind.as_str(),
+                                device_id: device_id.as_str(),
+                                ccp: &ccp,
+                                route: &route,
+                            },
                         )
                         .await
                         {
@@ -637,15 +667,15 @@ where
         let kind = self.principal_kind.to_string();
         let device = self.device_id.to_string();
         let window = tokio::task::spawn_blocking(move || {
-            runtime.list_events_for_principal_kind(
-                tenant.as_str(),
-                org.as_str(),
-                principal.as_str(),
-                kind.as_str(),
-                device.as_str(),
+            runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: tenant.as_str(),
+                organization_id: org.as_str(),
+                principal_id: principal.as_str(),
+                principal_kind: kind.as_str(),
+                device_id: device.as_str(),
                 after_seq,
                 limit,
-            )
+            })
         })
         .await
         .map_err(|e| FramedPushDrainError::JoinFailed(e.to_string()))?
@@ -684,34 +714,25 @@ where
 
 async fn drain_framed_buffered_push<W>(
     writer: &mut W,
-    runtime: &Arc<RealtimeDeliveryRuntime>,
-    route_owner: &ClientRouteRegistration,
-    auth: &AppContext,
-    tenant_id: &str,
-    organization_id: &str,
-    principal_id: &str,
-    principal_kind: &str,
-    device_id: &str,
     outbound_queue: &mut LinkOutboundQueueState,
     push_plan: Option<LinkBufferedPushPlan>,
-    ccp: &FramedStreamCcpCodec,
-    route: &CcpRoute,
+    context: FramedRealtimeSessionContext<'_>,
 ) -> bool
 where
     W: AsyncWrite + Unpin,
 {
     let mut driver = FramedPushDrainDriver {
         writer,
-        runtime,
-        route_owner,
-        auth,
-        tenant_id,
-        organization_id,
-        principal_id,
-        principal_kind,
-        device_id,
-        ccp,
-        route,
+        runtime: context.runtime,
+        route_owner: context.route_owner,
+        auth: context.auth,
+        tenant_id: context.tenant_id,
+        organization_id: context.organization_id,
+        principal_id: context.principal_id,
+        principal_kind: context.principal_kind,
+        device_id: context.device_id,
+        ccp: context.ccp,
+        route: context.route,
     };
     match outbound_queue
         .drain_buffered_push_windows(push_plan, &mut driver)
@@ -721,11 +742,13 @@ where
             true
         }
         Ok(LinkBufferedPushDrainStatus::Disconnect(directive)) => {
-            let _ = send_framed_goaway_and_close(writer, ccp, route, &directive).await;
+            let _ =
+                send_framed_goaway_and_close(writer, context.ccp, context.route, &directive).await;
             false
         }
         Err(FramedPushDrainError::Runtime(error)) => {
-            let _ = send_framed_runtime_error(writer, ccp, route, None, &error).await;
+            let _ =
+                send_framed_runtime_error(writer, context.ccp, context.route, None, &error).await;
             false
         }
         Err(FramedPushDrainError::Fence) => false,
@@ -733,8 +756,8 @@ where
         Err(FramedPushDrainError::JoinFailed(message)) => {
             let _ = send_framed_runtime_error(
                 writer,
-                ccp,
-                route,
+                context.ccp,
+                context.route,
                 None,
                 &RealtimeRuntimeError {
                     code: "push_drain_blocking_join_failed",
@@ -811,18 +834,9 @@ where
 
 async fn handle_framed_client_envelope<W>(
     writer: &mut W,
-    runtime: &Arc<RealtimeDeliveryRuntime>,
-    route_owner: &ClientRouteRegistration,
-    auth: &AppContext,
-    tenant_id: &str,
-    organization_id: &str,
-    principal_id: &str,
-    principal_kind: &str,
-    device_id: &str,
     outbound_queue: &mut LinkOutboundQueueState,
     envelope: &CcpEnvelope,
-    ccp: &FramedStreamCcpCodec,
-    route: &CcpRoute,
+    context: FramedRealtimeSessionContext<'_>,
 ) -> bool
 where
     W: AsyncWrite + Unpin,
@@ -839,8 +853,8 @@ where
     ) {
         let _ = send_framed_business_error(
             writer,
-            ccp,
-            route,
+            context.ccp,
+            context.route,
             None,
             "frame_type_unsupported",
             format!("unexpected post-auth control frame: {}", envelope.kind),
@@ -854,8 +868,8 @@ where
         Err(_) => {
             let _ = send_framed_business_error(
                 writer,
-                ccp,
-                route,
+                context.ccp,
+                context.route,
                 None,
                 "invalid_frame",
                 "frame must be valid json",
@@ -874,8 +888,8 @@ where
     ) {
         let _ = send_framed_business_error(
             writer,
-            ccp,
-            route,
+            context.ccp,
+            context.route,
             frame.request_id.clone(),
             "invalid_frame",
             message,
@@ -884,7 +898,16 @@ where
         return true;
     }
 
-    if !ensure_framed_route_session(route_owner, auth, device_id, writer, ccp, route).await {
+    if !ensure_framed_route_session(
+        context.route_owner,
+        context.auth,
+        context.device_id,
+        writer,
+        context.ccp,
+        context.route,
+    )
+    .await
+    {
         return false;
     }
 
@@ -893,12 +916,12 @@ where
             // sync_subscriptions_for_principal_kind performs blocking
             // Postgres/Redis IO. Run it on the blocking pool so the async
             // worker stays free to service other connections.
-            let blocking_runtime = Arc::clone(runtime);
-            let blocking_tenant = tenant_id.to_string();
-            let blocking_org = organization_id.to_string();
-            let blocking_principal = principal_id.to_string();
-            let blocking_kind = principal_kind.to_string();
-            let blocking_device = device_id.to_string();
+            let blocking_runtime = Arc::clone(context.runtime);
+            let blocking_tenant = context.tenant_id.to_string();
+            let blocking_org = context.organization_id.to_string();
+            let blocking_principal = context.principal_id.to_string();
+            let blocking_kind = context.principal_kind.to_string();
+            let blocking_device = context.device_id.to_string();
             let blocking_items = frame.items;
             let result = tokio::task::spawn_blocking(move || {
                 blocking_runtime.sync_subscriptions_for_principal_kind(
@@ -913,9 +936,10 @@ where
             .await;
             match result {
                 Ok(Ok(snapshot)) => {
-                    let bytes = ccp
+                    let bytes = context
+                        .ccp
                         .encode_business(
-                            route,
+                            context.route,
                             "evt",
                             "cc.realtime.subscriptions.synced.v1",
                             json!({
@@ -928,15 +952,21 @@ where
                     write_framed_bytes(writer, bytes.as_slice()).await.is_ok()
                 }
                 Ok(Err(error)) => {
-                    let _ = send_framed_runtime_error(writer, ccp, route, frame.request_id, &error)
-                        .await;
+                    let _ = send_framed_runtime_error(
+                        writer,
+                        context.ccp,
+                        context.route,
+                        frame.request_id,
+                        &error,
+                    )
+                    .await;
                     true
                 }
                 Err(join_error) => {
                     let _ = send_framed_runtime_error(
                         writer,
-                        ccp,
-                        route,
+                        context.ccp,
+                        context.route,
                         frame.request_id,
                         &RealtimeRuntimeError {
                             code: "subscriptions_blocking_join_failed",
@@ -956,43 +986,56 @@ where
                 outbound_queue.latest_realtime_seq(),
             );
             // list_events_for_principal_kind performs blocking Postgres IO.
-            let blocking_runtime = Arc::clone(runtime);
-            let blocking_tenant = tenant_id.to_string();
-            let blocking_org = organization_id.to_string();
-            let blocking_principal = principal_id.to_string();
-            let blocking_kind = principal_kind.to_string();
-            let blocking_device = device_id.to_string();
+            let blocking_runtime = Arc::clone(context.runtime);
+            let blocking_tenant = context.tenant_id.to_string();
+            let blocking_org = context.organization_id.to_string();
+            let blocking_principal = context.principal_id.to_string();
+            let blocking_kind = context.principal_kind.to_string();
+            let blocking_device = context.device_id.to_string();
             let after_seq = plan.after_seq;
             let batch_limit = plan.batch.limit;
             let result = tokio::task::spawn_blocking(move || {
-                blocking_runtime.list_events_for_principal_kind(
-                    blocking_tenant.as_str(),
-                    blocking_org.as_str(),
-                    blocking_principal.as_str(),
-                    blocking_kind.as_str(),
-                    blocking_device.as_str(),
+                blocking_runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                    tenant_id: blocking_tenant.as_str(),
+                    organization_id: blocking_org.as_str(),
+                    principal_id: blocking_principal.as_str(),
+                    principal_kind: blocking_kind.as_str(),
+                    device_id: blocking_device.as_str(),
                     after_seq,
-                    batch_limit,
-                )
+                    limit: batch_limit,
+                })
             })
             .await;
             match result {
                 Ok(Ok(window)) => {
                     let next_after_seq = window.next_after_seq;
-                    let _ = send_framed_event_window(writer, ccp, route, "pull", window).await;
+                    let _ = send_framed_event_window(
+                        writer,
+                        context.ccp,
+                        context.route,
+                        "pull",
+                        window,
+                    )
+                    .await;
                     let _ = outbound_queue.record_window_sent(plan.after_seq, next_after_seq);
                     true
                 }
                 Ok(Err(error)) => {
-                    let _ = send_framed_runtime_error(writer, ccp, route, frame.request_id, &error)
-                        .await;
+                    let _ = send_framed_runtime_error(
+                        writer,
+                        context.ccp,
+                        context.route,
+                        frame.request_id,
+                        &error,
+                    )
+                    .await;
                     true
                 }
                 Err(join_error) => {
                     let _ = send_framed_runtime_error(
                         writer,
-                        ccp,
-                        route,
+                        context.ccp,
+                        context.route,
                         frame.request_id,
                         &RealtimeRuntimeError {
                             code: "events_pull_blocking_join_failed",
@@ -1008,12 +1051,12 @@ where
             match frame.acked_seq {
                 Some(acked_seq) => {
                     // ack_events_for_principal_kind performs blocking Postgres IO.
-                    let blocking_runtime = Arc::clone(runtime);
-                    let blocking_tenant = tenant_id.to_string();
-                    let blocking_org = organization_id.to_string();
-                    let blocking_principal = principal_id.to_string();
-                    let blocking_kind = principal_kind.to_string();
-                    let blocking_device = device_id.to_string();
+                    let blocking_runtime = Arc::clone(context.runtime);
+                    let blocking_tenant = context.tenant_id.to_string();
+                    let blocking_org = context.organization_id.to_string();
+                    let blocking_principal = context.principal_id.to_string();
+                    let blocking_kind = context.principal_kind.to_string();
+                    let blocking_device = context.device_id.to_string();
                     let result = tokio::task::spawn_blocking(move || {
                         blocking_runtime.ack_events_for_principal_kind(
                             blocking_tenant.as_str(),
@@ -1027,9 +1070,10 @@ where
                     .await;
                     match result {
                         Ok(Ok(ack)) => {
-                            let bytes = ccp
+                            let bytes = context
+                                .ccp
                                 .encode_business(
-                                    route,
+                                    context.route,
                                     "evt",
                                     "cc.realtime.events.acked.v1",
                                     json!({
@@ -1044,8 +1088,8 @@ where
                         Ok(Err(error)) => {
                             let _ = send_framed_runtime_error(
                                 writer,
-                                ccp,
-                                route,
+                                context.ccp,
+                                context.route,
                                 frame.request_id,
                                 &error,
                             )
@@ -1055,8 +1099,8 @@ where
                         Err(join_error) => {
                             let _ = send_framed_runtime_error(
                                 writer,
-                                ccp,
-                                route,
+                                context.ccp,
+                                context.route,
                                 frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "events_ack_blocking_join_failed",
@@ -1071,8 +1115,8 @@ where
                 None => {
                     let _ = send_framed_business_error(
                         writer,
-                        ccp,
-                        route,
+                        context.ccp,
+                        context.route,
                         frame.request_id,
                         "invalid_frame",
                         "events.ack requires ackedSeq",
@@ -1085,8 +1129,8 @@ where
         _ => {
             let _ = send_framed_business_error(
                 writer,
-                ccp,
-                route,
+                context.ccp,
+                context.route,
                 frame.request_id,
                 "frame_type_unsupported",
                 format!("unsupported frame type: {}", frame.frame_type),

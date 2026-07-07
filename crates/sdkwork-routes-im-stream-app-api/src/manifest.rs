@@ -6,14 +6,12 @@ use crate::paths;
 /// API surface: app-api
 pub const API_SURFACE: &str = "app-api";
 
-pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::PREFIX,
-        "stream",
-        "stream.prefix",
-    ),
-];
+pub const ROUTES: &[HttpRoute] = &[HttpRoute::dual_token(
+    HttpMethod::Get,
+    paths::PREFIX,
+    "stream",
+    "stream.prefix",
+)];
 
 pub fn route_manifest() -> HttpRouteManifest {
     HttpRouteManifest::new(ROUTES)

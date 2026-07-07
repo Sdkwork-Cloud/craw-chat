@@ -18,14 +18,14 @@ import type {
   TimelineResponse,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk';
-import type {
-  DriveUploaderBlobLike,
-  DriveUploaderClient,
-  DriveUploaderProfile,
-  DriveUploaderRequest,
-  DriveUploaderUploadResult,
-} from '@sdkwork/drive-app-sdk';
-import { getDriveAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/driveAppSdkClient';
+import {
+  getDriveAppSdkClientWithSession,
+  type DriveUploaderBlobLike,
+  type DriveUploaderProfile,
+  type DriveUploaderRequest,
+  type DriveUploaderUploadResult,
+  type SdkworkDriveUploader,
+} from '@sdkwork/im-pc-core/sdk/driveAppSdkClient';
 import {
   forEachCursorPage,
   SDKWORK_DEFAULT_PAGE_SIZE,
@@ -43,8 +43,24 @@ import {
   subscribePcRealtimeScope,
 } from '@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager';
 import {
+  ensureDesktopOfflineChatCache,
+  loadDesktopOfflineChats,
+  loadDesktopOfflineMessages,
+  persistDesktopOfflineChats,
+  persistDesktopOfflineMessages,
+  type OfflinePersistableMessage,
+} from '@sdkwork/im-pc-core/sdk/desktopOfflineChatCache';
+import {
+  enqueueDesktopPendingSend,
+  isRetryableDesktopSendError,
+  listDesktopPendingSends,
+  removeDesktopPendingSend,
+} from '@sdkwork/im-pc-core/sdk/desktopOfflineSendQueue';
+import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
   readAppSdkSessionTokens,
+  resolveAppSdkOrganizationId,
+  resolveAppSdkTenantId,
   resolveAppSdkUserId,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
@@ -80,10 +96,7 @@ interface DirectChatPeerProfile {
 
 interface ChatServiceDependencies {
   getClient?: () => ImSdkClient;
-  getDriveUploader?: () => Pick<
-    DriveUploaderClient,
-    'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
-  >;
+  getDriveUploader?: () => SdkworkDriveUploader;
   getSession?: () => SdkworkChatSession | null;
 }
 
@@ -136,6 +149,8 @@ export interface ChatService {
   startEnterpriseChat(enterprise: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
   recoverRealtimeConnection(reason?: string): void;
   syncOfflineMessages(): Promise<ChatOfflineSyncResult>;
+  retryFailedMessage(chatId: string, messageId: string): Promise<Message>;
+  setReadFocusContext(context: { activeConversationId?: string; isWindowFocused?: boolean }): void;
 }
 
 type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
@@ -144,7 +159,32 @@ type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMa
 const INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const MAX_INBOX_CONVERSATIONS = SDKWORK_MAX_PAGE_SIZE;
 const LOCAL_MESSAGES_PER_CONVERSATION_CAP = SDKWORK_MAX_PAGE_SIZE;
+const LOCAL_CONVERSATION_CACHE_CAP = SDKWORK_MAX_PAGE_SIZE * 10;
 const MESSAGE_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
+
+function readSdkCursorPageInfo(
+  pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
+): Pick<ChatListPage, 'hasMore' | 'nextCursor'> {
+  const hasMore = pageInfo?.hasMore === true;
+  return {
+    hasMore,
+    nextCursor: hasMore ? (pageInfo?.nextCursor ?? undefined) : undefined,
+  };
+}
+
+function readSeqCursorPageInfo(
+  pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
+): { hasMore: boolean; nextAfterSeq: number } {
+  const hasMore = pageInfo?.hasMore === true;
+  const parsed = hasMore && pageInfo?.nextCursor
+    ? Number.parseInt(pageInfo.nextCursor, 10)
+    : 0;
+  return {
+    hasMore,
+    nextAfterSeq: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
+  };
+}
+
 const MAX_CATCH_UP_MESSAGE_PAGES = 50;
 const CONVERSATION_MEMBERS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const MAX_CONVERSATION_MEMBERS_SYNC = SDKWORK_MAX_PAGE_SIZE;
@@ -163,6 +203,7 @@ const CHAT_LIST_REALTIME_EVENT_TYPES = [
 ];
 const CHAT_DRIVE_SCENE = 'im';
 const CHAT_DRIVE_SOURCE = 'chat_message';
+const CHAT_DRIVE_APP_ID = 'chat';
 const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
 const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
   'applet',
@@ -187,10 +228,7 @@ const STRUCTURED_MESSAGE_SCHEMA_BY_TYPE: Record<SendableStructuredMessageType, s
   video_call: 'urn:sdkwork:sdkwork-im:message:video_call',
 };
 
-let driveUploaderClient: Pick<
-  DriveUploaderClient,
-  'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
-> | null = null;
+let driveUploaderClient: SdkworkDriveUploader | null = null;
 
 function parseTimestamp(value: string | undefined): number {
   if (!value) {
@@ -834,15 +872,12 @@ function resolveMediaKind(type: Message['type']): MediaKind {
 
 function createDefaultDriveUploaderClient(
   session: SdkworkChatSession | null = readAppSdkSessionTokens(),
-): Pick<DriveUploaderClient, 'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'> {
+): SdkworkDriveUploader {
   const client = getDriveAppSdkClientWithSession(session ?? readAppSdkSessionTokens());
   return client.uploader;
 }
 
-function getDefaultDriveUploader(): Pick<
-  DriveUploaderClient,
-  'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
-> {
+function getDefaultDriveUploader(): SdkworkDriveUploader {
   if (!driveUploaderClient) {
     driveUploaderClient = createDefaultDriveUploaderClient();
   }
@@ -855,6 +890,14 @@ function resolveChatUploadUserId(session: SdkworkChatSession | null | undefined)
     throw new Error('Chat media upload requires user_id in the authenticated session.');
   }
   return userId;
+}
+
+function resolveChatUploadTenantId(session: SdkworkChatSession | null | undefined): string {
+  const tenantId = resolveAppSdkTenantId(session ?? null);
+  if (!tenantId) {
+    throw new Error('Chat media upload requires tenant_id in the authenticated session.');
+  }
+  return tenantId;
 }
 
 function parseFileSizeBytes(value: string | undefined): string | undefined {
@@ -1047,10 +1090,7 @@ async function uploadChatMediaFile({
   chatId: string;
   content: string;
   extraInfo: ChatMessageExtraInfo | undefined;
-  getDriveUploader: () => Pick<
-    DriveUploaderClient,
-    'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
-  >;
+  getDriveUploader: () => SdkworkDriveUploader;
   getSession: () => SdkworkChatSession | null;
   type: SendableMediaMessageType;
 }): Promise<ChatMediaUploadResult> {
@@ -1060,11 +1100,16 @@ async function uploadChatMediaFile({
   }
 
   const session = getSession();
+  const tenantId = resolveChatUploadTenantId(session);
+  const organizationId = resolveAppSdkOrganizationId(session ?? null);
   const userId = resolveChatUploadUserId(session);
   const originalFileName = resolveMediaUploadFileName(type, file, extraInfo);
   const uploadRequest: DriveUploaderRequest = {
     file,
+    tenantId,
+    ...(organizationId ? { organizationId } : {}),
     userId,
+    appId: CHAT_DRIVE_APP_ID,
     appResourceType: CHAT_DRIVE_APP_RESOURCE_TYPE,
     appResourceId: chatId,
     scene: CHAT_DRIVE_SCENE,
@@ -1572,11 +1617,10 @@ class SdkworkChatService implements ChatService {
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
   private timelinePaginationState = new Map<string, TimelinePaginationState>();
+  private focusedConversationId?: string;
+  private windowFocused = true;
   private readonly getClient: () => ImSdkClient;
-  private readonly getDriveUploader: () => Pick<
-    DriveUploaderClient,
-    'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
-  >;
+  private readonly getDriveUploader: () => SdkworkDriveUploader;
   private readonly getSession: () => SdkworkChatSession | null;
 
   private readonly handleAuthSessionChanged = (): void => {
@@ -1602,6 +1646,11 @@ class SdkworkChatService implements ChatService {
       this.getDriveUploader = dependencies.getDriveUploader ?? getDefaultDriveUploader;
       this.getSession = dependencies.getSession ?? readAppSdkSessionTokens;
     }
+    configurePcRealtimeConnectionManager({
+      getClient: this.getClient,
+      getDeviceId: resolveSdkworkChatPcClientId,
+      getSession: this.getSession,
+    });
     if (typeof window !== 'undefined') {
       window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
     }
@@ -1615,6 +1664,14 @@ class SdkworkChatService implements ChatService {
 
   private client(): ImSdkClient {
     return this.getClient();
+  }
+
+  private configureRealtimeConnectionManager(): void {
+    configurePcRealtimeConnectionManager({
+      getClient: this.getClient,
+      getDeviceId: resolveSdkworkChatPcClientId,
+      getSession: this.getSession,
+    });
   }
 
   private resolveChatListRealtimeUserId(): string | undefined {
@@ -1654,6 +1711,52 @@ class SdkworkChatService implements ChatService {
     );
   }
 
+  private trimLocalConversationCache(): void {
+    if (this.localMessages.size <= LOCAL_CONVERSATION_CACHE_CAP) {
+      return;
+    }
+    const removableConversations = Array.from(this.localMessages.entries())
+      .filter(([chatId]) => !this.liveSubscriptions.has(chatId))
+      .map(([chatId, messages]) => ({
+        chatId,
+        updatedAt: messages.at(-1)?.timestamp ?? 0,
+      }))
+      .sort((left, right) => left.updatedAt - right.updatedAt);
+    let removeCount = this.localMessages.size - LOCAL_CONVERSATION_CACHE_CAP;
+    for (const conversation of removableConversations) {
+      if (removeCount <= 0) {
+        break;
+      }
+      this.localMessages.delete(conversation.chatId);
+      this.latestReadSeq.delete(conversation.chatId);
+      removeCount -= 1;
+    }
+  }
+
+  private mergeLiveLocalChats(chats: Chat[]): Chat[] {
+    const byId = new Map(chats.map((chat) => [chat.id, chat]));
+    for (const [chatId, localMessages] of this.localMessages.entries()) {
+      const viewState = this.conversationViewState.get(chatId);
+      if (viewState?.isHidden) {
+        continue;
+      }
+      const lastMessage = localMessages.at(-1);
+      if (!lastMessage) {
+        continue;
+      }
+      const existingChat = byId.get(chatId);
+      byId.set(
+        chatId,
+        existingChat
+          ? applyLocalLastMessageToChat(existingChat, lastMessage)
+          : mapLocalMessageToChat(lastMessage, viewState),
+      );
+    }
+    return Array.from(byId.values())
+      .sort(sortChats)
+      .slice(0, MAX_INBOX_CONVERSATIONS);
+  }
+
   private async syncConversationMembers(conversationId: string): Promise<ConversationMember[]> {
     const members: ConversationMember[] = [];
     await forEachCursorPage(
@@ -1662,10 +1765,11 @@ class SdkworkChatService implements ChatService {
           pageSize: CONVERSATION_MEMBERS_PAGE_LIMIT,
           ...(cursor ? { cursor } : {}),
         });
+        const page = readSdkCursorPageInfo(response.pageInfo);
         return {
           items: response.items,
-          hasMore: response.hasMore,
-          nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
+          hasMore: page.hasMore,
+          nextCursor: page.nextCursor,
         };
       },
       (items) => {
@@ -1880,21 +1984,45 @@ class SdkworkChatService implements ChatService {
 
   async listChatsPage(options?: { cursor?: string; pageSize?: number }): Promise<ChatListPage> {
     const pageSize = Math.min(options?.pageSize ?? INBOX_PAGE_LIMIT, INBOX_PAGE_LIMIT);
-    const response = await this.client().chat.inbox.retrieve({
-      pageSize,
-      ...(options?.cursor ? { cursor: options.cursor } : {}),
-    });
-    const items = await this.hydrateInboxEntriesToChats(response.items);
-    return {
-      items: items.sort(sortChats),
-      hasMore: Boolean(response.hasMore),
-      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
-    };
+    try {
+      const response = await this.client().chat.inbox.list({
+        pageSize,
+        ...(options?.cursor ? { cursor: options.cursor } : {}),
+      });
+      const items = await this.hydrateInboxEntriesToChats(response.items);
+      void persistDesktopOfflineChats(items).catch(() => undefined);
+      const pageInfo = (response as { pageInfo?: { hasMore?: boolean; nextCursor?: string | null } }).pageInfo;
+      const page = readSdkCursorPageInfo(pageInfo);
+      return {
+        items: items.sort(sortChats),
+        hasMore: page.hasMore,
+        nextCursor: page.nextCursor,
+      };
+    } catch (error) {
+      if (options?.cursor) {
+        throw error;
+      }
+      const offlineChats = await loadDesktopOfflineChats(pageSize);
+      if (offlineChats.length === 0) {
+        throw error;
+      }
+      return {
+        items: offlineChats.sort(sortChats),
+        hasMore: false,
+        nextCursor: undefined,
+      };
+    }
   }
 
   async getChats(): Promise<Chat[]> {
-    const page = await this.listChatsPage();
-    const chats = [...page.items];
+    const chats: Chat[] = [];
+    await forEachCursorPage(
+      (cursor) => this.listChatsPage({ cursor }),
+      (items) => {
+        chats.push(...items);
+      },
+      { maxItems: MAX_INBOX_CONVERSATIONS * 10 },
+    );
 
     for (const [chatId, localMessages] of this.localMessages.entries()) {
       if (this.conversationViewState.get(chatId)?.isHidden || chats.some((chat) => chat.id === chatId)) {
@@ -1930,32 +2058,89 @@ class SdkworkChatService implements ChatService {
     this.trimLocalMessages(chatId);
   }
 
+  private queuePersistOfflineMessages(messages: OfflinePersistableMessage[]): void {
+    if (messages.length === 0) {
+      return;
+    }
+    void persistDesktopOfflineMessages(messages).catch(() => undefined);
+  }
+
+  private queuePersistOfflineMessage(message: OfflinePersistableMessage): void {
+    this.queuePersistOfflineMessages([message]);
+  }
+
   async getMessages(chatId: string, options?: { pageSize?: number }): Promise<Message[]> {
     const pageSize = options?.pageSize ?? DEFAULT_MESSAGE_INITIAL_LIMIT;
-    const response = await this.client().conversations.listMessages(chatId, {
-      afterSeq: 0,
-      pageSize,
-    });
+    try {
+      const cachedMessages = new Map(
+        (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
+      );
+      const remoteMessages: Message[] = [];
+      const persistableMessages: OfflinePersistableMessage[] = [];
+      let afterSeq = 0;
+      let nextPaginationState: TimelinePaginationState = {
+        hasMore: false,
+        nextAfterSeq: 0,
+      };
 
-    const cachedMessages = new Map(
-      (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
-    );
-    const firstPageMessages = await this.enrichMessagesWithInteractionSummaries(
-      chatId,
-      response.items,
-      cachedMessages,
-    );
+      do {
+        const response = await this.client().conversations.listMessages(chatId, {
+          afterSeq,
+          pageSize,
+        });
+        const pageMessages = await this.enrichMessagesWithInteractionSummaries(
+          chatId,
+          response.items,
+          cachedMessages,
+        );
+        remoteMessages.push(...pageMessages);
+        for (const message of pageMessages) {
+          cachedMessages.set(message.id, message);
+        }
+        persistableMessages.push(
+          ...response.items.map((entry, index) => ({
+            ...mapTimelineEntryToMessage(entry, index, response.items.length, cachedMessages.get(entry.messageId)),
+            messageSeq: entry.messageSeq,
+          })),
+        );
 
-    this.timelinePaginationState.set(chatId, {
-      hasMore: Boolean(response.hasMore),
-      nextAfterSeq: typeof response.nextAfterSeq === 'number' ? response.nextAfterSeq : 0,
-    });
+        const timelinePage = readSeqCursorPageInfo(response.pageInfo);
+        const canContinue = timelinePage.hasMore
+          && timelinePage.nextAfterSeq > afterSeq
+          && remoteMessages.length < LOCAL_MESSAGES_PER_CONVERSATION_CAP;
+        nextPaginationState = {
+          hasMore: canContinue || (
+            timelinePage.hasMore
+            && timelinePage.nextAfterSeq > afterSeq
+            && remoteMessages.length >= LOCAL_MESSAGES_PER_CONVERSATION_CAP
+          ),
+          nextAfterSeq: timelinePage.nextAfterSeq,
+        };
+        if (!canContinue) {
+          break;
+        }
+        afterSeq = timelinePage.nextAfterSeq;
+      } while (true);
 
-    const remoteMessages = firstPageMessages;
+      this.timelinePaginationState.set(chatId, nextPaginationState);
 
-    const mergedMessages = mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
-    this.setLocalMessages(chatId, mergedMessages);
-    return mergedMessages;
+      const mergedMessages = mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
+      this.setLocalMessages(chatId, mergedMessages);
+      this.queuePersistOfflineMessages(persistableMessages);
+      return mergedMessages;
+    } catch (error) {
+      const offlineMessages = await loadDesktopOfflineMessages(chatId, 0, pageSize);
+      if (offlineMessages.length === 0) {
+        throw error;
+      }
+      const mergedMessages = mergeMessageLists(offlineMessages, this.localMessages.get(chatId) ?? []);
+      this.setLocalMessages(chatId, mergedMessages);
+      this.timelinePaginationState.set(chatId, {
+        hasMore: false,
+        nextAfterSeq: 0,
+      });
+      return mergedMessages;
+    }
   }
 
   hasMoreMessages(chatId: string): boolean {
@@ -1969,35 +2154,53 @@ class SdkworkChatService implements ChatService {
     }
 
     const afterSeq = state.nextAfterSeq;
-    const response = await this.client().conversations.listMessages(chatId, {
-      afterSeq,
-      pageSize: pageSize ?? MESSAGE_PAGE_LIMIT,
-    });
+    try {
+      const response = await this.client().conversations.listMessages(chatId, {
+        afterSeq,
+        pageSize: pageSize ?? MESSAGE_PAGE_LIMIT,
+      });
 
-    const cachedMessages = new Map(
-      (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
-    );
-    const newMessages = await this.enrichMessagesWithInteractionSummaries(
-      chatId,
-      response.items,
-      cachedMessages,
-    );
+      const cachedMessages = new Map(
+        (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
+      );
+      const newMessages = await this.enrichMessagesWithInteractionSummaries(
+        chatId,
+        response.items,
+        cachedMessages,
+      );
 
-    this.timelinePaginationState.set(chatId, {
-      hasMore: Boolean(response.hasMore),
-      nextAfterSeq: typeof response.nextAfterSeq === 'number' && response.nextAfterSeq > afterSeq
-        ? response.nextAfterSeq
-        : afterSeq,
-    });
+      const timelinePage = readSeqCursorPageInfo(response.pageInfo);
+      this.timelinePaginationState.set(chatId, {
+        hasMore: timelinePage.hasMore,
+        nextAfterSeq: timelinePage.hasMore && timelinePage.nextAfterSeq > afterSeq
+          ? timelinePage.nextAfterSeq
+          : afterSeq,
+      });
 
-    const mergedMessages = mergeMessageLists(newMessages, this.localMessages.get(chatId) ?? []);
-    this.setLocalMessages(chatId, mergedMessages);
-    return newMessages;
+      const mergedMessages = mergeMessageLists(newMessages, this.localMessages.get(chatId) ?? []);
+      this.setLocalMessages(chatId, mergedMessages);
+      this.queuePersistOfflineMessages(
+        response.items.map((entry, index) => ({
+          ...mapTimelineEntryToMessage(entry, index, response.items.length, cachedMessages.get(entry.messageId)),
+          messageSeq: entry.messageSeq,
+        })),
+      );
+      return newMessages;
+    } catch (error) {
+      const offlineMessages = await loadDesktopOfflineMessages(chatId, afterSeq, pageSize ?? MESSAGE_PAGE_LIMIT);
+      if (offlineMessages.length === 0) {
+        throw error;
+      }
+      const mergedMessages = mergeMessageLists(offlineMessages, this.localMessages.get(chatId) ?? []);
+      this.setLocalMessages(chatId, mergedMessages);
+      return offlineMessages;
+    }
   }
 
   subscribeMessages(chatId: string, handler: MessageHandler): () => void {
     const subscription = this.getOrCreateLiveSubscription(chatId);
     subscription.handlers.add(handler);
+    void this.catchUpConversationMessages(chatId).catch(() => undefined);
 
     return () => {
       subscription.handlers.delete(handler);
@@ -2018,57 +2221,107 @@ class SdkworkChatService implements ChatService {
     const currentUser = contactService.getCurrentUser();
     const clientMsgId = `pc-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const replyReference = buildReplyReference(replyTo);
-    const mediaUpload = isMediaMessageType(type)
-      ? await uploadChatMediaFile({
-          chatId,
-          content,
-          extraInfo,
-          getDriveUploader: this.getDriveUploader,
-          getSession: this.getSession,
-          type,
-        })
-      : undefined;
-    const remoteSummary = mediaUpload?.resource.fileName ?? (content || extraInfo?.fileName || type);
-    const parts = type === 'text'
-      ? undefined
-      : buildMessageParts(mediaUpload?.content ?? content, type, extraInfo, mediaUpload);
-    const postResult = type === 'text'
-      ? await client.conversations.postText(chatId, content, {
-          clientMsgId,
-          summary: content,
-          ...(replyReference ? { replyTo: replyReference } : {}),
-        })
-      : await client.conversations.postMessage(chatId, {
-          clientMsgId,
-          summary: remoteSummary,
-          ...(replyReference ? { replyTo: replyReference } : {}),
-          ...(parts ? { parts } : {}),
-          renderHints: buildMessageRenderHints(type, extraInfo),
-        });
-
     const {
       file: _file,
       mimeType: _mimeType,
       ...localExtraInfo
     } = extraInfo ?? {};
-    const message: Message = {
-      id: postResult.messageId,
-      chatId,
-      senderId: extraInfo?.senderId ?? currentUser.id,
-      content,
-      type,
-      timestamp: Date.now(),
-      replyTo,
-      ...localExtraInfo,
-    };
-    const storedMessage = this.upsertLocalMessage(chatId, message, true);
-    this.latestReadSeq.set(chatId, Math.max(this.latestReadSeq.get(chatId) ?? 0, postResult.messageSeq));
-    const subscription = this.liveSubscriptions.get(chatId);
-    if (subscription) {
-      this.notifyLiveSubscription(subscription, storedMessage);
+
+    let mediaUpload: ChatMediaUploadResult | undefined;
+    let remoteSummary = content || extraInfo?.fileName || type;
+    let parts: ContentPart[] | undefined;
+    let renderHints: ReturnType<typeof buildMessageRenderHints> | undefined;
+
+    try {
+      mediaUpload = isMediaMessageType(type)
+        ? await uploadChatMediaFile({
+            chatId,
+            content,
+            extraInfo,
+            getDriveUploader: this.getDriveUploader,
+            getSession: this.getSession,
+            type,
+          })
+        : undefined;
+      remoteSummary = mediaUpload?.resource.fileName ?? remoteSummary;
+      parts = type === 'text'
+        ? undefined
+        : buildMessageParts(mediaUpload?.content ?? content, type, extraInfo, mediaUpload);
+      renderHints = type === 'text' ? undefined : buildMessageRenderHints(type, extraInfo);
+      const postResult = type === 'text'
+        ? await client.conversations.postText(chatId, content, {
+            clientMsgId,
+            summary: content,
+            ...(replyReference ? { replyTo: replyReference } : {}),
+          })
+        : await client.conversations.postMessage(chatId, {
+            clientMsgId,
+            summary: remoteSummary,
+            ...(replyReference ? { replyTo: replyReference } : {}),
+            ...(parts ? { parts } : {}),
+            renderHints,
+          });
+
+      const message: Message = {
+        id: postResult.messageId,
+        chatId,
+        senderId: extraInfo?.senderId ?? currentUser.id,
+        content,
+        type,
+        timestamp: Date.now(),
+        replyTo,
+        ...localExtraInfo,
+      };
+      const storedMessage = this.upsertLocalMessage(chatId, message, true);
+      this.latestReadSeq.set(chatId, Math.max(this.latestReadSeq.get(chatId) ?? 0, postResult.messageSeq));
+      const subscription = this.liveSubscriptions.get(chatId);
+      if (subscription) {
+        this.notifyLiveSubscription(subscription, storedMessage);
+      }
+      await this.emitChatList().catch(() => undefined);
+      return storedMessage;
+    } catch (error) {
+      const canQueueOffline = isRetryableDesktopSendError(error)
+        && (await ensureDesktopOfflineChatCache())
+        && (type === 'text' || Boolean(mediaUpload));
+      if (!canQueueOffline) {
+        throw error;
+      }
+
+      await enqueueDesktopPendingSend({
+        chatId,
+        content: mediaUpload?.content ?? content,
+        type,
+        clientMsgId,
+        replyTo,
+        extraInfo: localExtraInfo,
+        ...(type === 'text'
+          ? {}
+          : {
+              summary: remoteSummary,
+              parts,
+              renderHints,
+            }),
+      });
+      const pendingMessage: Message = {
+        id: clientMsgId,
+        chatId,
+        senderId: extraInfo?.senderId ?? currentUser.id,
+        content,
+        type,
+        timestamp: Date.now(),
+        replyTo,
+        sendState: 'pending',
+        ...localExtraInfo,
+      };
+      const storedMessage = this.upsertLocalMessage(chatId, pendingMessage, true);
+      const subscription = this.liveSubscriptions.get(chatId);
+      if (subscription) {
+        this.notifyLiveSubscription(subscription, storedMessage);
+      }
+      await this.emitChatList().catch(() => undefined);
+      return storedMessage;
     }
-    await this.emitChatList().catch(() => undefined);
-    return storedMessage;
   }
 
   async forwardMessages(targetChatIds: string[], messages: Message[]): Promise<void> {
@@ -2089,10 +2342,68 @@ class SdkworkChatService implements ChatService {
     }
   }
 
+  async retryFailedMessage(chatId: string, messageId: string): Promise<Message> {
+    const messages = this.localMessages.get(chatId) ?? [];
+    const failedMessage = messages.find(
+      (message) => message.id === messageId && message.sendState === 'failed',
+    );
+    if (!failedMessage) {
+      throw new Error('Failed outbound message not found.');
+    }
+    if (failedMessage.type !== 'text') {
+      throw new Error('Only text messages can be retried from the local failed queue.');
+    }
+
+    this.localMessages.set(
+      chatId,
+      messages.filter((message) => message.id !== messageId),
+    );
+
+    return this.sendMessage(
+      chatId,
+      failedMessage.content,
+      failedMessage.type,
+      failedMessage.replyTo,
+    );
+  }
+
+  setReadFocusContext(context: { activeConversationId?: string; isWindowFocused?: boolean }): void {
+    if ('activeConversationId' in context) {
+      this.focusedConversationId = context.activeConversationId;
+    }
+    if (typeof context.isWindowFocused === 'boolean') {
+      this.windowFocused = context.isWindowFocused;
+    }
+  }
+
+  private async resolveReadSeqForMarkAsRead(chatId: string): Promise<number> {
+    const cachedSeq = this.latestReadSeq.get(chatId) ?? 0;
+    if (cachedSeq > 0) {
+      return cachedSeq;
+    }
+
+    try {
+      const response = await this.client().conversations.listMessages(chatId, { pageSize: 1 });
+      const latestEntry = response.items?.at(-1);
+      const resolvedSeq = latestEntry?.messageSeq ?? 0;
+      if (resolvedSeq > 0) {
+        this.latestReadSeq.set(chatId, resolvedSeq);
+      }
+      return resolvedSeq;
+    } catch {
+      return 0;
+    }
+  }
+
+  private isConversationActivelyViewed(chatId: string): boolean {
+    return this.windowFocused && this.focusedConversationId === chatId;
+  }
+
   async markAsRead(chatId: string): Promise<void> {
-    const readSeq = this.latestReadSeq.get(chatId) ?? 0;
+    const readSeq = await this.resolveReadSeqForMarkAsRead(chatId);
     if (readSeq > 0) {
       await this.client().conversations.updateReadCursor(chatId, { readSeq });
+      this.latestReadSeq.set(chatId, readSeq);
     }
     await this.client().conversations.updatePreferences(chatId, { isMarkedUnread: false });
     this.conversationViewState.set(chatId, {
@@ -2426,10 +2737,12 @@ class SdkworkChatService implements ChatService {
     if (!this.hasLiveSubscriptionDemand()) {
       return;
     }
-    recoverPcLiveConnection(reason);
+    this.configureRealtimeConnectionManager();
+    recoverPcLiveConnection(reason, { force: true });
   }
 
   private getOrCreateLiveSubscription(chatId: string): ConversationLiveSubscription {
+    this.configureRealtimeConnectionManager();
     const existing = this.liveSubscriptions.get(chatId);
     if (existing) {
       return existing;
@@ -2450,6 +2763,7 @@ class SdkworkChatService implements ChatService {
   }
 
   private ensureConversationWireSubscription(conversationId: string): void {
+    this.configureRealtimeConnectionManager();
     if (this.conversationWireUnsubs.has(conversationId)) {
       return;
     }
@@ -2468,6 +2782,7 @@ class SdkworkChatService implements ChatService {
   }
 
   private ensureInboxWireSubscription(): void {
+    this.configureRealtimeConnectionManager();
     if (this.liveInboxWireUnsub || this.chatListHandlers.size === 0) {
       return;
     }
@@ -2487,6 +2802,7 @@ class SdkworkChatService implements ChatService {
   }
 
   private ensureLiveSession(): void {
+    void ensureDesktopOfflineChatCache().catch(() => undefined);
     this.ensureInboxWireSubscription();
   }
 
@@ -2529,6 +2845,9 @@ class SdkworkChatService implements ChatService {
   }
 
   private async catchUpOnConnectionOpen(): Promise<void> {
+    await this.hydrateDesktopPendingSends().catch(() => undefined);
+    await this.flushDesktopPendingSendQueue().catch(() => undefined);
+
     if (!this.hasLiveSubscriptionDemand()) {
       return;
     }
@@ -2536,10 +2855,109 @@ class SdkworkChatService implements ChatService {
     const conversationIds = Array.from(this.liveSubscriptions.keys());
     for (const conversationId of conversationIds) {
       if (!this.liveSubscriptions.has(conversationId)) {
-        return;
+        continue;
       }
       await this.catchUpConversationMessages(conversationId).catch(() => undefined);
     }
+    if (this.chatListHandlers.size > 0) {
+      await this.emitChatList().catch(() => undefined);
+    }
+  }
+
+  private async hydrateDesktopPendingSends(): Promise<void> {
+    const pending = await listDesktopPendingSends();
+    if (pending.length === 0) {
+      return;
+    }
+
+    const currentUser = contactService.getCurrentUser();
+    for (const item of pending) {
+      const existing = this.localMessages.get(item.chatId) ?? [];
+      if (existing.some((message) => message.id === item.clientMsgId)) {
+        continue;
+      }
+      const extraInfo = item.extraInfo ?? {};
+      const pendingMessage: Message = {
+        id: item.clientMsgId,
+        chatId: item.chatId,
+        senderId: typeof extraInfo.senderId === 'string' ? extraInfo.senderId : currentUser.id,
+        content: item.content,
+        type: item.type,
+        timestamp: Date.now(),
+        replyTo: item.replyTo,
+        sendState: 'pending',
+        ...(extraInfo as Partial<Message>),
+      };
+      this.upsertLocalMessage(item.chatId, pendingMessage, true);
+    }
+  }
+
+  private async flushDesktopPendingSendQueue(): Promise<void> {
+    const pending = await listDesktopPendingSends();
+    if (pending.length === 0) {
+      return;
+    }
+
+    for (const item of pending) {
+      try {
+        const replyReference = buildReplyReference(item.replyTo);
+        const postResult = item.type === 'text'
+          ? await this.client().conversations.postText(item.chatId, item.content, {
+              clientMsgId: item.clientMsgId,
+              summary: item.content,
+              ...(replyReference ? { replyTo: replyReference } : {}),
+            })
+          : await this.client().conversations.postMessage(item.chatId, {
+              clientMsgId: item.clientMsgId,
+              summary: item.summary ?? item.content,
+              ...(replyReference ? { replyTo: replyReference } : {}),
+              ...(item.parts ? { parts: item.parts as ContentPart[] } : {}),
+              ...(item.renderHints ? { renderHints: item.renderHints } : {}),
+            });
+        await removeDesktopPendingSend(item.clientMsgId);
+
+        const messages = this.localMessages.get(item.chatId) ?? [];
+        let replacedMessage: Message | undefined;
+        const updatedMessages = messages.map((message) => {
+          if (message.id !== item.clientMsgId) {
+            return message;
+          }
+          replacedMessage = {
+            ...message,
+            id: postResult.messageId,
+            sendState: undefined,
+            timestamp: Date.now(),
+          };
+          return replacedMessage;
+        });
+        this.setLocalMessages(item.chatId, updatedMessages);
+        this.latestReadSeq.set(
+          item.chatId,
+          Math.max(this.latestReadSeq.get(item.chatId) ?? 0, postResult.messageSeq),
+        );
+        const subscription = this.liveSubscriptions.get(item.chatId);
+        if (subscription && replacedMessage) {
+          this.notifyLiveSubscription(subscription, replacedMessage);
+        }
+      } catch (error) {
+        if (!isRetryableDesktopSendError(error)) {
+          await removeDesktopPendingSend(item.clientMsgId).catch(() => undefined);
+          const messages = this.localMessages.get(item.chatId) ?? [];
+          const updatedMessages = messages.map((message) => (
+            message.id === item.clientMsgId
+              ? { ...message, sendState: 'failed' as const }
+              : message
+          ));
+          this.setLocalMessages(item.chatId, updatedMessages);
+          const subscription = this.liveSubscriptions.get(item.chatId);
+          const failedMessage = updatedMessages.find((message) => message.id === item.clientMsgId);
+          if (subscription && failedMessage) {
+            this.notifyLiveSubscription(subscription, failedMessage);
+          }
+        }
+      }
+    }
+
     if (this.chatListHandlers.size > 0) {
       await this.emitChatList().catch(() => undefined);
     }
@@ -2575,15 +2993,15 @@ class SdkworkChatService implements ChatService {
       entries.push(...response.items.filter((entry) => entry.messageSeq > checkpointSeq));
       pagesFetched += 1;
 
+      const timelinePage = readSeqCursorPageInfo(response.pageInfo);
       if (
-        !response.hasMore
-        || typeof response.nextAfterSeq !== 'number'
-        || response.nextAfterSeq <= afterSeq
+        !timelinePage.hasMore
+        || timelinePage.nextAfterSeq <= afterSeq
       ) {
         break;
       }
 
-      afterSeq = response.nextAfterSeq;
+      afterSeq = timelinePage.nextAfterSeq;
     }
 
     if (entries.length === 0) {
@@ -2649,13 +3067,18 @@ class SdkworkChatService implements ChatService {
     if (message && !this.conversationViewState.get(message.chatId)?.isHidden) {
       const storedMessage = this.upsertLocalMessage(message.chatId, message, true);
       if (storedMessage.senderId !== this.resolveCurrentUserId()) {
-        this.conversationViewState.set(message.chatId, {
-          ...this.conversationViewState.get(message.chatId),
-          isMarkedUnread: true,
-        });
+        if (this.isConversationActivelyViewed(message.chatId)) {
+          void this.markAsRead(message.chatId).catch(() => undefined);
+        } else {
+          this.conversationViewState.set(message.chatId, {
+            ...this.conversationViewState.get(message.chatId),
+            isMarkedUnread: true,
+          });
+        }
       }
       const messageSeq = pickNumber(context.payload?.messageSeq, context.sequence) ?? 0;
       this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq));
+      this.queuePersistOfflineMessage({ ...storedMessage, messageSeq });
       const subscription = this.liveSubscriptions.get(message.chatId);
       if (subscription) {
         this.notifyLiveSubscription(subscription, storedMessage);
@@ -2676,6 +3099,7 @@ class SdkworkChatService implements ChatService {
     const storedMessage = this.upsertLocalMessage(message.chatId, message, isRtcCallUpdate);
     const messageSeq = pickNumber(decodedMessage.messageSeq, context.payload?.messageSeq, context.sequence) ?? 0;
     this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq));
+    this.queuePersistOfflineMessage({ ...storedMessage, messageSeq });
     const subscription = this.liveSubscriptions.get(message.chatId) ?? this.liveSubscriptions.get(fallbackChatId);
     if (subscription) {
       this.notifyLiveSubscription(subscription, storedMessage);
@@ -2689,7 +3113,7 @@ class SdkworkChatService implements ChatService {
       return;
     }
     const page = await this.listChatsPage();
-    const chats = page.items;
+    const chats = this.mergeLiveLocalChats(page.items);
     for (const handler of this.chatListHandlers) {
       handler(chats);
     }
@@ -2722,6 +3146,8 @@ class SdkworkChatService implements ChatService {
       chatId,
       Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp),
     );
+    this.trimLocalMessages(chatId);
+    this.trimLocalConversationCache();
     return nextMessage;
   }
 

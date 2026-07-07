@@ -112,9 +112,8 @@ impl ClientRouteState {
             )
             .as_str(),
         );
-        lock_client_route_mutex(&self.route_owner_scopes, "client route owner store").remove(
-            tenant_client_route_scope_key(auth.tenant_id.as_str(), device_id).as_str(),
-        );
+        lock_client_route_mutex(&self.route_owner_scopes, "client route owner store")
+            .remove(tenant_client_route_scope_key(auth.tenant_id.as_str(), device_id).as_str());
     }
 
     #[cfg(test)]

@@ -12,6 +12,8 @@ export const ConsoleDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('过去7天');
 
+  const hasActivityData = trends.length > 0;
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -51,7 +53,15 @@ export const ConsoleDashboard: React.FC = () => {
             上午好，管理员 <span className="text-blue-500">👋</span>
           </h1>
           <p className="text-sm text-console-text-muted mt-2 max-w-xl leading-relaxed">
-            欢迎回到 Sdkwork IM 企业管理控制台。今日共有 <strong className="text-console-text-main">{metrics?.dailyMessages.value || 0}</strong> 条新消息产生，您的整体租户系统运行健康，没有阻断级别的告警。
+            {hasActivityData ? (
+              <>
+                欢迎回到 Sdkwork IM 企业管理控制台。今日共有 <strong className="text-console-text-main">{metrics?.dailyMessages.value || 0}</strong> 条新消息产生，您的整体租户系统运行健康，没有阻断级别的告警。
+              </>
+            ) : (
+              <>
+                欢迎回到 Sdkwork IM 企业管理控制台。运营指标正在等待 ops 健康面数据同步，活跃度趋势将保持为空直至服务端上报。
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3 relative z-10">
@@ -113,7 +123,7 @@ export const ConsoleDashboard: React.FC = () => {
             </div>
             
             <div className="flex-1 flex items-end justify-between gap-3 pb-2 relative z-10 mt-4">
-              {trends.map((item, i) => (
+              {hasActivityData ? trends.map((item, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-3 relative group/bar">
                   <div className="w-full bg-blue-500/10 dark:bg-blue-500/5 rounded-t-md relative flex items-end overflow-hidden h-full min-h-[160px] border border-blue-500/10 transition-colors group-hover/bar:border-blue-500/30">
                     <div 
@@ -133,7 +143,13 @@ export const ConsoleDashboard: React.FC = () => {
                     <div className="text-sm font-bold text-console-text-main">{item.value}%</div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center min-h-[200px]">
+                  <Activity size={32} className="text-blue-500/40 mb-3" />
+                  <p className="text-sm font-medium text-console-text-main">暂无活跃度数据</p>
+                  <p className="text-xs text-console-text-muted mt-1">ops 健康面未上报趋势时将保持为空，不会伪造零值柱状图</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

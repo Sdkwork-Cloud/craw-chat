@@ -3,12 +3,17 @@ import { ArrowLeft } from 'lucide-react';
 import {
   InboxPage,
   MessagePage,
+  createMailAppServices,
 } from '@sdkwork/mail-pc-mail';
-import { createImHostedMailAppServices } from './bootstrapImMailPcHost';
+import { getMailAppSdkClient } from '@sdkwork/mail-pc-core';
+import { resolveAppSdkBaseUrl } from '@sdkwork/im-pc-core/sdk/appSdkClient';
 
 export const MailView: React.FC = () => {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const services = useMemo(() => createImHostedMailAppServices(), []);
+  const services = useMemo(
+    () => createMailAppServices(getMailAppSdkClient(resolveAppSdkBaseUrl())),
+    [],
+  );
 
   if (selectedMessageId) {
     return (

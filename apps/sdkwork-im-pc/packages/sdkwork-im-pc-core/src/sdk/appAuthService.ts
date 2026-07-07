@@ -166,25 +166,38 @@ function isAuthSessionRejectedError(error: unknown): boolean {
   return /\b401\b/u.test(message) || /\b403\b/u.test(message) || /unauthorized/iu.test(message);
 }
 
-export const appAuthService: AppAuthService = {
-  async getCurrentSession() {
-    const storedSession = readAppSdkSessionTokens();
-    if (!isAppSdkSessionAuthenticated(storedSession)) {
+let currentSessionRefreshPromise: Promise<SdkworkChatSession | null> | null = null;
+
+async function refreshCurrentSessionFromServer(): Promise<SdkworkChatSession | null> {
+  const storedSession = readAppSdkSessionTokens();
+  if (!isAppSdkSessionAuthenticated(storedSession)) {
+    clearSdkworkChatIamRuntimeSession();
+    return null;
+  }
+
+  try {
+    const session = await getSdkworkChatIamRuntime().service.auth.sessions.current.retrieve();
+    return applyAppSdkSessionTokens(toSession(session as unknown as RuntimeSessionPayload));
+  } catch (error) {
+    if (isAuthSessionRejectedError(error)) {
       clearSdkworkChatIamRuntimeSession();
+      resetSdkworkChatIamRuntime();
       return null;
     }
+    return storedSession;
+  }
+}
 
-    try {
-      const session = await getSdkworkChatIamRuntime().service.auth.sessions.current.retrieve();
-      return applyAppSdkSessionTokens(toSession(session as unknown as RuntimeSessionPayload));
-    } catch (error) {
-      if (isAuthSessionRejectedError(error)) {
-        clearSdkworkChatIamRuntimeSession();
-        resetSdkworkChatIamRuntime();
-        return null;
-      }
-      return storedSession;
+export const appAuthService: AppAuthService = {
+  async getCurrentSession() {
+    if (currentSessionRefreshPromise) {
+      return currentSessionRefreshPromise;
     }
+
+    currentSessionRefreshPromise = refreshCurrentSessionFromServer().finally(() => {
+      currentSessionRefreshPromise = null;
+    });
+    return currentSessionRefreshPromise;
   },
 
   async logout() {

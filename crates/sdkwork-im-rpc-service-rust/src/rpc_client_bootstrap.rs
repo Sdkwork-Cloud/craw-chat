@@ -69,7 +69,7 @@ pub fn im_rpc_resolver_profile_from_env() -> ResolverProfile {
     if discovery_endpoint_from_env().is_some() && static_endpoint_from_env().is_some() {
         return ResolverProfile::Composite;
     }
-    
+
     if discovery_endpoint_from_env().is_some() {
         return ResolverProfile::Discovery;
     }

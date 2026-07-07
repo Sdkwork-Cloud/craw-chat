@@ -89,9 +89,7 @@ export function buildPlaywrightSessionFixture(
 
 export function buildPlaywrightSessionResponse(session: PlaywrightSessionFixture) {
   return {
-    code: '0',
-    message: 'ok',
-    requestId: 'playwright.request.1',
+    code: 0,
     data: {
       accessToken: session.accessToken,
       authToken: session.authToken,
@@ -101,5 +99,6 @@ export function buildPlaywrightSessionResponse(session: PlaywrightSessionFixture
       context: session.context,
       user: session.user,
     },
+    traceId: 'trace.playwright.session.1',
   };
 }

@@ -5,10 +5,10 @@ use std::sync::Arc;
 
 use conversation_runtime::http::default_app_state;
 use conversation_runtime::internal_rpc_dispatch::{
-    ConversationInternalRpcDispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS,
+    CONVERSATION_INTERNAL_RPC_SERVICE_KEYS, ConversationInternalRpcDispatcher,
 };
 use conversation_runtime::rpc_dispatch::{
-    rpc_metadata_from_app_context, ConversationRpcDispatcher, CONVERSATION_RPC_SERVICE_KEYS,
+    CONVERSATION_RPC_SERVICE_KEYS, ConversationRpcDispatcher, rpc_metadata_from_app_context,
 };
 use im_app_context::local_service_app_context;
 use im_domain_core::room::game_move_schema_ref;
@@ -21,12 +21,12 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::internal::v1::{
     room_orchestration_service_client::RoomOrchestrationServiceClient,
 };
 use sdkwork_im_rpc_service_rust::{
-    build_im_rpc_service_router_with_config_for_services, ImRpcRuntimeDispatcher,
-    ImRpcServerConfig, RpcMetadata,
+    ImRpcRuntimeDispatcher, ImRpcServerConfig, RpcMetadata,
+    build_im_rpc_service_router_with_config_for_services,
 };
 use tonic::Code;
-use tonic::metadata::MetadataValue;
 use tonic::Request;
+use tonic::metadata::MetadataValue;
 
 struct RpcServerHandle {
     shutdown: tokio::sync::oneshot::Sender<()>,
@@ -151,10 +151,7 @@ async fn test_app_room_service_create_enter_over_grpc() {
         .await
         .expect("rooms.enter should succeed over app RPC");
     assert!(
-        enter_response
-            .into_inner()
-            .member
-            .is_some(),
+        enter_response.into_inner().member.is_some(),
         "enter room should return membership"
     );
 
@@ -165,11 +162,8 @@ async fn test_app_room_service_create_enter_over_grpc() {
 async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
     let state = default_app_state();
     let dispatcher = Arc::new(ConversationInternalRpcDispatcher::from_app_state(state));
-    let (addr, server) = start_in_process_rpc_server(
-        dispatcher,
-        CONVERSATION_INTERNAL_RPC_SERVICE_KEYS,
-    )
-    .await;
+    let (addr, server) =
+        start_in_process_rpc_server(dispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS).await;
 
     let mut room_client = RoomOrchestrationServiceClient::connect(format!("http://{addr}"))
         .await
@@ -291,11 +285,8 @@ async fn test_app_rpc_host_rejects_service_mtls_metadata_without_dual_token() {
 async fn test_internal_rpc_host_rejects_app_session_without_service_identity() {
     let state = default_app_state();
     let dispatcher = Arc::new(ConversationInternalRpcDispatcher::from_app_state(state));
-    let (addr, server) = start_in_process_rpc_server(
-        dispatcher,
-        CONVERSATION_INTERNAL_RPC_SERVICE_KEYS,
-    )
-    .await;
+    let (addr, server) =
+        start_in_process_rpc_server(dispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS).await;
 
     let owner = local_service_app_context("100001", "1", "user", Some("d_owner"), ["*"]);
     let mut client = RoomOrchestrationServiceClient::connect(format!("http://{addr}"))

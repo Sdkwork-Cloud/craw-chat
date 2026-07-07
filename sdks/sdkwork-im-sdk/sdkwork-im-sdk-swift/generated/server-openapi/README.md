@@ -71,7 +71,7 @@ print(result)
 ```swift
 // List pending realtime events
 let params: [String: Any] = [
-    "limit": 1,
+    "page_size": 1,
     "cursor": "cursor"
 ]
 let result = try await client.realtime.eventsList(params: params)
@@ -94,12 +94,8 @@ print(result)
 ### social
 
 ```swift
-// List contact tags
-let params: [String: Any] = [
-    "limit": 1,
-    "cursor": "cursor"
-]
-let result = try await client.social.contactsTagsList(params: params)
+// Retrieve pending incoming friend request count
+let result = try await client.social.friendRequestsPendingCountRetrieve()
 print(result)
 ```
 
@@ -108,7 +104,7 @@ print(result)
 ```swift
 // List IM contacts
 let params: [String: Any] = [
-    "limit": 1,
+    "page_size": 1,
     "cursor": "cursor"
 ]
 let result = try await client.chat.contactsList(params: params)
@@ -131,7 +127,11 @@ print(result)
 
 ```swift
 // List spaces
-let result = try await client.spaces.list()
+let params: [String: Any] = [
+    "page_size": 1,
+    "cursor": "cursor"
+]
+let result = try await client.spaces.list(params: params)
 print(result)
 ```
 

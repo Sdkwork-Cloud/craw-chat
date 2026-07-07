@@ -14,25 +14,25 @@ public class RealtimeApi {
     }
 
     /** Sync realtime subscription targets */
-    public RealtimeSubscriptionSyncResponse subscriptionsSync(RealtimeSubscriptionSyncRequest body) throws Exception {
+    public RealtimeSubscriptionsSyncResponse subscriptionsSync(RealtimeSubscriptionSyncRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/realtime/subscriptions/sync"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RealtimeSubscriptionSyncResponse>() {});
+        return client.convertValue(raw, new TypeReference<RealtimeSubscriptionsSyncResponse>() {});
     }
 
     /** Acknowledge realtime events */
-    public AckResponse eventsAck(RealtimeEventAckRequest body) throws Exception {
+    public RealtimeEventsAckResponse eventsAck(RealtimeEventAckRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/realtime/events/ack"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<AckResponse>() {});
+        return client.convertValue(raw, new TypeReference<RealtimeEventsAckResponse>() {});
     }
 
     /** List pending realtime events */
-    public RealtimeEventsResponse eventsList(Integer limit, String cursor) throws Exception {
+    public RealtimeEventsListResponse eventsList(Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/realtime/events"), query));
-        return client.convertValue(raw, new TypeReference<RealtimeEventsResponse>() {});
+        return client.convertValue(raw, new TypeReference<RealtimeEventsListResponse>() {});
     }
 
 

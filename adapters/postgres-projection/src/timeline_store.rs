@@ -8,8 +8,8 @@ use sdkwork_utils_rust::sha256_hash;
 use serde::Deserialize;
 
 use crate::{
-    default_projection_organization_id, now_rfc3339, postgres_pool_client, postgres_unavailable,
-    run_postgres_io, PostgresProjectionPool,
+    PostgresProjectionPool, default_projection_organization_id, now_rfc3339, postgres_pool_client,
+    postgres_unavailable, run_postgres_io,
 };
 
 const UPSERT_TIMELINE_ENTRY_SQL: &str = r#"
@@ -158,7 +158,8 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         })
     }
 
-    fn upsert_timeline_entries(        &self,
+    fn upsert_timeline_entries(
+        &self,
         tenant_id: &str,
         timeline_scope: &str,
         records: &[TimelineProjectionRecord],

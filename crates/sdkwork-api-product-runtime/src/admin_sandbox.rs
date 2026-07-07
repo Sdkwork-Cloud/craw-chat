@@ -301,6 +301,10 @@ fn object_response(value: Value) -> Response {
     json_response(StatusCode::OK, value)
 }
 
+fn created_response(value: Value) -> Response {
+    json_response(StatusCode::CREATED, value)
+}
+
 fn list_response(store: &Value, key: &str) -> Response {
     json_response(StatusCode::OK, store_value(store, key).clone())
 }
@@ -1150,23 +1154,23 @@ pub async fn handle_admin_sandbox_request(
     if method == Method::POST {
         match segment_refs.as_slice() {
             ["marketing", "campaigns"] => {
-                return object_response(save_marketing_campaign(&mut guard, &input));
+                return created_response(save_marketing_campaign(&mut guard, &input));
             }
             ["api_key_groups"] => {
-                return object_response(save_api_key_group(&mut guard, &input, None));
+                return created_response(save_api_key_group(&mut guard, &input, None));
             }
             ["routing", "profiles"] => {
-                return object_response(save_routing_profile(&mut guard, &input));
+                return created_response(save_routing_profile(&mut guard, &input));
             }
-            ["api_keys"] => return object_response(create_api_key_record(&mut guard, &input)),
-            ["channels"] => return object_response(save_channel(&mut guard, &input)),
-            ["providers"] => return object_response(save_provider(&mut guard, &input)),
-            ["credentials"] => return object_response(save_credential(&mut guard, &input)),
-            ["models"] => return object_response(save_model(&mut guard, &input)),
-            ["channel_models"] => return object_response(save_channel_model(&mut guard, &input)),
-            ["model_prices"] => return object_response(save_model_price(&mut guard, &input)),
+            ["api_keys"] => return created_response(create_api_key_record(&mut guard, &input)),
+            ["channels"] => return created_response(save_channel(&mut guard, &input)),
+            ["providers"] => return created_response(save_provider(&mut guard, &input)),
+            ["credentials"] => return created_response(save_credential(&mut guard, &input)),
+            ["models"] => return created_response(save_model(&mut guard, &input)),
+            ["channel_models"] => return created_response(save_channel_model(&mut guard, &input)),
+            ["model_prices"] => return created_response(save_model_price(&mut guard, &input)),
             ["gateway", "rate_limit_policies"] => {
-                return object_response(save_rate_limit_policy(&mut guard, &input));
+                return created_response(save_rate_limit_policy(&mut guard, &input));
             }
             ["extensions", "runtime_reloads"] => {
                 return object_response(save_runtime_reload(&mut guard, &input));
@@ -1895,7 +1899,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
         let campaign_id = campaign_payload
             .as_ref()
             .and_then(|value| value.get("marketing_campaign_id"))
@@ -1926,7 +1930,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
         let api_key_group_id = api_key_group_payload
             .as_ref()
             .and_then(|value| value.get("group_id"))
@@ -1968,7 +1972,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, api_key_payload) = send_request(
             &state,
@@ -1984,7 +1988,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
         let hashed_key = api_key_payload
             .as_ref()
             .and_then(|value| value.get("hashed"))
@@ -2031,7 +2035,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, _) = send_request(
             &state,
@@ -2055,7 +2059,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, providers_payload) = send_request(
             &state,
@@ -2096,7 +2100,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, providers_payload) = send_request(
             &state,
@@ -2138,7 +2142,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, _) = send_request(
             &state,
@@ -2155,7 +2159,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, _) = send_request(
             &state,
@@ -2177,7 +2181,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, _) = send_request(
             &state,
@@ -2198,7 +2202,7 @@ mod tests {
             })),
         )
         .await;
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::CREATED);
 
         let (status, windows_payload) = send_request(
             &state,

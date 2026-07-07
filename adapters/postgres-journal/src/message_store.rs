@@ -11,8 +11,8 @@
 use im_platform_contracts::{ContractError, MessageStore, MessageWindow, StoredMessageRecord};
 
 use crate::{
-    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_timestamptz,
-    postgres_unavailable, run_postgres_io, PostgresJournalPool,
+    PostgresJournalPool, now_rfc3339, postgres_jsonb_payload, postgres_pool_client,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
 /// PostgreSQL implementation of [`MessageStore`].
@@ -189,10 +189,8 @@ impl MessageStore for PostgresMessageStore {
                     ],
                 )
                 .map_err(|error| postgres_unavailable("read_window", error))?;
-            let items: Vec<StoredMessageRecord> = rows
-                .iter()
-                .map(stored_message_from_row)
-                .collect();
+            let items: Vec<StoredMessageRecord> =
+                rows.iter().map(stored_message_from_row).collect();
             let high_watermark = items.last().map(|m| m.message_seq).unwrap_or(0);
             let has_more = items.len() == limit;
             let next_after_seq = items.last().map(|m| m.message_seq);

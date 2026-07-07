@@ -6,7 +6,7 @@ use im_adapters_local_memory::{
 };
 use im_platform_contracts::{ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore};
 use session_gateway::{
-    RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeRuntimeError,
+    RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeRuntimeError,
     RealtimeSubscriptionItemInput,
 };
 
@@ -124,15 +124,17 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
             "capacity trimming should persist an operational timestamp"
         );
 
-        let window = expect_ok(runtime.list_events_for_principal_kind(
-            TENANT_ID,
-            "default",
-            PRINCIPAL_ID,
-            PRINCIPAL_KIND,
-            device_id,
-            0,
-            1_000,
-        ));
+        let window = expect_ok(
+            runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: TENANT_ID,
+                organization_id: "default",
+                principal_id: PRINCIPAL_ID,
+                principal_kind: PRINCIPAL_KIND,
+                device_id,
+                after_seq: 0,
+                limit: 1_000,
+            }),
+        );
         assert_eq!(window.items.len(), 1_000);
         assert_eq!(window.items[0].realtime_seq, 51);
         assert_eq!(window.items[999].realtime_seq, 1_050);
@@ -141,13 +143,15 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
     }
 
     let unmatched_window = expect_ok(runtime.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_other_conversation",
-        0,
-        10,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_other_conversation",
+            after_seq: 0,
+            limit: 10,
+        },
     ));
     assert_eq!(
         unmatched_window.items.len(),
@@ -173,13 +177,15 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
         event_window_store.clone(),
     );
     let restored_primary = expect_ok(rebuilt_runtime.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_primary",
-        0,
-        1_000,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_primary",
+            after_seq: 0,
+            limit: 1_000,
+        },
     ));
     assert_eq!(restored_primary.items.len(), 250);
     assert_eq!(restored_primary.items[0].realtime_seq, 801);
@@ -188,13 +194,15 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
     assert_eq!(restored_primary.trimmed_through_seq, 800);
 
     let restored_mobile = expect_ok(rebuilt_runtime.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_mobile",
-        0,
-        1_000,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_mobile",
+            after_seq: 0,
+            limit: 1_000,
+        },
     ));
     assert_eq!(restored_mobile.items.len(), 1_000);
     assert_eq!(restored_mobile.items[0].realtime_seq, 51);
@@ -241,13 +249,15 @@ fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_resto
     assert_eq!(error.code, "checkpoint_store_unavailable");
 
     let mobile_after_failed_ack = expect_ok(failure_runtime.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_mobile",
-        0,
-        1_000,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_mobile",
+            after_seq: 0,
+            limit: 1_000,
+        },
     ));
     assert_eq!(
         mobile_after_failed_ack.items.len(),
@@ -326,13 +336,15 @@ fn test_commercial_realtime_cluster_handoff_preserves_checkpoint_and_pending_win
     assert_eq!(route.connection_kind, "websocket");
 
     let source_after_migration = expect_ok(runtime_a.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_primary",
-        0,
-        100,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_primary",
+            after_seq: 0,
+            limit: 100,
+        },
     ));
     assert_eq!(
         source_after_migration.items.len(),
@@ -341,13 +353,15 @@ fn test_commercial_realtime_cluster_handoff_preserves_checkpoint_and_pending_win
     );
 
     let target_window = expect_ok(runtime_b.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_primary",
-        0,
-        100,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_primary",
+            after_seq: 0,
+            limit: 100,
+        },
     ));
     assert_eq!(target_window.items.len(), 12);
     assert_eq!(target_window.items[0].realtime_seq, 13);
@@ -372,13 +386,15 @@ fn test_commercial_realtime_cluster_handoff_preserves_checkpoint_and_pending_win
     assert_eq!(publish_after_migration.delivered, 1);
 
     let target_after_publish = expect_ok(runtime_b.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_primary",
-        12,
-        100,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_primary",
+            after_seq: 12,
+            limit: 100,
+        },
     ));
     assert_eq!(target_after_publish.items.len(), 13);
     assert_eq!(target_after_publish.items[12].realtime_seq, 25);

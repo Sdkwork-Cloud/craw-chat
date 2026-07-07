@@ -10,8 +10,8 @@ use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use sdkwork_utils_rust::{
-    cursor_list_page_data, SdkWorkCursorListQuery, SdkWorkPageData, MAX_LIST_PAGE_SIZE,
-    DEFAULT_LIST_PAGE_SIZE,
+    DEFAULT_LIST_PAGE_SIZE, MAX_LIST_PAGE_SIZE, SdkWorkCursorListQuery, SdkWorkPageData,
+    cursor_list_page_data,
 };
 use tokio::sync::Semaphore;
 
@@ -22,14 +22,13 @@ use crate::dto::{
 };
 use crate::error::NotificationError;
 use crate::helpers::{
-    automation_notification_id, automation_notification_source_event_id,
-    delivery_status_from_notification_status, ensure_notification_request_access,
-    fanout_notification_id, insert_notification_recipient_index, notification_matches_request,
-    insert_runtime_notification_recipient_index,
-    notification_recipient_scope_key, notification_request_key, notification_scope_key,
-    notification_visible_to_actor, remove_notification_recipient_index,
-    remove_runtime_notification_recipient_index,
-    validate_notification_request_payload_size, NotificationRecipientIndex,
+    NotificationRecipientIndex, automation_notification_id,
+    automation_notification_source_event_id, delivery_status_from_notification_status,
+    ensure_notification_request_access, fanout_notification_id,
+    insert_notification_recipient_index, insert_runtime_notification_recipient_index,
+    notification_matches_request, notification_recipient_scope_key, notification_request_key,
+    notification_scope_key, notification_visible_to_actor, remove_notification_recipient_index,
+    remove_runtime_notification_recipient_index, validate_notification_request_payload_size,
 };
 
 #[derive(Clone)]
@@ -117,6 +116,23 @@ impl NotificationRuntime {
     where
         J: CommitJournal + Send + Sync + 'static,
         S: NotificationTaskStore + 'static,
+    {
+        Self {
+            tasks: Mutex::new(NotificationRuntimeTaskState::default()),
+            restored_recipients: Mutex::new(HashSet::new()),
+            journal,
+            task_store,
+            projection_service,
+        }
+    }
+
+    pub fn with_dyn_task_store_and_projection<J>(
+        journal: Arc<J>,
+        task_store: Arc<dyn NotificationTaskStore>,
+        projection_service: Arc<TimelineProjectionService>,
+    ) -> Self
+    where
+        J: CommitJournal + Send + Sync + 'static,
     {
         Self {
             tasks: Mutex::new(NotificationRuntimeTaskState::default()),
@@ -466,7 +482,12 @@ impl NotificationRuntime {
         } else {
             None
         };
-        Ok(cursor_list_page_data(items, page_size, next_cursor, has_more))
+        Ok(cursor_list_page_data(
+            items,
+            page_size,
+            next_cursor,
+            has_more,
+        ))
     }
 
     pub fn get_notification(

@@ -22,9 +22,7 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use sdkwork_im_web_bootstrap::{
-    im_service_router_config, mount_im_infra_routes,
-};
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
 use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkSeqWindowQuery};
 use sdkwork_web_core::{
@@ -33,7 +31,6 @@ use sdkwork_web_core::{
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use tokio::sync::Semaphore;
 
 use super::*;
@@ -46,7 +43,8 @@ const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_ENV: &str =
     "SDKWORK_IM_CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES";
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
-pub const PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV: &str = "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH";
+pub const PRINCIPAL_DIRECTORY_CATALOG_PATH_ENV: &str =
+    "SDKWORK_IM_PRINCIPAL_DIRECTORY_CATALOG_PATH";
 pub const ALLOW_ALL_PRINCIPALS_ENV: &str = "SDKWORK_IM_ALLOW_ALL_PRINCIPALS";
 
 #[derive(Clone)]
@@ -673,6 +671,16 @@ impl From<QueryRejection> for ApiError {
     }
 }
 
+impl From<projection_service::ProjectionAccessError> for ApiError {
+    fn from(error: projection_service::ProjectionAccessError) -> Self {
+        Self {
+            status: error.status(),
+            code: error.code(),
+            message: error.message().to_owned(),
+        }
+    }
+}
+
 impl<S, T> FromRequest<S> for AppJson<T>
 where
     S: Send + Sync,
@@ -696,6 +704,7 @@ fn api_error_kind(status: &axum::http::StatusCode) -> WebFrameworkErrorKind {
     use axum::http::StatusCode;
     match *status {
         StatusCode::BAD_REQUEST => WebFrameworkErrorKind::BadRequest,
+        StatusCode::UNPROCESSABLE_ENTITY => WebFrameworkErrorKind::UnprocessableEntity,
         StatusCode::UNAUTHORIZED => WebFrameworkErrorKind::MissingCredentials,
         StatusCode::FORBIDDEN => WebFrameworkErrorKind::Forbidden,
         StatusCode::NOT_FOUND => WebFrameworkErrorKind::NotFound,
@@ -851,13 +860,9 @@ fn build_runtime_for_app_state() -> ConversationRuntime<ConversationCommitJourna
                 "conversation-runtime journal bootstrap failed ({error}); \
                  falling back to in-memory journal for local development"
             );
-            ConversationRuntime::new(ConversationCommitJournal::Memory(
-                InMemoryJournal::default(),
-            ))
+            ConversationRuntime::new(ConversationCommitJournal::Memory(InMemoryJournal::default()))
         } else {
-            panic!(
-                "conversation-runtime journal bootstrap failed in production: {error}"
-            );
+            panic!("conversation-runtime journal bootstrap failed in production: {error}");
         }
     })
 }
@@ -980,9 +985,9 @@ pub fn build_public_app_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Router {
     mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(
-            app_state_with_principal_directory(principal_directory),
-        )),
+        apply_public_http_guardrails(build_business_router(app_state_with_principal_directory(
+            principal_directory,
+        ))),
         im_service_router_config(),
     )
 }
@@ -1068,7 +1073,7 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/read_cursor",
-            get(get_read_cursor).post(update_read_cursor),
+            get(get_read_cursor).patch(update_read_cursor),
         )
         .route(
             "/im/v3/api/chat/messages/{message_id}/edit",
@@ -1096,7 +1101,7 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/messages",
-            post(post_message),
+            get(list_messages).post(post_message),
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/system_channel/publish",
@@ -1113,10 +1118,7 @@ fn build_business_router(state: AppState) -> Router {
 }
 
 fn build_app(state: AppState) -> Router {
-    mount_im_infra_routes(
-        build_business_router(state),
-        im_service_router_config(),
-    )
+    mount_im_infra_routes(build_business_router(state), im_service_router_config())
 }
 
 async fn enforce_in_flight_gate(
@@ -1184,12 +1186,8 @@ async fn docs() -> Html<String> {
 
 fn build_conversation_runtime_openapi_document() -> Result<serde_json::Value, String> {
     let http_source = include_str!("http.rs");
-    let mut routes = extract_routes_from_function(
-        http_source,
-        "build_app",
-        &[],
-        &["/openapi.json", "/docs"],
-    )?;
+    let mut routes =
+        extract_routes_from_function(http_source, "build_app", &[], &["/openapi.json", "/docs"])?;
     routes.extend(extract_routes_from_function(
         http_source,
         "build_domain_api_router",
@@ -1295,9 +1293,7 @@ async fn enter_room(
 ) -> Response {
     let result: ApiResult<EnterRoomResponse> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        let member = state
-            .runtime
-            .enter_room_from_auth_context(&auth, room_id)?;
+        let member = state.runtime.enter_room_from_auth_context(&auth, room_id)?;
         Ok(EnterRoomResponse { member })
     })();
     finish_api_json(&ctx, result)
@@ -1311,9 +1307,7 @@ async fn leave_room(
 ) -> Response {
     let result: ApiResult<EnterRoomResponse> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        let member = state
-            .runtime
-            .leave_room_from_auth_context(&auth, room_id)?;
+        let member = state.runtime.leave_room_from_auth_context(&auth, room_id)?;
         Ok(EnterRoomResponse { member })
     })();
     finish_api_json(&ctx, result)
@@ -1526,6 +1520,27 @@ fn ensure_active_http_auth_principal(state: &AppState, auth: &AppContext) -> Res
     )
 }
 
+fn map_blocking_join_error(error: tokio::task::JoinError) -> ApiProblem {
+    ApiProblem::internal_server_error(format!(
+        "conversation_runtime_blocking_join_failed: {error}"
+    ))
+}
+
+/// Run journal/Redis/Postgres-backed runtime work off the Tokio async worker pool.
+async fn run_blocking_conversation<F, T>(
+    state: AppState,
+    auth: AppContext,
+    operation: F,
+) -> ApiResult<T>
+where
+    F: FnOnce(AppState, AppContext) -> ApiResult<T> + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(move || operation(state, auth))
+        .await
+        .map_err(map_blocking_join_error)?
+}
+
 fn ensure_active_http_principal(
     state: &AppState,
     tenant_id: &str,
@@ -1616,7 +1631,8 @@ async fn sync_shared_channel_linked_member(
             )
             .into());
         }
-        let expected_request_key = shared_channel_sync_request_key(auth.tenant_id.as_str(), &request);
+        let expected_request_key =
+            shared_channel_sync_request_key(auth.tenant_id.as_str(), &request);
         if let Some(request_key) = request.request_key.as_deref() {
             validate_payload_size(
                 "requestKey",
@@ -1706,10 +1722,9 @@ async fn accept_agent_handoff(
 ) -> Response {
     let result: ApiResult<AgentHandoffStateView> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.accept_agent_handoff_from_auth_context(
-            &auth,
-            conversation_id,
-        )?)
+        Ok(state
+            .runtime
+            .accept_agent_handoff_from_auth_context(&auth, conversation_id)?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -1737,10 +1752,9 @@ async fn close_agent_handoff(
 ) -> Response {
     let result: ApiResult<AgentHandoffStateView> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.close_agent_handoff_from_auth_context(
-            &auth,
-            conversation_id,
-        )?)
+        Ok(state
+            .runtime
+            .close_agent_handoff_from_auth_context(&auth, conversation_id)?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -1756,7 +1770,10 @@ async fn list_members(
         let Query(query) = query.map_err(ApiError::from)?;
         ensure_active_http_auth_principal(&state, &auth)?;
         let paging = query.resolve().map_err(|_| {
-            ApiError::bad_request("cursor_invalid", "conversation member list cursor is invalid")
+            ApiError::bad_request(
+                "cursor_invalid",
+                "conversation member list cursor is invalid",
+            )
         })?;
         state
             .runtime
@@ -1881,10 +1898,9 @@ async fn leave_conversation(
 ) -> Response {
     let result: ApiResult<ConversationMember> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.leave_conversation_from_auth_context(
-            &auth,
-            conversation_id,
-        )?)
+        Ok(state
+            .runtime
+            .leave_conversation_from_auth_context(&auth, conversation_id)?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -1912,10 +1928,9 @@ async fn get_read_cursor(
 ) -> Response {
     let result: ApiResult<ConversationReadCursorView> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.read_cursor_view_from_auth_context(
-            &auth,
-            conversation_id.as_str(),
-        )?)
+        Ok(state
+            .runtime
+            .read_cursor_view_from_auth_context(&auth, conversation_id.as_str())?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -1957,10 +1972,9 @@ async fn update_read_cursor(
             request.last_read_message_id,
         )?;
 
-        Ok(state.runtime.read_cursor_view_from_auth_context(
-            &auth,
-            conversation_id.as_str(),
-        )?)
+        Ok(state
+            .runtime
+            .read_cursor_view_from_auth_context(&auth, conversation_id.as_str())?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -1972,26 +1986,28 @@ async fn post_message(
     Path(conversation_id): Path<String>,
     AppJson(request): AppJson<PostMessageRequest>,
 ) -> Response {
-    let result: ApiResult<PostMessageResult> = (|| {
+    let body = match build_message_body(
+        request.summary,
+        request.text,
+        request.reply_to,
+        request.parts,
+        request.render_hints,
+    ) {
+        Ok(body) => body,
+        Err(error) => return finish_api_json::<PostMessageResult>(&ctx, Err(error.into())),
+    };
+    let command = PostMessageCommand::from_auth_context(
+        &auth,
+        conversation_id,
+        request.client_msg_id,
+        MessageType::Standard,
+        body,
+    );
+    let result = run_blocking_conversation(state, auth, move |state, auth| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        let body = build_message_body(
-            request.summary,
-            request.text,
-            request.reply_to,
-            request.parts,
-            request.render_hints,
-        )?;
-
-        Ok(state
-            .runtime
-            .post_message(PostMessageCommand::from_auth_context(
-                &auth,
-                conversation_id,
-                request.client_msg_id,
-                MessageType::Standard,
-                body,
-            ))?)
-    })();
+        Ok(state.runtime.post_message(command)?)
+    })
+    .await;
     finish_api_json(&ctx, result)
 }
 
@@ -2040,16 +2056,14 @@ async fn edit_message(
             request.parts,
             request.render_hints,
         )?;
-        Ok(state.runtime.edit_message(
-            EditMessageCommand {
-                tenant_id: auth.tenant_id.clone(),
-                organization_id: organization_id_from_auth_context(&auth),
-                message_id,
-                editor: sender_from_auth_context(&auth),
-                body,
-                idempotency_key: request.idempotency_key,
-            },
-        )?)
+        Ok(state.runtime.edit_message(EditMessageCommand {
+            tenant_id: auth.tenant_id.clone(),
+            organization_id: organization_id_from_auth_context(&auth),
+            message_id,
+            editor: sender_from_auth_context(&auth),
+            body,
+            idempotency_key: request.idempotency_key,
+        })?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2063,15 +2077,13 @@ async fn recall_message(
 ) -> Response {
     let result: ApiResult<MessageMutationResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.recall_message(
-            RecallMessageCommand {
-                tenant_id: auth.tenant_id.clone(),
-                organization_id: organization_id_from_auth_context(&auth),
-                message_id,
-                recalled_by: sender_from_auth_context(&auth),
-                idempotency_key: request.idempotency_key,
-            },
-        )?)
+        Ok(state.runtime.recall_message(RecallMessageCommand {
+            tenant_id: auth.tenant_id.clone(),
+            organization_id: organization_id_from_auth_context(&auth),
+            message_id,
+            recalled_by: sender_from_auth_context(&auth),
+            idempotency_key: request.idempotency_key,
+        })?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2093,9 +2105,13 @@ async fn add_message_reaction(
             .into());
         }
 
-        Ok(state.runtime.add_message_reaction(
-            AddMessageReactionCommand::from_auth_context(&auth, message_id, request.reaction_key),
-        )?)
+        Ok(state
+            .runtime
+            .add_message_reaction(AddMessageReactionCommand::from_auth_context(
+                &auth,
+                message_id,
+                request.reaction_key,
+            ))?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2118,7 +2134,11 @@ async fn remove_message_reaction(
         }
 
         Ok(state.runtime.remove_message_reaction(
-            RemoveMessageReactionCommand::from_auth_context(&auth, message_id, request.reaction_key),
+            RemoveMessageReactionCommand::from_auth_context(
+                &auth,
+                message_id,
+                request.reaction_key,
+            ),
         )?)
     })();
     finish_api_json(&ctx, result)
@@ -2132,9 +2152,9 @@ async fn pin_message(
 ) -> Response {
     let result: ApiResult<MessagePinMutationResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.pin_message(
-            PinMessageCommand::from_auth_context(&auth, message_id),
-        )?)
+        Ok(state
+            .runtime
+            .pin_message(PinMessageCommand::from_auth_context(&auth, message_id))?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2147,9 +2167,9 @@ async fn unpin_message(
 ) -> Response {
     let result: ApiResult<MessagePinMutationResult> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.unpin_message(
-            UnpinMessageCommand::from_auth_context(&auth, message_id),
-        )?)
+        Ok(state
+            .runtime
+            .unpin_message(UnpinMessageCommand::from_auth_context(&auth, message_id))?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -2282,8 +2302,7 @@ mod tests {
         principal_directory: Arc<dyn PrincipalDirectory>,
     ) -> Router {
         use axum::extract::Request;
-        use axum::middleware::{from_fn, Next};
-        use axum::routing::get;
+        use axum::middleware::{Next, from_fn};
 
         async fn inject_test_auth_context(request: Request, next: Next) -> Response {
             let path = request.uri().path().to_owned();
@@ -2308,16 +2327,7 @@ mod tests {
             principal_directory,
             shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
         };
-        let read_router = Router::new()
-            .route(
-                "/im/v3/api/chat/conversations/{conversation_id}/messages",
-                get(list_messages),
-            )
-            .with_state(state.clone());
-
-        build_app(state)
-            .merge(read_router)
-            .layer(from_fn(inject_test_auth_context))
+        build_app(state).layer(from_fn(inject_test_auth_context))
     }
 
     fn seed_group_conversation_with_ghost_member(
@@ -2560,10 +2570,12 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&body).expect("response should be valid json");
         assert_eq!(value["code"], 40001);
-        assert!(value["detail"]
-            .as_str()
-            .expect("detail should be string")
-            .contains("principal not found in directory"));
+        assert!(
+            value["detail"]
+                .as_str()
+                .expect("detail should be string")
+                .contains("principal not found in directory")
+        );
     }
 
     #[tokio::test]
@@ -2599,9 +2611,11 @@ mod tests {
         let value: serde_json::Value =
             serde_json::from_slice(&body).expect("response should be valid json");
         assert_eq!(value["code"], 40001);
-        assert!(value["detail"]
-            .as_str()
-            .expect("detail should be string")
-            .contains("principal not found in directory"));
+        assert!(
+            value["detail"]
+                .as_str()
+                .expect("detail should be string")
+                .contains("principal not found in directory")
+        );
     }
 }

@@ -15,7 +15,9 @@ use sdkwork_im_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
 use sdkwork_im_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use session_gateway::{RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeRuntimeError};
+use session_gateway::{
+    RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeRuntimeError,
+};
 use tokio::net::TcpListener;
 use tokio::time::{Duration, timeout};
 use tokio_tungstenite::connect_async;
@@ -772,13 +774,15 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
         1
     );
     let target_window = expect_ok(runtime_b.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_primary",
-        baseline.websocket_e2e.backlog_message_count as u64,
-        10,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_primary",
+            after_seq: baseline.websocket_e2e.backlog_message_count as u64,
+            limit: 10,
+        },
     ));
     assert_eq!(target_window.items.len(), 1);
     assert_eq!(

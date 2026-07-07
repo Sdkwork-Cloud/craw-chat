@@ -8,7 +8,7 @@ mod policy;
 pub use axum_gate::{
     close_websocket_with_auth_error, read_websocket_auth_init_frame, send_websocket_auth_ok,
 };
-pub use device::{resolve_websocket_device_binding, WebsocketDeviceBindingError};
+pub use device::{WebsocketDeviceBindingError, resolve_websocket_device_binding};
 pub use frame::{
     AUTH_INIT_FRAME_TYPE, AUTH_INIT_MAX_FRAME_BYTES, AUTH_INIT_TIMEOUT_SECONDS,
     AuthInitValidationError, WebsocketAuthInitFrame, auth_ok_payload, auth_ok_payload_from_context,

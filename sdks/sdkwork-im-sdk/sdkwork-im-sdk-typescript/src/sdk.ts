@@ -14,7 +14,6 @@ import type {
 import type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
-  MessageVisibilityMutationResult,
 } from './openapi-compat-types';
 import { ImConversationsModule } from './conversations-module';
 import { ImMessagesModule } from './messages-module';
@@ -181,7 +180,7 @@ export class ImSdkClient {
     return this.messages.unpinMessage(messageId);
   }
 
-  deleteMessageForMe(messageId: string | number): Promise<MessageVisibilityMutationResult> {
+  deleteMessageForMe(messageId: string | number): Promise<void> {
     return this.messages.deleteForMe(messageId);
   }
 

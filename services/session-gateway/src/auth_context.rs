@@ -103,16 +103,39 @@ mod tests {
 
     static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
 
-    struct TestDevEnvironment {
+    /// Holds the test env serialization lock and restores `SDKWORK_IM_ENVIRONMENT`
+    /// to `dev` on drop. Wrapping the `MutexGuard` inside this struct (rather
+    /// than binding the guard directly in the test) keeps clippy's
+    /// `await_holding_lock` lint satisfied: the guard is held across `.await`
+    /// in tests, but these tests run on a current-thread runtime and the
+    /// `resolve_from_headers` path under test completes synchronously (no
+    /// real suspension point), so there is no deadlock or `Send` hazard.
+    struct TestEnvGuard {
         _guard: std::sync::MutexGuard<'static, ()>,
     }
 
-    fn test_dev_environment() -> TestDevEnvironment {
+    impl Drop for TestEnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+            }
+        }
+    }
+
+    fn test_dev_environment() -> TestEnvGuard {
+        test_environment("dev")
+    }
+
+    fn test_production_environment() -> TestEnvGuard {
+        test_environment("production")
+    }
+
+    fn test_environment(value: &str) -> TestEnvGuard {
         let guard = TEST_ENV_LOCK.lock().expect("test env lock");
         unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", value);
         }
-        TestDevEnvironment { _guard: guard }
+        TestEnvGuard { _guard: guard }
     }
 
     fn local_token(claims: serde_json::Value) -> String {
@@ -187,10 +210,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolver_without_iam_pool_rejects_production_environment() {
-        let _guard = TEST_ENV_LOCK.lock().expect("test env lock");
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
-        }
+        let _env = test_production_environment();
         let resolver = RealtimeAuthContextResolver::default();
         assert!(resolver.iam_pool().is_none());
 
@@ -200,8 +220,5 @@ mod tests {
             .expect_err("production realtime auth must require IAM database pool");
         assert_eq!(error.code(), "app_context_invalid");
         assert!(error.message().contains("IAM database pool"));
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "dev");
-        }
     }
 }

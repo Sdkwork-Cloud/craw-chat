@@ -127,7 +127,10 @@ pub(crate) fn execution_matches_request(
         && existing.input_payload == request.input_payload
 }
 
-pub(crate) fn execution_matches_principal_kind(existing: &AutomationExecution, actor_kind: &str) -> bool {
+pub(crate) fn execution_matches_principal_kind(
+    existing: &AutomationExecution,
+    actor_kind: &str,
+) -> bool {
     existing.principal_kind == actor_kind
 }
 

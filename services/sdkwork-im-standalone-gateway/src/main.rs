@@ -8,24 +8,29 @@ use std::path::Path;
 
 use axum::Router;
 use axum::middleware::from_fn_with_state;
-use config::{load_gateway_config, resolve_config_path, resolve_gateway_config, ResolvedGatewayConfig};
+use config::{
+    ResolvedGatewayConfig, load_gateway_config, resolve_config_path, resolve_gateway_config,
+};
 use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
-    resolve_product_site_dirs_from_env, RouterProductRuntimeOptions, build_product_runtime_router,
+    RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dirs_from_env,
 };
 use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
 use sdkwork_im_cloud_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
 use tower_http::cors::{Any, CorsLayer};
-use web_gateway::gateway_protection::{self, RateLimitConfig, RateLimiter};
+use web_gateway::gateway_protection::{self, HybridIpRateLimiter};
 use web_gateway::{
-    bootstrap_embedded_session_gateway_runtime, build_app_with_registry_product_runtime_and_embedded_services_from_env,
+    bootstrap_embedded_session_gateway_runtime,
+    build_app_with_registry_product_runtime_and_embedded_services_from_env_without_ip_rate_limit,
     build_gateway_registry,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    sdkwork_im_service_readiness::ensure_im_service_process_identity("sdkwork-im-standalone-gateway");
+    sdkwork_im_service_readiness::ensure_im_service_process_identity(
+        "sdkwork-im-standalone-gateway",
+    );
     sdkwork_im_service_readiness::init_im_service_tracing_from_env();
 
     // Parse config and apply environment overrides BEFORE spawning the async runtime.
@@ -73,8 +78,7 @@ async fn async_main(
         .await
         .map_err(|error| format!("failed to bootstrap embedded dependency databases: {error}"))?;
 
-    sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env()
-        .await;
+    sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
         gateway_config.environment.as_str(),
     )
@@ -87,13 +91,13 @@ async fn async_main(
 
     let embedded_application =
         embedded_application_routes::bootstrap_embedded_application_routes().await;
-    let embedded_dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes().await;
+    let embedded_dependencies =
+        embedded_dependency_routes::bootstrap_embedded_dependency_routes().await;
 
     let web_config = WebGatewayConfig::from_env();
     let registry = build_gateway_registry()?;
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
-    let mut embedded_runtime =
-        bootstrap_embedded_session_gateway_runtime(&web_config).await?;
+    let mut embedded_runtime = bootstrap_embedded_session_gateway_runtime(&web_config).await?;
     if let Some(session_state) = embedded_runtime.embedded_realtime_app_state.as_ref() {
         embedded_plane_wiring::wire_embedded_realtime_plane(
             session_state,
@@ -112,7 +116,7 @@ async fn async_main(
         ))
     );
 
-    let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
+    let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env_without_ip_rate_limit(
         web_config,
         registry,
         Some(product_runtime_router),
@@ -130,27 +134,31 @@ async fn async_main(
     // The IM cloud-gateway router already mounts /healthz, /livez, /readyz, and /metrics
     // through sdkwork-web-bootstrap. Do not mount infra routes again on the merged router.
     // Embedded IAM routes must win over registry proxy catch-alls for /app/v3/api/auth|iam|oauth.
+    // Apply one edge IP limiter after all standalone routers are merged so IM, IAM, and embedded
+    // dependency routes share the same HybridIpRateLimiter without double-counting IM requests.
     let app = application_router
         .merge(iam_router)
         .layer(build_cors_layer(&gateway_config))
         .layer(from_fn_with_state(
-            RateLimiter::new(RateLimitConfig::from_env()),
-            gateway_protection::rate_limit_middleware,
+            HybridIpRateLimiter::from_env(),
+            gateway_protection::hybrid_rate_limit_middleware,
         ));
 
     println!("Assembling gateway router completed; binding {bind_addr}");
-    let listener = tokio::net::TcpListener::bind(bind_addr).await.map_err(|error| {
-        if error.kind() == std::io::ErrorKind::AddrInUse {
-            format!(
-                "failed to bind {bind_addr}: port already in use. \
+    let listener = tokio::net::TcpListener::bind(bind_addr)
+        .await
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::AddrInUse {
+                format!(
+                    "failed to bind {bind_addr}: port already in use. \
                  Stop stale sdkwork-im-standalone-gateway processes \
                  (Windows: taskkill /F /IM sdkwork-im-standalone-gateway.exe) \
                  or set SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND to another host:port"
-            )
-        } else {
-            format!("failed to bind {bind_addr}: {error}")
-        }
-    })?;
+                )
+            } else {
+                format!("failed to bind {bind_addr}: {error}")
+            }
+        })?;
     println!(
         "Listening on http://{} (healthz: http://{}/healthz)",
         display_listener_addr(bind_addr),
@@ -169,14 +177,14 @@ async fn async_main(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-        .with_graceful_shutdown(async move {
-            shutdown_signal().await;
-            if let Some(handle) = retention_scheduler {
-                handle.shutdown();
-            }
-            embedded_runtime.shutdown().await;
-        })
-        .await?;
+    .with_graceful_shutdown(async move {
+        shutdown_signal().await;
+        if let Some(handle) = retention_scheduler {
+            handle.shutdown();
+        }
+        embedded_runtime.shutdown().await;
+    })
+    .await?;
     Ok(())
 }
 
@@ -244,7 +252,10 @@ fn apply_collapsed_standalone_urls(base_url: &str, bind_addr: &SocketAddr) {
     for (key, value) in [
         ("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND", bind.as_str()),
         ("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL", base_url),
-        ("SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL", websocket_url.as_str()),
+        (
+            "SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL",
+            websocket_url.as_str(),
+        ),
         ("SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL", base_url),
         ("SDKWORK_API_CLOUD_GATEWAY_BASE_URL", base_url),
         ("SDKWORK_API_CLOUD_GATEWAY_BIND", bind.as_str()),
@@ -261,9 +272,7 @@ async fn build_gateway_product_runtime_router(base_url: &str) -> Result<Router, 
         StandaloneConfigLoader::from_env().map_err(|error| error.to_string())?;
     standalone_config.portal_api_base_url = base_url.trim_end_matches('/').to_owned();
 
-    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..");
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
     let site_dirs = resolve_product_site_dirs_from_env(&repo_root);
     build_product_runtime_router(
         standalone_config,
@@ -330,9 +339,8 @@ async fn shutdown_signal() {
 
 #[cfg(test)]
 mod tests {
-    use super::build_cors_layer;
     use super::ResolvedGatewayConfig;
-    use web_gateway::build_app_with_registry_product_runtime_and_embedded_services_from_env;
+    use super::build_cors_layer;
     use axum::{
         Router,
         extract::ws::{Message, WebSocket, WebSocketUpgrade},
@@ -340,11 +348,63 @@ mod tests {
         routing::get,
     };
     use futures_util::{SinkExt, StreamExt};
+    use std::sync::{Mutex, MutexGuard};
     use tokio::net::TcpListener;
     use tokio_tungstenite::{
         connect_async,
         tungstenite::{Message as TungsteniteMessage, client::ClientRequestBuilder},
     };
+    use web_gateway::build_app_with_registry_product_runtime_and_embedded_services_from_env_without_ip_rate_limit;
+
+    static TEST_PROCESS_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct TestProcessEnvGuard {
+        previous_im_environment: Option<String>,
+        previous_sdkwork_env: Option<String>,
+        previous_web_framework_env: Option<String>,
+        _lock: MutexGuard<'static, ()>,
+    }
+
+    impl TestProcessEnvGuard {
+        fn enter_test_environment() -> Self {
+            let lock = TEST_PROCESS_ENV_LOCK
+                .lock()
+                .expect("test process environment lock should not be poisoned");
+            let previous_im_environment = std::env::var("SDKWORK_IM_ENVIRONMENT").ok();
+            let previous_sdkwork_env = std::env::var("SDKWORK_ENV").ok();
+            let previous_web_framework_env = std::env::var("SDKWORK_WEB_FRAMEWORK_ENV").ok();
+            unsafe {
+                std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+                std::env::set_var("SDKWORK_ENV", "test");
+                std::env::remove_var("SDKWORK_WEB_FRAMEWORK_ENV");
+            }
+            Self {
+                previous_im_environment,
+                previous_sdkwork_env,
+                previous_web_framework_env,
+                _lock: lock,
+            }
+        }
+    }
+
+    impl Drop for TestProcessEnvGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.previous_im_environment {
+                    Some(value) => std::env::set_var("SDKWORK_IM_ENVIRONMENT", value),
+                    None => std::env::remove_var("SDKWORK_IM_ENVIRONMENT"),
+                }
+                match &self.previous_sdkwork_env {
+                    Some(value) => std::env::set_var("SDKWORK_ENV", value),
+                    None => std::env::remove_var("SDKWORK_ENV"),
+                }
+                match &self.previous_web_framework_env {
+                    Some(value) => std::env::set_var("SDKWORK_WEB_FRAMEWORK_ENV", value),
+                    None => std::env::remove_var("SDKWORK_WEB_FRAMEWORK_ENV"),
+                }
+            }
+        }
+    }
 
     async fn websocket_echo(ws: WebSocketUpgrade) -> impl IntoResponse {
         ws.protocols(["sdkwork-im.ccp.ws.v1"])
@@ -391,6 +451,16 @@ mod tests {
         }
     }
 
+    async fn bootstrap_test_iam_runtime() {
+        sdkwork_iam_database_host::bootstrap_iam_database_from_env()
+            .await
+            .expect("test IAM database lifecycle should bootstrap");
+        sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
+        sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env("test")
+            .await
+            .expect("test IM IAM tenant application should bootstrap");
+    }
+
     async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
@@ -406,12 +476,8 @@ mod tests {
 
     #[tokio::test]
     async fn standalone_merge_and_cors_preserve_websocket_upgrade_state() {
-        let im_router =
-            Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
-        let iam_router = Router::new().route(
-            "/app/v3/api/auth/ping",
-            get(|| async { "ok" }),
-        );
+        let im_router = Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
+        let iam_router = Router::new().route("/app/v3/api/auth/ping", get(|| async { "ok" }));
         let app = im_router
             .merge(iam_router)
             .layer(build_cors_layer(&test_gateway_config()));
@@ -445,16 +511,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn standalone_real_iam_router_merge_preserves_websocket_upgrade_state() {
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-            std::env::set_var("SDKWORK_ENV", "test");
-        }
-        let im_router =
-            Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
-        let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
-            .await
-            .expect("iam router should build");
+    async fn standalone_dependency_router_merge_preserves_websocket_upgrade_state() {
+        let im_router = Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
+        let iam_router = Router::new().route("/app/v3/api/auth/ping", get(|| async { "ok" }));
         let app = im_router
             .merge(iam_router)
             .layer(build_cors_layer(&test_gateway_config()));
@@ -469,18 +528,14 @@ mod tests {
 
         let connect_result = connect_async(request).await;
         handle.abort();
-        connect_result.expect("real iam router merge should keep websocket handshake working");
+        connect_result.expect("dependency router merge should keep websocket handshake working");
     }
 
-    #[tokio::test]
-    async fn standalone_real_gateway_and_iam_assembly_preserves_websocket_upgrade_state() {
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-            std::env::set_var("SDKWORK_ENV", "test");
-        }
-        let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
-            .await
-            .expect("iam router should build");
+    #[tokio::test(flavor = "current_thread")]
+    async fn standalone_real_gateway_and_dependency_router_preserves_websocket_upgrade_state() {
+        let _env = TestProcessEnvGuard::enter_test_environment();
+        bootstrap_test_iam_runtime().await;
+        let iam_router = Router::new().route("/app/v3/api/auth/ping", get(|| async { "ok" }));
         let bootstrap = session_gateway::RealtimePlaneBootstrap {
             assembly: session_gateway::RealtimePlaneAssembly::default(),
             node_id: "node_embedded_ws".to_owned(),
@@ -491,9 +546,8 @@ mod tests {
             sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
                 &bootstrap,
             );
-        let embedded_app_state =
-            session_gateway::AppState::from_realtime_bootstrap(&bootstrap);
-        let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
+        let embedded_app_state = session_gateway::AppState::from_realtime_bootstrap(&bootstrap);
+        let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env_without_ip_rate_limit(
             web_gateway_config(),
             web_gateway::build_gateway_registry().expect("gateway registry should build"),
             Some(Router::new()),
@@ -515,15 +569,14 @@ mod tests {
 
         let connect_result = connect_async(request).await;
         handle.abort();
-        connect_result.expect("full standalone assembly should keep websocket handshake working");
+        connect_result.expect(
+            "full standalone assembly with dependency router should keep websocket handshake working",
+        );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "current_thread")]
     async fn standalone_embedded_realtime_plane_preserves_websocket_upgrade_state() {
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-            std::env::set_var("SDKWORK_ENV", "test");
-        }
+        let _env = TestProcessEnvGuard::enter_test_environment();
         let bootstrap = session_gateway::RealtimePlaneBootstrap {
             assembly: session_gateway::RealtimePlaneAssembly::default(),
             node_id: "node_embedded_ws".to_owned(),
@@ -534,12 +587,9 @@ mod tests {
             sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
                 &bootstrap,
             );
-        let embedded_app_state =
-            session_gateway::AppState::from_realtime_bootstrap(&bootstrap);
-        let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
-            .await
-            .expect("iam router should build");
-        let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
+        let embedded_app_state = session_gateway::AppState::from_realtime_bootstrap(&bootstrap);
+        let iam_router = Router::new().route("/app/v3/api/auth/ping", get(|| async { "ok" }));
+        let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env_without_ip_rate_limit(
             web_gateway_config(),
             web_gateway::build_gateway_registry().expect("gateway registry should build"),
             Some(Router::new()),

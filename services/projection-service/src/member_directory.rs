@@ -1,10 +1,12 @@
 use crate::{ConversationMemberDirectoryEntry, TimelineProjectionService};
 use im_domain_core::conversation::MembershipRole;
-use im_time::rfc3339_cmp;
-use sdkwork_utils_rust::{cursor_window_page_info, SdkWorkPageData};
+use sdkwork_utils_rust::{SdkWorkPageData, cursor_window_page_info};
 
 use super::model::MemberDirectoryListCursor;
 use super::scope_key;
+
+#[cfg(test)]
+use im_time::rfc3339_cmp;
 
 impl TimelineProjectionService {
     pub fn member_directory(
@@ -40,35 +42,54 @@ impl TimelineProjectionService {
         conversation_id: &str,
         page_size: usize,
         cursor: MemberDirectoryListCursor,
-    ) -> SdkWorkPageData<ConversationMemberDirectoryEntry> {
-        let list_cursor = match cursor {
-            MemberDirectoryListCursor::Start => None,
-            other => Some(other),
+    ) -> Result<SdkWorkPageData<ConversationMemberDirectoryEntry>, crate::projection::ProjectionError>
+    {
+        let scope = scope_key(tenant_id, organization_id, conversation_id);
+        let (keyset_cursor, legacy_offset, use_legacy_offset) = match cursor {
+            MemberDirectoryListCursor::Start => (None, 0, false),
+            MemberDirectoryListCursor::Offset(value) => (None, value, true),
+            MemberDirectoryListCursor::Keyset {
+                role_rank,
+                joined_at,
+                principal_id,
+            } => (Some((role_rank, joined_at, principal_id)), 0, false),
         };
-        let (items, has_more) = member_directory_window_slice(
-            self.member_directory(tenant_id, organization_id, conversation_id),
-            list_cursor,
-            page_size,
-        );
+        let (members, has_more) = super::lock_projection_mutex(&self.members, "member store")
+            .collect_member_directory_window(
+                scope.as_str(),
+                tenant_id,
+                keyset_cursor,
+                legacy_offset,
+                use_legacy_offset,
+                page_size,
+            );
+        let items = members
+            .into_iter()
+            .map(|member| ConversationMemberDirectoryEntry::from_member(&member))
+            .collect::<Vec<_>>();
         let next_cursor = if has_more {
-            items.last().and_then(|entry| {
-                let payload = serde_json::json!({
-                    "roleRank": member_directory_role_rank(&entry.role),
-                    "joinedAt": entry.joined_at,
-                    "principalId": entry.principal_id,
-                });
-                crate::cursor_auth::encode_signed_projection_cursor(&payload).ok()
-            })
+            items
+                .last()
+                .map(|entry| {
+                    let payload = serde_json::json!({
+                        "roleRank": member_directory_role_rank(&entry.role),
+                        "joinedAt": entry.joined_at,
+                        "principalId": entry.principal_id,
+                    });
+                    crate::cursor_auth::encode_projection_list_cursor(&payload)
+                })
+                .transpose()?
         } else {
             None
         };
-        SdkWorkPageData {
+        Ok(SdkWorkPageData {
             items,
             page_info: cursor_window_page_info(Some(page_size), next_cursor, has_more),
-        }
+        })
     }
 }
 
+#[cfg(test)]
 pub(super) fn member_directory_window_slice(
     items: Vec<ConversationMemberDirectoryEntry>,
     cursor: Option<MemberDirectoryListCursor>,
@@ -111,6 +132,7 @@ pub(super) fn member_directory_window_slice(
     (window, has_more)
 }
 
+#[cfg(test)]
 fn member_entry_after_keyset_cursor(
     entry: &ConversationMemberDirectoryEntry,
     role_rank: u8,
@@ -144,7 +166,11 @@ mod tests {
     use super::*;
     use im_domain_core::conversation::{MembershipRole, MembershipState};
 
-    fn member(principal_id: &str, role: MembershipRole, joined_at: &str) -> ConversationMemberDirectoryEntry {
+    fn member(
+        principal_id: &str,
+        role: MembershipRole,
+        joined_at: &str,
+    ) -> ConversationMemberDirectoryEntry {
         ConversationMemberDirectoryEntry {
             tenant_id: "100001".into(),
             conversation_id: "c1".into(),
@@ -167,8 +193,7 @@ mod tests {
             member("u2", MembershipRole::Member, "2026-05-06T00:00:00.100Z"),
             member("u3", MembershipRole::Member, "2026-05-06T00:00:00.200Z"),
         ];
-        let (first_page, has_more) =
-            member_directory_window_slice(items.clone(), None, 2);
+        let (first_page, has_more) = member_directory_window_slice(items.clone(), None, 2);
         assert!(has_more);
         assert_eq!(first_page.len(), 2);
         assert_eq!(first_page[0].principal_id, "u1");

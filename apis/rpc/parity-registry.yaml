@@ -84,7 +84,7 @@ entries:
     rpcSurface: app
     parityStatus: full
     owner: im-open-api
-  - operationId: inbox.retrieve
+  - operationId: inbox.list
     httpSurface: open-api
     httpPath: /im/v3/api/chat/inbox
     rpcPackage: sdkwork.communication.app.v3
@@ -130,7 +130,7 @@ entries:
     rpcSurface: app
     parityStatus: full
     owner: im-open-api
-  - operationId: rooms.get
+  - operationId: rooms.retrieve
     httpSurface: open-api
     httpPath: /im/v3/api/chat/rooms/{roomId}
     rpcPackage: sdkwork.communication.app.v3

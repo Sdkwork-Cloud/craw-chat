@@ -19,9 +19,12 @@ const fakeClient = {
   conversations: {
     async bindDirectChat(body: Record<string, unknown>) {
       calls.push({ method: 'conversations.bindDirectChat', body });
+      const conversationId = `pc-enterprise-${body.leftActorId}-${body.rightActorId}`;
       return {
-        conversationId: body.conversationId,
-        directChatId: body.directChatId,
+        conversationId,
+        createdAt: '2026-06-04T00:00:00.000Z',
+        kind: 'direct',
+        tenantId: '100001',
       };
     },
     async updateProfile(conversationId: string, body: Record<string, unknown>) {
@@ -65,15 +68,13 @@ async function main(): Promise<void> {
     {
       method: 'conversations.bindDirectChat',
       body: {
-        conversationId: 'pc-enterprise-current-user-enterprise-a',
-        directChatId: 'pc-enterprise-dc-current-user-enterprise-a',
         leftActorId: 'current-user',
         leftActorKind: 'user',
         rightActorId: 'enterprise-a',
         rightActorKind: 'enterprise',
       },
     },
-    'starting an enterprise chat must bind a real IM direct-chat conversation with the enterprise principal',
+    'starting an enterprise chat must bind a real IM direct-chat conversation with the enterprise principal and use the server conversation id',
   );
   assert.deepEqual(
     calls.slice(1),

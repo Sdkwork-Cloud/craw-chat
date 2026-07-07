@@ -8,6 +8,42 @@ import { fileURLToPath } from 'node:url';
 export const COMMAND_FAILURE_EXIT_CODE = 1;
 export const READINESS_BLOCKED_EXIT_CODE = 2;
 
+const SHA256_CHECKSUM_PATTERN = /^(?:sha256:)?[a-f0-9]{64}$/iu;
+const STORE_CONTROLLED_SOURCE_TYPES = new Set(['APP_STORE', 'MARKETPLACE', 'STORE']);
+const SIGNATURE_EVIDENCE_PATHS = [
+  ['signature'],
+  ['signing'],
+  ['signingEvidence'],
+  ['notarization'],
+  ['metadata', 'signature'],
+  ['metadata', 'signing'],
+  ['metadata', 'signingEvidence'],
+  ['metadata', 'notarization'],
+];
+const SBOM_EVIDENCE_PATHS = [
+  ['sbom'],
+  ['sbomRef'],
+  ['sbomUrl'],
+  ['sbomPath'],
+  ['metadata', 'sbom'],
+  ['metadata', 'sbomRef'],
+  ['metadata', 'sbomUrl'],
+  ['metadata', 'sbomPath'],
+];
+const PROVENANCE_EVIDENCE_PATHS = [
+  ['provenance'],
+  ['provenanceRef'],
+  ['provenanceUrl'],
+  ['provenancePath'],
+  ['attestation'],
+  ['attestationRef'],
+  ['metadata', 'provenance'],
+  ['metadata', 'provenanceRef'],
+  ['metadata', 'attestation'],
+  ['metadata', 'attestationRef'],
+  ['metadata', 'artifactAttestation'],
+];
+
 export function resolvePnpmExecutable(platform = process.platform) {
   return platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
@@ -29,6 +65,7 @@ export function buildCommercialReadinessChecks({
   const flutterExecutable = resolveFlutterExecutable(platform);
   const nodeExecutable = process.execPath;
   const pnpmRuntimeEnv = {
+    CI: 'true',
     npm_config_update_notifier: 'false',
   };
 
@@ -38,7 +75,7 @@ export function buildCommercialReadinessChecks({
       label: 'Sdkwork IM workspace frozen install',
       cwd: repoRoot,
       command: pnpmExecutable,
-      args: ['install', '--frozen-lockfile', '--ignore-scripts'],
+      args: ['install', '--frozen-lockfile', '--lockfile-only', '--ignore-scripts'],
       env: pnpmRuntimeEnv,
     },
     {
@@ -327,6 +364,29 @@ export function buildCommercialReadinessChecks({
       env: pnpmRuntimeEnv,
     },
     {
+      id: 'three-capabilities-standard',
+      label: 'Sdkwork IM weak-network / 10K group / desktop offline alignment standard',
+      cwd: repoRoot,
+      command: pnpmExecutable,
+      args: ['run', 'test:three-capabilities-standard'],
+      env: pnpmRuntimeEnv,
+    },
+    {
+      id: 'portal-alignment-standard',
+      label: 'Sdkwork IM portal aggregation alignment standard',
+      cwd: repoRoot,
+      command: pnpmExecutable,
+      args: ['run', 'test:portal-alignment-standard'],
+      env: pnpmRuntimeEnv,
+    },
+    {
+      id: 'portal-service-tests',
+      label: 'Portal service HTTP smoke and snapshot unit tests',
+      cwd: repoRoot,
+      command: 'cargo',
+      args: ['test', '-p', 'im-portal-snapshots', '-p', 'portal-service', '--test', 'http_smoke_test'],
+    },
+    {
       id: 'retention-enforcement-standard',
       label: 'IM retention enforcement governance contract',
       cwd: repoRoot,
@@ -415,6 +475,74 @@ export function assessPreReleaseEvidenceIndex(indexJson) {
   });
 }
 
+export function assessAppReleaseEvidence(appManifest) {
+  const blockers = [];
+  const checksumRequired = appManifest?.security?.checksumRequired === true;
+  const signatureRequired = appManifest?.security?.signatureRequired === true;
+  const sbomRequired = appManifest?.security?.sbomRequired === true;
+  const packages = Array.isArray(appManifest?.artifacts?.installConfig?.packages)
+    ? appManifest.artifacts.installConfig.packages
+    : [];
+
+  packages.forEach((releasePackage, index) => {
+    if (!isEnabledManifestEntry(releasePackage) || isStoreControlledPackage(releasePackage)) {
+      return;
+    }
+
+    const packageId = formatManifestEntryId(releasePackage, `package[${index}]`);
+    if (checksumRequired) {
+      const checksum = typeof releasePackage.checksum === 'string'
+        ? releasePackage.checksum.trim()
+        : '';
+      if (!SHA256_CHECKSUM_PATTERN.test(checksum)) {
+        blockers.push(
+          `${packageId} is an enabled direct distribution package but checksum is missing or not a SHA-256 value.`,
+        );
+      }
+    }
+
+    if (signatureRequired && !hasPackageEvidence(releasePackage, SIGNATURE_EVIDENCE_PATHS)) {
+      blockers.push(
+        `${packageId} is an enabled direct distribution package but signature evidence is missing while security.signatureRequired=true.`,
+      );
+    }
+
+    if (sbomRequired && !hasPackageEvidence(releasePackage, SBOM_EVIDENCE_PATHS)) {
+      blockers.push(
+        `${packageId} is an enabled direct distribution package but SBOM evidence is missing while security.sbomRequired=true.`,
+      );
+    }
+
+    if (sbomRequired && !hasPackageEvidence(releasePackage, PROVENANCE_EVIDENCE_PATHS)) {
+      blockers.push(
+        `${packageId} is an enabled direct distribution package but provenance or attestation evidence is missing while security.sbomRequired=true.`,
+      );
+    }
+  });
+
+  for (const mediaAsset of collectEnabledMediaAssets(appManifest)) {
+    if (mediaAsset.asset.metadata?.generatedPlaceholder === true) {
+      blockers.push(
+        `${mediaAsset.id} at ${mediaAsset.location} still has metadata.generatedPlaceholder=true and cannot be used as commercial release media evidence.`,
+      );
+    }
+  }
+
+  if (blockers.length > 0) {
+    return {
+      ok: false,
+      summary: `App release evidence has ${blockers.length} blocker(s).`,
+      blockers,
+    };
+  }
+
+  return {
+    ok: true,
+    summary: 'App release evidence is complete for the current manifest gate.',
+    blockers: [],
+  };
+}
+
 function assessStep11TierEvidenceIndex(indexJson, options) {
   const tier = typeof indexJson?.tier === 'string' ? indexJson.tier : options.tierLabel;
   const state = typeof indexJson?.state === 'string' ? indexJson.state : 'unknown';
@@ -472,6 +600,10 @@ export function resolvePreReleaseEvidenceIndexPath(repoRoot = resolveRepoRoot())
   return resolveStep11TierEvidenceIndexPath(repoRoot, 'pre-release', 'pre-release-tier-evidence-index.json');
 }
 
+export function resolveAppManifestPath(repoRoot = resolveRepoRoot()) {
+  return path.join(repoRoot, 'sdkwork.app.config.json');
+}
+
 function resolveStep11TierEvidenceIndexPath(repoRoot, tierId, fileName) {
   return path.join(
     repoRoot,
@@ -489,6 +621,16 @@ export async function loadCapacityEvidenceIndex(repoRoot = resolveRepoRoot()) {
 
 export async function loadPreReleaseEvidenceIndex(repoRoot = resolveRepoRoot()) {
   return loadStep11TierEvidenceIndex(resolvePreReleaseEvidenceIndexPath(repoRoot));
+}
+
+export async function loadAppManifest(repoRoot = resolveRepoRoot()) {
+  const appManifestPath = resolveAppManifestPath(repoRoot);
+  const source = await readFile(appManifestPath, 'utf8');
+
+  return {
+    appManifestPath,
+    manifestJson: JSON.parse(source),
+  };
 }
 
 async function loadStep11TierEvidenceIndex(evidenceIndexPath) {
@@ -521,6 +663,7 @@ export async function runCommercialReadiness({
         ok: false,
         exitCode: COMMAND_FAILURE_EXIT_CODE,
         checks: results,
+        appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
         failure: {
@@ -537,6 +680,7 @@ export async function runCommercialReadiness({
         ok: false,
         exitCode: COMMAND_FAILURE_EXIT_CODE,
         checks: results,
+        appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
         failure: {
@@ -579,6 +723,7 @@ export async function runCommercialReadiness({
         ok: false,
         exitCode: COMMAND_FAILURE_EXIT_CODE,
         checks: results,
+        appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
         failure: {
@@ -607,6 +752,7 @@ export async function runCommercialReadiness({
         ok: false,
         exitCode: READINESS_BLOCKED_EXIT_CODE,
         checks: results,
+        appReleaseAssessment: null,
         capacityAssessment: null,
         preReleaseAssessment: null,
         ...Object.fromEntries(
@@ -624,19 +770,69 @@ export async function runCommercialReadiness({
     logger.log(`[commercial-readiness] ${assessment.summary}`);
   }
 
+  const tierAssessmentResults = Object.fromEntries(
+    tierAssessments.map(({ resultKey, evidenceIndexPath, assessment }) => [
+      resultKey,
+      {
+        ...assessment,
+        evidenceIndexPath,
+      },
+    ]),
+  );
+
+  let appManifest;
+  try {
+    appManifest = await loadAppManifest(repoRoot);
+  } catch (error) {
+    const appManifestPath = resolveAppManifestPath(repoRoot);
+    const summary = formatErrorSummary(error);
+    logger.error(
+      `[commercial-readiness] failed to load app-release-evidence manifest ${appManifestPath}: ${summary}`,
+    );
+    return {
+      ok: false,
+      exitCode: COMMAND_FAILURE_EXIT_CODE,
+      checks: results,
+      ...tierAssessmentResults,
+      appReleaseAssessment: null,
+      failure: {
+        stage: 'app-release-evidence-load',
+        summary,
+        appManifestPath,
+      },
+    };
+  }
+
+  const appReleaseAssessment = assessAppReleaseEvidence(appManifest.manifestJson);
+  if (!appReleaseAssessment.ok) {
+    logger.error(`[commercial-readiness] blocked by appReleaseAssessment: ${appReleaseAssessment.summary}`);
+    for (const blocker of appReleaseAssessment.blockers) {
+      logger.error(`[commercial-readiness] ${blocker}`);
+    }
+
+    return {
+      ok: false,
+      exitCode: READINESS_BLOCKED_EXIT_CODE,
+      checks: results,
+      ...tierAssessmentResults,
+      appReleaseAssessment: {
+        ...appReleaseAssessment,
+        appManifestPath: appManifest.appManifestPath,
+      },
+    };
+  }
+
+  logger.log(`[commercial-readiness] ${appReleaseAssessment.summary}`);
+
   return {
     ok: true,
     exitCode: 0,
     checks: results,
-    ...Object.fromEntries(
-      tierAssessments.map(({ resultKey, evidenceIndexPath, assessment }) => [
-        resultKey,
-        {
-          ...assessment,
-          evidenceIndexPath,
-        },
-      ]),
-    ),
+    ...tierAssessmentResults,
+    appReleaseAssessment: {
+      ...appReleaseAssessment,
+      appManifestPath: appManifest.appManifestPath,
+    },
   };
 }
 
@@ -685,6 +881,90 @@ function formatCommand(check) {
 function normalizePendingSlots(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function collectEnabledMediaAssets(appManifest) {
+  const media = appManifest?.media;
+  const assets = [];
+
+  appendMediaAsset(assets, 'media.icons.primary', media?.icons?.primary);
+  appendMediaAssets(assets, 'media.icons.platform', media?.icons?.platform);
+  appendMediaAssets(assets, 'media.screenshots', media?.screenshots);
+  appendMediaAssets(assets, 'media.previews', media?.previews);
+
+  return assets;
+}
+
+function appendMediaAssets(assets, location, mediaAssets) {
+  if (!Array.isArray(mediaAssets)) {
+    return;
+  }
+
+  mediaAssets.forEach((asset, index) => {
+    appendMediaAsset(assets, `${location}[${index}]`, asset);
+  });
+}
+
+function appendMediaAsset(assets, location, asset) {
+  if (!isManifestObject(asset) || !isEnabledManifestEntry(asset)) {
+    return;
+  }
+
+  assets.push({
+    asset,
+    id: formatManifestEntryId(asset, location),
+    location,
+  });
+}
+
+function isStoreControlledPackage(releasePackage) {
+  const sourceType = typeof releasePackage?.sourceType === 'string'
+    ? releasePackage.sourceType.toUpperCase()
+    : '';
+
+  return STORE_CONTROLLED_SOURCE_TYPES.has(sourceType);
+}
+
+function isEnabledManifestEntry(entry) {
+  return isManifestObject(entry) && entry.enabled !== false;
+}
+
+function isManifestObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function formatManifestEntryId(entry, fallback) {
+  return typeof entry?.id === 'string' && entry.id.length > 0 ? entry.id : fallback;
+}
+
+function hasPackageEvidence(releasePackage, evidencePaths) {
+  return evidencePaths.some((segments) => hasEvidenceValue(readNestedValue(releasePackage, segments)));
+}
+
+function readNestedValue(source, segments) {
+  let value = source;
+  for (const segment of segments) {
+    if (!isManifestObject(value) || !(segment in value)) {
+      return undefined;
+    }
+    value = value[segment];
+  }
+
+  return value;
+}
+
+function hasEvidenceValue(value) {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  if (isManifestObject(value)) {
+    return Object.keys(value).length > 0;
+  }
+
+  return false;
 }
 
 function formatErrorSummary(error) {

@@ -84,12 +84,7 @@ pub fn decode_length_prefixed_frame(framed: &[u8]) -> Result<&[u8], CodecError> 
         return Err(CodecError::new("tcp frame is shorter than length header"));
     }
 
-    let length = u32::from_be_bytes([
-        framed[0],
-        framed[1],
-        framed[2],
-        framed[3],
-    ]) as usize;
+    let length = u32::from_be_bytes([framed[0], framed[1], framed[2], framed[3]]) as usize;
     if length == 0 {
         return Err(CodecError::new("tcp frame payload must not be empty"));
     }
@@ -113,12 +108,7 @@ pub fn framed_message_length(framed: &[u8]) -> Result<usize, CodecError> {
         return Err(CodecError::new("tcp frame is shorter than length header"));
     }
 
-    let payload_length = u32::from_be_bytes([
-        framed[0],
-        framed[1],
-        framed[2],
-        framed[3],
-    ]) as usize;
+    let payload_length = u32::from_be_bytes([framed[0], framed[1], framed[2], framed[3]]) as usize;
     if payload_length == 0 {
         return Err(CodecError::new("tcp frame payload must not be empty"));
     }

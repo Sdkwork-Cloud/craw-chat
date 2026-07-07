@@ -43,7 +43,9 @@ pub struct WebsocketAuthInitFrame {
     pub device_id: Option<String>,
 }
 
-pub fn validate_auth_init_frame(frame: &WebsocketAuthInitFrame) -> Result<(), AuthInitValidationError> {
+pub fn validate_auth_init_frame(
+    frame: &WebsocketAuthInitFrame,
+) -> Result<(), AuthInitValidationError> {
     if frame.frame_type != AUTH_INIT_FRAME_TYPE {
         return Err(AuthInitValidationError::WrongFrameType);
     }
@@ -74,7 +76,8 @@ pub fn dual_token_headers_from_auth_init_frame(
     headers.insert(
         header::AUTHORIZATION,
         HeaderValue::from_str(
-            normalize_websocket_auth_token(frame.auth_token.as_deref().unwrap_or_default()).as_str(),
+            normalize_websocket_auth_token(frame.auth_token.as_deref().unwrap_or_default())
+                .as_str(),
         )
         .map_err(|_| AuthInitValidationError::MissingAuthToken)?,
     );

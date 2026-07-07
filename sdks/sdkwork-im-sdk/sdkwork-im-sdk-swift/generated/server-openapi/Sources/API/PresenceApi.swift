@@ -8,13 +8,13 @@ public class PresenceApi {
     }
 
     /// Publish current client route presence heartbeat
-    public func heartbeatCreate(body: PresenceHeartbeatRequest) async throws -> PresenceView? {
-        return try await client.post(ApiPaths.imPath("/presence/heartbeat"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: PresenceView.self)
+    public func heartbeat(body: PresenceHeartbeatRequest) async throws -> PresenceHeartbeatResponse? {
+        return try await client.post(ApiPaths.imPath("/presence/heartbeat"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: PresenceHeartbeatResponse.self)
     }
 
     /// Retrieve current principal presence
-    public func meRetrieve() async throws -> PresenceView? {
-        return try await client.get(ApiPaths.imPath("/presence/me"), responseType: PresenceView.self)
+    public func meRetrieve() async throws -> PresenceMeRetrieveResponse? {
+        return try await client.get(ApiPaths.imPath("/presence/me"), responseType: PresenceMeRetrieveResponse.self)
     }
 
 

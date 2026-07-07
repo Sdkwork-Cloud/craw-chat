@@ -18,7 +18,7 @@ use im_platform_contracts::{
     ProviderHealthSnapshot, PushDeliveryResult, PushMessage, PushProvider,
 };
 use im_time::utc_now_rfc3339_millis;
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use sdkwork_im_contract_core::ContractError;
 use serde::Serialize;
 
@@ -105,8 +105,9 @@ impl ApnsPushProvider {
         };
         let mut header = Header::new(Algorithm::ES256);
         header.kid = Some(self.config.key_id.clone());
-        encode(&header, &claims, &encoding_key)
-            .map_err(|error| ContractError::Unavailable(format!("APNs JWT signing failed: {error}")))
+        encode(&header, &claims, &encoding_key).map_err(|error| {
+            ContractError::Unavailable(format!("APNs JWT signing failed: {error}"))
+        })
     }
 
     fn make_request(
@@ -125,16 +126,14 @@ impl ApnsPushProvider {
         }
 
         let jwt = self.sign_jwt()?;
-        let url = format!(
-            "https://{}/3/device/{}",
-            self.config.host(),
-            device_token
-        );
+        let url = format!("https://{}/3/device/{}", self.config.host(), device_token);
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(APNS_REQUEST_TIMEOUT_SECONDS))
             .build()
             .map_err(|error| {
-                ContractError::Unavailable(format!("APNs HTTP client initialization failed: {error}"))
+                ContractError::Unavailable(format!(
+                    "APNs HTTP client initialization failed: {error}"
+                ))
             })?;
         let response = client
             .post(url)
@@ -285,12 +284,9 @@ mod tests {
     #[test]
     fn test_parse_apns_response_unregistered() {
         let headers = reqwest::header::HeaderMap::new();
-        let result = parse_apns_response(
-            410,
-            &headers,
-            Some(r#"{"reason":"Unregistered"}"#.into()),
-        )
-        .expect("error response should parse");
+        let result =
+            parse_apns_response(410, &headers, Some(r#"{"reason":"Unregistered"}"#.into()))
+                .expect("error response should parse");
         assert!(!result.accepted);
         assert!(result.token_invalid);
     }
@@ -299,7 +295,10 @@ mod tests {
     fn test_provider_health_reports_http2_transport() {
         let provider = ApnsPushProvider::new(sample_config());
         let health = provider.provider_health();
-        assert_eq!(health.details.get("transport").map(String::as_str), Some("http2_jwt"));
+        assert_eq!(
+            health.details.get("transport").map(String::as_str),
+            Some("http2_jwt")
+        );
     }
 
     #[test]

@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use sdkwork_iam_embedded_application_bootstrap::{
-    ensure_tenant_application_from_app_root_with_env_and_fallback, resolve_application_app_root,
     EmbeddedApplicationBootstrapOptions, EmbeddedApplicationRuntimeBinding,
+    ensure_tenant_application_from_app_root_with_env_and_fallback, resolve_application_app_root,
 };
 use sqlx::PgPool;
 
@@ -88,8 +88,8 @@ fn resolve_im_repo_root() -> PathBuf {
 mod tests {
     use super::*;
     use sdkwork_iam_embedded_application_bootstrap::{
-        load_manifest_from_app_root, manifest_to_ensure_command,
-        normalize_bootstrap_environment, EmbeddedApplicationBootstrapOptions,
+        EmbeddedApplicationBootstrapOptions, load_manifest_from_app_root,
+        manifest_to_ensure_command, normalize_bootstrap_environment,
     };
 
     #[test]
@@ -133,10 +133,7 @@ mod tests {
         .expect("command");
         assert_eq!(IM_H5_RUNTIME_APP_ID, command.runtime_app_id);
         assert_eq!("sdkwork_im_h5_prod", command.instance_key);
-        assert_eq!(
-            "prod",
-            normalize_bootstrap_environment("production")
-        );
+        assert_eq!("prod", normalize_bootstrap_environment("production"));
     }
 
     #[test]

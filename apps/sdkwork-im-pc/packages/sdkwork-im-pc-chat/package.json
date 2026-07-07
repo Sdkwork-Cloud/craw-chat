@@ -25,7 +25,6 @@
     "@sdkwork/im-pc-community": "workspace:*",
     "i18next": "catalog:",
     "react-router-dom": "catalog:",
-    "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/notary-pc-core": "workspace:*",
     "@sdkwork/im-pc-workspace": "workspace:*"
   },

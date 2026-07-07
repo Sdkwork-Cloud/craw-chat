@@ -53,8 +53,11 @@ const timelinePages = [
         occurredAt: '2026-06-04T10:00:00.000Z',
       },
     ],
-    nextAfterSeq: 1,
-    hasMore: true,
+    pageInfo: {
+      hasMore: true,
+      mode: 'cursor',
+      nextCursor: '1',
+    },
   },
   {
     items: [
@@ -85,15 +88,18 @@ const timelinePages = [
         occurredAt: '2026-06-04T10:00:05.000Z',
       },
     ],
-    hasMore: false,
+    pageInfo: {
+      hasMore: false,
+      mode: 'cursor',
+    },
   },
 ];
 
 const fakeClient = {
   chat: {
     inbox: {
-      async retrieve() {
-        calls.push({ method: 'chat.inbox.retrieve' });
+      async list() {
+        calls.push({ method: 'chat.inbox.list' });
         return {
           hasMore: false,
           items: [
@@ -174,16 +180,6 @@ const fakeClient = {
   messages: {
     async deleteForMe(messageId: string) {
       calls.push({ method: 'chat.messages.visibility.delete', messageId });
-      return {
-        tenantId: 't-demo',
-        conversationId: 'chat-1',
-        messageId,
-        messageSeq: 1,
-        principalKind: 'user',
-        principalId: 'u_alice',
-        isDeleted: true,
-        updatedAt: '2026-06-04T10:00:10.000Z',
-      };
     },
   },
 } as unknown as ImSdkClient;
@@ -359,8 +355,8 @@ async function main(): Promise<void> {
   assert.deepEqual(
     calls,
     [
-      { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 0, limit: 50 } },
-      { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 1, limit: 50 } },
+      { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 0, pageSize: 20 } },
+      { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 1, pageSize: 20 } },
     ],
   );
   assert.deepEqual(

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { SdkworkAgentAppClient } from '@sdkwork/im-pc-core';
 import {
   createSdkworkAgentService,
-} from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/AgentService';
+} from '@sdkwork/agents-pc-agents';
 
 const agentSdkCalls: Array<{
   body?: Record<string, unknown>;
@@ -13,7 +13,7 @@ const agentSdkCalls: Array<{
 
 const AGENT_UI_CONFIG_CONSTRAINT_PREFIX = 'sdkwork.agent.pc.config:';
 
-function standardManifest(agentId: string, displayName: string, description: string, author = 'sdkwork-im-pc') {
+function standardManifest(agentId: string, displayName: string, description: string, author = 'sdkwork-agents-pc') {
   return {
     agent_id: agentId,
     description,
@@ -99,10 +99,22 @@ const fakeAgentClient = {
             visibility: 'private',
           },
         ];
+        const scopedItems = params.scope === 'mine'
+          ? items.filter((item) => item.visibility === 'private')
+          : params.scope === 'market'
+            ? items.filter((item) => item.visibility === 'public')
+            : items;
         return {
           data: {
-            items: params.ownerUserId ? items.filter((item) => item.visibility === 'private') : items,
-            page: { page: 1, pageSize: 100 },
+            items: scopedItems,
+            pageInfo: {
+              hasMore: false,
+              mode: 'offset',
+              page: 1,
+              pageSize: params.pageSize,
+              totalItems: String(scopedItems.length),
+              totalPages: 1,
+            },
           },
         };
       },
@@ -173,6 +185,35 @@ const fakeAgentClient = {
           },
         };
       },
+      compositionSlots: {
+        async list(id: string, params: Record<string, unknown>) {
+          agentSdkCalls.push({ id, operation: 'ai.agents.compositionSlots.list', params });
+          return {
+            items: [],
+            pageInfo: {
+              hasMore: false,
+              mode: 'offset',
+              page: 1,
+              pageSize: params.pageSize,
+              totalItems: '0',
+              totalPages: 1,
+            },
+          };
+        },
+        async create(id: string, body: Record<string, unknown>) {
+          agentSdkCalls.push({ body, id, operation: 'ai.agents.compositionSlots.create' });
+          return {
+            data: {
+              agentId: id,
+              ...(body.data as Record<string, unknown> | undefined),
+            },
+          };
+        },
+        async delete(id: string, slotId: string) {
+          agentSdkCalls.push({ id, operation: 'ai.agents.compositionSlots.delete', params: { slotId } });
+          return { data: { accepted: true } };
+        },
+      },
       providerBindings: {
         async create(id: string, body: Record<string, unknown>, params: Record<string, unknown>) {
           agentSdkCalls.push({ body, id, operation: 'ai.agents.providerBindings.create', params });
@@ -200,7 +241,7 @@ const fakeAgentClient = {
         },
       },
       previewResponses: {
-        async create(id: string, body: Record<string, unknown>, params: Record<string, unknown>) {
+        async create(id: string, body: Record<string, unknown>, params?: Record<string, unknown>) {
           agentSdkCalls.push({ body, id, operation: 'ai.agents.previewResponses.create', params });
           return {
             data: {
@@ -212,13 +253,13 @@ const fakeAgentClient = {
               outputPayload: id === 'agent.no.output' ? {} : { reply: 'backend preview reply' },
               requestedAt: body.requestedAt,
               status: 'completed',
-              tenantId: params.tenantId,
+              tenantId: params?.tenantId ?? '100001',
             },
           };
         },
       },
       promptOptimizations: {
-        async create(id: string, body: Record<string, unknown>, params: Record<string, unknown>) {
+        async create(id: string, body: Record<string, unknown>, params?: Record<string, unknown>) {
           agentSdkCalls.push({ body, id, operation: 'ai.agents.promptOptimizations.create', params });
           return {
             data: {
@@ -230,7 +271,7 @@ const fakeAgentClient = {
               outputPayload: { optimizedPrompt: 'Answer user questions with verified backend context.' },
               requestedAt: body.requestedAt,
               status: 'completed',
-              tenantId: params.tenantId,
+              tenantId: params?.tenantId ?? '100001',
             },
           };
         },
@@ -242,7 +283,7 @@ const fakeAgentClient = {
 async function main(): Promise<void> {
   const service = createSdkworkAgentService(() => fakeAgentClient);
 
-  const marketAgents = await service.getMarketAgents();
+  const marketAgents = (await service.listAgentsPage({ scope: 'market', pageSize: 100 })).items;
   assert.deepEqual(
     marketAgents.map((agent) => ({
       author: agent.author,
@@ -275,7 +316,7 @@ async function main(): Promise<void> {
     'market agent catalog must be parsed from sdkwork-agent-app-sdk public agent records without local mock entries',
   );
 
-  const myAgents = await service.getAgents();
+  const myAgents = (await service.listAgentsPage({ scope: 'mine', pageSize: 100 })).items;
   assert.deepEqual(
     myAgents.map((agent) => ({
       author: agent.author,
@@ -336,10 +377,12 @@ async function main(): Promise<void> {
       'ai.agents.list',
       'ai.agents.list',
       'ai.agents.create',
+      'ai.agents.compositionSlots.list',
+      'ai.agents.compositionSlots.create',
       'ai.agents.retrieve',
       'ai.agents.update',
+      'ai.agents.compositionSlots.list',
       'ai.agents.providerBindings.create',
-      'ai.agents.deployments.create',
       'ai.agents.delete',
     ],
     'agent catalog read/write operations must use sdkwork-agent-app-sdk ai.agents methods',
@@ -405,8 +448,6 @@ async function main(): Promise<void> {
       manifest: {
         ...standardManifest(createdAgent.id ?? '', 'New Agent', 'Use project context.'),
       },
-      organizationId: '0',
-      ownerUserId: '0',
       requestedAt: agentSdkCalls[2]?.body?.requestedAt,
       tags: ['developer'],
       visibility: 'private',
@@ -416,14 +457,46 @@ async function main(): Promise<void> {
   assert.deepEqual(
     agentSdkCalls[3],
     {
+      id: createdAgent.id,
+      operation: 'ai.agents.compositionSlots.list',
+      params: { page: 1, pageSize: 20 },
+    },
+    'agent creation must inspect current composition slots before adding desired knowledge bindings',
+  );
+  assert.deepEqual(
+    {
+      data: (agentSdkCalls[4]?.body?.data as Record<string, unknown> | undefined),
+      id: agentSdkCalls[4]?.id,
+      operation: agentSdkCalls[4]?.operation,
+    },
+    {
+      data: {
+        tenantId: '100001',
+        organizationId: '0',
+        slotId: 'slot.kb.space.kb_docs',
+        slotKind: 'knowledge',
+        targetModule: 'knowledgebase',
+        targetRef: 'kb.space.kb_docs',
+        priority: '1',
+        enabled: true,
+        policyJson: '{}',
+      },
+      id: createdAgent.id,
+      operation: 'ai.agents.compositionSlots.create',
+    },
+    'agent creation must persist knowledge-base composition slots through the agent SDK',
+  );
+  assert.deepEqual(
+    agentSdkCalls[5],
+    {
       id: 'agent.my.docs',
       operation: 'ai.agents.retrieve',
-      params: { tenantId: '0' },
+      params: undefined,
     },
     'agent update must retrieve the current record before merging partial management-profile edits',
   );
   assert.deepEqual(
-    agentSdkCalls[4],
+    agentSdkCalls[6],
     {
       body: {
         defaultCodeTaskIntent: {
@@ -478,17 +551,26 @@ async function main(): Promise<void> {
           welcomeMessage: undefined,
         },
         manifest: standardManifest('agent.my.docs', 'Updated Agent', 'Drafts internal docs.', 'Me'),
-        requestedAt: agentSdkCalls[4]?.body?.requestedAt,
+        requestedAt: agentSdkCalls[6]?.body?.requestedAt,
         tags: ['writing'],
       },
       id: 'agent.my.docs',
       operation: 'ai.agents.update',
-      params: { tenantId: '0' },
+      params: undefined,
     },
     'agent update must persist standard manifest and PC product metadata through sdkwork-agent-app-sdk',
   );
   assert.deepEqual(
-    agentSdkCalls[5],
+    agentSdkCalls[7],
+    {
+      id: 'agent.my.docs',
+      operation: 'ai.agents.compositionSlots.list',
+      params: { page: 1, pageSize: 20 },
+    },
+    'agent update must diff composition slots through the agent SDK after saving metadata',
+  );
+  assert.deepEqual(
+    agentSdkCalls[8],
     {
       body: {
         bindingId: 'binding.manifest.default',
@@ -497,27 +579,13 @@ async function main(): Promise<void> {
         implementationKind: 'manifest-only',
         makeDefault: true,
         providerId: 'provider.agent.manifest',
-        requestedAt: agentSdkCalls[5]?.body?.requestedAt,
+        requestedAt: agentSdkCalls[8]?.body?.requestedAt,
       },
       id: 'agent.my.docs',
       operation: 'ai.agents.providerBindings.create',
-      params: { tenantId: '0' },
+      params: undefined,
     },
     'agent publish must prepare a standard default provider binding before deployment',
-  );
-  assert.deepEqual(
-    agentSdkCalls[6],
-    {
-      body: {
-        bindingId: 'binding.manifest.default',
-        deploymentId: agentSdkCalls[6]?.body?.deploymentId,
-        requestedAt: agentSdkCalls[6]?.body?.requestedAt,
-      },
-      id: 'agent.my.docs',
-      operation: 'ai.agents.deployments.create',
-      params: { tenantId: '0' },
-    },
-    'agent publish must create a deployment snapshot through sdkwork-agent-app-sdk',
   );
 
   const preview = await service.requestPreviewResponse({
@@ -568,7 +636,7 @@ async function main(): Promise<void> {
   assert.match(optimized.executionId, /^execution\.pc\.agent\.prompt\./u);
 
   assert.deepEqual(
-    agentSdkCalls.slice(8).map((call) => ({
+    agentSdkCalls.slice(10).map((call) => ({
       agentId: call.id,
       content: call.body?.content,
       debugMode: call.body?.debugMode,
@@ -613,13 +681,13 @@ async function main(): Promise<void> {
           content: 'summarize this release note',
           debugMode: true,
           memoryEnabled: false,
-          model: 'sdkwork-agent-runtime',
+          model: 'model.sdkwork-agent-runtime',
           temperature: 0.4,
         },
         memoryEnabled: false,
-        model: 'sdkwork-agent-runtime',
+        model: 'model.sdkwork-agent-runtime',
         operation: 'ai.agents.previewResponses.create',
-        params: { tenantId: '0' },
+        params: undefined,
         prompt: undefined,
         temperature: 0.4,
       },
@@ -658,7 +726,7 @@ async function main(): Promise<void> {
         memoryEnabled: false,
         model: undefined,
         operation: 'ai.agents.previewResponses.create',
-        params: { tenantId: '0' },
+        params: undefined,
         prompt: undefined,
         temperature: undefined,
       },
@@ -693,7 +761,7 @@ async function main(): Promise<void> {
         memoryEnabled: undefined,
         model: undefined,
         operation: 'ai.agents.promptOptimizations.create',
-        params: { tenantId: '0' },
+        params: undefined,
         prompt: 'answer questions',
         temperature: undefined,
       },

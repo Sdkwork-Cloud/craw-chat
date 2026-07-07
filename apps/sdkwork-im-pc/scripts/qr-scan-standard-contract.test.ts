@@ -298,7 +298,7 @@ assert.match(
 );
 assert.equal(
   packageJson.scripts?.['test:qr-scan-standard'],
-  'tsx scripts/qr-scan-standard-contract.test.ts',
+  'node ../../scripts/dev/run-tsx-cli.mjs scripts/qr-scan-standard-contract.test.ts',
   'PC app package must expose the QR scan standard contract test.',
 );
 

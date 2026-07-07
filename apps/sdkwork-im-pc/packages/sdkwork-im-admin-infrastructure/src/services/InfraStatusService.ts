@@ -1,4 +1,4 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/im-admin-core/sdk';
+import { getBackendSdkClientWithSession } from '@sdkwork/im-pc-admin-sdk';
 
 export interface ServerNode {
   region: string;
@@ -18,7 +18,7 @@ export interface InfraStatusData {
   metrics: {
     connectionPool: MetricItem;
     dbIops: MetricItem;
-    redisHitRate: MetricItem;
+    realtimeWindowHealth: MetricItem;
   };
   nodes: ServerNode[];
 }
@@ -129,8 +129,8 @@ class InfraStatusService {
     return {
       metrics: {
         connectionPool: { title: 'Global Connection Pool', value: formatCount(activeConnections), usage: normalizeUsage(activeConnections / 10_000) },
-        dbIops: { title: 'Database IOPS (Avg)', value: formatCount(dbIops), usage: normalizeUsage(dbIops / 1_000) },
-        redisHitRate: { title: 'Realtime Window Health', value: `${redisHitRate}%`, usage: redisHitRate },
+        dbIops: { title: 'Projection Persist Ops', value: formatCount(dbIops), usage: normalizeUsage(dbIops / 1_000) },
+        realtimeWindowHealth: { title: 'Realtime Window Health', value: `${redisHitRate}%`, usage: redisHitRate },
       },
       nodes: nodes.length > 0 ? nodes : asRecordArray(normalizedDiagnostics.clientRoutes).map(mapNode),
     };

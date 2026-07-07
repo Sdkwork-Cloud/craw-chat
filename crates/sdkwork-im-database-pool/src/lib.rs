@@ -13,11 +13,11 @@ use sdkwork_database_sqlx::{DatabasePool, PoolError, create_pool_from_config};
 
 const IM_DATABASE_SERVICE_NAME: &str = "IM";
 
-pub use sdkwork_im_database_host::{
-    ImDatabaseHost, bootstrap_im_database, bootstrap_im_database_from_env,
-};
 pub use engine_policy::{
     im_core_requires_postgres_authority, log_im_core_ephemeral_non_postgres_authority,
+};
+pub use sdkwork_im_database_host::{
+    ImDatabaseHost, bootstrap_im_database, bootstrap_im_database_from_env,
 };
 pub use shared_postgres::{
     ImProcessDatabasePools, ImSharedPostgresConnectionManager, ImSharedPostgresR2d2Pool,

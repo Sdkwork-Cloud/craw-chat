@@ -10,8 +10,8 @@ self-serve enter/leave, and read active member capacity metadata.
 | Language | Entry |
 | --- | --- |
 | TypeScript | `sdk.rooms.create`, `sdk.rooms.get`, `sdk.rooms.enter`, `sdk.rooms.leave` |
-| Flutter | `client.chat.rooms.create`, `client.chat.rooms.get`, `client.chat.rooms.enter`, `client.chat.rooms.leave` |
-| Generated transport | `rooms.create`, `rooms.get`, `rooms.enter`, `rooms.leave` operationIds |
+| Flutter | `client.chat.rooms.create`, `client.chat.rooms.retrieve`, `client.chat.rooms.enter`, `client.chat.rooms.leave` |
+| Generated transport | `rooms.create`, `rooms.retrieve`, `rooms.enter`, `rooms.leave` operationIds |
 
 ## API Mapping
 

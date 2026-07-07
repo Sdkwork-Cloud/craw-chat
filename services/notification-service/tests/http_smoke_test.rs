@@ -115,7 +115,7 @@ async fn test_request_and_query_notifications_over_http() {
         )
         .await
         .expect("request notification should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
     let create_body = create_response
         .into_body()
         .collect()
@@ -124,8 +124,11 @@ async fn test_request_and_query_notifications_over_http() {
         .to_bytes();
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create body should be valid json");
-    assert_eq!(create_json["data"]["notificationId"], "ntf_http_demo");
-    assert_eq!(create_json["data"]["status"], "dispatched");
+    assert_eq!(
+        create_json["data"]["item"]["notificationId"],
+        "ntf_http_demo"
+    );
+    assert_eq!(create_json["data"]["item"]["status"], "dispatched");
 
     let list_response = app
         .clone()
@@ -150,7 +153,10 @@ async fn test_request_and_query_notifications_over_http() {
         .to_bytes();
     let list_json: serde_json::Value =
         serde_json::from_slice(&list_body).expect("list body should be valid json");
-    assert_eq!(list_json["data"]["items"][0]["notificationId"], "ntf_http_demo");
+    assert_eq!(
+        list_json["data"]["items"][0]["notificationId"],
+        "ntf_http_demo"
+    );
 
     let get_response = app
         .clone()
@@ -175,8 +181,11 @@ async fn test_request_and_query_notifications_over_http() {
         .to_bytes();
     let get_json: serde_json::Value =
         serde_json::from_slice(&get_body).expect("get body should be valid json");
-    assert_eq!(get_json["data"]["sourceEventType"], "message.posted");
-    assert_eq!(get_json["data"]["recipientId"], "1105");
+    assert_eq!(
+        get_json["data"]["item"]["sourceEventType"],
+        "message.posted"
+    );
+    assert_eq!(get_json["data"]["item"]["recipientId"], "1105");
 
     let non_recipient_list_response = app
         .clone()
@@ -260,7 +269,7 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
         )
         .await
         .expect("request notification should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let recipient_list_response = app
         .clone()
@@ -373,7 +382,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         )
         .await
         .expect("first notification request should return response");
-    assert_eq!(first_response.status(), StatusCode::OK);
+    assert_eq!(first_response.status(), StatusCode::CREATED);
     let first_body = first_response
         .into_body()
         .collect()
@@ -382,13 +391,13 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["data"]["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_json["data"]["proofVersion"],
+        first_json["data"]["item"]["proofVersion"],
         "notification.request.delivery-proof.v1"
     );
     assert!(
-        !first_json["data"]["requestKey"]
+        !first_json["data"]["item"]["requestKey"]
             .as_str()
             .expect("requestKey should be string")
             .is_empty()
@@ -424,7 +433,7 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         )
         .await
         .expect("idempotent notification request should return response");
-    assert_eq!(idempotent_response.status(), StatusCode::OK);
+    assert_eq!(idempotent_response.status(), StatusCode::CREATED);
     let idempotent_body = idempotent_response
         .into_body()
         .collect()
@@ -433,11 +442,23 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
         .to_bytes();
     let idempotent_json: serde_json::Value =
         serde_json::from_slice(&idempotent_body).expect("idempotent body should be valid json");
-    assert_eq!(idempotent_json["data"]["notificationId"], "ntf_http_idempotent");
-    assert_eq!(idempotent_json["data"]["status"], "dispatched");
-    assert_eq!(idempotent_json["data"]["deliveryStatus"], "replayed");
-    assert_eq!(idempotent_json["data"]["requestKey"], first_json["data"]["requestKey"]);
-    assert_eq!(idempotent_json["data"]["proofVersion"], first_json["data"]["proofVersion"]);
+    assert_eq!(
+        idempotent_json["data"]["item"]["notificationId"],
+        "ntf_http_idempotent"
+    );
+    assert_eq!(idempotent_json["data"]["item"]["status"], "dispatched");
+    assert_eq!(
+        idempotent_json["data"]["item"]["deliveryStatus"],
+        "replayed"
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["requestKey"],
+        first_json["data"]["item"]["requestKey"]
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["proofVersion"],
+        first_json["data"]["item"]["proofVersion"]
+    );
 
     let conflicting_response = app
         .oneshot(
@@ -515,7 +536,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         )
         .await
         .expect("first request should return response");
-    assert_eq!(first_response.status(), StatusCode::OK);
+    assert_eq!(first_response.status(), StatusCode::CREATED);
     let first_body = first_response
         .into_body()
         .collect()
@@ -524,7 +545,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["data"]["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "applied");
 
     let replayed_response = app
         .oneshot(
@@ -555,7 +576,7 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         )
         .await
         .expect("replayed request should return response");
-    assert_eq!(replayed_response.status(), StatusCode::OK);
+    assert_eq!(replayed_response.status(), StatusCode::CREATED);
     let replayed_body = replayed_response
         .into_body()
         .collect()
@@ -564,8 +585,11 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
         .to_bytes();
     let replayed_json: serde_json::Value =
         serde_json::from_slice(&replayed_body).expect("replayed body should be valid json");
-    assert_eq!(replayed_json["data"]["deliveryStatus"], "replayed");
-    assert_eq!(replayed_json["data"]["requestKey"], first_json["data"]["requestKey"]);
+    assert_eq!(replayed_json["data"]["item"]["deliveryStatus"], "replayed");
+    assert_eq!(
+        replayed_json["data"]["item"]["requestKey"],
+        first_json["data"]["item"]["requestKey"]
+    );
 }
 
 #[tokio::test]
@@ -673,7 +697,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         )
         .await
         .expect("first notification request should succeed");
-    assert_eq!(first_response.status(), StatusCode::OK);
+    assert_eq!(first_response.status(), StatusCode::CREATED);
     let first_body = first_response
         .into_body()
         .collect()
@@ -714,7 +738,7 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         )
         .await
         .expect("second notification request should succeed");
-    assert_eq!(second_response.status(), StatusCode::OK);
+    assert_eq!(second_response.status(), StatusCode::CREATED);
     let second_body = second_response
         .into_body()
         .collect()
@@ -725,11 +749,11 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         serde_json::from_slice(&second_body).expect("second body should be valid json");
 
     assert_ne!(
-        first_json["data"]["requestedAt"], second_json["data"]["requestedAt"],
+        first_json["data"]["item"]["requestedAt"], second_json["data"]["item"]["requestedAt"],
         "separate notification requests must not reuse a fixed requestedAt timestamp"
     );
     assert_ne!(
-        first_json["data"]["dispatchedAt"], second_json["data"]["dispatchedAt"],
+        first_json["data"]["item"]["dispatchedAt"], second_json["data"]["item"]["dispatchedAt"],
         "separate notification requests must not reuse a fixed dispatchedAt timestamp"
     );
 

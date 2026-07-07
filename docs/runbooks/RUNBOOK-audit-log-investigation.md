@@ -37,7 +37,7 @@ curl -X GET "https://<gateway>/backend/v3/api/audit/verify?tenantId=<tenant-id>"
 
 ```bash
 # List audit records by aggregate type and action
-curl -X GET "https://<gateway>/backend/v3/api/audit/records?tenantId=<tenant-id>&aggregateType=<type>&action=<action>&limit=100" \
+curl -X GET "https://<gateway>/backend/v3/api/audit/records?tenantId=<tenant-id>&aggregateType=<type>&action=<action>&page_size=100" \
   -H "Authorization: Bearer <admin-token>" \
   -H "Access-Token: <access-token>"
 ```

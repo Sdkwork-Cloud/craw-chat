@@ -152,7 +152,7 @@
 
 ### 5.2 查询实时事件窗口
 
-`GET /im/v3/api/realtime/events?afterSeq=0&limit=100`
+`GET /im/v3/api/realtime/events?afterSeq=0&page_size=100`
 
 语义：
 
@@ -238,4 +238,3 @@ RTC 下行事件在最小版本不直接做独立 scope，而是复用：
 - 多主体会话成员 fanout
 - 节点间广播与 shard 路由
 - 断线后事件窗口与 `client-route event window` 的自动切换策略
-

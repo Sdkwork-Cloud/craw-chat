@@ -9,10 +9,9 @@ import { bootstrapImNotaryPcIntegration } from './bootstrap/notaryPc';
 import { bootstrapImAgentsPcIntegration } from './bootstrap/agentsPc';
 import { bootstrapImVoicePcIntegration } from './bootstrap/voicePc';
 import { bootstrapImCommunityPcIntegration } from './bootstrap/communityPc';
-import { bootstrapImAiotPcIntegration } from './bootstrap/aiotPc';
-import { bootstrapImMailPcIntegration } from './bootstrap/mailPc';
 import { bootstrapImCommercePcIntegration } from './bootstrap/commercePc';
-import { bootstrapImCourseConsolePcIntegration } from './bootstrap/courseConsolePc';
+import { bootstrapImShopPcIntegration } from './bootstrap/shopPc';
+import { bootstrapImMailPcIntegration } from './bootstrap/mailPc';
 import './index.css';
 
 async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
@@ -25,11 +24,9 @@ async function bootstrapImPcCapabilityIntegrations(): Promise<void> {
     bootstrapImKnowledgebasePcIntegration(),
     bootstrapImVoicePcIntegration(),
     Promise.resolve(bootstrapImCommunityPcIntegration()),
-    Promise.resolve(bootstrapImMailPcIntegration()),
     Promise.resolve(bootstrapImCommercePcIntegration()),
     Promise.resolve(bootstrapImShopPcIntegration()),
-    Promise.resolve(bootstrapImAiotPcIntegration()),
-    Promise.resolve(bootstrapImCourseConsolePcIntegration()),
+    Promise.resolve(bootstrapImMailPcIntegration()),
   ]);
 }
 

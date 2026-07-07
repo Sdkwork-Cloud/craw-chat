@@ -19,8 +19,7 @@ static DEFAULT_STREAMING_RUNTIME: OnceLock<Arc<StreamingRuntime>> = OnceLock::ne
 
 pub fn default_streaming_runtime() -> Arc<StreamingRuntime> {
     if should_use_ephemeral_streaming_runtime() {
-        return build_runtime_from_env()
-            .unwrap_or_else(|_| Arc::new(StreamingRuntime::default()));
+        return build_runtime_from_env().unwrap_or_else(|_| Arc::new(StreamingRuntime::default()));
     }
 
     DEFAULT_STREAMING_RUNTIME
@@ -79,7 +78,9 @@ fn resolve_stream_state_store_from_env() -> Result<Arc<dyn StreamStateStore>, St
                     );
                 }
                 Err(error) => {
-                    return Err(format!("postgres stream state store bootstrap failed: {error:?}"));
+                    return Err(format!(
+                        "postgres stream state store bootstrap failed: {error:?}"
+                    ));
                 }
             }
         }
@@ -98,7 +99,9 @@ fn resolve_stream_state_store_from_env() -> Result<Arc<dyn StreamStateStore>, St
                 );
             }
             Err(error) => {
-                return Err(format!("postgres stream state store bootstrap failed: {error:?}"));
+                return Err(format!(
+                    "postgres stream state store bootstrap failed: {error:?}"
+                ));
             }
         }
     }

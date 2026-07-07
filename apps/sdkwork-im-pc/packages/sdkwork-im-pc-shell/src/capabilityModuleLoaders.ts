@@ -1,17 +1,18 @@
 import React from 'react';
 
+import {
+  COMMERCIAL_RUNTIME_MODULES,
+  type AppModuleId,
+} from './moduleRegistry';
+
 export type CapabilityModuleLoader = () => Promise<{ default: React.ComponentType<any> }>;
 
-export const SHELL_CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoader> = {
+/** Lazy loaders for embed-capable modules. Core tabs (chat/workspace/contacts/…) are not lazy-loaded here. */
+const CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoader> = {
   orders: () => import('@sdkwork/im-pc-orders').then((module) => ({ default: module.OrdersView })),
   shop: () => import('@sdkwork/im-pc-shop').then((module) => ({ default: module.ShopView })),
   notary: () => import('@sdkwork/notary-pc-notary').then((module) => ({ default: module.NotaryView })),
-  mail: () => import('@sdkwork/im-pc-mail').then((module) => ({ default: module.MailView })),
   drive: () => import('@sdkwork/drive-pc-drive').then((module) => ({ default: module.DriveView })),
-  calendar: () => import('@sdkwork/im-pc-calendar').then((module) => ({ default: module.CalendarView })),
-  approval: () => import('@sdkwork/im-pc-approvals').then((module) => ({ default: module.ApprovalsView })),
-  report: () => import('@sdkwork/im-pc-reports').then((module) => ({ default: module.ReportsView })),
-  attendance: () => import('@sdkwork/im-pc-attendance').then((module) => ({ default: module.AttendanceView })),
   knowledge: async () => {
     const [knowledgebaseModule, imCore] = await Promise.all([
       import('@sdkwork/knowledgebase-pc-knowledge'),
@@ -20,38 +21,41 @@ export const SHELL_CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoa
     imCore.ensureKnowledgebasePcRuntimeOnModule(knowledgebaseModule.configureKnowledgebasePcRuntime);
     return { default: knowledgebaseModule.KnowledgeView };
   },
-  course: async () => {
-    const [courseModule, imCore] = await Promise.all([
-      import('@sdkwork/course-pc-course'),
-      import('@sdkwork/im-pc-core'),
-    ]);
-    imCore.ensureCoursePcRuntimeOnModule(courseModule.configureCoursePcRuntime);
-    return { default: courseModule.CourseView };
-  },
-  enterprise: () => import('@sdkwork/im-pc-enterprise').then((module) => ({ default: module.EnterpriseView })),
-  devices: () => import('@sdkwork/im-pc-devices').then((module) => ({ default: module.DevicesView })),
   community: () => import('@sdkwork/im-pc-community').then((module) => ({ default: module.CommunityView })),
-  videogen: () => import('@sdkwork/im-pc-video-gen').then((module) => ({ default: module.VideoGenView })),
-  imagegen: () => import('@sdkwork/im-pc-image-gen').then((module) => ({ default: module.ImageGenView })),
   voice: async () => {
     const [voiceModule, imCore] = await Promise.all([
       import('@sdkwork/voice-pc-market'),
       import('@sdkwork/im-pc-core'),
+      import('@sdkwork/voice-pc-speech'),
     ]);
     imCore.ensureVoicePcRuntimeOnModule(voiceModule.configureVoicePcRuntime);
     return { default: voiceModule.VoiceMarketView };
   },
-  voicegen: async () => {
-    const [speechModule, imCore] = await Promise.all([
-      import('@sdkwork/voice-pc-speech'),
-      import('@sdkwork/im-pc-core'),
-    ]);
-    imCore.ensureVoicePcRuntimeOnModule(speechModule.configureVoicePcRuntime);
-    return { default: speechModule.VoiceSpeechView };
-  },
-  musicgen: () => import('@sdkwork/im-pc-music-gen').then((module) => ({ default: module.MusicGenView })),
-  writing: () => import('@sdkwork/im-pc-writing').then((module) => ({ default: module.WritingView })),
 };
+
+const CORE_SHELL_MODULE_IDS = new Set<AppModuleId>([
+  'chat',
+  'workspace',
+  'contacts',
+  'favorites',
+  'agent',
+]);
+
+function isCommercialCapabilityModule(moduleId: string): moduleId is AppModuleId {
+  return (
+    COMMERCIAL_RUNTIME_MODULES.has(moduleId as AppModuleId)
+    && !CORE_SHELL_MODULE_IDS.has(moduleId as AppModuleId)
+    && Object.prototype.hasOwnProperty.call(CAPABILITY_MODULE_LOADERS, moduleId)
+  );
+}
+
+/** Production navigation only exposes commercial runtime capability modules. */
+export const SHELL_CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoader> =
+  Object.fromEntries(
+    Object.entries(CAPABILITY_MODULE_LOADERS).filter(([moduleId]) =>
+      isCommercialCapabilityModule(moduleId),
+    ),
+  );
 
 const lazyModuleCache = new Map<string, React.LazyExoticComponent<React.ComponentType<any>>>();
 

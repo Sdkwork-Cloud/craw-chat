@@ -58,7 +58,9 @@ fn resolve_rtc_outbox_store_from_env() -> Option<Arc<dyn OutboxStore>> {
             return PostgresJournalConfig::from_database_config(&config)
                 .connect_pool()
                 .ok()
-                .map(|pool| Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>);
+                .map(|pool| {
+                    Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>
+                });
         }
     }
 
@@ -97,9 +99,7 @@ fn resolve_rtc_outbox_relay_organization_id() -> String {
         .unwrap_or_else(|| DEFAULT_RTC_OUTBOX_RELAY_ORGANIZATION_ID.to_owned())
 }
 
-fn resolve_rtc_outbox_relay_scopes(
-    outbox: &Arc<dyn OutboxStore>,
-) -> Vec<(String, String)> {
+fn resolve_rtc_outbox_relay_scopes(outbox: &Arc<dyn OutboxStore>) -> Vec<(String, String)> {
     if std::env::var(RTC_OUTBOX_RELAY_TENANT_ID_ENV)
         .ok()
         .map(|value| value.trim().to_owned())
@@ -176,14 +176,10 @@ fn relay_rtc_outbox_event(
     event: &OutboxEventRecord,
 ) {
     let payload = build_realtime_payload(event);
-    let recipients = rtc_realtime_recipients(event.event_type.as_str(), event.payload_json.as_str());
+    let recipients =
+        rtc_realtime_recipients(event.event_type.as_str(), event.payload_json.as_str());
     if recipients.is_empty() {
-        mark_missing_recipients(
-            outbox,
-            event,
-            "rtc",
-            "recipientPrincipalIds",
-        );
+        mark_missing_recipients(outbox, event, "rtc", "recipientPrincipalIds");
         return;
     }
 

@@ -302,7 +302,7 @@ Inbox is exposed through the conversations semantic module and the generated tra
 
 ```ts
 const inbox = await sdk.conversations.list();
-const exactInbox = await sdk.transport.chat.inbox.retrieve();
+const exactInbox = await sdk.transport.chat.inbox.list();
 console.log(inbox.items.length);
 ```
 
@@ -700,7 +700,7 @@ await sdk.transport.presence.heartbeat.create({ clientRouteId: 'web-chrome-01' }
 await sdk.transport.presence.me.retrieve();
 await sdk.transport.realtime.events.list({ limit: 20 });
 await sdk.conversations.listMessages('conversation-1');
-await sdk.transport.chat.inbox.retrieve();
+await sdk.transport.chat.inbox.list();
 await sdk.transport.streams.create({
   streamId: 'stream-demo-1',
   streamType: 'custom.delta.text',
@@ -713,7 +713,7 @@ await sdk.transport.streams.create({
 
 Use `sdk.transport` when you need exact DTOs or route-group control. Reach for
 `sdk.transport.presence.heartbeat.create(...)`, `sdk.transport.presence.me.retrieve()`,
-`sdk.transport.realtime.events.list(...)`, `sdk.transport.chat.inbox.retrieve()`, and
+`sdk.transport.realtime.events.list(...)`, `sdk.transport.chat.inbox.list()`, and
 `sdk.transport.streams.create(...)` when the route group already matches the API cleanly. Use the
 semantic domains on `ImSdkClient` for normal application integration.
 
@@ -777,4 +777,3 @@ node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript
 - Read [Messages](/api-reference/im/messages), [Realtime Presence](/api-reference/im/session-and-realtime),
   and [Calls](/api-reference/im/calls) when you need the route-level contract behind the semantic
   TypeScript SDK.
-

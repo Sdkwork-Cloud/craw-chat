@@ -6,7 +6,7 @@
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres;
 
-use crate::{postgres_pool_client, postgres_unavailable, PostgresJournalPool, run_postgres_io};
+use crate::{PostgresJournalPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 const DEFAULT_PURGE_BATCH_SIZE: i64 = 500;
 
@@ -140,7 +140,10 @@ pub fn purge_expired_retention_batch(
     run_postgres_io(move || purge_batch(&pool, limit))
 }
 
-fn purge_batch(pool: &PostgresJournalPool, limit: i64) -> Result<RetentionCleanupReport, ContractError> {
+fn purge_batch(
+    pool: &PostgresJournalPool,
+    limit: i64,
+) -> Result<RetentionCleanupReport, ContractError> {
     let mut client = postgres_pool_client(pool, "journal retention purge")?;
     let mut txn = client
         .transaction()
@@ -152,18 +155,14 @@ fn purge_batch(pool: &PostgresJournalPool, limit: i64) -> Result<RetentionCleanu
         execute_retention_delete(&mut txn, PURGE_CONVERSATION_MESSAGES_SQL, limit)?;
     let message_media_refs_deleted =
         execute_retention_delete(&mut txn, PURGE_MESSAGE_MEDIA_REFS_SQL, limit)?;
-    let outbox_events_deleted =
-        execute_retention_delete(&mut txn, PURGE_OUTBOX_EVENTS_SQL, limit)?;
-    let inbox_events_deleted =
-        execute_retention_delete(&mut txn, PURGE_INBOX_EVENTS_SQL, limit)?;
+    let outbox_events_deleted = execute_retention_delete(&mut txn, PURGE_OUTBOX_EVENTS_SQL, limit)?;
+    let inbox_events_deleted = execute_retention_delete(&mut txn, PURGE_INBOX_EVENTS_SQL, limit)?;
     let projection_timeline_entries_deleted =
         execute_retention_delete(&mut txn, PURGE_PROJECTION_TIMELINE_SQL, limit)?;
     let realtime_device_events_deleted =
         execute_retention_delete(&mut txn, PURGE_REALTIME_DEVICE_EVENTS_SQL, limit)?;
-    let rtc_sessions_deleted =
-        execute_retention_delete(&mut txn, PURGE_RTC_SESSIONS_SQL, limit)?;
-    let rtc_signals_deleted =
-        execute_retention_delete(&mut txn, PURGE_RTC_SIGNALS_SQL, limit)?;
+    let rtc_sessions_deleted = execute_retention_delete(&mut txn, PURGE_RTC_SESSIONS_SQL, limit)?;
+    let rtc_signals_deleted = execute_retention_delete(&mut txn, PURGE_RTC_SIGNALS_SQL, limit)?;
 
     txn.commit()
         .map_err(|error| postgres_unavailable("journal retention purge commit", error))?;
@@ -187,7 +186,6 @@ fn execute_retention_delete(
     limit: i64,
 ) -> Result<u64, ContractError> {
     txn.execute(sql, &[&limit])
-        .map(|deleted| deleted as u64)
         .map_err(|error| postgres_unavailable("journal retention purge delete", error))
 }
 

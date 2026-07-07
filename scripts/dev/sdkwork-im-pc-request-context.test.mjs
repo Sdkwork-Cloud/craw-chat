@@ -8,10 +8,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const appRoot = path.join(repoRoot, 'apps/sdkwork-im-pc');
 const testScript = path.join(repoRoot, 'scripts/dev/sdkwork-im-pc-request-context.test.ts');
 
-const result = spawnSync('pnpm', ['exec', 'tsx', testScript], {
+const result = spawnSync(process.execPath, [path.join(repoRoot, 'scripts/dev/run-tsx-cli.mjs'), testScript], {
   cwd: appRoot,
   stdio: 'inherit',
-  shell: process.platform === 'win32',
+  shell: false,
+  windowsHide: process.platform === 'win32',
 });
 
 if (result.status !== 0) {

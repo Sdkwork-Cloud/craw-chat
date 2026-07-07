@@ -83,7 +83,8 @@ assert.equal(
 
 const chatRoot = path.join(appRoot, 'packages', 'sdkwork_im_flutter_mobile_chat');
 const chatSource = listDartFiles(chatRoot).map((file) => readFileSync(file, 'utf8')).join('\n');
-assert.match(chatSource, /inboxRetrieve/u);
+assert.match(chatSource, /inboxList/u);
+assert.match(chatSource, /InboxListResponse/u);
 assert.match(chatSource, /conversationsMessagesList/u);
 assert.match(chatSource, /conversationsMessagesCreate/u);
 assert.match(chatSource, /ChatConversationPage/u);

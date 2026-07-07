@@ -65,7 +65,7 @@ print(result);
 ```dart
 // List pending realtime events
 final params = <String, dynamic>{
-  'limit': 1,
+  'page_size': 1,
   'cursor': 'cursor',
 };
 final result = await client.realtime.eventsList(params);
@@ -86,12 +86,8 @@ print(result);
 
 ### social
 ```dart
-// List contact tags
-final params = <String, dynamic>{
-  'limit': 1,
-  'cursor': 'cursor',
-};
-final result = await client.social.contactsTagsList(params);
+// Retrieve pending incoming friend request count
+final result = await client.social.friendRequestsPendingCountRetrieve();
 print(result);
 ```
 
@@ -99,7 +95,7 @@ print(result);
 ```dart
 // List IM contacts
 final params = <String, dynamic>{
-  'limit': 1,
+  'page_size': 1,
   'cursor': 'cursor',
 };
 final result = await client.chat.contactsList(params);
@@ -120,7 +116,11 @@ print(result);
 ### spaces
 ```dart
 // List spaces
-final result = await client.spaces.list();
+final params = <String, dynamic>{
+  'page_size': 1,
+  'cursor': 'cursor',
+};
+final result = await client.spaces.list(params);
 print(result);
 ```
 

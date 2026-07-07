@@ -623,6 +623,7 @@ fn test_conversation_read_cursor_serializes_cursor_shape() {
         member_id: "cm_demo".into(),
         principal_id: "1".into(),
         principal_kind: "user".into(),
+        device_id: None,
         read_seq: 12,
         last_read_message_id: Some("msg_c_demo_12".into()),
         updated_at: "2026-04-05T10:00:10Z".into(),

@@ -4,22 +4,22 @@ use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use serde::{Deserialize, Serialize};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
+use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::organization_store::{GroupMemberRecord, GroupRecord};
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::group_conversation_binder::{
     CreateSpaceGroupConversationInput, TransferSpaceGroupOwnerInput,
 };
 use crate::http::AppState;
 use crate::id::next_entity_id;
-use crate::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
     actor_can_manage_space, actor_can_read_space, load_space, parse_space_id,
 };
@@ -161,28 +161,29 @@ pub async fn create_group(
 
         persist_group_created(&state, &auth, &record, &owner_member)?;
 
-        if let Some(binder) = state.group_conversation_binder.as_ref() {
-            if let Err(error) = binder.create_group_conversation(CreateSpaceGroupConversationInput {
-                tenant_id: auth.tenant_id.clone(),
-                organization_id: auth.organization_id.clone(),
-                conversation_id: conversation_id.clone(),
-                creator_user_id: auth.actor_id.clone(),
-                max_members,
-            }) {
-                tracing::error!(error = %error, group_id, "failed to bind group conversation");
-                if let Err(compensate_error) =
-                    persist_group_deleted(&state, &auth, group_id, now.as_str())
-                {
-                    tracing::error!(
-                        error = ?compensate_error,
-                        group_id,
-                        "failed to compensate group record after conversation bind failure"
-                    );
-                }
-                return Err(ApiProblem::internal_server_error(
-                    "failed to bind group conversation",
-                ));
+        if let Some(binder) = state.group_conversation_binder.as_ref()
+            && let Err(error) =
+                binder.create_group_conversation(CreateSpaceGroupConversationInput {
+                    tenant_id: auth.tenant_id.clone(),
+                    organization_id: auth.organization_id.clone(),
+                    conversation_id: conversation_id.clone(),
+                    creator_user_id: auth.actor_id.clone(),
+                    max_members,
+                })
+        {
+            tracing::error!(error = %error, group_id, "failed to bind group conversation");
+            if let Err(compensate_error) =
+                persist_group_deleted(&state, &auth, group_id, now.as_str())
+            {
+                tracing::error!(
+                    error = ?compensate_error,
+                    group_id,
+                    "failed to compensate group record after conversation bind failure"
+                );
             }
+            return Err(ApiProblem::internal_server_error(
+                "failed to bind group conversation",
+            ));
         }
 
         Ok(resource_item(GroupResponse::from(record)))
@@ -201,18 +202,27 @@ pub async fn list_groups(
         let space_id = parse_space_id(space_id.as_str())?;
         let space = load_space(&state, &auth, space_id)?;
         actor_can_read_space(&state, &auth, &space)?;
-        let paging = resolve_list_page(&query)?;
+        let paging = resolve_keyset_page(&query)?;
+        let cursor_group_id = paging
+            .cursor_entity
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok());
 
         match state.group_store.list_by_space(
             auth.tenant_id.as_str(),
             auth.organization_id.as_str(),
             space_id,
-            sql_fetch_limit(paging),
-            sql_fetch_offset(paging),
+            paging.cursor_sort_value.as_deref(),
+            cursor_group_id,
+            paging.fetch_limit(),
         ) {
             Ok(records) => {
                 let items = records.into_iter().map(GroupResponse::from).collect();
-                Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
+                Ok(keyset_list_page(
+                    items,
+                    paging.page_size,
+                    |item: &GroupResponse| (item.created_at.clone(), item.group_id.clone()),
+                ))
             }
             Err(error) => {
                 tracing::error!(error = ?error, "failed to list groups for space {space_id}");
@@ -353,9 +363,7 @@ pub async fn transfer_group_owner(
                 tracing::error!(error = ?error, "failed to load prospective group owner member");
                 ApiProblem::internal_server_error("failed to load prospective group owner member")
             })?
-            .ok_or_else(|| {
-                ApiProblem::bad_request("new owner must be an existing group member")
-            })?;
+            .ok_or_else(|| ApiProblem::bad_request("new owner must be an existing group member"))?;
 
         let updated_at = chrono::Utc::now().to_rfc3339();
         persist_group_owner_transferred(
@@ -379,12 +387,7 @@ pub async fn transfer_group_owner(
             })?
             .ok_or_else(|| ApiProblem::not_found("group not found"))?;
 
-        sync_conversation_transfer_group_owner(
-            &state,
-            &auth,
-            &group,
-            new_owner_user_id,
-        )?;
+        sync_conversation_transfer_group_owner(&state, &auth, &group, new_owner_user_id)?;
         Ok(resource_item(GroupResponse::from(updated_group)))
     })();
     finish_api_json(&ctx, result)

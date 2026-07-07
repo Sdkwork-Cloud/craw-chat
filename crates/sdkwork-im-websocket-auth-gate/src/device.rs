@@ -77,7 +77,8 @@ mod tests {
     fn resolve_device_binding_rejects_mismatch() {
         let auth = local_service_app_context("t1", "u1", "user", Some("device_real"), ["*"]);
         assert_eq!(
-            resolve_websocket_device_binding(&auth, Some("device-frame".to_owned())).map_err(|e| e.code),
+            resolve_websocket_device_binding(&auth, Some("device-frame".to_owned()))
+                .map_err(|e| e.code),
             Err("device_id_mismatch")
         );
     }

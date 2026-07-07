@@ -4,6 +4,7 @@ use std::ops::Bound::{Excluded, Unbounded};
 use im_domain_core::conversation::ClientRouteSyncFeedEntry;
 use im_platform_contracts::normalize_realtime_organization_id;
 
+use crate::message_delivery_index::MessageDeliveryOfferCommand;
 use crate::model::{NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView};
 use crate::scope::{
     ClientRoutePrincipalScopeKey, client_route_feed_scope_key, client_route_principal_scope_key,
@@ -28,6 +29,17 @@ pub struct ClientRouteSyncAckStateView {
     pub latest_sync_seq: u64,
     pub acked_through_sync_seq: u64,
     pub trimmed_through_sync_seq: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ClientRouteSyncFeedWindowQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub principal_id: &'a str,
+    pub principal_kind: &'a str,
+    pub device_id: &'a str,
+    pub after_seq: Option<u64>,
+    pub limit: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -204,21 +216,15 @@ pub(crate) fn registered_client_routes_for_principal_kind(
 
 pub(crate) fn client_route_sync_feed_window_for_principal_kind(
     service: &TimelineProjectionService,
-    tenant_id: &str,
-    organization_id: &str,
-    principal_id: &str,
-    principal_kind: &str,
-    device_id: &str,
-    after_seq: Option<u64>,
-    limit: usize,
+    query: ClientRouteSyncFeedWindowQuery<'_>,
 ) -> super::ClientRouteSyncFeedWindowView {
-    let min_seq = after_seq.unwrap_or_default();
+    let min_seq = query.after_seq.unwrap_or_default();
     let scope = client_route_feed_scope_key(
-        tenant_id,
-        organization_id,
-        principal_kind,
-        principal_id,
-        device_id,
+        query.tenant_id,
+        query.organization_id,
+        query.principal_kind,
+        query.principal_id,
+        query.device_id,
     );
     let feeds = lock_projection_mutex(
         &service.client_route_sync_feeds,
@@ -234,7 +240,7 @@ pub(crate) fn client_route_sync_feed_window_for_principal_kind(
     };
 
     let trimmed_through_seq = client_route_sync_feed_trimmed_through_seq(feed);
-    let mut items = Vec::with_capacity(limit.min(feed.len()));
+    let mut items = Vec::with_capacity(query.limit.min(feed.len()));
     let mut has_more = false;
     let mut next_after_seq = None;
     for (sync_seq, entry) in feed.range((Excluded(min_seq), Unbounded)) {
@@ -243,8 +249,8 @@ pub(crate) fn client_route_sync_feed_window_for_principal_kind(
             .as_deref()
             .is_some_and(|conversation_id| {
                 service.is_archived_direct_chat_conversation(
-                    tenant_id,
-                    organization_id,
+                    query.tenant_id,
+                    query.organization_id,
                     conversation_id,
                 )
             })
@@ -252,7 +258,7 @@ pub(crate) fn client_route_sync_feed_window_for_principal_kind(
             next_after_seq = Some(*sync_seq);
             continue;
         }
-        if items.len() == limit {
+        if items.len() == query.limit {
             has_more = true;
             break;
         }
@@ -408,24 +414,9 @@ impl TimelineProjectionService {
 
     pub fn client_route_sync_feed_window_for_principal_kind(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
-        after_seq: Option<u64>,
-        limit: usize,
+        query: ClientRouteSyncFeedWindowQuery<'_>,
     ) -> super::ClientRouteSyncFeedWindowView {
-        self::client_route_sync_feed_window_for_principal_kind(
-            self,
-            tenant_id,
-            organization_id,
-            principal_id,
-            principal_kind,
-            device_id,
-            after_seq,
-            limit,
-        )
+        self::client_route_sync_feed_window_for_principal_kind(self, query)
     }
 
     pub fn registered_client_routes(
@@ -588,12 +579,7 @@ impl TimelineProjectionService {
             feed.pop_first();
         }
         let trimmed_through_seq = client_route_sync_feed_trimmed_through_seq(feed);
-        touch_client_route_sync_checkpoint(
-            self,
-            &scope,
-            sync_seq,
-            trimmed_through_seq,
-        );
+        touch_client_route_sync_checkpoint(self, &scope, sync_seq, trimmed_through_seq);
     }
 
     pub(crate) fn append_client_route_sync_draft(
@@ -640,16 +626,16 @@ impl TimelineProjectionService {
                 target.device_id.as_str(),
             );
             if sync_seq > sync_seq_before {
-                self.record_message_delivery_offer(
-                    draft.tenant_id.as_str(),
-                    draft.organization_id.as_str(),
+                self.record_message_delivery_offer(MessageDeliveryOfferCommand {
+                    tenant_id: draft.tenant_id.as_str(),
+                    organization_id: draft.organization_id.as_str(),
                     conversation_id,
                     message_id,
-                    target.principal_id.as_str(),
-                    target.principal_kind.as_str(),
-                    target.device_id.as_str(),
+                    principal_id: target.principal_id.as_str(),
+                    principal_kind: target.principal_kind.as_str(),
+                    device_id: target.device_id.as_str(),
                     sync_seq,
-                );
+                });
             }
         }
     }
@@ -694,12 +680,8 @@ impl TimelineProjectionService {
             );
             let entry = checkpoints.entry(scope).or_default();
             entry.latest_sync_seq = latest_sync_seq;
-            entry.trimmed_through_seq = entry
-                .trimmed_through_seq
-                .max(trimmed_through_sync_seq);
-            entry.acked_through_sync_seq = entry
-                .acked_through_sync_seq
-                .max(acked_through_sync_seq);
+            entry.trimmed_through_seq = entry.trimmed_through_seq.max(trimmed_through_sync_seq);
+            entry.acked_through_sync_seq = entry.acked_through_sync_seq.max(acked_through_sync_seq);
             entry.clone()
         };
         ClientRouteSyncAckStateView {
@@ -745,9 +727,7 @@ fn touch_client_route_sync_checkpoint(
     );
     let entry = checkpoints.entry(scope.clone()).or_default();
     entry.latest_sync_seq = latest_sync_seq;
-    entry.trimmed_through_seq = entry
-        .trimmed_through_seq
-        .max(trimmed_through_sync_seq);
+    entry.trimmed_through_seq = entry.trimmed_through_seq.max(trimmed_through_sync_seq);
 }
 
 fn client_route_sync_feed_trimmed_through_seq(

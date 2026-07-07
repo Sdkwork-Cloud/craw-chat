@@ -25,7 +25,7 @@ export class ImConversationsModule {
   }
 
   list(params?: QueryParams): Promise<InboxResponse> {
-    return this.transportClient.chat.inbox.retrieve(params);
+    return this.transportClient.chat.inbox.list(params);
   }
 
   createAgentDialog(body: CreateAgentDialogRequest): Promise<CreateConversationResult> {

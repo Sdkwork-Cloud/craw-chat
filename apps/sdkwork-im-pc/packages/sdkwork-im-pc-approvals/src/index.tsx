@@ -3,8 +3,7 @@ import {
   FileText, CheckCircle, XCircle, Clock,
   Plus, Briefcase, DollarSign
 } from 'lucide-react';
-import { cn } from '@sdkwork/im-pc-commons';
-import { toast } from '@sdkwork/im-pc-chat';
+import { cn, toast } from '@sdkwork/im-pc-commons';
 import { ApprovalsService, ApprovalItem } from './services/ApprovalsService';
 import { CreateApprovalModal } from './components/CreateApprovalModal';
 import { ApprovalListPanel } from './components/ApprovalListPanel';

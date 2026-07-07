@@ -437,9 +437,7 @@ fn test_file_metadata_store_batches_snapshot_updates_across_reopen() {
         Some("{\"state\":\"ready\"}")
     );
     assert_eq!(
-        reopened
-            .snapshot("tenant:100001", "profile:1")
-            .as_deref(),
+        reopened.snapshot("tenant:100001", "profile:1").as_deref(),
         Some("{\"name\":\"demo\"}")
     );
 

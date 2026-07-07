@@ -43,8 +43,8 @@ pub fn resolve_embedded_realtime_publisher() -> Option<Arc<dyn RealtimeEventPubl
 }
 
 /// Resolve the embedded conversation runtime when co-located in unified-process mode.
-pub fn resolve_embedded_conversation_runtime(
-) -> Option<Arc<ConversationRuntime<ConversationCommitJournal>>> {
+pub fn resolve_embedded_conversation_runtime()
+-> Option<Arc<ConversationRuntime<ConversationCommitJournal>>> {
     EMBEDDED_CONVERSATION_RUNTIME.get().cloned()
 }
 

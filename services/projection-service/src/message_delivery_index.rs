@@ -1,11 +1,22 @@
 use crate::scope::{client_route_feed_scope_key, scope_key};
-use crate::{lock_projection_mutex, TimelineProjectionService};
+use crate::{TimelineProjectionService, lock_projection_mutex};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MessageDeliveryDeviceOffer {
     pub principal_id: String,
     pub principal_kind: String,
     pub device_id: String,
+    pub sync_seq: u64,
+}
+
+pub(crate) struct MessageDeliveryOfferCommand<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub conversation_id: &'a str,
+    pub message_id: &'a str,
+    pub principal_id: &'a str,
+    pub principal_kind: &'a str,
+    pub device_id: &'a str,
     pub sync_seq: u64,
 }
 
@@ -23,39 +34,31 @@ fn message_delivery_index_key(
 }
 
 impl TimelineProjectionService {
-    pub(crate) fn record_message_delivery_offer(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-        message_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
-        sync_seq: u64,
-    ) {
+    pub(crate) fn record_message_delivery_offer(&self, command: MessageDeliveryOfferCommand<'_>) {
         let key = message_delivery_index_key(
-            tenant_id,
-            organization_id,
-            conversation_id,
-            message_id,
+            command.tenant_id,
+            command.organization_id,
+            command.conversation_id,
+            command.message_id,
         );
-        let mut offers =
-            lock_projection_mutex(&self.message_delivery_offers, "message delivery offer store");
+        let mut offers = lock_projection_mutex(
+            &self.message_delivery_offers,
+            "message delivery offer store",
+        );
         let scope_offers = offers.entry(key).or_default();
         if let Some(existing) = scope_offers.iter_mut().find(|offer| {
-            offer.principal_id == principal_id
-                && offer.principal_kind == principal_kind
-                && offer.device_id == device_id
+            offer.principal_id == command.principal_id
+                && offer.principal_kind == command.principal_kind
+                && offer.device_id == command.device_id
         }) {
-            existing.sync_seq = existing.sync_seq.max(sync_seq);
+            existing.sync_seq = existing.sync_seq.max(command.sync_seq);
             return;
         }
         scope_offers.push(MessageDeliveryDeviceOffer {
-            principal_id: principal_id.into(),
-            principal_kind: principal_kind.into(),
-            device_id: device_id.into(),
-            sync_seq,
+            principal_id: command.principal_id.into(),
+            principal_kind: command.principal_kind.into(),
+            device_id: command.device_id.into(),
+            sync_seq: command.sync_seq,
         });
     }
 
@@ -66,16 +69,15 @@ impl TimelineProjectionService {
         conversation_id: &str,
         message_id: &str,
     ) -> Vec<MessageDeliveryDeviceOffer> {
-        let key = message_delivery_index_key(
-            tenant_id,
-            organization_id,
-            conversation_id,
-            message_id,
-        );
-        lock_projection_mutex(&self.message_delivery_offers, "message delivery offer store")
-            .get(key.as_str())
-            .cloned()
-            .unwrap_or_default()
+        let key =
+            message_delivery_index_key(tenant_id, organization_id, conversation_id, message_id);
+        lock_projection_mutex(
+            &self.message_delivery_offers,
+            "message delivery offer store",
+        )
+        .get(key.as_str())
+        .cloned()
+        .unwrap_or_default()
     }
 
     pub(crate) fn client_route_sync_acked_through_for_device(

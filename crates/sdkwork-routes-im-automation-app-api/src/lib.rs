@@ -3,7 +3,7 @@ mod paths;
 mod routes;
 mod web_bootstrap;
 
-pub use manifest::{route_manifest, API_SURFACE};
+pub use manifest::{API_SURFACE, route_manifest};
 pub use paths::PREFIX;
 
 use axum::Router;

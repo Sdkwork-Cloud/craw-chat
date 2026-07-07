@@ -31,6 +31,27 @@ function extractYamlSchemaBlock(source, schemaName) {
   return source.slice(start, end);
 }
 
+function extractYamlOperationBlock(source, pathKey, method) {
+  const pathMarker = `  ${pathKey}:\n`;
+  const pathStart = source.indexOf(pathMarker);
+  assert.notEqual(pathStart, -1, `IM OpenAPI must define path ${pathKey}`);
+
+  const pathRest = source.slice(pathStart + pathMarker.length);
+  const nextPath = /\n  \/[^\n]+:\n/u.exec(pathRest);
+  const pathEnd = nextPath ? pathStart + pathMarker.length + nextPath.index : source.length;
+  const pathBlock = source.slice(pathStart, pathEnd);
+  const operationMarker = `    ${method}:\n`;
+  const operationStart = pathBlock.indexOf(operationMarker);
+  assert.notEqual(operationStart, -1, `IM OpenAPI path ${pathKey} must define ${method}`);
+
+  const operationRest = pathBlock.slice(operationStart + operationMarker.length);
+  const nextOperation = /\n    (get|put|post|delete|patch|options|head|trace):\n/u.exec(operationRest);
+  const operationEnd = nextOperation
+    ? operationStart + operationMarker.length + nextOperation.index
+    : pathBlock.length;
+  return pathBlock.slice(operationStart, operationEnd);
+}
+
 function assertFile(relativePath, message) {
   assert.ok(fs.existsSync(path.join(repoRoot, relativePath)), message ?? `${relativePath} must exist`);
 }
@@ -256,23 +277,23 @@ assert.match(
   'TypeScript must resolve generated RTC SDK from source for live development',
 );
 assert.match(viteConfig, /@sdkwork\/drive-app-sdk/u, 'Vite must alias generated Drive app SDK source for chat media upload');
-assert.match(viteConfig, /@sdkwork\/catalog-app-sdk/u, 'Vite must alias generated Catalog app SDK source for shop modules');
-assert.match(viteConfig, /@sdkwork\/shop-app-sdk/u, 'Vite must alias generated Shop app SDK source for merchant flows');
-assert.match(viteConfig, /@sdkwork\/order-app-sdk/u, 'Vite must alias generated Order app SDK source for checkout and orders');
+assert.match(viteConfig, /@sdkwork\/catalog-app-sdk/u, 'Vite must alias composed Catalog app SDK source for shop modules');
+assert.match(viteConfig, /@sdkwork\/shop-app-sdk/u, 'Vite must alias composed Shop app SDK source for merchant flows');
+assert.match(viteConfig, /@sdkwork\/order-app-sdk/u, 'Vite must alias composed Order app SDK source for checkout and orders');
 assert.match(
   viteConfig,
-  /dependencyRoot\('sdkwork-catalog'\)[\s\S]*sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'Vite must resolve Catalog app SDK through the sibling sdkwork-catalog workspace',
+  /dependencyRoot\('sdkwork-catalog'\)[\s\S]*sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Catalog app SDK through the sibling sdkwork-catalog composed facade',
 );
 assert.match(
   viteConfig,
-  /dependencyRoot\('sdkwork-shop'\)[\s\S]*sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'Vite must resolve Shop app SDK through the sibling sdkwork-shop workspace',
+  /dependencyRoot\('sdkwork-shop'\)[\s\S]*sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Shop app SDK through the sibling sdkwork-shop composed facade',
 );
 assert.match(
   viteConfig,
-  /dependencyRoot\('sdkwork-order'\)[\s\S]*sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'Vite must resolve Order app SDK through the sibling sdkwork-order workspace',
+  /dependencyRoot\('sdkwork-order'\)[\s\S]*sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Order app SDK through the sibling sdkwork-order composed facade',
 );
 assert.match(
   tsconfig,
@@ -281,18 +302,18 @@ assert.match(
 );
 assert.match(
   tsconfig,
-  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-catalog[\\\/]sdks[\\\/]sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'TypeScript must resolve generated Catalog app SDK from sibling source',
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-catalog[\\\/]sdks[\\\/]sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve composed Catalog app SDK from sibling source',
 );
 assert.match(
   tsconfig,
-  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-shop[\\\/]sdks[\\\/]sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'TypeScript must resolve generated Shop app SDK from sibling source',
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-shop[\\\/]sdks[\\\/]sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve composed Shop app SDK from sibling source',
 );
 assert.match(
   tsconfig,
-  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-order[\\\/]sdks[\\\/]sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'TypeScript must resolve generated Order app SDK from sibling source',
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-order[\\\/]sdks[\\\/]sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve composed Order app SDK from sibling source',
 );
 assert.match(
   viteConfig,
@@ -1152,8 +1173,13 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
+  /from ['"]@sdkwork\/im-pc-core\/sdk\/driveAppSdkClient['"]/u,
+  'chat service media upload types must come from the PC core Drive SDK public port',
+);
+assert.doesNotMatch(
+  chatServiceSource,
   /from ['"]@sdkwork\/drive-app-sdk['"]/u,
-  'chat service media upload types must come from @sdkwork/drive-app-sdk',
+  'chat service must not import the generated Drive SDK package directly',
 );
 assert.match(chatServiceSource, /const CHAT_DRIVE_SCENE = ['"]im['"]/u, 'chat service Drive uploads must use scene=im');
 assert.match(
@@ -1369,7 +1395,7 @@ assertNoImDeviceApiUsage(chatServiceSource, 'chat service');
 assert.match(chatServiceSource, /syncOfflineMessages/u, 'chat service must expose offline message window sync');
 assert.match(
   chatServiceSource,
-  /\.chat\.inbox\.retrieve\s*\(/u,
+  /\.chat\.inbox\.list\s*\(/u,
   'chat service offline sync must refresh the IM inbox through the generated SDK',
 );
 assert.match(
@@ -1391,9 +1417,9 @@ assert.doesNotMatch(
 );
 for (const requiredOperation of [
   'messages.reactions.create',
-  'messages.reactions.delete',
-  'messages.pin.create',
-  'messages.pin.delete',
+  'messages.reactions.remove',
+  'messages.pin',
+  'messages.unpin',
   'messages.visibility.delete',
   'messages.favorites.list',
   'messages.favorites.create',
@@ -1413,7 +1439,7 @@ for (const requiredOperation of [
   'social.contacts.recommendations.create',
   'calls.sessions.retrieve',
   'rooms.create',
-  'rooms.get',
+  'rooms.retrieve',
   'rooms.enter',
   'rooms.leave',
 ]) {
@@ -1442,7 +1468,6 @@ for (const requiredSchema of [
   'MessageReactionRequest',
   'MessageReactionMutationResult',
   'MessagePinMutationResult',
-  'MessageVisibilityMutationResult',
   'MessageFavoriteType',
   'FavoriteMessageRequest',
   'MessageFavoriteView',
@@ -1799,28 +1824,113 @@ for (const requiredField of [
     `ContactRecommendationView must require ${requiredField} for deterministic contact recommendation sync`,
   );
 }
-const messageVisibilityMutationResultSchema = extractYamlSchemaBlock(imOpenApiSource, 'MessageVisibilityMutationResult');
+const blockUserRequestSchema = extractYamlSchemaBlock(imOpenApiSource, 'BlockUserRequest');
+for (const requiredField of ['blockedUserId', 'scope']) {
+  assert.match(
+    blockUserRequestSchema,
+    new RegExp(`\\b${requiredField}:`, 'u'),
+    `BlockUserRequest must expose ${requiredField} for SDK-backed blacklist creation`,
+  );
+  assert.match(
+    blockUserRequestSchema,
+    new RegExp(`- ${requiredField}\\b`, 'u'),
+    `BlockUserRequest must require ${requiredField} for SDK-backed blacklist creation`,
+  );
+}
+for (const optionalField of ['directChatId', 'expiresAt']) {
+  assert.match(
+    blockUserRequestSchema,
+    new RegExp(`\\b${optionalField}:`, 'u'),
+    `BlockUserRequest must expose optional ${optionalField} for scoped user blocks`,
+  );
+}
+assert.match(
+  extractYamlSchemaBlock(imOpenApiSource, 'BlockScope'),
+  /enum:\s*\n\s+- all\s*\n\s+- friendship\s*\n\s+- direct_chat/u,
+  'BlockScope must expose the runtime social block scopes',
+);
+const userBlockSchema = extractYamlSchemaBlock(imOpenApiSource, 'UserBlock');
 for (const requiredField of [
   'tenantId',
-  'conversationId',
-  'messageId',
-  'messageSeq',
-  'principalKind',
-  'principalId',
-  'isDeleted',
+  'blockId',
+  'blockerUserId',
+  'blockedUserId',
+  'scope',
+  'status',
+  'createdAt',
   'updatedAt',
 ]) {
   assert.match(
-    messageVisibilityMutationResultSchema,
+    userBlockSchema,
     new RegExp(`\\b${requiredField}:`, 'u'),
-    `MessageVisibilityMutationResult must expose ${requiredField} so PC message delete can sync current-principal visibility`,
+    `UserBlock must expose ${requiredField} so SDK consumers can inspect blacklist writes`,
   );
   assert.match(
-    messageVisibilityMutationResultSchema,
+    userBlockSchema,
     new RegExp(`- ${requiredField}\\b`, 'u'),
-    `MessageVisibilityMutationResult must require ${requiredField} for deterministic current-principal message delete sync`,
+    `UserBlock must require ${requiredField} for deterministic blacklist write responses`,
   );
 }
+const userBlockCreateOperation = extractYamlOperationBlock(
+  imOpenApiSource,
+  '/im/v3/api/social/user_blocks',
+  'post',
+);
+assert.match(
+  userBlockCreateOperation,
+  /operationId:\s*social\.userBlocks\.create/u,
+  'social user block create path must expose the generated social.userBlocks.create SDK method',
+);
+assert.match(
+  userBlockCreateOperation,
+  /\$ref:\s*'#\/components\/schemas\/BlockUserRequest'/u,
+  'social.userBlocks.create must accept the BlockUserRequest contract',
+);
+assert.match(
+  userBlockCreateOperation,
+  /\$ref:\s*'#\/components\/schemas\/OpenApiUserBlockResponse'/u,
+  'social.userBlocks.create must return the runtime OpenApiUserBlockResponse contract',
+);
+const userBlockDeleteOperation = extractYamlOperationBlock(
+  imOpenApiSource,
+  '/im/v3/api/social/user_blocks/{blockId}',
+  'delete',
+);
+assert.match(
+  userBlockDeleteOperation,
+  /operationId:\s*social\.userBlocks\.delete/u,
+  'social user block delete path must expose the generated social.userBlocks.delete SDK method',
+);
+assert.match(
+  userBlockDeleteOperation,
+  /'204':\s*\n\s+description: No Content/u,
+  'social.userBlocks.delete must return HTTP 204 No Content for SDKWork delete semantics',
+);
+assert.doesNotMatch(
+  userBlockDeleteOperation,
+  /application\/json/u,
+  'social.userBlocks.delete must not declare a JSON success body',
+);
+const messageVisibilityDeleteOperation = extractYamlOperationBlock(
+  imOpenApiSource,
+  '/im/v3/api/chat/messages/{messageId}/visibility',
+  'delete',
+);
+assert.match(
+  messageVisibilityDeleteOperation,
+  /'204':\s*\n\s+description: No Content/u,
+  'messages.visibility.delete must return HTTP 204 No Content for SDKWork delete semantics',
+);
+assert.doesNotMatch(
+  messageVisibilityDeleteOperation,
+  /application\/json|MessageVisibilityMutationResult|SdkWorkApiResponse/u,
+  'messages.visibility.delete must not declare a JSON success body',
+);
+assert.doesNotMatch(
+  imOpenApiSource,
+  /\bMessageVisibilityMutationResult:/u,
+  'IM OpenAPI must not keep the retired MessageVisibilityMutationResult HTTP success schema',
+);
 const createContactRecommendationRequestSchema = extractYamlSchemaBlock(
   imOpenApiSource,
   'CreateContactRecommendationRequest',
@@ -1901,6 +2011,16 @@ assert.match(
   /chat\.messages\.visibility\.delete\s*\(/u,
   'IM messages module deleteForMe must route through the generated chat.messages.visibility.delete transport resource',
 );
+assert.match(
+  imMessagesModuleSource,
+  /\bdeleteForMe\s*\(\s*messageId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<void>/u,
+  'IM messages module deleteForMe must expose the 204 delete contract as Promise<void>',
+);
+assert.match(
+  imSdkSource,
+  /\bdeleteMessageForMe\s*\(\s*messageId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<void>/u,
+  'IM SDK client deleteMessageForMe must expose the 204 delete contract as Promise<void>',
+);
 for (const sdkMethod of ['listFavorites', 'favoriteMessage', 'deleteFavorite']) {
   assert.match(
     imMessagesModuleSource,
@@ -1975,6 +2095,11 @@ assert.match(
 );
 assert.match(
   imRoomsModuleSource,
+  /transportClient\.chat\.rooms\.retrieve\s*\(/u,
+  'IM rooms module get must route through generated chat.rooms.retrieve transport resource',
+);
+assert.match(
+  imRoomsModuleSource,
   /transportClient\.chat\.rooms\.enter\s*\(/u,
   'IM rooms module enter must route through generated chat.rooms.enter transport resource',
 );
@@ -1985,8 +2110,8 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /get\(roomId: string \| number\): Promise<RoomView>;/u,
-  'IM transport client type must expose generated chat.rooms get resource',
+  /retrieve\(roomId: string \| number\): Promise<RoomView>;/u,
+  'IM transport client type must expose generated chat.rooms retrieve resource',
 );
 assert.match(
   imTransportClientLikeSource,
@@ -2005,13 +2130,18 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /pin:\s*\{/u,
-  'IM transport client type must expose generated chat.messages.pin resource',
+  /pin\(messageId: string \| number\): Promise<MessagePinMutationResult>;/u,
+  'IM transport client type must expose generated chat.messages.pin method',
 );
 assert.match(
   imTransportClientLikeSource,
-  /visibility:\s*\{[\s\S]*delete\(messageId: string \| number\): Promise<MessageVisibilityMutationResult>;/u,
-  'IM transport client type must expose generated chat.messages.visibility delete resource',
+  /unpin\(messageId: string \| number\): Promise<MessagePinMutationResult>;/u,
+  'IM transport client type must expose generated chat.messages.unpin method',
+);
+assert.match(
+  imTransportClientLikeSource,
+  /visibility:\s*\{[\s\S]*delete\(messageId: string \| number\): Promise<void>;/u,
+  'IM transport client type must expose generated chat.messages.visibility delete as Promise<void>',
 );
 assert.match(
   imTransportClientLikeSource,
@@ -2947,7 +3077,7 @@ assert.match(
 );
 assert.match(
   groupServiceSource,
-  /async\s+listGroupsPage\s*\([\s\S]*?chat\?\.inbox\?\.retrieve[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
+  /async\s+listGroupsPage\s*\([\s\S]*?chat\?\.inbox\?\.list[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
   'group service listGroupsPage must hydrate inbox group projections and merge member state so invitees can see newly joined or empty groups without hydrating unrelated single chats',
 );
 assert.doesNotMatch(
@@ -3180,8 +3310,8 @@ assert.match(
 );
 assert.match(
   selectKnowledgeModalSource,
-  /knowledgeSelectionService\.getBases\s*\(/u,
-  'agent knowledge picker must list bases through the knowledgebase embed selection service.',
+  /knowledgeSelectionService\.getBasesPage\s*\(/u,
+  'agent knowledge picker must list bases through paginated knowledgebase embed selection service.',
 );
 assert.match(
   knowledgeEmbedIndexSource,
@@ -3229,7 +3359,7 @@ assert.match(
 );
 assert.match(
   createAgentViewSource,
-  /agentService\.getAgent\s*\(\s*initialAgentId\s*\)\.then\s*\(\s*\(\s*agent\s*\)/u,
+  /agentService\.getAgent\s*\(\s*initialAgentId\s*\)/u,
   'create agent edit mode must load editable targets from the current user owned agent record',
 );
 assert.doesNotMatch(

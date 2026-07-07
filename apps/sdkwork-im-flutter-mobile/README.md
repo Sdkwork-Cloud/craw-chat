@@ -5,7 +5,7 @@ Flutter mobile application root for SDKWork IM chat.
 ## Features
 
 - Appbase IAM deep-link auth (`sdkworkim://auth/callback`) or development credentials
-- Inbox via `im_sdk_generated` `chat.inboxRetrieve`
+- Inbox via `im_sdk_generated` `chat.inboxList(20, null)`
 - Conversation timeline and text send via REST (`conversationsMessagesList`, `conversationsMessagesCreate`)
 - WebSocket CCP live updates via `im_sdk_composed` `connect()`:
   - Inbox refresh via user-scope `events.onScope`

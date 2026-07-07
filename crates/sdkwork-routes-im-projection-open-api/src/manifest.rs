@@ -31,14 +31,14 @@ pub const ROUTES: &[HttpRoute] = &[
         "chat",
         "messages.favorites.create",
     )
-        .with_idempotent(true),
+    .with_idempotent(true),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::MESSAGE_FAVORITE,
         "chat",
         "messages.favorites.delete",
     )
-        .with_idempotent(true),
+    .with_idempotent(true),
 ];
 
 pub fn route_manifest() -> HttpRouteManifest {

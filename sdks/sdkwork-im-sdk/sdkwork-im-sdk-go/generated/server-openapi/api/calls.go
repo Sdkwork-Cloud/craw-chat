@@ -17,83 +17,83 @@ func NewCallsApi(client *sdkhttp.Client) *CallsApi {
 }
 
 // Create an IM call signaling session
-func (a *CallsApi) SessionsCreate(body sdktypes.CreateRtcSessionRequest) (sdktypes.RtcSessionMutationResponse, error) {
+func (a *CallsApi) SessionsCreate(body sdktypes.CreateRtcSessionRequest) (sdktypes.CallsSessionsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath("/calls/sessions"), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcSessionMutationResponse
+        var zero sdktypes.CallsSessionsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSessionMutationResponse](raw)
+    return decodeResult[sdktypes.CallsSessionsCreateResponse201](raw)
 }
 
 // Retrieve IM call signaling session state
-func (a *CallsApi) SessionsRetrieve(rtcSessionId string) (sdktypes.RtcSession, error) {
+func (a *CallsApi) SessionsRetrieve(rtcSessionId string) (sdktypes.CallsSessionsRetrieveResponse, error) {
     raw, err := a.client.Get(ImApiPath(fmt.Sprintf("/calls/sessions/%s", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), nil, nil)
     if err != nil {
-        var zero sdktypes.RtcSession
+        var zero sdktypes.CallsSessionsRetrieveResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSession](raw)
+    return decodeResult[sdktypes.CallsSessionsRetrieveResponse](raw)
 }
 
 // Invite participants into an IM call signaling session
-func (a *CallsApi) SessionsInvite(rtcSessionId string, body sdktypes.InviteRtcSessionRequest) (sdktypes.RtcSessionMutationResponse, error) {
+func (a *CallsApi) SessionsInvite(rtcSessionId string, body sdktypes.InviteRtcSessionRequest) (sdktypes.CallsSessionsInviteResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/calls/sessions/%s/invite", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcSessionMutationResponse
+        var zero sdktypes.CallsSessionsInviteResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSessionMutationResponse](raw)
+    return decodeResult[sdktypes.CallsSessionsInviteResponse](raw)
 }
 
 // Accept an IM call signaling session
-func (a *CallsApi) SessionsAccept(rtcSessionId string, body sdktypes.UpdateRtcSessionRequest) (sdktypes.RtcSessionMutationResponse, error) {
+func (a *CallsApi) SessionsAccept(rtcSessionId string, body sdktypes.UpdateRtcSessionRequest) (sdktypes.CallsSessionsAcceptResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/calls/sessions/%s/accept", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcSessionMutationResponse
+        var zero sdktypes.CallsSessionsAcceptResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSessionMutationResponse](raw)
+    return decodeResult[sdktypes.CallsSessionsAcceptResponse](raw)
 }
 
 // Reject an IM call signaling session
-func (a *CallsApi) SessionsReject(rtcSessionId string, body sdktypes.UpdateRtcSessionRequest) (sdktypes.RtcSessionMutationResponse, error) {
+func (a *CallsApi) SessionsReject(rtcSessionId string, body sdktypes.UpdateRtcSessionRequest) (sdktypes.CallsSessionsRejectResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/calls/sessions/%s/reject", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcSessionMutationResponse
+        var zero sdktypes.CallsSessionsRejectResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSessionMutationResponse](raw)
+    return decodeResult[sdktypes.CallsSessionsRejectResponse](raw)
 }
 
 // End an IM call signaling session
-func (a *CallsApi) SessionsEnd(rtcSessionId string, body sdktypes.UpdateRtcSessionRequest) (sdktypes.RtcSessionMutationResponse, error) {
+func (a *CallsApi) SessionsEnd(rtcSessionId string, body sdktypes.UpdateRtcSessionRequest) (sdktypes.CallsSessionsEndResponse, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/calls/sessions/%s/end", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcSessionMutationResponse
+        var zero sdktypes.CallsSessionsEndResponse
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSessionMutationResponse](raw)
+    return decodeResult[sdktypes.CallsSessionsEndResponse](raw)
 }
 
 // Post an IM call signaling event
-func (a *CallsApi) SessionsSignalsCreate(rtcSessionId string, body sdktypes.PostRtcSignalRequest) (sdktypes.RtcSignalEvent, error) {
+func (a *CallsApi) SessionsSignalsCreate(rtcSessionId string, body sdktypes.PostRtcSignalRequest) (sdktypes.CallsSessionsSignalsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/calls/sessions/%s/signals", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcSignalEvent
+        var zero sdktypes.CallsSessionsSignalsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.RtcSignalEvent](raw)
+    return decodeResult[sdktypes.CallsSessionsSignalsCreateResponse201](raw)
 }
 
 // Issue an RTC media participant credential for an IM call
-func (a *CallsApi) SessionsCredentialsCreate(rtcSessionId string, body sdktypes.IssueRtcParticipantCredentialRequest) (sdktypes.RtcParticipantCredential, error) {
+func (a *CallsApi) SessionsCredentialsCreate(rtcSessionId string, body sdktypes.IssueRtcParticipantCredentialRequest) (sdktypes.CallsSessionsCredentialsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/calls/sessions/%s/credentials", SerializePathParameter(rtcSessionId, PathParameterSpec{Name: "rtcSessionId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
-        var zero sdktypes.RtcParticipantCredential
+        var zero sdktypes.CallsSessionsCredentialsCreateResponse201
         return zero, err
     }
-    return decodeResult[sdktypes.RtcParticipantCredential](raw)
+    return decodeResult[sdktypes.CallsSessionsCredentialsCreateResponse201](raw)
 }
 
 type PathParameterSpec struct {

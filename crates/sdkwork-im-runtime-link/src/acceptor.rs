@@ -5,16 +5,16 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use sdkwork_im_ccp_core::TransportBinding;
 
 pub use sdkwork_im_ccp_binding_quic::{
-    quic_framed_message_length, CCP_QUIC_FRAME_HEADER_BYTES, CCP_QUIC_MAX_FRAME_BYTES,
-    QuicBinding, QuicBindingMessage,
+    CCP_QUIC_FRAME_HEADER_BYTES, CCP_QUIC_MAX_FRAME_BYTES, QuicBinding, QuicBindingMessage,
+    quic_framed_message_length,
 };
 pub use sdkwork_im_ccp_binding_tcp::{
-    framed_message_length as tcp_framed_message_length, CCP_TCP_FRAME_HEADER_BYTES,
-    CCP_TCP_MAX_FRAME_BYTES, TcpBinding, TcpBindingMessage,
+    CCP_TCP_FRAME_HEADER_BYTES, CCP_TCP_MAX_FRAME_BYTES, TcpBinding, TcpBindingMessage,
+    framed_message_length as tcp_framed_message_length,
 };
 pub use sdkwork_im_ccp_binding_udp::{
-    validate_datagram_payload as validate_udp_datagram_payload, CCP_UDP_MAX_DATAGRAM_BYTES,
-    UdpBinding, UdpBindingMessage,
+    CCP_UDP_MAX_DATAGRAM_BYTES, UdpBinding, UdpBindingMessage,
+    validate_datagram_payload as validate_udp_datagram_payload,
 };
 
 #[cfg(test)]
@@ -168,10 +168,7 @@ impl LinkShardDispatcher {
     }
 }
 
-fn lock_registry_mutex<'a, T>(
-    mutex: &'a Mutex<T>,
-    label: &'static str,
-) -> MutexGuard<'a, T> {
+fn lock_registry_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {

@@ -104,7 +104,9 @@ async fn test_public_app_rejects_missing_or_invalid_context_signature_when_enabl
     assert_eq!(missing_json["status"], 401);
     assert_eq!(missing_json["code"], 40101);
     assert!(
-        missing_json["traceId"].as_str().is_some_and(|value| !value.is_empty()),
+        missing_json["traceId"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()),
         "problem detail must include traceId"
     );
     assert!(
@@ -148,7 +150,9 @@ async fn test_public_app_rejects_missing_or_invalid_context_signature_when_enabl
     assert_eq!(invalid_json["status"], 401);
     assert_eq!(invalid_json["code"], 40101);
     assert!(
-        invalid_json["traceId"].as_str().is_some_and(|value| !value.is_empty()),
+        invalid_json["traceId"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()),
         "problem detail must include traceId"
     );
     assert!(

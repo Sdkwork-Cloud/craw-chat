@@ -10,10 +10,8 @@ pub const CONVERSATION_MEMBER_DIRECTORY: &str =
 pub const CONVERSATION_PINS: &str = "/im/v3/api/chat/conversations/{conversationId}/pins";
 pub const MESSAGE_INTERACTION_SUMMARY: &str =
     "/im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary";
-pub const CONVERSATION_MESSAGES: &str =
-    "/im/v3/api/chat/conversations/{conversationId}/messages";
+pub const CONVERSATION_MESSAGES: &str = "/im/v3/api/chat/conversations/{conversationId}/messages";
 pub const MESSAGE_SEARCH: &str = "/im/v3/api/chat/messages/search";
 pub const MESSAGE_FAVORITES: &str = "/im/v3/api/chat/messages/favorites";
 pub const MESSAGE_FAVORITE: &str = "/im/v3/api/chat/messages/favorites/{favoriteId}";
-pub const MESSAGE_FAVORITE_CREATE: &str =
-    "/im/v3/api/chat/messages/{messageId}/favorites";
+pub const MESSAGE_FAVORITE_CREATE: &str = "/im/v3/api/chat/messages/{messageId}/favorites";

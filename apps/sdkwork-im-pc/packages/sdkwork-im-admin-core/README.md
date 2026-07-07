@@ -10,10 +10,20 @@ This README is the SDKWork module entrypoint for `@sdkwork/im-admin-core`. The m
 ## Public API
 
 - `.`
+- `./sdk`
+- `./modules`
+- `./host`
+- `./session`
+- `./composition`
 
 ## Required SDK Surface
 
-- None declared in `specs/component.spec.json`.
+- `sdkwork-im-backend-sdk` (`backend-api`, authenticated backend-admin)
+- `sdkwork-iam-backend-sdk` (`backend-api`, authenticated backend-admin)
+
+`AdminLayout` accepts admin capability route elements through its `routes` prop. The PC application
+bootstrap composes sibling capability packages and injects them into this core layout; this package
+must not depend on admin capability packages directly.
 
 ## Configuration
 

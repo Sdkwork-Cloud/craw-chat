@@ -200,8 +200,10 @@ impl S3CompatibleObjectStorageProvider {
             .unwrap_or_default()
             .trim()
             .to_ascii_lowercase();
-        let is_production =
-            !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+        let is_production = !matches!(
+            environment.as_str(),
+            "" | "dev" | "development" | "test" | "testing"
+        );
         let has_creds = self.has_credentials();
         if is_production && !has_creds {
             return Err(ContractError::Unavailable(format!(
@@ -220,7 +222,12 @@ impl S3CompatibleObjectStorageProvider {
         Ok(())
     }
 
-    fn unsigned_download_url(&self, bucket: &str, object_key: &str, expires_in_seconds: u32) -> String {
+    fn unsigned_download_url(
+        &self,
+        bucket: &str,
+        object_key: &str,
+        expires_in_seconds: u32,
+    ) -> String {
         format!(
             "{}/{}/{}?provider={}&expires={}",
             self.config.endpoint.trim_end_matches('/'),
@@ -231,7 +238,12 @@ impl S3CompatibleObjectStorageProvider {
         )
     }
 
-    fn unsigned_upload_url(&self, bucket: &str, object_key: &str, expires_in_seconds: u32) -> String {
+    fn unsigned_upload_url(
+        &self,
+        bucket: &str,
+        object_key: &str,
+        expires_in_seconds: u32,
+    ) -> String {
         format!(
             "{}/{}/{}?provider={}&expires={}&upload=put",
             self.config.endpoint.trim_end_matches('/'),
@@ -272,7 +284,12 @@ impl S3CompatibleObjectStorageProvider {
         let Some(ct) = content_type.as_ref() else {
             return Ok(());
         };
-        let bare = ct.split(';').next().unwrap_or(ct).trim().to_ascii_lowercase();
+        let bare = ct
+            .split(';')
+            .next()
+            .unwrap_or(ct)
+            .trim()
+            .to_ascii_lowercase();
         if !ALLOWED.contains(&bare.as_str()) {
             return Err(ContractError::Invalid(format!(
                 "unsupported content_type: {ct}"
@@ -314,7 +331,10 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
             content_length: request.content_length,
             etag: Some(format!(
                 "{}:{}:{}:{}",
-                self.config.provider_kind, encryption_tag, request.object_key, request.content_length
+                self.config.provider_kind,
+                encryption_tag,
+                request.object_key,
+                request.content_length
             )),
         })
     }
@@ -363,7 +383,11 @@ impl ObjectStorageProvider for S3CompatibleObjectStorageProvider {
                 request.expires_in_seconds,
             )
         } else {
-            self.unsigned_upload_url(&request.bucket, &request.object_key, request.expires_in_seconds)
+            self.unsigned_upload_url(
+                &request.bucket,
+                &request.object_key,
+                request.expires_in_seconds,
+            )
         };
 
         Ok(ObjectStorageUploadSession {
@@ -453,7 +477,10 @@ fn build_signed_url(
     // Query parameters that participate in signing (signature appended later).
     let mut params: Vec<(String, String)> = Vec::new();
     params.push(("X-Amz-Algorithm".into(), "AWS4-HMAC-SHA256".into()));
-    params.push(("X-Amz-Credential".into(), format!("{access_key_id}/{scope}")));
+    params.push((
+        "X-Amz-Credential".into(),
+        format!("{access_key_id}/{scope}"),
+    ));
     params.push(("X-Amz-Date".into(), timestamp.clone()));
     params.push(("X-Amz-Expires".into(), expires_str));
     params.push(("X-Amz-SignedHeaders".into(), "host".into()));
@@ -482,7 +509,10 @@ fn build_signed_url(
     );
 
     // Signing key chain: k_date -> k_region -> k_service -> k_signing.
-    let k_date = hmac_sha256(format!("AWS4{secret_access_key}").as_bytes(), date.as_bytes());
+    let k_date = hmac_sha256(
+        format!("AWS4{secret_access_key}").as_bytes(),
+        date.as_bytes(),
+    );
     let k_region = hmac_sha256(&k_date, region.as_bytes());
     let k_service = hmac_sha256(&k_region, b"s3");
     let k_signing = hmac_sha256(&k_service, b"aws4_request");
@@ -552,9 +582,7 @@ fn format_sigv4_timestamp(now: SystemTime) -> (String, String) {
     let minute = ((rem % 3600) / 60) as u32;
     let second = (rem % 60) as u32;
     let (year, month, day) = civil_from_days(days);
-    let timestamp = format!(
-        "{year:04}{month:02}{day:02}T{hour:02}{minute:02}{second:02}Z"
-    );
+    let timestamp = format!("{year:04}{month:02}{day:02}T{hour:02}{minute:02}{second:02}Z");
     let date = format!("{year:04}{month:02}{day:02}");
     (timestamp, date)
 }
@@ -642,8 +670,14 @@ mod tests {
 
     #[test]
     fn extract_host_strips_scheme_and_path() {
-        assert_eq!(extract_host("https://tos.volcengine.local"), "tos.volcengine.local");
-        assert_eq!(extract_host("http://s3.example.com:9000/path"), "s3.example.com:9000");
+        assert_eq!(
+            extract_host("https://tos.volcengine.local"),
+            "tos.volcengine.local"
+        );
+        assert_eq!(
+            extract_host("http://s3.example.com:9000/path"),
+            "s3.example.com:9000"
+        );
         assert_eq!(extract_host("example.com"), "example.com");
     }
 
@@ -658,20 +692,22 @@ mod tests {
 
     #[test]
     fn validate_content_type_accepts_allowed_and_none() {
-        assert!(S3CompatibleObjectStorageProvider::validate_content_type(
-            &None,
-            "demo.mp4"
-        )
-        .is_ok());
-        assert!(S3CompatibleObjectStorageProvider::validate_content_type(
-            &Some("video/mp4".into()),
-            "demo.mp4"
-        )
-        .is_ok());
-        assert!(S3CompatibleObjectStorageProvider::validate_content_type(
-            &Some("application/octet-stream".into()),
-            "blob.bin"
-        )
-        .is_ok());
+        assert!(
+            S3CompatibleObjectStorageProvider::validate_content_type(&None, "demo.mp4").is_ok()
+        );
+        assert!(
+            S3CompatibleObjectStorageProvider::validate_content_type(
+                &Some("video/mp4".into()),
+                "demo.mp4"
+            )
+            .is_ok()
+        );
+        assert!(
+            S3CompatibleObjectStorageProvider::validate_content_type(
+                &Some("application/octet-stream".into()),
+                "blob.bin"
+            )
+            .is_ok()
+        );
     }
 }

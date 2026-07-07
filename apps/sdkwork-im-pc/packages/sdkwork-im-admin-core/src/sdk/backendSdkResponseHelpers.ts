@@ -4,6 +4,8 @@ export {
   mapAppSdkOffsetPage,
   readNumber,
   readOptionalString,
+  readRecordNumber,
+  readRecordString,
   readString,
   SDKWORK_DEFAULT_PAGE_SIZE,
   SDKWORK_MAX_PAGE_SIZE,
@@ -42,9 +44,14 @@ export function extractBackendSdkRecords(
 export function readBackendPageTotal(value: unknown, fallback: number): number {
   const data = asRecord(unwrapSdkWorkApiEnvelope(value));
   const pageInfo = asRecord(data.pageInfo);
-  return readNumber(
-    pageInfo,
-    ['totalItems', 'total_items', 'total', 'totalElements', 'totalCount', 'count'],
-    fallback,
+  const total = readNumber(
+    pageInfo ?? {},
+    'totalItems',
+    'total_items',
+    'total',
+    'totalElements',
+    'totalCount',
+    'count',
   );
+  return total > 0 ? total : fallback;
 }

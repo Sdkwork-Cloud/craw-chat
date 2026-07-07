@@ -137,7 +137,9 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     assert_eq!(migrated_cluster.nodes[0].client_route_count, 0);
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 2);
     assert_eq!(audit_export.items[0].action, "control.node_draining_marked");
     assert_eq!(audit_export.items[1].action, "control.node_routes_migrated");
@@ -299,7 +301,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
         )
         .await
         .expect("deployment write should return response");
-    assert_eq!(deployment_write.status(), StatusCode::OK);
+    assert_eq!(deployment_write.status(), StatusCode::CREATED);
 
     let tenant_write = app
         .oneshot(
@@ -319,7 +321,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
         )
         .await
         .expect("tenant write should return response");
-    assert_eq!(tenant_write.status(), StatusCode::OK);
+    assert_eq!(tenant_write.status(), StatusCode::CREATED);
 
     let provider_bindings = ops_runtime.provider_bindings_view();
     assert_eq!(provider_bindings.items.len(), 2);
@@ -341,7 +343,9 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 2);
     assert_eq!(
         audit_export.items[0].action,
@@ -407,7 +411,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         )
         .await
         .expect("deployment write should return response");
-    assert_eq!(deployment_write.status(), StatusCode::OK);
+    assert_eq!(deployment_write.status(), StatusCode::CREATED);
 
     let tenant_write = app
         .clone()
@@ -428,7 +432,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         )
         .await
         .expect("tenant write should return response");
-    assert_eq!(tenant_write.status(), StatusCode::OK);
+    assert_eq!(tenant_write.status(), StatusCode::CREATED);
 
     let rollback_response = app
         .oneshot(
@@ -474,7 +478,9 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 3);
     assert_eq!(
         audit_export.items[2].action,
@@ -529,7 +535,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
         )
         .await
         .expect("first provider policy write should return response");
-    assert_eq!(first_write.status(), StatusCode::OK);
+    assert_eq!(first_write.status(), StatusCode::CREATED);
 
     let second_write = app
         .oneshot(
@@ -549,7 +555,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
         )
         .await
         .expect("second provider policy write should return response");
-    assert_eq!(second_write.status(), StatusCode::OK);
+    assert_eq!(second_write.status(), StatusCode::CREATED);
 
     let provider_bindings = ops_runtime.provider_bindings_view();
     assert_eq!(provider_bindings.items.len(), 1);
@@ -563,7 +569,9 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 2);
     assert_eq!(
         audit_export.items[0].action,
@@ -629,7 +637,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         )
         .await
         .expect("first write should return response");
-    assert_eq!(first_write.status(), StatusCode::OK);
+    assert_eq!(first_write.status(), StatusCode::CREATED);
 
     let noop_write = app
         .oneshot(
@@ -649,7 +657,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         )
         .await
         .expect("noop write should return response");
-    assert_eq!(noop_write.status(), StatusCode::OK);
+    assert_eq!(noop_write.status(), StatusCode::CREATED);
     let noop_body = noop_write
         .into_body()
         .collect()
@@ -658,8 +666,8 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         .to_bytes();
     let noop_json: serde_json::Value =
         serde_json::from_slice(&noop_body).expect("noop body should be valid json");
-    assert_eq!(noop_json["data"]["status"], "noop");
-    assert_eq!(noop_json["data"]["applied"], false);
+    assert_eq!(noop_json["data"]["item"]["status"], "noop");
+    assert_eq!(noop_json["data"]["item"]["applied"], false);
 
     let provider_bindings = ops_runtime.provider_bindings_view();
     assert_eq!(provider_bindings.items.len(), 1);
@@ -673,7 +681,9 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 1);
     assert_eq!(
         audit_export.items[0].action,
@@ -741,7 +751,9 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 0);
 }
 
@@ -815,7 +827,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         )
         .await
         .expect("concurrent write should return response");
-    assert_eq!(concurrent_write.status(), StatusCode::OK);
+    assert_eq!(concurrent_write.status(), StatusCode::CREATED);
 
     let stale_response = app
         .oneshot(
@@ -854,7 +866,9 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 1);
     assert_eq!(
         audit_export.items[0].action,
@@ -1008,7 +1022,9 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 0);
 }
 
@@ -1162,6 +1178,8 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
     );
 
     let audit_auth = audit_app_context();
-    let audit_export = audit_runtime.export_bundle(&audit_auth);
+    let audit_export = audit_runtime
+        .export_bundle(&audit_auth)
+        .expect("audit export should succeed");
     assert_eq!(audit_export.total, 0);
 }

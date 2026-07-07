@@ -18,9 +18,7 @@ use sdkwork_im_rpc_service_rust::{
 use sdkwork_utils_rust::sha256_hash;
 
 use crate::http::{self, AppState};
-use crate::{
-    CreateRoomCommand, EnterRoomCommand, PostMessageCommand, RuntimeError, RoomView,
-};
+use crate::{CreateRoomCommand, EnterRoomCommand, PostMessageCommand, RoomView, RuntimeError};
 
 pub const CONVERSATION_INTERNAL_RPC_SERVICE_KEYS: &[&str] = &[
     "sdkwork.communication.internal.v1.RoomOrchestrationService",
@@ -76,8 +74,7 @@ impl ImRpcRuntimeDispatcher for ConversationInternalRpcDispatcher {
                     let payload = DispatchConversationMessageRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    dispatch_internal_conversation_message(&state, &request.metadata, payload)
-                        .await
+                    dispatch_internal_conversation_message(&state, &request.metadata, payload).await
                 }
                 other => Err(ImRpcError::unimplemented(format!(
                     "conversation internal rpc host does not implement unary operation `{other}`"
@@ -122,24 +119,33 @@ async fn dispatch_internal_create_room(
         request.room_id
     };
     let room_kind = required_field(request.room_kind, "room_kind")?;
-    let result = state
-        .rpc_runtime()
-        .create_room_with_creator_kind(
-            CreateRoomCommand {
-                tenant_id: tenant_id.clone(),
-                organization_id: organization_id.clone(),
-                conversation_id,
-                room_id: room_id.clone(),
-                room_kind,
-                creator_id: actor_id,
-            },
-            actor_kind.as_str(),
-        )
-        .map_err(map_runtime_error)?;
-    let room = state
-        .rpc_runtime()
-        .room_view(tenant_id.as_str(), organization_id.as_str(), room_id.as_str())
-        .map_err(map_runtime_error)?;
+    let command = CreateRoomCommand {
+        tenant_id: tenant_id.clone(),
+        organization_id: organization_id.clone(),
+        conversation_id,
+        room_id: room_id.clone(),
+        room_kind,
+        creator_id: actor_id,
+    };
+    let blocking_state = state.clone();
+    let (result, room) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .create_room_with_creator_kind(command, actor_kind.as_str())?;
+        let room = blocking_state.rpc_runtime().room_view(
+            tenant_id.as_str(),
+            organization_id.as_str(),
+            room_id.as_str(),
+        )?;
+        Ok((result, room))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = OrchestrateCreateRoomResponse {
         conversation_id: result.conversation_id,
         event_id: result.event_id,
@@ -156,10 +162,21 @@ async fn dispatch_internal_retrieve_room(
     let tenant_id = required_field(request.tenant_id, "tenant_id")?;
     let organization_id = optional_organization_id(request.organization_id);
     let room_id = required_field(request.room_id, "room_id")?;
-    let room = state
-        .rpc_runtime()
-        .room_view(tenant_id.as_str(), organization_id.as_str(), room_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let room = tokio::task::spawn_blocking(move || {
+        blocking_state.rpc_runtime().room_view(
+            tenant_id.as_str(),
+            organization_id.as_str(),
+            room_id.as_str(),
+        )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = OrchestrateRetrieveRoomResponse {
         room: Some(orchestrated_room_view_from_domain(&room)),
         metadata: None,
@@ -176,24 +193,35 @@ async fn dispatch_internal_enter_room(
     let room_id = required_field(request.room_id, "room_id")?;
     let principal_id = required_field(request.principal_id, "principal_id")?;
     let principal_kind = required_field(request.principal_kind, "principal_kind")?;
-    let member = state
-        .rpc_runtime()
-        .enter_room_with_principal_kind(
-            EnterRoomCommand {
-                tenant_id: tenant_id.clone(),
-                organization_id: organization_id.clone(),
-                room_id: room_id.clone(),
-                principal_id: principal_id.clone(),
-                principal_kind: principal_kind.clone(),
-            },
-            principal_kind.as_str(),
-        )
-        .map_err(map_runtime_error)?;
-    let conversation_id = state
-        .rpc_runtime()
-        .room_view(tenant_id.as_str(), organization_id.as_str(), room_id.as_str())
-        .map_err(map_runtime_error)?
-        .conversation_id;
+    let command = EnterRoomCommand {
+        tenant_id: tenant_id.clone(),
+        organization_id: organization_id.clone(),
+        room_id: room_id.clone(),
+        principal_id,
+        principal_kind: principal_kind.clone(),
+    };
+    let blocking_state = state.clone();
+    let (member, conversation_id) = tokio::task::spawn_blocking(move || {
+        let member = blocking_state
+            .rpc_runtime()
+            .enter_room_with_principal_kind(command, principal_kind.as_str())?;
+        let conversation_id = blocking_state
+            .rpc_runtime()
+            .room_view(
+                tenant_id.as_str(),
+                organization_id.as_str(),
+                room_id.as_str(),
+            )?
+            .conversation_id;
+        Ok((member, conversation_id))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = OrchestrateEnterRoomResponse {
         member_id: member.member_id,
         conversation_id,
@@ -217,15 +245,28 @@ async fn dispatch_internal_leave_room(
         principal_id.as_str(),
         principal_kind.as_str(),
     );
-    let member = state
-        .rpc_runtime()
-        .leave_room_from_auth_context(&auth, room_id.clone())
-        .map_err(map_runtime_error)?;
-    let conversation_id = state
-        .rpc_runtime()
-        .room_view(tenant_id.as_str(), organization_id.as_str(), room_id.as_str())
-        .map_err(map_runtime_error)?
-        .conversation_id;
+    let blocking_state = state.clone();
+    let (member, conversation_id) = tokio::task::spawn_blocking(move || {
+        let member = blocking_state
+            .rpc_runtime()
+            .leave_room_from_auth_context(&auth, room_id.clone())?;
+        let conversation_id = blocking_state
+            .rpc_runtime()
+            .room_view(
+                tenant_id.as_str(),
+                organization_id.as_str(),
+                room_id.as_str(),
+            )?
+            .conversation_id;
+        Ok((member, conversation_id))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = OrchestrateLeaveRoomResponse {
         member_id: member.member_id,
         conversation_id,
@@ -254,6 +295,7 @@ async fn dispatch_internal_conversation_message(
             .clone()
             .filter(|value| !value.trim().is_empty())
     });
+    let session_id = metadata.request_id.clone();
     let body = MessageBody {
         summary: None,
         parts: vec![ContentPart::Data(im_domain_core::message::DataPart {
@@ -264,35 +306,43 @@ async fn dispatch_internal_conversation_message(
         render_hints: Default::default(),
         reply_to: None,
     };
-    let result = state
-        .rpc_runtime()
-        .post_message(PostMessageCommand {
-            tenant_id: tenant_id.clone(),
-            organization_id: organization_id.clone(),
-            conversation_id,
-            sender: Sender {
-                id: sender_id.clone(),
-                kind: sender_kind.clone(),
-                member_id: None,
-                device_id: None,
-                session_id: metadata.request_id.clone(),
-                metadata: Default::default(),
-            },
-            client_msg_id,
-            message_type: MessageType::Standard,
-            body,
-        })
-        .map_err(map_runtime_error)?;
-    let auth = internal_actor_context(
-        tenant_id.as_str(),
-        organization_id.as_str(),
-        sender_id.as_str(),
-        sender_kind.as_str(),
-    );
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(&auth, result.message_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .post_message(PostMessageCommand {
+                tenant_id: tenant_id.clone(),
+                organization_id: organization_id.clone(),
+                conversation_id,
+                sender: Sender {
+                    id: sender_id.clone(),
+                    kind: sender_kind.clone(),
+                    member_id: None,
+                    device_id: None,
+                    session_id,
+                    metadata: Default::default(),
+                },
+                client_msg_id,
+                message_type: MessageType::Standard,
+                body,
+            })?;
+        let auth = internal_actor_context(
+            tenant_id.as_str(),
+            organization_id.as_str(),
+            sender_id.as_str(),
+            sender_kind.as_str(),
+        );
+        blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&auth, result.message_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = DispatchConversationMessageResponse {
         message: Some(message_view_from_stored(&stored)),
         metadata: None,
@@ -358,12 +408,14 @@ fn message_view_from_stored(stored: &im_domain_core::message::StoredMessage) -> 
                     payload_json: data.payload.clone(),
                     media: None,
                 },
-                ContentPart::Media(_) | ContentPart::Signal(_) | ContentPart::StreamRef(_) => MessageBodyPart {
-                    kind: "structured".into(),
-                    text: String::new(),
-                    payload_json: String::new(),
-                    media: None,
-                },
+                ContentPart::Media(_) | ContentPart::Signal(_) | ContentPart::StreamRef(_) => {
+                    MessageBodyPart {
+                        kind: "structured".into(),
+                        text: String::new(),
+                        payload_json: String::new(),
+                        media: None,
+                    }
+                }
             })
             .collect(),
         state: if stored.recalled {
@@ -433,11 +485,15 @@ mod tests {
     #[test]
     fn internal_rpc_service_keys_cover_orchestration_and_dispatch() {
         assert_eq!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS.len(), 2);
-        assert!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("RoomOrchestrationService")));
-        assert!(CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("MessageDispatchService")));
+        assert!(
+            CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("RoomOrchestrationService"))
+        );
+        assert!(
+            CONVERSATION_INTERNAL_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("MessageDispatchService"))
+        );
     }
 }

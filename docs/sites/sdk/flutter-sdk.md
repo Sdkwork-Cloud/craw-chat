@@ -62,7 +62,7 @@ final client = ImTransportClient.withBaseUrl(
 );
 
 final presence = await client.presence.meRetrieve();
-final inbox = await client.chat.inboxRetrieve();
+final inbox = await client.chat.inboxList(20, null);
 final events = await client.realtime.eventsList(20);
 ```
 
@@ -87,7 +87,7 @@ final client = ImTransportClient.withBaseUrl(
 );
 
 // Tokens are issued by sdkwork-appbase and passed into Sdkwork IM.
-final inbox = await client.chat.inboxRetrieve();
+final inbox = await client.chat.inboxList(20, null);
 
 await client.chat.conversationsMessagesCreate(
   'conversation-1',

@@ -14,10 +14,7 @@ use social_service::SocialRuntime;
 
 /// Register the embedded session-gateway as the ephemeral realtime publisher
 /// for conversation typing indicators and wire social commit fanout.
-pub fn wire_embedded_realtime_plane(
-    session_state: &AppState,
-    social_runtime: &Arc<SocialRuntime>,
-) {
+pub fn wire_embedded_realtime_plane(session_state: &AppState, social_runtime: &Arc<SocialRuntime>) {
     register_embedded_realtime_publisher(session_state.realtime_runtime());
     wire_social_runtime_embedded_plane(
         social_runtime,

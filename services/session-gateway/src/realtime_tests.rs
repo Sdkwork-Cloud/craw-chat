@@ -304,7 +304,15 @@ fn test_list_events_filters_hidden_conversation_scopes_and_advances_cursor() {
     lock_realtime_mutex(&runtime.latest_sequences, "realtime sequence store").insert(scope_key, 2);
 
     let window = runtime
-        .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10)
+        .list_events_for_principal_kind(RealtimeEventWindowQuery {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+after_seq: 0,
+limit: 10,
+})
         .expect("filtered realtime window should be readable");
 
     assert_eq!(window.items.len(), 1);
@@ -362,7 +370,15 @@ fn test_list_events_never_returns_events_at_or_below_trim_boundary() {
     lock_realtime_mutex(&runtime.trimmed_sequences, "realtime trim store").insert(scope_key, 1);
 
     let window = runtime
-        .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10)
+        .list_events_for_principal_kind(RealtimeEventWindowQuery {
+tenant_id: "100001",
+organization_id: "default",
+principal_id: "1",
+principal_kind: "user",
+device_id: "d_pad",
+after_seq: 0,
+limit: 10,
+})
         .expect("trimmed realtime window should be readable");
 
     assert_eq!(window.items.len(), 1);

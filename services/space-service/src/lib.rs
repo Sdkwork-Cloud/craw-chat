@@ -11,14 +11,14 @@ pub mod group_conversation_binder;
 pub mod group_member;
 pub mod http;
 pub mod id;
-mod journal_bootstrap;
 pub mod invitation;
+mod journal_bootstrap;
 mod list_query;
 pub(crate) mod openapi;
 mod runtime_env;
-mod space_materializer_metrics;
 pub mod space;
 pub mod space_access;
+mod space_materializer_metrics;
 pub mod space_member;
 mod write_authority;
 
@@ -33,7 +33,9 @@ pub use group_conversation_binder::{
     CreateSpaceGroupConversationInput, SpaceGroupConversationBinder, SyncSpaceGroupMemberInput,
     TransferSpaceGroupOwnerInput,
 };
-pub use http::{AppState, build_app, build_embedded_app, build_public_app};
+pub use http::{
+    AppState, build_app, build_domain_api_router, build_embedded_app, build_public_app,
+};
 pub use space_materializer_metrics::{
     postgres_journal_append_failure_after_materialize_count,
     postgres_materialization_failure_count,

@@ -12,35 +12,35 @@ class RealtimeApi {
   RealtimeApi(this._client);
 
   /// Sync realtime subscription targets
-  Future<RealtimeSubscriptionSyncResponse?> subscriptionsSync(RealtimeSubscriptionSyncRequest body) async {
+  Future<RealtimeSubscriptionsSyncResponse?> subscriptionsSync(RealtimeSubscriptionSyncRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/realtime/subscriptions/sync'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RealtimeSubscriptionSyncResponse.fromJson(map);
+      return map == null ? null : RealtimeSubscriptionsSyncResponse.fromJson(map);
     })();
   }
 
   /// Acknowledge realtime events
-  Future<AckResponse?> eventsAck(RealtimeEventAckRequest body) async {
+  Future<RealtimeEventsAckResponse?> eventsAck(RealtimeEventAckRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/realtime/events/ack'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : AckResponse.fromJson(map);
+      return map == null ? null : RealtimeEventsAckResponse.fromJson(map);
     })();
   }
 
   /// List pending realtime events
-  Future<RealtimeEventsResponse?> eventsList([int? limit, String? cursor]) async {
+  Future<RealtimeEventsListResponse?> eventsList([int? pageSize, String? cursor]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/realtime/events'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : RealtimeEventsResponse.fromJson(map);
+      return map == null ? null : RealtimeEventsListResponse.fromJson(map);
     })();
   }
 }

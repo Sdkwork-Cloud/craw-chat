@@ -19,11 +19,9 @@ use tower::ServiceExt;
 
 fn ensure_gateway_test_web_environment() {
     static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        unsafe {
-            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
-            std::env::set_var("SDKWORK_ENV", "test");
-        }
+    INIT.call_once(|| unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+        std::env::set_var("SDKWORK_ENV", "test");
     });
 }
 
@@ -33,13 +31,7 @@ struct UpstreamState {
 }
 
 fn gateway_test_app_context() -> AppContext {
-    let mut context = local_service_app_context(
-        "100001",
-        "30",
-        "user",
-        Some("device_real"),
-        ["*"],
-    );
+    let mut context = local_service_app_context("100001", "30", "user", Some("device_real"), ["*"]);
     context.session_id = Some("session_real".to_owned());
     context.app_id = Some("sdkwork-im-pc".to_owned());
     context
@@ -290,7 +282,7 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=1")
                 .header(header::AUTHORIZATION, gateway_test_authorization_header())
                 .header("access-token", gateway_test_access_token_header())
                 .body(Body::empty())
@@ -318,10 +310,9 @@ async fn gateway_drops_sdkwork_internal_headers_when_signature_secret_is_configu
         get(appbase_current_session),
     ))
     .await;
-    let session_gateway = spawn_app_upstream(Router::new().route(
-        "/im/v3/api/realtime/events",
-        get(echo_context_upstream),
-    ))
+    let session_gateway = spawn_app_upstream(
+        Router::new().route("/im/v3/api/realtime/events", get(echo_context_upstream)),
+    )
     .await;
     let app = web_gateway::build_app(test_gateway_config(vec![
         service_upstream("session-gateway", session_gateway.base_url.as_str()),
@@ -332,7 +323,7 @@ async fn gateway_drops_sdkwork_internal_headers_when_signature_secret_is_configu
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=1")
                 .header(header::AUTHORIZATION, gateway_test_authorization_header())
                 .header("access-token", gateway_test_access_token_header())
                 .header("x-sdkwork-tenant-id", "100001")
@@ -371,7 +362,7 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=1")
                 .header(
                     header::AUTHORIZATION,
                     gateway_numeric_authorization_header(),
@@ -589,7 +580,7 @@ async fn gateway_derives_context_for_protected_routes_without_appbase_session_lo
         (
             "session-gateway",
             Method::GET,
-            "/im/v3/api/realtime/events?afterSeq=0&limit=1",
+            "/im/v3/api/realtime/events?afterSeq=0&page_size=1",
             "/im/v3/api/realtime/events",
         ),
         (
@@ -721,7 +712,10 @@ fn gateway_registry_resolves_course_collection_paths() {
         courses.is_some(),
         "courses route should resolve for collection list paths"
     );
-    assert_eq!(courses.expect("courses route").service_id, "sdkwork-course-app-api");
+    assert_eq!(
+        courses.expect("courses route").service_id,
+        "sdkwork-course-app-api"
+    );
 }
 
 #[test]
@@ -729,18 +723,12 @@ fn gateway_registry_routes_message_favorites_to_projection_service() {
     let registry = web_gateway::build_gateway_registry().expect("registry should build");
 
     let list_route = registry
-        .resolve(
-            HttpMethod::Get,
-            "/im/v3/api/chat/messages/favorites",
-        )
+        .resolve(HttpMethod::Get, "/im/v3/api/chat/messages/favorites")
         .expect("favorites list route should resolve");
     assert_eq!(list_route.service_id, "projection-service");
 
     let create_route = registry
-        .resolve(
-            HttpMethod::Post,
-            "/im/v3/api/chat/messages/msg_1/favorites",
-        )
+        .resolve(HttpMethod::Post, "/im/v3/api/chat/messages/msg_1/favorites")
         .expect("favorite create route should resolve");
     assert_eq!(create_route.service_id, "projection-service");
 

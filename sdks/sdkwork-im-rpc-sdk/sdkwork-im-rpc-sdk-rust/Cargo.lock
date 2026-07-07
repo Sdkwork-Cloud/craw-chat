@@ -403,7 +403,7 @@ dependencies = [
 
 [[package]]
 name = "sdkwork-im-rpc-sdk-rust"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "prost",
  "tokio-stream",

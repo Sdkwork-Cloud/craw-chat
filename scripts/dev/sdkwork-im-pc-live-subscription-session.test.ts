@@ -8,10 +8,45 @@ import type {
   ImSdkClient,
 } from '@sdkwork/im-sdk';
 import { createSdkworkChatService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService';
+import type { SdkworkChatSession } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
 type MessageListener = (message: ImDecodedMessage, context: ImMessageContext) => void;
 type ScopeEventListener = (event: Record<string, unknown>, context: ImRealtimeEventContext) => void;
 type StateListener = (state: ImLiveConnectionState) => void;
+
+const authenticatedSession: SdkworkChatSession = {
+  accessToken: 'test-access-token',
+  authToken: 'test-auth-token',
+  context: {
+    appId: 'sdkwork-im-pc',
+    authLevel: 'password',
+    dataScope: [],
+    deploymentMode: 'saas',
+    environment: 'dev',
+    permissionScope: [],
+    sessionId: 'test-session',
+    tenantId: 'test-tenant',
+    userId: 'current-user',
+  },
+  sessionId: 'test-session',
+  user: {
+    id: 'current-user',
+    userId: 'current-user',
+  },
+};
+
+function createRealtimeChatService(getClient: () => ImSdkClient) {
+  return createSdkworkChatService({
+    getClient,
+    getSession: () => authenticatedSession,
+  });
+}
+
+async function flushRealtimeMicrotasks(): Promise<void> {
+  for (let index = 0; index < 4; index += 1) {
+    await Promise.resolve();
+  }
+}
 
 class FakeLiveConnection implements ImLiveConnection {
   readonly disconnectCalls: Array<{ code?: number; reason?: string }> = [];
@@ -261,7 +296,7 @@ async function main(): Promise<void> {
   const fakeClient = {
     chat: {
       inbox: {
-        async retrieve() {
+        async list() {
           return {
             hasMore: false,
             items: [],
@@ -280,7 +315,7 @@ async function main(): Promise<void> {
     },
   } as unknown as ImSdkClient;
 
-  const service = createSdkworkChatService(() => fakeClient);
+  const service = createRealtimeChatService(() => fakeClient);
   const chatOneMessages: string[] = [];
   const chatTwoMessages: string[] = [];
 
@@ -414,7 +449,7 @@ async function main(): Promise<void> {
     const chatListOnlyClient = {
       chat: {
         inbox: {
-          async retrieve() {
+          async list() {
             return { hasMore: false, items: [] };
           },
         },
@@ -425,7 +460,7 @@ async function main(): Promise<void> {
         return connection;
       },
     } as unknown as ImSdkClient;
-    const chatListOnlyService = createSdkworkChatService(() => chatListOnlyClient);
+    const chatListOnlyService = createRealtimeChatService(() => chatListOnlyClient);
     const unsubscribeChatListOnly = chatListOnlyService.subscribeChats(() => undefined);
     await Promise.resolve();
     await Promise.resolve();
@@ -664,11 +699,10 @@ async function main(): Promise<void> {
         return connection;
       },
     } as unknown as ImSdkClient;
-    const reconnectService = createSdkworkChatService(() => reconnectClient);
+    const reconnectService = createRealtimeChatService(() => reconnectClient);
     const unsubscribeRetryChat = reconnectService.subscribeMessages('retry-chat-1', () => undefined);
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushRealtimeMicrotasks();
     assert.equal(reconnectAttempts, 1);
     assert.equal(reconnectDelays.length, 1);
     assert.ok(
@@ -677,8 +711,7 @@ async function main(): Promise<void> {
     );
 
     reconnectCallbacks[0]();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushRealtimeMicrotasks();
     assert.equal(reconnectAttempts, 2);
     assert.equal(reconnectDelays.length, 2);
     assert.ok(
@@ -687,8 +720,7 @@ async function main(): Promise<void> {
     );
 
     reconnectCallbacks[1]();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushRealtimeMicrotasks();
     assert.equal(reconnectAttempts, 3);
     assert.equal(reconnectConnections.length, 1);
 
@@ -733,14 +765,14 @@ async function main(): Promise<void> {
         return connection;
       },
     } as unknown as ImSdkClient;
-    const lifecycleErrorService = createSdkworkChatService(() => lifecycleErrorClient);
+    const lifecycleErrorService = createRealtimeChatService(() => lifecycleErrorClient);
     const unsubscribeLifecycleErrorChat = lifecycleErrorService.subscribeMessages('lifecycle-error-chat-1', () => undefined);
     await Promise.resolve();
     await Promise.resolve();
 
     lifecycleErrorConnections[0].emitError({
-      code: 'websocket_auth_failed',
-      message: 'session expired',
+      code: 'websocket_upstream_unavailable',
+      message: 'upstream websocket connection dropped',
       type: 'error',
     });
 
@@ -750,8 +782,7 @@ async function main(): Promise<void> {
       'ChatService must schedule realtime reconnect when the SDK lifecycle emits a transport error',
     );
     lifecycleErrorTimeoutCallbacks[0]();
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushRealtimeMicrotasks();
     assert.equal(
       lifecycleErrorConnections.length,
       2,
@@ -759,7 +790,7 @@ async function main(): Promise<void> {
     );
     unsubscribeLifecycleErrorChat();
 
-    const nonFatalLifecycleErrorService = createSdkworkChatService(() => lifecycleErrorClient);
+    const nonFatalLifecycleErrorService = createRealtimeChatService(() => lifecycleErrorClient);
     const unsubscribeNonFatalLifecycleErrorChat = nonFatalLifecycleErrorService.subscribeMessages(
       'non-fatal-lifecycle-error-chat-1',
       () => undefined,
@@ -857,7 +888,7 @@ async function main(): Promise<void> {
       },
     },
   } as unknown as ImSdkClient;
-  const timelineService = createSdkworkChatService(() => timelineClient);
+  const timelineService = createRealtimeChatService(() => timelineClient);
   const timelineMessages = await timelineService.getMessages('timeline-call-chat-1');
   assert.equal(
     timelineMessages.length,
@@ -888,7 +919,7 @@ async function main(): Promise<void> {
 
   try {
     const catchupConnections: FakeLiveConnection[] = [];
-    const catchupListCalls: Array<{ afterSeq?: number; conversationId: string; limit?: number }> = [];
+    const catchupListCalls: Array<{ afterSeq?: number; conversationId: string; pageSize?: number }> = [];
     let catchupListAfterSeqOneCall = 0;
     const catchupClient = {
       async connect() {
@@ -902,16 +933,15 @@ async function main(): Promise<void> {
         },
         async listMessages(
           conversationId: string,
-          params?: { afterSeq?: number; limit?: number },
+          params?: { afterSeq?: number; pageSize?: number },
         ) {
           catchupListCalls.push({
             afterSeq: params?.afterSeq,
             conversationId,
-            limit: params?.limit,
+            pageSize: params?.pageSize,
           });
           if (params?.afterSeq === 0) {
             return {
-              hasMore: false,
               items: [
                 {
                   conversationId,
@@ -929,13 +959,12 @@ async function main(): Promise<void> {
                   },
                 },
               ],
+              pageInfo: { hasMore: false, mode: 'cursor' },
             };
           }
           if (params?.afterSeq === 1) {
             catchupListAfterSeqOneCall += 1;
             return {
-              hasMore: catchupListAfterSeqOneCall > 1,
-              nextAfterSeq: catchupListAfterSeqOneCall > 1 ? 2 : undefined,
               items: catchupListAfterSeqOneCall === 1
                 ? []
                 : [
@@ -955,12 +984,15 @@ async function main(): Promise<void> {
                       },
                     },
                   ],
+              pageInfo: {
+                hasMore: catchupListAfterSeqOneCall > 1,
+                mode: 'cursor',
+                nextCursor: catchupListAfterSeqOneCall > 1 ? '2' : undefined,
+              },
             };
           }
           if (params?.afterSeq === 2) {
             return {
-              hasMore: true,
-              nextAfterSeq: 3,
               items: [
                 {
                   conversationId,
@@ -978,11 +1010,11 @@ async function main(): Promise<void> {
                   },
                 },
               ],
+              pageInfo: { hasMore: true, mode: 'cursor', nextCursor: '3' },
             };
           }
           if (params?.afterSeq === 3) {
             return {
-              hasMore: false,
               items: [
                 {
                   conversationId,
@@ -1000,14 +1032,15 @@ async function main(): Promise<void> {
                   },
                 },
               ],
+              pageInfo: { hasMore: false, mode: 'cursor' },
             };
           }
-          return { hasMore: false, items: [] };
+          return { items: [], pageInfo: { hasMore: false, mode: 'cursor' } };
         },
       },
     } as unknown as ImSdkClient;
 
-    const catchupService = createSdkworkChatService(() => catchupClient);
+    const catchupService = createRealtimeChatService(() => catchupClient);
     await catchupService.getMessages('catchup-chat-1');
     const catchupMessages: string[] = [];
     const unsubscribeCatchupChat = catchupService.subscribeMessages('catchup-chat-1', (message) => {
@@ -1100,7 +1133,7 @@ async function main(): Promise<void> {
       },
     },
   } as unknown as ImSdkClient;
-  const recoveryService = createSdkworkChatService(() => recoveryClient);
+  const recoveryService = createRealtimeChatService(() => recoveryClient);
   const recoveryMessages: string[] = [];
   const unsubscribeRecoveryChat = recoveryService.subscribeMessages('recovery-chat-1', (message) => {
     recoveryMessages.push(message.content);
@@ -1152,7 +1185,7 @@ async function main(): Promise<void> {
       });
     },
   } as unknown as ImSdkClient;
-  const pendingRecoveryService = createSdkworkChatService(() => pendingClient);
+  const pendingRecoveryService = createRealtimeChatService(() => pendingClient);
   const unsubscribePendingRecoveryChat = pendingRecoveryService.subscribeMessages(
     'pending-recovery-chat-1',
     () => undefined,
@@ -1188,7 +1221,7 @@ async function main(): Promise<void> {
   await Promise.resolve();
   assert.deepEqual(
     staleConnection.disconnectCalls,
-    [{ code: 1000, reason: 'stale conversation subscription connection' }],
+    [{ code: 1000, reason: 'stale PC live connection attempt' }],
     'ChatService must close a stale websocket handshake that resolves after a recovered connection',
   );
   assert.deepEqual(
@@ -1222,7 +1255,7 @@ async function main(): Promise<void> {
         });
       },
     } as unknown as ImSdkClient;
-    const staleRejectService = createSdkworkChatService(() => staleRejectClient);
+    const staleRejectService = createRealtimeChatService(() => staleRejectClient);
     const unsubscribeStaleRejectChat = staleRejectService.subscribeMessages(
       'stale-reject-chat-1',
       () => undefined,
@@ -1312,7 +1345,7 @@ async function main(): Promise<void> {
         return connection;
       },
     } as unknown as ImSdkClient;
-    const browserRecoveryService = createSdkworkChatService(() => browserRecoveryClient);
+    const browserRecoveryService = createRealtimeChatService(() => browserRecoveryClient);
     const unsubscribeBrowserRecoveryChat = browserRecoveryService.subscribeMessages(
       'browser-recovery-chat-1',
       () => undefined,

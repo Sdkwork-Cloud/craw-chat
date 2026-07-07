@@ -1,12 +1,12 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::cmp::Reverse;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
 
 use im_domain_core::message::{
     MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageUnpinned,
     ReactionActorIdentity,
 };
 use im_domain_events::CommitEnvelope;
-use im_time::rfc3339_cmp;
 use serde::{Deserialize, Serialize};
 
 use crate::client_route_sync::ClientRouteSyncEntryDraft;
@@ -128,8 +128,8 @@ impl TimelineProjectionService {
         conversation_id: &str,
         message_id: &str,
     ) -> MessageInteractionSummaryView {
-        let exclude_sender = self
-            .timeline_message_sender(tenant_id, organization_id, conversation_id, message_id);
+        let exclude_sender =
+            self.timeline_message_sender(tenant_id, organization_id, conversation_id, message_id);
         view.delivery_receipt = self.delivery_receipt_summary_for_message(
             tenant_id,
             organization_id,
@@ -152,8 +152,8 @@ impl TimelineProjectionService {
         conversation_id: &str,
         message_id: &str,
     ) -> MessageInteractionSummaryView {
-        let exclude_sender = self
-            .timeline_message_sender(tenant_id, organization_id, conversation_id, message_id);
+        let exclude_sender =
+            self.timeline_message_sender(tenant_id, organization_id, conversation_id, message_id);
         view.read_receipt = self.read_receipt_summary_for_message(
             tenant_id,
             organization_id,
@@ -175,19 +175,17 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> Vec<MessageInteractionSummaryView> {
         let scope = scope_key(tenant_id, organization_id, conversation_id);
-        let index = super::lock_projection_mutex(
-            &self.pinned_messages_index,
-            "pinned message index",
-        );
-        let Some(index_keys) = index.get(scope.as_str()) else {
-            return Vec::new();
+        let index_keys = {
+            let index =
+                super::lock_projection_mutex(&self.pinned_messages_index, "pinned message index");
+            index.get(scope.as_str()).cloned().unwrap_or_default()
         };
-        let store = super::lock_projection_mutex(
-            &self.message_interactions,
-            "message interaction store",
-        );
-        let Some(scope_items) = store.get(scope.as_str()) else {
-            return Vec::new();
+        let scope_items = {
+            let store = super::lock_projection_mutex(
+                &self.message_interactions,
+                "message interaction store",
+            );
+            store.get(scope.as_str()).cloned().unwrap_or_default()
         };
         index_keys
             .iter()
@@ -214,14 +212,10 @@ impl TimelineProjectionService {
             crate::model::PinnedMessagesListCursor::Start => None,
             other => Some(other),
         };
-        let index = super::lock_projection_mutex(
-            &self.pinned_messages_index,
-            "pinned message index",
-        );
-        let store = super::lock_projection_mutex(
-            &self.message_interactions,
-            "message interaction store",
-        );
+        let index =
+            super::lock_projection_mutex(&self.pinned_messages_index, "pinned message index");
+        let store =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store");
         let index_keys = index.get(scope.as_str()).cloned().unwrap_or_default();
         let scope_items = store.get(scope.as_str()).cloned().unwrap_or_default();
         drop(index);
@@ -433,13 +427,11 @@ impl TimelineProjectionService {
             organization_id.as_str(),
             pin.conversation_id.as_str(),
         );
-        let removed_pin_at = super::lock_projection_mutex(
-            &self.message_interactions,
-            "message interaction store",
-        )
-        .get(scope.as_str())
-        .and_then(|scope_items| scope_items.get(pin.message_id.as_str()))
-        .and_then(|stored| stored.pin.as_ref().map(|summary| summary.pinned_at.clone()));
+        let removed_pin_at =
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store")
+                .get(scope.as_str())
+                .and_then(|scope_items| scope_items.get(pin.message_id.as_str()))
+                .and_then(|stored| stored.pin.as_ref().map(|summary| summary.pinned_at.clone()));
         let changed = self.mutate_existing_message_interaction(
             pin.tenant_id.as_str(),
             organization_id.as_str(),
@@ -559,10 +551,8 @@ impl TimelineProjectionService {
         message_seq: u64,
         pinned_at: &str,
     ) {
-        let mut index_store = super::lock_projection_mutex(
-            &self.pinned_messages_index,
-            "pinned message index",
-        );
+        let mut index_store =
+            super::lock_projection_mutex(&self.pinned_messages_index, "pinned message index");
         if let Some(index) = index_store.get_mut(scope) {
             index.remove(&PinnedMessageIndexKey {
                 pinned_at: Reverse(pinned_at.to_owned()),
@@ -729,46 +719,44 @@ pub(super) fn pinned_messages_window_slice_from_index(
     cursor: Option<crate::model::PinnedMessagesListCursor>,
     limit: usize,
 ) -> (Vec<MessageInteractionSummaryView>, bool) {
-    let items = index_keys
-        .iter()
-        .filter_map(|key| scope_items.get(key.message_id.as_str()))
-        .filter(|stored| stored.pin.is_some())
-        .map(stored_interaction_to_view)
-        .collect::<Vec<_>>();
-    pinned_messages_window_slice(items, cursor, limit)
-}
-
-pub(super) fn pinned_messages_window_slice(
-    items: Vec<MessageInteractionSummaryView>,
-    cursor: Option<crate::model::PinnedMessagesListCursor>,
-    limit: usize,
-) -> (Vec<MessageInteractionSummaryView>, bool) {
+    let limit = limit.max(1);
     let mut window = Vec::with_capacity(limit.saturating_add(1));
-    let legacy_offset = matches!(cursor, Some(crate::model::PinnedMessagesListCursor::Offset(_)));
+    let legacy_offset = matches!(
+        cursor,
+        Some(crate::model::PinnedMessagesListCursor::Offset(_))
+    );
     let offset = match cursor {
         Some(crate::model::PinnedMessagesListCursor::Offset(value)) => value,
         _ => 0,
     };
-    let keyset_cursor = match cursor {
+    let index_iter: Box<dyn Iterator<Item = &PinnedMessageIndexKey>> = match cursor {
         Some(crate::model::PinnedMessagesListCursor::Keyset {
             pinned_at,
             message_seq,
             message_id,
-        }) => Some((pinned_at, message_seq, message_id)),
-        _ => None,
+        }) => {
+            let cursor_key = PinnedMessageIndexKey {
+                pinned_at: Reverse(pinned_at),
+                message_seq: Reverse(message_seq),
+                message_id: message_id.clone(),
+            };
+            Box::new(index_keys.range((Excluded(cursor_key), Unbounded)))
+        }
+        _ => Box::new(index_keys.iter()),
     };
     let mut skipped = 0usize;
-    for item in items {
-        if let Some((pinned_at, message_seq, message_id)) = keyset_cursor.as_ref()
-            && !pinned_message_after_keyset_cursor(&item, pinned_at, *message_seq, message_id)
-        {
+    for key in index_iter {
+        let Some(stored) = scope_items.get(key.message_id.as_str()) else {
+            continue;
+        };
+        if stored.pin.is_none() {
             continue;
         }
         if legacy_offset && skipped < offset {
             skipped += 1;
             continue;
         }
-        window.push(item);
+        window.push(stored_interaction_to_view(stored));
         if window.len() > limit {
             break;
         }
@@ -778,28 +766,6 @@ pub(super) fn pinned_messages_window_slice(
         window.truncate(limit);
     }
     (window, has_more)
-}
-
-fn pinned_message_after_keyset_cursor(
-    item: &MessageInteractionSummaryView,
-    pinned_at: &str,
-    message_seq: u64,
-    message_id: &str,
-) -> bool {
-    use std::cmp::Ordering;
-
-    let Some(pin) = item.pin.as_ref() else {
-        return false;
-    };
-    match rfc3339_cmp(pin.pinned_at.as_str(), pinned_at) {
-        Ordering::Less => true,
-        Ordering::Greater => false,
-        Ordering::Equal => match message_seq.cmp(&item.message_seq) {
-            Ordering::Greater => true,
-            Ordering::Less => false,
-            Ordering::Equal => item.message_id.as_str() > message_id,
-        },
-    }
 }
 
 fn stored_interaction_to_view(

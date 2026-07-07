@@ -34,6 +34,8 @@ before credential-entry routes (login, registration, QR auth) are served.
 | Application HTTP | `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` | `http://127.0.0.1:18079` |
 | Platform gateway (collapsed) | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `http://127.0.0.1:18079` |
 
+In the default standalone unified development profile, IM API, OpenAPI, health, readiness, IAM app-api, and embedded dependency routes all share `http://127.0.0.1:18079`. Port `3900` can be used by a separate platform or edge gateway in other workspaces; verify the process identity before diagnosing IM behavior from `3900`.
+
 Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selected profile before spawning services.
 
 ## Split-services internal upstreams
@@ -71,6 +73,11 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 | `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` | `10` | Consecutive 5xx failures before tripping |
 | `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` | `30` | Seconds before half-open probe retry |
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs for X-Forwarded-For |
+| `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` | `60` | Successful aggregate `/openapi.json` cache TTL; concurrent misses are coalesced |
+
+Standalone unified-process applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. Cloud gateway mode applies its own edge limiter inside `sdkwork-im-cloud-gateway`. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt from IP rate limiting in every gateway middleware variant.
+
+`/openapi.json` skips configured upstreams whose `{baseUrl}/openapi.json` resolves to the current gateway aggregate endpoint. This prevents recursive OpenAPI aggregation, the request fan-out that caused API calls to remain pending after startup, and the secondary rate-limit/socket pressure that followed.
 
 ### session-gateway RPC Phase 1
 
@@ -100,8 +107,9 @@ IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_IM_DATABASE_URL`) enables 
 
 | Service | Backend | Config switch | Production behavior |
 | --- | --- | --- | --- |
+| session-gateway | PostgreSQL + Redis (realtime stores, route store) | `SDKWORK_IM_DATABASE_URL`, `SDKWORK_IM_REDIS_URL` | **Fail-closed** in production without Postgres pools and membership-gated realtime scopes |
 | projection-service | Postgres (durable) + in-memory hot path | `SDKWORK_IM_DATABASE_URL` | Hard-fails without Postgres; snapshots restored on startup |
-| audit-service | In-memory (dev/test only) | `SDKWORK_IM_DATABASE_URL` (planned) | Logs `error` when running in production without durable storage; all records lost on restart |
+| audit-service | PostgreSQL (durable) | `SDKWORK_IM_DATABASE_URL` | **Fail-closed panic** in production without durable Postgres storage |
 | ops-service | In-memory diagnostics (transient by design) | None needed | Diagnostic views are rebuilt from live services; no persistence required |
 
 ## Verification

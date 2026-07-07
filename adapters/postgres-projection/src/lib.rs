@@ -23,7 +23,8 @@ const DEFAULT_POOL_MIN_IDLE: u32 = 0;
 /// TLS handshake is performed. This allows dev/test to keep using plaintext
 /// while production enforces TLS via the DSN.
 pub type PostgresProjectionTlsConnector = postgres_native_tls::MakeTlsConnector;
-pub type PostgresProjectionConnectionManager = PostgresConnectionManager<PostgresProjectionTlsConnector>;
+pub type PostgresProjectionConnectionManager =
+    PostgresConnectionManager<PostgresProjectionTlsConnector>;
 pub type PostgresProjectionPool = Pool<PostgresProjectionConnectionManager>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -124,7 +125,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }
@@ -168,10 +172,11 @@ pub(crate) fn run_postgres_io<T>(
 where
     T: Send,
 {
-    if Handle::try_current().is_err() {
-        return operation();
+    if let Ok(handle) = Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        return tokio::task::block_in_place(operation);
     }
-
     std::thread::scope(|scope| {
         scope
             .spawn(operation)

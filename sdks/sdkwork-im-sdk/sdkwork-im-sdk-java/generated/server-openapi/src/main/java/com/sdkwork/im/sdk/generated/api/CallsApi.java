@@ -14,51 +14,51 @@ public class CallsApi {
     }
 
     /** Create an IM call signaling session */
-    public RtcSessionMutationResponse sessionsCreate(CreateRtcSessionRequest body) throws Exception {
+    public CallsSessionsCreateResponse201 sessionsCreate(CreateRtcSessionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcSessionMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsCreateResponse201>() {});
     }
 
     /** Retrieve IM call signaling session state */
-    public RtcSession sessionsRetrieve(String rtcSessionId) throws Exception {
+    public CallsSessionsRetrieveResponse sessionsRetrieve(String rtcSessionId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<RtcSession>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsRetrieveResponse>() {});
     }
 
     /** Invite participants into an IM call signaling session */
-    public RtcSessionMutationResponse sessionsInvite(String rtcSessionId, InviteRtcSessionRequest body) throws Exception {
+    public CallsSessionsInviteResponse sessionsInvite(String rtcSessionId, InviteRtcSessionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + "/invite"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcSessionMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsInviteResponse>() {});
     }
 
     /** Accept an IM call signaling session */
-    public RtcSessionMutationResponse sessionsAccept(String rtcSessionId, UpdateRtcSessionRequest body) throws Exception {
+    public CallsSessionsAcceptResponse sessionsAccept(String rtcSessionId, UpdateRtcSessionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + "/accept"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcSessionMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsAcceptResponse>() {});
     }
 
     /** Reject an IM call signaling session */
-    public RtcSessionMutationResponse sessionsReject(String rtcSessionId, UpdateRtcSessionRequest body) throws Exception {
+    public CallsSessionsRejectResponse sessionsReject(String rtcSessionId, UpdateRtcSessionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + "/reject"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcSessionMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsRejectResponse>() {});
     }
 
     /** End an IM call signaling session */
-    public RtcSessionMutationResponse sessionsEnd(String rtcSessionId, UpdateRtcSessionRequest body) throws Exception {
+    public CallsSessionsEndResponse sessionsEnd(String rtcSessionId, UpdateRtcSessionRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + "/end"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcSessionMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsEndResponse>() {});
     }
 
     /** Post an IM call signaling event */
-    public RtcSignalEvent sessionsSignalsCreate(String rtcSessionId, PostRtcSignalRequest body) throws Exception {
+    public CallsSessionsSignalsCreateResponse201 sessionsSignalsCreate(String rtcSessionId, PostRtcSignalRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + "/signals"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcSignalEvent>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsSignalsCreateResponse201>() {});
     }
 
     /** Issue an RTC media participant credential for an IM call */
-    public RtcParticipantCredential sessionsCredentialsCreate(String rtcSessionId, IssueRtcParticipantCredentialRequest body) throws Exception {
+    public CallsSessionsCredentialsCreateResponse201 sessionsCredentialsCreate(String rtcSessionId, IssueRtcParticipantCredentialRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/calls/sessions/" + serializePathParameter(rtcSessionId, new PathParameterSpec("rtcSessionId", "simple", false)) + "/credentials"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<RtcParticipantCredential>() {});
+        return client.convertValue(raw, new TypeReference<CallsSessionsCredentialsCreateResponse201>() {});
     }
 
     private record PathParameterSpec(String name, String style, boolean explode) {}

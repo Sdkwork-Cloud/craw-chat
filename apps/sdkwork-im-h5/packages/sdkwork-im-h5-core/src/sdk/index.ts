@@ -13,4 +13,8 @@ export {
   getDriveAppSdkClientWithSession,
   initDriveAppSdkClient,
   resetDriveAppSdkClient,
+  type DriveUploaderClient,
+  type DriveUploaderRequest,
+  type DriveUploaderUploadResult,
+  type SdkworkDriveUploader,
 } from "./driveAppSdkClient";

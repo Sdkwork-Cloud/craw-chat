@@ -6,8 +6,8 @@ use std::sync::Arc;
 use axum::Router;
 use conversation_runtime::resolve_embedded_conversation_runtime;
 use im_adapters_social_postgres::SocialPostgresConfig;
-use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use im_app_context::allows_header_only_app_context_fallback;
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use social_service::SocialRuntime;
 use tokio::task::JoinHandle;
 
@@ -27,8 +27,7 @@ struct ApplicationAssemblyBackground {
     /// Keep postgres-backed handler state alive when router merge replaces route handlers.
     _social_postgres_state: Option<social_service::PostgresAppState>,
     _space_state: Option<space_service::http::AppState>,
-    _projection_journal_consumer:
-        Option<projection_service::ProjectionJournalConsumerHandle>,
+    _projection_journal_consumer: Option<projection_service::ProjectionJournalConsumerHandle>,
 }
 
 pub async fn assemble_application_router() -> ApplicationAssembly {
@@ -57,6 +56,7 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
     router = router.merge(sdkwork_routes_im_media_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_notification_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_ops_backend_api::gateway_mount());
+    router = router.merge(sdkwork_routes_im_portal_app_api::gateway_mount());
     router = router.merge(sdkwork_routes_im_projection_open_api::build_supplemental_public_app());
     background._projection_journal_consumer =
         projection_service::spawn_projection_journal_consumer_from_env(
@@ -67,22 +67,24 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
             social_runtime.clone(),
         ),
     );
-    router = router.merge(
-        sdkwork_routes_im_social_open_api::build_runtime_public_app(social_runtime.clone()),
-    );
+    router = router.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
+        social_runtime.clone(),
+    ));
 
     if let Some(pool) = resolve_embedded_social_postgres_pool().await {
         let social_state = social_service::app_state_from_postgres_pool(pool.clone()).await;
-        router = router.merge(
-            sdkwork_routes_im_social_open_api::gateway_mount(social_state.clone()),
-        );
+        router = router.merge(sdkwork_routes_im_social_open_api::gateway_mount(
+            social_state.clone(),
+        ));
         background._social_postgres_state = Some(social_state);
 
         let mut space_state = space_service::app_state_from_postgres_pool(pool).await;
         if let Some(conversation_runtime) = resolve_embedded_conversation_runtime() {
             space_state = wire_space_conversation_binders(space_state, conversation_runtime);
         }
-        router = router.merge(sdkwork_routes_im_space_open_api::gateway_mount(space_state.clone()));
+        router = router.merge(sdkwork_routes_im_space_open_api::gateway_mount(
+            space_state.clone(),
+        ));
         background._space_state = Some(space_state);
     }
 
@@ -111,15 +113,13 @@ fn build_social_runtime() -> Arc<SocialRuntime> {
             }
         }
         Err(error) => {
-            panic!(
-                "social runtime env bootstrap failed in production-like environment: {error}"
-            );
+            panic!("social runtime env bootstrap failed in production-like environment: {error}");
         }
     }
 }
 
-async fn resolve_embedded_social_postgres_pool(
-) -> Option<im_adapters_social_postgres::SocialPostgresPool> {
+async fn resolve_embedded_social_postgres_pool()
+-> Option<im_adapters_social_postgres::SocialPostgresPool> {
     if let Ok(pool) = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool() {
         return Some(im_adapters_social_postgres::SocialPostgresPool::new(pool));
     }

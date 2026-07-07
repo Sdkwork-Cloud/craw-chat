@@ -2,7 +2,9 @@ use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::ClientRouteSyncFeedEntry;
-use im_domain_core::conversation::{ConversationMember, ConversationReadCursor, read_cursor_storage_key};
+use im_domain_core::conversation::{
+    ConversationMember, ConversationReadCursor, read_cursor_storage_key,
+};
 use im_platform_contracts::{
     MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch, TimelineProjectionRecord,
     TimelineProjectionStore,
@@ -282,27 +284,27 @@ impl TimelineProjectionService {
                 return Ok(false);
             };
             let memory_cap = self.memory_timeline_cap();
-            let timeline = if memory_cap < crate::timeline_tier::PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED
-            {
-                crate::timeline_tier::load_timeline_tail_for_restore(
-                    timeline_store,
-                    tenant_id,
-                    conversation_id,
-                    summary.message_count,
-                    memory_cap,
-                )?
-            } else {
-                timeline_store
-                    .load_timeline(tenant_id, conversation_id)
-                    .map_err(ProjectionError::StoreFailure)?
-                    .into_iter()
-                    .map(|(_, payload)| {
-                        serde_json::from_str::<TimelineViewEntry>(&payload)
-                            .map_err(ProjectionError::InvalidSnapshot)
-                    })
-                    .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
-                    .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?
-            };
+            let timeline =
+                if memory_cap < crate::timeline_tier::PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED {
+                    crate::timeline_tier::load_timeline_tail_for_restore(
+                        timeline_store,
+                        tenant_id,
+                        conversation_id,
+                        summary.message_count,
+                        memory_cap,
+                    )?
+                } else {
+                    timeline_store
+                        .load_timeline(tenant_id, conversation_id)
+                        .map_err(ProjectionError::StoreFailure)?
+                        .into_iter()
+                        .map(|(_, payload)| {
+                            serde_json::from_str::<TimelineViewEntry>(&payload)
+                                .map_err(ProjectionError::InvalidSnapshot)
+                        })
+                        .map(|entry| entry.map(|entry| (entry.message_seq, entry)))
+                        .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?
+                };
             let conversation = load_metadata_snapshot::<ConversationCatalogEntry>(
                 metadata_store,
                 scope.as_str(),
@@ -322,10 +324,8 @@ impl TimelineProjectionService {
             .unwrap_or_default()
             .into_iter()
             .map(|cursor| {
-                let storage_key = read_cursor_storage_key(
-                    cursor.member_id.as_str(),
-                    cursor.device_id.as_deref(),
-                );
+                let storage_key =
+                    read_cursor_storage_key(cursor.member_id.as_str(), cursor.device_id.as_deref());
                 (storage_key, cursor)
             })
             .collect();
@@ -879,13 +879,10 @@ impl TimelineProjectionService {
         &self,
         write_plan: &mut ProjectionSnapshotWritePlan,
     ) -> Result<bool, ProjectionError> {
-        let scopes = lock_projection_mutex(
-            &self.message_visibilities,
-            "message visibility store",
-        )
-        .keys()
-        .cloned()
-        .collect::<Vec<_>>();
+        let scopes = lock_projection_mutex(&self.message_visibilities, "message visibility store")
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
         if scopes.is_empty() {
             return Ok(false);
         }
@@ -895,13 +892,11 @@ impl TimelineProjectionService {
             &scopes,
         )?;
         for scope in scopes {
-            let items = lock_projection_mutex(
-                &self.message_visibilities,
-                "message visibility store",
-            )
-            .get(scope.as_str())
-            .cloned()
-            .unwrap_or_default();
+            let items =
+                lock_projection_mutex(&self.message_visibilities, "message visibility store")
+                    .get(scope.as_str())
+                    .cloned()
+                    .unwrap_or_default();
             write_plan.push_metadata(scope.as_str(), MESSAGE_VISIBILITY_STATE_KEY, &items)?;
         }
         Ok(true)
@@ -927,9 +922,7 @@ impl TimelineProjectionService {
                 let items = load_metadata_snapshot::<
                     std::collections::HashMap<String, MessageVisibilityMutationResult>,
                 >(
-                    metadata_store,
-                    scope.as_str(),
-                    MESSAGE_VISIBILITY_STATE_KEY,
+                    metadata_store, scope.as_str(), MESSAGE_VISIBILITY_STATE_KEY
                 )?
                 .unwrap_or_default();
                 if items.is_empty() {
@@ -952,7 +945,9 @@ impl TimelineProjectionService {
         propagate_optional_snapshot_restore(
             self.restore_client_route_sync_snapshot(metadata_store, timeline_store),
         )?;
-        propagate_optional_snapshot_restore(self.restore_message_visibility_snapshot(metadata_store))?;
+        propagate_optional_snapshot_restore(
+            self.restore_message_visibility_snapshot(metadata_store),
+        )?;
         for scope in conversation_scopes {
             let Some((tenant_id, organization_id, conversation_id)) =
                 parse_conversation_snapshot_scope(scope.as_str())

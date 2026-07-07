@@ -88,14 +88,15 @@ async fn list_pending_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_read_access(&auth)?;
         let inventory = state.social_runtime.pending_shared_channel_sync_inventory(
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
         );
         Ok(full_inventory_page(inventory.items))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -104,14 +105,17 @@ async fn list_dead_letter_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_read_access(&auth)?;
-        let inventory = state.social_runtime.dead_letter_shared_channel_sync_inventory(
-            auth.actor_id.as_str(),
-            auth.actor_kind.as_str(),
-        );
+        let inventory = state
+            .social_runtime
+            .dead_letter_shared_channel_sync_inventory(
+                auth.actor_id.as_str(),
+                auth.actor_kind.as_str(),
+            );
         Ok(full_inventory_page(inventory.items))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -120,11 +124,14 @@ async fn list_delivered_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_read_access(&auth)?;
-        let inventory = state.social_runtime.delivered_shared_channel_sync_inventory();
+        let inventory = state
+            .social_runtime
+            .delivered_shared_channel_sync_inventory();
         Ok(full_inventory_page(inventory.items))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -133,13 +140,14 @@ async fn list_delivery_state_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_read_access(&auth)?;
         let inventory = state
             .social_runtime
             .delivery_state_shared_channel_sync_inventory();
         Ok(resource_item(inventory))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -148,14 +156,17 @@ async fn reclaim_stale_pending_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
             .reclaim_stale_pending_shared_channel_sync_claims_persisted()
             .map(resource_item)
-            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_reclaim_failed", error))
-    })();
+            .map_err(|error| {
+                SocialServiceError::invalid("shared_channel_sync_reclaim_failed", error)
+            })
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -164,14 +175,15 @@ async fn repair_derived_snapshot(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
             .repair_derived_snapshot()
             .map(resource_item)
             .map_err(|error| SocialServiceError::invalid("social_runtime_repair_failed", error))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -180,14 +192,17 @@ async fn repair_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
             .repair_shared_channel_sync()
             .map(resource_item)
-            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_repair_failed", error))
-    })();
+            .map_err(|error| {
+                SocialServiceError::invalid("shared_channel_sync_repair_failed", error)
+            })
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -196,14 +211,17 @@ async fn requeue_dead_letter_shared_channel_sync(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
             .requeue_dead_letter_shared_channel_sync_persisted(None)
             .map(resource_item)
-            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_requeue_failed", error))
-    })();
+            .map_err(|error| {
+                SocialServiceError::invalid("shared_channel_sync_requeue_failed", error)
+            })
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -213,14 +231,17 @@ async fn requeue_dead_letter_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
             .requeue_dead_letter_shared_channel_sync_persisted(Some(body.request_keys.as_slice()))
             .map(resource_item)
-            .map_err(|error| SocialServiceError::invalid("shared_channel_sync_requeue_failed", error))
-    })();
+            .map_err(|error| {
+                SocialServiceError::invalid("shared_channel_sync_requeue_failed", error)
+            })
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -230,7 +251,7 @@ async fn claim_pending_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
@@ -241,7 +262,8 @@ async fn claim_pending_shared_channel_sync_targeted(
             )
             .map(resource_item)
             .map_err(owner_conflict_into_service_error)
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -251,7 +273,7 @@ async fn release_pending_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
@@ -262,7 +284,8 @@ async fn release_pending_shared_channel_sync_targeted(
             )
             .map(resource_item)
             .map_err(owner_conflict_into_service_error)
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -272,7 +295,7 @@ async fn takeover_pending_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(body): Json<TargetedTakeoverBody>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
@@ -284,7 +307,8 @@ async fn takeover_pending_shared_channel_sync_targeted(
             )
             .map(resource_item)
             .map_err(owner_conflict_into_service_error)
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 
@@ -294,7 +318,7 @@ async fn republish_pending_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(body): Json<TargetedRequestKeysBody>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         ensure_control_write_access(&auth)?;
         state
             .social_runtime
@@ -305,7 +329,8 @@ async fn republish_pending_shared_channel_sync_targeted(
             )
             .map(resource_item)
             .map_err(owner_conflict_into_service_error)
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }
 

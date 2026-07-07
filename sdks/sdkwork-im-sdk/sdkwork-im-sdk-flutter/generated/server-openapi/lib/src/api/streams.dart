@@ -12,62 +12,62 @@ class StreamsApi {
   StreamsApi(this._client);
 
   /// Open a stream
-  Future<StreamView?> create(OpenStreamRequest body) async {
+  Future<StreamsCreateResponse201?> create(OpenStreamRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/streams'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : StreamView.fromJson(map);
+      return map == null ? null : StreamsCreateResponse201.fromJson(map);
     })();
   }
 
   /// List stream frames
-  Future<StreamFramesResponse?> framesList(String streamId, [int? limit, String? cursor]) async {
+  Future<StreamsFramesListResponse?> framesList(String streamId, [int? pageSize, String? cursor]) async {
     final query = buildQueryString([
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null),
       QueryParameterSpec('cursor', cursor, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/streams/${serializePathParameter(streamId, const PathParameterSpec('streamId', 'simple', false))}/frames'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : StreamFramesResponse.fromJson(map);
+      return map == null ? null : StreamsFramesListResponse.fromJson(map);
     })();
   }
 
   /// Append a stream frame
-  Future<StreamFrameView?> framesCreate(String streamId, AppendStreamFrameRequest body) async {
+  Future<StreamsFramesCreateResponse201?> framesCreate(String streamId, AppendStreamFrameRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/streams/${serializePathParameter(streamId, const PathParameterSpec('streamId', 'simple', false))}/frames'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : StreamFrameView.fromJson(map);
+      return map == null ? null : StreamsFramesCreateResponse201.fromJson(map);
     })();
   }
 
   /// Checkpoint a stream
-  Future<StreamView?> checkpointCreate(String streamId) async {
+  Future<StreamsCheckpointResponse?> checkpoint(String streamId) async {
     final response = await _client.post(ApiPaths.imPath('/streams/${serializePathParameter(streamId, const PathParameterSpec('streamId', 'simple', false))}/checkpoint'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : StreamView.fromJson(map);
+      return map == null ? null : StreamsCheckpointResponse.fromJson(map);
     })();
   }
 
   /// Complete a stream
-  Future<StreamView?> complete(String streamId) async {
+  Future<StreamsCompleteResponse?> complete(String streamId) async {
     final response = await _client.post(ApiPaths.imPath('/streams/${serializePathParameter(streamId, const PathParameterSpec('streamId', 'simple', false))}/complete'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : StreamView.fromJson(map);
+      return map == null ? null : StreamsCompleteResponse.fromJson(map);
     })();
   }
 
   /// Abort a stream
-  Future<StreamView?> abort(String streamId) async {
+  Future<StreamsAbortResponse?> abort(String streamId) async {
     final response = await _client.post(ApiPaths.imPath('/streams/${serializePathParameter(streamId, const PathParameterSpec('streamId', 'simple', false))}/abort'));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : StreamView.fromJson(map);
+      return map == null ? null : StreamsAbortResponse.fromJson(map);
     })();
   }
 }

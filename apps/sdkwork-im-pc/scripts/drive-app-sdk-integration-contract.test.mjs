@@ -96,6 +96,7 @@ const shellLoadersSource = readText(
   'capabilityModuleLoaders.ts',
 );
 const drivePcRoot = path.resolve(repoRoot, '..', 'sdkwork-drive', 'apps', 'sdkwork-drive-pc');
+const drivePcEmbedDependencySpecifier = 'workspace:sdkwork-drive-pc-drive@*';
 const driveViewSource = fs.readFileSync(
   path.join(drivePcRoot, 'packages', 'sdkwork-drive-pc-drive', 'src', 'DriveView.tsx'),
   'utf8',
@@ -115,8 +116,14 @@ assert.equal(
 
 assert.equal(
   shellPackageJson.dependencies?.['@sdkwork/drive-pc-drive'],
-  'workspace:*',
-  '@sdkwork/im-pc-shell must consume the sdkwork-drive-pc-drive embed package through workspace:*.',
+  drivePcEmbedDependencySpecifier,
+  '@sdkwork/im-pc-shell must consume the sdkwork-drive-pc-drive embed package through a workspace alias.',
+);
+
+assert.equal(
+  corePackageJson.dependencies?.['@sdkwork/drive-pc-drive'],
+  drivePcEmbedDependencySpecifier,
+  '@sdkwork/im-pc-core must consume the sdkwork-drive-pc-drive embed package through the same workspace alias.',
 );
 
 assert.equal(

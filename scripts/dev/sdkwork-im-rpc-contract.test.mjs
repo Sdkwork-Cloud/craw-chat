@@ -78,6 +78,7 @@ const requiredFiles = [
   'sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json',
   'sdks/sdkwork-im-rpc-sdk/specs/README.md',
   'sdks/sdkwork-im-rpc-sdk/specs/component.spec.json',
+  'docs/architecture/tech/RPC-AVAILABILITY.md',
   'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/buf.gen.yaml',
   'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/package.json',
   'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/rpc-methods.json',
@@ -509,6 +510,35 @@ for (const language of expectedRpcLanguages) {
     `component README must document the ${language} RPC SDK workspace.`,
   );
 }
+
+const rpcAvailability = read('docs/architecture/tech/RPC-AVAILABILITY.md');
+assert.match(
+  rpcAvailability,
+  /sdkwork\.communication\.internal\.v1\.\*/u,
+  'RPC availability matrix must document the canonical internal.v1 proto package.',
+);
+assert.doesNotMatch(
+  rpcAvailability,
+  /sdkwork\.communication\.internal\.v3\.\*/u,
+  'RPC availability matrix must not invent an internal.v3 package.',
+);
+for (const existingVerificationCommand of [
+  'node scripts/dev/sdkwork-im-rpc-contract.test.mjs',
+  'node scripts/dev/sdkwork-im-session-gateway-rpc-bin.test.mjs',
+  'node scripts/dev/sdkwork-im-comms-conversation-rpc-bin.test.mjs',
+  'node scripts/dev/sdkwork-im-comms-conversation-internal-rpc-bin.test.mjs',
+]) {
+  assert.match(
+    rpcAvailability,
+    new RegExp(escapeRegex(existingVerificationCommand), 'u'),
+    `RPC availability matrix must reference existing verification command ${existingVerificationCommand}.`,
+  );
+}
+assert.doesNotMatch(
+  rpcAvailability,
+  /sdkwork-im-rpc-phase1-standard\.test\.mjs/u,
+  'RPC availability matrix must not reference a non-existent phase1 test file.',
+);
 
 const languageScaffolds = [
   {

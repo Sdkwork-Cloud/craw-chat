@@ -10,7 +10,7 @@ mod social_outbox_relay;
 mod social_realtime_wiring;
 mod space_conversation_wiring;
 
-pub use bootstrap::{assemble_application_router, ApplicationAssembly};
+pub use bootstrap::{ApplicationAssembly, assemble_application_router};
 pub use conversation_outbox_relay::{
     ConversationOutboxRelayHandle, spawn_conversation_outbox_relay_from_env,
 };

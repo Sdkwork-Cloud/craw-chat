@@ -1,9 +1,7 @@
 use std::collections::BTreeSet;
 
-use crate::model::{
-    MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView,
-};
-use crate::{lock_projection_mutex, TimelineProjectionService};
+use crate::model::{MessageDeliveryReceiptDeviceView, MessageDeliveryReceiptSummaryView};
+use crate::{TimelineProjectionService, lock_projection_mutex};
 
 pub(crate) const DELIVERY_RECEIPT_MAX_DEVICES: usize = 50;
 
@@ -104,7 +102,12 @@ mod tests {
 
     use super::*;
 
-    fn member_joined(event_id: &str, member_id: &str, principal_id: &str, ordering_seq: u64) -> CommitEnvelope {
+    fn member_joined(
+        event_id: &str,
+        member_id: &str,
+        principal_id: &str,
+        ordering_seq: u64,
+    ) -> CommitEnvelope {
         CommitEnvelope::minimal(
             event_id,
             "100001",
@@ -221,15 +224,11 @@ mod tests {
         assert_eq!(before_ack.offered_count, 1);
         assert_eq!(before_ack.delivered_count, 0);
 
-        let sync_seq = service.latest_client_route_sync_seq("100001", "default", "user_b", "d_phone");
+        let sync_seq =
+            service.latest_client_route_sync_seq("100001", "default", "user_b", "d_phone");
         assert!(sync_seq > 0);
         service.ack_client_route_sync_feed_for_principal_kind(
-            "100001",
-            "default",
-            "user_b",
-            "user",
-            "d_phone",
-            sync_seq,
+            "100001", "default", "user_b", "user", "d_phone", sync_seq,
         );
 
         let after_ack = service.delivery_receipt_summary_for_message(
@@ -275,17 +274,13 @@ mod tests {
             .apply(&message_posted("evt_msg_md", "m_dr_2", 1, "user_a", 3))
             .expect("message posted");
 
-        let phone_seq = service.latest_client_route_sync_seq("100001", "default", "user_b", "d_phone");
+        let phone_seq =
+            service.latest_client_route_sync_seq("100001", "default", "user_b", "d_phone");
         let pad_seq = service.latest_client_route_sync_seq("100001", "default", "user_b", "d_pad");
         assert!(phone_seq > 0);
         assert!(pad_seq > 0);
         service.ack_client_route_sync_feed_for_principal_kind(
-            "100001",
-            "default",
-            "user_b",
-            "user",
-            "d_pad",
-            pad_seq,
+            "100001", "default", "user_b", "user", "d_pad", pad_seq,
         );
 
         let summary = service.delivery_receipt_summary_for_message(

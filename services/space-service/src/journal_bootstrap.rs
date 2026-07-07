@@ -7,7 +7,10 @@ use im_adapters_local_memory::MemoryCommitJournal;
 use im_adapters_postgres_journal::PostgresCommitJournal;
 use im_adapters_social_postgres::{SocialPostgresConfig, SpacePostgresMaterializer};
 use im_app_context::resolve_web_environment_from_process_env;
-use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
+use im_platform_contracts::{
+    CommitEnvelope, CommitJournal, CommitJournalAggregateScope, CommitJournalReplayCursor,
+    CommitJournalReplayPage, ContractError,
+};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
@@ -24,7 +27,10 @@ pub enum SpaceCommitJournal {
 }
 
 impl CommitJournal for SpaceCommitJournal {
-    fn append(&self, envelope: CommitEnvelope) -> Result<im_platform_contracts::CommitPosition, ContractError> {
+    fn append(
+        &self,
+        envelope: CommitEnvelope,
+    ) -> Result<im_platform_contracts::CommitPosition, ContractError> {
         match self {
             Self::Memory(journal) => CommitJournal::append(journal, envelope),
             Self::File(journal) => CommitJournal::append(journal, envelope),
@@ -50,6 +56,37 @@ impl CommitJournal for SpaceCommitJournal {
             Self::Postgres(journal) => CommitJournal::recorded(journal),
         }
     }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+            Self::File(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+            Self::Postgres(journal) => CommitJournal::recorded_page(journal, cursor, limit),
+        }
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        match self {
+            Self::Memory(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
+            Self::File(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
+            Self::Postgres(journal) => {
+                CommitJournal::recorded_page_for_aggregate(journal, scope, cursor, limit)
+            }
+        }
+    }
 }
 
 impl SpaceCommitJournal {
@@ -61,11 +98,12 @@ impl SpaceCommitJournal {
 pub fn resolve_space_commit_journal_from_env() -> Result<SpaceCommitJournal, String> {
     if let Ok(config) = DatabaseConfig::from_env("IM") {
         if config.engine == DatabaseEngine::Postgres {
-            let journal = im_adapters_postgres_journal::PostgresJournalConfig::from_database_config(
-                &config,
-            )
-            .connect()
-            .map_err(|error| format!("postgres commit journal bootstrap failed: {error:?}"))?;
+            let journal =
+                im_adapters_postgres_journal::PostgresJournalConfig::from_database_config(&config)
+                    .connect()
+                    .map_err(|error| {
+                        format!("postgres commit journal bootstrap failed: {error:?}")
+                    })?;
             info!("space-runtime using postgres commit journal");
             return Ok(SpaceCommitJournal::Postgres(journal));
         }
@@ -93,20 +131,20 @@ pub fn resolve_space_commit_journal_from_env() -> Result<SpaceCommitJournal, Str
         return Ok(SpaceCommitJournal::Postgres(journal));
     }
 
-    if let Ok(runtime_dir) = std::env::var("SDKWORK_IM_RUNTIME_DIR") {
-        if !runtime_dir.trim().is_empty() {
-            let journal_path = Path::new(runtime_dir.trim())
-                .join("state")
-                .join("space-commit-journal.json");
-            info!(
-                journal_path = %journal_path.display(),
-                "space-runtime using file commit journal"
-            );
-            return Ok(SpaceCommitJournal::File(FileCommitJournal::new(
-                SPACE_COMMIT_PARTITION,
-                journal_path,
-            )));
-        }
+    if let Ok(runtime_dir) = std::env::var("SDKWORK_IM_RUNTIME_DIR")
+        && !runtime_dir.trim().is_empty()
+    {
+        let journal_path = Path::new(runtime_dir.trim())
+            .join("state")
+            .join("space-commit-journal.json");
+        info!(
+            journal_path = %journal_path.display(),
+            "space-runtime using file commit journal"
+        );
+        return Ok(SpaceCommitJournal::File(FileCommitJournal::new(
+            SPACE_COMMIT_PARTITION,
+            journal_path,
+        )));
     }
 
     let environment = resolve_web_environment_from_process_env();
@@ -128,19 +166,18 @@ fn resolve_im_database_url_from_env() -> Option<String> {
 }
 
 #[allow(dead_code)]
-pub fn resolve_space_postgres_pool_from_env(
-) -> Option<im_adapters_social_postgres::SocialPostgresPool> {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
-            return SocialPostgresConfig::from_database_config(&config)
-                .connect_pool()
-                .ok();
-        }
+pub fn resolve_space_postgres_pool_from_env()
+-> Option<im_adapters_social_postgres::SocialPostgresPool> {
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres
+    {
+        return SocialPostgresConfig::from_database_config(&config)
+            .connect_pool()
+            .ok();
     }
 
-    resolve_im_database_url_from_env().and_then(|database_url| {
-        SocialPostgresConfig::new(database_url).connect_pool().ok()
-    })
+    resolve_im_database_url_from_env()
+        .and_then(|database_url| SocialPostgresConfig::new(database_url).connect_pool().ok())
 }
 
 pub fn replay_space_journal_to_read_model(

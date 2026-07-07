@@ -19,12 +19,8 @@ pub(crate) async fn docs() -> Html<String> {
 }
 
 fn build_notification_service_openapi_document() -> Result<serde_json::Value, String> {
-    let routes = extract_routes_from_function(
-        include_str!("app.rs"),
-        "build_domain_api_router",
-        &[],
-        &[],
-    )?;
+    let routes =
+        extract_routes_from_function(include_str!("app.rs"), "build_domain_api_router", &[], &[])?;
 
     Ok(build_openapi_document(
         &notification_service_openapi_spec(),

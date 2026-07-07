@@ -18,7 +18,9 @@ pub fn resolve_rtc_outbox_recipients(
     match event_type {
         "rtc.session.invited" => string_array_field_recipients(payload, "added_participant_ids"),
         "rtc.credential.refreshed" | "rtc.credentials.revoked" => optional_string_recipient(
-            payload.get("participant_id").and_then(|value| value.as_str()),
+            payload
+                .get("participant_id")
+                .and_then(|value| value.as_str()),
         ),
         _ => Vec::new(),
     }
@@ -75,15 +77,14 @@ mod tests {
             "added_participant_ids": ["u_carol"],
         });
         let recipients = resolve_rtc_outbox_recipients("rtc.session.invited", &payload);
-        assert_eq!(
-            recipients,
-            vec![("u_carol".to_owned(), "user".to_owned())]
-        );
+        assert_eq!(recipients, vec![("u_carol".to_owned(), "user".to_owned())]);
     }
 
     #[test]
     fn empty_for_unknown_event_without_fields() {
-        assert!(resolve_rtc_outbox_recipients("rtc.session.unknown", &serde_json::json!({})).is_empty());
+        assert!(
+            resolve_rtc_outbox_recipients("rtc.session.unknown", &serde_json::json!({})).is_empty()
+        );
     }
 
     #[test]
@@ -93,9 +94,6 @@ mod tests {
             "added_participant_ids": ["u_carol"],
         });
         let recipients = resolve_rtc_outbox_recipients("rtc.session.invited", &payload);
-        assert_eq!(
-            recipients,
-            vec![("u_carol".to_owned(), "user".to_owned())]
-        );
+        assert_eq!(recipients, vec![("u_carol".to_owned(), "user".to_owned())]);
     }
 }

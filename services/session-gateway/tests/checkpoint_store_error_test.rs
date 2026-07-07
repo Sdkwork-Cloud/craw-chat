@@ -64,7 +64,7 @@ async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&page_size=10")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")

@@ -22,7 +22,7 @@ pub struct RedisPostgresTieredRouteStore {
 }
 
 impl RedisPostgresTieredRouteStore {
-    pub fn new(
+    pub fn create(
         redis_url: impl AsRef<str>,
         pool: PostgresRealtimePool,
     ) -> Result<Arc<dyn RouteStore>, String> {

@@ -2,19 +2,19 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use sdkwork_web_core::WebRequestContext;
 use im_domain_core::social::{SharedChannelPolicy, SharedChannelPolicyStatus};
 use im_domain_events::social::{
     SharedChannelPolicyAppliedPayload, SocialCommitEnvelopeInput, SocialEventType,
     social_commit_envelope,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use sdkwork_web_core::WebRequestContext;
 use serde::{Deserialize, Serialize};
 
 use crate::SharedChannelLinkedMemberSyncRequest;
-use crate::external::CommitEnvelopeResponse;
 use crate::api_payload::resource_item;
 use crate::envelope::finish_enveloped_json;
+use crate::external::CommitEnvelopeResponse;
 use crate::friendship::{AppState, SocialServiceError};
 use crate::runtime::{
     SocialConnectionIndexKey, SocialControlState, SocialRuntime,
@@ -539,7 +539,7 @@ pub(crate) async fn apply_shared_channel_policy(
     State(state): State<AppState>,
     Json(request): Json<ApplySharedChannelPolicyRequest>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let applied = state.social_runtime.apply_shared_channel_policy(
             auth.tenant_id.as_str(),
             &auth,
@@ -557,8 +557,9 @@ pub(crate) async fn apply_shared_channel_policy(
             latest_commit: applied.latest_commit.into(),
             persistence: applied.persistence,
         }))
-    })();
-    finish_enveloped_json(&ctx, result)
+    })
+    .await;
+    crate::envelope::finish_created_enveloped_json(&ctx, result)
 }
 
 pub(crate) async fn shared_channel_policy_snapshot(
@@ -567,11 +568,11 @@ pub(crate) async fn shared_channel_policy_snapshot(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
 ) -> Response {
-    let result = (|| {
+    let result = crate::envelope::run_blocking_social_call(state, move |state| {
         let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
         state
             .social_runtime
-            .refresh_state_from_authority_for_write()?;
+            .refresh_state_from_authority_for_read()?;
         let snapshot = state
             .social_runtime
             .shared_channel_policy_snapshot(auth.tenant_id.as_str(), policy_id.as_str())
@@ -587,6 +588,7 @@ pub(crate) async fn shared_channel_policy_snapshot(
             shared_channel_policy: snapshot.shared_channel_policy,
             commits: snapshot.commits.into_iter().map(Into::into).collect(),
         }))
-    })();
+    })
+    .await;
     finish_enveloped_json(&ctx, result)
 }

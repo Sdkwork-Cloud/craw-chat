@@ -83,12 +83,13 @@ TypeScript scaffold dry-run:
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate `
   --protocol rpc `
   --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json `
-  --proto-root .\proto `
+  --proto-root .\apis\rpc `
   --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript `
   --name SdkworkImRpc `
   --sdk-name sdkwork-im-rpc-sdk `
   --language typescript `
   --package-name @sdkwork/im-rpc-sdk `
+  --fixed-sdk-version 1.0.5 `
   --dry-run `
   --no-sync-published-version
 ```
@@ -99,12 +100,13 @@ Go scaffold dry-run:
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate `
   --protocol rpc `
   --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json `
-  --proto-root .\proto `
+  --proto-root .\apis\rpc `
   --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go `
   --name SdkworkImRpc `
   --sdk-name sdkwork-im-rpc-sdk `
   --language go `
   --package-name github.com/sdkwork/im-rpc-sdk-go `
+  --fixed-sdk-version 0.1.0 `
   --dry-run `
   --no-sync-published-version
 ```
@@ -115,12 +117,13 @@ Java scaffold dry-run:
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate `
   --protocol rpc `
   --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json `
-  --proto-root .\proto `
+  --proto-root .\apis\rpc `
   --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java `
   --name SdkworkImRpc `
   --sdk-name sdkwork-im-rpc-sdk `
   --language java `
   --package-name com.sdkwork.im.rpc `
+  --fixed-sdk-version 1.0.5 `
   --dry-run `
   --no-sync-published-version
 ```
@@ -131,12 +134,13 @@ Python scaffold dry-run:
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate `
   --protocol rpc `
   --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json `
-  --proto-root .\proto `
+  --proto-root .\apis\rpc `
   --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-python `
   --name SdkworkImRpc `
   --sdk-name sdkwork-im-rpc-sdk `
   --language python `
   --package-name sdkwork_im_rpc_sdk `
+  --fixed-sdk-version 1.0.3 `
   --dry-run `
   --no-sync-published-version
 ```
@@ -147,19 +151,20 @@ Rust scaffold dry-run:
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate `
   --protocol rpc `
   --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json `
-  --proto-root .\proto `
+  --proto-root .\apis\rpc `
   --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-rust `
   --name SdkworkImRpc `
   --sdk-name sdkwork-im-rpc-sdk `
   --language rust `
   --package-name sdkwork-im-rpc-sdk-rust `
+  --fixed-sdk-version 1.0.5 `
   --dry-run `
   --no-sync-published-version
 ```
 
 `sdkgen generate --protocol rpc` orchestrates SDKWork scaffold and Buf/protoc-compatible configuration. It does not replace Protocol Buffers, Buf, protoc, or language-specific gRPC plugins.
 
-RPC SDK source workspaces use convention mode by default. The authoritative source evidence is the `sdkwork-im-rpc-sdk` family root, `rpc/sdkwork-im-rpc.manifest.json`, the proto source under `proto/`, each generated language workspace name, `rpc-methods.json`, and the native package manifest such as `package.json`, `go.mod`, `pom.xml`, `pyproject.toml`, or `Cargo.toml`.
+RPC SDK source workspaces use convention mode by default. The authoritative source evidence is the `sdkwork-im-rpc-sdk` family root, `rpc/sdkwork-im-rpc.manifest.json`, the manifest-declared proto source under `apis/rpc`, each generated language workspace name, `rpc-methods.json`, and the native package manifest such as `package.json`, `go.mod`, `pom.xml`, `pyproject.toml`, or `Cargo.toml`.
 
 Use `sdkgen inspect --protocol rpc` for every RPC SDK workspace. Inspect validates the convention evidence and reports `evidenceMode: "convention"` for normal source output. Release, CI, audit, or migration workflows may request optional generator evidence with `--emit-control-plane`; those files are derived by generator convention and are not normal source-control evidence for this RPC SDK family.
 
@@ -179,11 +184,11 @@ Minimum verification for this contract slice:
 
 ```powershell
 node .\scripts\dev\sdkwork-im-rpc-contract.test.mjs
-node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --dry-run --no-sync-published-version
-node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --dry-run --no-sync-published-version
-node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --dry-run --no-sync-published-version
-node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-python --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language python --package-name sdkwork_im_rpc_sdk --dry-run --no-sync-published-version
-node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-rust --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language rust --package-name sdkwork-im-rpc-sdk-rust --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\apis\rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --fixed-sdk-version 1.0.5 --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\apis\rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --fixed-sdk-version 0.1.0 --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\apis\rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --fixed-sdk-version 1.0.5 --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\apis\rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-python --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language python --package-name sdkwork_im_rpc_sdk --fixed-sdk-version 1.0.3 --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\apis\rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-rust --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language rust --package-name sdkwork-im-rpc-sdk-rust --fixed-sdk-version 1.0.5 --dry-run --no-sync-published-version
 node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --json
 node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --json
 node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --json

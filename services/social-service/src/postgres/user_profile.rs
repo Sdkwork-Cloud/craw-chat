@@ -53,18 +53,20 @@ pub async fn get_user_profile(
     State(state): State<PostgresAppState>,
     Path(user_id): Path<String>,
 ) -> Response {
-    let result: ApiResult<SdkWorkResourceData<UserProfileResponse>> = (|| {
-        let record = state
-            .user_profile_store
-            .get_by_user_id(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                user_id.as_str(),
-            )
-            .map_err(|_| ApiProblem::internal_server_error("failed to read user profile"))?
-            .ok_or_else(|| ApiProblem::not_found("user profile not found"))?;
-        Ok(resource_item(UserProfileResponse::from(record)))
-    })();
+    let result: ApiResult<SdkWorkResourceData<UserProfileResponse>> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            let record = state
+                .user_profile_store
+                .get_by_user_id(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    user_id.as_str(),
+                )
+                .map_err(|_| ApiProblem::internal_server_error("failed to read user profile"))?
+                .ok_or_else(|| ApiProblem::not_found("user profile not found"))?;
+            Ok(resource_item(UserProfileResponse::from(record)))
+        })
+        .await;
     finish_api_json(&ctx, result)
 }
 
@@ -75,30 +77,33 @@ pub async fn update_user_profile(
     Path(user_id): Path<String>,
     Json(request): Json<UpdateUserProfileRequest>,
 ) -> Response {
-    let result: Result<Response, ApiProblem> = (|| {
-        if auth.actor_id != user_id {
-            return Err(ApiProblem::forbidden("user can only update own profile"));
-        }
+    let ctx_for_blocking = ctx.clone();
+    let result: Result<Response, ApiProblem> =
+        crate::postgres::http::run_blocking_postgres_call(state, move |state| {
+            if auth.actor_id != user_id {
+                return Err(ApiProblem::forbidden("user can only update own profile"));
+            }
 
-        let now = chrono::Utc::now().to_rfc3339();
-        let record = UserProfileRecord {
-            tenant_id: auth.tenant_id,
-            organization_id: auth.organization_id,
-            user_id,
-            im_nickname: request.im_nickname,
-            im_avatar_url: request.im_avatar_url,
-            im_status_message: request.im_status_message,
-            im_online_status: "online".to_string(),
-            last_active_at: Some(now.clone()),
-            created_at: now.clone(),
-            updated_at: now,
-        };
+            let now = chrono::Utc::now().to_rfc3339();
+            let record = UserProfileRecord {
+                tenant_id: auth.tenant_id,
+                organization_id: auth.organization_id,
+                user_id,
+                im_nickname: request.im_nickname,
+                im_avatar_url: request.im_avatar_url,
+                im_status_message: request.im_status_message,
+                im_online_status: "online".to_string(),
+                last_active_at: Some(now.clone()),
+                created_at: now.clone(),
+                updated_at: now,
+            };
 
-        state
-            .user_profile_store
-            .upsert_profile(&record)
-            .map_err(|_| ApiProblem::internal_server_error("failed to update user profile"))?;
-        no_content(&ctx)
-    })();
+            state
+                .user_profile_store
+                .upsert_profile(&record)
+                .map_err(|_| ApiProblem::internal_server_error("failed to update user profile"))?;
+            no_content(&ctx_for_blocking)
+        })
+        .await;
     finish_api_response(&ctx, result)
 }

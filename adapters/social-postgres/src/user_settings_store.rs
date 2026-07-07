@@ -7,7 +7,9 @@ use im_platform_contracts::ContractError;
 use r2d2::Pool;
 use serde_json::Value;
 
-use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io,
+};
 
 /// Trait for user settings persistence.
 pub trait UserSettingsStore: Send + Sync {

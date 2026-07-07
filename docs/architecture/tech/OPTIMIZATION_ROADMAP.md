@@ -1,25 +1,34 @@
 # SDKWork IM Feature Gap Analysis & Optimization Roadmap
 
 **Status**: Active  
-**Updated**: 2026-07-05  
+**Updated**: 2026-07-06  
 **Owner**: SDKWork IM Team  
 **Priority**: P0 (Critical) → P3 (Nice-to-have)
 
 ## Executive Summary
 
-The server-side IM core (social graph, conversation write path, projection read models, session-gateway realtime, call signaling) is **production-baseline capable**. Remaining gaps versus WeChat/Telegram/Discord are primarily **product-level** (E2EE, weak-network FEC/ARQ, mega-groups) and **P2 performance** items.
+IM 核心（社交图、会话写路径、投影读模型、session-gateway 实时、呼叫信令）已达 **Pre-Release 基线**。2026-07-06 对齐轮次已交付：
 
-### Production baseline shipped (2026-07-05)
+- **Portal 真实聚合**：`portal-service` + `im-portal-snapshots` 从 ops 健康面与 audit 记录构建 dashboard/governance/access 快照；`product-runtime` 不再返回静态 JSON stub
+- **Console/Admin 运营面**：Security 无审计数据 fail-closed；Dashboard 空指标不伪造零值；Infra 指标标签与信号源对齐
+- **Flutter Inbox**：游标分页（HTTP wire `page_size=20`，最多 10 页同步）
+- **P1 技术债关闭**：多组织 Inbox 隔离、realtime mutex 锁序、JWT jti Redis 重放、Social 读路径与单 commit PG 事务物化
+
+剩余差距主要为 **产品级**（E2EE、FEC Phase 2、Telegram 级超大群）与 **P2 性能** 项。
+
+### Shipped baseline (2026-07-06)
 
 | Area | Capability |
 | --- | --- |
-| Outbox relay | conversation / social / rtc: relay fail-closed；写入侧跳过无 deliverable recipients（`rtc_outbox` 共享解析） |
-| Journal ordering | Unified `commit_seq` per conversation; materialize-before-append + compensate on social/space writes |
-| WebSocket | Pre-auth budget + post-auth semaphore; frame/upgrade Redis rate limits; Ping rate-limited |
-| Social | PG materializer + multi-commit single PG transaction + terminal idempotency replay; friendship `update_status` conflict detection |
-| RTC | Ring timeout reaper; terminal evict + DB `retention_until` purge; PC 远端视频 Volcengine 绑定 |
-| Projection | HS256 keyset cursors; production rejects numeric offset; Postgres tiered timeline + `SDKWORK_IM_PROJECTION_TIMELINE_MEMORY_CAP` |
-| Presence / routes | Stale device expiry; ClientRoute cleanup on disconnect |
+| Portal API | `portal-service` HTTP handlers + gateway assembly mount；`SdkWorkApiResponse` 信封 |
+| Console Security | `healthScore: null` when no audit data |
+| Console Dashboard | `hasPortalMetrics()` — empty trends when ops 无数据 |
+| Admin Infra | `realtimeWindowHealth` / `Projection Persist Ops` 标签对齐 |
+| Flutter Inbox | Cursor `fetchInboxPage` + bounded multi-page sync |
+| RPC projection plane | Eight inbox/projection-owned app RPC ops via `rpc_projection_dispatch` |
+| Desktop offline | SQLite cache + send queue + `retryFailedMessage` |
+| Outbox / Journal / WS | relay fail-closed；`commit_seq`；pre-auth budget + rate limits |
+| Social / Projection | PG materialize-before-append；HS256 keyset cursors |
 
 Authoritative audit snapshot: `docs/COMMUNICATION_FEATURE_AUDIT_REPORT.md`.
 
@@ -29,10 +38,13 @@ Authoritative audit snapshot: `docs/COMMUNICATION_FEATURE_AUDIT_REPORT.md`.
 
 | Feature | Current | WeChat | Telegram | Discord | Priority | Effort |
 |---------|---------|--------|----------|---------|----------|--------|
-| **Weak Network Optimization** | ⚠️ WS 重连 + checkpoint；FEC/ARQ **库未接入运行时** | ✅ Excellent | ✅ Excellent | ✅ Good | **P1** | 2 weeks |
+| **Weak Network Optimization** | ✅ WS 重连 + checkpoint + `events.nack` ARQ 重放（2026-07-06）；FEC 自适应 Phase 2 | ✅ Excellent | ✅ Excellent | ✅ Good | **P1** | FEC wiring |
 | **End-to-End Encryption** | ❌ None | ❌ None | ✅ Yes | ✅ Yes | **P0** | 4 weeks |
 | **Multi-Device Sync** | ✅ Per-device read cursors + max-seq inbox/receipts | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Done | - |
-| **Large Room Support** | ⚠️ Tiered timeline (Postgres + hot cache) | ✅ 10K | ✅ 200K | ✅ 1K | **P1** | 3 weeks |
+| **Large Room Support** | ✅ 10K cap + 成员目录索引分页（MVP 2026-07-06）；Telegram 200K Phase 2 | ✅ 10K | ✅ 200K | ✅ 1K | **P1** | 3 weeks |
+| **Desktop Offline Cache** | ✅ SQLite 缓存 + 读回退 + 文本/媒体（Drive 已上传）待发队列 + claim/lease + 重连 flush（2026-07-07） | ✅ | ✅ | ✅ | ✅ Done | - |
+| **H5 Offline Queue** | ✅ IndexedDB + claim/lease + legacy sessionStorage 迁移（2026-07-07） | ✅ | ✅ | ✅ | ✅ Done | - |
+| **Flutter Offline Queue** | ✅ SharedPreferences v2 + claim/lease（2026-07-07） | ✅ | ✅ | ✅ | ✅ Done | full SQLite message cache Phase 2 |
 | **Message Recall** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Done | - |
 | **Read Receipts** | ✅ Yes (cursor-derived summary) | ✅ Yes | ❌ No | ✅ Yes | ✅ Done | - |
 | **E2E Latency** | ~200ms | ~100ms | ~150ms | ~200ms | **P1** | 2 weeks |
@@ -49,7 +61,7 @@ Authoritative audit snapshot: `docs/COMMUNICATION_FEATURE_AUDIT_REPORT.md`.
 
 ### 1. Weak Network Optimization (FEC + ARQ)
 
-**Current State**: WebSocket 重连与 checkpoint catch-up 已上线。`im-domain-core::network_optimization` 提供 XOR 示范级 FEC/ARQ **单元测试库**，**尚未接入** `session-gateway` 帧层。
+**Current State**: WebSocket 重连、checkpoint catch-up 与 **`events.nack` ARQ 重放已接入**（IM SDK → session-gateway → runtime-link）。`im-domain-core::network_optimization` 中的 FEC / `NetworkQualityEstimator` 仍为库级实现，**尚未接入** WS 帧层（Phase 2）。
 
 **Implementation Plan**:
 
@@ -272,40 +284,40 @@ pub struct MessageThread {
 
 ---
 
-## Implementation Timeline
+## Implementation Timeline (forward-looking)
 
-| Phase | Duration | Features | Milestone |
-|-------|----------|----------|-----------|
-| **Phase 1** | Weeks 1-2 | FEC + ARQ | 95% delivery on 30% loss |
-| **Phase 2** | Weeks 3-4 | E2EE (Signal Protocol) | Forward secrecy achieved |
-| **Phase 3** | Weeks 5-6 | Multi-device sync | 3+ devices per user |
-| **Phase 4** | Weeks 7-9 | Large rooms (SFU/MCU) | 10K participant rooms |
-| **Phase 5** | Week 10 | Read receipts | Per-user tracking |
-| **Phase 6** | Weeks 11-12 | Latency optimization | <100ms E2E |
+| Phase | Focus | Status |
+|-------|-------|--------|
+| **Pre-Release baseline** | ARQ nack、10K 成员目录、桌面离线、Portal 真实聚合、Console fail-closed | ✅ Shipped 2026-07-06 |
+| **Phase 2 — Weak network** | FEC + `NetworkQualityEstimator` 接入 WS 帧层 | 📋 Planned |
+| **Phase 2 — Security** | E2EE Signal Protocol | 📋 Planned |
+| **Phase 2 — Scale** | Telegram 200K cascade / notification·call·stream RPC watch surfaces | 📋 Planned |
+| **Phase 2 — Performance** | E2E latency <100ms p50 | 📋 Planned |
 
 ---
 
 ## Success Metrics
 
-### Performance Targets
+### Shipped baseline (2026-07-06)
+
+| Metric | Current |
+|--------|---------|
+| Message delivery ARQ (`events.nack`) | ✅ Client + gateway + runtime-link |
+| Max chat group members | 10,000 (index-backed directory) |
+| Multi-device read cursors | ✅ Per-device keys + max-seq aggregation |
+| Read receipts | ✅ Cursor-derived interaction summary |
+| Desktop offline | ✅ SQLite cache + send queue |
+| Portal aggregation | ✅ ops + audit (no static stub) |
+| RPC realtime streams | ✅ `presence.watch` + `realtime.events.watch` in session-gateway |
+
+### Phase 2 targets
 
 | Metric | Current | Target | Industry Benchmark |
 |--------|---------|--------|-------------------|
-| Message delivery (30% loss) | 70% | 95% | WeChat: 98% |
-| E2E latency (p50) | 200ms | 100ms | WeChat: 100ms |
-| E2E latency (p99) | 500ms | 200ms | Telegram: 150ms |
-| Max room size | 10 | 10,000 | Telegram: 200,000 |
-| Multi-device sync | 1 | 5 | Discord: 5+ |
-| Encryption overhead | 0% | 15% | Signal: 12% |
-
-### Reliability Targets
-
-| Metric | Target |
-|--------|--------|
-| Message delivery rate | 99.9% |
-| Uptime SLA | 99.95% |
-| Data durability | 99.999999% (11 9s) |
-| Failover time | <30s |
+| Message delivery (30% loss, with FEC) | ARQ only | 95% | WeChat: 98% |
+| E2E latency (p50) | ~200ms | 100ms | WeChat: 100ms |
+| Max room size (broadcast) | 10K members | 200K cascade | Telegram: 200,000 |
+| E2EE overhead | TLS only | ~15% | Signal: 12% |
 
 ---
 
@@ -317,15 +329,6 @@ pub struct MessageThread {
 | E2EE key management | High | Integrate with KMS, secure enclave |
 | Large room scalability | High | Incremental rollout, load testing |
 | Latency optimization | Medium | A/B testing, gradual rollout |
-
----
-
-## Next Steps
-
-1. **Week 1**: Implement FEC encoder/decoder in `network_optimization.rs`
-2. **Week 1**: Implement ARQ manager with NACK-based retransmission
-3. **Week 2**: Add network quality estimator and adaptive FEC
-4. **Week 2**: Benchmark against WeChat on simulated lossy network
 
 ---
 

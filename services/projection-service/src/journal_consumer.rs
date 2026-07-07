@@ -49,14 +49,12 @@ pub fn spawn_projection_journal_consumer_from_env(
 }
 
 fn resolve_projection_commit_journal_from_env() -> Result<PostgresCommitJournal, String> {
-    if let Ok(config) = DatabaseConfig::from_env("IM") {
-        if config.engine == DatabaseEngine::Postgres {
-            return PostgresJournalConfig::from_database_config(&config)
-                .connect()
-                .map_err(|error| {
-                    format!("postgres projection journal bootstrap failed: {error:?}")
-                });
-        }
+    if let Ok(config) = DatabaseConfig::from_env("IM")
+        && config.engine == DatabaseEngine::Postgres
+    {
+        return PostgresJournalConfig::from_database_config(&config)
+            .connect()
+            .map_err(|error| format!("postgres projection journal bootstrap failed: {error:?}"));
     }
 
     if let Some(database_url) = std::env::var(IM_DATABASE_URL_ENV)
@@ -182,10 +180,8 @@ fn apply_journal_events(
         applied_new = true;
     }
 
-    if applied_new {
-        if let Err(error) = runtime.persist_durable_state() {
-            warn!(error = %error, "projection journal consumer durable persist failed");
-        }
+    if applied_new && let Err(error) = runtime.persist_durable_state() {
+        warn!(error = %error, "projection journal consumer durable persist failed");
     }
 }
 

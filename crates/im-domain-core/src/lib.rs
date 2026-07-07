@@ -4,6 +4,7 @@ pub mod capacity;
 pub mod connection_quality;
 pub mod contact;
 pub mod conversation;
+pub mod direct_chat;
 pub mod idempotency;
 pub mod lifecycle;
 pub mod logging;

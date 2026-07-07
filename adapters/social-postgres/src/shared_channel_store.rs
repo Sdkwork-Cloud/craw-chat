@@ -6,7 +6,9 @@ use im_domain_core::social::{SharedChannelPolicy, SharedChannelPolicyStatus};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 
-use crate::{SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    SocialPostgresConnectionManager, postgres_pool_client, postgres_unavailable, run_postgres_io,
+};
 
 /// Shared channel policy record for database storage.
 #[derive(Clone, Debug)]

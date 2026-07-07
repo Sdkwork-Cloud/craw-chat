@@ -1,9 +1,8 @@
 //! gRPC runtime dispatch for conversation and message RPC services.
 
-use std::collections::BTreeMap;
 use axum::http::{HeaderMap, HeaderValue, header};
 use im_app_context::AppContext;
-use im_domain_core::conversation::{member_id, ConversationMember, MembershipRole};
+use im_domain_core::conversation::{ConversationMember, MembershipRole, member_id};
 use im_domain_core::message::{ContentPart, MessageReplyReference, MessageType};
 use prost::Message;
 use sdkwork_im_rpc_sdk_rust::sdkwork::common::v1::{PageRequest, PageResponse};
@@ -14,30 +13,27 @@ use sdkwork_im_rpc_sdk_rust::sdkwork::communication::app::v3::{
     CreateAgentDialogRequest, CreateAgentDialogResponse, CreateAgentHandoffRequest,
     CreateAgentHandoffResponse, CreateConversationMessageRequest,
     CreateConversationMessageResponse, CreateConversationRequest, CreateConversationResponse,
-    CreateMessageReactionRequest, CreateMessageReactionResponse, CreateSystemChannelRequest,
-    CreateSystemChannelResponse, CreateRoomRequest, CreateRoomResponse, CreateThreadRequest,
-    CreateThreadResponse,
-    DeleteMessageFavoriteRequest, DeleteMessageReactionRequest,
-    EnterRoomRequest, EnterRoomResponse, LeaveRoomRequest, LeaveRoomResponse,
-    DeleteMessageReactionResponse, DeleteMessageVisibilityRequest,
-    EditMessageRequest, EditMessageResponse, LeaveConversationRequest, LeaveConversationResponse,
+    CreateMessageFavoriteRequest, CreateMessageReactionRequest, CreateMessageReactionResponse,
+    CreateRoomRequest, CreateRoomResponse, CreateSystemChannelRequest, CreateSystemChannelResponse,
+    CreateThreadRequest, CreateThreadResponse, DeleteMessageFavoriteRequest,
+    DeleteMessageReactionRequest, DeleteMessageReactionResponse, DeleteMessageVisibilityRequest,
+    EditMessageRequest, EditMessageResponse, EnterRoomRequest, EnterRoomResponse,
+    LeaveConversationRequest, LeaveConversationResponse, LeaveRoomRequest, LeaveRoomResponse,
     ListConversationMemberDirectoryRequest, ListConversationMemberDirectoryResponse,
     ListConversationMembersRequest, ListConversationMembersResponse,
     ListConversationMessagesRequest, ListConversationMessagesResponse, ListFavoriteMessagesRequest,
-    ListPinnedMessagesRequest, ListPinnedMessagesResponse,
-    MessageBodyPart, MessageInteractionSummaryView, MessageMutationResponse,
-    MessageView, PinMessageRequest, PinMessageResponse, PublishSystemChannelMessageRequest,
-    PublishSystemChannelMessageResponse, RecallMessageRequest, RecallMessageResponse,
-    ReadCursorView, RemoveConversationMemberRequest, RemoveConversationMemberResponse,
-    RetrieveConversationPreferencesRequest, RetrieveConversationProfileRequest,
-    RetrieveConversationRequest, RetrieveConversationResponse, RetrieveInboxRequest,
-    RetrieveRoomRequest, RetrieveRoomResponse, RoomView,
-    RetrieveInboxResponse, RetrieveMessageInteractionSummaryRequest,
+    ListPinnedMessagesRequest, ListPinnedMessagesResponse, MessageBodyPart,
+    MessageInteractionSummaryView, MessageMutationResponse, MessageView, PinMessageRequest,
+    PinMessageResponse, PublishSystemChannelMessageRequest, PublishSystemChannelMessageResponse,
+    ReadCursorView, RecallMessageRequest, RecallMessageResponse, RemoveConversationMemberRequest,
+    RemoveConversationMemberResponse, RetrieveConversationPreferencesRequest,
+    RetrieveConversationProfileRequest, RetrieveConversationRequest, RetrieveConversationResponse,
+    RetrieveInboxRequest, RetrieveInboxResponse, RetrieveMessageInteractionSummaryRequest,
     RetrieveMessageInteractionSummaryResponse, RetrieveReadCursorRequest,
-    RetrieveReadCursorResponse, TransferConversationOwnerRequest,
-    TransferConversationOwnerResponse, UnpinMessageRequest, UnpinMessageResponse,
-    UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest,
-    UpdateReadCursorResponse,
+    RetrieveReadCursorResponse, RetrieveRoomRequest, RetrieveRoomResponse, RoomView,
+    TransferConversationOwnerRequest, TransferConversationOwnerResponse, UnpinMessageRequest,
+    UnpinMessageResponse, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest,
+    UpdateReadCursorRequest, UpdateReadCursorResponse,
 };
 use sdkwork_im_rpc_service_rust::{
     ImRpcBoxFuture, ImRpcBoxStream, ImRpcError, ImRpcRuntimeDispatcher, ImRpcStreamRequest,
@@ -45,6 +41,7 @@ use sdkwork_im_rpc_service_rust::{
     admit_app_unary_request, require_app_session_auth,
 };
 use sdkwork_utils_rust::sha256_hash;
+use std::collections::BTreeMap;
 
 use crate::http::{self, AppState};
 use crate::{
@@ -106,8 +103,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                 "conversations.systemChannels.create" => {
                     let payload =
                         CreateSystemChannelRequest::decode(request.request_bytes.as_slice())?;
-                    dispatch_create_system_channel(&state, &auth, &request.metadata, payload)
-                        .await
+                    dispatch_create_system_channel(&state, &auth, &request.metadata, payload).await
                 }
                 "conversations.threads.create" => {
                     let payload = CreateThreadRequest::decode(request.request_bytes.as_slice())?;
@@ -122,7 +118,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                         RetrieveConversationRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_retrieve_conversation(&state, &auth, payload).await
                 }
-                "inbox.retrieve" => {
+                "inbox.list" => {
                     let payload = RetrieveInboxRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_retrieve_inbox(&state, &auth, payload).await
                 }
@@ -142,9 +138,8 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     dispatch_remove_member(&state, &auth, payload).await
                 }
                 "conversations.members.transferOwner" => {
-                    let payload = TransferConversationOwnerRequest::decode(
-                        request.request_bytes.as_slice(),
-                    )?;
+                    let payload =
+                        TransferConversationOwnerRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_transfer_owner(&state, &auth, payload).await
                 }
                 "conversations.members.changeRole" => {
@@ -162,24 +157,36 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload = RetrieveConversationPreferencesRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    dispatch_projection_boundary("conversations.preferences.retrieve", payload).await
+                    super::rpc_projection_dispatch::dispatch_retrieve_conversation_preferences(
+                        &auth, payload,
+                    )
+                    .await
                 }
                 "conversations.preferences.update" => {
                     let payload = UpdateConversationPreferencesRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    dispatch_projection_boundary("conversations.preferences.update", payload).await
+                    super::rpc_projection_dispatch::dispatch_update_conversation_preferences(
+                        &auth, payload,
+                    )
+                    .await
                 }
                 "conversations.profile.retrieve" => {
                     let payload = RetrieveConversationProfileRequest::decode(
                         request.request_bytes.as_slice(),
                     )?;
-                    dispatch_projection_boundary("conversations.profile.retrieve", payload).await
+                    super::rpc_projection_dispatch::dispatch_retrieve_conversation_profile(
+                        &auth, payload,
+                    )
+                    .await
                 }
                 "conversations.profile.update" => {
                     let payload =
                         UpdateConversationProfileRequest::decode(request.request_bytes.as_slice())?;
-                    dispatch_projection_boundary("conversations.profile.update", payload).await
+                    super::rpc_projection_dispatch::dispatch_update_conversation_profile(
+                        &auth, payload,
+                    )
+                    .await
                 }
                 "conversations.readCursor.retrieve" => {
                     let payload =
@@ -208,9 +215,8 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     dispatch_list_messages(&state, &auth, payload).await
                 }
                 "conversations.messages.create" => {
-                    let payload = CreateConversationMessageRequest::decode(
-                        request.request_bytes.as_slice(),
-                    )?;
+                    let payload =
+                        CreateConversationMessageRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_create_message(&state, &auth, &request.metadata, payload).await
                 }
                 "conversations.systemChannel.publish" => {
@@ -242,37 +248,44 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                 "messages.favorites.list" => {
                     let payload =
                         ListFavoriteMessagesRequest::decode(request.request_bytes.as_slice())?;
-                    dispatch_projection_boundary("messages.favorites.list", payload).await
+                    super::rpc_projection_dispatch::dispatch_list_favorite_messages(&auth, payload)
+                        .await
                 }
                 "messages.favorites.create" => {
-                    let _payload = request.request_bytes;
-                    dispatch_projection_boundary_unit("messages.favorites.create").await
+                    let payload =
+                        CreateMessageFavoriteRequest::decode(request.request_bytes.as_slice())?;
+                    super::rpc_projection_dispatch::dispatch_create_message_favorite(&auth, payload)
+                        .await
                 }
                 "messages.favorites.delete" => {
                     let payload =
                         DeleteMessageFavoriteRequest::decode(request.request_bytes.as_slice())?;
-                    dispatch_projection_boundary("messages.favorites.delete", payload).await
+                    super::rpc_projection_dispatch::dispatch_delete_message_favorite(&auth, payload)
+                        .await
                 }
                 "messages.visibility.delete" => {
                     let payload =
                         DeleteMessageVisibilityRequest::decode(request.request_bytes.as_slice())?;
-                    dispatch_projection_boundary("messages.visibility.delete", payload).await
+                    super::rpc_projection_dispatch::dispatch_delete_message_visibility(
+                        &auth, payload,
+                    )
+                    .await
                 }
                 "messages.reactions.create" => {
                     let payload =
                         CreateMessageReactionRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_create_message_reaction(&state, &auth, payload).await
                 }
-                "messages.reactions.delete" => {
+                "messages.reactions.remove" => {
                     let payload =
                         DeleteMessageReactionRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_delete_message_reaction(&state, &auth, payload).await
                 }
-                "messages.pin.create" => {
+                "messages.pin" => {
                     let payload = PinMessageRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_pin_message(&state, &auth, payload).await
                 }
-                "messages.pin.delete" => {
+                "messages.unpin" => {
                     let payload = UnpinMessageRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_unpin_message(&state, &auth, payload).await
                 }
@@ -280,7 +293,7 @@ impl ImRpcRuntimeDispatcher for ConversationRpcDispatcher {
                     let payload = CreateRoomRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_create_room(&state, &auth, &request.metadata, payload).await
                 }
-                "rooms.get" => {
+                "rooms.retrieve" => {
                     let payload = RetrieveRoomRequest::decode(request.request_bytes.as_slice())?;
                     dispatch_retrieve_room(&state, &auth, payload).await
                 }
@@ -330,22 +343,6 @@ fn resolve_auth_placeholder(metadata: &RpcMetadata) -> Result<(), ImRpcError> {
     Ok(())
 }
 
-async fn dispatch_projection_boundary<T: prost::Message>(
-    operation_id: &str,
-    _payload: T,
-) -> Result<ImRpcUnaryResponse, ImRpcError> {
-    dispatch_projection_boundary_unit(operation_id).await
-}
-
-async fn dispatch_projection_boundary_unit(
-    operation_id: &str,
-) -> Result<ImRpcUnaryResponse, ImRpcError> {
-    Err(ImRpcError::unimplemented(format!(
-        "operation `{operation_id}` is owned by the inbox/projection plane and is not served by \
-         conversation-runtime RPC host; use the HTTP OpenAPI projection consumer"
-    )))
-}
-
 async fn dispatch_create_conversation(
     state: &AppState,
     auth: &AppContext,
@@ -354,34 +351,53 @@ async fn dispatch_create_conversation(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = derive_idempotent_resource_id(metadata, "conversation")?;
     let conversation_type = required_field(request.conversation_type, "conversation_type")?;
-    let result = state
-        .rpc_runtime()
-        .create_conversation_from_auth_context(auth, conversation_id.clone(), conversation_type)
-        .map_err(map_runtime_error)?;
-    for user_id in request.member_user_ids {
-        if user_id == auth.actor_id {
-            continue;
+    let member_user_ids = request.member_user_ids;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding) = tokio::task::spawn_blocking(move || -> Result<_, ImRpcError> {
+        let result = blocking_state
+            .rpc_runtime()
+            .create_conversation_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                conversation_type,
+            )
+            .map_err(map_runtime_error)?;
+        for user_id in member_user_ids {
+            if user_id == blocking_auth.actor_id {
+                continue;
+            }
+            http::ensure_active_rpc_principal(
+                &blocking_state,
+                blocking_auth.tenant_id.as_str(),
+                user_id.as_str(),
+                "user",
+            )
+            .map_err(map_api_error)?;
+            let _ = blocking_state.rpc_runtime().add_member_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.clone(),
+                user_id,
+                "user".into(),
+                MembershipRole::Member,
+                BTreeMap::new(),
+            );
         }
-        http::ensure_active_rpc_principal(
-            state,
-            auth.tenant_id.as_str(),
-            user_id.as_str(),
-            "user",
-        )
-        .map_err(map_api_error)?;
-        let _ = state.rpc_runtime().add_member_from_auth_context(
-            auth,
-            result.conversation_id.clone(),
-            user_id,
-            "user".into(),
-            MembershipRole::Member,
-            BTreeMap::new(),
-        );
-    }
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )
+            .map_err(map_runtime_error)?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })??;
     let response = CreateConversationResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -407,14 +423,27 @@ async fn dispatch_create_agent_dialog(
         auth.actor_id.as_str(),
         agent_id.as_str(),
     );
-    let result = state
-        .rpc_runtime()
-        .create_agent_dialog_from_auth_context(auth, conversation_id, agent_id)
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .create_agent_dialog_from_auth_context(&blocking_auth, conversation_id, agent_id)?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = CreateAgentDialogResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -434,25 +463,42 @@ async fn dispatch_create_agent_handoff(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let source_conversation_id =
         required_field(request.source_conversation_id, "source_conversation_id")?;
-    let (target_id, target_kind) =
-        resolve_handoff_target_from_source(state, auth, source_conversation_id.as_str())?;
     let conversation_id = derive_idempotent_resource_id(metadata, "agent-handoff")?;
     let handoff_reason = optional_string(request.reason);
-    let result = state
-        .rpc_runtime()
-        .create_agent_handoff_from_auth_context(
-            auth,
-            conversation_id,
-            target_id,
-            target_kind,
-            source_conversation_id,
-            handoff_reason,
-        )
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding) = tokio::task::spawn_blocking(move || -> Result<_, ImRpcError> {
+        let (target_id, target_kind) = resolve_handoff_target_from_source(
+            &blocking_state,
+            &blocking_auth,
+            source_conversation_id.as_str(),
+        )?;
+        let result = blocking_state
+            .rpc_runtime()
+            .create_agent_handoff_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                target_id,
+                target_kind,
+                source_conversation_id,
+                handoff_reason,
+            )
+            .map_err(map_runtime_error)?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )
+            .map_err(map_runtime_error)?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })??;
     let response = CreateAgentHandoffResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -475,18 +521,28 @@ async fn dispatch_create_system_channel(
     } else {
         derive_idempotent_resource_id(metadata, "system-channel")?
     };
-    let result = state
-        .rpc_runtime()
-        .create_system_channel_from_auth_context(
-            auth,
-            conversation_id,
-            auth.actor_id.clone(),
-        )
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let creator_id = auth.actor_id.clone();
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .create_system_channel_from_auth_context(&blocking_auth, conversation_id, creator_id)?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = CreateSystemChannelResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -508,19 +564,32 @@ async fn dispatch_create_thread(
     let parent_conversation_id =
         required_field(request.parent_conversation_id, "parent_conversation_id")?;
     let root_message_id = required_field(request.root_message_id, "root_message_id")?;
-    let result = state
-        .rpc_runtime()
-        .create_thread_conversation_from_auth_context(
-            auth,
-            conversation_id,
-            parent_conversation_id,
-            root_message_id,
-        )
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .create_thread_conversation_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                parent_conversation_id,
+                root_message_id,
+            )?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = CreateThreadResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -535,17 +604,10 @@ async fn dispatch_create_thread(
 async fn dispatch_bind_direct_chat(
     state: &AppState,
     auth: &AppContext,
-    metadata: &RpcMetadata,
+    _metadata: &RpcMetadata,
     request: BindDirectChatRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let peer_user_id = required_field(request.peer_user_id, "peer_user_id")?;
-    http::ensure_active_rpc_principal(
-        state,
-        auth.tenant_id.as_str(),
-        peer_user_id.as_str(),
-        "user",
-    )
-    .map_err(map_api_error)?;
     let (conversation_id, direct_chat_id) = super::support::resolve_direct_chat_binding_ids(
         auth.tenant_id.as_str(),
         super::organization_id_from_auth_context(auth).as_str(),
@@ -557,22 +619,45 @@ async fn dispatch_bind_direct_chat(
         "",
     )
     .map_err(map_runtime_error)?;
-    let result = state
-        .rpc_runtime()
-        .bind_direct_chat_conversation_from_auth_context(
-            auth,
-            conversation_id,
-            direct_chat_id,
-            auth.actor_id.clone(),
-            auth.actor_kind.clone(),
-            peer_user_id,
-            "user".into(),
+    let left_actor_id = auth.actor_id.clone();
+    let left_actor_kind = auth.actor_kind.clone();
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding) = tokio::task::spawn_blocking(move || -> Result<_, ImRpcError> {
+        http::ensure_active_rpc_principal(
+            &blocking_state,
+            blocking_auth.tenant_id.as_str(),
+            peer_user_id.as_str(),
+            "user",
         )
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+        .map_err(map_api_error)?;
+        let result = blocking_state
+            .rpc_runtime()
+            .bind_direct_chat_conversation_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                direct_chat_id,
+                left_actor_id,
+                left_actor_kind,
+                peer_user_id,
+                "user".into(),
+            )
+            .map_err(map_runtime_error)?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )
+            .map_err(map_runtime_error)?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })??;
     let response = BindDirectChatResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -590,10 +675,24 @@ async fn dispatch_retrieve_conversation(
     request: RetrieveConversationRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_conversation_id = conversation_id.clone();
+    let binding = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                blocking_conversation_id.as_str(),
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = RetrieveConversationResponse {
         conversation: Some(conversation_view_from_binding(
             conversation_id.as_str(),
@@ -611,31 +710,43 @@ async fn dispatch_retrieve_inbox(
     request: RetrieveInboxRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let (limit, cursor) = page_request(request.page);
-    let inbox = state
-        .rpc_runtime()
-        .retrieve_inbox_from_auth_context(auth, limit, cursor.as_deref())
-        .map_err(map_runtime_error)?;
-    let mut conversations = Vec::with_capacity(inbox.conversation_ids.len());
-    for conversation_id in &inbox.conversation_ids {
-        if let Ok(binding) = state
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (conversations, next_cursor, has_more) = tokio::task::spawn_blocking(move || {
+        let inbox = blocking_state
             .rpc_runtime()
-            .conversation_business_binding_from_auth_context(auth, conversation_id.as_str())
-        {
-            conversations.push(conversation_view_from_binding(
-                conversation_id.as_str(),
-                &binding,
-                String::new(),
-            ));
+            .retrieve_inbox_from_auth_context(&blocking_auth, limit, cursor.as_deref())?;
+        let next_cursor = inbox.page_info.next_cursor.clone();
+        let has_more = inbox.page_info.has_more == Some(true);
+        let mut conversations = Vec::with_capacity(inbox.items.len());
+        for conversation_id in &inbox.items {
+            let binding = blocking_state
+                .rpc_runtime()
+                .conversation_business_binding_from_auth_context(
+                    &blocking_auth,
+                    conversation_id.as_str(),
+                )?;
+            conversations.push((conversation_id.clone(), binding));
         }
-    }
+        Ok((conversations, next_cursor, has_more))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    let conversations: Vec<ConversationView> = conversations
+        .iter()
+        .map(|(conversation_id, binding)| {
+            conversation_view_from_binding(conversation_id.as_str(), binding, String::new())
+        })
+        .collect();
     let conversation_count = conversations.len();
     let response = RetrieveInboxResponse {
         conversations,
-        page: Some(page_response(
-            inbox.next_cursor,
-            inbox.has_more,
-            conversation_count,
-        )),
+        page: Some(page_response(next_cursor, has_more, conversation_count)),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
@@ -648,24 +759,30 @@ async fn dispatch_list_members(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let (limit, cursor) = page_request(request.page);
-    let members = state
-        .rpc_runtime()
-        .list_members_window_from_auth_context(
-            auth,
-            conversation_id.as_str(),
-            Some(limit),
-            cursor.as_deref(),
-        )
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let members = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .list_members_window_from_auth_context(
+                &blocking_auth,
+                conversation_id.as_str(),
+                Some(limit),
+                cursor.as_deref(),
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = ListConversationMembersResponse {
-        members: members
-            .items
-            .iter()
-            .map(member_view_from_domain)
-            .collect(),
+        members: members.items.iter().map(member_view_from_domain).collect(),
         page: Some(page_response(
-            members.next_cursor,
-            members.has_more,
+            members.page_info.next_cursor.clone(),
+            members.page_info.has_more == Some(true),
             members.items.len(),
         )),
         metadata: None,
@@ -680,19 +797,36 @@ async fn dispatch_add_member(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let user_id = required_field(request.user_id, "user_id")?;
-    http::ensure_active_rpc_principal(state, auth.tenant_id.as_str(), user_id.as_str(), "user")
-        .map_err(map_api_error)?;
-    let member = state
-        .rpc_runtime()
-        .add_member_from_auth_context(
-            auth,
-            conversation_id,
-            user_id,
-            "user".into(),
-            parse_membership_role(request.role.as_str()),
-            BTreeMap::new(),
+    let role = parse_membership_role(request.role.as_str());
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let member = tokio::task::spawn_blocking(move || -> Result<_, ImRpcError> {
+        http::ensure_active_rpc_principal(
+            &blocking_state,
+            blocking_auth.tenant_id.as_str(),
+            user_id.as_str(),
+            "user",
         )
-        .map_err(map_runtime_error)?;
+        .map_err(map_api_error)?;
+        let member = blocking_state
+            .rpc_runtime()
+            .add_member_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                user_id,
+                "user".into(),
+                role,
+                BTreeMap::new(),
+            )
+            .map_err(map_runtime_error)?;
+        Ok(member)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })??;
     let response = AddConversationMemberResponse {
         member: Some(member_view_from_domain(&member)),
         metadata: None,
@@ -708,10 +842,21 @@ async fn dispatch_remove_member(
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let user_id = required_field(request.user_id, "user_id")?;
     let member_id = member_id(conversation_id.as_str(), "user", user_id.as_str());
-    let _member = state
-        .rpc_runtime()
-        .remove_member_from_auth_context(auth, conversation_id.clone(), member_id)
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_conversation_id = conversation_id.clone();
+    tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .remove_member_from_auth_context(&blocking_auth, blocking_conversation_id, member_id)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = RemoveConversationMemberResponse {
         conversation_id,
         user_id,
@@ -728,23 +873,33 @@ async fn dispatch_transfer_owner(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let new_owner_user_id = required_field(request.new_owner_user_id, "new_owner_user_id")?;
-    let target_member_id = member_id(
-        conversation_id.as_str(),
-        "user",
-        new_owner_user_id.as_str(),
-    );
-    let result = state
-        .rpc_runtime()
-        .transfer_conversation_owner_from_auth_context(
-            auth,
-            conversation_id.clone(),
-            target_member_id,
-        )
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let target_member_id = member_id(conversation_id.as_str(), "user", new_owner_user_id.as_str());
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_conversation_id = conversation_id.clone();
+    let (_result, binding) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .transfer_conversation_owner_from_auth_context(
+                &blocking_auth,
+                blocking_conversation_id,
+                target_member_id,
+            )?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.new_owner.conversation_id.as_str(),
+            )?;
+        Ok((result, binding))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = TransferConversationOwnerResponse {
         conversation: Some(conversation_view_from_binding(
             conversation_id.as_str(),
@@ -753,7 +908,6 @@ async fn dispatch_transfer_owner(
         )),
         metadata: None,
     };
-    let _ = result;
     ImRpcUnaryResponse::from_message(response)
 }
 
@@ -765,15 +919,26 @@ async fn dispatch_change_member_role(
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let user_id = required_field(request.user_id, "user_id")?;
     let target_member_id = member_id(conversation_id.as_str(), "user", user_id.as_str());
-    let result = state
-        .rpc_runtime()
-        .change_conversation_member_role_from_auth_context(
-            auth,
-            conversation_id,
-            target_member_id,
-            parse_membership_role(request.role.as_str()),
-        )
-        .map_err(map_runtime_error)?;
+    let role = parse_membership_role(request.role.as_str());
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .change_conversation_member_role_from_auth_context(
+                &blocking_auth,
+                conversation_id,
+                target_member_id,
+                role,
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = ChangeConversationMemberRoleResponse {
         member: Some(member_view_from_domain(&result.updated_member)),
         metadata: None,
@@ -787,10 +952,21 @@ async fn dispatch_leave_conversation(
     request: LeaveConversationRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
-    let _member = state
-        .rpc_runtime()
-        .leave_conversation_from_auth_context(auth, conversation_id.clone())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_conversation_id = conversation_id.clone();
+    tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .leave_conversation_from_auth_context(&blocking_auth, blocking_conversation_id)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = LeaveConversationResponse {
         conversation_id,
         status: "left".into(),
@@ -805,10 +981,20 @@ async fn dispatch_retrieve_read_cursor(
     request: RetrieveReadCursorRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
-    let cursor = state
-        .rpc_runtime()
-        .read_cursor_view_from_auth_context(auth, conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let cursor = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .read_cursor_view_from_auth_context(&blocking_auth, conversation_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = RetrieveReadCursorResponse {
         cursor: Some(read_cursor_view_from_domain(&cursor)),
         metadata: None,
@@ -824,19 +1010,28 @@ async fn dispatch_update_read_cursor(
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let read_seq = parse_cursor_u64(request.event_cursor.as_str())?;
     let last_read_message_id = optional_string(request.message_id);
-    state
-        .rpc_runtime()
-        .update_read_cursor_from_auth_context(
-            auth,
-            conversation_id.clone(),
-            read_seq,
-            last_read_message_id,
-        )
-        .map_err(map_runtime_error)?;
-    let cursor = state
-        .rpc_runtime()
-        .read_cursor_view_from_auth_context(auth, conversation_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let cursor = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .update_read_cursor_from_auth_context(
+                &blocking_auth,
+                conversation_id.clone(),
+                read_seq,
+                last_read_message_id,
+            )?;
+        blocking_state
+            .rpc_runtime()
+            .read_cursor_view_from_auth_context(&blocking_auth, conversation_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = UpdateReadCursorResponse {
         cursor: Some(read_cursor_view_from_domain(&cursor)),
         metadata: None,
@@ -852,21 +1047,31 @@ async fn dispatch_list_member_directory(
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let query = request.query.to_ascii_lowercase();
     let (limit, cursor) = page_request(request.page);
-    let members = state
-        .rpc_runtime()
-        .list_member_directory_window_from_auth_context(
-            auth,
-            conversation_id.as_str(),
-            Some(limit),
-            cursor.as_deref(),
-            query.as_str(),
-        )
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let members = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .list_member_directory_window_from_auth_context(
+                &blocking_auth,
+                conversation_id.as_str(),
+                Some(limit),
+                cursor.as_deref(),
+                query.as_str(),
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = ListConversationMemberDirectoryResponse {
         members: members.items.iter().map(member_view_from_domain).collect(),
         page: Some(page_response(
-            members.next_cursor,
-            members.has_more,
+            members.page_info.next_cursor.clone(),
+            members.page_info.has_more == Some(true),
             members.items.len(),
         )),
         metadata: None,
@@ -881,21 +1086,31 @@ async fn dispatch_list_pinned_messages(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let (limit, cursor) = page_request(request.page);
-    let pinned = state
-        .rpc_runtime()
-        .list_pinned_message_ids_from_auth_context(
-            auth,
-            conversation_id.as_str(),
-            limit,
-            cursor.as_deref(),
-        )
-        .map_err(map_runtime_error)?;
-    let message_count = pinned.message_ids.len();
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let pinned = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .list_pinned_message_ids_from_auth_context(
+                &blocking_auth,
+                conversation_id.as_str(),
+                limit,
+                cursor.as_deref(),
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
+    let message_count = pinned.items.len();
     let response = ListPinnedMessagesResponse {
-        message_ids: pinned.message_ids,
+        message_ids: pinned.items,
         page: Some(page_response(
-            pinned.next_cursor,
-            pinned.has_more,
+            pinned.page_info.next_cursor.clone(),
+            pinned.page_info.has_more == Some(true),
             message_count,
         )),
         metadata: None,
@@ -910,32 +1125,38 @@ async fn dispatch_list_messages(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let page = request.page;
-    let (limit, cursor) = page_request(page.clone());
-    let after_seq = cursor
-        .as_deref()
-        .map(parse_cursor_u64)
-        .transpose()?;
-    let history = state
-        .rpc_runtime()
-        .list_messages_window_from_auth_context(
-            auth,
-            conversation_id.as_str(),
-            after_seq,
-            limit,
-        )
-        .map_err(map_runtime_error)?;
+    let (limit, cursor) = page_request(page);
+    let after_seq = cursor.as_deref().map(parse_cursor_u64).transpose()?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let history = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .list_messages_window_from_auth_context(
+                &blocking_auth,
+                conversation_id.as_str(),
+                after_seq,
+                limit,
+            )
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = ListConversationMessagesResponse {
         messages: history
+            .page
             .items
             .iter()
             .map(message_view_from_stored)
             .collect(),
         page: Some(page_response(
-            history
-                .next_after_seq
-                .map(|seq: u64| seq.to_string()),
-            history.has_more,
-            history.items.len(),
+            history.page.page_info.next_cursor.clone(),
+            history.page.page_info.has_more == Some(true),
+            history.page.items.len(),
         )),
         metadata: None,
     };
@@ -949,32 +1170,40 @@ async fn dispatch_create_message(
     request: CreateConversationMessageRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
-    let reply_to = optional_string(request.reply_to_message_id).map(|message_id| {
-        MessageReplyReference {
+    let reply_to =
+        optional_string(request.reply_to_message_id).map(|message_id| MessageReplyReference {
             message_id,
             sender_display_name: String::new(),
             content_preview: String::new(),
-        }
-    });
+        });
     let body = proto_parts_to_message_body(request.body_parts, reply_to).map_err(map_api_error)?;
     let client_msg_id = metadata
         .idempotency_key
         .clone()
         .filter(|value| !value.trim().is_empty());
-    let result = state
-        .rpc_runtime()
-        .post_message(PostMessageCommand::from_auth_context(
-            auth,
-            conversation_id.clone(),
-            client_msg_id,
-            MessageType::Standard,
-            body,
+    let command = PostMessageCommand::from_auth_context(
+        auth,
+        conversation_id,
+        client_msg_id,
+        MessageType::Standard,
+        body,
+    );
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (_result, stored) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state.rpc_runtime().post_message(command)?;
+        let stored = blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, result.message_id.as_str())?;
+        Ok((result, stored))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
         ))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, result.message_id.as_str())
-        .map_err(map_runtime_error)?;
+    })?
+    .map_err(map_runtime_error)?;
     let response = CreateConversationMessageResponse {
         message: Some(message_view_from_stored(&stored)),
         metadata: None,
@@ -994,19 +1223,30 @@ async fn dispatch_publish_system_channel_message(
         .idempotency_key
         .clone()
         .filter(|value| !value.trim().is_empty());
-    let result = state
-        .rpc_runtime()
-        .publish_system_channel_message(PublishSystemChannelMessageCommand::from_auth_context(
-            auth,
-            conversation_id,
-            client_msg_id,
-            body,
+    let command = PublishSystemChannelMessageCommand::from_auth_context(
+        auth,
+        conversation_id,
+        client_msg_id,
+        body,
+    );
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (_result, stored) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state
+            .rpc_runtime()
+            .publish_system_channel_message(command)?;
+        let stored = blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, result.message_id.as_str())?;
+        Ok((result, stored))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
         ))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, result.message_id.as_str())
-        .map_err(map_runtime_error)?;
+    })?
+    .map_err(map_runtime_error)?;
     let response = PublishSystemChannelMessageResponse {
         message: Some(message_view_from_stored(&stored)),
         metadata: None,
@@ -1020,12 +1260,26 @@ async fn dispatch_retrieve_message_interaction_summary(
     request: RetrieveMessageInteractionSummaryRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_message_id = message_id.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, blocking_message_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = RetrieveMessageInteractionSummaryResponse {
-        summary: Some(interaction_summary_from_stored(message_id.as_str(), &stored)),
+        summary: Some(interaction_summary_from_stored(
+            message_id.as_str(),
+            &stored,
+        )),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
@@ -1038,18 +1292,23 @@ async fn dispatch_edit_message(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
     let body = proto_parts_to_message_body(request.body_parts, None).map_err(map_api_error)?;
-    let result = state
-        .rpc_runtime()
-        .edit_message(EditMessageCommand::from_auth_context(
-            auth,
-            message_id.clone(),
-            body,
+    let command = EditMessageCommand::from_auth_context(auth, message_id.clone(), body);
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, stored) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state.rpc_runtime().edit_message(command)?;
+        let stored = blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, message_id.as_str())?;
+        Ok((result, stored))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
         ))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    })?
+    .map_err(map_runtime_error)?;
     let response = EditMessageResponse {
         result: Some(message_mutation_response_from_stored(
             &stored,
@@ -1065,17 +1324,23 @@ async fn dispatch_recall_message(
     request: RecallMessageRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
-    let result = state
-        .rpc_runtime()
-        .recall_message(RecallMessageCommand::from_auth_context(
-            auth,
-            message_id.clone(),
+    let command = RecallMessageCommand::from_auth_context(auth, message_id.clone());
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, stored) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state.rpc_runtime().recall_message(command)?;
+        let stored = blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, message_id.as_str())?;
+        Ok((result, stored))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
         ))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    })?
+    .map_err(map_runtime_error)?;
     let response = RecallMessageResponse {
         result: Some(message_mutation_response_from_stored(
             &stored,
@@ -1092,20 +1357,29 @@ async fn dispatch_create_message_reaction(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
     let reaction_key = required_field(request.reaction, "reaction")?;
-    let _mutation = state
-        .rpc_runtime()
-        .add_message_reaction(AddMessageReactionCommand::from_auth_context(
-            auth,
-            message_id.clone(),
-            reaction_key,
+    let command =
+        AddMessageReactionCommand::from_auth_context(auth, message_id.clone(), reaction_key);
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_message_id = message_id.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        blocking_state.rpc_runtime().add_message_reaction(command)?;
+        blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, blocking_message_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
         ))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    })?
+    .map_err(map_runtime_error)?;
     let response = CreateMessageReactionResponse {
-        summary: Some(interaction_summary_from_stored(message_id.as_str(), &stored)),
+        summary: Some(interaction_summary_from_stored(
+            message_id.as_str(),
+            &stored,
+        )),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
@@ -1118,20 +1392,31 @@ async fn dispatch_delete_message_reaction(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
     let reaction_key = required_field(request.reaction, "reaction")?;
-    let _mutation = state
-        .rpc_runtime()
-        .remove_message_reaction(RemoveMessageReactionCommand::from_auth_context(
-            auth,
-            message_id.clone(),
-            reaction_key,
+    let command =
+        RemoveMessageReactionCommand::from_auth_context(auth, message_id.clone(), reaction_key);
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_message_id = message_id.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .remove_message_reaction(command)?;
+        blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, blocking_message_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
         ))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    })?
+    .map_err(map_runtime_error)?;
     let response = DeleteMessageReactionResponse {
-        summary: Some(interaction_summary_from_stored(message_id.as_str(), &stored)),
+        summary: Some(interaction_summary_from_stored(
+            message_id.as_str(),
+            &stored,
+        )),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
@@ -1143,16 +1428,28 @@ async fn dispatch_pin_message(
     request: PinMessageRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
-    let _mutation = state
-        .rpc_runtime()
-        .pin_message(PinMessageCommand::from_auth_context(auth, message_id.clone()))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    let command = PinMessageCommand::from_auth_context(auth, message_id.clone());
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_message_id = message_id.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        blocking_state.rpc_runtime().pin_message(command)?;
+        blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, blocking_message_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = PinMessageResponse {
-        summary: Some(interaction_summary_from_stored(message_id.as_str(), &stored)),
+        summary: Some(interaction_summary_from_stored(
+            message_id.as_str(),
+            &stored,
+        )),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
@@ -1164,16 +1461,28 @@ async fn dispatch_unpin_message(
     request: UnpinMessageRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let message_id = required_field(request.message_id, "message_id")?;
-    let _mutation = state
-        .rpc_runtime()
-        .unpin_message(UnpinMessageCommand::from_auth_context(auth, message_id.clone()))
-        .map_err(map_runtime_error)?;
-    let stored = state
-        .rpc_runtime()
-        .stored_message_from_auth_context(auth, message_id.as_str())
-        .map_err(map_runtime_error)?;
+    let command = UnpinMessageCommand::from_auth_context(auth, message_id.clone());
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let blocking_message_id = message_id.clone();
+    let stored = tokio::task::spawn_blocking(move || {
+        blocking_state.rpc_runtime().unpin_message(command)?;
+        blocking_state
+            .rpc_runtime()
+            .stored_message_from_auth_context(&blocking_auth, blocking_message_id.as_str())
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = UnpinMessageResponse {
-        summary: Some(interaction_summary_from_stored(message_id.as_str(), &stored)),
+        summary: Some(interaction_summary_from_stored(
+            message_id.as_str(),
+            &stored,
+        )),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
@@ -1196,18 +1505,33 @@ async fn dispatch_create_room(
         request.room_id
     };
     let room_kind = required_field(request.room_kind, "room_kind")?;
-    let result = state
-        .rpc_runtime()
-        .create_room_from_auth_context(auth, conversation_id, room_id.clone(), room_kind)
-        .map_err(map_runtime_error)?;
-    let binding = state
-        .rpc_runtime()
-        .conversation_business_binding_from_auth_context(auth, result.conversation_id.as_str())
-        .map_err(map_runtime_error)?;
-    let room = state
-        .rpc_runtime()
-        .room_view_from_auth_context(auth, room_id)
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let (result, binding, room) = tokio::task::spawn_blocking(move || {
+        let result = blocking_state.rpc_runtime().create_room_from_auth_context(
+            &blocking_auth,
+            conversation_id,
+            room_id.clone(),
+            room_kind,
+        )?;
+        let binding = blocking_state
+            .rpc_runtime()
+            .conversation_business_binding_from_auth_context(
+                &blocking_auth,
+                result.conversation_id.as_str(),
+            )?;
+        let room = blocking_state
+            .rpc_runtime()
+            .room_view_from_auth_context(&blocking_auth, room_id)?;
+        Ok((result, binding, room))
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = CreateRoomResponse {
         conversation: Some(conversation_view_from_binding(
             result.conversation_id.as_str(),
@@ -1226,10 +1550,20 @@ async fn dispatch_retrieve_room(
     request: RetrieveRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let room_id = required_field(request.room_id, "room_id")?;
-    let room = state
-        .rpc_runtime()
-        .room_view_from_auth_context(auth, room_id)
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let room = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .room_view_from_auth_context(&blocking_auth, room_id)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = RetrieveRoomResponse {
         room: Some(room_view_to_proto(&room)),
         metadata: None,
@@ -1243,10 +1577,20 @@ async fn dispatch_enter_room(
     request: EnterRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let room_id = required_field(request.room_id, "room_id")?;
-    let member = state
-        .rpc_runtime()
-        .enter_room_from_auth_context(auth, room_id)
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let member = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .enter_room_from_auth_context(&blocking_auth, room_id)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = EnterRoomResponse {
         member: Some(member_view_from_domain(&member)),
         metadata: None,
@@ -1260,10 +1604,20 @@ async fn dispatch_leave_room(
     request: LeaveRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let room_id = required_field(request.room_id, "room_id")?;
-    let member = state
-        .rpc_runtime()
-        .leave_room_from_auth_context(auth, room_id)
-        .map_err(map_runtime_error)?;
+    let blocking_state = state.clone();
+    let blocking_auth = auth.clone();
+    let member = tokio::task::spawn_blocking(move || {
+        blocking_state
+            .rpc_runtime()
+            .leave_room_from_auth_context(&blocking_auth, room_id)
+    })
+    .await
+    .map_err(|join_error| {
+        ImRpcError::internal(format!(
+            "conversation rpc blocking task failed: {join_error}"
+        ))
+    })?
+    .map_err(map_runtime_error)?;
     let response = LeaveRoomResponse {
         member: Some(member_view_from_domain(&member)),
         status: membership_state_label(&member.state).into(),
@@ -1300,7 +1654,10 @@ fn resolve_handoff_target_from_source(
         })
 }
 
-fn derive_idempotent_resource_id(metadata: &RpcMetadata, namespace: &str) -> Result<String, ImRpcError> {
+fn derive_idempotent_resource_id(
+    metadata: &RpcMetadata,
+    namespace: &str,
+) -> Result<String, ImRpcError> {
     let key = metadata
         .idempotency_key
         .as_deref()
@@ -1435,7 +1792,10 @@ fn content_part_to_proto(part: &ContentPart) -> MessageBodyPart {
         ContentPart::Media(media_part) => MessageBodyPart {
             kind: "media".into(),
             text: String::new(),
-            media: Some(domain_media_resource_to_proto(&media_part.resource, &media_part.drive)),
+            media: Some(domain_media_resource_to_proto(
+                &media_part.resource,
+                &media_part.drive,
+            )),
             payload_json: String::new(),
         },
         ContentPart::Signal(signal_part) => MessageBodyPart {
@@ -1485,12 +1845,14 @@ fn domain_media_resource_to_proto(
             .as_ref()
             .and_then(|access| access.expires_at.clone())
             .unwrap_or_default(),
-        drive: Some(sdkwork_im_rpc_sdk_rust::sdkwork::common::v1::DriveReference {
-            space_id: drive.space_id.clone(),
-            node_id: drive.node_id.clone(),
-            drive_uri: drive.drive_uri.clone(),
-            upload_session_id: String::new(),
-        }),
+        drive: Some(
+            sdkwork_im_rpc_sdk_rust::sdkwork::common::v1::DriveReference {
+                space_id: drive.space_id.clone(),
+                node_id: drive.node_id.clone(),
+                drive_uri: drive.drive_uri.clone(),
+                upload_session_id: String::new(),
+            },
+        ),
         metadata: std::collections::HashMap::new(),
     }
 }
@@ -1569,7 +1931,7 @@ fn proto_parts_to_message_body(
     http::build_rpc_message_body(content_parts, reply_to)
 }
 
-fn page_request(page: Option<PageRequest>) -> (usize, Option<String>) {
+pub(crate) fn page_request(page: Option<PageRequest>) -> (usize, Option<String>) {
     let limit = page
         .as_ref()
         .map(|value| value.page_size.max(0) as usize)
@@ -1582,15 +1944,16 @@ fn page_request(page: Option<PageRequest>) -> (usize, Option<String>) {
     (limit, cursor)
 }
 
-fn page_response(
+pub(crate) fn page_response(
     next_cursor: Option<String>,
     has_more: bool,
-    item_count: usize,
+    _item_count: usize,
 ) -> PageResponse {
     PageResponse {
         next_cursor: next_cursor.unwrap_or_default(),
         has_more,
-        total_count: item_count as i64,
+        // Cursor pagination does not compute total list size; 0 means unknown/not provided.
+        total_count: 0,
     }
 }
 
@@ -1655,8 +2018,9 @@ fn optional_string(value: String) -> Option<String> {
     }
 }
 
-fn required_field(value: String, field: &str) -> Result<String, ImRpcError> {
-    optional_string(value).ok_or_else(|| ImRpcError::invalid_argument(format!("{field} is required")))
+pub(crate) fn required_field(value: String, field: &str) -> Result<String, ImRpcError> {
+    optional_string(value)
+        .ok_or_else(|| ImRpcError::invalid_argument(format!("{field} is required")))
 }
 
 fn parse_cursor_u64(cursor: &str) -> Result<u64, ImRpcError> {
@@ -1664,9 +2028,9 @@ fn parse_cursor_u64(cursor: &str) -> Result<u64, ImRpcError> {
     if trimmed.is_empty() {
         return Ok(0);
     }
-    trimmed
-        .parse::<u64>()
-        .map_err(|error| ImRpcError::invalid_argument(format!("invalid cursor `{cursor}`: {error}")))
+    trimmed.parse::<u64>().map_err(|error| {
+        ImRpcError::invalid_argument(format!("invalid cursor `{cursor}`: {error}"))
+    })
 }
 
 fn parse_membership_role(role: &str) -> MembershipRole {
@@ -1701,7 +2065,7 @@ fn map_runtime_error(error: RuntimeError) -> ImRpcError {
     map_api_error(error.into())
 }
 
-fn map_api_error(error: http::ApiError) -> ImRpcError {
+pub(crate) fn map_api_error(error: http::ApiError) -> ImRpcError {
     http::map_api_error_to_im_rpc(error)
 }
 
@@ -1712,23 +2076,26 @@ mod tests {
     #[test]
     fn conversation_rpc_service_keys_cover_write_message_and_room_surfaces() {
         assert_eq!(CONVERSATION_RPC_SERVICE_KEYS.len(), 3);
-        assert!(CONVERSATION_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("ConversationService")));
-        assert!(CONVERSATION_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("MessageService")));
-        assert!(CONVERSATION_RPC_SERVICE_KEYS
-            .iter()
-            .any(|key| key.ends_with("RoomService")));
+        assert!(
+            CONVERSATION_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("ConversationService"))
+        );
+        assert!(
+            CONVERSATION_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("MessageService"))
+        );
+        assert!(
+            CONVERSATION_RPC_SERVICE_KEYS
+                .iter()
+                .any(|key| key.ends_with("RoomService"))
+        );
     }
 
     #[test]
     fn canonical_direct_chat_id_orders_participants() {
-        assert_eq!(
-            canonical_direct_chat_id("1068", "1067"),
-            "1067:1068"
-        );
+        assert_eq!(canonical_direct_chat_id("1068", "1067"), "1067:1068");
     }
 
     #[test]
@@ -1740,20 +2107,22 @@ mod tests {
 
     #[test]
     fn rpc_metadata_from_app_context_includes_dual_token_headers() {
-        let context = im_app_context::local_service_app_context(
-            "100001",
-            "1",
-            "user",
-            Some("d_test"),
-            ["*"],
+        let context =
+            im_app_context::local_service_app_context("100001", "1", "user", Some("d_test"), ["*"]);
+        let metadata =
+            rpc_metadata_from_app_context(&context, Some("idem-1".into()), Some("req-1".into()));
+        assert!(
+            metadata
+                .authorization
+                .as_deref()
+                .is_some_and(|v| v.starts_with("Bearer "))
         );
-        let metadata = rpc_metadata_from_app_context(
-            &context,
-            Some("idem-1".into()),
-            Some("req-1".into()),
+        assert!(
+            metadata
+                .access_token
+                .as_deref()
+                .is_some_and(|v| !v.is_empty())
         );
-        assert!(metadata.authorization.as_deref().is_some_and(|v| v.starts_with("Bearer ")));
-        assert!(metadata.access_token.as_deref().is_some_and(|v| !v.is_empty()));
         assert_eq!(metadata.idempotency_key.as_deref(), Some("idem-1"));
         assert_eq!(metadata.request_id.as_deref(), Some("req-1"));
     }

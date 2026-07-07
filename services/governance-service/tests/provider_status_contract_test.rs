@@ -72,18 +72,24 @@ async fn request_status(
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("provider control-plane body should be valid json");
     let status = if status_code.is_success() {
-        json["data"]["status"].as_str().map(str::to_owned)
+        json["data"]["item"]["status"]
+            .as_str()
+            .or_else(|| json["data"]["status"].as_str())
+            .map(str::to_owned)
     } else {
         None
     };
-    let error_status = json["code"].as_i64().map(|code| match code {
-        40001 => "invalid",
-        40901 => "conflict",
-        50301 => "unavailable",
-        40301 => "forbidden",
-        40101 => "unauthorized",
-        _ => "unknown",
-    }.to_owned());
+    let error_status = json["code"].as_i64().map(|code| {
+        match code {
+            40001 => "invalid",
+            40901 => "conflict",
+            50301 => "unavailable",
+            40301 => "forbidden",
+            40101 => "unauthorized",
+            _ => "unknown",
+        }
+        .to_owned()
+    });
 
     (status_code, status, error_status)
 }
@@ -185,7 +191,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 user_id: Some("1080"),
                 permission: Some("control.write"),
                 body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
-                expected_http: StatusCode::OK,
+                expected_http: StatusCode::CREATED,
                 expected_business_status: "applied",
             },
         )
@@ -203,7 +209,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 body: Some(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine","expectedBaseVersion":2}"#,
                 ),
-                expected_http: StatusCode::OK,
+                expected_http: StatusCode::CREATED,
                 expected_business_status: "noop",
             },
         )

@@ -7,24 +7,14 @@ use crate::paths;
 pub const API_SURFACE: &str = "backend-api";
 
 pub const ROUTES: &[HttpRoute] = &[
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::HEALTH,
-        "ops",
-        "ops.health.retrieve",
-    ),
+    HttpRoute::dual_token(HttpMethod::Get, paths::HEALTH, "ops", "ops.health.retrieve"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::CLUSTER,
         "ops",
         "ops.cluster.retrieve",
     ),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::LAG,
-        "ops",
-        "ops.lag.retrieve",
-    ),
+    HttpRoute::dual_token(HttpMethod::Get, paths::LAG, "ops", "ops.lag.retrieve"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::REPLAY_STATUS,

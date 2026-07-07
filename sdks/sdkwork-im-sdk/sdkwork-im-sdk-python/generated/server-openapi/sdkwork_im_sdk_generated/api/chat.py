@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsResponse, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, DeleteMessageFavoriteResponse, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, FavoriteMessagesResponse, InboxResponse, ListMembersResponse, MemberDirectoryResponse, MessageFavoriteView, MessageInteractionSummaryView, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, MessageVisibilityMutationResult, PinnedMessagesResponse, PostedMessageResponse, PostMessageRequest, ReadCursorView, RemoveConversationMemberRequest, RoomView, TimelineResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
+from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsMessagesListResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateConversationRequest, CreateRoomRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -203,10 +203,10 @@ class ChatContactsApi:
         self._client = client
 
 
-    def list(self, limit: Optional[int] = None, cursor: Optional[str] = None) -> ContactsResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> ContactsListResponse:
         """List IM contacts"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/contacts", query))
@@ -218,10 +218,10 @@ class ChatInboxApi:
         self._client = client
 
 
-    def retrieve(self, limit: Optional[int] = None, cursor: Optional[str] = None) -> InboxResponse:
-        """Retrieve current inbox window"""
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None) -> InboxListResponse:
+        """List current inbox window"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/inbox", query))
@@ -245,11 +245,11 @@ class ChatConversationsApi:
         self.pins = ChatConversationsPinsApi(client)
 
 
-    def create(self, body: CreateConversationRequest) -> CreateConversationResult:
+    def create(self, body: CreateConversationRequest) -> ConversationsCreateResponse201:
         """Create a conversation"""
         return self._client.post(f"/im/v3/api/chat/conversations", json=body)
 
-    def retrieve(self, conversation_id: str) -> ConversationSummaryView:
+    def retrieve(self, conversation_id: str) -> ConversationsRetrieveResponse:
         """Retrieve conversation summary"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}")
 
@@ -260,7 +260,7 @@ class ChatConversationsAgentDialogsApi:
         self._client = client
 
 
-    def create(self, body: CreateAgentDialogRequest) -> CreateConversationResult:
+    def create(self, body: CreateAgentDialogRequest) -> ConversationsAgentDialogsCreateResponse201:
         """Create an agent dialog"""
         return self._client.post(f"/im/v3/api/chat/conversations/agent_dialogs", json=body)
 
@@ -271,23 +271,23 @@ class ChatConversationsAgentHandoffsApi:
         self._client = client
 
 
-    def create(self, body: CreateAgentDialogRequest) -> AckResponse:
+    def create(self, body: CreateAgentDialogRequest) -> ConversationsAgentHandoffsCreateResponse201:
         """Create an agent handoff"""
         return self._client.post(f"/im/v3/api/chat/conversations/agent_handoffs", json=body)
 
-    def retrieve(self, conversation_id: str) -> AckResponse:
+    def retrieve(self, conversation_id: str) -> ConversationsAgentHandoffRetrieveResponse:
         """Retrieve agent handoff state"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/agent_handoff")
 
-    def accept(self, conversation_id: str) -> AckResponse:
+    def accept(self, conversation_id: str) -> ConversationsAgentHandoffAcceptResponse:
         """Accept agent handoff"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/agent_handoff/accept")
 
-    def resolve(self, conversation_id: str) -> AckResponse:
+    def resolve(self, conversation_id: str) -> ConversationsAgentHandoffResolveResponse:
         """Resolve agent handoff"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/agent_handoff/resolve")
 
-    def close(self, conversation_id: str) -> AckResponse:
+    def close(self, conversation_id: str) -> ConversationsAgentHandoffCloseResponse:
         """Close agent handoff"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/agent_handoff/close")
 
@@ -298,11 +298,11 @@ class ChatConversationsSystemChannelsApi:
         self._client = client
 
 
-    def create(self, body: CreateConversationRequest) -> CreateConversationResult:
+    def create(self, body: CreateConversationRequest) -> ConversationsSystemChannelsCreateResponse201:
         """Create a system channel"""
         return self._client.post(f"/im/v3/api/chat/conversations/system_channels", json=body)
 
-    def publish(self, conversation_id: str, body: PostMessageRequest) -> PostedMessageResponse:
+    def publish(self, conversation_id: str, body: PostMessageRequest) -> ConversationsSystemChannelPublishResponse:
         """Publish a system channel message"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/system_channel/publish", json=body)
 
@@ -313,7 +313,7 @@ class ChatConversationsThreadsApi:
         self._client = client
 
 
-    def create(self, body: CreateConversationRequest) -> CreateConversationResult:
+    def create(self, body: CreateConversationRequest) -> ConversationsThreadsCreateResponse201:
         """Create a thread conversation"""
         return self._client.post(f"/im/v3/api/chat/conversations/threads", json=body)
 
@@ -322,10 +322,18 @@ class ChatConversationsDirectChatsApi:
 
     def __init__(self, client: HttpClient):
         self._client = client
+        self.bindings = ChatConversationsDirectChatsBindingsApi(client)
 
 
-    def bind(self, body: BindDirectChatRequest) -> CreateConversationResult:
-        """Bind a direct chat conversation"""
+class ChatConversationsDirectChatsBindingsApi:
+    """chat chat.conversations.direct_chats.bindings API client."""
+
+    def __init__(self, client: HttpClient):
+        self._client = client
+
+
+    def create(self, body: BindDirectChatRequest) -> ConversationsDirectChatsBindingsCreateResponse201:
+        """Create a direct chat conversation binding"""
         return self._client.post(f"/im/v3/api/chat/conversations/direct_chats/bindings", json=body)
 
 class ChatConversationsMembersApi:
@@ -335,33 +343,37 @@ class ChatConversationsMembersApi:
         self._client = client
 
 
-    def list(self, conversation_id: str, limit: Optional[int] = None, cursor: Optional[str] = None) -> ListMembersResponse:
+    def list(self, conversation_id: str, page_size: Optional[int] = None, cursor: Optional[str] = None) -> ConversationsMembersListResponse:
         """List conversation members"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members", query))
 
-    def add(self, conversation_id: str, body: AddConversationMemberRequest) -> ConversationMember:
+    def add(self, conversation_id: str, body: AddConversationMemberRequest) -> ConversationsMembersAddResponse:
         """Add a conversation member"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/add", json=body)
 
-    def remove(self, conversation_id: str, body: RemoveConversationMemberRequest) -> AckResponse:
+    def remove(self, conversation_id: str, body: RemoveConversationMemberRequest) -> ConversationsMembersRemoveResponse:
         """Remove a conversation member"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/remove", json=body)
 
-    def transfer_owner(self, conversation_id: str, body: TransferConversationOwnerRequest) -> ConversationMember:
+    def transfer_owner(self, conversation_id: str, body: TransferConversationOwnerRequest) -> ConversationsMembersTransferOwnerResponse:
         """Transfer conversation owner"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/transfer_owner", json=body)
 
-    def change_role(self, conversation_id: str, body: ChangeConversationMemberRoleRequest) -> ConversationMember:
+    def change_role(self, conversation_id: str, body: ChangeConversationMemberRoleRequest) -> ConversationsMembersChangeRoleResponse:
         """Change conversation member role"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/change_role", json=body)
 
-    def leave(self, conversation_id: str) -> AckResponse:
+    def leave(self, conversation_id: str) -> ConversationsMembersLeaveResponse:
         """Leave a conversation"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/leave")
+
+    def accept_invitation(self, conversation_id: str) -> ConversationsMembersAcceptInvitationResponse:
+        """Accept a conversation invitation"""
+        return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/members/accept_invitation")
 
 class ChatConversationsPreferencesApi:
     """chat chat.conversations.preferences API client."""
@@ -370,11 +382,11 @@ class ChatConversationsPreferencesApi:
         self._client = client
 
 
-    def retrieve(self, conversation_id: str) -> ConversationPreferencesView:
+    def retrieve(self, conversation_id: str) -> ConversationsPreferencesRetrieveResponse:
         """Retrieve conversation preferences"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/preferences")
 
-    def update(self, conversation_id: str, body: UpdateConversationPreferencesRequest) -> ConversationPreferencesView:
+    def update(self, conversation_id: str, body: UpdateConversationPreferencesRequest) -> ConversationsPreferencesUpdateResponse:
         """Update conversation preferences"""
         return self._client.patch(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/preferences", json=body)
 
@@ -385,11 +397,11 @@ class ChatConversationsProfileApi:
         self._client = client
 
 
-    def retrieve(self, conversation_id: str) -> ConversationProfileView:
+    def retrieve(self, conversation_id: str) -> ConversationsProfileRetrieveResponse:
         """Retrieve conversation profile"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/profile")
 
-    def update(self, conversation_id: str, body: UpdateConversationProfileRequest) -> ConversationProfileView:
+    def update(self, conversation_id: str, body: UpdateConversationProfileRequest) -> ConversationsProfileUpdateResponse:
         """Update conversation profile"""
         return self._client.patch(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/profile", json=body)
 
@@ -400,13 +412,13 @@ class ChatConversationsReadCursorApi:
         self._client = client
 
 
-    def retrieve(self, conversation_id: str) -> ReadCursorView:
+    def retrieve(self, conversation_id: str) -> ConversationsReadCursorRetrieveResponse:
         """Retrieve read cursor"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/read_cursor")
 
-    def update(self, conversation_id: str, body: UpdateReadCursorRequest) -> ReadCursorView:
+    def update(self, conversation_id: str, body: UpdateReadCursorRequest) -> ConversationsReadCursorUpdateResponse:
         """Update read cursor"""
-        return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/read_cursor", json=body)
+        return self._client.patch(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/read_cursor", json=body)
 
 class ChatConversationsMemberDirectoryApi:
     """chat chat.conversations.member_directory API client."""
@@ -415,7 +427,7 @@ class ChatConversationsMemberDirectoryApi:
         self._client = client
 
 
-    def list(self, conversation_id: str) -> MemberDirectoryResponse:
+    def list(self, conversation_id: str) -> ConversationsMemberDirectoryListResponse:
         """List member directory"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/member_directory")
 
@@ -427,15 +439,15 @@ class ChatConversationsMessagesApi:
         self.interaction_summary = ChatConversationsMessagesInteractionSummaryApi(client)
 
 
-    def list(self, conversation_id: str, after_seq: Optional[int] = None, limit: Optional[int] = None) -> TimelineResponse:
+    def list(self, conversation_id: str, after_seq: Optional[int] = None, page_size: Optional[int] = None) -> ConversationsMessagesListResponse:
         """List conversation message timeline"""
         query = build_query_string([
             {'name': 'afterSeq', 'value': after_seq, 'style': 'form', 'explode': True, 'allow_reserved': False},
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/messages", query))
 
-    def create(self, conversation_id: str, body: PostMessageRequest) -> PostedMessageResponse:
+    def create(self, conversation_id: str, body: PostMessageRequest) -> ConversationsMessagesCreateResponse201:
         """Post a conversation message"""
         return self._client.post(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/messages", json=body)
 
@@ -446,7 +458,7 @@ class ChatConversationsMessagesInteractionSummaryApi:
         self._client = client
 
 
-    def retrieve(self, conversation_id: str, message_id: str) -> MessageInteractionSummaryView:
+    def retrieve(self, conversation_id: str, message_id: str) -> ConversationsMessagesInteractionSummaryRetrieveResponse:
         """Retrieve message interaction summary"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/interaction_summary")
 
@@ -457,7 +469,7 @@ class ChatConversationsPinsApi:
         self._client = client
 
 
-    def list(self, conversation_id: str) -> PinnedMessagesResponse:
+    def list(self, conversation_id: str) -> ConversationsPinsListResponse:
         """List pinned messages"""
         return self._client.get(f"/im/v3/api/chat/conversations/{serialize_path_parameter(conversation_id, {'name': 'conversationId', 'style': 'simple', 'explode': False})}/pins")
 
@@ -469,16 +481,23 @@ class ChatMessagesApi:
         self.favorites = ChatMessagesFavoritesApi(client)
         self.visibility = ChatMessagesVisibilityApi(client)
         self.reactions = ChatMessagesReactionsApi(client)
-        self.pin = ChatMessagesPinApi(client)
 
 
-    def edit(self, message_id: str, body: EditMessageRequest) -> PostedMessageResponse:
+    def edit(self, message_id: str, body: EditMessageRequest) -> MessagesEditResponse:
         """Edit a message"""
         return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/edit", json=body)
 
-    def recall(self, message_id: str) -> PostedMessageResponse:
+    def recall(self, message_id: str) -> MessagesRecallResponse:
         """Recall a message"""
         return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/recall")
+
+    def pin(self, message_id: str) -> MessagesPinResponse:
+        """Pin a message"""
+        return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/pin")
+
+    def unpin(self, message_id: str) -> MessagesUnpinResponse:
+        """Unpin a message"""
+        return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/unpin")
 
 class ChatMessagesFavoritesApi:
     """chat chat.messages.favorites API client."""
@@ -487,21 +506,21 @@ class ChatMessagesFavoritesApi:
         self._client = client
 
 
-    def list(self, limit: Optional[int] = None, cursor: Optional[str] = None, favorite_type: Optional[str] = None, q: Optional[str] = None) -> FavoriteMessagesResponse:
+    def list(self, page_size: Optional[int] = None, cursor: Optional[str] = None, favorite_type: Optional[str] = None, q: Optional[str] = None) -> MessagesFavoritesListResponse:
         """List message favorites"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'favoriteType', 'value': favorite_type, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'q', 'value': q, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/chat/messages/favorites", query))
 
-    def create(self, message_id: str, body: FavoriteMessageRequest) -> MessageFavoriteView:
+    def create(self, message_id: str, body: FavoriteMessageRequest) -> MessagesFavoritesCreateResponse201:
         """Favorite a message"""
         return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/favorites", json=body)
 
-    def delete(self, favorite_id: str) -> DeleteMessageFavoriteResponse:
+    def delete(self, favorite_id: str) -> None:
         """Delete a message favorite"""
         return self._client.delete(f"/im/v3/api/chat/messages/favorites/{serialize_path_parameter(favorite_id, {'name': 'favoriteId', 'style': 'simple', 'explode': False})}")
 
@@ -512,7 +531,7 @@ class ChatMessagesVisibilityApi:
         self._client = client
 
 
-    def delete(self, message_id: str) -> MessageVisibilityMutationResult:
+    def delete(self, message_id: str) -> None:
         """Delete message visibility for the current principal"""
         return self._client.delete(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/visibility")
 
@@ -523,28 +542,13 @@ class ChatMessagesReactionsApi:
         self._client = client
 
 
-    def create(self, message_id: str, body: MessageReactionRequest) -> MessageReactionMutationResult:
+    def create(self, message_id: str, body: MessageReactionRequest) -> MessagesReactionsCreateResponse201:
         """Add a message reaction"""
         return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/reactions", json=body)
 
-    def delete(self, message_id: str, body: MessageReactionRequest) -> MessageReactionMutationResult:
+    def remove(self, message_id: str, body: MessageReactionRequest) -> MessagesReactionsRemoveResponse:
         """Remove a message reaction"""
         return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/reactions/remove", json=body)
-
-class ChatMessagesPinApi:
-    """chat chat.messages.pin API client."""
-
-    def __init__(self, client: HttpClient):
-        self._client = client
-
-
-    def create(self, message_id: str) -> MessagePinMutationResult:
-        """Pin a message"""
-        return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/pin")
-
-    def delete(self, message_id: str) -> MessagePinMutationResult:
-        """Unpin a message"""
-        return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/unpin")
 
 class ChatRoomsApi:
     """chat chat.rooms API client."""
@@ -553,18 +557,18 @@ class ChatRoomsApi:
         self._client = client
 
 
-    def create(self, body: CreateRoomRequest) -> CreateConversationResult:
+    def create(self, body: CreateRoomRequest) -> RoomsCreateResponse201:
         """Create a live, chat, or game room bound to a group conversation"""
         return self._client.post(f"/im/v3/api/chat/rooms", json=body)
 
-    def get(self, room_id: str) -> RoomView:
-        """Get room metadata and active member count"""
+    def retrieve(self, room_id: str) -> RoomsRetrieveResponse:
+        """Retrieve room metadata and active member count"""
         return self._client.get(f"/im/v3/api/chat/rooms/{serialize_path_parameter(room_id, {'name': 'roomId', 'style': 'simple', 'explode': False})}")
 
-    def enter(self, room_id: str) -> EnterRoomResponse:
+    def enter(self, room_id: str) -> RoomsEnterResponse:
         """Enter a room as the authenticated principal"""
         return self._client.post(f"/im/v3/api/chat/rooms/{serialize_path_parameter(room_id, {'name': 'roomId', 'style': 'simple', 'explode': False})}/enter")
 
-    def leave(self, room_id: str) -> EnterRoomResponse:
+    def leave(self, room_id: str) -> RoomsLeaveResponse:
         """Leave a room as the authenticated principal"""
         return self._client.post(f"/im/v3/api/chat/rooms/{serialize_path_parameter(room_id, {'name': 'roomId', 'style': 'simple', 'explode': False})}/leave")

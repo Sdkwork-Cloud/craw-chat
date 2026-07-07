@@ -106,7 +106,7 @@ async fn test_request_and_get_execution_over_http() {
         )
         .await
         .expect("request execution should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
     let create_body = create_response
         .into_body()
         .collect()
@@ -115,17 +115,17 @@ async fn test_request_and_get_execution_over_http() {
         .to_bytes();
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create body should be valid json");
-    assert_eq!(create_json["data"]["executionId"], "ae_http_demo");
-    assert_eq!(create_json["data"]["state"], "succeeded");
-    assert_eq!(create_json["data"]["deliveryStatus"], "applied");
+    assert_eq!(create_json["data"]["item"]["executionId"], "ae_http_demo");
+    assert_eq!(create_json["data"]["item"]["state"], "succeeded");
+    assert_eq!(create_json["data"]["item"]["deliveryStatus"], "applied");
     assert!(
-        !create_json["data"]["requestKey"]
+        !create_json["data"]["item"]["requestKey"]
             .as_str()
             .expect("request key should be present")
             .is_empty()
     );
     assert_eq!(
-        create_json["data"]["proofVersion"],
+        create_json["data"]["item"]["proofVersion"],
         "automation.execution.delivery-proof.v1"
     );
 
@@ -152,8 +152,8 @@ async fn test_request_and_get_execution_over_http() {
         .to_bytes();
     let get_json: serde_json::Value =
         serde_json::from_slice(&get_body).expect("get body should be valid json");
-    assert_eq!(get_json["data"]["targetRef"], "wf_http_demo");
-    assert_eq!(get_json["data"]["triggerType"], "webhook.manual");
+    assert_eq!(get_json["data"]["item"]["targetRef"], "wf_http_demo");
+    assert_eq!(get_json["data"]["item"]["triggerType"], "webhook.manual");
 }
 
 #[tokio::test]
@@ -185,7 +185,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         )
         .await
         .expect("first execution request should succeed");
-    assert_eq!(first_response.status(), StatusCode::OK);
+    assert_eq!(first_response.status(), StatusCode::CREATED);
     let first_body = first_response
         .into_body()
         .collect()
@@ -194,7 +194,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .to_bytes();
     let first_json: serde_json::Value =
         serde_json::from_slice(&first_body).expect("first body should be valid json");
-    assert_eq!(first_json["data"]["deliveryStatus"], "applied");
+    assert_eq!(first_json["data"]["item"]["deliveryStatus"], "applied");
 
     let idempotent_response = app
         .clone()
@@ -221,7 +221,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         )
         .await
         .expect("idempotent retry should return response");
-    assert_eq!(idempotent_response.status(), StatusCode::OK);
+    assert_eq!(idempotent_response.status(), StatusCode::CREATED);
     let idempotent_body = idempotent_response
         .into_body()
         .collect()
@@ -230,12 +230,30 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .to_bytes();
     let idempotent_json: serde_json::Value =
         serde_json::from_slice(&idempotent_body).expect("idempotent body should be valid json");
-    assert_eq!(idempotent_json["data"]["deliveryStatus"], "replayed");
-    assert_eq!(idempotent_json["data"]["requestKey"], first_json["data"]["requestKey"]);
-    assert_eq!(idempotent_json["data"]["executionId"], first_json["data"]["executionId"]);
-    assert_eq!(idempotent_json["data"]["targetRef"], first_json["data"]["targetRef"]);
-    assert_eq!(idempotent_json["data"]["triggerType"], first_json["data"]["triggerType"]);
-    assert_eq!(idempotent_json["data"]["state"], first_json["data"]["state"]);
+    assert_eq!(
+        idempotent_json["data"]["item"]["deliveryStatus"],
+        "replayed"
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["requestKey"],
+        first_json["data"]["item"]["requestKey"]
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["executionId"],
+        first_json["data"]["item"]["executionId"]
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["targetRef"],
+        first_json["data"]["item"]["targetRef"]
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["triggerType"],
+        first_json["data"]["item"]["triggerType"]
+    );
+    assert_eq!(
+        idempotent_json["data"]["item"]["state"],
+        first_json["data"]["item"]["state"]
+    );
 
     let conflicting_response = app
         .oneshot(
@@ -302,7 +320,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         )
         .await
         .expect("user execution request should return response");
-    assert_eq!(user_response.status(), StatusCode::OK);
+    assert_eq!(user_response.status(), StatusCode::CREATED);
     let user_body = user_response
         .into_body()
         .collect()
@@ -312,10 +330,10 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
     let user_json: serde_json::Value =
         serde_json::from_slice(&user_body).expect("user body should be valid json");
     assert_eq!(
-        user_json["data"]["requestKey"],
+        user_json["data"]["item"]["requestKey"],
         "6#1000014#user1#122#ae_http_kind_isolation"
     );
-    assert_eq!(user_json["data"]["principalKind"], "user");
+    assert_eq!(user_json["data"]["item"]["principalKind"], "user");
 
     let system_response = app
         .clone()
@@ -342,7 +360,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         )
         .await
         .expect("system execution request should return response");
-    assert_eq!(system_response.status(), StatusCode::OK);
+    assert_eq!(system_response.status(), StatusCode::CREATED);
     let system_body = system_response
         .into_body()
         .collect()
@@ -352,10 +370,10 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
     let system_json: serde_json::Value =
         serde_json::from_slice(&system_body).expect("system body should be valid json");
     assert_eq!(
-        system_json["data"]["requestKey"],
+        system_json["data"]["item"]["requestKey"],
         "6#1000016#system1#122#ae_http_kind_isolation"
     );
-    assert_eq!(system_json["data"]["principalKind"], "system");
+    assert_eq!(system_json["data"]["item"]["principalKind"], "system");
 
     let user_get_response = app
         .clone()
@@ -381,7 +399,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .to_bytes();
     let user_get_json: serde_json::Value =
         serde_json::from_slice(&user_get_body).expect("user get body should be valid json");
-    assert_eq!(user_get_json["data"]["principalKind"], "user");
+    assert_eq!(user_get_json["data"]["item"]["principalKind"], "user");
 
     let system_get_response = app
         .oneshot(
@@ -406,7 +424,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .to_bytes();
     let system_get_json: serde_json::Value =
         serde_json::from_slice(&system_get_body).expect("system get body should be valid json");
-    assert_eq!(system_get_json["data"]["principalKind"], "system");
+    assert_eq!(system_get_json["data"]["item"]["principalKind"], "system");
 }
 
 #[tokio::test]
@@ -438,7 +456,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         )
         .await
         .expect("execution request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -474,7 +492,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
     let start_body = start_response
         .into_body()
         .collect()
@@ -483,8 +501,8 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let start_json: serde_json::Value =
         serde_json::from_slice(&start_body).expect("start body should be valid json");
-    assert_eq!(start_json["data"]["streamId"], "st_http_agent");
-    assert_eq!(start_json["data"]["state"], "opened");
+    assert_eq!(start_json["data"]["item"]["streamId"], "st_http_agent");
+    assert_eq!(start_json["data"]["item"]["state"], "opened");
 
     let delta_response = app
         .clone()
@@ -512,7 +530,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         )
         .await
         .expect("agent response delta should return response");
-    assert_eq!(delta_response.status(), StatusCode::OK);
+    assert_eq!(delta_response.status(), StatusCode::CREATED);
     let delta_body = delta_response
         .into_body()
         .collect()
@@ -521,8 +539,8 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let delta_json: serde_json::Value =
         serde_json::from_slice(&delta_body).expect("delta body should be valid json");
-    assert_eq!(delta_json["data"]["sender"]["kind"], "agent");
-    assert_eq!(delta_json["data"]["sender"]["id"], "ag_demo");
+    assert_eq!(delta_json["data"]["item"]["sender"]["kind"], "agent");
+    assert_eq!(delta_json["data"]["item"]["sender"]["id"], "ag_demo");
 
     let tool_request_response = app
         .clone()
@@ -548,7 +566,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         )
         .await
         .expect("tool request should return response");
-    assert_eq!(tool_request_response.status(), StatusCode::OK);
+    assert_eq!(tool_request_response.status(), StatusCode::CREATED);
     let tool_request_body = tool_request_response
         .into_body()
         .collect()
@@ -557,7 +575,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let tool_request_json: serde_json::Value =
         serde_json::from_slice(&tool_request_body).expect("tool request body should be valid json");
-    assert_eq!(tool_request_json["data"]["state"], "requested");
+    assert_eq!(tool_request_json["data"]["item"]["state"], "requested");
 
     let tool_complete_response = app
         .clone()
@@ -589,7 +607,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let tool_complete_json: serde_json::Value = serde_json::from_slice(&tool_complete_body)
         .expect("tool complete body should be valid json");
-    assert_eq!(tool_complete_json["data"]["state"], "completed");
+    assert_eq!(tool_complete_json["data"]["item"]["state"], "completed");
 
     let complete_response = app
         .oneshot(
@@ -621,8 +639,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .to_bytes();
     let complete_json: serde_json::Value =
         serde_json::from_slice(&complete_body).expect("complete body should be valid json");
-    assert_eq!(complete_json["data"]["state"], "completed");
-    assert_eq!(complete_json["data"]["resultMessageId"], "m_http_agent");
+    assert_eq!(complete_json["data"]["item"]["state"], "completed");
+    assert_eq!(
+        complete_json["data"]["item"]["resultMessageId"],
+        "m_http_agent"
+    );
 }
 
 #[tokio::test]
@@ -653,13 +674,22 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .to_bytes();
     let governance_json: serde_json::Value =
         serde_json::from_slice(&governance_body).expect("governance body should be valid json");
-    assert_eq!(governance_json["data"]["capabilityProfileId"], "stable-agent");
     assert_eq!(
-        governance_json["data"]["operatorOverridePermission"],
+        governance_json["data"]["item"]["capabilityProfileId"],
+        "stable-agent"
+    );
+    assert_eq!(
+        governance_json["data"]["item"]["operatorOverridePermission"],
         "automation.operator_override"
     );
-    assert_eq!(governance_json["data"]["operatorOverrideActive"], false);
-    assert_eq!(governance_json["data"]["restrictedToolPrefixes"][0], "ops.");
+    assert_eq!(
+        governance_json["data"]["item"]["operatorOverrideActive"],
+        false
+    );
+    assert_eq!(
+        governance_json["data"]["item"]["restrictedToolPrefixes"][0],
+        "ops."
+    );
 
     let create_response = app
         .clone()
@@ -686,7 +716,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         )
         .await
         .expect("execution request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -722,7 +752,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let denied_response = app
         .clone()
@@ -785,7 +815,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         )
         .await
         .expect("override tool request should return response");
-    assert_eq!(override_response.status(), StatusCode::OK);
+    assert_eq!(override_response.status(), StatusCode::CREATED);
     let override_body = override_response
         .into_body()
         .collect()
@@ -794,7 +824,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .to_bytes();
     let override_json: serde_json::Value =
         serde_json::from_slice(&override_body).expect("override body should be valid json");
-    assert_eq!(override_json["data"]["state"], "requested");
+    assert_eq!(override_json["data"]["item"]["state"], "requested");
 
     let override_governance_response = app
         .oneshot(
@@ -820,7 +850,10 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
     let override_governance_json: serde_json::Value =
         serde_json::from_slice(&override_governance_body)
             .expect("override governance body should be valid json");
-    assert_eq!(override_governance_json["data"]["operatorOverrideActive"], true);
+    assert_eq!(
+        override_governance_json["data"]["item"]["operatorOverrideActive"],
+        true
+    );
 }
 
 #[tokio::test]
@@ -940,7 +973,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_stream_id",
@@ -1052,7 +1085,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/executions")
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1071,7 +1104,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
             )
             .await
             .expect("execution request should return response");
-        assert_eq!(create_execution_response.status(), StatusCode::OK);
+        assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
         let response = app
             .clone()
@@ -1080,7 +1113,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses")
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1127,7 +1160,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_member_id",
@@ -1270,7 +1303,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_agent_metadata",
@@ -1336,7 +1369,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -1372,7 +1405,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let request_body = serde_json::json!({
         "frameSeq": 1,
@@ -1453,7 +1486,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .method("POST")
                     .uri("/app/v3/api/automation/executions")
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1472,7 +1505,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
             )
             .await
             .expect("execution request should return response");
-        assert_eq!(create_execution_response.status(), StatusCode::OK);
+        assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
         let request_body = serde_json::json!({
             "executionId": format!("ae_http_{}", field.replace('.', "_")),
@@ -1497,7 +1530,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses")
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1544,7 +1577,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -1580,7 +1613,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let oversized_payload = "x".repeat(262145);
     let delta_request_body = serde_json::json!({
@@ -1661,7 +1694,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/executions")
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1680,7 +1713,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
             )
             .await
             .expect("execution request should return response");
-        assert_eq!(create_execution_response.status(), StatusCode::OK);
+        assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
         let start_response = app
             .clone()
@@ -1689,7 +1722,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .method("POST")
                     .uri("/app/v3/api/automation/agent_responses")
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1716,7 +1749,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
             )
             .await
             .expect("agent response start should return response");
-        assert_eq!(start_response.status(), StatusCode::OK);
+        assert_eq!(start_response.status(), StatusCode::CREATED);
 
         let response = app
             .clone()
@@ -1772,7 +1805,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -1808,7 +1841,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_tool_call_id",
@@ -1884,7 +1917,7 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
                         execution_id, tool_call_id
                     ))
                     .with_dual_token_tenant("100001")
-                .with_dual_token_organization("100001")
+                    .with_dual_token_organization("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_permission_scope("automation.execute automation.read")
@@ -1936,7 +1969,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -1972,7 +2005,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let request_body = serde_json::json!({
         "executionId": "ae_http_oversized_tool_name",
@@ -2029,7 +2062,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -2065,7 +2098,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let oversized_attributes = serde_json::json!({
         "trace": "x".repeat(65537)
@@ -2130,7 +2163,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -2166,7 +2199,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let complete_response = app
         .clone()
@@ -2247,7 +2280,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         )
         .await
         .expect("execution request should return response");
-    assert_eq!(create_execution_response.status(), StatusCode::OK);
+    assert_eq!(create_execution_response.status(), StatusCode::CREATED);
 
     let start_response = app
         .clone()
@@ -2283,7 +2316,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         )
         .await
         .expect("agent response start should return response");
-    assert_eq!(start_response.status(), StatusCode::OK);
+    assert_eq!(start_response.status(), StatusCode::CREATED);
 
     let request_tool_call_response = app
         .clone()
@@ -2309,7 +2342,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         )
         .await
         .expect("tool call request should return response");
-    assert_eq!(request_tool_call_response.status(), StatusCode::OK);
+    assert_eq!(request_tool_call_response.status(), StatusCode::CREATED);
 
     let blocked_complete_response = app
         .clone()
@@ -2342,10 +2375,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         .to_bytes();
     let blocked_complete_json: serde_json::Value = serde_json::from_slice(&blocked_complete_body)
         .expect("blocked completion body should be valid json");
-    assert_eq!(
-        blocked_complete_json["code"].as_i64(),
-        Some(40001)
-    );
+    assert_eq!(blocked_complete_json["code"].as_i64(), Some(40001));
 
     let complete_tool_call_response = app
         .clone()

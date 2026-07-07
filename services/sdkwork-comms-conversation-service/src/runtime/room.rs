@@ -12,13 +12,7 @@ fn room_create_request_key(
     creator_id: &str,
     room_id: &str,
 ) -> String {
-    encode_conversation_key_segments([
-        "room.create",
-        tenant_id,
-        creator_kind,
-        creator_id,
-        room_id,
-    ])
+    encode_conversation_key_segments(["room.create", tenant_id, creator_kind, creator_id, room_id])
 }
 
 fn room_create_replay_matches(
@@ -59,8 +53,16 @@ where
             command.conversation_id.as_str(),
             CONVERSATION_MAX_ID_BYTES,
         )?;
-        validate_payload_size("roomId", command.room_id.as_str(), CONVERSATION_MAX_ID_BYTES)?;
-        validate_payload_size("roomKind", command.room_kind.as_str(), CONVERSATION_MAX_KIND_BYTES)?;
+        validate_payload_size(
+            "roomId",
+            command.room_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "roomKind",
+            command.room_kind.as_str(),
+            CONVERSATION_MAX_KIND_BYTES,
+        )?;
         validate_payload_size(
             "creatorId",
             command.creator_id.as_str(),
@@ -68,12 +70,13 @@ where
         )?;
         validate_payload_size("creatorKind", creator_kind, CONVERSATION_MAX_KIND_BYTES)?;
 
-        let room_kind = RoomKind::parse_wire_value(command.room_kind.as_str()).ok_or_else(|| {
-            RuntimeError::InvalidInput(format!(
-                "room kind must be one of live, chat, game; got {}",
-                command.room_kind
-            ))
-        })?;
+        let room_kind =
+            RoomKind::parse_wire_value(command.room_kind.as_str()).ok_or_else(|| {
+                RuntimeError::InvalidInput(format!(
+                    "room kind must be one of live, chat, game; got {}",
+                    command.room_kind
+                ))
+            })?;
 
         if command.room_id.trim().is_empty() {
             return Err(RuntimeError::InvalidInput(
@@ -108,7 +111,10 @@ where
             command.conversation_id.as_str(),
         );
         let owner_attributes = BTreeMap::from([
-            (ROOM_MEMBER_ATTRIBUTE_ROLE.into(), ROOM_MEMBER_ROLE_OWNER.into()),
+            (
+                ROOM_MEMBER_ATTRIBUTE_ROLE.into(),
+                ROOM_MEMBER_ROLE_OWNER.into(),
+            ),
             ("roomKind".into(), room_kind.as_wire_value().into()),
         ]);
         validate_member_attributes_payload_size("ownerAttributes", &owner_attributes)?;
@@ -129,7 +135,8 @@ where
         );
 
         let mut state = write_runtime_state(&self.state, "conversation-runtime.state.room.create");
-        if let Some(existing_conversation_id) = state.business_index.get(business_scope_key.as_str())
+        if let Some(existing_conversation_id) =
+            state.business_index.get(business_scope_key.as_str())
         {
             if existing_conversation_id != &command.conversation_id {
                 return Err(RuntimeError::Conflict(format!(
@@ -180,11 +187,13 @@ where
         }));
 
         let owner_ordering_seq = conversation.aggregate.next_member_epoch();
-        upsert_member(&mut state.actor_inbox, command.organization_id.as_str(), &mut conversation, owner_member.clone());
-        upsert_read_cursor(
+        upsert_member(
+            &mut state.actor_inbox,
+            command.organization_id.as_str(),
             &mut conversation,
-            build_default_read_cursor(&owner_member),
+            owner_member.clone(),
         );
+        upsert_read_cursor(&mut conversation, build_default_read_cursor(&owner_member));
 
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
@@ -237,9 +246,7 @@ where
             command.creator_id.as_str(),
             creator_kind,
         ))?;
-        state
-            .conversations
-            .insert(scope_key, conversation);
+        state.conversations.insert(scope_key, conversation);
         state
             .business_index
             .insert(business_scope_key, command.conversation_id.clone());
@@ -268,7 +275,11 @@ where
         command: EnterRoomCommand,
         actor_kind: &str,
     ) -> Result<ConversationMember, RuntimeError> {
-        validate_payload_size("roomId", command.room_id.as_str(), CONVERSATION_MAX_ID_BYTES)?;
+        validate_payload_size(
+            "roomId",
+            command.room_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
         validate_payload_size(
             "principalId",
             command.principal_id.as_str(),
@@ -286,8 +297,11 @@ where
             )));
         }
 
-        let conversation_id =
-            self.resolve_room_conversation_id(&command.tenant_id, &command.organization_id, &command.room_id)?;
+        let conversation_id = self.resolve_room_conversation_id(
+            &command.tenant_id,
+            &command.organization_id,
+            &command.room_id,
+        )?;
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
@@ -298,73 +312,74 @@ where
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.room.enter");
             let member = {
-                let conversation = state.conversations.get_mut(scope_key.as_str()).ok_or_else(|| {
-                    RuntimeError::ConversationNotFound(conversation_id.clone())
-                })?;
-            let room_kind = room_kind_for_conversation(conversation)?;
-            policy::ensure_room_enter_allowed(conversation, room_kind)?;
+                let conversation = state
+                    .conversations
+                    .get_mut(scope_key.as_str())
+                    .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.clone()))?;
+                let room_kind = room_kind_for_conversation(conversation)?;
+                policy::ensure_room_enter_allowed(conversation, room_kind)?;
 
-            if let Some(existing) = conversation.roster.resolve_current_member_with_kind(
-                command.principal_id.as_str(),
-                command.principal_kind.as_str(),
-            ) {
-                if existing.is_active() {
-                    return Ok(existing);
-                }
-            }
-
-            let invited_by = conversation
-                .roster
-                .members()
-                .values()
-                .find(|member| member.role == MembershipRole::Owner && member.is_active())
-                .map(|member| member.principal_id.clone())
-                .unwrap_or_else(|| command.principal_id.clone());
-
-            let participant_attributes = BTreeMap::from([
-                (
-                    ROOM_MEMBER_ATTRIBUTE_ROLE.into(),
-                    ROOM_MEMBER_ROLE_PARTICIPANT.into(),
-                ),
-                ("roomKind".into(), room_kind.as_wire_value().into()),
-            ]);
-            validate_member_attributes_payload_size(
-                "participantAttributes",
-                &participant_attributes,
-            )?;
-            let participant = build_conversation_member_with_attributes(
-                command.tenant_id.as_str(),
-                conversation_id.as_str(),
-                member_id(
-                    conversation_id.as_str(),
-                    command.principal_kind.as_str(),
+                if let Some(existing) = conversation.roster.resolve_current_member_with_kind(
                     command.principal_id.as_str(),
-                ),
-                command.principal_id.as_str(),
-                command.principal_kind.as_str(),
-                MembershipRole::Guest,
-                Some(invited_by),
-                conversation_timestamp(),
-                participant_attributes,
-            );
+                    command.principal_kind.as_str(),
+                ) {
+                    if existing.is_active() {
+                        return Ok(existing);
+                    }
+                }
 
-            let member_epoch = conversation.aggregate.next_member_epoch();
-            let retention_class = conversation_retention_class(conversation);
-            let envelope = build_member_envelope(
-                command.tenant_id.as_str(),
-                command.organization_id.as_str(),
-                conversation_id.as_str(),
-                "conversation.member_joined",
-                participant.clone(),
-                member_epoch,
-                retention_class.as_str(),
-                command.principal_id.as_str(),
-                command.principal_kind.as_str(),
-            );
-            self.journal.append(envelope)?;
-            upsert_roster_member(conversation, participant.clone());
-            upsert_read_cursor(conversation, build_default_read_cursor(&participant));
-            participant
+                let invited_by = conversation
+                    .roster
+                    .members()
+                    .values()
+                    .find(|member| member.role == MembershipRole::Owner && member.is_active())
+                    .map(|member| member.principal_id.clone())
+                    .unwrap_or_else(|| command.principal_id.clone());
+
+                let participant_attributes = BTreeMap::from([
+                    (
+                        ROOM_MEMBER_ATTRIBUTE_ROLE.into(),
+                        ROOM_MEMBER_ROLE_PARTICIPANT.into(),
+                    ),
+                    ("roomKind".into(), room_kind.as_wire_value().into()),
+                ]);
+                validate_member_attributes_payload_size(
+                    "participantAttributes",
+                    &participant_attributes,
+                )?;
+                let participant = build_conversation_member_with_attributes(
+                    command.tenant_id.as_str(),
+                    conversation_id.as_str(),
+                    member_id(
+                        conversation_id.as_str(),
+                        command.principal_kind.as_str(),
+                        command.principal_id.as_str(),
+                    ),
+                    command.principal_id.as_str(),
+                    command.principal_kind.as_str(),
+                    MembershipRole::Guest,
+                    Some(invited_by),
+                    conversation_timestamp(),
+                    participant_attributes,
+                );
+
+                let member_epoch = conversation.aggregate.next_member_epoch();
+                let retention_class = conversation_retention_class(conversation);
+                let envelope = build_member_envelope(
+                    command.tenant_id.as_str(),
+                    command.organization_id.as_str(),
+                    conversation_id.as_str(),
+                    "conversation.member_joined",
+                    participant.clone(),
+                    member_epoch,
+                    retention_class.as_str(),
+                    command.principal_id.as_str(),
+                    command.principal_kind.as_str(),
+                );
+                self.journal.append(envelope)?;
+                upsert_roster_member(conversation, participant.clone());
+                upsert_read_cursor(conversation, build_default_read_cursor(&participant));
+                participant
             };
             state.sync_actor_inbox_member(organization_id.as_str(), &member);
             member
@@ -423,16 +438,13 @@ where
             .conversations
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.clone()))?;
-        let binding = conversation
-            .aggregate
-            .business_binding()
-            .ok_or_else(|| {
-                RuntimeError::ConversationBindingNotFound(format!(
-                    "conversation {conversation_id} has no room binding"
-                ))
-            })?;
-        let room_kind = room_kind_from_business_type(binding.business_type.as_str())
-            .ok_or_else(|| {
+        let binding = conversation.aggregate.business_binding().ok_or_else(|| {
+            RuntimeError::ConversationBindingNotFound(format!(
+                "conversation {conversation_id} has no room binding"
+            ))
+        })?;
+        let room_kind =
+            room_kind_from_business_type(binding.business_type.as_str()).ok_or_else(|| {
                 RuntimeError::InvalidInput(format!(
                     "conversation {conversation_id} is not bound to a room"
                 ))
@@ -462,11 +474,8 @@ where
                 conversation_business_scope_key(tenant_id, business_type, room_id);
             let state = read_runtime_state(&self.state, "conversation-runtime.state.room.resolve");
             if let Some(conversation_id) = state.business_index.get(business_scope_key.as_str()) {
-                let scope_key = conversation_scope_key(
-                    tenant_id,
-                    organization_id,
-                    conversation_id.as_str(),
-                );
+                let scope_key =
+                    conversation_scope_key(tenant_id, organization_id, conversation_id.as_str());
                 if state.conversations.contains_key(scope_key.as_str()) {
                     return Ok(conversation_id.clone());
                 }
@@ -480,12 +489,9 @@ where
 }
 
 fn room_kind_for_conversation(conversation: &ConversationState) -> Result<RoomKind, RuntimeError> {
-    let binding = conversation
-        .aggregate
-        .business_binding()
-        .ok_or_else(|| RuntimeError::ConversationBindingNotFound(
-            "room enter requires a business binding".into(),
-        ))?;
+    let binding = conversation.aggregate.business_binding().ok_or_else(|| {
+        RuntimeError::ConversationBindingNotFound("room enter requires a business binding".into())
+    })?;
     if !is_room_business_type(binding.business_type.as_str()) {
         return Err(RuntimeError::InvalidInput(format!(
             "conversation business type {} is not a room binding",

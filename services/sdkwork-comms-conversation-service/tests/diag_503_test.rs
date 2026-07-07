@@ -1,13 +1,17 @@
-use im_app_context::DualTokenRequestBuilderExt;
-use conversation_runtime;
-use tower::ServiceExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use im_app_context::DualTokenRequestBuilderExt;
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn diag_503_actual_error() {
-    let app = conversation_runtime::build_default_app();
+    unsafe {
+        std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+        std::env::set_var("SDKWORK_IM_DATABASE_ENGINE", "sqlite");
+        std::env::set_var("SDKWORK_IM_DATABASE_URL", "sqlite::memory:");
+    }
+    let app = sdkwork_routes_im_chat_open_api::build_public_app();
 
     // Create conversation
     let create_resp = app

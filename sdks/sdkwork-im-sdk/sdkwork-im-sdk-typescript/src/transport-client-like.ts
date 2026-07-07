@@ -2,6 +2,7 @@ import type {
   AckResponse,
   AddConversationMemberRequest,
   BindDirectChatRequest,
+  BlockUserRequest,
   CreateRtcSessionRequest,
   ContactPreferencesView,
   ContactRecommendationView,
@@ -12,12 +13,11 @@ import type {
   CreateConversationRequest,
   CreateConversationResult,
   CreateRoomRequest,
-  CreateUserBlockRequest,
   EnterRoomResponse,
   RoomView,
   EditMessageRequest,
   FavoriteMessageRequest,
-  SocialUserBlockMutationResponse,
+  OpenApiUserBlockResponse,
 } from '@sdkwork/im-sdk-generated';
 import type {
   ContactTagsResponse,
@@ -27,7 +27,6 @@ import type {
   FavoriteMessagesResponse,
   InboxResponse,
   ListMembersResponse,
-  MessageVisibilityMutationResult,
   PinnedMessagesResponse,
   SocialFriendRequestListResponse,
   SocialUserSearchResponse,
@@ -70,11 +69,11 @@ export interface ImTransportClientLike {
       list(params?: QueryParams): Promise<ContactsResponse>;
     };
     inbox: {
-      retrieve(params?: QueryParams): Promise<InboxResponse>;
+      list(params?: QueryParams): Promise<InboxResponse>;
     };
     rooms: {
       create(body: CreateRoomRequest): Promise<CreateConversationResult>;
-      get(roomId: string | number): Promise<RoomView>;
+      retrieve(roomId: string | number): Promise<RoomView>;
       enter(roomId: string | number): Promise<EnterRoomResponse>;
       leave(roomId: string | number): Promise<EnterRoomResponse>;
     };
@@ -120,14 +119,12 @@ export interface ImTransportClientLike {
       recall(messageId: string | number): Promise<PostedMessageResponse>;
       reactions: {
         create(messageId: string | number, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;
-        delete(messageId: string | number, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;
+        remove(messageId: string | number, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;
       };
-      pin: {
-        create(messageId: string | number): Promise<MessagePinMutationResult>;
-        delete(messageId: string | number): Promise<MessagePinMutationResult>;
-      };
+      pin(messageId: string | number): Promise<MessagePinMutationResult>;
+      unpin(messageId: string | number): Promise<MessagePinMutationResult>;
       visibility: {
-        delete(messageId: string | number): Promise<MessageVisibilityMutationResult>;
+        delete(messageId: string | number): Promise<void>;
       };
       favorites: {
         list(params?: QueryParams & { favoriteType?: MessageFavoriteType }): Promise<FavoriteMessagesResponse>;
@@ -172,8 +169,8 @@ export interface ImTransportClientLike {
       remove(friendshipId: string | number): Promise<SocialFriendshipMutationResponse>;
     };
     userBlocks: {
-      create(body: CreateUserBlockRequest): Promise<SocialUserBlockMutationResponse>;
-      release(blockId: string): Promise<SocialUserBlockMutationResponse>;
+      create(body: BlockUserRequest): Promise<OpenApiUserBlockResponse>;
+      delete(blockId: string | number): Promise<void>;
     };
     contacts: {
       list(params?: QueryParams): Promise<ContactsResponse>;

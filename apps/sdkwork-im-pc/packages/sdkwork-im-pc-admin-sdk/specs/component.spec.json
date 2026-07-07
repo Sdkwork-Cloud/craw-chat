@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/im-pc-admin-sdk",
+    "displayName": "Sdkwork IM PC Admin SDK",
+    "version": "1.0.0",
+    "type": "node-package",
+    "root": "sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-admin-sdk",
+    "domain": "communication",
+    "capability": "im-pc-admin-sdk",
+    "languages": [
+      "typescript"
+    ],
+    "generated": false,
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript package and SDK facade rules."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Generated SDK consumption and composed facade rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Verification and contract testing expectations."
+    },
+    {
+      "file": "APP_PC_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
+      "purpose": "PC browser, desktop, and tablet application root rules."
+    }
+  ],
+  "contracts": {
+    "publicExports": [
+      ".",
+      "./backendSdkClient",
+      "./appbaseBackendSdkClient",
+      "./backendSdkResponseHelpers"
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [
+      "@sdkwork-internal/im-backend-api-generated",
+      "@sdkwork/iam-backend-sdk"
+    ],
+    "events": [],
+    "configKeys": [
+      "VITE_SDKWORK_IM_BACKEND_API_BASE_URL",
+      "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+      "VITE_SDKWORK_IAM_APP_API_BASE_URL"
+    ],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-im-backend-sdk",
+        "surface": "backend-api",
+        "credentialMode": "authenticated-backend-admin"
+      },
+      {
+        "workspace": "sdkwork-iam-backend-sdk",
+        "surface": "backend-api",
+        "credentialMode": "authenticated-backend-admin"
+      }
+    ]
+  },
+  "verification": {
+    "commands": [
+      "powershell -NoProfile -Command \"Get-Content specs/component.spec.json -Raw | ConvertFrom-Json | Out-Null\"",
+      "node ../../../../scripts/dev/sdkwork-im-pc-architecture-standard.test.mjs"
+    ]
+  }
+}

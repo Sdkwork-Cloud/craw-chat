@@ -1,4 +1,9 @@
 import { persistPcReactRuntimeSession } from '@sdkwork/core-pc-react';
+import type {
+  CatalogAppSdkClient,
+  OrderAppSdkClient,
+  ShopAppSdkClient,
+} from '@sdkwork/shop-pc-core';
 import {
   getCatalogAppSdkClient,
   getOrderAppSdkClient,
@@ -10,7 +15,6 @@ import {
   resetShopPcTokenManager,
   syncShopPcTokenManagerFromRuntimeSession,
 } from '@sdkwork/shop-pc-core';
-import type { CatalogAppSdkClient, OrderAppSdkClient, ShopAppSdkClient } from '@sdkwork/shop-pc-core/sdk';
 
 import {
   readAppSdkSessionTokens,

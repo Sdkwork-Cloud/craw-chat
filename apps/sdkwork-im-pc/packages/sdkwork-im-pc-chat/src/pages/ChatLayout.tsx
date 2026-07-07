@@ -329,6 +329,14 @@ const ChatLayoutComponent: React.FC = () => {
         : chat,
     );
     setActiveTab("chat");
+    const isUnread = chat.unreadCount > 0 || chat.isMarkedUnread;
+    if (isUnread) {
+      try {
+        await chatService.markAsRead(chat.id);
+      } catch {
+        toast(t("chat.list.toast.markReadFailed"), "error");
+      }
+    }
     void refreshChats().catch(() => undefined);
   };
 
@@ -589,6 +597,19 @@ const ChatLayoutComponent: React.FC = () => {
     const updateWindowFocusState = () => {
       windowFocusedRef.current = document.visibilityState === "visible"
         && (typeof document.hasFocus !== "function" || document.hasFocus());
+      chatService.setReadFocusContext({
+        activeConversationId: activeChatIdRef.current,
+        isWindowFocused: windowFocusedRef.current,
+      });
+      const focusedChatId = activeChatIdRef.current;
+      if (windowFocusedRef.current && focusedChatId) {
+        const focusedChat = chatsRef.current.find((chat) => chat.id === focusedChatId);
+        if (focusedChat && (focusedChat.unreadCount > 0 || focusedChat.isMarkedUnread)) {
+          void chatService.markAsRead(focusedChatId)
+            .then(() => refreshChats())
+            .catch(() => undefined);
+        }
+      }
     };
 
     updateWindowFocusState();
@@ -601,6 +622,13 @@ const ChatLayoutComponent: React.FC = () => {
       document.removeEventListener("visibilitychange", updateWindowFocusState);
     };
   }, []);
+
+  useEffect(() => {
+    chatService.setReadFocusContext({
+      activeConversationId: activeChat?.id,
+      isWindowFocused: windowFocusedRef.current,
+    });
+  }, [activeChat?.id]);
 
   useEffect(() => {
     if (!runtimeReady) {
@@ -1251,6 +1279,12 @@ const ChatLayoutComponent: React.FC = () => {
                   }}
                   onChatsChange={() => {
                     void refreshChats();
+                  }}
+                  onChatDeleted={(chatId) => {
+                    setChats((previousChats) => previousChats.filter((chat) => chat.id !== chatId));
+                    setActiveChat((previousActiveChat) =>
+                      previousActiveChat?.id === chatId ? null : previousActiveChat,
+                    );
                   }}
                 />
                 {localizedActiveChat ? (

@@ -21,7 +21,7 @@ fn test_build_diagnostic_views_from_runtime() {
     assert_eq!(cluster.nodes[0].client_route_count, 0);
 
     let lag = runtime.lag_view();
-    assert_eq!(lag.items[0].lag, 0);
+    assert!(lag.items.is_empty());
 
     let health = runtime.health_view();
     assert_eq!(health.status, "ok");

@@ -9,7 +9,7 @@ use im_domain_core::stream::{
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
-use sdkwork_utils_rust::{cursor_list_page_data, SdkWorkPageData};
+use sdkwork_utils_rust::{SdkWorkPageData, cursor_list_page_data};
 
 use crate::dto::{
     AbortStreamRequest, AppendStreamFrameOutcome, AppendStreamFrameRequest,
@@ -23,8 +23,7 @@ use crate::helpers::{
     stream_completion_matches_request, stream_frame_index, stream_scope_key,
     stream_session_matches_open_request, validate_abort_stream_request_payload_size,
     validate_append_frame_request_payload_size, validate_complete_stream_request_payload_size,
-    validate_open_stream_request_payload_size, validate_stream_frame_page_size,
-    validate_stream_id,
+    validate_open_stream_request_payload_size, validate_stream_frame_page_size, validate_stream_id,
 };
 
 /// Maximum number of concurrently active (non-terminal) streams a single
@@ -622,7 +621,12 @@ impl StreamingRuntime {
             None
         };
 
-        Ok(cursor_list_page_data(items, page_size, next_cursor, has_more))
+        Ok(cursor_list_page_data(
+            items,
+            page_size,
+            next_cursor,
+            has_more,
+        ))
     }
 
     fn persist_state(&self, tenant_id: &str, stream_id: &str) -> Result<(), StreamingError> {

@@ -17,7 +17,10 @@ mod tests {
     #[test]
     fn realtime_paths_remain_stable_for_contracts() {
         assert_eq!(REALTIME_WS, "/im/v3/api/realtime/ws");
-        assert_eq!(REALTIME_SUBSCRIPTIONS_SYNC, "/im/v3/api/realtime/subscriptions/sync");
+        assert_eq!(
+            REALTIME_SUBSCRIPTIONS_SYNC,
+            "/im/v3/api/realtime/subscriptions/sync"
+        );
         assert_eq!(PRESENCE_ME, "/im/v3/api/presence/me");
     }
 }

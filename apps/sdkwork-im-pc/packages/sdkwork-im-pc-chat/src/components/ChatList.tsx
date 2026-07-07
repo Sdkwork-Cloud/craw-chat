@@ -8,6 +8,8 @@ import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { Pin, BellOff, Trash2, CheckCircle, MessageCircle } from 'lucide-react';
 import { toast } from './Toast';
 import { chatService } from '../services/ChatService';
+import { groupService } from '../services/GroupService';
+import { ConfirmModal } from './ConfirmModal';
 
 const RTC_CALL_DESCRIPTOR_PREFIX = 'rtc-call:';
 
@@ -16,6 +18,7 @@ interface ChatListProps {
   activeChatId?: string;
   onChatSelect: (chat: Chat) => void;
   onChatsChange?: () => void;
+  onChatDeleted?: (chatId: string) => void;
   searchQuery?: string;
   hasMoreChats?: boolean;
   loadingMoreChats?: boolean;
@@ -140,6 +143,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   activeChatId,
   onChatSelect,
   onChatsChange,
+  onChatDeleted,
   searchQuery = '',
   hasMoreChats = false,
   loadingMoreChats = false,
@@ -147,6 +151,7 @@ export const ChatList: React.FC<ChatListProps> = ({
 }) => {
   const { i18n, t } = useTranslation();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; chat: Chat } | null>(null);
+  const [pendingDeleteChat, setPendingDeleteChat] = useState<Chat | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
 
   const handleListScroll = () => {
@@ -163,6 +168,24 @@ export const ChatList: React.FC<ChatListProps> = ({
   const handleContextMenu = (event: React.MouseEvent, chat: Chat) => {
     event.preventDefault();
     setContextMenu({ x: event.clientX, y: event.clientY, chat });
+  };
+
+  const handleDeleteChat = async (chat: Chat) => {
+    try {
+      if (chat.type === 'group') {
+        await groupService.deleteGroup(chat.id);
+      } else {
+        await chatService.deleteChat(chat.id);
+      }
+      onChatDeleted?.(chat.id);
+      onChatsChange?.();
+      toast(
+        t(chat.type === 'group' ? 'chat.rightPanel.toast.groupLeft' : 'chat.list.toast.deleted'),
+        'success',
+      );
+    } catch {
+      toast(t('chat.list.toast.operationFailed'), 'error');
+    }
   };
 
   const getContextMenuItems = (): ContextMenuItem[] => {
@@ -225,14 +248,8 @@ export const ChatList: React.FC<ChatListProps> = ({
         label: t('chat.list.context.delete'),
         icon: <Trash2 size={14} />,
         danger: true,
-        onClick: async () => {
-          try {
-            await chatService.deleteChat(chat.id);
-            onChatsChange?.();
-            toast(t('chat.list.toast.deleted'), 'success');
-          } catch {
-            toast(t('chat.list.toast.operationFailed'), 'error');
-          }
+        onClick: () => {
+          setPendingDeleteChat(chat);
         },
       },
     ];
@@ -403,6 +420,29 @@ export const ChatList: React.FC<ChatListProps> = ({
           onClose={() => setContextMenu(null)}
         />
       )}
+      <ConfirmModal
+        isOpen={Boolean(pendingDeleteChat)}
+        title={t(
+          pendingDeleteChat?.type === 'group'
+            ? 'chat.list.confirm.leaveGroupTitle'
+            : 'chat.list.confirm.deleteTitle',
+        )}
+        message={t(
+          pendingDeleteChat?.type === 'group'
+            ? 'chat.list.confirm.leaveGroupMessage'
+            : 'chat.list.confirm.deleteMessage',
+          { name: pendingDeleteChat?.name ?? '' },
+        )}
+        danger
+        onCancel={() => setPendingDeleteChat(null)}
+        onConfirm={() => {
+          const chat = pendingDeleteChat;
+          setPendingDeleteChat(null);
+          if (chat) {
+            void handleDeleteChat(chat);
+          }
+        }}
+      />
     </div>
   );
 };

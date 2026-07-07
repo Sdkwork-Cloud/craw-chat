@@ -316,9 +316,9 @@ control cost. On failover, HPA scales them to production capacity.
 | automation-service | 2+ | 1 | Scale to 2+ |
 | social-service | 2+ | 1 | Scale to 2+ |
 | space-service | 2+ | 1 | Scale to 2+ |
-| contact-service | 2+ | 1 | Scale to 2+ |
-| interaction-service | 2+ | 1 | Scale to 2+ |
 | ops-service | 2+ | 1 | Scale to 2+ |
+
+> **Note (2026-07):** `contact-service` and `interaction-service` are deprecated shims; social and projection surfaces run in `social-service` and `projection-service`. Do not scale retired process names in new deployments.
 
 ## 7. Failover Procedure
 

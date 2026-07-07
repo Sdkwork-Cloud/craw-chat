@@ -1,15 +1,16 @@
 package com.sdkwork.im.sdk.generated.model;
 
+import java.util.List;
 
 public class ProblemDetail {
     private String type;
     private String title;
     private Integer status;
     private String detail;
-    private String code;
-    private String message;
+    private String instance;
+    private Integer code;
     private String traceId;
-    private Boolean retryable;
+    private List<FieldError> errors;
 
     public String getType() {
         return this.type;
@@ -43,20 +44,20 @@ public class ProblemDetail {
         this.detail = detail;
     }
 
-    public String getCode() {
+    public String getInstance() {
+        return this.instance;
+    }
+
+    public void setInstance(String instance) {
+        this.instance = instance;
+    }
+
+    public Integer getCode() {
         return this.code;
     }
 
-    public void setCode(String code) {
+    public void setCode(Integer code) {
         this.code = code;
-    }
-
-    public String getMessage() {
-        return this.message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
     }
 
     public String getTraceId() {
@@ -67,11 +68,11 @@ public class ProblemDetail {
         this.traceId = traceId;
     }
 
-    public Boolean getRetryable() {
-        return this.retryable;
+    public List<FieldError> getErrors() {
+        return this.errors;
     }
 
-    public void setRetryable(Boolean retryable) {
-        this.retryable = retryable;
+    public void setErrors(List<FieldError> errors) {
+        this.errors = errors;
     }
 }

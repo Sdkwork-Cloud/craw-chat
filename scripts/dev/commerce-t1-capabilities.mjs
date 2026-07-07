@@ -35,13 +35,13 @@ export const COMMERCE_T1_APP_SDK_PACKAGES = Object.freeze({
 
 export const COMMERCE_T1_APP_SDK_WORKSPACE_PATHS = Object.freeze({
   catalog:
-    '../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/generated/server-openapi',
+    '../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/src/index.ts',
   shop:
-    '../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi',
+    '../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/src/index.ts',
   order:
-    '../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi',
+    '../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts',
   membership:
-    '../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript',
+    '../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts',
 });
 
 export const COMMERCE_T1_DATABASE_URL_ENV_KEYS = Object.freeze(

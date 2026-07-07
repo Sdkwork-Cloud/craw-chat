@@ -1,5 +1,5 @@
 import { configureCommunityPcHost } from '@sdkwork/community-pc-community';
-import '@sdkwork/community-pc-community/src/i18n';
+import '@sdkwork/community-pc-community/i18n';
 import {
   createImCommunityPcHostAdapter,
   type CreateImCommunityPcHostAdapterOptions,

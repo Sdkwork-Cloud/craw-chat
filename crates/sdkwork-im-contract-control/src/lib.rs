@@ -535,14 +535,19 @@ pub trait PresenceStateStore: Send + Sync {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        device_id: &str,
-        cutoff_seen_at: &str,
-        expired_at: &str,
+        command: ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError>;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ExpireOnlinePresenceStateCommand<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub principal_kind: &'a str,
+    pub principal_id: &'a str,
+    pub device_id: &'a str,
+    pub cutoff_seen_at: &'a str,
+    pub expired_at: &'a str,
 }
 
 #[cfg(test)]
@@ -833,8 +838,7 @@ mod tests {
     #[test]
     fn test_realtime_principal_scope_key_extends_client_route_scope_prefix() {
         let principal = realtime_principal_scope_key("100001", "org_a", "user", "1");
-        let client_route =
-            realtime_client_route_scope_key("100001", "org_a", "user", "1", "d_pad");
+        let client_route = realtime_client_route_scope_key("100001", "org_a", "user", "1", "d_pad");
         assert!(
             client_route.starts_with(principal.as_str()),
             "client route scope key must extend principal scope key prefix"

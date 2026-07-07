@@ -198,7 +198,9 @@ pub(crate) fn provider_policy_diff_response(
     ProviderPolicyDiffResponse { status, diff }
 }
 
-fn provider_binding_snapshot_view(response: &ProviderBindingsResponse) -> ProviderBindingSnapshotView {
+fn provider_binding_snapshot_view(
+    response: &ProviderBindingsResponse,
+) -> ProviderBindingSnapshotView {
     ProviderBindingSnapshotView {
         interface_version: response.interface_version.clone(),
         tenant_id: response.tenant_id.clone(),

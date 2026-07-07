@@ -58,7 +58,13 @@ class SdkworkSystemAssistantService implements SystemAssistantService {
   }
 
   isSystemAssistantChat(chat: Chat): boolean {
-    return chat.id.toLowerCase().includes(SYSTEM_ASSISTANT_AGENT.id);
+    const normalizedId = chat.id.trim().toLowerCase();
+    if (normalizedId.includes(SYSTEM_ASSISTANT_AGENT.id)) {
+      return true;
+    }
+
+    const isBackendAgentDialog = /^c_agent_[a-f0-9]+$/u.test(normalizedId);
+    return isBackendAgentDialog && chat.name === SYSTEM_ASSISTANT_AGENT.name;
   }
 
   selectInitialChat(chats: Chat[]): Chat | null {

@@ -12,7 +12,9 @@ use sdkwork_im_contract_control::{
 use sdkwork_im_contract_core::{
     ContractError, MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore,
 };
-use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionStore};
+use sdkwork_im_contract_message::{
+    CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionStore,
+};
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 
@@ -64,10 +66,7 @@ impl ObjectStore for NullObjectStore {
 }
 
 impl CommitJournal for NullCommitJournal {
-    fn append(
-        &self,
-        _envelope: CommitEnvelope,
-    ) -> Result<CommitPosition, ContractError> {
+    fn append(&self, _envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
         Ok(CommitPosition::new("message", 1))
     }
 }
@@ -242,13 +241,7 @@ impl PresenceStateStore for NullPresenceStore {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        _tenant_id: &str,
-        _organization_id: &str,
-        _principal_kind: &str,
-        _principal_id: &str,
-        _device_id: &str,
-        _cutoff_seen_at: &str,
-        _expired_at: &str,
+        _command: im_platform_contracts::ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
         Ok(None)
     }

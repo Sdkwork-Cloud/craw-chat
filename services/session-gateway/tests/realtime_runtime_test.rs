@@ -15,7 +15,8 @@ use im_platform_contracts::{
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 use session_gateway::{
-    RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
+    RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeRuntimeError,
+    RealtimeSubscriptionItemInput,
 };
 
 fn expect_ok<T>(result: Result<T, RealtimeRuntimeError>) -> T {
@@ -81,7 +82,15 @@ fn test_ack_events_trims_window_and_tracks_checkpoint() {
     assert_eq!(ack.retained_event_count, 0);
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(window.items.len(), 0);
     assert_eq!(window.acked_through_seq, 1);
@@ -167,7 +176,15 @@ fn test_failed_ack_checkpoint_persistence_does_not_commit_runtime_ack_state() {
     assert_eq!(error.code, "checkpoint_store_unavailable");
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(
         window.items.len(),
@@ -344,10 +361,17 @@ fn test_runtime_restores_unacked_events_from_durable_window_store_after_rebuild(
         subscription_store,
         event_window_store.clone(),
     );
-    let restored = expect_ok(
-        rebuilt_runtime
-            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let restored = expect_ok(rebuilt_runtime.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
 
     assert_eq!(restored.items.len(), 1);
     assert_eq!(restored.items[0].realtime_seq, 1);
@@ -410,10 +434,17 @@ fn test_publish_restores_persisted_subscriptions_for_registered_client_routes_af
         "publish must not silently drop a registered client route whose durable subscription has not been lazily restored yet"
     );
 
-    let window = expect_ok(
-        rebuilt_runtime
-            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let window = expect_ok(rebuilt_runtime.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(window.items.len(), 1);
     assert_eq!(
         window.items[0].payload,
@@ -462,10 +493,17 @@ fn test_publish_does_not_restore_unmatched_registered_client_routes() {
         "publish should not restore or fail on registered client routes that have no matching subscription"
     );
 
-    let window = expect_ok(
-        rebuilt_runtime
-            .list_events_for_principal_kind("100001", "default", "1", "user", "d_match", 0, 10),
-    );
+    let window = expect_ok(rebuilt_runtime.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_match",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(window.items.len(), 1);
     assert_eq!(
         window.items[0].payload,
@@ -928,7 +966,15 @@ fn test_failed_checkpoint_persistence_rolls_back_published_runtime_event() {
     assert_eq!(error.code, "checkpoint_store_unavailable");
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(
         window.items.len(),
@@ -1111,8 +1157,15 @@ fn test_failed_multi_client_route_checkpoint_persistence_does_not_partially_comm
 
     for device_id in ["d_pad", "d_phone"] {
         let window = expect_ok(
-            runtime
-                .list_events_for_principal_kind("100001", "default", "1", "user", device_id, 0, 10),
+            runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id,
+                after_seq: 0,
+                limit: 10,
+            }),
         );
         assert_eq!(window.items.len(), 0);
     }
@@ -1374,7 +1427,15 @@ fn test_sync_subscriptions_does_not_collapse_delimiter_shaped_scope_segments() {
     assert_eq!(right_delivered, 1);
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(window.items.len(), 2);
     assert_eq!(window.items[0].scope_type, "conversation:a");
@@ -1438,11 +1499,27 @@ fn test_runtime_isolates_same_actor_id_across_principal_kinds() {
     assert_eq!(agent_delivered, 1);
 
     let user_window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
-    let agent_window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "agent", "d_pad", 0, 10),
-    );
+    let agent_window = expect_ok(runtime.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "agent",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
 
     assert_eq!(user_window.items.len(), 1);
     assert_eq!(user_window.items[0].scope_id, "c_user");
@@ -1630,7 +1707,15 @@ fn test_restore_client_route_state_checkpoint_failure_does_not_install_runtime_s
     );
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(
         window.items.len(),
@@ -1777,7 +1862,15 @@ fn test_restore_client_route_state_normalizes_event_order_for_monotonic_paginati
     ));
 
     let first_page = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 2),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 2,
+        }),
     );
     assert_eq!(
         first_page
@@ -1791,7 +1884,15 @@ fn test_restore_client_route_state_normalizes_event_order_for_monotonic_paginati
     assert!(first_page.has_more);
 
     let second_page = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 2, 2),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 2,
+            limit: 2,
+        }),
     );
     assert_eq!(
         second_page
@@ -1815,7 +1916,15 @@ fn test_list_events_rejects_zero_limit_at_runtime_boundary() {
     );
 
     let error = runtime
-        .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 0)
+        .list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 0,
+        })
         .expect_err("zero realtime event window limit should be rejected");
     assert_eq!(error.code, "limit_invalid");
 }
@@ -1848,7 +1957,15 @@ fn test_restore_client_route_state_deduplicates_realtime_sequences() {
     ));
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(
         window
@@ -1889,7 +2006,15 @@ fn test_restore_client_route_state_discards_events_at_or_below_trimmed_boundary(
     ));
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(
         window
@@ -2044,7 +2169,15 @@ fn test_clearing_client_route_subscriptions_stops_future_realtime_delivery() {
     assert_eq!(second_delivery, 0);
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(window.items.len(), 1);
     assert_eq!(window.items[0].realtime_seq, 1);
@@ -2105,7 +2238,15 @@ fn test_resyncing_client_route_subscriptions_removes_stale_scope_fanout_index() 
     assert_eq!(old_delivery, 0);
     assert_eq!(new_delivery, 1);
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(window.items.len(), 1);
     assert_eq!(window.items[0].scope_id, "c_new");
@@ -2147,10 +2288,17 @@ fn test_restored_client_route_state_rebuilds_scope_fanout_index() {
     ));
 
     assert_eq!(delivered, 1);
-    let window = expect_ok(
-        target_runtime
-            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let window = expect_ok(target_runtime.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(window.items.len(), 1);
     assert_eq!(window.items[0].payload, r#"{"messageId":"msg_restored"}"#);
 }
@@ -2318,7 +2466,15 @@ fn test_publish_scope_event_advances_occurred_at_between_events() {
     ));
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        }),
     );
     assert_eq!(window.items.len(), 2);
     assert_ne!(
@@ -2418,7 +2574,15 @@ fn test_publish_scope_event_enforces_bounded_client_route_window_and_persists_tr
     }
 
     let window = expect_ok(
-        runtime.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 1000),
+        runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 1000,
+        }),
     );
     assert_eq!(window.items.len(), 1000);
     assert_eq!(window.items[0].realtime_seq, 101);

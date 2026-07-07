@@ -2,14 +2,15 @@ use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::{Extension, Json};
 use im_app_context::AppContext;
-use im_domain_core::realtime::{
-    RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot,
-};
+use im_domain_core::realtime::{RealtimeAckState, RealtimeSubscriptionSnapshot};
+use sdkwork_utils_rust::http_api::{SDKWORK_TRACE_ID_HEADER, SdkWorkApiResponse};
 
 use crate::api_error::ApiError;
 use crate::realtime::{
-    self, AckRealtimeEventsRequest, ListRealtimeEventsQuery, SyncRealtimeSubscriptionsRequest,
+    self, AckRealtimeEventsRequest, ListRealtimeEventsQuery, RealtimeEventWindowQuery,
+    SyncRealtimeSubscriptionsRequest,
 };
+use crate::realtime_list_page::{RealtimeEventsListData, realtime_events_list_from_window};
 use crate::{AppState, resolve_request_app_context, resolve_requested_device_id};
 
 /// Converts a `tokio::task::JoinError` (panic or cancellation of a
@@ -72,12 +73,20 @@ pub async fn sync_realtime_subscriptions(
     Ok(Json(snapshot))
 }
 
+fn resolve_trace_id(headers: &HeaderMap) -> String {
+    headers
+        .get(SDKWORK_TRACE_ID_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("sg-{}", chrono::Utc::now().timestamp_millis()))
+}
+
 pub async fn list_realtime_events(
     Query(query): Query<ListRealtimeEventsQuery>,
     auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
-) -> Result<Json<RealtimeEventWindow>, ApiError> {
+) -> Result<Json<SdkWorkApiResponse<RealtimeEventsListData>>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers, &state.auth_resolver).await?;
     let device_id = resolve_requested_device_id(&auth, None)?;
     let limit = realtime::resolve_realtime_event_limit(&query.paging)?;
@@ -86,30 +95,35 @@ pub async fn list_realtime_events(
     let blocking_auth = auth.clone();
     let blocking_device_id = device_id.clone();
     let after_seq = query.paging.after_seq.unwrap_or_default();
-    let window = tokio::task::spawn_blocking(move || -> Result<RealtimeEventWindow, ApiError> {
-        blocking_state.prepare_active_client_route(
-            &blocking_auth,
-            blocking_device_id.as_str(),
-            "http_poll",
-            false,
-        )?;
-        blocking_state
-            .realtime_runtime
-            .list_events_for_principal_kind(
-                blocking_auth.tenant_id.as_str(),
-                blocking_auth.organization_id.as_str(),
-                blocking_auth.actor_id.as_str(),
-                blocking_auth.actor_kind.as_str(),
+    let window = tokio::task::spawn_blocking(
+        move || -> Result<im_domain_core::realtime::RealtimeEventWindow, ApiError> {
+            blocking_state.prepare_active_client_route(
+                &blocking_auth,
                 blocking_device_id.as_str(),
-                after_seq,
-                limit,
-            )
-            .map_err(ApiError::from)
-    })
+                "http_poll",
+                false,
+            )?;
+            blocking_state
+                .realtime_runtime
+                .list_events_for_principal_kind(RealtimeEventWindowQuery {
+                    tenant_id: blocking_auth.tenant_id.as_str(),
+                    organization_id: blocking_auth.organization_id.as_str(),
+                    principal_id: blocking_auth.actor_id.as_str(),
+                    principal_kind: blocking_auth.actor_kind.as_str(),
+                    device_id: blocking_device_id.as_str(),
+                    after_seq,
+                    limit,
+                })
+                .map_err(ApiError::from)
+        },
+    )
     .await
     .map_err(join_error_to_api_error)??;
 
-    Ok(Json(window))
+    Ok(Json(SdkWorkApiResponse::success(
+        realtime_events_list_from_window(window, limit),
+        resolve_trace_id(&headers),
+    )))
 }
 
 pub async fn ack_realtime_events(

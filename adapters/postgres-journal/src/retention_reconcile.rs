@@ -3,9 +3,7 @@
 use im_platform_contracts::{ContractError, RetentionScopeStore};
 use tracing::info;
 
-use crate::{
-    postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool,
-};
+use crate::{PostgresJournalPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 const CLEAR_CONVERSATION_MESSAGES_SQL: &str = r#"
 UPDATE im_conversation_messages
@@ -184,33 +182,29 @@ pub fn clear_conversation_retention_until(
         .map_err(|error| postgres_unavailable("retention reconcile projection timeline", error))?
         as u64;
     let commit_journal_cleared = txn
-        .execute(
-            CLEAR_COMMIT_JOURNAL_SQL,
-            &[&tenant_id, &conversation_id],
-        )
+        .execute(CLEAR_COMMIT_JOURNAL_SQL, &[&tenant_id, &conversation_id])
         .map_err(|error| postgres_unavailable("retention reconcile commit journal", error))?
         as u64;
-    let outbox_events_cleared = txn
-        .execute(
+    let outbox_events_cleared =
+        txn.execute(
             CLEAR_OUTBOX_EVENTS_SQL,
             &[&tenant_id, &organization_id, &conversation_id],
         )
-        .map_err(|error| postgres_unavailable("retention reconcile outbox", error))?
-        as u64;
-    let inbox_events_cleared = txn
-        .execute(
+        .map_err(|error| postgres_unavailable("retention reconcile outbox", error))? as u64;
+    let inbox_events_cleared =
+        txn.execute(
             CLEAR_INBOX_EVENTS_SQL,
             &[&tenant_id, &organization_id, &conversation_id],
         )
-        .map_err(|error| postgres_unavailable("retention reconcile inbox", error))?
-        as u64;
+        .map_err(|error| postgres_unavailable("retention reconcile inbox", error))? as u64;
     let realtime_device_events_cleared = txn
         .execute(
             CLEAR_REALTIME_DEVICE_EVENTS_SQL,
             &[&tenant_id, &conversation_id],
         )
-        .map_err(|error| postgres_unavailable("retention reconcile realtime device events", error))?
-        as u64;
+        .map_err(|error| {
+            postgres_unavailable("retention reconcile realtime device events", error)
+        })? as u64;
 
     txn.commit()
         .map_err(|error| postgres_unavailable("retention reconcile commit", error))?;

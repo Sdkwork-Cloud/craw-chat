@@ -1,34 +1,61 @@
 import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.dart';
 
+import 'chat_timeline_utils.dart';
+
 class ChatConversationService {
   ChatConversationService(this._client);
 
   final SdkworkImClient _client;
 
-  Future<TimelineResponse?> fetchTimeline(
+  Future<ChatTimelineResult> fetchTimeline(
     String conversationId, {
-    int limit = 50,
+    int pageSize = 50,
     int afterSeq = 0,
-  }) {
-    return _client.chat.conversationsMessagesList(
+  }) async {
+    final response = await _client.chat.conversationsMessagesList(
       conversationId,
       afterSeq,
-      limit,
+      pageSize,
     );
+    return readTimelinePageFromSdkResponse(response);
   }
 
-  Future<TimelineResponse?> fetchTimelineDelta(
+  Future<ChatTimelineResult> fetchTimelineDelta(
     String conversationId,
     int afterSeq, {
-    int limit = 50,
+    int pageSize = 50,
   }) {
-    return fetchTimeline(conversationId, limit: limit, afterSeq: afterSeq);
+    return fetchTimeline(conversationId, pageSize: pageSize, afterSeq: afterSeq);
   }
 
-  Future<PostedMessageResponse?> sendText(String conversationId, String text) {
-    return _client.chat.conversationsMessagesCreate(
+  Future<PostedMessageResponse?> sendText(
+    String conversationId,
+    String text, {
+    String? clientMsgId,
+  }) async {
+    final response = await _client.chat.conversationsMessagesCreate(
       conversationId,
-      PostMessageRequest(text: text.trim()),
+      PostMessageRequest(
+        text: text.trim(),
+        clientMsgId: clientMsgId,
+      ),
+    );
+    return readPostedMessageFromSdkResponse(response);
+  }
+
+  Future<void> markConversationRead(
+    String conversationId, {
+    int readSeq = 0,
+  }) async {
+    if (readSeq > 0) {
+      await _client.chat.conversationsReadCursorUpdate(
+        conversationId,
+        UpdateReadCursorRequest(readSeq: readSeq),
+      );
+    }
+    await _client.chat.conversationsPreferencesUpdate(
+      conversationId,
+      UpdateConversationPreferencesRequest(isMarkedUnread: false),
     );
   }
 
@@ -40,8 +67,8 @@ class ChatConversationService {
     required String fileName,
     required String mimeType,
     required int sizeBytes,
-  }) {
-    return _client.chat.conversationsMessagesCreate(
+  }) async {
+    final response = await _client.chat.conversationsMessagesCreate(
       conversationId,
       PostMessageRequest(
         clientMsgId: 'flutter-${DateTime.now().millisecondsSinceEpoch}',
@@ -67,6 +94,7 @@ class ChatConversationService {
         ],
       ),
     );
+    return readPostedMessageFromSdkResponse(response);
   }
 }
 

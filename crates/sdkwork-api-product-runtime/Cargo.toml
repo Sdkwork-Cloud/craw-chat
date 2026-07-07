@@ -10,8 +10,10 @@ bytes = "1"
 mime_guess = "2"
 rand = "0.8"
 im-adapters-local-disk.workspace = true
+im-portal-snapshots = { path = "../im-portal-snapshots" }
 im-storage-contracts.workspace = true
 im-storage-runtime.workspace = true
+ops-service = { path = "../../services/ops-service" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 sdkwork-api-config.workspace = true
 serde = { version = "1", features = ["derive"] }

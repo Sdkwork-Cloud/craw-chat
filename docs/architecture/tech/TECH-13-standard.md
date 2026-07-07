@@ -97,7 +97,7 @@
 
 ### 4.3 查询帧窗口
 
-`GET /im/v3/api/streams/{stream_id}/frames?pageSize=100`
+`GET /im/v3/api/streams/{stream_id}/frames?page_size=100`
 
 响应示例：
 
@@ -221,4 +221,3 @@
 - 引入跨节点顺序流适配层，兼容 Kafka / NATS / 自研事件总线
 - 增加帧窗口过期、冷热分层和长期回放策略
 - 增加更细粒度的限流、压缩和最大帧大小控制
-

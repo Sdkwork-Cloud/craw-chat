@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{ContactPreferencesView, ContactRecommendationView, ContactTagView, ContactTagsResponse, CreateContactRecommendationRequest, CreateContactTagRequest, DeleteContactTagResponse, SocialFriendRequestAcceptanceResponse, SocialFriendRequestListResponse, SocialFriendRequestMutationResponse, SocialFriendshipMutationResponse, SocialUserSearchResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest};
+use crate::models::{BlockUserRequest, CreateContactRecommendationRequest, CreateContactTagRequest, SdkWorkListResponse, SocialContactsPreferencesRetrieveResponse, SocialContactsPreferencesUpdateResponse, SocialContactsRecommendationsCreateResponse201, SocialContactsTagsCreateResponse201, SocialContactsTagsUpdateResponse, SocialFriendRequestsAcceptResponse, SocialFriendRequestsCancelResponse, SocialFriendRequestsCreateResponse201, SocialFriendRequestsDeclineResponse, SocialFriendRequestsPendingCountRetrieveResponse, SocialFriendshipsRemoveResponse, SocialUserBlocksCreateResponse201, SocialUsersListResponse, SubmitFriendRequestRequest, UpdateContactPreferencesRequest, UpdateContactTagRequest};
 
 #[derive(Clone)]
 pub struct SocialApi {
@@ -16,10 +16,10 @@ impl SocialApi {
     }
 
     /// Search social users
-    pub async fn users_list(&self, q: Option<&str>, limit: Option<i64>, cursor: Option<&str>) -> Result<SocialUserSearchResponse, SdkworkError> {
+    pub async fn users_list(&self, q: Option<&str>, page_size: Option<i64>, cursor: Option<&str>) -> Result<SocialUsersListResponse, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("q", q, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&"/social/users".to_string()), &query);
@@ -27,11 +27,11 @@ impl SocialApi {
     }
 
     /// List friend requests
-    pub async fn friend_requests_list(&self, direction: Option<&str>, status: Option<&str>, limit: Option<i64>, cursor: Option<&str>) -> Result<SocialFriendRequestListResponse, SdkworkError> {
+    pub async fn friend_requests_list(&self, direction: Option<&str>, status: Option<&str>, page_size: Option<i64>, cursor: Option<&str>) -> Result<SdkWorkListResponse, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("direction", direction, "form", true, false, None),
             QueryParameterSpec::new("status", status, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&"/social/friend_requests".to_string()), &query);
@@ -39,39 +39,57 @@ impl SocialApi {
     }
 
     /// Create a friend request
-    pub async fn friend_requests_create(&self, body: &SubmitFriendRequestRequest) -> Result<SocialFriendRequestMutationResponse, SdkworkError> {
+    pub async fn friend_requests_create(&self, body: &SubmitFriendRequestRequest) -> Result<SocialFriendRequestsCreateResponse201, SdkworkError> {
         let path = im_path(&"/social/friend_requests".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
+    /// Retrieve pending incoming friend request count
+    pub async fn friend_requests_pending_count_retrieve(&self) -> Result<SocialFriendRequestsPendingCountRetrieveResponse, SdkworkError> {
+        let path = im_path(&"/social/friend_requests/pending/count".to_string());
+        self.client.get(&path, None, None).await
+    }
+
     /// Accept a friend request
-    pub async fn friend_requests_accept(&self, request_id: &str) -> Result<SocialFriendRequestAcceptanceResponse, SdkworkError> {
-        let path = im_path(&format!("/social/friend_requests/{}/accept", serialize_path_parameter(request_id, PathParameterSpec::new("requestId", "simple", false))));
+    pub async fn friend_requests_accept(&self, friend_request_id: &str) -> Result<SocialFriendRequestsAcceptResponse, SdkworkError> {
+        let path = im_path(&format!("/social/friend_requests/{}/accept", serialize_path_parameter(friend_request_id, PathParameterSpec::new("friendRequestId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Decline a friend request
-    pub async fn friend_requests_decline(&self, request_id: &str) -> Result<SocialFriendRequestMutationResponse, SdkworkError> {
-        let path = im_path(&format!("/social/friend_requests/{}/decline", serialize_path_parameter(request_id, PathParameterSpec::new("requestId", "simple", false))));
+    pub async fn friend_requests_decline(&self, friend_request_id: &str) -> Result<SocialFriendRequestsDeclineResponse, SdkworkError> {
+        let path = im_path(&format!("/social/friend_requests/{}/decline", serialize_path_parameter(friend_request_id, PathParameterSpec::new("friendRequestId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Cancel a friend request
-    pub async fn friend_requests_cancel(&self, request_id: &str) -> Result<SocialFriendRequestMutationResponse, SdkworkError> {
-        let path = im_path(&format!("/social/friend_requests/{}/cancel", serialize_path_parameter(request_id, PathParameterSpec::new("requestId", "simple", false))));
+    pub async fn friend_requests_cancel(&self, friend_request_id: &str) -> Result<SocialFriendRequestsCancelResponse, SdkworkError> {
+        let path = im_path(&format!("/social/friend_requests/{}/cancel", serialize_path_parameter(friend_request_id, PathParameterSpec::new("friendRequestId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// Remove a friendship
-    pub async fn friendships_remove(&self, friendship_id: &str) -> Result<SocialFriendshipMutationResponse, SdkworkError> {
+    pub async fn friendships_remove(&self, friendship_id: &str) -> Result<SocialFriendshipsRemoveResponse, SdkworkError> {
         let path = im_path(&format!("/social/friendships/{}/remove", serialize_path_parameter(friendship_id, PathParameterSpec::new("friendshipId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
+    /// Block a social user
+    pub async fn user_blocks_create(&self, body: &BlockUserRequest) -> Result<SocialUserBlocksCreateResponse201, SdkworkError> {
+        let path = im_path(&"/social/user_blocks".to_string());
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Release a social user block
+    pub async fn user_blocks_delete(&self, block_id: &str) -> Result<(), SdkworkError> {
+        let path = im_path(&format!("/social/user_blocks/{}", serialize_path_parameter(block_id, PathParameterSpec::new("blockId", "simple", false))));
+        self.client.delete(&path, None, None).await
+    }
+
     /// List contact tags
-    pub async fn contacts_tags_list(&self, limit: Option<i64>, cursor: Option<&str>) -> Result<ContactTagsResponse, SdkworkError> {
+    pub async fn contacts_tags_list(&self, page_size: Option<i64>, cursor: Option<&str>) -> Result<SdkWorkListResponse, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
             QueryParameterSpec::new("cursor", cursor, "form", true, false, None),
         ]);
         let path = append_query_string(im_path(&"/social/contacts/tags".to_string()), &query);
@@ -79,37 +97,37 @@ impl SocialApi {
     }
 
     /// Create a contact tag
-    pub async fn contacts_tags_create(&self, body: &CreateContactTagRequest) -> Result<ContactTagView, SdkworkError> {
+    pub async fn contacts_tags_create(&self, body: &CreateContactTagRequest) -> Result<SocialContactsTagsCreateResponse201, SdkworkError> {
         let path = im_path(&"/social/contacts/tags".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Update a contact tag
-    pub async fn contacts_tags_update(&self, tag_id: &str, body: &UpdateContactTagRequest) -> Result<ContactTagView, SdkworkError> {
+    pub async fn contacts_tags_update(&self, tag_id: &str, body: &UpdateContactTagRequest) -> Result<SocialContactsTagsUpdateResponse, SdkworkError> {
         let path = im_path(&format!("/social/contacts/tags/{}", serialize_path_parameter(tag_id, PathParameterSpec::new("tagId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Delete a contact tag
-    pub async fn contacts_tags_delete(&self, tag_id: &str) -> Result<DeleteContactTagResponse, SdkworkError> {
+    pub async fn contacts_tags_delete(&self, tag_id: &str) -> Result<(), SdkworkError> {
         let path = im_path(&format!("/social/contacts/tags/{}", serialize_path_parameter(tag_id, PathParameterSpec::new("tagId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// Create a contact recommendation
-    pub async fn contacts_recommendations_create(&self, target_user_id: &str, body: &CreateContactRecommendationRequest) -> Result<ContactRecommendationView, SdkworkError> {
+    pub async fn contacts_recommendations_create(&self, target_user_id: &str, body: &CreateContactRecommendationRequest) -> Result<SocialContactsRecommendationsCreateResponse201, SdkworkError> {
         let path = im_path(&format!("/social/contacts/{}/recommendations", serialize_path_parameter(target_user_id, PathParameterSpec::new("targetUserId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Retrieve contact preferences
-    pub async fn contacts_preferences_retrieve(&self, target_user_id: &str) -> Result<ContactPreferencesView, SdkworkError> {
+    pub async fn contacts_preferences_retrieve(&self, target_user_id: &str) -> Result<SocialContactsPreferencesRetrieveResponse, SdkworkError> {
         let path = im_path(&format!("/social/contacts/{}/preferences", serialize_path_parameter(target_user_id, PathParameterSpec::new("targetUserId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update contact preferences
-    pub async fn contacts_preferences_update(&self, target_user_id: &str, body: &UpdateContactPreferencesRequest) -> Result<ContactPreferencesView, SdkworkError> {
+    pub async fn contacts_preferences_update(&self, target_user_id: &str, body: &UpdateContactPreferencesRequest) -> Result<SocialContactsPreferencesUpdateResponse, SdkworkError> {
         let path = im_path(&format!("/social/contacts/{}/preferences", serialize_path_parameter(target_user_id, PathParameterSpec::new("targetUserId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }

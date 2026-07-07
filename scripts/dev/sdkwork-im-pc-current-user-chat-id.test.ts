@@ -12,8 +12,11 @@ const storage = new Map<string, string>();
 const sessionStorageMap = new Map<string, string>();
 
 (globalThis as unknown as {
-  window: Pick<Window, 'dispatchEvent' | 'localStorage' | 'sessionStorage'>;
+  window: Pick<Window, 'addEventListener' | 'dispatchEvent' | 'localStorage' | 'removeEventListener' | 'sessionStorage'>;
 }).window = {
+  addEventListener() {
+    return undefined;
+  },
   dispatchEvent() {
     return true;
   },
@@ -57,6 +60,9 @@ const sessionStorageMap = new Map<string, string>();
       sessionStorageMap.set(key, value);
     },
   } as Storage,
+  removeEventListener() {
+    return undefined;
+  },
 };
 
 const calls: Array<{ method: string; params?: Record<string, unknown> }> = [];
@@ -213,7 +219,7 @@ async function main(): Promise<void> {
   assert.equal(readAppSdkSessionTokens()?.user?.chatId, 'current-chat-id', 'current profile sync must write chatId back to local session');
   assert.deepEqual(
     calls.filter((call) => call.method === 'social.users.list').at(-1),
-    { method: 'social.users.list', params: { q: 'current-user', limit: 20 } },
+    { method: 'social.users.list', params: { q: 'current-user', pageSize: 20 } },
     'current profile sync must use the generated IM SDK social user search endpoint',
   );
 
@@ -256,7 +262,7 @@ async function main(): Promise<void> {
   assert.deepEqual(
     calls,
     [
-      { method: 'social.users.list', params: { q: 'current-user', limit: 20 } },
+      { method: 'social.users.list', params: { q: 'current-user', pageSize: 20 } },
     ],
     'current profile sync should use the direct self profile lookup before contact-list hydration',
   );

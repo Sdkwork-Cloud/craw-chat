@@ -19,7 +19,9 @@ pub fn build_supplemental_public_app(state: PostgresAppState) -> Router {
     web_bootstrap::wrap_router(routes::build_supplemental_app(state))
 }
 
-pub fn build_runtime_public_app(social_runtime: std::sync::Arc<social_service::SocialRuntime>) -> Router {
+pub fn build_runtime_public_app(
+    social_runtime: std::sync::Arc<social_service::SocialRuntime>,
+) -> Router {
     web_bootstrap::wrap_router(social_service::build_open_api_router(
         social_service::friendship::AppState { social_runtime },
     ))

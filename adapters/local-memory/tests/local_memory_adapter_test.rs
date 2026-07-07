@@ -34,7 +34,7 @@ fn realtime_disconnect_fence_record(
 ) -> RealtimeDisconnectFenceRecord {
     RealtimeDisconnectFenceRecord {
         tenant_id: "100001".into(),
-            organization_id: "0".into(),
+        organization_id: "0".into(),
         principal_kind: "user".into(),
         principal_id: principal_id.into(),
         device_id: "d_pad".into(),
@@ -316,7 +316,7 @@ fn test_memory_presence_state_store_lists_stale_online_devices_by_seen_at() {
         store
             .save_state(PresenceStateRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: device_id.into(),
@@ -365,7 +365,7 @@ fn test_memory_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant()
         store
             .save_state(PresenceStateRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: device_id.into(),
@@ -427,13 +427,15 @@ fn test_memory_presence_state_store_conditionally_expires_only_stale_online_stat
 
     let expired = store
         .expire_online_state_if_seen_at_or_before(
-            "100001",
-            "default",
-            "user",
-            "1",
-            "d_pad",
-            "2026-05-06T00:00:01.000Z",
-            "2026-05-06T00:00:02.000Z",
+            im_platform_contracts::ExpireOnlinePresenceStateCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_kind: "user",
+                principal_id: "1",
+                device_id: "d_pad",
+                cutoff_seen_at: "2026-05-06T00:00:01.000Z",
+                expired_at: "2026-05-06T00:00:02.000Z",
+            },
         )
         .expect("conditional expire should succeed")
         .expect("stale online device should expire");
@@ -443,13 +445,15 @@ fn test_memory_presence_state_store_conditionally_expires_only_stale_online_stat
 
     let replay = store
         .expire_online_state_if_seen_at_or_before(
-            "100001",
-            "default",
-            "user",
-            "1",
-            "d_pad",
-            "2026-05-06T00:00:03.000Z",
-            "2026-05-06T00:00:04.000Z",
+            im_platform_contracts::ExpireOnlinePresenceStateCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_kind: "user",
+                principal_id: "1",
+                device_id: "d_pad",
+                cutoff_seen_at: "2026-05-06T00:00:03.000Z",
+                expired_at: "2026-05-06T00:00:04.000Z",
+            },
         )
         .expect("replayed conditional expire should succeed");
     assert!(replay.is_none());
@@ -751,7 +755,7 @@ fn test_memory_realtime_checkpoint_store_saves_checkpoint_batch_under_one_store_
         .save_checkpoints(vec![
             RealtimeCheckpointRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: "d_pad".into(),
@@ -765,7 +769,7 @@ fn test_memory_realtime_checkpoint_store_saves_checkpoint_batch_under_one_store_
             },
             RealtimeCheckpointRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: "d_phone".into(),
@@ -890,7 +894,9 @@ fn test_memory_realtime_disconnect_fence_store_conditionally_clears_only_old_fen
 
     assert!(!cleared);
     assert!(
-        store.fence("100001", "default", "user", "1", "d_pad").is_some(),
+        store
+            .fence("100001", "default", "user", "1", "d_pad")
+            .is_some(),
         "newer disconnect fence must not be deleted by an older resume cleanup"
     );
 }
@@ -920,7 +926,9 @@ fn test_memory_realtime_disconnect_fence_store_compares_cutoff_by_rfc3339_instan
 
     assert!(!cleared);
     assert!(
-        store.fence("100001", "default", "user", "1", "d_pad").is_some(),
+        store
+            .fence("100001", "default", "user", "1", "d_pad")
+            .is_some(),
         "fractional-second later disconnect fence must not be deleted by whole-second cutoff"
     );
 }
@@ -1041,7 +1049,7 @@ fn test_memory_realtime_subscription_store_loads_matching_scope_event_candidates
         store
             .save_subscriptions(RealtimeSubscriptionRecord {
                 tenant_id: "100001".into(),
-            organization_id: "0".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "1".into(),
                 device_id: device_id.into(),

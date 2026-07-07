@@ -43,12 +43,22 @@ fn test_member_principal_index_key_is_segment_safe() {
         active_member("tenant", "c_b", "cm_b", "segment:user", "principal"),
     );
 
-    assert_eq!(
-        store.active_member_scopes_for_principal_kind("tenant:segment", "user", "principal"),
-        vec!["scope_a".to_owned()]
-    );
-    assert_eq!(
-        store.active_member_scopes_for_principal_kind("tenant", "segment:user", "principal"),
-        vec!["scope_b".to_owned()]
-    );
+        assert_eq!(
+            store.active_member_scopes_for_principal_kind(
+                "tenant:segment",
+                "0",
+                "user",
+                "principal"
+            ),
+            vec!["scope_a".to_owned()]
+        );
+        assert_eq!(
+            store.active_member_scopes_for_principal_kind(
+                "tenant",
+                "0",
+                "segment:user",
+                "principal"
+            ),
+            vec!["scope_b".to_owned()]
+        );
 }

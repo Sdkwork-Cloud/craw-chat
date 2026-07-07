@@ -1,25 +1,46 @@
-import { ConsoleDashboard } from '@sdkwork/im-console-dashboard';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   LayoutDashboard, Users, MessageSquare, Shield, 
   Settings, Search, Bell, LogOut, ChartBar,
-  ShieldCheck, FileText, Store, Package, GraduationCap, Blocks
+  ShieldCheck, FileText, Store, Package, Blocks
 } from 'lucide-react';
 import { cn, ConsoleContractEmptyState } from '@sdkwork/im-pc-commons';
-import { ConsoleRoles } from '@sdkwork/im-console-roles';
-import { TenantUsers } from '@sdkwork/im-console-users';
-import { ConsoleGroups, ConsoleMessages, ConsoleAnnouncements } from '@sdkwork/im-console-communications';
-import { ConsoleIntegrations } from '@sdkwork/im-console-integrations';
-import { ConsoleSecurity, ConsoleAnalytics } from '@sdkwork/im-console-security';
-import { ConsoleSettings } from '@sdkwork/im-console-settings';
-import { ConsoleStores } from '@sdkwork/im-console-shop';
-import { ConsoleProducts } from '@sdkwork/im-console-product';
-import { ConsoleCourse } from '@sdkwork/course-pc-console';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import './i18n';
 
-export const ConsoleLayout: React.FC<{ onSwitchToClient?: () => void }> = ({ onSwitchToClient }) => {
+const CONSOLE_MODULE_UNAVAILABLE_TITLE = '控制台模块暂未开放';
+
+type ConsolePage =
+  | 'analytics'
+  | 'announcements'
+  | 'dashboard'
+  | 'groups'
+  | 'integrations'
+  | 'messages'
+  | 'products'
+  | 'roles'
+  | 'security'
+  | 'settings'
+  | 'stores'
+  | 'users';
+
+export type ConsoleLayoutRouteElements = Partial<Record<ConsolePage, React.ReactNode>>;
+
+export interface ConsoleLayoutProps {
+  onSwitchToClient?: () => void;
+  routes?: ConsoleLayoutRouteElements;
+}
+
+function renderMissingConsoleRoute(title: string): React.ReactElement {
+  return (
+    <div className="w-full min-h-[400px] border border-console-border rounded-2xl bg-console-bg-panel/50 flex flex-col overflow-hidden">
+      <ConsoleContractEmptyState title={title} />
+    </div>
+  );
+}
+
+export const ConsoleLayout: React.FC<ConsoleLayoutProps> = ({ onSwitchToClient, routes = {} }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation('console');
@@ -36,7 +57,6 @@ export const ConsoleLayout: React.FC<{ onSwitchToClient?: () => void }> = ({ onS
     { id: 'integrations', icon: Blocks, labelKey: 'nav.integrations', path: '/console/integrations' },
     { id: 'security', icon: Shield, labelKey: 'nav.security', path: '/console/security' },
     { id: 'analytics', icon: ChartBar, labelKey: 'nav.analytics', path: '/console/analytics' },
-    { id: 'course', icon: GraduationCap, labelKey: 'nav.course', path: '/console/course' },
     { id: 'settings', icon: Settings, labelKey: 'nav.settings', path: '/console/settings' },
   ] as const), []);
 
@@ -129,19 +149,18 @@ export const ConsoleLayout: React.FC<{ onSwitchToClient?: () => void }> = ({ onS
           <div className="w-full max-w-full mx-auto h-full flex flex-col">
             <Routes>
               <Route path="/" element={<Navigate to="/console/dashboard" replace />} />
-              <Route path="dashboard" element={<ConsoleDashboard />} />
-              <Route path="users" element={<TenantUsers />} />
-              <Route path="roles" element={<ConsoleRoles />} />
-              <Route path="groups" element={<ConsoleGroups />} />
-              <Route path="messages" element={<ConsoleMessages />} />
-              <Route path="stores" element={<ConsoleStores />} />
-              <Route path="products" element={<ConsoleProducts />} />
-              <Route path="announcements" element={<ConsoleAnnouncements />} />
-              <Route path="integrations" element={<ConsoleIntegrations />} />
-              <Route path="security" element={<ConsoleSecurity />} />
-              <Route path="analytics" element={<ConsoleAnalytics />} />
-              <Route path="course" element={<ConsoleCourse />} />
-              <Route path="settings" element={<ConsoleSettings />} />
+              <Route path="dashboard" element={routes.dashboard ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="users" element={routes.users ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="roles" element={routes.roles ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="groups" element={routes.groups ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="messages" element={routes.messages ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="stores" element={routes.stores ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="products" element={routes.products ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="announcements" element={routes.announcements ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="integrations" element={routes.integrations ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="security" element={routes.security ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="analytics" element={routes.analytics ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
+              <Route path="settings" element={routes.settings ?? renderMissingConsoleRoute(CONSOLE_MODULE_UNAVAILABLE_TITLE)} />
               <Route path="*" element={
                 <div className="w-full min-h-[400px] border border-console-border rounded-2xl bg-console-bg-panel/50 flex flex-col overflow-hidden">
                   <ConsoleContractEmptyState title="控制台模块暂未开放" />

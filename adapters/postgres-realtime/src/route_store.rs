@@ -4,11 +4,11 @@ use chrono::{DateTime, Utc};
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres::Row;
 use sdkwork_im_runtime_route::{
-    normalize_route_organization_id, RouteBinding, RouteBindingRequest, RouteDirectory,
-    RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError, RouteStore,
+    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
+    RouteRuntimeError, RouteStore, normalize_route_organization_id,
 };
 
-use crate::{run_postgres_io, PostgresRealtimePool};
+use crate::{PostgresRealtimePool, run_postgres_io};
 
 const UPSERT_ROUTE_BINDING_SQL: &str = r#"
 insert into im_route_bindings (
@@ -155,9 +155,7 @@ fn route_bound_at_timestamp(value: &str) -> Result<DateTime<Utc>, ContractError>
     DateTime::parse_from_rfc3339(trimmed)
         .map(|timestamp| timestamp.with_timezone(&Utc))
         .map_err(|error| {
-            ContractError::Unavailable(format!(
-                "route binding bound_at must be RFC3339: {error}"
-            ))
+            ContractError::Unavailable(format!("route binding bound_at must be RFC3339: {error}"))
         })
 }
 
@@ -246,7 +244,7 @@ fn load_binding(
                 &device_id,
             ],
         )
-        .map_err(|error| route_load_failed(error))?;
+        .map_err(route_load_failed)?;
     Ok(row.as_ref().map(binding_from_row))
 }
 
@@ -431,7 +429,9 @@ impl RouteStore for PostgresBackedRouteStore {
         expected_current: &RouteBinding,
         restore_to: RouteBinding,
     ) -> Option<RouteBinding> {
-        let restored = self.memory.restore_if_current(expected_current, restore_to)?;
+        let restored = self
+            .memory
+            .restore_if_current(expected_current, restore_to)?;
         let _ = self.persistence.persist(&restored);
         Some(restored)
     }
@@ -448,8 +448,8 @@ impl RouteStore for PostgresBackedRouteStore {
 #[cfg(test)]
 mod tests {
     use super::{
-        route_bound_at_timestamp, route_epoch_i64, DELETE_ROUTE_BINDING_SQL,
-        LOAD_ROUTE_BINDING_SQL, UPSERT_ROUTE_BINDING_SQL,
+        DELETE_ROUTE_BINDING_SQL, LOAD_ROUTE_BINDING_SQL, UPSERT_ROUTE_BINDING_SQL,
+        route_bound_at_timestamp, route_epoch_i64,
     };
     use sdkwork_im_runtime_route::RouteBinding;
 

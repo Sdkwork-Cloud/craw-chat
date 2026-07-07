@@ -7,7 +7,6 @@ use sdkwork_im_runtime_id::build_runtime_id_generator;
 use sdkwork_routes_web_framework_backend_api::response::ApiProblem;
 
 /// Snowflake ids are allocated through [`sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator`].
-
 /// Build a runtime ID generator for social-service.
 pub async fn build_runtime_id_generator_for_social() -> Arc<dyn IdGenerator> {
     build_runtime_id_generator("social-service").await

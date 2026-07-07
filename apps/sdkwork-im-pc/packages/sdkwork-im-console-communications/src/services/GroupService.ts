@@ -19,6 +19,16 @@ export interface GroupListPage {
   nextCursor?: string;
 }
 
+function readSdkCursorPageInfo(
+  pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
+): Pick<GroupListPage, 'hasMore' | 'nextCursor'> {
+  const hasMore = pageInfo?.hasMore === true;
+  return {
+    hasMore,
+    nextCursor: hasMore ? (pageInfo?.nextCursor ?? undefined) : undefined,
+  };
+}
+
 function mapInboxEntryToGroup(entry: ConversationInboxEntry): Group {
   return {
     id: entry.conversationId,
@@ -47,7 +57,7 @@ class GroupService {
     search?: string;
   }): Promise<GroupListPage> {
     const client = getImSdkClientWithSession();
-    const response = await client.chat.inbox.retrieve({
+    const response = await client.chat.inbox.list({
       pageSize: Math.min(params.pageSize, GROUP_INBOX_PAGE_LIMIT),
       ...(params.cursor ? { cursor: params.cursor } : {}),
     });
@@ -55,11 +65,12 @@ class GroupService {
       .filter((entry) => entry.conversationType.toLowerCase() === 'group')
       .map(mapInboxEntryToGroup)
       .filter((group) => matchesGroupSearch(group, params.search));
+    const page = readSdkCursorPageInfo(response.pageInfo);
 
     return {
       data,
-      hasMore: Boolean(response.hasMore),
-      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
+      hasMore: page.hasMore,
+      nextCursor: page.nextCursor,
     };
   }
 }

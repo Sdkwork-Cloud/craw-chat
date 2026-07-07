@@ -14,18 +14,23 @@ use im_app_context::{AppContext, resolve_web_environment_from_process_env};
 use im_time::utc_now_rfc3339_millis;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
-use sdkwork_web_core::{
-    WebEnvironment, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
-    problem_response, ProblemCorrelation,
-};
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response,
+};
+use sdkwork_utils_rust::{
+    MAX_LIST_PAGE_SIZE, PageInfo, PageMode, SdkWorkPageData, SdkWorkPageSizeQuery,
+    SdkWorkResourceData, sha256_hash,
+};
+use sdkwork_web_core::{
+    ProblemCorrelation, WebEnvironment, WebFrameworkError, WebFrameworkErrorKind,
+    WebRequestContext, problem_response,
+};
 use serde::{Deserialize, Serialize};
-use sdkwork_utils_rust::{sha256_hash, SdkWorkPageSizeQuery, MAX_LIST_PAGE_SIZE};
 use tokio::sync::Semaphore;
 use tracing::{error, info};
 
@@ -241,22 +246,30 @@ impl TenantAuditRecords {
                 items.push(record);
             }
         }
-        let next_after_audit_seq = items.last().map(|record| record.audit_seq);
-
-        AuditRecordListResponse {
-            items,
-            next_after_audit_seq,
-            has_more,
-        }
+        audit_seq_cursor_page(items, limit, has_more)
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AuditRecordListResponse {
+pub type AuditRecordListResponse = SdkWorkPageData<AuditRecord>;
+
+fn audit_seq_cursor_page(
     items: Vec<AuditRecord>,
-    next_after_audit_seq: Option<u64>,
+    page_size: usize,
     has_more: bool,
+) -> AuditRecordListResponse {
+    let next_cursor = items.last().map(|record| record.audit_seq.to_string());
+    SdkWorkPageData {
+        items,
+        page_info: PageInfo {
+            mode: PageMode::Cursor,
+            page: None,
+            page_size: Some(page_size as i32),
+            total_items: None,
+            total_pages: None,
+            next_cursor,
+            has_more: Some(has_more),
+        },
+    }
 }
 
 #[derive(Debug)]
@@ -360,27 +373,18 @@ impl AuditRuntime {
         request: RecordAuditAnchor,
     ) -> Result<AuditRecordMutationOutcome, AuditError> {
         match &self.backend {
-            AuditBackend::InMemory { records } => {
-                record_anchor_in_memory(records, auth, request)
-            }
+            AuditBackend::InMemory { records } => record_anchor_in_memory(records, auth, request),
             AuditBackend::Postgres(store) => store.record_anchor_with_outcome(auth, request),
         }
     }
 
-    pub fn list_records(&self, auth: &AppContext) -> Vec<AuditRecord> {
+    pub fn list_records(&self, auth: &AppContext) -> Result<Vec<AuditRecord>, AuditError> {
         match &self.backend {
-            AuditBackend::InMemory { records } => Self::read_records(records)
+            AuditBackend::InMemory { records } => Ok(Self::read_records(records)
                 .get(auth.tenant_id.as_str())
                 .map(TenantAuditRecords::ordered_items)
-                .unwrap_or_default(),
-            AuditBackend::Postgres(store) => store.list_records(auth).unwrap_or_else(|error| {
-                error!(
-                    code = error.code,
-                    message = %error.message,
-                    "audit-service failed to load records for list_records"
-                );
-                Vec::new()
-            }),
+                .unwrap_or_default()),
+            AuditBackend::Postgres(store) => store.list_records(auth),
         }
     }
 
@@ -404,42 +408,38 @@ impl AuditRuntime {
                 .map(|tenant_records: &TenantAuditRecords| {
                     tenant_records.window(after_audit_seq, limit)
                 })
-                .unwrap_or_else(|| AuditRecordListResponse {
-                    items: Vec::new(),
-                    next_after_audit_seq: None,
-                    has_more: false,
-                })),
+                .unwrap_or_else(|| audit_seq_cursor_page(Vec::new(), limit, false))),
             AuditBackend::Postgres(store) => {
                 store.list_records_window(auth, after_audit_seq, limit)
             }
         }
     }
 
-    pub fn export_bundle(&self, auth: &AppContext) -> AuditExportBundle {
-        let items = self.list_records(auth);
+    pub fn export_bundle(&self, auth: &AppContext) -> Result<AuditExportBundle, AuditError> {
+        let items = self.list_records(auth)?;
         let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
         let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
-        AuditExportBundle {
+        Ok(AuditExportBundle {
             tenant_id: auth.tenant_id.clone(),
             exported_at: utc_now_rfc3339_millis(),
             total: items.len(),
             items,
             chain_head_hash,
             chain_valid,
-        }
+        })
     }
 
-    pub fn verify_chain(&self, auth: &AppContext) -> AuditChainVerification {
-        let items = self.list_records(auth);
+    pub fn verify_chain(&self, auth: &AppContext) -> Result<AuditChainVerification, AuditError> {
+        let items = self.list_records(auth)?;
         let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
         let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
-        AuditChainVerification {
+        Ok(AuditChainVerification {
             tenant_id: auth.tenant_id.clone(),
             verified_at: utc_now_rfc3339_millis(),
             total: items.len(),
             chain_head_hash,
             chain_valid,
-        }
+        })
     }
 
     /// Construct the runtime using process environment variables.
@@ -853,10 +853,7 @@ fn select_audit_records_window(
 ) -> Result<AuditRecordListResponse, AuditError> {
     let mut client = audit_pool_client(pool, "audit select window")?;
     let after_seq_i64 = i64::try_from(after_audit_seq).map_err(|_| {
-        AuditError::internal(
-            "audit_seq_overflow",
-            "after_audit_seq overflowed i64",
-        )
+        AuditError::internal("audit_seq_overflow", "after_audit_seq overflowed i64")
     })?;
     // Fetch limit+1 rows so `has_more` can be derived without a second query,
     // matching the in-memory `TenantAuditRecords::window` semantics.
@@ -877,17 +874,15 @@ fn select_audit_records_window(
         )
         .map_err(|error| audit_db_error("audit select window", error))?;
 
-    let mut items: Vec<AuditRecord> = rows.iter().map(row_to_audit_record).collect::<Result<_, _>>()?;
+    let mut items: Vec<AuditRecord> = rows
+        .iter()
+        .map(row_to_audit_record)
+        .collect::<Result<_, _>>()?;
     let has_more = items.len() > limit;
     if has_more {
         items.truncate(limit);
     }
-    let next_after_audit_seq = items.last().map(|record| record.audit_seq);
-    Ok(AuditRecordListResponse {
-        items,
-        next_after_audit_seq,
-        has_more,
-    })
+    Ok(audit_seq_cursor_page(items, limit, has_more))
 }
 
 fn row_to_audit_record(row: &r2d2_postgres::postgres::Row) -> Result<AuditRecord, AuditError> {
@@ -944,9 +939,7 @@ fn build_audit_pool_local(database_url: &str) -> Result<AuditPostgresPool, Audit
     let tls = make_tls_connector().map_err(|error| {
         AuditError::internal(
             "audit_persistence_failed",
-            format!(
-                "postgres audit TLS connector build failed: {error}"
-            ),
+            format!("postgres audit TLS connector build failed: {error}"),
         )
     })?;
     let manager = PostgresConnectionManager::new(pg_config, tls);
@@ -982,7 +975,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }
@@ -1013,25 +1009,29 @@ fn audit_pool_client(
 
 /// Bridge a blocking PostgreSQL operation off the async runtime.
 ///
-/// Mirrors `adapters/postgres-journal::run_postgres_io`: synchronous postgres
-/// driver work runs on a dedicated OS thread via `std::thread::scope` so the
-/// blocking `postgres` crate never nests Tokio runtimes.
+/// When called from a multi-threaded Tokio runtime worker thread, uses
+/// [`tokio::task::block_in_place`] to move other tasks on the current worker
+/// to other workers, preventing async runtime starvation under concurrent
+/// load. Falls back to [`std::thread::scope`] for non-Tokio contexts and
+/// current-thread runtimes (e.g., `#[tokio::test]`).
 fn run_audit_postgres_io<T>(
     operation: impl FnOnce() -> Result<T, AuditError> + Send,
 ) -> Result<T, AuditError>
 where
     T: Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        return tokio::task::block_in_place(operation);
+    }
     std::thread::scope(|scope| {
-        scope
-            .spawn(operation)
-            .join()
-            .map_err(|_| {
-                AuditError::internal(
-                    "audit_persistence_failed",
-                    "postgres audit blocking IO worker panicked",
-                )
-            })?
+        scope.spawn(operation).join().map_err(|_| {
+            AuditError::internal(
+                "audit_persistence_failed",
+                "postgres audit blocking IO worker panicked",
+            )
+        })?
     })
 }
 
@@ -1239,7 +1239,9 @@ fn resolve_audit_backend_from_env() -> AuditBackend {
         (WebEnvironment::Prod, Some(database_url)) => {
             match PostgresAuditStore::from_database_url(database_url.as_str()) {
                 Ok(store) => {
-                    info!("audit-service using PostgreSQL-backed durable audit ledger (production)");
+                    info!(
+                        "audit-service using PostgreSQL-backed durable audit ledger (production)"
+                    );
                     AuditBackend::Postgres(store)
                 }
                 Err(error) => {
@@ -1272,7 +1274,10 @@ pub fn build_default_app() -> Router {
 
 pub fn build_domain_api_router(state: AppState) -> Router {
     Router::new()
-        .route("/backend/v3/api/audit/records", post(record_anchor).get(list_records))
+        .route(
+            "/backend/v3/api/audit/records",
+            post(record_anchor).get(list_records),
+        )
         .route("/backend/v3/api/audit/export", get(export_bundle))
         .route("/backend/v3/api/audit/verify", get(verify_chain))
         .with_state(state)
@@ -1332,8 +1337,8 @@ async fn enforce_in_flight_gate(
             return AuditError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
                 code: "http_overloaded",
-                message:
-                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
             }
             .into_response();
         }
@@ -1425,16 +1430,18 @@ async fn record_anchor(
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
 ) -> Response {
-    let result: ApiResult<AuditRecordMutationResponse> = (|| {
+    let result: ApiResult<SdkWorkResourceData<AuditRecordMutationResponse>> = (|| {
         ensure_audit_write_access(&auth)?;
         validate_record_audit_anchor_request(&request)?;
         let request_key = audit_record_request_key(&auth, request.record_id.as_str());
-        Ok(AuditRecordMutationResponse::from_outcome(
-            state.runtime.record_anchor_with_outcome(&auth, request)?,
-            request_key,
-        ))
+        Ok(SdkWorkResourceData {
+            item: AuditRecordMutationResponse::from_outcome(
+                state.runtime.record_anchor_with_outcome(&auth, request)?,
+                request_key,
+            ),
+        })
     })();
-    finish_api_json(&ctx, result)
+    finish_api_response(&ctx, result.and_then(|data| created_json(&ctx, data)))
 }
 
 async fn list_records(
@@ -1457,7 +1464,7 @@ async fn export_bundle(
 ) -> Response {
     let result: ApiResult<AuditExportBundle> = (|| {
         ensure_audit_read_access(&auth)?;
-        Ok(state.runtime.export_bundle(&auth))
+        Ok(state.runtime.export_bundle(&auth)?)
     })();
     finish_api_json(&ctx, result)
 }
@@ -1469,7 +1476,7 @@ async fn verify_chain(
 ) -> Response {
     let result: ApiResult<AuditChainVerification> = (|| {
         ensure_audit_read_access(&auth)?;
-        Ok(state.runtime.verify_chain(&auth))
+        Ok(state.runtime.verify_chain(&auth)?)
     })();
     finish_api_json(&ctx, result)
 }

@@ -4,7 +4,9 @@ use im_adapters_postgres_realtime::{
     PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeEventWindowStore,
     PostgresRealtimePool, PostgresRealtimeSubscriptionStore,
 };
-use session_gateway::{RealtimeDeliveryRuntime, RealtimeSubscriptionItemInput};
+use session_gateway::{
+    RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeSubscriptionItemInput,
+};
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
 const CORE_SCHEMA_SQL: &str =
@@ -63,15 +65,15 @@ fn test_session_gateway_realtime_runtime_uses_postgres_stores_for_rebuild_ack_an
 
     let rebuilt_runtime = runtime_for_pool(pool.clone());
     let restored_window = rebuilt_runtime
-        .list_events_for_principal_kind(
-            tenant_id.as_str(),
-            "default",
-            principal_id.as_str(),
-            "user",
-            source_device_id.as_str(),
-            0,
-            10,
-        )
+        .list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: tenant_id.as_str(),
+            organization_id: "default",
+            principal_id: principal_id.as_str(),
+            principal_kind: "user",
+            device_id: source_device_id.as_str(),
+            after_seq: 0,
+            limit: 10,
+        })
         .expect("rebuilt runtime should restore unacked events from PostgreSQL");
     assert_eq!(restored_window.items.len(), 1);
     assert_eq!(restored_window.items[0].realtime_seq, 1);
@@ -92,15 +94,15 @@ fn test_session_gateway_realtime_runtime_uses_postgres_stores_for_rebuild_ack_an
 
     let after_ack_rebuild = runtime_for_pool(pool.clone());
     let trimmed_window = after_ack_rebuild
-        .list_events_for_principal_kind(
-            tenant_id.as_str(),
-            "default",
-            principal_id.as_str(),
-            "user",
-            source_device_id.as_str(),
-            0,
-            10,
-        )
+        .list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: tenant_id.as_str(),
+            organization_id: "default",
+            principal_id: principal_id.as_str(),
+            principal_kind: "user",
+            device_id: source_device_id.as_str(),
+            after_seq: 0,
+            limit: 10,
+        })
         .expect("rebuilt runtime should preserve PostgreSQL trim checkpoint");
     assert!(trimmed_window.items.is_empty());
     assert_eq!(trimmed_window.acked_through_seq, 1);
@@ -158,15 +160,15 @@ fn test_session_gateway_realtime_runtime_uses_postgres_stores_for_rebuild_ack_an
     assert_eq!(target_delivery, 1);
 
     let target_window = target_runtime
-        .list_events_for_principal_kind(
-            tenant_id.as_str(),
-            "default",
-            principal_id.as_str(),
-            "user",
-            target_device_id.as_str(),
-            1,
-            10,
-        )
+        .list_events_for_principal_kind(RealtimeEventWindowQuery {
+            tenant_id: tenant_id.as_str(),
+            organization_id: "default",
+            principal_id: principal_id.as_str(),
+            principal_kind: "user",
+            device_id: target_device_id.as_str(),
+            after_seq: 1,
+            limit: 10,
+        })
         .expect("target runtime should expose the restored client route window");
     assert_eq!(target_window.items.len(), 1);
     assert_eq!(target_window.items[0].device_id, target_device_id);

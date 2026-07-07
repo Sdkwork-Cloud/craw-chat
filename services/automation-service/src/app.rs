@@ -4,15 +4,13 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::middleware::{self, Next};
 use axum::http::Request;
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use tokio::sync::Semaphore;
 
-use sdkwork_im_web_bootstrap::{
-    im_service_router_config, mount_im_infra_routes,
-};
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_web_core::WebRequestContext;
 
 use crate::error::AutomationError;
@@ -70,7 +68,9 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 
 pub fn build_public_app() -> Router {
     mount_im_infra_routes(
-        apply_public_http_guardrails(build_business_router(crate::bootstrap::default_automation_runtime())),
+        apply_public_http_guardrails(build_business_router(
+            crate::bootstrap::default_automation_runtime(),
+        )),
         im_service_router_config(),
     )
 }

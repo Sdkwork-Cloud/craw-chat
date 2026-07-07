@@ -2,13 +2,27 @@ use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 
 #[test]
 fn test_commit_envelope_normalizes_organization_id() {
-    let envelope = CommitEnvelope::minimal("evt_demo", "100001", "message.posted", "conversation", "c_demo", 1)
-        .with_organization_id("org_a");
+    let envelope = CommitEnvelope::minimal(
+        "evt_demo",
+        "100001",
+        "message.posted",
+        "conversation",
+        "c_demo",
+        1,
+    )
+    .with_organization_id("org_a");
     assert_eq!(envelope.normalized_organization_id(), "org_a");
     assert_eq!(
-        CommitEnvelope::minimal("evt_demo", "100001", "message.posted", "conversation", "c_demo", 1)
-            .with_organization_id("")
-            .normalized_organization_id(),
+        CommitEnvelope::minimal(
+            "evt_demo",
+            "100001",
+            "message.posted",
+            "conversation",
+            "c_demo",
+            1
+        )
+        .with_organization_id("")
+        .normalized_organization_id(),
         "default"
     );
 }

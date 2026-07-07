@@ -1,4 +1,4 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/im-admin-core/sdk';
+import { getBackendSdkClientWithSession } from '@sdkwork/im-pc-admin-sdk';
 
 export interface AdminMetrics {
   systemLoad: { value: string; trend: string; isUp: boolean };

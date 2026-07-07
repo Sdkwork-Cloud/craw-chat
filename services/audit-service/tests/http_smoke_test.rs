@@ -92,7 +92,7 @@ async fn test_record_list_and_export_audit_over_http() {
         )
         .await
         .expect("record audit should succeed");
-    assert_eq!(record_response.status(), StatusCode::OK);
+    assert_eq!(record_response.status(), StatusCode::CREATED);
 
     let list_response = app
         .clone()
@@ -121,8 +121,7 @@ async fn test_record_list_and_export_audit_over_http() {
     assert_eq!(list_json["code"], 0);
     assert_eq!(list_json["data"]["items"][0]["recordId"], "audit_http_demo");
     assert_eq!(list_json["data"]["items"][0]["auditSeq"], 1);
-    assert_eq!(list_json["data"]["nextAfterAuditSeq"], 1);
-    assert_eq!(list_json["data"]["hasMore"], false);
+    assert_eq!(list_json["data"]["pageInfo"]["hasMore"], false);
 
     let export_response = app
         .clone()
@@ -183,9 +182,7 @@ async fn test_record_list_and_export_audit_over_http() {
     assert_eq!(verify_json["data"]["total"], 1);
     assert_eq!(verify_json["data"]["chainValid"], true);
     assert!(
-        verify_json["data"]["chainHeadHash"]
-            .as_str()
-            .is_some(),
+        verify_json["data"]["chainHeadHash"].as_str().is_some(),
         "verify response should include chain head hash when records exist"
     );
 }
@@ -225,14 +222,14 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
             )
             .await
             .expect("record audit should succeed");
-        assert_eq!(record_response.status(), StatusCode::OK);
+        assert_eq!(record_response.status(), StatusCode::CREATED);
     }
 
     let first_window_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/audit/records?afterAuditSeq=0&pageSize=2")
+                .uri("/backend/v3/api/audit/records?afterAuditSeq=0&page_size=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -253,21 +250,18 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
     let first_window_json: serde_json::Value =
         serde_json::from_slice(&first_window_body).expect("first audit window should be json");
     assert_eq!(
-        first_window_json["data"]["items"]
-            .as_array()
-            .unwrap()
-            .len(),
+        first_window_json["data"]["items"].as_array().unwrap().len(),
         2
     );
     assert_eq!(first_window_json["data"]["items"][0]["auditSeq"], 1);
     assert_eq!(first_window_json["data"]["items"][1]["auditSeq"], 2);
-    assert_eq!(first_window_json["data"]["nextAfterAuditSeq"], 2);
-    assert_eq!(first_window_json["data"]["hasMore"], true);
+    assert_eq!(first_window_json["data"]["pageInfo"]["hasMore"], true);
+    assert_eq!(first_window_json["data"]["pageInfo"]["nextCursor"], "2");
 
     let second_window_response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/audit/records?afterAuditSeq=2&pageSize=2")
+                .uri("/backend/v3/api/audit/records?afterAuditSeq=2&page_size=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
@@ -299,8 +293,8 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         second_window_json["data"]["items"][0]["action"],
         "notification.delivered"
     );
-    assert_eq!(second_window_json["data"]["nextAfterAuditSeq"], 3);
-    assert_eq!(second_window_json["data"]["hasMore"], false);
+    assert_eq!(second_window_json["data"]["pageInfo"]["hasMore"], false);
+    assert_eq!(second_window_json["data"]["pageInfo"]["nextCursor"], "3");
 }
 
 #[tokio::test]
@@ -333,7 +327,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         )
         .await
         .expect("first audit record should succeed");
-    assert_eq!(first_record.status(), StatusCode::OK);
+    assert_eq!(first_record.status(), StatusCode::CREATED);
     let first_record_body = first_record
         .into_body()
         .collect()
@@ -342,9 +336,12 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .to_bytes();
     let first_record_json: serde_json::Value =
         serde_json::from_slice(&first_record_body).expect("first record should be valid json");
-    assert_eq!(first_record_json["data"]["deliveryStatus"], "applied");
     assert_eq!(
-        first_record_json["data"]["proofVersion"],
+        first_record_json["data"]["item"]["deliveryStatus"],
+        "applied"
+    );
+    assert_eq!(
+        first_record_json["data"]["item"]["proofVersion"],
         "audit.record.delivery-proof.v1"
     );
 
@@ -373,7 +370,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         )
         .await
         .expect("duplicate audit record should return response");
-    assert_eq!(duplicate_record.status(), StatusCode::OK);
+    assert_eq!(duplicate_record.status(), StatusCode::CREATED);
     let duplicate_record_body = duplicate_record
         .into_body()
         .collect()
@@ -382,10 +379,13 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .to_bytes();
     let duplicate_record_json: serde_json::Value = serde_json::from_slice(&duplicate_record_body)
         .expect("duplicate record should be valid json");
-    assert_eq!(duplicate_record_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_record_json["data"]["requestKey"],
-        first_record_json["data"]["requestKey"]
+        duplicate_record_json["data"]["item"]["deliveryStatus"],
+        "replayed"
+    );
+    assert_eq!(
+        duplicate_record_json["data"]["item"]["requestKey"],
+        first_record_json["data"]["item"]["requestKey"]
     );
 
     let list_records = app
@@ -413,10 +413,7 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
     let list_records_json: serde_json::Value =
         serde_json::from_slice(&list_records_body).expect("list records should be valid json");
     assert_eq!(
-        list_records_json["data"]["items"]
-            .as_array()
-            .unwrap()
-            .len(),
+        list_records_json["data"]["items"].as_array().unwrap().len(),
         1
     );
 
@@ -488,7 +485,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         )
         .await
         .expect("first audit record should succeed");
-    assert_eq!(first_record.status(), StatusCode::OK);
+    assert_eq!(first_record.status(), StatusCode::CREATED);
     let first_record_body = first_record
         .into_body()
         .collect()
@@ -497,7 +494,10 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .to_bytes();
     let first_record_json: serde_json::Value =
         serde_json::from_slice(&first_record_body).expect("first record should be valid json");
-    assert_eq!(first_record_json["data"]["deliveryStatus"], "applied");
+    assert_eq!(
+        first_record_json["data"]["item"]["deliveryStatus"],
+        "applied"
+    );
 
     let duplicate_record = app
         .clone()
@@ -525,7 +525,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         )
         .await
         .expect("duplicate audit record should return response after session rotation");
-    assert_eq!(duplicate_record.status(), StatusCode::OK);
+    assert_eq!(duplicate_record.status(), StatusCode::CREATED);
     let duplicate_record_body = duplicate_record
         .into_body()
         .collect()
@@ -534,10 +534,13 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .to_bytes();
     let duplicate_record_json: serde_json::Value = serde_json::from_slice(&duplicate_record_body)
         .expect("duplicate record should be valid json");
-    assert_eq!(duplicate_record_json["data"]["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_record_json["data"]["requestKey"],
-        first_record_json["data"]["requestKey"]
+        duplicate_record_json["data"]["item"]["deliveryStatus"],
+        "replayed"
+    );
+    assert_eq!(
+        duplicate_record_json["data"]["item"]["requestKey"],
+        first_record_json["data"]["item"]["requestKey"]
     );
 
     let list_records = app
@@ -564,10 +567,7 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
     let list_records_json: serde_json::Value =
         serde_json::from_slice(&list_records_body).expect("list records should be valid json");
     assert_eq!(
-        list_records_json["data"]["items"]
-            .as_array()
-            .unwrap()
-            .len(),
+        list_records_json["data"]["items"].as_array().unwrap().len(),
         1
     );
 }

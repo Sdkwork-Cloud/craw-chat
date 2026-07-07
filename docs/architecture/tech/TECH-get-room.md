@@ -16,7 +16,7 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/rooms/{roomId}</code>
-  <span class="api-op-id">operationId: rooms.get</span>
+  <span class="api-op-id">operationId: rooms.retrieve</span>
 </div>
 
 Returns room metadata and the active member count.
@@ -48,4 +48,3 @@ Returns room metadata and the active member count.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

@@ -5,8 +5,8 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-sdkwork-im-ccp-codec = { path = "../sdkwork-im-ccp-codec" }
-sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
+sdkwork-im-ccp-codec = { workspace = true }
+sdkwork-im-ccp-core = { workspace = true }
 
 [dev-dependencies]
-sdkwork-im-ccp-codec-json = { path = "../sdkwork-im-ccp-codec-json" }
+sdkwork-im-ccp-codec-json = { workspace = true }

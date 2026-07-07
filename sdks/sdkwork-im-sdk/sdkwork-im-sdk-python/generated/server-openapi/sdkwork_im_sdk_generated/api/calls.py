@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, RtcParticipantCredential, RtcSession, RtcSessionMutationResponse, RtcSignalEvent, UpdateRtcSessionRequest
+from ..models import CallsSessionsAcceptResponse, CallsSessionsCreateResponse201, CallsSessionsCredentialsCreateResponse201, CallsSessionsEndResponse, CallsSessionsInviteResponse, CallsSessionsRejectResponse, CallsSessionsRetrieveResponse, CallsSessionsSignalsCreateResponse201, CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, UpdateRtcSessionRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -91,27 +91,27 @@ class CallsSessionsApi:
         self.credentials = CallsSessionsCredentialsApi(client)
 
 
-    def create(self, body: CreateRtcSessionRequest) -> RtcSessionMutationResponse:
+    def create(self, body: CreateRtcSessionRequest) -> CallsSessionsCreateResponse201:
         """Create an IM call signaling session"""
         return self._client.post(f"/im/v3/api/calls/sessions", json=body)
 
-    def retrieve(self, rtc_session_id: str) -> RtcSession:
+    def retrieve(self, rtc_session_id: str) -> CallsSessionsRetrieveResponse:
         """Retrieve IM call signaling session state"""
         return self._client.get(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}")
 
-    def create_invite(self, rtc_session_id: str, body: InviteRtcSessionRequest) -> RtcSessionMutationResponse:
+    def create_invite(self, rtc_session_id: str, body: InviteRtcSessionRequest) -> CallsSessionsInviteResponse:
         """Invite participants into an IM call signaling session"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/invite", json=body)
 
-    def create_accept(self, rtc_session_id: str, body: UpdateRtcSessionRequest) -> RtcSessionMutationResponse:
+    def create_accept(self, rtc_session_id: str, body: UpdateRtcSessionRequest) -> CallsSessionsAcceptResponse:
         """Accept an IM call signaling session"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/accept", json=body)
 
-    def create_reject(self, rtc_session_id: str, body: UpdateRtcSessionRequest) -> RtcSessionMutationResponse:
+    def create_reject(self, rtc_session_id: str, body: UpdateRtcSessionRequest) -> CallsSessionsRejectResponse:
         """Reject an IM call signaling session"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/reject", json=body)
 
-    def create_end(self, rtc_session_id: str, body: UpdateRtcSessionRequest) -> RtcSessionMutationResponse:
+    def create_end(self, rtc_session_id: str, body: UpdateRtcSessionRequest) -> CallsSessionsEndResponse:
         """End an IM call signaling session"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/end", json=body)
 
@@ -122,7 +122,7 @@ class CallsSessionsSignalsApi:
         self._client = client
 
 
-    def create(self, rtc_session_id: str, body: PostRtcSignalRequest) -> RtcSignalEvent:
+    def create(self, rtc_session_id: str, body: PostRtcSignalRequest) -> CallsSessionsSignalsCreateResponse201:
         """Post an IM call signaling event"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/signals", json=body)
 
@@ -133,6 +133,6 @@ class CallsSessionsCredentialsApi:
         self._client = client
 
 
-    def create(self, rtc_session_id: str, body: IssueRtcParticipantCredentialRequest) -> RtcParticipantCredential:
+    def create(self, rtc_session_id: str, body: IssueRtcParticipantCredentialRequest) -> CallsSessionsCredentialsCreateResponse201:
         """Issue an RTC media participant credential for an IM call"""
         return self._client.post(f"/im/v3/api/calls/sessions/{serialize_path_parameter(rtc_session_id, {'name': 'rtcSessionId', 'style': 'simple', 'explode': False})}/credentials", json=body)

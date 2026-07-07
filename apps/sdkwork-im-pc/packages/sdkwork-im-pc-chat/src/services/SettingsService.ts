@@ -1,7 +1,7 @@
 import {
   getImHostedAiotAppSdkClient,
+  type SdkworkAiotAppClient,
 } from "@sdkwork/im-pc-core/sdk/aiotPcIntegration";
-import type { SdkworkAiotAppClient } from "@sdkwork/aiot-app-sdk";
 import {
   getAppSdkClientWithSession,
   type SdkworkImAppClient,
@@ -149,6 +149,20 @@ function uniqueKnownModules(modules: string[]): string[] {
   return result;
 }
 
+function uniqueKnownCatalogModules(modules: string[]): string[] {
+  const known = new Set<string>(ALL_APP_MODULES as readonly string[]);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const moduleId of modules) {
+    if (!known.has(moduleId) || seen.has(moduleId)) {
+      continue;
+    }
+    seen.add(moduleId);
+    result.push(moduleId);
+  }
+  return result;
+}
+
 function hasSameModuleSet(left: string[], right: string[]): boolean {
   if (left.length !== right.length) return false;
   const leftSet = new Set(left);
@@ -159,13 +173,15 @@ function normalizeSidebarModules(
   value: unknown,
   options: { migrateLegacyAllModules?: boolean } = {},
 ): string[] {
-  const modules = uniqueKnownModules(pickStringArray(value));
+  const rawModules = pickStringArray(value);
+  const knownCatalogModules = uniqueKnownCatalogModules(rawModules);
+  const modules = uniqueKnownModules(rawModules);
   if (modules.length === 0) {
     return [...DEFAULT_SIDEBAR_MODULES];
   }
   if (options.migrateLegacyAllModules && (
-    hasSameModuleSet(modules, [...ALL_APP_MODULES]) ||
-    hasSameModuleSet(modules, LEGACY_AUTOFILLED_SIDEBAR_MODULES)
+    hasSameModuleSet(knownCatalogModules, [...ALL_APP_MODULES]) ||
+    hasSameModuleSet(knownCatalogModules, LEGACY_AUTOFILLED_SIDEBAR_MODULES)
   )) {
     return [...DEFAULT_SIDEBAR_MODULES];
   }

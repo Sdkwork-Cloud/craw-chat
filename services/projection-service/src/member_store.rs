@@ -1,12 +1,62 @@
-use std::collections::{BTreeSet, HashMap};
 use std::cmp::Ordering;
+use std::collections::{BTreeSet, HashMap};
+use std::ops::Bound::{Excluded, Unbounded};
 
-use im_domain_core::conversation::{ConversationMember, principal_member_key};
+use im_domain_core::conversation::{ConversationMember, MembershipRole, principal_member_key};
 
 #[derive(Clone, Eq, PartialEq)]
 struct InboxActivityEntry {
     activity_at: String,
     scope: String,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct MemberDirectoryIndexEntry {
+    role_rank: u8,
+    joined_at: String,
+    principal_id: String,
+    principal_kind: String,
+    member_id: String,
+}
+
+impl MemberDirectoryIndexEntry {
+    fn from_member(member: &ConversationMember) -> Self {
+        Self {
+            role_rank: member_directory_role_rank(&member.role),
+            joined_at: member.joined_at.clone(),
+            principal_id: member.principal_id.clone(),
+            principal_kind: member.principal_kind.clone(),
+            member_id: member.member_id.clone(),
+        }
+    }
+
+    fn storage_key(&self) -> String {
+        principal_member_key(self.principal_id.as_str(), self.principal_kind.as_str())
+    }
+}
+
+impl Ord for MemberDirectoryIndexEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.role_rank
+            .cmp(&other.role_rank)
+            .then_with(|| self.joined_at.cmp(&other.joined_at))
+            .then_with(|| self.principal_id.cmp(&other.principal_id))
+    }
+}
+
+impl PartialOrd for MemberDirectoryIndexEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+fn member_directory_role_rank(role: &MembershipRole) -> u8 {
+    match role {
+        MembershipRole::Owner => 0,
+        MembershipRole::Admin => 1,
+        MembershipRole::Member => 2,
+        MembershipRole::Guest => 3,
+    }
 }
 
 impl Ord for InboxActivityEntry {
@@ -29,6 +79,7 @@ pub(crate) struct ProjectionMemberRuntimeStore {
     by_conversation: HashMap<String, HashMap<String, ConversationMember>>,
     conversation_members_by_typed_principal: HashMap<String, BTreeSet<String>>,
     inbox_activity_by_principal: HashMap<String, BTreeSet<InboxActivityEntry>>,
+    member_directory_by_scope: HashMap<String, BTreeSet<MemberDirectoryIndexEntry>>,
 }
 
 impl ProjectionMemberRuntimeStore {
@@ -36,6 +87,7 @@ impl ProjectionMemberRuntimeStore {
         self.by_conversation.clear();
         self.conversation_members_by_typed_principal.clear();
         self.inbox_activity_by_principal.clear();
+        self.member_directory_by_scope.clear();
     }
 
     pub(crate) fn get(&self, scope: &str) -> Option<&HashMap<String, ConversationMember>> {
@@ -49,7 +101,7 @@ impl ProjectionMemberRuntimeStore {
             .by_conversation
             .entry(scope.clone())
             .or_default()
-            .insert(member_key, member.clone());
+            .insert(member_key.clone(), member.clone());
 
         let mut affected_principals = Vec::new();
         if let Some(previous) = previous {
@@ -75,6 +127,9 @@ impl ProjectionMemberRuntimeStore {
                 scope.as_str(),
             );
         }
+        if member.is_active() {
+            self.upsert_member_directory_index(scope.as_str(), &member);
+        }
     }
 
     pub(crate) fn remove_member(
@@ -96,13 +151,14 @@ impl ProjectionMemberRuntimeStore {
             self.by_conversation.remove(scope);
         }
 
-        if let Some(member) = removed.as_ref() {
+        if let Some(ref member) = removed {
             self.refresh_principal_scope(
                 member.tenant_id.as_str(),
                 member.principal_kind.as_str(),
                 member.principal_id.as_str(),
                 scope,
             );
+            self.remove_member_directory_index_entry(scope, member.member_id.as_str());
         }
 
         removed
@@ -119,6 +175,8 @@ impl ProjectionMemberRuntimeStore {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+
+        self.member_directory_by_scope.remove(scope);
 
         for (tenant_id, principal_kind, principal_id) in affected_principals {
             self.refresh_principal_scope(
@@ -141,27 +199,44 @@ impl ProjectionMemberRuntimeStore {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn active_member_scopes_for_principal_kind(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
     ) -> Vec<String> {
-        self.inbox_scopes_ordered_for_principal(tenant_id, principal_kind, principal_id)
+        self.inbox_scopes_ordered_for_principal(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+        )
     }
 
+    #[cfg(test)]
     pub(crate) fn inbox_scopes_ordered_for_principal(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
     ) -> Vec<String> {
-        self.inbox_scope_entries_after_cursor(tenant_id, principal_kind, principal_id, None)
+        self.inbox_scope_entries_after_cursor(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            None,
+        )
     }
 
+    #[cfg(test)]
     pub(crate) fn inbox_scope_entries_after_cursor(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         cursor: Option<(String, String)>,
@@ -169,6 +244,7 @@ impl ProjectionMemberRuntimeStore {
         let mut scopes = Vec::new();
         self.for_each_inbox_scope_after_cursor(
             tenant_id,
+            organization_id,
             principal_kind,
             principal_id,
             cursor,
@@ -187,6 +263,7 @@ impl ProjectionMemberRuntimeStore {
     pub(crate) fn for_each_inbox_scope_after_cursor(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         cursor: Option<(String, String)>,
@@ -194,9 +271,16 @@ impl ProjectionMemberRuntimeStore {
     ) -> bool {
         use std::collections::Bound::{Excluded, Unbounded};
 
-        let typed_index_key =
-            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
-        let Some(entries) = self.inbox_activity_by_principal.get(typed_index_key.as_str()) else {
+        let typed_index_key = member_typed_principal_index_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+        );
+        let Some(entries) = self
+            .inbox_activity_by_principal
+            .get(typed_index_key.as_str())
+        else {
             return true;
         };
 
@@ -230,6 +314,7 @@ impl ProjectionMemberRuntimeStore {
         for member in active_members {
             self.upsert_inbox_activity(
                 member.tenant_id.as_str(),
+                organization_id_from_scope(scope).as_str(),
                 member.principal_kind.as_str(),
                 member.principal_id.as_str(),
                 scope,
@@ -241,13 +326,18 @@ impl ProjectionMemberRuntimeStore {
     fn upsert_inbox_activity(
         &mut self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         scope: &str,
         activity_at: &str,
     ) {
-        let typed_index_key =
-            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
+        let typed_index_key = member_typed_principal_index_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+        );
         let entries = self
             .inbox_activity_by_principal
             .entry(typed_index_key)
@@ -262,13 +352,20 @@ impl ProjectionMemberRuntimeStore {
     fn remove_inbox_activity(
         &mut self,
         tenant_id: &str,
+        organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         scope: &str,
     ) {
-        let typed_index_key =
-            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
-        let Some(entries) = self.inbox_activity_by_principal.get_mut(typed_index_key.as_str())
+        let typed_index_key = member_typed_principal_index_key(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+        );
+        let Some(entries) = self
+            .inbox_activity_by_principal
+            .get_mut(typed_index_key.as_str())
         else {
             return;
         };
@@ -297,8 +394,13 @@ impl ProjectionMemberRuntimeStore {
                         && member.is_active()
                 })
             });
-        let typed_index_key =
-            member_typed_principal_index_key(tenant_id, principal_kind, principal_id);
+        let organization_id = organization_id_from_scope(scope);
+        let typed_index_key = member_typed_principal_index_key(
+            tenant_id,
+            organization_id.as_str(),
+            principal_kind,
+            principal_id,
+        );
         if has_active_member {
             self.conversation_members_by_typed_principal
                 .entry(typed_index_key.clone())
@@ -308,14 +410,14 @@ impl ProjectionMemberRuntimeStore {
                 .by_conversation
                 .get(scope)
                 .and_then(|scope_members| {
-                    scope_members
-                        .get(principal_member_key(principal_id, principal_kind).as_str())
+                    scope_members.get(principal_member_key(principal_id, principal_kind).as_str())
                 })
                 .map(|member| member.joined_at.as_str())
                 .unwrap_or("1970-01-01T00:00:00.000Z")
                 .to_owned();
             self.upsert_inbox_activity(
                 tenant_id,
+                organization_id.as_str(),
                 principal_kind,
                 principal_id,
                 scope,
@@ -334,16 +436,108 @@ impl ProjectionMemberRuntimeStore {
                     .remove(typed_index_key.as_str());
             }
         }
-        self.remove_inbox_activity(tenant_id, principal_kind, principal_id, scope);
+        self.remove_inbox_activity(
+            tenant_id,
+            organization_id.as_str(),
+            principal_kind,
+            principal_id,
+            scope,
+        );
+    }
+
+    /// Collect a member-directory page from the maintained per-scope index without scanning the full roster.
+    pub(crate) fn collect_member_directory_window(
+        &self,
+        scope: &str,
+        tenant_id: &str,
+        keyset_cursor: Option<(u8, String, String)>,
+        legacy_offset: usize,
+        use_legacy_offset: bool,
+        limit: usize,
+    ) -> (Vec<ConversationMember>, bool) {
+        let limit = limit.max(1);
+        let mut window = Vec::with_capacity(limit.saturating_add(1));
+        let Some(index) = self.member_directory_by_scope.get(scope) else {
+            return (window, false);
+        };
+        let scope_members = self.by_conversation.get(scope);
+
+        let mut skipped = 0usize;
+        let index_iter: Box<dyn Iterator<Item = &MemberDirectoryIndexEntry>> =
+            if let Some((role_rank, joined_at, principal_id)) = keyset_cursor {
+                let cursor_entry = MemberDirectoryIndexEntry {
+                    role_rank,
+                    joined_at,
+                    principal_id,
+                    principal_kind: String::new(),
+                    member_id: String::new(),
+                };
+                Box::new(index.range((Excluded(cursor_entry), Unbounded)))
+            } else {
+                Box::new(index.iter())
+            };
+
+        for entry in index_iter {
+            if use_legacy_offset && skipped < legacy_offset {
+                skipped += 1;
+                continue;
+            }
+            let Some(members) = scope_members else {
+                break;
+            };
+            let Some(member) = members.get(entry.storage_key().as_str()) else {
+                continue;
+            };
+            if member.tenant_id != tenant_id || !member.is_active() {
+                continue;
+            }
+            window.push(member.clone());
+            if window.len() > limit {
+                break;
+            }
+        }
+
+        let has_more = window.len() > limit;
+        if has_more {
+            window.truncate(limit);
+        }
+        (window, has_more)
+    }
+
+    fn upsert_member_directory_index(&mut self, scope: &str, member: &ConversationMember) {
+        let index = self
+            .member_directory_by_scope
+            .entry(scope.to_owned())
+            .or_default();
+        index.retain(|entry| entry.member_id != member.member_id);
+        if member.is_active() {
+            index.insert(MemberDirectoryIndexEntry::from_member(member));
+        }
+    }
+
+    fn remove_member_directory_index_entry(&mut self, scope: &str, member_id: &str) {
+        if let Some(index) = self.member_directory_by_scope.get_mut(scope) {
+            index.retain(|entry| entry.member_id != member_id);
+            if index.is_empty() {
+                self.member_directory_by_scope.remove(scope);
+            }
+        }
     }
 }
 
 fn member_typed_principal_index_key(
     tenant_id: &str,
+    organization_id: &str,
     principal_kind: &str,
     principal_id: &str,
 ) -> String {
-    encode_member_index_key_segments([tenant_id, principal_kind, principal_id])
+    encode_member_index_key_segments([tenant_id, organization_id, principal_kind, principal_id])
+}
+
+fn organization_id_from_scope(scope: &str) -> String {
+    crate::scope::decode_projection_key_segments(scope)
+        .and_then(|segments| segments.get(1).cloned())
+        .unwrap_or_else(|| "0".to_owned())
 }
 
 fn encode_member_index_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
@@ -397,12 +591,79 @@ mod tests {
         );
 
         assert_eq!(
-            store.active_member_scopes_for_principal_kind("tenant:segment", "user", "principal"),
+            store.active_member_scopes_for_principal_kind(
+                "tenant:segment",
+                "0",
+                "user",
+                "principal"
+            ),
             vec!["scope_a".to_owned()]
         );
         assert_eq!(
-            store.active_member_scopes_for_principal_kind("tenant", "segment:user", "principal"),
+            store.active_member_scopes_for_principal_kind(
+                "tenant",
+                "0",
+                "segment:user",
+                "principal"
+            ),
             vec!["scope_b".to_owned()]
         );
+    }
+
+    #[test]
+    fn inbox_principal_index_isolates_organizations() {
+        use crate::scope::scope_key;
+
+        let mut store = ProjectionMemberRuntimeStore::default();
+        let scope_org_a = scope_key("100001", "org_a", "conv_a");
+        let scope_org_b = scope_key("100001", "org_b", "conv_b");
+        store.insert_member(
+            scope_org_a.clone(),
+            active_member("100001", "conv_a", "m_a", "user", "42"),
+        );
+        store.insert_member(
+            scope_org_b.clone(),
+            active_member("100001", "conv_b", "m_b", "user", "42"),
+        );
+
+        assert_eq!(
+            store.inbox_scopes_ordered_for_principal("100001", "org_a", "user", "42"),
+            vec![scope_org_a]
+        );
+        assert_eq!(
+            store.inbox_scopes_ordered_for_principal("100001", "org_b", "user", "42"),
+            vec![scope_org_b]
+        );
+    }
+
+    #[test]
+    fn member_directory_index_pages_without_full_roster_scan() {
+        let mut store = ProjectionMemberRuntimeStore::default();
+        let scope = "scope_group";
+        for index in 0..5 {
+            let mut member = active_member(
+                "100001",
+                "c1",
+                &format!("m{index}"),
+                "user",
+                &format!("u{index}"),
+            );
+            member.joined_at = format!("2026-05-06T00:00:00.{index:03}Z");
+            if index == 0 {
+                member.role = MembershipRole::Owner;
+            }
+            store.insert_member(scope.into(), member);
+        }
+
+        let (first_page, has_more) =
+            store.collect_member_directory_window(scope, "100001", None, 0, false, 2);
+        assert!(has_more);
+        assert_eq!(first_page.len(), 2);
+        assert_eq!(first_page[0].principal_id, "u0");
+
+        let (second_page, has_more) =
+            store.collect_member_directory_window(scope, "100001", None, 2, true, 2);
+        assert!(has_more);
+        assert_eq!(second_page[0].principal_id, "u2");
     }
 }

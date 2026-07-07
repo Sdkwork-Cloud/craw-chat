@@ -1,7 +1,0 @@
-package com.sdkwork.im.sdk.generated
-
-data class SocialContactsTagsCreateResponse(
-    val code: Int? = null,
-    val data_: Any? = null,
-    val traceId: String? = null
-)

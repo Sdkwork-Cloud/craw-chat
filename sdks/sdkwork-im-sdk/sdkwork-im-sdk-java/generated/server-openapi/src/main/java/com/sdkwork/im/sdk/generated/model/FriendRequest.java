@@ -3,11 +3,12 @@ package com.sdkwork.im.sdk.generated.model;
 
 public class FriendRequest {
     private String tenantId;
-    private String requestId;
+    private String friendRequestId;
     private String requesterUserId;
     private String targetUserId;
     private String status;
     private String requestMessage;
+    private String expiredAt;
     private String createdAt;
     private String updatedAt;
 
@@ -19,12 +20,12 @@ public class FriendRequest {
         this.tenantId = tenantId;
     }
 
-    public String getRequestId() {
-        return this.requestId;
+    public String getFriendRequestId() {
+        return this.friendRequestId;
     }
 
-    public void setRequestId(String requestId) {
-        this.requestId = requestId;
+    public void setFriendRequestId(String friendRequestId) {
+        this.friendRequestId = friendRequestId;
     }
 
     public String getRequesterUserId() {
@@ -57,6 +58,14 @@ public class FriendRequest {
 
     public void setRequestMessage(String requestMessage) {
         this.requestMessage = requestMessage;
+    }
+
+    public String getExpiredAt() {
+        return this.expiredAt;
+    }
+
+    public void setExpiredAt(String expiredAt) {
+        this.expiredAt = expiredAt;
     }
 
     public String getCreatedAt() {

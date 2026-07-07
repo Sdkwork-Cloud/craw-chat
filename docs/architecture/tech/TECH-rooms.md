@@ -92,7 +92,7 @@ Creates a live, chat, or game room bound to a group conversation.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/rooms/{roomId}</code>
-  <span class="api-op-id">operationId: rooms.get</span>
+  <span class="api-op-id">operationId: rooms.retrieve</span>
 </div>
 
 Returns room metadata and the active member count.
@@ -218,4 +218,3 @@ None. This operation does not accept a JSON request body.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

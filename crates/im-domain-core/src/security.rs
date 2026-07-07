@@ -176,13 +176,11 @@ impl TenantIsolationValidator {
         }
 
         // Organization-level sessions must match
-        if context.is_organization_scope() {
-            if context.organization_id != resource_organization_id {
-                return Err(TenantIsolationError::OrganizationMismatch {
-                    request: context.organization_id.clone(),
-                    resource: resource_organization_id.to_string(),
-                });
-            }
+        if context.is_organization_scope() && context.organization_id != resource_organization_id {
+            return Err(TenantIsolationError::OrganizationMismatch {
+                request: context.organization_id.clone(),
+                resource: resource_organization_id.to_string(),
+            });
         }
 
         Ok(())

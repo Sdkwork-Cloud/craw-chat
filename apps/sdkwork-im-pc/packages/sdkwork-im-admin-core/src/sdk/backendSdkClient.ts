@@ -1,7 +1,7 @@
 import {
   createClient,
-  type SdkworkImBackendClient as GeneratedSdkworkImBackendClient,
   type SdkworkBackendConfig,
+  type SdkworkImBackendClient as GeneratedSdkworkImBackendClient,
 } from '@sdkwork-internal/im-backend-api-generated';
 import type { Interceptors } from '@sdkwork/sdk-common';
 import {
@@ -12,6 +12,7 @@ import {
   resolveAppSdkAuthToken,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core';
+import { stripSdkOwnedPathSuffix } from '@sdkwork/im-pc-core/sdk/sdkBaseUrls';
 
 export type SdkworkImBackendClient = GeneratedSdkworkImBackendClient;
 export type SdkworkImBackendClientConfig = SdkworkBackendConfig & {
@@ -22,8 +23,6 @@ let backendSdkClient: SdkworkImBackendClient | null = null;
 const SDKWORK_BACKEND_API_PREFIX = '/backend/v3/api';
 const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_IM_API_PREFIX = '/im/v3/api';
-
-import { stripSdkOwnedPathSuffix } from '@sdkwork/im-pc-core/sdk/sdkBaseUrls';
 
 function readEnvValue(key: string): string | undefined {
   const value = import.meta.env?.[key];

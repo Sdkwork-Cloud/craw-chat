@@ -1,8 +1,22 @@
 # IM 通信功能审查报告
 
-**最后更新**: 2026-07-06  
-**范围**: 好友 / 群组 / 会话 / 消息 / RTC / 连接 / Projection / Space / PC/H5 客户端  
-**状态**: 预上线基线就绪（分页/并发/内存债务已清理）
+**最后更新**: 2026-07-07  
+**范围**: IM 核心服务端、PC/H5/Flutter 客户端、Console/Admin 运营面  
+**状态**: 实现对齐进行中 — P0 DDL/分页/安全/OOM 债务已收口；HTTP/WS 为主路径；gRPC Phase 1 部分托管；商业化 Pre-Release 仍需 `check:commercial-readiness` 以真实签名、SBOM、provenance、checksum 和 catalog media 证据通过后才能声明就绪
+
+---
+
+## 2026-07-07 修复清单
+
+| ID | 问题 | 修复 |
+|---|---|---|
+| DDL-001 | PostgreSQL DDL 重复表定义（Migration 001 覆盖 010） | 移除旧 Migration 001，保留 010 organization_id 版本 |
+| DDL-002 | SQLite DDL 使用 PostgreSQL 专有语法（JSONB/TIMESTAMPTZ/DO $$/pg_constraint） | 生成 SQLite 兼容 DDL（TEXT + json_valid CHECK） |
+| PAG-039 | social-service block 列表使用 OFFSET 分页 | 改为 keyset `(created_at DESC, block_id DESC)` |
+| PAG-040 | social-service direct_chat 列表使用 OFFSET 分页 | 改为 keyset `(updated_at DESC, direct_chat_id DESC)` |
+| SEC-001 | 游标签名密钥硬编码回退 | 添加 `_FILE` 变体支持，移除硬编码密钥，fail-closed |
+| OOM-001 | timeline 全量恢复无上限 | 添加 10,000 条安全上限 |
+| PERF-001 | 会话驱逐 O(n log n) 全量排序 | 改为 `select_nth_unstable_by_key` O(n) |
 
 ---
 
@@ -10,131 +24,86 @@
 
 | 域 | 能力 |
 |---|---|
-| 消息 | `message_seq` + 独立 `commit_seq`；Outbox at-least-once；写入侧无 deliverable recipients 不入队；relay fail-closed |
-| 连接 | Pre-auth WS 预算 + 认证后正式槽；Upgrade / Frame RPM（Redis + local fallback） |
-| Social | PG materialize → journal append → compensate；**多 commit 单 PG 事务**；终端幂等 replay；keyset 分页 |
-| Space/Group | PG materialize-before-append；**多 commit 单 PG 事务**（space 创建批次）；journal compensate |
-| RTC | Ring timeout reaper；终端 evict + DB retention；IM 信令 + `@sdkwork/rtc-sdk` 媒体；PC 远端视频 Volcengine 绑定 |
-| Projection | Postgres tiered timeline + hot cache；HS256 keyset cursor；生产拒绝 numeric offset |
-| PC 客户端 | 游标分页单源 + `pageSize=20` 默认；catch-up 有页数上限；mail/shop/devices/orders 薄适配 sibling PC 包（`sdkwork-mail` / `sdkwork-shop` / `sdkwork-aiot`） |
-| 构建 | `pnpm install --frozen-lockfile`；sibling composed SDK workspace 对齐 |
-| 推送 | APNs HTTP/2 JWT |
+| 消息 | `message_seq` + `commit_seq`；Outbox at-least-once |
+| 连接 | Pre-auth WS 预算；认证后正式槽；帧/升级 RPM 限流 |
+| Social / Space | PG materialize-before-append；多 commit 单 PG 事务 |
+| Projection | HS256 keyset 分页；timeline 热缓存 cap；embedded apply 生产 fail-closed |
+| Portal API | `portal-service` + `im-portal-snapshots` 从 ops 健康面与 audit 记录聚合 |
+| PC 客户端 | 游标分页；SQLite 离线缓存 + claim/lease 待发队列 |
+| H5 客户端 | 游标分页；IndexedDB 离线待发队列 + claim/lease |
+| Flutter | Inbox 游标多页同步 + `shared_preferences` 离线待发（claim/lease） |
+| 数据库 | IM 核心 **PostgreSQL-only**；SQLite 为契约 parity + 桌面/网关缓存 |
+| Realtime | 生产 fail-closed（PG pool + membership gate）；canonical mutex 锁序 |
 
 ---
 
-## 架构要点
+## 数据库引擎边界
 
-### 消息与 Outbox
+| 表面 | PostgreSQL | SQLite |
+|---|---|---|
+| Journal / Projection / Social | ✅ 唯一权威 | ❌ 不持久化 |
+| Notification / Automation 任务表 | ✅ Postgres store | DDL parity only |
+| 桌面离线缓存 | — | ✅ Tauri `offline_store`（WAL + 事务 + claim） |
+| Gateway webstore | — | ✅ `chat.sqlite` |
 
-- **message_seq**: 业务序号（Postgres/Redis 原子）
-- **commit_seq**: Journal `ordering_seq`（与会话内 message_seq 解耦）
-- **Aggregate 恢复**: `PostgresAggregateStore.load_aggregate_state` 从 `im_conversation_messages` 读取真实 `high_watermark`
-- **写入侧**: social / conversation / rtc 在无法解析 deliverable recipients 时不创建 outbox 行
-- **Relay**（conversation / social / rtc，共享 `outbox_relay_common`）:
-  - 空收件人 → `mark_failed`
-  - 非本域 aggregate → `mark_failed`
-  - 发布失败 → `mark_failed`（可重试）
+---
 
-### Social
+## 后端服务边界
 
-- **写路径**: PG materialize → journal append → compensate on failure
-- **多 commit 批次**: 2+ commit 走单 PG 事务
-- **读路径 / 限流 / cursor**: 生产 fail-closed
-- **补充 Postgres 路由**: block / direct_chat 变更类接口 fail-closed，走事件溯源 `/im/v3/api/social`
+| 服务 | 职责 | 持久化 |
+|---|---|---|
+| `portal-service` | Console/Workspace portal 快照 HTTP | 无状态；读 ops/audit |
+| `sdkwork-comms-conversation-service` | 会话写路径 + RPC unary | PostgreSQL journal；`spawn_blocking` 写路径 |
+| `projection-service` | Inbox/timeline 读模型 | PostgreSQL + 热缓存 cap |
+| `session-gateway` | WebSocket + RPC realtime | Redis/PG realtime stores；生产 fail-closed |
+| `im-calls-service` | RTC 信令 HTTP | Postgres/Redis durable state；`spawn_blocking` handlers |
+| `audit-service` | 审计记录 | PostgreSQL；生产 fail-closed panic |
 
-### Space / Group
+---
 
-- **写路径**: PG materialize → journal append → compensate on failure
-- **多 commit 批次**: space 创建等 2+ commit 走 `materialize_space_commits_in_transaction`
-- **单 commit**: `group.created` 等仍走 store 内建事务（`insert_with_owner_member`）
+## RPC 与客户端路径
 
-### Projection
+详见 [`RPC-AVAILABILITY.md`](architecture/tech/RPC-AVAILABILITY.md)。
 
-- **Timeline tier**: Postgres `load_timeline_window` + hot cache（`SDKWORK_IM_PROJECTION_TIMELINE_MEMORY_CAP`，默认 1000）
-- **无 durable store**: dev/test 不限 cap；production/staging 强制默认 cap
-- **列表 cursor**: contacts / inbox / member_directory / pins / favorites 使用 HS256
+- **生产客户端**：HTTP app-sdk + WebSocket（session-gateway）
+- **gRPC Phase 1**：`PresenceService`、`RealtimeService`、conversation unary（3 个 rpc-bin）
+- **未托管 RPC**：Contact/Social/Call/Notification/Automation/admin — 使用 HTTP，勿调用 gRPC stub
 
-### RTC（IM 信令 + sdkwork-rtc 媒体）
+---
 
-- **信令**: `im-calls-service` + IM SDK `calls` facade
-- **媒体**: PC `RtcMediaService` 经 Volcengine provider 绑定本地/远端视频 DOM
-- **边界**: `pnpm test:rtc-signaling-boundary` 禁止 IM 仓库内嵌信令栈
-
-### 未集成（明确非阻塞上线）
+## 明确未集成（非 IM 核心上线阻塞）
 
 | 项 | 说明 |
 |---|---|
-| FEC + ARQ | `im-domain-core::network_optimization` 库代码，**未接入** WS 运行时 |
-| E2EE | 仅 TLS；无 Signal/Double Ratchet |
-| 超大群外置 timeline | Postgres tier + cap；Scylla 分片为 post-launch |
-
-PC 客户端集成适配层登记见 [`INTEGRATION-ADAPTER-REGISTER.md`](architecture/tech/INTEGRATION-ADAPTER-REGISTER.md)。
+| E2EE | 仅 TLS；见 `OPTIMIZATION_ROADMAP.md` Phase 2 |
+| FEC 自适应弱网 | Phase 2；ARQ `events.nack` 已交付 |
+| Conversation RPC server-stream | 实时流在 session-gateway WS |
+| Telegram 级 200K 群 | 当前 10K cap |
+| Flutter 离线 SQLite | Inbox 游标分页 + SharedPreferences 待发 claim/lease 已交付；完整 SQLite 消息缓存 Phase 2 |
 
 ---
 
 ## 验证命令
 
 ```bash
-cargo test -p im-domain-core rtc_outbox --lib
-cargo test -p im-adapters-postgres-journal --lib
-cargo test -p social-service -p calls-service -p session-gateway --lib
-node scripts/dev/sdkwork-im-retention-enforcement-standard.test.mjs
-node scripts/dev/sdkwork-im-projection-tier-standard.test.mjs
-node scripts/dev/sdkwork-im-social-materializer-standard.test.mjs
-node scripts/dev/sdkwork-im-space-materializer-standard.test.mjs
-node scripts/dev/sdkwork-im-monorepo-frozen-install-standard.test.mjs
-node scripts/dev/sdkwork-im-pc-client-pagination-standard.test.mjs
-node scripts/dev/sdkwork-im-apis-authority-standard.test.mjs
-node scripts/dev/sdkwork-im-database-naming-standard.test.mjs
-node scripts/dev/sdkwork-im-runtime-id-standard.test.mjs
-node scripts/dev/sdkwork-im-rtc-signaling-boundary.test.mjs
-node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
 node ../sdkwork-specs/tools/check-pagination.mjs --workspace .
-node apps/sdkwork-im-pc/scripts/community-app-sdk-integration-contract.test.mjs
-node scripts/dev/sdkwork-im-pc-sidebar-module-sdk-boundary.test.mjs
-node scripts/dev/sdkwork-im-pc-device-agent-binding-standard.test.mjs
-node scripts/dev/sdkwork-im-pc-sdk-integration.test.mjs
-node apps/sdkwork-im-pc/scripts/mail-app-sdk-integration-contract.test.mjs
-node apps/sdkwork-im-pc/scripts/commerce-app-sdk-integration-contract.test.mjs
+node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
+node scripts/dev/sdkwork-im-production-security-standard.test.mjs
+cargo check -p session-gateway -p im-calls-service -p projection-service
 pnpm run check:commercial-readiness
 ```
 
 ---
 
-## 行业对齐
+## 行业对齐摘要
 
 | 能力 | 状态 |
 |------|------|
-| Per-channel 单调 seq + 独立 journal seq | ✅ |
-| Post-auth WS 配额 + pre-auth 预算 | ✅ |
-| Outbox at-least-once（三域 + 写入侧过滤） | ✅ |
-| Social PG materialize + compensate + 多 commit 单事务 | ✅ |
-| Space PG materialize + 多 commit 单事务 + compensate | ✅ |
-| RTC 信令 + Volcengine 远端视频渲染 | ✅ |
-| Presence stale 自动过期 | ✅ |
-| Projection 核心列表 keyset 分页 | ✅ |
-| Timeline tiered storage + 生产内存 cap | ✅ |
-| PC 客户端游标分页 + 内存硬上限 | ✅ |
-| Community 产品逻辑归属 `sdkwork-community`（feeds / comments / reactions；IM 仅网关代理 + `@sdkwork/im-pc-community` 宿主适配） | ✅ |
-| OpenAPI 列表 wire 使用 `pageSize`（`limit` 标记 deprecated） | ✅ |
-| IM 核心 PostgreSQL-only；sqlite baseline 无 PG 搜索伪实现 | ✅ |
-| Monorepo frozen install + composed SDK workspace | ✅ |
-| Social 多 commit 单 PG 事务 materialize | ✅ |
-| FEC+ARQ / E2EE / 超大群外置存储 | 📋 见 OPTIMIZATION_ROADMAP.md |
-
----
-
-## 跨仓库依赖（商业化门禁）
-
-| 依赖 | 用途 |
-|------|------|
-| `../sdkwork-rtc` | RTC 媒体 SDK + `.sdkwork-assembly.json` |
-| `../sdkwork-utils` | `@sdkwork/utils`（`ResultValue` 类型守卫） |
-| `../sdkwork-iam` | PC 认证壳（`@sdkwork/auth-pc-react`） |
-| `../sdkwork-agents` | PC Agent 模块（`@sdkwork/agents-app-sdk`） |
-| `../sdkwork-catalog` / `shop` / `order` | PC 商城/订单 T1 app SDK |
-| `../sdkwork-course` | PC 课程模块 |
-| `../sdkwork-community` | Community 产品（`@sdkwork/community-pc-community` + app SDK）；IM 经网关 `/app/v3/api/community/*` 集成 |
-| `../sdkwork-mail` | Mail 列表服务端分页（OpenAPI `SdkWorkListQuery`） |
-
-`pnpm run check:commercial-readiness` 串联 frozen install、PC/H5 lint+build、治理标准测试（含 `rtc-signaling-boundary`、`monorepo-frozen-install`、`pc-client-pagination`、`social-materializer`）及 SDK 集成契约。跨仓库 TypeScript 错误会阻塞 `pc-lint`，须在对应 sibling 仓库修复（非 IM 仓库内 stub）。
+| Per-channel seq + journal seq | ✅ |
+| Outbox at-least-once | ✅ |
+| PG materialize + 单事务多 commit | ✅ |
+| 核心列表 keyset 分页 + SdkWorkPageData | ✅ |
+| 生产 fail-closed（audit/projection/session-gateway） | ✅ |
+| 桌面 + H5 + Flutter 离线待发 claim/lease | ✅ |
+| gRPC 全 manifest 托管 | ❌ Phase 2 |
+| E2EE / FEC Phase 2 / 超大群 | 📋 路线图 |

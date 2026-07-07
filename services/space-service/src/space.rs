@@ -4,25 +4,25 @@ use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_app_context::AppContext;
-use serde::{Deserialize, Serialize};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
+use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
 use im_adapters_social_postgres::organization_store::SpaceRecord;
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
-use crate::list_query::{resolve_list_page, ListQuery};
+use crate::api_payload::{keyset_list_page, resource_item};
+use crate::list_query::{ListQuery, resolve_keyset_page};
 
 use crate::http::AppState;
 use crate::id::next_entity_id;
-use crate::space_access::{actor_can_manage_space, actor_can_read_space, load_space, parse_space_id};
-use crate::write_authority::{
-    persist_space_created, persist_space_deleted, persist_space_updated,
+use crate::space_access::{
+    actor_can_manage_space, actor_can_read_space, load_space, parse_space_id,
 };
+use crate::write_authority::{persist_space_created, persist_space_deleted, persist_space_updated};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateSpaceRequest {
@@ -78,7 +78,7 @@ pub async fn create_space(
     let result: ApiResult<SdkWorkResourceData<SpaceResponse>> = (|| {
         // Validate max_members if provided
         let max_members = request.max_members.unwrap_or(10000);
-        if max_members < 2 || max_members > 10000 {
+        if !(2..=10000).contains(&max_members) {
             tracing::warn!(max_members, "max_members out of valid range");
             return Err(ApiProblem::bad_request(
                 "validation failed: max_members out of range",
@@ -131,16 +131,18 @@ pub async fn list_spaces(
     Query(query): Query<ListQuery>,
 ) -> Response {
     let result: ApiResult<SdkWorkPageData<SpaceResponse>> = (|| {
-        let paging = resolve_list_page(&query)?;
-        let fetch_limit = i64::try_from(paging.page_size.saturating_add(1))
-            .unwrap_or(i64::MAX);
-        let offset = i64::try_from(paging.offset).unwrap_or(i64::MAX);
+        let paging = resolve_keyset_page(&query)?;
+        let cursor_space_id = paging
+            .cursor_entity
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok());
         let records = match state.space_store.list_accessible_by_user(
             auth.tenant_id.as_str(),
             auth.organization_id.as_str(),
             auth.actor_id.as_str(),
-            fetch_limit,
-            offset,
+            paging.cursor_sort_value.as_deref(),
+            cursor_space_id,
+            paging.fetch_limit(),
         ) {
             Ok(records) => records,
             Err(error) => {
@@ -148,10 +150,10 @@ pub async fn list_spaces(
                 return Err(ApiProblem::internal_server_error("failed to list spaces"));
             }
         };
-        Ok(bounded_sql_list_page(
+        Ok(keyset_list_page(
             records.into_iter().map(SpaceResponse::from).collect(),
             paging.page_size,
-            paging.offset,
+            |item: &SpaceResponse| (item.created_at.clone(), item.space_id.clone()),
         ))
     })();
     finish_api_json(&ctx, result)
@@ -185,13 +187,13 @@ pub async fn update_space(
         actor_can_manage_space(&state, &auth, &space)?;
 
         // Validate max_members if provided
-        if let Some(max) = request.max_members {
-            if max < 2 || max > 10000 {
-                tracing::warn!(max_members = max, "max_members out of valid range");
-                return Err(ApiProblem::bad_request(
-                    "validation failed: max_members out of range",
-                ));
-            }
+        if let Some(max) = request.max_members
+            && !(2..=10000).contains(&max)
+        {
+            tracing::warn!(max_members = max, "max_members out of valid range");
+            return Err(ApiProblem::bad_request(
+                "validation failed: max_members out of range",
+            ));
         }
 
         let now = chrono::Utc::now().to_rfc3339();

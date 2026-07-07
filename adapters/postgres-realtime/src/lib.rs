@@ -4,11 +4,11 @@ use im_domain_core::{
     realtime::RealtimeEvent,
 };
 use im_platform_contracts::{
-    ContractError, PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord,
-    RealtimeCheckpointStore, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
-    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
-    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
-    RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    ContractError, ExpireOnlinePresenceStateCommand, PresenceStateRecord, PresenceStateStore,
+    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
+    RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
+    RealtimeEventWindowHighRiskRecord, RealtimeEventWindowRecord, RealtimeEventWindowStore,
+    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -188,7 +188,8 @@ use im_postgres_realtime_contracts::{
 /// TLS handshake is performed. This allows dev/test to keep using plaintext
 /// while production enforces TLS via the DSN.
 pub type PostgresRealtimeTlsConnector = postgres_native_tls::MakeTlsConnector;
-pub type PostgresRealtimeConnectionManager = PostgresConnectionManager<PostgresRealtimeTlsConnector>;
+pub type PostgresRealtimeConnectionManager =
+    PostgresConnectionManager<PostgresRealtimeTlsConnector>;
 pub type PostgresRealtimePool = Pool<PostgresRealtimeConnectionManager>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -263,7 +264,9 @@ impl PostgresRealtimeConfig {
     }
 }
 
-fn build_realtime_pool(config: &PostgresRealtimeConfig) -> Result<PostgresRealtimePool, ContractError> {
+fn build_realtime_pool(
+    config: &PostgresRealtimeConfig,
+) -> Result<PostgresRealtimePool, ContractError> {
     if let Some(pool) = sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool() {
         return Ok(pool);
     }
@@ -316,7 +319,10 @@ fn verify_production_sslmode(database_url: &str) {
         .unwrap_or_default()
         .trim()
         .to_ascii_lowercase();
-    let is_production = !matches!(environment.as_str(), "" | "dev" | "development" | "test" | "testing");
+    let is_production = !matches!(
+        environment.as_str(),
+        "" | "dev" | "development" | "test" | "testing"
+    );
     if !is_production {
         return;
     }
@@ -547,7 +553,13 @@ impl RealtimeDisconnectFenceStore for PostgresRealtimeDisconnectFenceStore {
             client
                 .query_opt(
                     LOAD_REALTIME_DISCONNECT_FENCE_SQL,
-                    &[&tenant_id, &organization_id, &principal_kind, &principal_id, &device_id],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &principal_kind,
+                        &principal_id,
+                        &device_id,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("load disconnect fence", error))?
                 .map(disconnect_fence_from_row)
@@ -608,7 +620,13 @@ impl RealtimeDisconnectFenceStore for PostgresRealtimeDisconnectFenceStore {
             let deleted = client
                 .execute(
                     CLEAR_REALTIME_DISCONNECT_FENCE_SQL,
-                    &[&tenant_id, &organization_id, &principal_kind, &principal_id, &device_id],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &principal_kind,
+                        &principal_id,
+                        &device_id,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("clear disconnect fence", error))?;
             Ok(deleted > 0)
@@ -770,12 +788,7 @@ impl PresenceStateStore for PostgresRealtimePresenceStateStore {
             client
                 .query(
                     LIST_PRESENCE_STATES_FOR_PRINCIPAL_SQL,
-                    &[
-                        &tenant_id,
-                        &organization_id,
-                        &principal_kind,
-                        &principal_id,
-                    ],
+                    &[&tenant_id, &organization_id, &principal_kind, &principal_id],
                 )
                 .map_err(|error| postgres_unavailable("list presence states for principal", error))?
                 .into_iter()
@@ -816,39 +829,33 @@ impl PresenceStateStore for PostgresRealtimePresenceStateStore {
 
     fn expire_online_state_if_seen_at_or_before(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        device_id: &str,
-        cutoff_seen_at: &str,
-        expired_at: &str,
+        command: ExpireOnlinePresenceStateCommand<'_>,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
         let Some(current) = self.load_state(
-            tenant_id,
-            organization_id,
-            principal_kind,
-            principal_id,
-            device_id,
+            command.tenant_id,
+            command.organization_id,
+            command.principal_kind,
+            command.principal_id,
+            command.device_id,
         )?
         else {
             return Ok(None);
         };
-        if !current.is_online_seen_at_or_before(cutoff_seen_at) {
+        if !current.is_online_seen_at_or_before(command.cutoff_seen_at) {
             return Ok(None);
         }
-        let expired = current.into_expired_offline(expired_at);
-        let cutoff_seen_at = parse_utc("cutoff_seen_at", cutoff_seen_at)?;
-        let expired_at = parse_utc("expired_at", expired_at)?;
+        let expired = current.into_expired_offline(command.expired_at);
+        let cutoff_seen_at = parse_utc("cutoff_seen_at", command.cutoff_seen_at)?;
+        let expired_at = parse_utc("expired_at", command.expired_at)?;
         let payload_json = presence_payload_json(&expired)?;
         let payload_value = postgres_jsonb_value("presence.expired_payload_json", &payload_json)?;
         let payload_hash = postgres_realtime_payload_hash(payload_json.as_str());
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let organization_id = organization_id.to_owned();
-        let principal_kind = principal_kind.to_owned();
-        let principal_id = principal_id.to_owned();
-        let device_id = device_id.to_owned();
+        let tenant_id = command.tenant_id.to_owned();
+        let organization_id = command.organization_id.to_owned();
+        let principal_kind = command.principal_kind.to_owned();
+        let principal_id = command.principal_id.to_owned();
+        let device_id = command.device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get presence connection")?;
             client
@@ -977,7 +984,12 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             transaction
                 .execute(
                     CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL,
-                    &[&record.tenant_id, &record.organization_id, &client_route_scope_key, &synced_at],
+                    &[
+                        &record.tenant_id,
+                        &record.organization_id,
+                        &client_route_scope_key,
+                        &synced_at,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("clear subscription scopes", error))?;
             for (scope_type, scope_id, event_type) in subscription_scope_rows(&record) {
@@ -1069,7 +1081,12 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             let deleted = client
                 .execute(
                     CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_AT_OR_BEFORE_SQL,
-                    &[&tenant_id, &organization_id, &client_route_scope_key, &cutoff_synced_at],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &client_route_scope_key,
+                        &cutoff_synced_at,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("clear subscription by synced_at", error))?;
             Ok(deleted > 0)
@@ -1121,7 +1138,13 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             let events = transaction
                 .query(
                     LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
-                    &[&tenant_id, &organization_id, &client_route_scope_key, &after_seq, &limit],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &client_route_scope_key,
+                        &after_seq,
+                        &limit,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("list event window events", error))?
                 .into_iter()
@@ -1180,7 +1203,11 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
                 transaction
                     .execute(
                         CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
-                        &[&record.tenant_id, &record.organization_id, &client_route_scope_key],
+                        &[
+                            &record.tenant_id,
+                            &record.organization_id,
+                            &client_route_scope_key,
+                        ],
                     )
                     .map_err(|error| {
                         postgres_unavailable("clear previous event window events", error)
@@ -1293,7 +1320,12 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             transaction
                 .execute(
                     TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
-                    &[&tenant_id, &organization_id, &client_route_scope_key, &acked_through_seq_i64],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &client_route_scope_key,
+                        &acked_through_seq_i64,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("trim event window events", error))?;
             let existing = transaction
@@ -2136,6 +2168,11 @@ pub(crate) fn run_postgres_io<T>(
 where
     T: Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        return tokio::task::block_in_place(operation);
+    }
     std::thread::scope(|scope| {
         scope
             .spawn(operation)

@@ -3,7 +3,7 @@ mod paths;
 mod routes;
 mod web_bootstrap;
 
-pub use manifest::{route_manifest, API_SURFACE};
+pub use manifest::{API_SURFACE, route_manifest};
 pub use paths::PREFIX;
 
 use axum::Router;
@@ -48,9 +48,7 @@ pub fn build_public_app_with_realtime_plane(
     })
 }
 
-pub fn build_public_app_with_realtime_bootstrap(
-    bootstrap: &RealtimePlaneBootstrap,
-) -> Router {
+pub fn build_public_app_with_realtime_bootstrap(bootstrap: &RealtimePlaneBootstrap) -> Router {
     compose_public_app(
         public_websocket_router_from_bootstrap(bootstrap),
         public_http_router_from_bootstrap(bootstrap),

@@ -14,102 +14,120 @@ public class SocialApi {
     }
 
     /** Search social users */
-    public SocialUserSearchResponse usersList(String q, Integer limit, String cursor) throws Exception {
+    public SocialUsersListResponse usersList(String q, Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("q", q, "form", true, false, null),
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/users"), query));
-        return client.convertValue(raw, new TypeReference<SocialUserSearchResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialUsersListResponse>() {});
     }
 
     /** List friend requests */
-    public SocialFriendRequestListResponse friendRequestsList(String direction, String status, Integer limit, String cursor) throws Exception {
+    public SdkWorkListResponse friendRequestsList(String direction, String status, Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("direction", direction, "form", true, false, null),
             new QueryParameterSpec("status", status, "form", true, false, null),
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/friend_requests"), query));
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestListResponse>() {});
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Create a friend request */
-    public SocialFriendRequestMutationResponse friendRequestsCreate(SubmitFriendRequestRequest body) throws Exception {
+    public SocialFriendRequestsCreateResponse201 friendRequestsCreate(SubmitFriendRequestRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/social/friend_requests"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsCreateResponse201>() {});
+    }
+
+    /** Retrieve pending incoming friend request count */
+    public SocialFriendRequestsPendingCountRetrieveResponse friendRequestsPendingCountRetrieve() throws Exception {
+        Object raw = client.get(ApiPaths.imPath("/social/friend_requests/pending/count"));
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsPendingCountRetrieveResponse>() {});
     }
 
     /** Accept a friend request */
-    public SocialFriendRequestAcceptanceResponse friendRequestsAccept(String requestId) throws Exception {
-        Object raw = client.post(ApiPaths.imPath("/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + "/accept"), null);
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestAcceptanceResponse>() {});
+    public SocialFriendRequestsAcceptResponse friendRequestsAccept(String friendRequestId) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/social/friend_requests/" + serializePathParameter(friendRequestId, new PathParameterSpec("friendRequestId", "simple", false)) + "/accept"), null);
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsAcceptResponse>() {});
     }
 
     /** Decline a friend request */
-    public SocialFriendRequestMutationResponse friendRequestsDecline(String requestId) throws Exception {
-        Object raw = client.post(ApiPaths.imPath("/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + "/decline"), null);
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestMutationResponse>() {});
+    public SocialFriendRequestsDeclineResponse friendRequestsDecline(String friendRequestId) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/social/friend_requests/" + serializePathParameter(friendRequestId, new PathParameterSpec("friendRequestId", "simple", false)) + "/decline"), null);
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsDeclineResponse>() {});
     }
 
     /** Cancel a friend request */
-    public SocialFriendRequestMutationResponse friendRequestsCancel(String requestId) throws Exception {
-        Object raw = client.post(ApiPaths.imPath("/social/friend_requests/" + serializePathParameter(requestId, new PathParameterSpec("requestId", "simple", false)) + "/cancel"), null);
-        return client.convertValue(raw, new TypeReference<SocialFriendRequestMutationResponse>() {});
+    public SocialFriendRequestsCancelResponse friendRequestsCancel(String friendRequestId) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/social/friend_requests/" + serializePathParameter(friendRequestId, new PathParameterSpec("friendRequestId", "simple", false)) + "/cancel"), null);
+        return client.convertValue(raw, new TypeReference<SocialFriendRequestsCancelResponse>() {});
     }
 
     /** Remove a friendship */
-    public SocialFriendshipMutationResponse friendshipsRemove(String friendshipId) throws Exception {
+    public SocialFriendshipsRemoveResponse friendshipsRemove(String friendshipId) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/social/friendships/" + serializePathParameter(friendshipId, new PathParameterSpec("friendshipId", "simple", false)) + "/remove"), null);
-        return client.convertValue(raw, new TypeReference<SocialFriendshipMutationResponse>() {});
+        return client.convertValue(raw, new TypeReference<SocialFriendshipsRemoveResponse>() {});
+    }
+
+    /** Block a social user */
+    public SocialUserBlocksCreateResponse201 userBlocksCreate(BlockUserRequest body) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/social/user_blocks"), body, null, null, "application/json");
+        return client.convertValue(raw, new TypeReference<SocialUserBlocksCreateResponse201>() {});
+    }
+
+    /** Release a social user block */
+    public Void userBlocksDelete(String blockId) throws Exception {
+        client.delete(ApiPaths.imPath("/social/user_blocks/" + serializePathParameter(blockId, new PathParameterSpec("blockId", "simple", false)) + ""));
+        return null;
     }
 
     /** List contact tags */
-    public ContactTagsResponse contactsTagsList(Integer limit, String cursor) throws Exception {
+    public SdkWorkListResponse contactsTagsList(Integer pageSize, String cursor) throws Exception {
         String query = buildQueryString(List.of(
-            new QueryParameterSpec("limit", limit, "form", true, false, null),
+            new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             new QueryParameterSpec("cursor", cursor, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/social/contacts/tags"), query));
-        return client.convertValue(raw, new TypeReference<ContactTagsResponse>() {});
+        return client.convertValue(raw, new TypeReference<SdkWorkListResponse>() {});
     }
 
     /** Create a contact tag */
-    public ContactTagView contactsTagsCreate(CreateContactTagRequest body) throws Exception {
+    public SocialContactsTagsCreateResponse201 contactsTagsCreate(CreateContactTagRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/social/contacts/tags"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ContactTagView>() {});
+        return client.convertValue(raw, new TypeReference<SocialContactsTagsCreateResponse201>() {});
     }
 
     /** Update a contact tag */
-    public ContactTagView contactsTagsUpdate(String tagId, UpdateContactTagRequest body) throws Exception {
+    public SocialContactsTagsUpdateResponse contactsTagsUpdate(String tagId, UpdateContactTagRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/social/contacts/tags/" + serializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false)) + ""), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ContactTagView>() {});
+        return client.convertValue(raw, new TypeReference<SocialContactsTagsUpdateResponse>() {});
     }
 
     /** Delete a contact tag */
-    public DeleteContactTagResponse contactsTagsDelete(String tagId) throws Exception {
-        Object raw = client.delete(ApiPaths.imPath("/social/contacts/tags/" + serializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false)) + ""));
-        return client.convertValue(raw, new TypeReference<DeleteContactTagResponse>() {});
+    public Void contactsTagsDelete(String tagId) throws Exception {
+        client.delete(ApiPaths.imPath("/social/contacts/tags/" + serializePathParameter(tagId, new PathParameterSpec("tagId", "simple", false)) + ""));
+        return null;
     }
 
     /** Create a contact recommendation */
-    public ContactRecommendationView contactsRecommendationsCreate(String targetUserId, CreateContactRecommendationRequest body) throws Exception {
+    public SocialContactsRecommendationsCreateResponse201 contactsRecommendationsCreate(String targetUserId, CreateContactRecommendationRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/social/contacts/" + serializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false)) + "/recommendations"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ContactRecommendationView>() {});
+        return client.convertValue(raw, new TypeReference<SocialContactsRecommendationsCreateResponse201>() {});
     }
 
     /** Retrieve contact preferences */
-    public ContactPreferencesView contactsPreferencesRetrieve(String targetUserId) throws Exception {
+    public SocialContactsPreferencesRetrieveResponse contactsPreferencesRetrieve(String targetUserId) throws Exception {
         Object raw = client.get(ApiPaths.imPath("/social/contacts/" + serializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false)) + "/preferences"));
-        return client.convertValue(raw, new TypeReference<ContactPreferencesView>() {});
+        return client.convertValue(raw, new TypeReference<SocialContactsPreferencesRetrieveResponse>() {});
     }
 
     /** Update contact preferences */
-    public ContactPreferencesView contactsPreferencesUpdate(String targetUserId, UpdateContactPreferencesRequest body) throws Exception {
+    public SocialContactsPreferencesUpdateResponse contactsPreferencesUpdate(String targetUserId, UpdateContactPreferencesRequest body) throws Exception {
         Object raw = client.patch(ApiPaths.imPath("/social/contacts/" + serializePathParameter(targetUserId, new PathParameterSpec("targetUserId", "simple", false)) + "/preferences"), body, null, null, "application/json");
-        return client.convertValue(raw, new TypeReference<ContactPreferencesView>() {});
+        return client.convertValue(raw, new TypeReference<SocialContactsPreferencesUpdateResponse>() {});
     }
 
     private record PathParameterSpec(String name, String style, boolean explode) {}

@@ -75,7 +75,10 @@ pub fn resolve_gateway_config(
         file_config.cors.allow_any_origin
     };
 
-    let allowed_origins = if is_production && file_config.cors.allowed_origins.is_empty() && !allow_any_origin {
+    let allowed_origins = if is_production
+        && file_config.cors.allowed_origins.is_empty()
+        && !allow_any_origin
+    {
         tracing::warn!(
             target: "sdkwork.im.gateway",
             event = "im.gateway.cors_no_explicit_origins",

@@ -4,7 +4,7 @@ import { createSdkworkGroupService } from '../../apps/sdkwork-im-pc/packages/sdk
 
 type ListMembersParams = {
   cursor?: string;
-  limit?: number;
+  pageSize?: number;
 };
 
 type GroupSyncCall =
@@ -54,15 +54,18 @@ function pageMembers(params: ListMembersParams | undefined): {
   items: ConversationMember[];
   nextCursor?: string;
 } {
-  const limit = params?.limit ?? 100;
+  const limit = params?.pageSize ?? 100;
   const offset = params?.cursor ? Number(params.cursor) : 0;
   const members = currentMembers();
   const nextOffset = offset + limit;
   const hasMore = nextOffset < members.length;
   return {
     items: members.slice(offset, nextOffset),
-    hasMore,
-    ...(hasMore ? { nextCursor: String(nextOffset) } : {}),
+    pageInfo: {
+      hasMore,
+      mode: 'cursor',
+      ...(hasMore ? { nextCursor: String(nextOffset) } : {}),
+    },
   };
 }
 
@@ -97,16 +100,24 @@ async function main(): Promise<void> {
   const listCalls = calls.filter((call) => call.method === 'listMembers');
   assert.equal(
     listCalls.length,
-    4,
-    'group member reads must page both the target lookup and the follow-up view-state sync',
+    12,
+    'group member reads must use bounded SDKWork default-size pages for both target lookup and follow-up view-state sync',
   );
   assert.deepEqual(
     listCalls.map((call) => call.params),
     [
-      { limit: 100 },
-      { limit: 100, cursor: '100' },
-      { limit: 100 },
-      { limit: 100, cursor: '100' },
+      { pageSize: 20 },
+      { pageSize: 20, cursor: '20' },
+      { pageSize: 20, cursor: '40' },
+      { pageSize: 20, cursor: '60' },
+      { pageSize: 20, cursor: '80' },
+      { pageSize: 20, cursor: '100' },
+      { pageSize: 20 },
+      { pageSize: 20, cursor: '20' },
+      { pageSize: 20, cursor: '40' },
+      { pageSize: 20, cursor: '60' },
+      { pageSize: 20, cursor: '80' },
+      { pageSize: 20, cursor: '100' },
     ],
   );
   assert.deepEqual(

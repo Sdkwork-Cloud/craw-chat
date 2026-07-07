@@ -37,10 +37,7 @@ impl WebGatewayConfig {
             "SDKWORK_IM_WEB_GATEWAY_BIND",
         ])
         .unwrap_or_else(|| DEFAULT_GATEWAY_BIND_ADDR.to_owned());
-        Self::with_bind_addr_and_runtime_mode(
-            bind_addr,
-            resolve_runtime_mode_from_env(),
-        )
+        Self::with_bind_addr_and_runtime_mode(bind_addr, resolve_runtime_mode_from_env())
     }
 
     pub fn from_server_config_file(path: impl AsRef<Path>) -> Result<Self, String> {
@@ -96,6 +93,7 @@ pub fn is_assembly_embedded_im_service(service_id: &str) -> bool {
             | "automation-service"
             | "audit-service"
             | "ops-service"
+            | "portal-service"
             | "comms-social-service"
             | "comms-space-service"
     )
@@ -277,7 +275,10 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("sdkwork-mail-app-api", mail_upstream.as_str()),
         service_upstream("sdkwork-community-app-api", community_upstream.as_str()),
         service_upstream("sdkwork-course-app-api", course_upstream.as_str()),
-        service_upstream("sdkwork-knowledgebase-app-api", knowledgebase_upstream.as_str()),
+        service_upstream(
+            "sdkwork-knowledgebase-app-api",
+            knowledgebase_upstream.as_str(),
+        ),
         service_upstream("sdkwork-voice-app-api", voice_upstream.as_str()),
         service_upstream("media-service", "http://127.0.0.1:18086"),
         service_upstream("notification-service", "http://127.0.0.1:18087"),
@@ -685,20 +686,21 @@ bind_address = "127.0.0.1:38080"
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
         let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_upstream =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_base_url =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
+        let _sdkwork_catalog_upstream = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
         let _community_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_upstream = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_base_url = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
+        let _sdkwork_community_upstream =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
+        let _sdkwork_community_base_url =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
         let _course_upstream = ScopedEnvVar::remove("SDKWORK_IM_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_upstream = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_base_url = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_BASE_URL");
-        let _knowledgebase_upstream = ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
+        let _knowledgebase_upstream =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_upstream =
             ScopedEnvVar::remove("SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_base_url =
@@ -778,7 +780,10 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:3900")
         );
         assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
-        assert_eq!(config.upstream_base_url("sdkwork-knowledgebase-app-api"), None);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-knowledgebase-app-api"),
+            None
+        );
         assert_eq!(config.upstream_base_url("sdkwork-catalog-app-api"), None);
         assert_eq!(config.upstream_base_url("sdkwork-mail-app-api"), None);
         assert_eq!(config.upstream_base_url("sdkwork-notary-app-api"), None);
@@ -789,17 +794,27 @@ bind_address = "127.0.0.1:38080"
         assert_eq!(config.upstream_base_url("comms-space-service"), None);
         assert_eq!(config.upstream_base_url("projection-service"), None);
         assert!(super::is_assembly_embedded_im_service("social-service"));
-        assert!(super::is_standalone_embedded_dependency_service("sdkwork-drive-app-api"));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-drive-app-api"
+        ));
         assert!(super::is_standalone_embedded_dependency_service(
             "sdkwork-knowledgebase-app-api"
         ));
-        assert!(super::is_standalone_embedded_dependency_service("sdkwork-voice-app-api"));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-voice-app-api"
+        ));
         assert!(super::is_standalone_embedded_dependency_service(
             "sdkwork-catalog-app-api"
         ));
-        assert!(super::is_standalone_embedded_dependency_service("sdkwork-mail-app-api"));
-        assert!(super::is_standalone_embedded_dependency_service("sdkwork-notary-app-api"));
-        assert!(super::is_standalone_embedded_dependency_service("sdkwork-course-app-api"));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-mail-app-api"
+        ));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-notary-app-api"
+        ));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-course-app-api"
+        ));
     }
 
     #[test]
@@ -809,8 +824,10 @@ bind_address = "127.0.0.1:38080"
             "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
             "http://127.0.0.1:4900/",
         );
-        let _gateway_base_url =
-            ScopedEnvVar::set("SDKWORK_API_CLOUD_GATEWAY_BASE_URL", "http://127.0.0.1:5900");
+        let _gateway_base_url = ScopedEnvVar::set(
+            "SDKWORK_API_CLOUD_GATEWAY_BASE_URL",
+            "http://127.0.0.1:5900",
+        );
         let _gateway_bind = ScopedEnvVar::set("SDKWORK_API_CLOUD_GATEWAY_BIND", "127.0.0.1:6900");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
         let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
@@ -821,20 +838,21 @@ bind_address = "127.0.0.1:38080"
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
         let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_upstream =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_base_url =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
+        let _sdkwork_catalog_upstream = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
         let _community_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_upstream = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_base_url = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
+        let _sdkwork_community_upstream =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
+        let _sdkwork_community_base_url =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
         let _course_upstream = ScopedEnvVar::remove("SDKWORK_IM_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_upstream = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_base_url = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_BASE_URL");
-        let _knowledgebase_upstream = ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
+        let _knowledgebase_upstream =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_upstream =
             ScopedEnvVar::remove("SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_base_url =
@@ -892,20 +910,21 @@ bind_address = "127.0.0.1:38080"
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
         let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_upstream =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_base_url =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
+        let _sdkwork_catalog_upstream = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
         let _community_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_upstream = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_base_url = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
+        let _sdkwork_community_upstream =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
+        let _sdkwork_community_base_url =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
         let _course_upstream = ScopedEnvVar::remove("SDKWORK_IM_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_upstream = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_base_url = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_BASE_URL");
-        let _knowledgebase_upstream = ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
+        let _knowledgebase_upstream =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_upstream =
             ScopedEnvVar::remove("SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_base_url =
@@ -1038,10 +1057,14 @@ bind_address = "127.0.0.1:38080"
             "SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM",
             "http://127.0.0.1:28098/",
         );
-        let _sdkwork_community_upstream =
-            ScopedEnvVar::set("SDKWORK_COMMUNITY_APP_API_UPSTREAM", "http://127.0.0.1:38098");
-        let _sdkwork_community_base_url =
-            ScopedEnvVar::set("SDKWORK_COMMUNITY_APP_API_BASE_URL", "http://127.0.0.1:48098");
+        let _sdkwork_community_upstream = ScopedEnvVar::set(
+            "SDKWORK_COMMUNITY_APP_API_UPSTREAM",
+            "http://127.0.0.1:38098",
+        );
+        let _sdkwork_community_base_url = ScopedEnvVar::set(
+            "SDKWORK_COMMUNITY_APP_API_BASE_URL",
+            "http://127.0.0.1:48098",
+        );
 
         let config = WebGatewayConfig::from_env();
 
@@ -1134,20 +1157,21 @@ bind_address = "127.0.0.1:38080"
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
         let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_upstream =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
-        let _sdkwork_catalog_base_url =
-            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
+        let _sdkwork_catalog_upstream = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url = ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
         let _community_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_upstream = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
-        let _sdkwork_community_base_url = ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
+        let _sdkwork_community_upstream =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_UPSTREAM");
+        let _sdkwork_community_base_url =
+            ScopedEnvVar::remove("SDKWORK_COMMUNITY_APP_API_BASE_URL");
         let _course_upstream = ScopedEnvVar::remove("SDKWORK_IM_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_upstream = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_UPSTREAM");
         let _sdkwork_course_base_url = ScopedEnvVar::remove("SDKWORK_COURSE_APP_API_BASE_URL");
-        let _knowledgebase_upstream = ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
+        let _knowledgebase_upstream =
+            ScopedEnvVar::remove("SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_upstream =
             ScopedEnvVar::remove("SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM");
         let _sdkwork_knowledgebase_base_url =

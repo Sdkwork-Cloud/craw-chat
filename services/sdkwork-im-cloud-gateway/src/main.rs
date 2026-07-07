@@ -4,9 +4,9 @@ use std::process::ExitCode;
 
 use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
-    resolve_product_site_dirs_from_env, RouterProductRuntimeOptions, build_product_runtime_router,
+    RouterProductRuntimeOptions, build_product_runtime_router, resolve_product_site_dirs_from_env,
 };
-use sdkwork_im_cloud_gateway_config::{should_embed_session_gateway, WebGatewayConfig};
+use sdkwork_im_cloud_gateway_config::{WebGatewayConfig, should_embed_session_gateway};
 use sdkwork_im_cloud_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
@@ -42,9 +42,9 @@ async fn run() -> Result<(), String> {
     let listener = tokio::net::TcpListener::bind(config.bind_addr.as_str())
         .await
         .map_err(|error| format!("sdkwork-im-cloud-gateway failed to bind listener: {error}"))?;
-    let local_addr = listener
-        .local_addr()
-        .map_err(|error| format!("sdkwork-im-cloud-gateway failed to resolve listener addr: {error}"))?;
+    let local_addr = listener.local_addr().map_err(|error| {
+        format!("sdkwork-im-cloud-gateway failed to resolve listener addr: {error}")
+    })?;
     let base_url = format!("http://{}", display_listener_addr(local_addr));
     let registry = web_gateway::build_gateway_registry()?;
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
@@ -55,8 +55,7 @@ async fn run() -> Result<(), String> {
         sdkwork_iam_database_host::bootstrap_iam_database_from_env()
             .await
             .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
-        sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env()
-            .await;
+        sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
         let iam_environment = match im_app_context::resolve_web_environment_from_process_env() {
             sdkwork_web_core::WebEnvironment::Dev => "development",
             sdkwork_web_core::WebEnvironment::Test => "test",
@@ -69,8 +68,7 @@ async fn run() -> Result<(), String> {
         .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
         let retention_scheduler =
             im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
-        let embedded =
-            web_gateway::bootstrap_embedded_session_gateway_runtime(&config).await?;
+        let embedded = web_gateway::bootstrap_embedded_session_gateway_runtime(&config).await?;
         EmbeddedStartup {
             runtime: embedded,
             retention_scheduler,
@@ -104,13 +102,13 @@ async fn run() -> Result<(), String> {
         .await
         .into_make_service_with_connect_info::<SocketAddr>(),
     )
-.with_graceful_shutdown(async move {
-sdkwork_im_service_readiness::shutdown_signal().await;
-if let Some(handle) = embedded_runtime.retention_scheduler {
-handle.shutdown();
-}
-embedded_runtime.runtime.shutdown().await;
-})
+    .with_graceful_shutdown(async move {
+        sdkwork_im_service_readiness::shutdown_signal().await;
+        if let Some(handle) = embedded_runtime.retention_scheduler {
+            handle.shutdown();
+        }
+        embedded_runtime.runtime.shutdown().await;
+    })
     .await
     .map_err(|error| format!("sdkwork-im-cloud-gateway server should run: {error}"))?;
     Ok(())

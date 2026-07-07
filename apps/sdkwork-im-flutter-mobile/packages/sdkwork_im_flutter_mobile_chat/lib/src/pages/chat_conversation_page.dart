@@ -8,6 +8,7 @@ import '../services/chat_conversation_service.dart';
 import '../services/chat_media_upload_service.dart';
 import '../services/chat_realtime_service.dart';
 import '../services/chat_timeline_utils.dart';
+import '../services/offline_send_queue.dart';
 
 class ChatConversationPage extends StatefulWidget {
   const ChatConversationPage({
@@ -56,6 +57,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     _scrollController.addListener(_handleScroll);
     unawaited(_loadTimeline());
     unawaited(_startRealtime());
+    unawaited(_flushPendingSends());
   }
 
   @override
@@ -97,7 +99,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
         return;
       }
       _applyTimelineResponse(
-        response?.items ?? const [],
+        response.items,
         pickTimelinePagination(response),
         mode: 'replace',
       );
@@ -121,7 +123,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
         widget.conversationId,
         _latestSeq,
       );
-      final items = response?.items ?? const [];
+      final items = response.items;
       if (items.isEmpty || !mounted) {
         return;
       }
@@ -147,13 +149,13 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
       final response = await widget.conversationService.fetchTimeline(
         widget.conversationId,
         afterSeq: _pagination.nextAfterSeq,
-        limit: 50,
+        pageSize: 50,
       );
       if (!mounted) {
         return;
       }
       _applyTimelineResponse(
-        response?.items ?? const [],
+        response.items,
         pickTimelinePagination(response),
         mode: 'append',
       );
@@ -201,17 +203,73 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     }
   }
 
+  Future<void> _flushPendingSends() async {
+    final tenantId = widget.session.tenantId;
+    await runPendingTextSendFlushForTenant(
+      tenantId: tenantId,
+      flush: (pending) async {
+        final scoped = pending
+            .where((payload) => payload.conversationId == widget.conversationId)
+            .toList();
+        if (scoped.isEmpty) {
+          return;
+        }
+        for (final payload in scoped) {
+          try {
+            await widget.conversationService.sendText(
+              widget.conversationId,
+              payload.text,
+              clientMsgId: payload.clientMsgId,
+            );
+            await removePendingTextSend(
+              tenantId: tenantId,
+              clientMsgId: payload.clientMsgId,
+            );
+          } catch (_) {
+            await releasePendingTextSendClaim(
+              tenantId: tenantId,
+              clientMsgId: payload.clientMsgId,
+              claimId: payload.claimId,
+            );
+            break;
+          }
+        }
+        await _appendNewTimelineEntries();
+      },
+    );
+  }
+
   Future<void> _handleSend() async {
     final text = _composerController.text.trim();
     if (text.isEmpty || _sending) {
       return;
     }
+    final clientMsgId =
+        'flutter-${DateTime.now().millisecondsSinceEpoch}-${widget.conversationId.hashCode}';
     setState(() => _sending = true);
     try {
-      await widget.conversationService.sendText(widget.conversationId, text);
+      await widget.conversationService.sendText(
+        widget.conversationId,
+        text,
+        clientMsgId: clientMsgId,
+      );
+      await removePendingTextSend(
+        tenantId: widget.session.tenantId,
+        clientMsgId: clientMsgId,
+      );
       _composerController.clear();
       await _appendNewTimelineEntries();
     } catch (error) {
+      if (isRetryableFlutterSendError(error)) {
+        await enqueuePendingTextSend(
+          tenantId: widget.session.tenantId,
+          payload: PendingTextSendPayload(
+            conversationId: widget.conversationId,
+            text: text,
+            clientMsgId: clientMsgId,
+          ),
+        );
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send message: $error')),

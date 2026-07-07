@@ -178,7 +178,7 @@ realtime window 的所有权属于 `tenantId + principalId + clientRouteId`，�
 
 规则：
 
-- `pageSize` 语义与 HTTP 完全一致，必须大于 0
+- `pageSize` 是 WebSocket JSON 帧字段，必须大于 0；其分页容量语义与 HTTP `page_size` 对齐，但 HTTP query wire 必须使用 `page_size`，不得接受 `pageSize` 作为 URL 查询别名
 - 若 `afterSeq` 为空，服务端可按当前连接的已发送游标继续拉取
 - `events.pull` 允许与 `push` 并存，属于显式拉取而非隐式 ack
 
@@ -261,7 +261,7 @@ realtime window 的所有权属于 `tenantId + principalId + clientRouteId`，�
 
 ### 6.2 `error`
 
-当客户端发送非法帧、未知类型、`pageSize=0` 等错误时，服务端返回：
+当客户端发送非法帧、未知类型、JSON 字段 `pageSize` 为 `0` 等错误时，服务端返回：
 
 ```json
 {
@@ -340,4 +340,3 @@ WebSocket 仍然只负责在线期低延迟下行。
 - 增加跨节点 fanout bridge，让任意节点都能把事件推到设备连接所在节点
 - 引入窗口容量上限、背压和慢消费者策略
 - 在控制面暴露实时连接观测、设备连接数、推送延迟、丢弃原因等指标
-

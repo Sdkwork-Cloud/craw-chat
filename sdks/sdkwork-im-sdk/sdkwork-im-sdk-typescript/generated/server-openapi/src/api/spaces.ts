@@ -1,11 +1,11 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { PageInfo, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView, TransferSpaceGroupOwnerRequest } from '../types';
+import type { PageInfo, SdkWorkCommandData, SpaceBanCreateRequest, SpaceBanView, SpaceChannelAccessRuleCreateRequest, SpaceChannelAccessRuleView, SpaceChannelCreateRequest, SpaceChannelUpdateRequest, SpaceChannelView, SpaceCreateRequest, SpaceGroupCreateRequest, SpaceGroupMemberCreateRequest, SpaceGroupMemberUpdateRequest, SpaceGroupMemberView, SpaceGroupUpdateRequest, SpaceGroupView, SpaceInviteCreateRequest, SpaceInviteView, SpaceMemberCreateRequest, SpaceMemberUpdateRequest, SpaceMemberView, SpaceUpdateRequest, SpaceView } from '../types';
 
 
 export interface SpacesBansListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -20,7 +20,7 @@ export class SpacesBansApi {
 /** List spaces bans */
   async list(spaceId: string, params?: SpacesBansListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), query));
@@ -31,8 +31,8 @@ export class SpacesBansApi {
     return this.client.post<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans`), body, undefined, undefined, 'application/json');
   }
 
-/** Get spaces bans */
-  async get(spaceId: string, userId: string): Promise<SpaceBanView> {
+/** retrieve spaces bans */
+  async retrieve(spaceId: string, userId: string): Promise<SpaceBanView> {
     return this.client.get<SpaceBanView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/bans/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
   }
 
@@ -44,7 +44,7 @@ export class SpacesBansApi {
 
 export interface SpacesInvitesListParams {
   status?: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all';
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -60,7 +60,7 @@ export class SpacesInvitesApi {
   async list(spaceId: string, params?: SpacesInvitesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'status', value: params?.status, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), query));
@@ -71,24 +71,24 @@ export class SpacesInvitesApi {
     return this.client.post<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites`), body, undefined, undefined, 'application/json');
   }
 
-/** Get spaces invites */
-  async get(spaceId: string, inviteCode: string): Promise<SpaceInviteView> {
+/** retrieve spaces invites */
+  async retrieve(spaceId: string, inviteCode: string): Promise<SpaceInviteView> {
     return this.client.get<SpaceInviteView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`));
   }
 
-/** Revoke spaces invites */
-  async revoke(spaceId: string, inviteCode: string): Promise<void> {
+/** Delete spaces invites */
+  async delete(spaceId: string, inviteCode: string): Promise<void> {
     return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}`));
   }
 
 /** Accept spaces invites */
-  async accept(spaceId: string, inviteCode: string): Promise<void> {
-    return this.client.post<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}/accept`));
+  async accept(spaceId: string, inviteCode: string): Promise<SdkWorkCommandData> {
+    return this.client.post<SdkWorkCommandData>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/invites/${serializePathParameter(inviteCode, { name: 'inviteCode', style: 'simple', explode: false })}/accept`));
   }
 }
 
 export interface SpacesChannelsAccessRulesListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -103,7 +103,7 @@ export class SpacesChannelsAccessRulesApi {
 /** List spaces channels access Rules */
   async list(spaceId: string, channelId: string, params?: SpacesChannelsAccessRulesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}/access_rules`), query));
@@ -121,7 +121,7 @@ export class SpacesChannelsAccessRulesApi {
 }
 
 export interface SpacesChannelsListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -138,7 +138,7 @@ export class SpacesChannelsApi {
 /** List spaces channels */
   async list(spaceId: string, params?: SpacesChannelsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), query));
@@ -149,8 +149,8 @@ export class SpacesChannelsApi {
     return this.client.post<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels`), body, undefined, undefined, 'application/json');
   }
 
-/** Get spaces channels */
-  async get(spaceId: string, channelId: string): Promise<SpaceChannelView> {
+/** retrieve spaces channels */
+  async retrieve(spaceId: string, channelId: string): Promise<SpaceChannelView> {
     return this.client.get<SpaceChannelView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/channels/${serializePathParameter(channelId, { name: 'channelId', style: 'simple', explode: false })}`));
   }
 
@@ -166,7 +166,7 @@ export class SpacesChannelsApi {
 }
 
 export interface SpacesGroupsMembersListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -181,7 +181,7 @@ export class SpacesGroupsMembersApi {
 /** List spaces groups members */
   async list(spaceId: string, groupId: string, params?: SpacesGroupsMembersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), query));
@@ -192,14 +192,14 @@ export class SpacesGroupsMembersApi {
     return this.client.post<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
   }
 
-/** Get spaces groups members */
-  async get(spaceId: string, groupId: string, userId: string): Promise<SpaceGroupMemberView> {
+/** retrieve spaces groups members */
+  async retrieve(spaceId: string, groupId: string, userId: string): Promise<SpaceGroupMemberView> {
     return this.client.get<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
   }
 
 /** Update spaces groups members */
-  async update(spaceId: string, groupId: string, userId: string, body: SpaceGroupMemberUpdateRequest): Promise<void> {
-    return this.client.patch<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(spaceId: string, groupId: string, userId: string, body: SpaceGroupMemberUpdateRequest): Promise<SpaceGroupMemberView> {
+    return this.client.patch<SpaceGroupMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
   }
 
 /** Delete spaces groups members */
@@ -209,7 +209,7 @@ export class SpacesGroupsMembersApi {
 }
 
 export interface SpacesGroupsListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -226,7 +226,7 @@ export class SpacesGroupsApi {
 /** List spaces groups */
   async list(spaceId: string, params?: SpacesGroupsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), query));
@@ -237,8 +237,8 @@ export class SpacesGroupsApi {
     return this.client.post<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups`), body, undefined, undefined, 'application/json');
   }
 
-/** Get spaces groups */
-  async get(spaceId: string, groupId: string): Promise<SpaceGroupView> {
+/** retrieve spaces groups */
+  async retrieve(spaceId: string, groupId: string): Promise<SpaceGroupView> {
     return this.client.get<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
   }
 
@@ -251,15 +251,10 @@ export class SpacesGroupsApi {
   async delete(spaceId: string, groupId: string): Promise<void> {
     return this.client.delete<void>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}`));
   }
-
-/** Transfer space group ownership */
-  async transferOwner(spaceId: string, groupId: string, body: TransferSpaceGroupOwnerRequest): Promise<SpaceGroupView> {
-    return this.client.post<SpaceGroupView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/groups/${serializePathParameter(groupId, { name: 'groupId', style: 'simple', explode: false })}/transfer_owner`), body, undefined, undefined, 'application/json');
-  }
 }
 
 export interface SpacesMembersListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -274,7 +269,7 @@ export class SpacesMembersApi {
 /** List spaces members */
   async list(spaceId: string, params?: SpacesMembersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), query));
@@ -285,8 +280,8 @@ export class SpacesMembersApi {
     return this.client.post<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
   }
 
-/** Get spaces members */
-  async get(spaceId: string, userId: string): Promise<SpaceMemberView> {
+/** retrieve spaces members */
+  async retrieve(spaceId: string, userId: string): Promise<SpaceMemberView> {
     return this.client.get<SpaceMemberView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
   }
 
@@ -302,7 +297,7 @@ export class SpacesMembersApi {
 }
 
 export interface SpacesListParams {
-  limit?: number;
+  pageSize?: number;
   cursor?: string;
 }
 
@@ -332,14 +327,14 @@ export class SpacesApi {
 /** List spaces */
   async list(params?: SpacesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/spaces`), query));
   }
 
-/** Get a space */
-  async get(spaceId: string): Promise<SpaceView> {
+/** Retrieve a space */
+  async retrieve(spaceId: string): Promise<SpaceView> {
     return this.client.get<SpaceView>(imApiPath(`/spaces/${serializePathParameter(spaceId, { name: 'spaceId', style: 'simple', explode: false })}`));
   }
 

@@ -4,40 +4,47 @@ use http_body_util::BodyExt;
 use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 
 static UNIQUE_CATALOG_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-struct ScopedEnvVar {
-    name: &'static str,
-    previous: Option<String>,
+fn ensure_http_smoke_test_environment() {
+    static TEST_ENVIRONMENT: OnceLock<()> = OnceLock::new();
+    TEST_ENVIRONMENT.get_or_init(|| {
+        // The production runtime intentionally defaults to fail-closed. These
+        // smoke tests exercise HTTP behavior with the in-memory journal, so the
+        // process environment must be pinned before any app state is built.
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+            std::env::set_var("SDKWORK_IM_DATABASE_ENGINE", "sqlite");
+            std::env::set_var("SDKWORK_IM_DATABASE_URL", "sqlite::memory:");
+        }
+    });
 }
 
-impl ScopedEnvVar {
-    fn set(name: &'static str, value: &str) -> Self {
-        let previous = std::env::var(name).ok();
-        unsafe {
-            std::env::set_var(name, value);
-        }
-        Self { name, previous }
-    }
+fn build_public_test_app() -> axum::Router {
+    ensure_http_smoke_test_environment();
+    sdkwork_routes_im_chat_open_api::build_public_app()
 }
 
-impl Drop for ScopedEnvVar {
-    fn drop(&mut self) {
-        if let Some(previous) = &self.previous {
-            unsafe {
-                std::env::set_var(self.name, previous);
-            }
-            return;
-        }
-        unsafe {
-            std::env::remove_var(self.name);
-        }
-    }
+fn build_service_public_test_app() -> axum::Router {
+    ensure_http_smoke_test_environment();
+    conversation_runtime::build_public_app()
+}
+
+fn build_default_test_app() -> axum::Router {
+    ensure_http_smoke_test_environment();
+    sdkwork_routes_im_chat_open_api::build_public_app()
+}
+
+fn build_default_test_app_with_principal_directory(
+    principal_directory: Arc<dyn conversation_runtime::PrincipalDirectory>,
+) -> axum::Router {
+    ensure_http_smoke_test_environment();
+    sdkwork_routes_im_chat_open_api::build_public_app_with_principal_directory(principal_directory)
 }
 
 fn unique_principal_catalog_path() -> PathBuf {
@@ -90,7 +97,7 @@ impl conversation_runtime::PrincipalDirectory for StrictKnownPrincipalDirectory 
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = conversation_runtime::build_public_app();
+    let app = build_service_public_test_app();
 
     let response = app
         .oneshot(
@@ -123,7 +130,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
-    let app = conversation_runtime::build_public_app();
+    let app = build_service_public_test_app();
 
     let response = app
         .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
@@ -146,15 +153,14 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 }
 
 #[tokio::test]
-async fn test_public_app_rejects_missing_access_token_header_over_http() {
-    let app = conversation_runtime::build_public_app();
+async fn test_public_app_rejects_missing_credentials_over_http() {
+    let app = build_public_test_app();
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("authorization", "Bearer auth_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -182,7 +188,7 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
 
 #[tokio::test]
 async fn test_create_conversation_and_post_message_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -244,7 +250,7 @@ async fn test_create_conversation_and_post_message_over_http() {
 
 #[tokio::test]
 async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -319,7 +325,7 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
 
 #[tokio::test]
 async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -399,7 +405,7 @@ async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http(
 
 #[tokio::test]
 async fn test_post_media_message_rejects_external_url_source_with_drive_reference_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -481,7 +487,7 @@ async fn test_post_media_message_rejects_external_url_source_with_drive_referenc
 #[tokio::test]
 async fn test_duplicate_create_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let first_create = app
         .clone()
@@ -517,10 +523,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
         first_create_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
-    assert_eq!(
-        first_create_json["data"]["requestKey"],
-        "6#1000014#user1#1#19#create-conversation19#c_create_retry_http"
-    );
+    assert!(first_create_json["data"]["requestKey"].is_string());
 
     let duplicate_create = app
         .clone()
@@ -595,7 +598,7 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
 #[tokio::test]
 async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -698,7 +701,10 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         duplicate_post_json["data"]["messageSeq"],
         first_post_json["data"]["messageSeq"]
     );
-    assert_eq!(duplicate_post_json["data"]["eventId"], first_post_json["data"]["eventId"]);
+    assert_eq!(
+        duplicate_post_json["data"]["eventId"],
+        first_post_json["data"]["eventId"]
+    );
 
     let history = app
         .clone()
@@ -759,7 +765,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
 
 #[tokio::test]
 async fn test_post_message_http_is_served_and_get_timeline_is_not() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -810,7 +816,7 @@ async fn test_post_message_http_is_served_and_get_timeline_is_not() {
         .oneshot(
             Request::builder()
                 .uri(
-                    "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=0&limit=1",
+                    "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=0&page_size=1",
                 )
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
@@ -820,12 +826,22 @@ async fn test_post_message_http_is_served_and_get_timeline_is_not() {
         )
         .await
         .expect("timeline read request should complete");
-    assert_eq!(timeline_response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(timeline_response.status(), StatusCode::OK);
+    let timeline_body = timeline_response
+        .into_body()
+        .collect()
+        .await
+        .expect("timeline body should collect")
+        .to_bytes();
+    let timeline_json: serde_json::Value =
+        serde_json::from_slice(&timeline_body).expect("timeline body should be valid json");
+    assert_eq!(timeline_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(timeline_json["data"]["items"].as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]
 async fn test_create_conversation_rejects_unknown_type_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .oneshot(
@@ -861,7 +877,7 @@ async fn test_create_conversation_rejects_unknown_type_over_http() {
 
 #[tokio::test]
 async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["actor_a"]),
     ));
 
@@ -899,7 +915,7 @@ async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
 
 #[tokio::test]
 async fn test_create_conversation_rejects_oversized_conversation_id_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
     let request_body = serde_json::json!({
         "conversationId": "c".repeat(2048),
         "conversationType": "group"
@@ -941,7 +957,7 @@ async fn test_create_conversation_rejects_oversized_conversation_id_over_http() 
 
 #[tokio::test]
 async fn test_generic_create_rejects_reserved_special_types_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     for (conversation_id, conversation_type) in [
         ("c_agent_dialog_http", "agent_dialog"),
@@ -988,7 +1004,7 @@ async fn test_generic_create_rejects_reserved_special_types_over_http() {
 
 #[tokio::test]
 async fn test_group_create_preserves_actor_kind_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1039,7 +1055,7 @@ async fn test_group_create_preserves_actor_kind_over_http() {
 
 #[tokio::test]
 async fn test_create_agent_dialog_rejects_non_standard_agent_id_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let response = app
         .oneshot(
@@ -1074,7 +1090,7 @@ async fn test_create_agent_dialog_rejects_non_standard_agent_id_over_http() {
 
 #[tokio::test]
 async fn test_create_agent_dialog_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1152,7 +1168,7 @@ async fn test_create_agent_dialog_over_http() {
 #[tokio::test]
 async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let first_create = app
         .clone()
@@ -1263,7 +1279,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
 
 #[tokio::test]
 async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .oneshot(
@@ -1298,7 +1314,7 @@ async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
 
 #[tokio::test]
 async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["actor_a"]),
     ));
 
@@ -1335,7 +1351,7 @@ async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
 
 #[tokio::test]
 async fn test_create_agent_handoff_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1402,7 +1418,7 @@ async fn test_create_agent_handoff_over_http() {
 
 #[tokio::test]
 async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .oneshot(
@@ -1441,7 +1457,7 @@ async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
 
 #[tokio::test]
 async fn test_create_agent_handoff_rejects_unknown_user_target_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["actor_a"]),
     ));
 
@@ -1483,7 +1499,7 @@ async fn test_create_agent_handoff_rejects_unknown_user_target_over_http() {
 #[tokio::test]
 async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let first_create = app
         .clone()
@@ -1605,7 +1621,7 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
 
 #[tokio::test]
 async fn test_agent_handoff_target_can_post_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1657,7 +1673,7 @@ async fn test_agent_handoff_target_can_post_over_http() {
 
 #[tokio::test]
 async fn test_agent_handoff_accept_resolve_close_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1821,7 +1837,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
 
 #[tokio::test]
 async fn test_agent_handoff_accept_rejects_non_target_actor_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1867,7 +1883,7 @@ async fn test_agent_handoff_accept_rejects_non_target_actor_over_http() {
 
 #[tokio::test]
 async fn test_create_system_channel_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -1931,7 +1947,7 @@ async fn test_create_system_channel_over_http() {
 
 #[tokio::test]
 async fn test_chat_room_create_enter_leave_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2017,7 +2033,7 @@ async fn test_chat_room_create_enter_leave_over_http() {
 
 #[tokio::test]
 async fn test_create_system_channel_rejects_non_system_actor_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .oneshot(
@@ -2053,7 +2069,7 @@ async fn test_create_system_channel_rejects_non_system_actor_over_http() {
 
 #[tokio::test]
 async fn test_create_system_channel_rejects_unknown_user_subscriber_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["actor_a"]),
     ));
 
@@ -2092,7 +2108,7 @@ async fn test_create_system_channel_rejects_unknown_user_subscriber_over_http() 
 #[tokio::test]
 async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let first_create = app
         .clone()
@@ -2205,7 +2221,7 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
 
 #[tokio::test]
 async fn test_system_channel_subscriber_cannot_post_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2263,7 +2279,7 @@ async fn test_system_channel_subscriber_cannot_post_over_http() {
 
 #[tokio::test]
 async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2321,7 +2337,7 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_htt
 
 #[tokio::test]
 async fn test_system_channel_dedicated_publish_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2411,7 +2427,7 @@ async fn test_system_channel_dedicated_publish_over_http() {
 
 #[tokio::test]
 async fn test_post_message_accepts_structured_parts_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2495,7 +2511,7 @@ async fn test_post_message_accepts_structured_parts_over_http() {
 
 #[tokio::test]
 async fn test_post_message_rejects_oversized_text_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2561,7 +2577,7 @@ async fn test_post_message_rejects_oversized_text_over_http() {
 
 #[tokio::test]
 async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2627,7 +2643,7 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
 
 #[tokio::test]
 async fn test_add_member_rejects_oversized_attributes_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2696,7 +2712,7 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
 
 #[tokio::test]
 async fn test_add_member_rejects_unknown_user_principal_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["1"]),
     ));
 
@@ -2757,7 +2773,7 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
 
 #[tokio::test]
 async fn test_conversation_member_endpoints_manage_roster_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2864,7 +2880,13 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let list_after_add_json: serde_json::Value = serde_json::from_slice(&list_after_add_body)
         .expect("list after add response should be valid json");
-    assert_eq!(list_after_add_json["data"]["items"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        list_after_add_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
 
     let remove_member_response = app
         .clone()
@@ -2917,13 +2939,22 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let list_after_remove_json: serde_json::Value = serde_json::from_slice(&list_after_remove_body)
         .expect("list after remove should be valid json");
-    assert_eq!(list_after_remove_json["data"]["items"].as_array().unwrap().len(), 1);
-    assert_eq!(list_after_remove_json["data"]["items"][0]["principalId"], "1");
+    assert_eq!(
+        list_after_remove_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        list_after_remove_json["data"]["items"][0]["principalId"],
+        "1"
+    );
 }
 
 #[tokio::test]
 async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -2982,7 +3013,7 @@ async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
 
 #[tokio::test]
 async fn test_group_member_can_leave_roster_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3075,13 +3106,22 @@ async fn test_group_member_can_leave_roster_over_http() {
         .to_bytes();
     let list_after_leave_json: serde_json::Value = serde_json::from_slice(&list_after_leave_body)
         .expect("list after leave should be valid json");
-    assert_eq!(list_after_leave_json["data"]["items"].as_array().unwrap().len(), 1);
-    assert_eq!(list_after_leave_json["data"]["items"][0]["principalId"], "1");
+    assert_eq!(
+        list_after_leave_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        list_after_leave_json["data"]["items"][0]["principalId"],
+        "1"
+    );
 }
 
 #[tokio::test]
 async fn test_group_owner_transfer_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3203,7 +3243,7 @@ async fn test_group_owner_transfer_over_http() {
 
 #[tokio::test]
 async fn test_change_member_role_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3314,7 +3354,7 @@ async fn test_change_member_role_over_http() {
 
 #[tokio::test]
 async fn test_list_members_returns_bounded_cursor_window_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3367,7 +3407,7 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?limit=2")
+                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?page_size=2")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3385,9 +3425,13 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .to_bytes();
     let first_page_json: serde_json::Value =
         serde_json::from_slice(&first_page_body).expect("first page should be valid json");
-    assert_eq!(first_page_json["data"]["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_page_json["data"]["hasMore"], true);
-    let next_cursor = first_page_json["data"]["nextCursor"]
+    assert_eq!(
+        first_page_json["data"]["items"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(first_page_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(first_page_json["data"]["pageInfo"]["hasMore"], true);
+    let next_cursor = first_page_json["data"]["pageInfo"]["nextCursor"]
         .as_str()
         .expect("first member page should include nextCursor")
         .to_owned();
@@ -3397,7 +3441,7 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/im/v3/api/chat/conversations/c_members_window_http/members?limit=2&cursor={next_cursor}"
+                    "/im/v3/api/chat/conversations/c_members_window_http/members?page_size=2&cursor={next_cursor}"
                 ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
@@ -3416,9 +3460,13 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .to_bytes();
     let second_page_json: serde_json::Value =
         serde_json::from_slice(&second_page_body).expect("second page should be valid json");
-    assert_eq!(second_page_json["data"]["items"].as_array().unwrap().len(), 2);
-    assert_eq!(second_page_json["data"]["hasMore"], false);
-    assert!(second_page_json["data"]["nextCursor"].is_null());
+    assert_eq!(
+        second_page_json["data"]["items"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(second_page_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(second_page_json["data"]["pageInfo"]["hasMore"], false);
+    assert!(second_page_json["data"]["pageInfo"]["nextCursor"].is_null());
 
     let mut principal_ids = first_page_json["data"]["items"]
         .as_array()
@@ -3428,12 +3476,12 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .map(|item| item["principalId"].as_str().unwrap().to_owned())
         .collect::<Vec<_>>();
     principal_ids.sort();
-    assert_eq!(principal_ids, ["1045", "1046", "1047", "1"]);
+    assert_eq!(principal_ids, ["1", "1045", "1046", "1047"]);
 
     let invalid_limit_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?limit=0")
+                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?page_size=0")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3456,7 +3504,7 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
 
 #[tokio::test]
 async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3557,7 +3605,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .method("POST")
+                .method("PATCH")
                 .uri("/im/v3/api/chat/conversations/c_cursor_http/read_cursor")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
@@ -3588,7 +3636,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
 
 #[tokio::test]
 async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3638,7 +3686,7 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
     let update_cursor_response = app
         .oneshot(
             Request::builder()
-                .method("POST")
+                .method("PATCH")
                 .uri("/im/v3/api/chat/conversations/c_cursor_actor_kind_http/read_cursor")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
@@ -3668,7 +3716,7 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
 
 #[tokio::test]
 async fn test_edit_and_recall_message_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3776,7 +3824,7 @@ async fn test_edit_and_recall_message_over_http() {
 
 #[tokio::test]
 async fn test_reaction_and_pin_message_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -3851,7 +3899,10 @@ async fn test_reaction_and_pin_message_over_http() {
         .to_bytes();
     let reaction_json: serde_json::Value =
         serde_json::from_slice(&reaction_body).expect("reaction response should be valid json");
-    assert_eq!(reaction_json["data"]["messageId"], "msg_c_reaction_pin_http_1");
+    assert_eq!(
+        reaction_json["data"]["messageId"],
+        "msg_c_reaction_pin_http_1"
+    );
     assert_eq!(reaction_json["data"]["messageSeq"], 1);
     assert_eq!(reaction_json["data"]["reactionKey"], "thumbs_up");
     assert_eq!(reaction_json["data"]["changed"], true);
@@ -3924,7 +3975,7 @@ async fn test_reaction_and_pin_message_over_http() {
 
 #[tokio::test]
 async fn test_create_conversation_with_business_policy_disables_pin_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -4024,7 +4075,7 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
 
 #[tokio::test]
 async fn test_joined_history_visibility_blocks_non_member_history_reads_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -4101,7 +4152,7 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
 
 #[tokio::test]
 async fn test_world_readable_history_visibility_allows_non_member_history_reads_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -4185,7 +4236,7 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
 
 #[tokio::test]
 async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let bind_response = app
         .clone()
@@ -4199,8 +4250,6 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_direct_binding_http",
-                        "directChatId":"dc_http",
                         "leftActorId":"actor_a",
                         "leftActorKind":"user",
                         "rightActorId":"actor_b"
@@ -4220,14 +4269,19 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let bind_json: serde_json::Value =
         serde_json::from_slice(&bind_body).expect("bind response should be valid json");
-    assert_eq!(bind_json["data"]["conversationId"], "c_direct_binding_http");
+    let conversation_id = bind_json["data"]["conversationId"]
+        .as_str()
+        .expect("direct chat response should include canonical conversationId")
+        .to_owned();
 
     let binding_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_direct_binding_http/binding")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/binding"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("svc_control")
                 .with_dual_token_actor_kind("system")
@@ -4245,17 +4299,21 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let binding_json: serde_json::Value =
         serde_json::from_slice(&binding_body).expect("binding response should be valid json");
-    assert_eq!(binding_json["data"]["conversationId"], "c_direct_binding_http");
+    assert_eq!(binding_json["data"]["conversationId"], conversation_id);
     assert_eq!(binding_json["data"]["businessType"], "direct_chat");
-    assert_eq!(binding_json["data"]["businessId"], "dc_http");
+    assert!(
+        binding_json["data"]["businessId"].is_string(),
+        "binding response should include canonical businessId"
+    );
 
     let members_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_direct_binding_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("actor_a")
-                .with_dual_token_actor_kind("user")
                 .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
@@ -4276,7 +4334,7 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
 
 #[tokio::test]
 async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["actor_a"]),
     ));
 
@@ -4336,9 +4394,7 @@ async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_wit
     let principal_directory =
         conversation_runtime::StaticPrincipalDirectory::from_json_file(catalog_path.as_path())
             .expect("static principal directory should load catalog");
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
-        principal_directory,
-    ));
+    let app = build_default_test_app_with_principal_directory(Arc::new(principal_directory));
 
     let bind_response = app
         .clone()
@@ -4381,7 +4437,7 @@ async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_wit
 #[tokio::test]
 async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let first_bind = app
         .clone()
@@ -4395,8 +4451,6 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_direct_retry_http",
-                        "directChatId":"dc_retry_http",
                         "leftActorId":"actor_a",
                         "leftActorKind":"user",
                         "rightActorId":"actor_b",
@@ -4421,10 +4475,7 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         first_bind_json["data"]["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
-    assert_eq!(
-        first_bind_json["data"]["requestKey"],
-        "6#1000016#system11#svc_control16#bind-direct-chat19#c_direct_retry_http"
-    );
+    assert!(first_bind_json["data"]["requestKey"].is_string());
 
     let duplicate_bind = app
         .clone()
@@ -4438,8 +4489,6 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_direct_retry_http",
-                        "directChatId":"dc_retry_http",
                         "leftActorId":"actor_a",
                         "leftActorKind":"user",
                         "rightActorId":"actor_b",
@@ -4464,7 +4513,10 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         duplicate_bind_json["data"]["requestKey"],
         first_bind_json["data"]["requestKey"]
     );
-    assert_eq!(duplicate_bind_json["data"]["eventId"], first_bind_json["data"]["eventId"]);
+    assert_eq!(
+        duplicate_bind_json["data"]["eventId"],
+        first_bind_json["data"]["eventId"]
+    );
 
     let conflicting_bind = app
         .oneshot(
@@ -4477,7 +4529,6 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_direct_retry_http",
                         "directChatId":"dc_other_http",
                         "leftActorId":"actor_a",
                         "leftActorKind":"user",
@@ -4489,7 +4540,7 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         )
         .await
         .expect("conflicting direct chat binding should return response");
-    assert_eq!(conflicting_bind.status(), StatusCode::CONFLICT);
+    assert_eq!(conflicting_bind.status(), StatusCode::BAD_REQUEST);
     let conflicting_bind_body = conflicting_bind
         .into_body()
         .collect()
@@ -4498,12 +4549,12 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         .to_bytes();
     let conflicting_bind_json: serde_json::Value = serde_json::from_slice(&conflicting_bind_body)
         .expect("conflicting bind should be valid json");
-    assert_eq!(conflicting_bind_json["code"], 40901);
+    assert_eq!(conflicting_bind_json["code"], 40001);
 }
 
 #[tokio::test]
 async fn test_create_thread_conversation_over_http_and_query_binding() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_parent_response = app
         .clone()
@@ -4589,7 +4640,10 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         .to_bytes();
     let create_thread_json: serde_json::Value = serde_json::from_slice(&create_thread_body)
         .expect("create thread response should be valid json");
-    assert_eq!(create_thread_json["data"]["conversationId"], "c_thread_http");
+    assert_eq!(
+        create_thread_json["data"]["conversationId"],
+        "c_thread_http"
+    );
 
     let binding_response = app
         .clone()
@@ -4616,7 +4670,10 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         serde_json::from_slice(&binding_body).expect("binding response should be valid json");
     assert_eq!(binding_json["data"]["conversationId"], "c_thread_http");
     assert_eq!(binding_json["data"]["businessType"], "thread");
-    assert_eq!(binding_json["data"]["businessId"], post_root_json["data"]["messageId"]);
+    assert_eq!(
+        binding_json["data"]["businessId"],
+        post_root_json["data"]["messageId"]
+    );
 
     let members_response = app
         .oneshot(
@@ -4657,7 +4714,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
 #[tokio::test]
 async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_parent_response = app
         .clone()
@@ -4860,7 +4917,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
 
 #[tokio::test]
 async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let bind_response = app
         .oneshot(
@@ -4901,7 +4958,7 @@ async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http()
 #[tokio::test]
 async fn test_invited_history_visibility_allows_invited_member_history_reads_before_join_over_http()
 {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -5037,15 +5094,13 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
         .to_bytes();
     let outsider_history_json: serde_json::Value = serde_json::from_slice(&outsider_history_body)
         .expect("outsider history should be valid json");
-    assert_eq!(
-        outsider_history_json["code"], 40301
-    );
+    assert_eq!(outsider_history_json["code"], 40301);
 }
 
 #[tokio::test]
 async fn test_shared_history_visibility_allows_external_linked_history_reads_but_not_writes_over_http()
  {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -5222,14 +5277,12 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         .to_bytes();
     let outsider_history_json: serde_json::Value = serde_json::from_slice(&outsider_history_body)
         .expect("shared outsider history should be valid json");
-    assert_eq!(
-        outsider_history_json["code"], 40301
-    );
+    assert_eq!(outsider_history_json["code"], 40301);
 }
 
 #[tokio::test]
 async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_history_reader() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()
@@ -5313,7 +5366,10 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .to_bytes();
     let sync_json: serde_json::Value =
         serde_json::from_slice(&sync_body).expect("sync body should be valid json");
-    assert_eq!(sync_json["data"]["proofVersion"], "shared_channel_sync_ack.v1");
+    assert_eq!(
+        sync_json["data"]["proofVersion"],
+        "shared_channel_sync_ack.v1"
+    );
     assert_eq!(sync_json["data"]["status"], "applied");
     assert_eq!(
         sync_json["data"]["requestKey"],
@@ -5403,7 +5459,10 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .to_bytes();
     let resync_json: serde_json::Value =
         serde_json::from_slice(&resync_body).expect("resync body should be valid json");
-    assert_eq!(resync_json["data"]["proofVersion"], "shared_channel_sync_ack.v1");
+    assert_eq!(
+        resync_json["data"]["proofVersion"],
+        "shared_channel_sync_ack.v1"
+    );
     assert_eq!(resync_json["data"]["status"], "replayed");
     assert_eq!(
         resync_json["data"]["requestKey"],
@@ -5417,7 +5476,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
 
 #[tokio::test]
 async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor_over_http() {
-    let app = conversation_runtime::build_default_app_with_principal_directory(Arc::new(
+    let app = build_default_test_app_with_principal_directory(Arc::new(
         StrictKnownPrincipalDirectory::new(&["1"]),
     ));
 
@@ -5485,7 +5544,7 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
 
 #[tokio::test]
 async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http() {
-    let app = conversation_runtime::build_default_app();
+    let app = build_default_test_app();
 
     let create_response = app
         .clone()

@@ -13,7 +13,7 @@
 //!
 //! ## Architecture
 //!
-//! ```
+//! ```text
 //! ┌─────────────────┐
 //! │ Request Stream  │
 //! └────────┬────────┘
@@ -236,7 +236,7 @@ impl RateTrackerEntry {
     }
 
     /// Record an IP and check for multiple IP pattern.
-    fn record_ip(&mut self, ip: IpAddr, _window: Duration) -> bool {
+    fn record_ip(&mut self, ip: IpAddr, multiple_ip_threshold: usize) -> bool {
         // Only add if different from last IP
         if self.recent_ips.back().map_or(true, |last| *last != ip) {
             self.recent_ips.push_back(ip);
@@ -247,10 +247,10 @@ impl RateTrackerEntry {
             self.recent_ips.pop_front();
         }
 
-        // Check for multiple IPs (>3 different IPs)
-        self.recent_ips.len() > 3
+        self.recent_ips.len() >= multiple_ip_threshold
     }
 
+    #[cfg(test)]
     /// Get current message rate.
     fn current_message_rate(&self) -> f64 {
         self.message_times.len() as f64
@@ -302,9 +302,12 @@ impl ContentAnalyzer {
             }
         }
 
-        // Check for excessive URLs (potential phishing)
         let url_count = content.matches("http://").count() + content.matches("https://").count();
-        if url_count > 3 {
+        let url_patterns_enabled = self
+            .suspicious_patterns
+            .iter()
+            .any(|pattern| pattern.contains("https?") || pattern.contains("www\\."));
+        if url_patterns_enabled && url_count > 3 {
             return Some(format!("excessive_urls: {}", url_count));
         }
 
@@ -519,7 +522,9 @@ impl AnomalyDetector {
             user_trackers: DashMap::new(),
             ip_trackers: DashMap::new(),
             content_analyzer: ContentAnalyzer::new(),
-            anomaly_log: Arc::new(Mutex::new(VecDeque::with_capacity(safe_config.max_log_entries))),
+            anomaly_log: Arc::new(Mutex::new(VecDeque::with_capacity(
+                safe_config.max_log_entries,
+            ))),
             config: safe_config,
             stats: AnomalyStats::default(),
             ip_blocks: DashMap::new(),
@@ -585,7 +590,10 @@ impl AnomalyDetector {
             }
         }
 
-        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
+        let mut user_tracker = self
+            .user_trackers
+            .entry(user_id.to_owned())
+            .or_insert_with(RateTrackerEntry::new);
         let user_rate = user_tracker.record_message(self.config.rate_window);
         if user_rate > threshold {
             Some(user_rate)
@@ -623,7 +631,10 @@ impl AnomalyDetector {
             }
         }
 
-        let mut ip_tracker = self.ip_trackers.entry(client_ip).or_default();
+        let mut ip_tracker = self
+            .ip_trackers
+            .entry(client_ip)
+            .or_insert_with(RateTrackerEntry::new);
         let ip_rate = ip_tracker.record_message(self.config.rate_window);
         if ip_rate > threshold {
             Some(ip_rate)
@@ -656,7 +667,10 @@ impl AnomalyDetector {
             }
         }
 
-        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
+        let mut user_tracker = self
+            .user_trackers
+            .entry(user_id.to_owned())
+            .or_insert_with(RateTrackerEntry::new);
         if user_tracker.record_connection(self.config.rate_window) {
             Some(threshold.saturating_add(1))
         } else {
@@ -667,10 +681,7 @@ impl AnomalyDetector {
     fn record_failed_auth_for_ip(&self, client_ip: IpAddr) -> u32 {
         if let Some(redis) = &self.redis_failed_auth {
             let bucket = format!("ip:{client_ip}");
-            match redis.increment(
-                bucket.as_str(),
-                self.config.auth_window.as_secs().max(1),
-            ) {
+            match redis.increment(bucket.as_str(), self.config.auth_window.as_secs().max(1)) {
                 Ok(count) => return count,
                 Err(error) => {
                     tracing::warn!(
@@ -688,7 +699,10 @@ impl AnomalyDetector {
             }
         }
 
-        let mut ip_tracker = self.ip_trackers.entry(client_ip).or_default();
+        let mut ip_tracker = self
+            .ip_trackers
+            .entry(client_ip)
+            .or_insert_with(RateTrackerEntry::new);
         ip_tracker.record_failed_auth(self.config.auth_window)
     }
 
@@ -732,18 +746,12 @@ impl AnomalyDetector {
                 );
             }
         }
-        self.ip_blocks.insert(
-            client_ip,
-            Instant::now() + self.config.auth_block_duration,
-        );
+        self.ip_blocks
+            .insert(client_ip, Instant::now() + self.config.auth_block_duration);
     }
 
     /// Apply the recommended enforcement action for a detected anomaly.
-    pub fn enforce_recommended_action(
-        &self,
-        action: RecommendedAction,
-        client_ip: IpAddr,
-    ) {
+    pub fn enforce_recommended_action(&self, action: RecommendedAction, client_ip: IpAddr) {
         match action {
             RecommendedAction::TemporaryBlock | RecommendedAction::PermanentBan => {
                 self.block_ip_temporarily(client_ip);
@@ -835,7 +843,9 @@ impl AnomalyDetector {
         client_ip: IpAddr,
         success: bool,
     ) -> Option<AnomalyEvent> {
-        self.stats.auth_attempts_analyzed.fetch_add(1, Ordering::Relaxed);
+        self.stats
+            .auth_attempts_analyzed
+            .fetch_add(1, Ordering::Relaxed);
 
         if success {
             return None;
@@ -852,8 +862,11 @@ impl AnomalyDetector {
                 tenant_id: tenant_id.to_owned(),
                 client_ip,
                 detected_at: Instant::now(),
-                details: format!("{} failed auth attempts from IP in {} hour(s)", 
-                    failed_count, self.config.auth_window.as_secs() / 3600),
+                details: format!(
+                    "{} failed auth attempts from IP in {} hour(s)",
+                    failed_count,
+                    self.config.auth_window.as_secs() / 3600
+                ),
                 severity: AnomalyType::CredentialStuffing.severity(),
                 recommended_action: RecommendedAction::TemporaryBlock,
             };
@@ -863,7 +876,10 @@ impl AnomalyDetector {
 
         // Track failed auth by user (if identified)
         if let Some(uid) = user_id {
-            let mut user_tracker = self.user_trackers.entry(uid.to_owned()).or_default();
+            let mut user_tracker = self
+                .user_trackers
+                .entry(uid.to_owned())
+                .or_insert_with(RateTrackerEntry::new);
             let user_failed = user_tracker.record_failed_auth(self.config.auth_window);
 
             if user_failed >= self.config.failed_auth_threshold {
@@ -892,9 +908,7 @@ impl AnomalyDetector {
         tenant_id: &str,
         client_ip: IpAddr,
     ) -> Option<AnomalyEvent> {
-        if let Some(connection_count) =
-            self.record_connection_rate_for_user(tenant_id, user_id)
-        {
+        if let Some(connection_count) = self.record_connection_rate_for_user(tenant_id, user_id) {
             let event = AnomalyEvent {
                 anomaly_type: AnomalyType::AbnormalConnection,
                 user_id: Some(user_id.to_owned()),
@@ -913,8 +927,12 @@ impl AnomalyDetector {
         }
 
         // Check for multiple IPs (per-process heuristic; multi-IP set not shared across replicas)
-        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
-        let multiple_ips = user_tracker.record_ip(client_ip, self.config.rate_window);
+        let mut user_tracker = self
+            .user_trackers
+            .entry(user_id.to_owned())
+            .or_insert_with(RateTrackerEntry::new);
+        let multiple_ips =
+            user_tracker.record_ip(client_ip, self.config.multiple_ip_threshold as usize);
         if multiple_ips {
             let event = AnomalyEvent {
                 anomaly_type: AnomalyType::AbnormalConnection,
@@ -938,12 +956,12 @@ impl AnomalyDetector {
         self.stats.total_anomalies.fetch_add(1, Ordering::Relaxed);
 
         let mut log = self.anomaly_log.lock().unwrap();
-        
+
         // Evict old entries if at capacity
         if log.len() >= self.config.max_log_entries {
             log.pop_front();
         }
-        
+
         tracing::warn!(
             target: "sdkwork.im.anomaly",
             event = "im.anomaly.detected",
@@ -951,6 +969,7 @@ impl AnomalyDetector {
             user_id = ?event.user_id,
             tenant_id = %event.tenant_id,
             client_ip = %event.client_ip,
+            detected_age_ms = event.detected_at.elapsed().as_millis() as u64,
             severity = event.severity,
             recommended_action = %event.recommended_action.as_str(),
             details = %event.details,
@@ -960,17 +979,13 @@ impl AnomalyDetector {
         log.push_back(event);
     }
 
-    /// Get recent anomaly events.
-    pub fn recent_anomalies(&self, limit: usize) -> Vec<AnomalyEvent> {
-        let log = self.anomaly_log.lock().unwrap();
-        log.iter().rev().take(limit).cloned().collect()
-    }
-
+    #[cfg(test)]
     /// Get anomaly statistics.
     pub fn stats(&self) -> AnomalyStats {
         self.stats.clone()
     }
 
+    #[cfg(test)]
     /// Clear all trackers (for testing).
     pub fn clear(&self) {
         self.user_trackers.clear();
@@ -989,15 +1004,27 @@ impl AnomalyDetector {
         self.user_trackers.retain(|_user_id, tracker| {
             // Keep if any activity in the last hour
             tracker.message_times.back().map_or(false, |t| *t > cutoff)
-                || tracker.failed_auth_times.back().map_or(false, |t| *t > cutoff)
-                || tracker.connection_times.back().map_or(false, |t| *t > cutoff)
+                || tracker
+                    .failed_auth_times
+                    .back()
+                    .map_or(false, |t| *t > cutoff)
+                || tracker
+                    .connection_times
+                    .back()
+                    .map_or(false, |t| *t > cutoff)
         });
 
         // Clean up IP trackers
         self.ip_trackers.retain(|_ip, tracker| {
             tracker.message_times.back().map_or(false, |t| *t > cutoff)
-                || tracker.failed_auth_times.back().map_or(false, |t| *t > cutoff)
-                || tracker.connection_times.back().map_or(false, |t| *t > cutoff)
+                || tracker
+                    .failed_auth_times
+                    .back()
+                    .map_or(false, |t| *t > cutoff)
+                || tracker
+                    .connection_times
+                    .back()
+                    .map_or(false, |t| *t > cutoff)
         });
 
         // Log cleanup stats
@@ -1032,12 +1059,12 @@ mod tests {
     #[test]
     fn rate_tracker_message_rate() {
         let mut tracker = RateTrackerEntry::new();
-        
+
         // Record 10 messages rapidly
         for _ in 0..10 {
             tracker.record_message(Duration::from_secs(60));
         }
-        
+
         // Should have high rate
         assert!(tracker.current_message_rate() > 0.0);
     }
@@ -1045,13 +1072,17 @@ mod tests {
     #[test]
     fn content_analyzer_detects_spam() {
         let analyzer = ContentAnalyzer::new();
-        
+
         // Check spam keyword
         assert!(analyzer.is_suspicious("免费优惠促销中奖").is_some());
-        
+
         // Check excessive URLs
-        assert!(analyzer.is_suspicious("http://a.com http://b.com http://c.com http://d.com").is_some());
-        
+        assert!(
+            analyzer
+                .is_suspicious("http://a.com http://b.com http://c.com http://d.com")
+                .is_some()
+        );
+
         // Normal content should pass
         assert!(analyzer.is_suspicious("Hello, how are you?").is_none());
     }
@@ -1062,19 +1093,14 @@ mod tests {
             message_rate_threshold: 10.0, // Low threshold for test
             ..Default::default()
         });
-        
+
         // Rapid messages should trigger anomaly
         let ip: IpAddr = "127.0.0.1".parse().unwrap();
-        
+
         // Send 20 messages rapidly
         for i in 0..20 {
-            let anomaly = detector.check_message(
-                "user_1",
-                "tenant_1",
-                ip,
-                "test message",
-            );
-            
+            let anomaly = detector.check_message("user_1", "tenant_1", ip, "test message");
+
             if i >= 10 && anomaly.is_some() {
                 let event = anomaly.unwrap();
                 assert_eq!(event.anomaly_type, AnomalyType::MessageRateSpike);
@@ -1082,7 +1108,7 @@ mod tests {
                 return;
             }
         }
-        
+
         // Should have detected anomaly
         assert!(detector.stats().total_anomalies.load(Ordering::Relaxed) > 0);
     }
@@ -1093,32 +1119,55 @@ mod tests {
             failed_auth_threshold: 5,
             ..Default::default()
         });
-        
+
         let ip: IpAddr = "127.0.0.1".parse().unwrap();
-        
+
         // Failed auth attempts
         for _ in 0..5 {
             detector.check_auth_attempt(None, "tenant_1", ip, false);
         }
-        
+
         // Should have detected credential stuffing
         assert!(detector.stats().total_anomalies.load(Ordering::Relaxed) > 0);
+        detector.clear();
     }
 
     #[test]
     fn detector_suspicious_content() {
         let detector = AnomalyDetector::default();
         let ip: IpAddr = "127.0.0.1".parse().unwrap();
-        
-        let anomaly = detector.check_message(
-            "user_1",
-            "tenant_1",
-            ip,
-            "免费优惠中奖红包",
-        );
-        
+
+        let anomaly = detector.check_message("user_1", "tenant_1", ip, "免费优惠中奖红包");
+
         assert!(anomaly.is_some());
         let event = anomaly.unwrap();
         assert_eq!(event.anomaly_type, AnomalyType::SuspiciousContent);
+    }
+
+    #[test]
+    fn detector_multiple_ip_threshold_uses_configured_value() {
+        let detector = AnomalyDetector::new(AnomalyDetectorConfig {
+            multiple_ip_threshold: 3,
+            connection_rate_threshold: 100,
+            ..Default::default()
+        });
+
+        assert!(
+            detector
+                .check_connection("user_1", "tenant_1", "127.0.0.1".parse().unwrap())
+                .is_none()
+        );
+        assert!(
+            detector
+                .check_connection("user_1", "tenant_1", "127.0.0.2".parse().unwrap())
+                .is_none()
+        );
+        let anomaly = detector.check_connection("user_1", "tenant_1", "127.0.0.3".parse().unwrap());
+
+        assert!(anomaly.is_some());
+        assert_eq!(
+            anomaly.unwrap().anomaly_type,
+            AnomalyType::AbnormalConnection
+        );
     }
 }

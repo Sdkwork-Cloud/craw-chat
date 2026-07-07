@@ -12,8 +12,8 @@
           schema:
             $ref: '#/components/schemas/SpaceCreateRequest'
     responses:
-      '200':
-        description: OK
+      '201':
+        description: Created
         content:
           application/json:
             schema:
@@ -28,7 +28,7 @@
     operationId: spaces.list
     summary: List spaces
     parameters:
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -53,8 +53,8 @@
 /im/v3/api/spaces/{spaceId}:
   get:
     tags: [spaces]
-    operationId: spaces.get
-    summary: Get a space
+    operationId: spaces.retrieve
+    summary: Retrieve a space
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
     responses:
@@ -113,7 +113,7 @@
     operationId: spaces.members.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -147,8 +147,8 @@
           schema:
             $ref: '#/components/schemas/SpaceMemberCreateRequest'
     responses:
-      '200':
-        description: OK
+      '201':
+        description: Created
         content:
           application/json:
             schema:
@@ -161,7 +161,7 @@
 /im/v3/api/spaces/{spaceId}/members/{userId}:
   get:
     tags: [spaces]
-    operationId: spaces.members.get
+    operationId: spaces.members.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/UserIdPath'
@@ -221,7 +221,7 @@
     operationId: spaces.groups.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -255,8 +255,8 @@
           schema:
             $ref: '#/components/schemas/SpaceGroupCreateRequest'
     responses:
-      '200':
-        description: OK
+      '201':
+        description: Created
         content:
           application/json:
             schema:
@@ -269,7 +269,7 @@
 /im/v3/api/spaces/{spaceId}/groups/{groupId}:
   get:
     tags: [spaces]
-    operationId: spaces.groups.get
+    operationId: spaces.groups.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/GroupIdPath'
@@ -330,7 +330,7 @@
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/GroupIdPath'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -379,7 +379,7 @@
 /im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}:
   get:
     tags: [spaces]
-    operationId: spaces.groups.members.get
+    operationId: spaces.groups.members.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/GroupIdPath'
@@ -410,8 +410,12 @@
           schema:
             $ref: '#/components/schemas/SpaceGroupMemberUpdateRequest'
     responses:
-      '204':
-        description: No Content
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceGroupMemberView'
     security:
       - AuthToken: []
         AccessToken: []
@@ -438,7 +442,7 @@
     operationId: spaces.channels.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -472,8 +476,8 @@
           schema:
             $ref: '#/components/schemas/SpaceChannelCreateRequest'
     responses:
-      '200':
-        description: OK
+      '201':
+        description: Created
         content:
           application/json:
             schema:
@@ -486,7 +490,7 @@
 /im/v3/api/spaces/{spaceId}/channels/{channelId}:
   get:
     tags: [spaces]
-    operationId: spaces.channels.get
+    operationId: spaces.channels.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/ChannelIdPath'
@@ -547,7 +551,7 @@
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/ChannelIdPath'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -616,7 +620,7 @@
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/StatusQuery'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -650,8 +654,8 @@
           schema:
             $ref: '#/components/schemas/SpaceInviteCreateRequest'
     responses:
-      '200':
-        description: OK
+      '201':
+        description: Created
         content:
           application/json:
             schema:
@@ -664,7 +668,7 @@
 /im/v3/api/spaces/{spaceId}/invites/{inviteCode}:
   get:
     tags: [spaces]
-    operationId: spaces.invites.get
+    operationId: spaces.invites.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/InviteCodePath'
@@ -682,7 +686,7 @@
     x-sdkwork-api-authority: sdkwork-im.im
   delete:
     tags: [spaces]
-    operationId: spaces.invites.revoke
+    operationId: spaces.invites.delete
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/InviteCodePath'
@@ -702,8 +706,12 @@
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/InviteCodePath'
     responses:
-      '204':
-        description: No Content
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SdkWorkCommandResponse'
     security:
       - AuthToken: []
         AccessToken: []
@@ -715,7 +723,7 @@
     operationId: spaces.bans.list
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
-      - $ref: '#/components/parameters/LimitQuery'
+      - $ref: '#/components/parameters/PageSizeQuery'
       - $ref: '#/components/parameters/CursorQuery'
     responses:
       '200':
@@ -749,8 +757,8 @@
           schema:
             $ref: '#/components/schemas/SpaceBanCreateRequest'
     responses:
-      '200':
-        description: OK
+      '201':
+        description: Created
         content:
           application/json:
             schema:
@@ -763,7 +771,7 @@
 /im/v3/api/spaces/{spaceId}/bans/{userId}:
   get:
     tags: [spaces]
-    operationId: spaces.bans.get
+    operationId: spaces.bans.retrieve
     parameters:
       - $ref: '#/components/parameters/SpaceIdPath'
       - $ref: '#/components/parameters/UserIdPath'

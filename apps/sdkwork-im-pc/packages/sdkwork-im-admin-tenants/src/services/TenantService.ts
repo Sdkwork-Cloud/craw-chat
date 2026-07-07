@@ -1,5 +1,5 @@
-import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/im-admin-core/sdk';
-import { extractBackendSdkRecords, mapAppSdkOffsetPage, readBackendPageTotal, readNumber, readString, SDKWORK_DEFAULT_PAGE_SIZE } from '@sdkwork/im-admin-core/sdk/backendSdkResponseHelpers';
+import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/im-pc-admin-sdk';
+import { extractBackendSdkRecords, mapAppSdkOffsetPage, readBackendPageTotal, readRecordNumber, readRecordString, SDKWORK_DEFAULT_PAGE_SIZE } from '@sdkwork/im-pc-admin-sdk/backendSdkResponseHelpers';
 
 export interface Tenant {
   id: string;
@@ -58,15 +58,25 @@ function normalizeStatus(value: unknown): Tenant['status'] {
 }
 
 function mapTenant(record: UnknownRecord): Tenant {
-  const id = readString(record, ['tenantId', 'tenant_id', 'id'], 'tenant');
+  const id = readRecordString(record, ['tenantId', 'tenant_id', 'id'], 'tenant');
   return {
     id,
-    name: readString(record, ['name', 'displayName', 'display_name', 'tenantName', 'tenant_name'], id),
-    plan: normalizePlan(readString(record, ['plan', 'planName', 'tier', 'subscriptionPlan'], 'Pro')),
-    region: readString(record, ['region', 'regionName', 'dataRegion'], ''),
-    revenue: formatCurrency(readNumber(record, ['revenue', 'mrr', 'monthlyRevenue'], 0)),
-    status: normalizeStatus(readString(record, ['status', 'state'], 'active')),
-    users: formatCount(readNumber(record, ['users', 'userCount', 'memberCount', 'members'], 0)),
+    name: readRecordString(
+      record,
+      ['name', 'displayName', 'display_name', 'tenantName', 'tenant_name'],
+      id,
+    ),
+    plan: normalizePlan(
+      readRecordString(record, ['plan', 'planName', 'tier', 'subscriptionPlan'], 'Pro'),
+    ),
+    region: readRecordString(record, ['region', 'regionName', 'dataRegion']),
+    revenue: formatCurrency(
+      readRecordNumber(record, ['revenue', 'mrr', 'monthlyRevenue']),
+    ),
+    status: normalizeStatus(readRecordString(record, ['status', 'state'], 'active')),
+    users: formatCount(
+      readRecordNumber(record, ['users', 'userCount', 'memberCount', 'members']),
+    ),
   };
 }
 

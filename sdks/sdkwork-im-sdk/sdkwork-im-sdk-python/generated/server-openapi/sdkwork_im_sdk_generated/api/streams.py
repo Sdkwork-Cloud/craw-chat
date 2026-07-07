@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AppendStreamFrameRequest, OpenStreamRequest, StreamFramesResponse, StreamFrameView, StreamView
+from ..models import AppendStreamFrameRequest, OpenStreamRequest, StreamsAbortResponse, StreamsCheckpointResponse, StreamsCompleteResponse, StreamsCreateResponse201, StreamsFramesCreateResponse201, StreamsFramesListResponse
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -190,18 +190,21 @@ class StreamsApi:
     def __init__(self, client: HttpClient):
         self._client = client
         self.frames = StreamsFramesApi(client)
-        self.checkpoint = StreamsCheckpointApi(client)
 
 
-    def create(self, body: OpenStreamRequest) -> StreamView:
+    def create(self, body: OpenStreamRequest) -> StreamsCreateResponse201:
         """Open a stream"""
         return self._client.post(f"/im/v3/api/streams", json=body)
 
-    def complete(self, stream_id: str) -> StreamView:
+    def create_checkpoint(self, stream_id: str) -> StreamsCheckpointResponse:
+        """Checkpoint a stream"""
+        return self._client.post(f"/im/v3/api/streams/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/checkpoint")
+
+    def complete(self, stream_id: str) -> StreamsCompleteResponse:
         """Complete a stream"""
         return self._client.post(f"/im/v3/api/streams/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/complete")
 
-    def create_abort(self, stream_id: str) -> StreamView:
+    def create_abort(self, stream_id: str) -> StreamsAbortResponse:
         """Abort a stream"""
         return self._client.post(f"/im/v3/api/streams/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/abort")
 
@@ -212,25 +215,14 @@ class StreamsFramesApi:
         self._client = client
 
 
-    def list(self, stream_id: str, limit: Optional[int] = None, cursor: Optional[str] = None) -> StreamFramesResponse:
+    def list(self, stream_id: str, page_size: Optional[int] = None, cursor: Optional[str] = None) -> StreamsFramesListResponse:
         """List stream frames"""
         query = build_query_string([
-            {'name': 'limit', 'value': limit, 'style': 'form', 'explode': True, 'allow_reserved': False},
+            {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'cursor', 'value': cursor, 'style': 'form', 'explode': True, 'allow_reserved': False},
         ])
         return self._client.get(_append_query_string(f"/im/v3/api/streams/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/frames", query))
 
-    def create(self, stream_id: str, body: AppendStreamFrameRequest) -> StreamFrameView:
+    def create(self, stream_id: str, body: AppendStreamFrameRequest) -> StreamsFramesCreateResponse201:
         """Append a stream frame"""
         return self._client.post(f"/im/v3/api/streams/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/frames", json=body)
-
-class StreamsCheckpointApi:
-    """streams streams.checkpoint API client."""
-
-    def __init__(self, client: HttpClient):
-        self._client = client
-
-
-    def create(self, stream_id: str) -> StreamView:
-        """Checkpoint a stream"""
-        return self._client.post(f"/im/v3/api/streams/{serialize_path_parameter(stream_id, {'name': 'streamId', 'style': 'simple', 'explode': False})}/checkpoint")

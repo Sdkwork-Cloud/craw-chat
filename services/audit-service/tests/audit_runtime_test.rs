@@ -40,7 +40,9 @@ fn test_record_anchor_and_export_bundle() {
     assert_eq!(record.actor_id, "1");
     assert_eq!(record.actor_session_id.as_deref(), Some("s_demo"));
 
-    let export = runtime.export_bundle(&auth);
+    let export = runtime
+        .export_bundle(&auth)
+        .expect("export bundle should succeed");
     assert_eq!(export.total, 1);
     assert_eq!(export.items[0].aggregate_id, "ae_demo");
     assert_eq!(export.items[0].action, "automation.execution_requested");
@@ -143,7 +145,9 @@ fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
         )
         .expect("second chain record should succeed");
 
-    let export = runtime.export_bundle(&auth);
+    let export = runtime
+        .export_bundle(&auth)
+        .expect("export bundle should succeed");
     assert_eq!(export.total, 2);
     assert!(
         export.chain_valid,
@@ -205,7 +209,10 @@ fn test_runtime_record_anchor_rejects_oversized_payload_consistently_with_http_c
         "runtime API should preserve the audit payload size contract"
     );
     assert_eq!(
-        runtime.export_bundle(&auth).total,
+        runtime
+            .export_bundle(&auth)
+            .expect("export bundle should succeed")
+            .total,
         0,
         "rejected oversized payload must not append a partial audit record"
     );

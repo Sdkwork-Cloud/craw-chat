@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar as CalendarIcon, Clock, MapPin, AlignLeft, Users, Palette } from 'lucide-react';
 import { cn } from '@sdkwork/im-pc-commons';
 import { CalendarEvent } from './services/CalendarService';
-import { toast } from '@sdkwork/im-pc-chat';
+import { toast } from '@sdkwork/im-pc-commons';
 
 interface CreateEventModalProps {
   isOpen: boolean;

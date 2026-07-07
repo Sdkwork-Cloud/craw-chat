@@ -7,6 +7,8 @@ import test from 'node:test';
 
 import {
   COMMAND_FAILURE_EXIT_CODE,
+  READINESS_BLOCKED_EXIT_CODE,
+  assessAppReleaseEvidence,
   assessCapacityEvidenceIndex,
   assessPreReleaseEvidenceIndex,
   buildCommercialReadinessChecks,
@@ -65,6 +67,9 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'pc-client-pagination-standard',
       'rtc-signaling-boundary-standard',
       'projection-tier-standard',
+      'three-capabilities-standard',
+      'portal-alignment-standard',
+      'portal-service-tests',
       'retention-enforcement-standard',
       'observability-bootstrap-standard',
       'im-app-sdk-flutter-parity',
@@ -81,6 +86,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(resolvePnpmExecutable('win32'), 'pnpm.cmd');
   assert.equal(checks[0].command, 'pnpm.cmd');
   assert.equal(checks[0].env?.npm_config_update_notifier, 'false');
+  assert.equal(checks[0].env?.CI, 'true');
   for (const check of checks) {
     assert.equal(existsSync(check.cwd), true, `${check.id} cwd must exist: ${check.cwd}`);
   }
@@ -90,7 +96,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'pc-install')?.args,
-    ['install', '--frozen-lockfile', '--ignore-scripts'],
+    ['install', '--frozen-lockfile', '--lockfile-only', '--ignore-scripts'],
   );
   assert.equal(
     checks.find((check) => check.id === 'pc-lint')?.cwd,
@@ -204,6 +210,17 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(shouldUseShellForCommand('cargo', 'win32'), false);
 });
 
+test('pc e2e smoke starts production server without a Windows shell wrapper', async () => {
+  const smokeSource = await readFile(
+    path.join(repoRoot, 'scripts', 'dev', 'sdkwork-im-pc-e2e-smoke.test.mjs'),
+    'utf8',
+  );
+
+  assert.match(smokeSource, /spawn\(process\.execPath, \[serverEntry\]/u);
+  assert.doesNotMatch(smokeSource, /const\s+shell\b/u);
+  assert.doesNotMatch(smokeSource, /\n\s*shell\s*,/u);
+});
+
 test('capacity evidence assessment blocks template-only commercial readiness claims', () => {
   const assessment = assessCapacityEvidenceIndex({
     tier: 'Capacity Tier',
@@ -225,6 +242,139 @@ test('capacity evidence assessment blocks template-only commercial readiness cla
   assert.match(assessment.summary, /7 pending slots/);
   assert.match(assessment.blockers.join('\n'), /connection_capacity/);
   assert.match(assessment.blockers.join('\n'), /message_capacity/);
+});
+
+test('app release evidence assessment blocks placeholder media and missing direct package checksums', () => {
+  const manifest = {
+    security: {
+      checksumRequired: true,
+      signatureRequired: true,
+      sbomRequired: true,
+    },
+    media: {
+      icons: {
+        primary: {
+          id: 'primary-icon',
+          enabled: true,
+          metadata: {
+            generatedPlaceholder: true,
+          },
+        },
+      },
+      screenshots: [
+        {
+          id: 'catalog-screenshot',
+          enabled: true,
+          metadata: {
+            generatedPlaceholder: true,
+          },
+        },
+      ],
+      previews: [],
+    },
+    artifacts: {
+      installConfig: {
+        packages: [
+          {
+            id: 'web-universal-cloud-browser-zip',
+            enabled: true,
+            sourceType: 'WEB_URL',
+            packageFormat: 'ZIP',
+            checksumAlgorithm: 'SHA-256',
+            checksum: null,
+          },
+          {
+            id: 'ios-store-app',
+            enabled: true,
+            sourceType: 'APP_STORE',
+            packageFormat: 'OTHER',
+            checksum: null,
+          },
+          {
+            id: 'mp-weixin-universal-cloud-mini-program-package',
+            enabled: true,
+            sourceType: 'MINI_PROGRAM',
+            packageFormat: 'MINI_PROGRAM_PACKAGE',
+            checksum: null,
+          },
+        ],
+      },
+    },
+  };
+
+  const assessment = assessAppReleaseEvidence(manifest);
+
+  assert.equal(assessment.ok, false);
+  assert.match(assessment.summary, /app release evidence/i);
+  assert.match(assessment.blockers.join('\n'), /web-universal-cloud-browser-zip/);
+  assert.match(assessment.blockers.join('\n'), /mp-weixin-universal-cloud-mini-program-package/);
+  assert.match(assessment.blockers.join('\n'), /signature/i);
+  assert.match(assessment.blockers.join('\n'), /SBOM/i);
+  assert.match(assessment.blockers.join('\n'), /provenance/i);
+  assert.match(assessment.blockers.join('\n'), /primary-icon/);
+  assert.match(assessment.blockers.join('\n'), /catalog-screenshot/);
+  assert.doesNotMatch(assessment.blockers.join('\n'), /ios-store-app/);
+});
+
+test('app release evidence assessment accepts complete direct package supply-chain evidence', () => {
+  const manifest = {
+    security: {
+      checksumRequired: true,
+      signatureRequired: true,
+      sbomRequired: true,
+    },
+    media: {
+      icons: {
+        primary: {
+          id: 'primary-icon',
+          enabled: true,
+          metadata: {},
+        },
+        platform: [],
+      },
+      screenshots: [
+        {
+          id: 'catalog-screenshot',
+          enabled: true,
+          metadata: {},
+        },
+      ],
+      previews: [],
+    },
+    artifacts: {
+      installConfig: {
+        packages: [
+          {
+            id: 'web-universal-cloud-browser-zip',
+            enabled: true,
+            sourceType: 'WEB_URL',
+            packageFormat: 'ZIP',
+            checksumAlgorithm: 'SHA-256',
+            checksum: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+            metadata: {
+              signing: {
+                policy: 'sigstore',
+                certificateRef: 'release-evidence/web.zip.sigstore.json',
+              },
+              sbom: {
+                format: 'CycloneDX',
+                ref: 'release-evidence/web.zip.cdx.json',
+              },
+              provenance: {
+                format: 'slsa',
+                ref: 'release-evidence/web.zip.intoto.jsonl',
+              },
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  const assessment = assessAppReleaseEvidence(manifest);
+
+  assert.equal(assessment.ok, true);
+  assert.equal(assessment.blockers.length, 0);
 });
 
 test('pre-release evidence assessment accepts fully collected pre-release evidence', () => {
@@ -312,9 +462,38 @@ test('release README documents the commercial readiness command and honest capac
   assert.match(releaseReadme, /node scripts\/release\/commercial-readiness\.mjs/);
   assert.match(releaseReadme, /capacity-tier-evidence-index\.json/);
   assert.match(releaseReadme, /pre-release-tier-evidence-index\.json/);
+  assert.match(releaseReadme, /sdkwork\.app\.config\.json/);
+  assert.match(releaseReadme, /checksum/i);
+  assert.match(releaseReadme, /generatedPlaceholder/);
   assert.match(releaseReadme, /Playwright/);
   assert.match(releaseReadme, /exit code `?1`?/i);
   assert.match(releaseReadme, /exit code `?2`?/i);
+});
+
+test('commercial readiness blocks current app manifest release evidence gaps before commercial sign-off', async () => {
+  const logs = createLoggerCapture();
+
+  const result = await runCommercialReadiness({
+    repoRoot,
+    logger: logs.logger,
+    runCheck: async (check) => ({
+      ...check,
+      ok: true,
+      exitCode: 0,
+    }),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.exitCode, READINESS_BLOCKED_EXIT_CODE);
+  assert.equal(result.appReleaseAssessment?.ok, false);
+  assert.match(result.appReleaseAssessment?.summary ?? '', /app release evidence/i);
+  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /checksum/i);
+  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /signature/i);
+  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /SBOM/i);
+  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /provenance/i);
+  assert.match(result.appReleaseAssessment?.blockers.join('\n') ?? '', /generatedPlaceholder/);
+  assert.equal(result.checks.length, buildCommercialReadinessChecks({ repoRoot }).length);
+  assert.match(logs.stderr.join('\n'), /appReleaseAssessment/);
 });
 
 test('deployment validation index links the unified commercial readiness gate', async () => {

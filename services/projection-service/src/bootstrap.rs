@@ -1,7 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
-use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresSearchProvider};
 use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
+use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresSearchProvider};
 use im_adapters_postgres_projection::{PostgresProjectionConfig, PostgresProjectionStores};
 use im_app_context::resolve_web_environment_from_process_env;
 use im_platform_contracts::{MetadataStore, TimelineProjectionStore};
@@ -10,9 +10,7 @@ use sdkwork_web_core::WebEnvironment;
 use tracing::info;
 
 use crate::snapshot::CONVERSATION_SUMMARY_SNAPSHOT_KEY;
-use crate::{
-    ProjectionError, TimelineProjectionService, PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED,
-};
+use crate::{PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED, ProjectionError, TimelineProjectionService};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 

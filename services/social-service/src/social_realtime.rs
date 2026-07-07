@@ -3,12 +3,10 @@
 use im_domain_events::social::{
     DirectChatBoundPayload, FriendRequestAcceptedPayload, FriendRequestCanceledPayload,
     FriendRequestDeclinedPayload, FriendRequestExpiredPayload, FriendRequestSubmittedPayload,
-    FriendshipActivatedPayload, FriendshipRemovedPayload, UserBlockedPayload,
-    UserBlockReleasedPayload,
+    FriendshipActivatedPayload, FriendshipRemovedPayload, UserBlockReleasedPayload,
+    UserBlockedPayload,
 };
-use im_platform_contracts::{
-    CommitEnvelope, OutboxEventRecord, OutboxPublishStatus,
-};
+use im_platform_contracts::{CommitEnvelope, OutboxEventRecord, OutboxPublishStatus};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_utils_rust::sha256_hash;
 use serde_json::json;
@@ -143,18 +141,16 @@ pub fn social_realtime_recipients_for_commit(
     let payload = build_realtime_payload(commit)?;
     let recipients = match commit.event_type.as_str() {
         "friend_request.submitted" => {
-            let body: FriendRequestSubmittedPayload =
-                serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid friend_request.submitted payload: {error}"))?;
+            let body: FriendRequestSubmittedPayload = serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid friend_request.submitted payload: {error}"))?;
             friend_request_party_recipients(
                 body.requester_user_id.as_str(),
                 body.target_user_id.as_str(),
             )
         }
         "friend_request.accepted" => {
-            let body: FriendRequestAcceptedPayload =
-                serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid friend_request.accepted payload: {error}"))?;
+            let body: FriendRequestAcceptedPayload = serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid friend_request.accepted payload: {error}"))?;
             friend_request_outcome_recipients(
                 body.requester_user_id.as_str(),
                 body.target_user_id.as_str(),
@@ -162,9 +158,8 @@ pub fn social_realtime_recipients_for_commit(
             )
         }
         "friend_request.declined" => {
-            let body: FriendRequestDeclinedPayload =
-                serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid friend_request.declined payload: {error}"))?;
+            let body: FriendRequestDeclinedPayload = serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid friend_request.declined payload: {error}"))?;
             friend_request_outcome_recipients(
                 body.requester_user_id.as_str(),
                 body.target_user_id.as_str(),
@@ -172,9 +167,8 @@ pub fn social_realtime_recipients_for_commit(
             )
         }
         "friend_request.canceled" => {
-            let body: FriendRequestCanceledPayload =
-                serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid friend_request.canceled payload: {error}"))?;
+            let body: FriendRequestCanceledPayload = serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid friend_request.canceled payload: {error}"))?;
             friend_request_outcome_recipients(
                 body.requester_user_id.as_str(),
                 body.target_user_id.as_str(),
@@ -182,26 +176,25 @@ pub fn social_realtime_recipients_for_commit(
             )
         }
         "friend_request.expired" => {
-            let body: FriendRequestExpiredPayload = serde_json::from_str(commit.payload.as_str())
-                .map_err(|error| format!("invalid friend_request.expired payload: {error}"))?;
+            let body: FriendRequestExpiredPayload =
+                serde_json::from_str(commit.payload.as_str())
+                    .map_err(|error| format!("invalid friend_request.expired payload: {error}"))?;
             friend_request_party_recipients(
                 body.requester_user_id.as_str(),
                 body.target_user_id.as_str(),
             )
         }
         "friendship.activated" => {
-            let body: FriendshipActivatedPayload =
-                serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid friendship.activated payload: {error}"))?;
+            let body: FriendshipActivatedPayload = serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid friendship.activated payload: {error}"))?;
             vec![
                 (body.user_low_id, "user".to_string()),
                 (body.user_high_id, "user".to_string()),
             ]
         }
         "friendship.removed" => {
-            let body: FriendshipRemovedPayload =
-                serde_json::from_str(commit.payload.as_str())
-                    .map_err(|error| format!("invalid friendship.removed payload: {error}"))?;
+            let body: FriendshipRemovedPayload = serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid friendship.removed payload: {error}"))?;
             vec![
                 (body.user_low_id, "user".to_string()),
                 (body.user_high_id, "user".to_string()),

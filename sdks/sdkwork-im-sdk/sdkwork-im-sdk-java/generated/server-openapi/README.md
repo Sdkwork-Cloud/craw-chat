@@ -35,7 +35,7 @@ public class Main {
 client.setAccessToken("your-access-token");
 
         // Use the SDK
-        PresenceView result = client.getPresence().meRetrieve();
+        PresenceMeRetrieveResponse result = client.getPresence().meRetrieve();
         System.out.println(result);
     }
 }
@@ -75,7 +75,7 @@ client.getHttpClient().setHeader("X-Custom-Header", "value");
 
 ```java
 // Retrieve current principal presence
-PresenceView result = client.getPresence().meRetrieve();
+PresenceMeRetrieveResponse result = client.getPresence().meRetrieve();
 System.out.println(result);
 ```
 
@@ -84,9 +84,9 @@ System.out.println(result);
 ```java
 // List pending realtime events
 Map<String, Object> params = new LinkedHashMap<>();
-params.put("limit", 1);
+params.put("page_size", 1);
 params.put("cursor", "cursor");
-RealtimeEventsResponse result = client.getRealtime().eventsList(params);
+RealtimeEventsListResponse result = client.getRealtime().eventsList(params);
 System.out.println(result);
 ```
 
@@ -98,18 +98,15 @@ CreateRtcSessionRequest body = new CreateRtcSessionRequest();
 body.setRtcSessionId("1");
 body.setConversationId("1");
 body.setRtcMode("rtcmode");
-RtcSessionMutationResponse result = client.getCalls().sessionsCreate(body);
+CallsSessionsCreateResponse201 result = client.getCalls().sessionsCreate(body);
 System.out.println(result);
 ```
 
 ### social
 
 ```java
-// List contact tags
-Map<String, Object> params = new LinkedHashMap<>();
-params.put("limit", 1);
-params.put("cursor", "cursor");
-ContactTagsResponse result = client.getSocial().contactsTagsList(params);
+// Retrieve pending incoming friend request count
+SocialFriendRequestsPendingCountRetrieveResponse result = client.getSocial().friendRequestsPendingCountRetrieve();
 System.out.println(result);
 ```
 
@@ -118,9 +115,9 @@ System.out.println(result);
 ```java
 // List IM contacts
 Map<String, Object> params = new LinkedHashMap<>();
-params.put("limit", 1);
+params.put("page_size", 1);
 params.put("cursor", "cursor");
-ContactsResponse result = client.getChat().contactsList(params);
+ContactsListResponse result = client.getChat().contactsList(params);
 System.out.println(result);
 ```
 
@@ -131,7 +128,7 @@ System.out.println(result);
 OpenStreamRequest body = new OpenStreamRequest();
 body.setStreamType("streamtype");
 body.setConversationId("1");
-StreamView result = client.getStreams().create(body);
+StreamsCreateResponse201 result = client.getStreams().create(body);
 System.out.println(result);
 ```
 
@@ -139,7 +136,10 @@ System.out.println(result);
 
 ```java
 // List spaces
-SpaceListResponse result = client.getSpaces().list();
+Map<String, Object> params = new LinkedHashMap<>();
+params.put("page_size", 1);
+params.put("cursor", "cursor");
+SpacesListResponse result = client.getSpaces().list(params);
 System.out.println(result);
 ```
 
@@ -147,7 +147,7 @@ System.out.println(result);
 
 ```java
 try {
-    PresenceView result = client.getPresence().meRetrieve();
+    PresenceMeRetrieveResponse result = client.getPresence().meRetrieve();
     System.out.println(result);
 } catch (Exception e) {
     System.err.println("Error: " + e.getMessage());

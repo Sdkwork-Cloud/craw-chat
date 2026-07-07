@@ -102,7 +102,7 @@ impl NetworkMetrics {
         let smoothed_rtt = alpha * new_rtt_ms + (1.0 - alpha) * prev_rtt_ms;
 
         // Clamp smoothed RTT to reasonable bounds (0-30s) to prevent overflow
-        let smoothed_rtt_clamped = smoothed_rtt.min(30000.0).max(0.0);
+        let smoothed_rtt_clamped = smoothed_rtt.clamp(0.0, 30000.0);
         self.rtt = Duration::from_millis(smoothed_rtt_clamped as u64);
 
         // Update jitter (RTT variation)
@@ -115,7 +115,7 @@ impl NetworkMetrics {
         let smoothed_jitter = alpha * rtt_diff_ms + (1.0 - alpha) * prev_jitter_ms;
 
         // Clamp jitter to reasonable bounds (0-10s)
-        let smoothed_jitter_clamped = smoothed_jitter.min(10000.0).max(0.0);
+        let smoothed_jitter_clamped = smoothed_jitter.clamp(0.0, 10000.0);
         self.jitter = Duration::from_millis(smoothed_jitter_clamped as u64);
 
         // Update loss rate
@@ -352,10 +352,10 @@ impl AdaptiveHeartbeatPolicy {
         }
 
         // Stable connection: extend interval to reduce overhead
-        if let Some(stable_duration) = metrics.stable_duration() {
-            if stable_duration >= self.stable_duration_threshold {
-                return self.max_interval;
-            }
+        if let Some(stable_duration) = metrics.stable_duration()
+            && stable_duration >= self.stable_duration_threshold
+        {
+            return self.max_interval;
         }
 
         // Normal condition: use base interval

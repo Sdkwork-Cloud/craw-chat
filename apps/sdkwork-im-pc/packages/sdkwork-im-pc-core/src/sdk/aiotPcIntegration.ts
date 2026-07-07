@@ -14,6 +14,8 @@ import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
 } from './session';
 
+export type { SdkworkAiotAppClient };
+
 let aiotPcRuntimeBootstrapped = false;
 let aiotSessionListenerRegistered = false;
 

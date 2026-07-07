@@ -26,14 +26,17 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("ops-service failed to bind local listener: {error}"))?;
 
-    axum::serve(listener, sdkwork_routes_im_ops_backend_api::build_public_app())
-        .with_graceful_shutdown(async move {
-            sdkwork_im_service_readiness::shutdown_signal().await;
-            if let Some(handle) = retention_scheduler {
-                handle.shutdown();
-            }
-        })
-        .await
-        .map_err(|error| format!("ops-service server should run: {error}"))?;
+    axum::serve(
+        listener,
+        sdkwork_routes_im_ops_backend_api::build_public_app(),
+    )
+    .with_graceful_shutdown(async move {
+        sdkwork_im_service_readiness::shutdown_signal().await;
+        if let Some(handle) = retention_scheduler {
+            handle.shutdown();
+        }
+    })
+    .await
+    .map_err(|error| format!("ops-service server should run: {error}"))?;
     Ok(())
 }

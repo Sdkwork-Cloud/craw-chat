@@ -24,4 +24,7 @@ export * from './sdk/imSdkClient';
 export * from './sdk/pcRealtimeConnectionManager';
 export * from './sdk/runtimeGatewayDiscovery';
 export * from './sdk/session';
+export * from './sdk/desktopOfflineStore';
+export * from './sdk/desktopOfflineChatCache';
+export * from './sdk/desktopOfflineSendQueue';
 export * from './runtime/desktopEnvironment';

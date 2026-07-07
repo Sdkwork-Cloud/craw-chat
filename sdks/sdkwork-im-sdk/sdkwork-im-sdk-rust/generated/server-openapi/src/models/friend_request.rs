@@ -5,8 +5,8 @@ pub struct FriendRequest {
     #[serde(rename = "tenantId")]
     pub tenant_id: String,
 
-    #[serde(rename = "requestId")]
-    pub request_id: String,
+    #[serde(rename = "friendRequestId")]
+    pub friend_request_id: String,
 
     #[serde(rename = "requesterUserId")]
     pub requester_user_id: String,
@@ -19,6 +19,10 @@ pub struct FriendRequest {
     #[serde(rename = "requestMessage")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_message: Option<String>,
+
+    #[serde(rename = "expiredAt")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expired_at: Option<String>,
 
     #[serde(rename = "createdAt")]
     pub created_at: String,

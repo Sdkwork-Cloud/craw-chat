@@ -7,8 +7,8 @@ use im_adapters_local_memory::MemoryRealtimeCheckpointStore;
 use im_platform_contracts::{ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore};
 use sdkwork_im_runtime_route::{RouteBinding, RouteMigrationResult, RouteNodeLifecycle};
 use session_gateway::{
-    RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeRuntimeError,
-    RealtimeSubscriptionItemInput,
+    ClientRouteDisconnectCommand, RealtimeClusterBridge, RealtimeDeliveryRuntime,
+    RealtimeEventWindowQuery, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
 };
 
 fn expect_ok<T>(result: Result<T, RealtimeRuntimeError>) -> T {
@@ -65,15 +65,31 @@ fn test_cluster_bridge_routes_client_route_event_to_owner_node_runtime() {
     assert_eq!(result.route_state, "resolved");
     assert_eq!(result.delivered, 1);
 
-    let owner_window = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let owner_window = expect_ok(runtime_b.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(owner_window.items.len(), 1);
     assert_eq!(owner_window.items[0].event_type, "message.posted");
 
-    let origin_window = expect_ok(
-        runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let origin_window = expect_ok(runtime_a.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(origin_window.items.len(), 0);
 }
 
@@ -182,9 +198,17 @@ fn test_cluster_bridge_falls_back_to_origin_node_when_route_is_missing() {
     assert_eq!(result.route_state, "local_fallback");
     assert_eq!(result.delivered, 1);
 
-    let origin_window = expect_ok(
-        runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let origin_window = expect_ok(runtime_a.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(origin_window.items.len(), 1);
 }
 
@@ -349,14 +373,30 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
         .expect("route should exist after migration");
     assert_eq!(migrated_route.owner_node_id, "node_b");
 
-    let source_window = expect_ok(
-        runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let source_window = expect_ok(runtime_a.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(source_window.items.len(), 0);
 
-    let target_window = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let target_window = expect_ok(runtime_b.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(target_window.items.len(), 1);
     assert_eq!(target_window.items[0].event_type, "message.posted");
 
@@ -383,9 +423,17 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
     assert_eq!(publish_result.route_state, "resolved");
     assert_eq!(publish_result.delivered, 1);
 
-    let target_window_after_publish = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let target_window_after_publish = expect_ok(runtime_b.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(target_window_after_publish.items.len(), 2);
     assert_eq!(
         target_window_after_publish.items[1].event_type,
@@ -490,12 +538,28 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
     assert_eq!(agent_publish.route_state, "resolved");
     assert_eq!(agent_publish.delivered, 1);
 
-    let user_window = expect_ok(
-        runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
-    let agent_window = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "agent", "d_pad", 0, 10),
-    );
+    let user_window = expect_ok(runtime_a.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
+    let agent_window = expect_ok(runtime_b.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "agent",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(user_window.items.len(), 1);
     assert_eq!(user_window.items[0].scope_id, "c_user");
     assert_eq!(agent_window.items.len(), 1);
@@ -509,15 +573,15 @@ fn test_cluster_disconnect_fence_isolated_by_principal_kind() {
     cluster.bind_node_runtime("node_a", runtime);
 
     cluster
-        .mark_client_route_disconnected_for_principal_kind(
-            "100001",
-            "default",
-            "1",
-            "user",
-            "d_pad",
-            Some("s_user"),
-            "node_a",
-        )
+        .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            session_id: Some("s_user"),
+            owner_node_id: "node_a",
+        })
         .expect("user disconnect fence should persist");
 
     let user_error = cluster
@@ -614,9 +678,17 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     assert_eq!(rebound_route.owner_node_id, "node_b");
     assert_eq!(rebound_route.connection_kind, "http");
 
-    let source_window_after_rebind = expect_ok(
-        runtime_a.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let source_window_after_rebind = expect_ok(runtime_a.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(
         source_window_after_rebind.items.len(),
         0,
@@ -630,9 +702,17 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     assert_eq!(target_checkpoint.acked_through_seq, 1);
     assert_eq!(target_checkpoint.trimmed_through_seq, 1);
 
-    let target_window_after_rebind = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let target_window_after_rebind = expect_ok(runtime_b.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(target_window_after_rebind.items.len(), 1);
     assert_eq!(
         target_window_after_rebind.items[0].event_type,
@@ -656,9 +736,17 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     assert_eq!(publish_result.route_state, "resolved");
     assert_eq!(publish_result.delivered, 1);
 
-    let target_window_after_publish = expect_ok(
-        runtime_b.list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10),
-    );
+    let target_window_after_publish = expect_ok(runtime_b.list_events_for_principal_kind(
+        RealtimeEventWindowQuery {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            after_seq: 0,
+            limit: 10,
+        },
+    ));
     assert_eq!(target_window_after_publish.items.len(), 2);
     assert_eq!(
         target_window_after_publish.items[1].event_type,

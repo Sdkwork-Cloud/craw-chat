@@ -12,7 +12,6 @@ import type {
 import type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
-  MessageVisibilityMutationResult,
 } from './openapi-compat-types';
 import type { ImTransportClientLike } from './transport-client-like';
 
@@ -45,18 +44,18 @@ export class ImMessagesModule {
     const body = typeof reactionKeyOrBody === 'string'
       ? { reactionKey: reactionKeyOrBody }
       : reactionKeyOrBody;
-    return this.transportClient.chat.messages.reactions.delete(messageId, body);
+    return this.transportClient.chat.messages.reactions.remove(messageId, body);
   }
 
   pinMessage(messageId: string | number): Promise<MessagePinMutationResult> {
-    return this.transportClient.chat.messages.pin.create(messageId);
+    return this.transportClient.chat.messages.pin(messageId);
   }
 
   unpinMessage(messageId: string | number): Promise<MessagePinMutationResult> {
-    return this.transportClient.chat.messages.pin.delete(messageId);
+    return this.transportClient.chat.messages.unpin(messageId);
   }
 
-  deleteForMe(messageId: string | number): Promise<MessageVisibilityMutationResult> {
+  deleteForMe(messageId: string | number): Promise<void> {
     return this.transportClient.chat.messages.visibility.delete(messageId);
   }
 

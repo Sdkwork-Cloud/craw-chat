@@ -58,7 +58,7 @@ const REALTIME_CLIENT_ROUTE_WINDOW_MAX_RETAINED_EVENTS: usize = REALTIME_EVENT_W
 const REALTIME_CLIENT_ROUTE_WINDOW_CRITICAL_USAGE_PERMILLE: u64 = 950;
 const REALTIME_MUTATION_LOCK_SHARDS: usize = 256;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RealtimeSubscriptionItemInput {
     pub scope_type: String,
@@ -312,12 +312,33 @@ impl RealtimePrincipalScopeKey {
     ) -> Self {
         Self {
             tenant_id: tenant_id.into(),
-            organization_id: normalize_realtime_organization_id(organization_id).into(),
+            organization_id: normalize_realtime_organization_id(organization_id),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.into(),
             scope: RealtimeSubscriptionScopeKey::new(scope_type, scope_id),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RealtimeEventWindowQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub principal_id: &'a str,
+    pub principal_kind: &'a str,
+    pub device_id: &'a str,
+    pub after_seq: u64,
+    pub limit: usize,
+}
+
+struct SubscriptionRestoreRollbackCommand<'a> {
+    previous_record: Option<RealtimeSubscriptionRecord>,
+    attempted_record: Option<&'a RealtimeSubscriptionRecord>,
+    tenant_id: &'a str,
+    organization_id: &'a str,
+    principal_id: &'a str,
+    principal_kind: &'a str,
+    device_id: &'a str,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -906,9 +927,6 @@ impl RealtimeDeliveryRuntime {
                     .collect::<BTreeMap<_, _>>()
             })
             .unwrap_or_default();
-        lock_realtime_mutex(&self.windows, "realtime window store")
-            .entry(scope_key.clone())
-            .or_insert(restored_window_events);
         if let Some(restored_subscriptions) =
             restored_subscriptions.filter(|record| !record.items.is_empty())
         {
@@ -935,51 +953,53 @@ impl RealtimeDeliveryRuntime {
                 );
             }
         }
+        // Apply restored sequence/window maps under the canonical lock order shared with
+        // list/ack/publish paths (`lock_scope_sequence_maps`) to prevent AB-BA deadlocks.
         let latest_seq = {
-            let mut latest_sequences =
-                lock_realtime_mutex(&self.latest_sequences, "realtime sequence store");
-            *latest_sequences
+            let mut scope_maps = self.lock_scope_sequence_maps();
+            scope_maps
+                .windows
+                .entry(scope_key.clone())
+                .or_insert(restored_window_events);
+            scope_maps
+                .acked
+                .entry(scope_key.clone())
+                .or_insert_with(|| normalized_restored.map(|item| item.1).unwrap_or(0));
+            scope_maps
+                .trimmed
+                .entry(scope_key.clone())
+                .or_insert_with(|| normalized_restored.map(|item| item.2).unwrap_or(0));
+            scope_maps
+                .capacity_trimmed_event_counts
+                .entry(scope_key.clone())
+                .or_insert_with(|| {
+                    restored_window_metadata
+                        .as_ref()
+                        .map(|item| item.0)
+                        .unwrap_or(0)
+                });
+            scope_maps
+                .capacity_trimmed_sequences
+                .entry(scope_key.clone())
+                .or_insert_with(|| {
+                    restored_window_metadata
+                        .as_ref()
+                        .map(|item| item.1)
+                        .unwrap_or(0)
+                });
+            if let Some(last_trimmed_at) =
+                restored_window_metadata.and_then(|(_, _, last_trimmed_at)| last_trimmed_at)
+            {
+                scope_maps
+                    .last_capacity_trimmed_at
+                    .entry(scope_key.clone())
+                    .or_insert(last_trimmed_at);
+            }
+            *scope_maps
+                .latest
                 .entry(scope_key.clone())
                 .or_insert_with(|| normalized_restored.map(|item| item.0).unwrap_or(0))
         };
-        lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
-            .entry(scope_key.clone())
-            .or_insert_with(|| normalized_restored.map(|item| item.1).unwrap_or(0));
-        lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
-            .entry(scope_key.clone())
-            .or_insert_with(|| normalized_restored.map(|item| item.2).unwrap_or(0));
-        lock_realtime_mutex(
-            &self.capacity_trimmed_event_counts,
-            "realtime capacity trim count store",
-        )
-        .entry(scope_key.clone())
-        .or_insert_with(|| {
-            restored_window_metadata
-                .as_ref()
-                .map(|item| item.0)
-                .unwrap_or(0)
-        });
-        lock_realtime_mutex(
-            &self.capacity_trimmed_sequences,
-            "realtime capacity trim sequence store",
-        )
-        .entry(scope_key.clone())
-        .or_insert_with(|| {
-            restored_window_metadata
-                .as_ref()
-                .map(|item| item.1)
-                .unwrap_or(0)
-        });
-        if let Some(last_trimmed_at) =
-            restored_window_metadata.and_then(|(_, _, last_trimmed_at)| last_trimmed_at)
-        {
-            lock_realtime_mutex(
-                &self.last_capacity_trimmed_at,
-                "realtime capacity trim timestamp store",
-            )
-            .entry(scope_key.clone())
-            .or_insert(last_trimmed_at);
-        }
         lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .entry(scope_key.clone())
             .or_insert_with(|| {
@@ -1555,64 +1575,46 @@ impl RealtimeDeliveryRuntime {
 
     pub fn list_events_for_principal_kind(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
-        after_seq: u64,
-        limit: usize,
+        query: RealtimeEventWindowQuery<'_>,
     ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
-        self.list_events_internal(
-            tenant_id,
-            organization_id,
-            principal_id,
-            principal_kind,
-            device_id,
-            after_seq,
-            limit,
-        )
+        self.list_events_internal(query)
     }
 
     fn list_events_internal(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
-        after_seq: u64,
-        limit: usize,
+        query: RealtimeEventWindowQuery<'_>,
     ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
-        validate_realtime_event_limit(limit)?;
+        validate_realtime_event_limit(query.limit)?;
         self.ensure_client_route_state_internal(
-            tenant_id,
-            organization_id,
-            principal_id,
-            principal_kind,
-            device_id,
+            query.tenant_id,
+            query.organization_id,
+            query.principal_id,
+            query.principal_kind,
+            query.device_id,
         )?;
         let scope_key = client_route_scope_key(
-            tenant_id,
-            organization_id,
-            principal_id,
-            principal_kind,
-            device_id,
+            query.tenant_id,
+            query.organization_id,
+            query.principal_id,
+            query.principal_kind,
+            query.device_id,
         );
-        let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
+        let scope_stores = self.lock_scope_sequence_maps();
+        let acked_through_seq = scope_stores
+            .acked
             .get(scope_key.as_str())
             .copied()
             .unwrap_or(0);
-        let trimmed_through_seq =
-            lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
-                .get(scope_key.as_str())
-                .copied()
-                .unwrap_or(0);
-        let windows = lock_realtime_mutex(&self.windows, "realtime window store");
+        let trimmed_through_seq = scope_stores
+            .trimmed
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0);
         let mut has_more = false;
         let mut last_examined_seq = None;
-        let effective_after_seq = after_seq.max(trimmed_through_seq);
-        let items = windows
+        let effective_after_seq = query.after_seq.max(trimmed_through_seq);
+        let items = scope_stores
+            .windows
             .get(scope_key.as_str())
             .map(|scope_events| {
                 let mut visible = Vec::new();
@@ -1622,15 +1624,15 @@ impl RealtimeDeliveryRuntime {
                 {
                     last_examined_seq = Some(event.realtime_seq);
                     if !self.scope_access_policy.is_event_visible(
-                        tenant_id,
-                        organization_id,
-                        principal_id,
-                        principal_kind,
+                        query.tenant_id,
+                        query.organization_id,
+                        query.principal_id,
+                        query.principal_kind,
                         event,
                     ) {
                         continue;
                     }
-                    if visible.len() < limit {
+                    if visible.len() < query.limit {
                         visible.push(event.clone());
                         continue;
                     }
@@ -1647,7 +1649,7 @@ impl RealtimeDeliveryRuntime {
         };
 
         Ok(RealtimeEventWindow {
-            device_id: device_id.into(),
+            device_id: query.device_id.into(),
             items,
             next_after_seq,
             has_more,
@@ -1705,50 +1707,50 @@ impl RealtimeDeliveryRuntime {
             principal_kind,
             device_id,
         );
-        let latest_seq = lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
+        let scope_stores = self.lock_scope_sequence_maps();
+        let latest_seq = scope_stores
+            .latest
             .get(scope_key.as_str())
             .copied()
             .unwrap_or(0);
         let effective_ack = acked_seq.min(latest_seq);
-        let previous_acked_through_seq =
-            lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
-                .get(scope_key.as_str())
-                .copied()
-                .unwrap_or(0);
+        let previous_acked_through_seq = scope_stores
+            .acked
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0);
         let acked_through_seq = previous_acked_through_seq.max(effective_ack);
-        let previous_trimmed_through_seq =
-            lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
-                .get(scope_key.as_str())
-                .copied()
-                .unwrap_or(0);
+        let previous_trimmed_through_seq = scope_stores
+            .trimmed
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0);
         let trimmed_through_seq = previous_trimmed_through_seq.max(acked_through_seq);
-        let capacity_trimmed_event_count = lock_realtime_mutex(
-            &self.capacity_trimmed_event_counts,
-            "realtime capacity trim count store",
-        )
-        .get(scope_key.as_str())
-        .copied()
-        .unwrap_or(0);
-        let capacity_trimmed_through_seq = lock_realtime_mutex(
-            &self.capacity_trimmed_sequences,
-            "realtime capacity trim sequence store",
-        )
-        .get(scope_key.as_str())
-        .copied()
-        .unwrap_or(0);
-        let last_capacity_trimmed_at = lock_realtime_mutex(
-            &self.last_capacity_trimmed_at,
-            "realtime capacity trim timestamp store",
-        )
-        .get(scope_key.as_str())
-        .cloned();
+        let capacity_trimmed_event_count = scope_stores
+            .capacity_trimmed_event_counts
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0);
+        let capacity_trimmed_through_seq = scope_stores
+            .capacity_trimmed_sequences
+            .get(scope_key.as_str())
+            .copied()
+            .unwrap_or(0);
+        let last_capacity_trimmed_at = scope_stores
+            .last_capacity_trimmed_at
+            .get(scope_key.as_str())
+            .cloned();
         let (next_window, retained_event_count) = {
-            let windows = lock_realtime_mutex(&self.windows, "realtime window store");
-            let mut next_window = windows.get(scope_key.as_str()).cloned().unwrap_or_default();
+            let mut next_window = scope_stores
+                .windows
+                .get(scope_key.as_str())
+                .cloned()
+                .unwrap_or_default();
             next_window.retain(|seq, _| *seq > acked_through_seq);
             let retained_event_count = next_window.len();
             (next_window, retained_event_count)
         };
+        drop(scope_stores);
         let previous_event_window = self
             .event_window_store
             .load_window(
@@ -1798,11 +1800,14 @@ impl RealtimeDeliveryRuntime {
                 "ack checkpoint persist failed",
             );
         }
-        lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
+        let mut scope_stores = self.lock_scope_sequence_maps();
+        scope_stores
+            .acked
             .insert(scope_key.clone(), acked_through_seq);
-        lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store")
+        scope_stores
+            .trimmed
             .insert(scope_key.clone(), trimmed_through_seq);
-        lock_realtime_mutex(&self.windows, "realtime window store").insert(scope_key, next_window);
+        scope_stores.windows.insert(scope_key, next_window);
 
         Ok(RealtimeAckState {
             tenant_id: tenant_id.into(),
@@ -2170,13 +2175,15 @@ impl RealtimeDeliveryRuntime {
         if let Err(error) = self.persist_checkpoint_records(vec![checkpoint]) {
             if let Err(compensation_error) = self
                 .restore_persisted_subscriptions_after_failed_restore(
-                    previous_subscription_record,
-                    subscription_record.as_ref(),
-                    snapshot.tenant_id.as_str(),
-                    snapshot.organization_id.as_str(),
-                    snapshot.principal_id.as_str(),
-                    snapshot.principal_kind.as_str(),
-                    snapshot.device_id.as_str(),
+                    SubscriptionRestoreRollbackCommand {
+                        previous_record: previous_subscription_record,
+                        attempted_record: subscription_record.as_ref(),
+                        tenant_id: snapshot.tenant_id.as_str(),
+                        organization_id: snapshot.organization_id.as_str(),
+                        principal_id: snapshot.principal_id.as_str(),
+                        principal_kind: snapshot.principal_kind.as_str(),
+                        device_id: snapshot.device_id.as_str(),
+                    },
                 )
             {
                 return Err(RealtimeRuntimeError {
@@ -2285,29 +2292,23 @@ impl RealtimeDeliveryRuntime {
 
     fn restore_persisted_subscriptions_after_failed_restore(
         &self,
-        previous_record: Option<RealtimeSubscriptionRecord>,
-        attempted_record: Option<&RealtimeSubscriptionRecord>,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-        device_id: &str,
+        command: SubscriptionRestoreRollbackCommand<'_>,
     ) -> Result<(), RealtimeRuntimeError> {
-        if let Some(previous_record) = previous_record {
+        if let Some(previous_record) = command.previous_record {
             self.subscription_store
                 .save_subscriptions(previous_record)
                 .map_err(RealtimeRuntimeError::subscription_store)?;
             return Ok(());
         }
 
-        if let Some(attempted_record) = attempted_record {
+        if let Some(attempted_record) = command.attempted_record {
             self.subscription_store
                 .clear_subscriptions_synced_at_or_before(
-                    tenant_id,
-                    organization_id,
-                    principal_kind,
-                    principal_id,
-                    device_id,
+                    command.tenant_id,
+                    command.organization_id,
+                    command.principal_kind,
+                    command.principal_id,
+                    command.device_id,
                     attempted_record.synced_at.as_str(),
                 )
                 .map_err(RealtimeRuntimeError::subscription_store)?;
@@ -2507,54 +2508,43 @@ impl RealtimeDeliveryRuntime {
             // concurrent publishes to different scopes do not serialize on
             // these global mutexes during the heavy work.
             let snapshots = {
-                let windows = lock_realtime_mutex(&self.windows, "realtime window store");
-                let latest_sequences =
-                    lock_realtime_mutex(&self.latest_sequences, "realtime sequence store");
-                let acked_sequences =
-                    lock_realtime_mutex(&self.acked_sequences, "realtime ack store");
-                let trimmed_sequences =
-                    lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store");
-                let capacity_trimmed_event_counts = lock_realtime_mutex(
-                    &self.capacity_trimmed_event_counts,
-                    "realtime capacity trim count store",
-                );
-                let capacity_trimmed_sequences = lock_realtime_mutex(
-                    &self.capacity_trimmed_sequences,
-                    "realtime capacity trim sequence store",
-                );
-                let last_capacity_trimmed_timestamps = lock_realtime_mutex(
-                    &self.last_capacity_trimmed_at,
-                    "realtime capacity trim timestamp store",
-                );
+                let scope_stores = self.lock_scope_sequence_maps();
                 matched_targets
                     .iter()
                     .map(|(scope_key, device_id)| RealtimeScopeSnapshot {
                         scope_key: scope_key.clone(),
                         device_id: device_id.clone(),
-                        latest_realtime_seq: latest_sequences
+                        latest_realtime_seq: scope_stores
+                            .latest
                             .get(scope_key.as_str())
                             .copied()
                             .unwrap_or(0),
-                        acked_through_seq: acked_sequences
+                        acked_through_seq: scope_stores
+                            .acked
                             .get(scope_key.as_str())
                             .copied()
                             .unwrap_or(0),
-                        trimmed_through_seq: trimmed_sequences
+                        trimmed_through_seq: scope_stores
+                            .trimmed
                             .get(scope_key.as_str())
                             .copied()
                             .unwrap_or(0),
-                        capacity_trimmed_event_count: capacity_trimmed_event_counts
+                        capacity_trimmed_event_count: scope_stores
+                            .capacity_trimmed_event_counts
                             .get(scope_key.as_str())
                             .copied()
                             .unwrap_or(0),
-                        capacity_trimmed_through_seq: capacity_trimmed_sequences
+                        capacity_trimmed_through_seq: scope_stores
+                            .capacity_trimmed_sequences
                             .get(scope_key.as_str())
                             .copied()
                             .unwrap_or(0),
-                        last_capacity_trimmed_at: last_capacity_trimmed_timestamps
+                        last_capacity_trimmed_at: scope_stores
+                            .last_capacity_trimmed_at
                             .get(scope_key.as_str())
                             .cloned(),
-                        current_window: windows
+                        current_window: scope_stores
+                            .windows
                             .get(scope_key.as_str())
                             .cloned()
                             .unwrap_or_default(),
@@ -2694,40 +2684,33 @@ impl RealtimeDeliveryRuntime {
         }
 
         {
-            let mut windows = lock_realtime_mutex(&self.windows, "realtime window store");
-            let mut latest_sequences =
-                lock_realtime_mutex(&self.latest_sequences, "realtime sequence store");
-            let mut trimmed_sequences =
-                lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store");
-            let mut capacity_trimmed_event_counts = lock_realtime_mutex(
-                &self.capacity_trimmed_event_counts,
-                "realtime capacity trim count store",
-            );
-            let mut capacity_trimmed_sequences = lock_realtime_mutex(
-                &self.capacity_trimmed_sequences,
-                "realtime capacity trim sequence store",
-            );
-            let mut last_capacity_trimmed = lock_realtime_mutex(
-                &self.last_capacity_trimmed_at,
-                "realtime capacity trim timestamp store",
-            );
+            let mut scope_stores = self.lock_scope_sequence_maps();
             for mutation in &mutations {
-                windows.insert(mutation.scope_key.clone(), mutation.next_window.clone());
-                latest_sequences.insert(mutation.scope_key.clone(), mutation.latest_realtime_seq);
-                trimmed_sequences.insert(mutation.scope_key.clone(), mutation.trimmed_through_seq);
-                capacity_trimmed_event_counts.insert(
+                scope_stores
+                    .windows
+                    .insert(mutation.scope_key.clone(), mutation.next_window.clone());
+                scope_stores
+                    .latest
+                    .insert(mutation.scope_key.clone(), mutation.latest_realtime_seq);
+                scope_stores
+                    .trimmed
+                    .insert(mutation.scope_key.clone(), mutation.trimmed_through_seq);
+                scope_stores.capacity_trimmed_event_counts.insert(
                     mutation.scope_key.clone(),
                     mutation.capacity_trimmed_event_count,
                 );
-                capacity_trimmed_sequences.insert(
+                scope_stores.capacity_trimmed_sequences.insert(
                     mutation.scope_key.clone(),
                     mutation.capacity_trimmed_through_seq,
                 );
                 if let Some(last_capacity_trimmed_at) = &mutation.last_capacity_trimmed_at {
-                    last_capacity_trimmed
+                    scope_stores
+                        .last_capacity_trimmed_at
                         .insert(mutation.scope_key.clone(), last_capacity_trimmed_at.clone());
                 } else {
-                    last_capacity_trimmed.remove(mutation.scope_key.as_str());
+                    scope_stores
+                        .last_capacity_trimmed_at
+                        .remove(mutation.scope_key.as_str());
                 }
             }
         }
@@ -2810,6 +2793,47 @@ pub(super) fn lock_realtime_mutex<'a, T>(
         Err(poisoned) => {
             tracing::warn!("recovered poisoned realtime runtime mutex lock={lock_name}");
             poisoned.into_inner()
+        }
+    }
+}
+
+/// Per-scope realtime map locks acquired in a single canonical order to prevent deadlocks.
+struct RealtimeScopeSequenceMapsGuard<'a> {
+    latest: MutexGuard<'a, HashMap<String, u64>>,
+    acked: MutexGuard<'a, HashMap<String, u64>>,
+    trimmed: MutexGuard<'a, HashMap<String, u64>>,
+    capacity_trimmed_event_counts: MutexGuard<'a, HashMap<String, u64>>,
+    capacity_trimmed_sequences: MutexGuard<'a, HashMap<String, u64>>,
+    last_capacity_trimmed_at: MutexGuard<'a, HashMap<String, String>>,
+    windows: MutexGuard<'a, HashMap<String, BTreeMap<u64, RealtimeEvent>>>,
+}
+
+impl RealtimeDeliveryRuntime {
+    fn lock_scope_sequence_maps(&self) -> RealtimeScopeSequenceMapsGuard<'_> {
+        let latest = lock_realtime_mutex(&self.latest_sequences, "realtime sequence store");
+        let acked = lock_realtime_mutex(&self.acked_sequences, "realtime ack store");
+        let trimmed = lock_realtime_mutex(&self.trimmed_sequences, "realtime trim store");
+        let capacity_trimmed_event_counts = lock_realtime_mutex(
+            &self.capacity_trimmed_event_counts,
+            "realtime capacity trim count store",
+        );
+        let capacity_trimmed_sequences = lock_realtime_mutex(
+            &self.capacity_trimmed_sequences,
+            "realtime capacity trim sequence store",
+        );
+        let last_capacity_trimmed_at = lock_realtime_mutex(
+            &self.last_capacity_trimmed_at,
+            "realtime capacity trim timestamp store",
+        );
+        let windows = lock_realtime_mutex(&self.windows, "realtime window store");
+        RealtimeScopeSequenceMapsGuard {
+            latest,
+            acked,
+            trimmed,
+            capacity_trimmed_event_counts,
+            capacity_trimmed_sequences,
+            last_capacity_trimmed_at,
+            windows,
         }
     }
 }
@@ -2944,7 +2968,7 @@ pub(crate) fn validate_realtime_event_limit(limit: usize) -> Result<(), Realtime
     Ok(())
 }
 
-/// Resolve the raw `limit`/`pageSize` query param for realtime event windows.
+/// Resolve the raw `page_size` query param for realtime event windows.
 /// Invalid values fail closed before route binding or silent clamping.
 pub(crate) fn resolve_realtime_event_limit(
     paging: &sdkwork_utils_rust::SdkWorkSeqWindowQuery,
@@ -3206,7 +3230,8 @@ fn subscriptions_synced_at(items: &[RealtimeSubscription]) -> String {
 }
 
 const DEFAULT_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE: usize = 256;
-const REALTIME_FANOUT_RECIPIENT_BATCH_SIZE_ENV: &str = "SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE";
+const REALTIME_FANOUT_RECIPIENT_BATCH_SIZE_ENV: &str =
+    "SDKWORK_IM_REALTIME_FANOUT_RECIPIENT_BATCH_SIZE";
 
 fn resolve_realtime_fanout_recipient_batch_size() -> usize {
     std::env::var(REALTIME_FANOUT_RECIPIENT_BATCH_SIZE_ENV)
@@ -3245,10 +3270,7 @@ impl RealtimeDeliveryRuntime {
             recipients
                 .into_iter()
                 .map(|(principal_id, principal_kind)| {
-                    im_platform_contracts::RealtimeEventRecipient::new(
-                        principal_id,
-                        principal_kind,
-                    )
+                    im_platform_contracts::RealtimeEventRecipient::new(principal_id, principal_kind)
                 })
                 .collect(),
         );
@@ -3260,19 +3282,17 @@ impl RealtimeDeliveryRuntime {
         let mut delivered = 0usize;
         for batch in sdkwork_utils_rust::chunk(&recipients, batch_size) {
             for recipient in batch {
-                delivered = delivered.saturating_add(
-                    self.publish_scope_event_for_principal_kind(
-                        tenant_id,
-                        organization_id,
-                        recipient.principal_id.as_str(),
-                        recipient.principal_kind.as_str(),
-                        "user",
-                        recipient.principal_id.as_str(),
-                        event_type,
-                        payload.as_ref().clone(),
-                        Vec::new(),
-                    )?,
-                );
+                delivered = delivered.saturating_add(self.publish_scope_event_for_principal_kind(
+                    tenant_id,
+                    organization_id,
+                    recipient.principal_id.as_str(),
+                    recipient.principal_kind.as_str(),
+                    "user",
+                    recipient.principal_id.as_str(),
+                    event_type,
+                    payload.as_ref().clone(),
+                    Vec::new(),
+                )?);
             }
         }
         Ok(delivered)
@@ -3282,32 +3302,26 @@ impl RealtimeDeliveryRuntime {
 impl im_platform_contracts::RealtimeEventPublisher for RealtimeDeliveryRuntime {
     fn publish_ephemeral_scope_event_to_recipients(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        payload: String,
-        recipients: Vec<im_platform_contracts::RealtimeEventRecipient>,
+        command: im_platform_contracts::RealtimeScopeEventPublishCommand<'_>,
     ) -> Result<usize, sdkwork_im_contract_core::ContractError> {
-        let recipients = dedupe_realtime_recipients(recipients);
+        let recipients = dedupe_realtime_recipients(command.recipients);
         if recipients.is_empty() {
             return Ok(0);
         }
-        let payload = std::sync::Arc::new(payload);
+        let payload = std::sync::Arc::new(command.payload);
         let batch_size = resolve_realtime_fanout_recipient_batch_size();
         let mut delivered = 0usize;
         for batch in sdkwork_utils_rust::chunk(&recipients, batch_size) {
             for recipient in batch {
                 delivered = delivered.saturating_add(
                     self.publish_ephemeral_scope_event_for_principal_kind(
-                        tenant_id,
-                        organization_id,
+                        command.tenant_id,
+                        command.organization_id,
                         recipient.principal_id.as_str(),
                         recipient.principal_kind.as_str(),
-                        scope_type,
-                        scope_id,
-                        event_type,
+                        command.scope_type,
+                        command.scope_id,
+                        command.event_type,
                         payload.as_ref().clone(),
                         Vec::new(),
                     )
@@ -3322,32 +3336,26 @@ impl im_platform_contracts::RealtimeEventPublisher for RealtimeDeliveryRuntime {
 
     fn publish_durable_scope_event_to_recipients(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        scope_type: &str,
-        scope_id: &str,
-        event_type: &str,
-        payload: String,
-        recipients: Vec<im_platform_contracts::RealtimeEventRecipient>,
+        command: im_platform_contracts::RealtimeScopeEventPublishCommand<'_>,
     ) -> Result<usize, sdkwork_im_contract_core::ContractError> {
-        let recipients = dedupe_realtime_recipients(recipients);
+        let recipients = dedupe_realtime_recipients(command.recipients);
         if recipients.is_empty() {
             return Ok(0);
         }
-        let payload = std::sync::Arc::new(payload);
+        let payload = std::sync::Arc::new(command.payload);
         let batch_size = resolve_realtime_fanout_recipient_batch_size();
         let mut delivered = 0usize;
         for batch in sdkwork_utils_rust::chunk(&recipients, batch_size) {
             for recipient in batch {
                 delivered = delivered.saturating_add(
                     self.publish_scope_event_for_principal_kind(
-                        tenant_id,
-                        organization_id,
+                        command.tenant_id,
+                        command.organization_id,
                         recipient.principal_id.as_str(),
                         recipient.principal_kind.as_str(),
-                        scope_type,
-                        scope_id,
-                        event_type,
+                        command.scope_type,
+                        command.scope_id,
+                        command.event_type,
                         payload.as_ref().clone(),
                         Vec::new(),
                     )
@@ -3692,7 +3700,15 @@ mod tests {
             .insert(scope_key, 2);
 
         let window = runtime
-            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10)
+            .list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                after_seq: 0,
+                limit: 10,
+            })
             .expect("filtered realtime window should be readable");
 
         assert_eq!(window.items.len(), 1);
@@ -3750,7 +3766,15 @@ mod tests {
         lock_realtime_mutex(&runtime.trimmed_sequences, "realtime trim store").insert(scope_key, 1);
 
         let window = runtime
-            .list_events_for_principal_kind("100001", "default", "1", "user", "d_pad", 0, 10)
+            .list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                after_seq: 0,
+                limit: 10,
+            })
             .expect("trimmed realtime window should be readable");
 
         assert_eq!(window.items.len(), 1);
@@ -3765,13 +3789,13 @@ mod tests {
     impl RealtimeScopeAccessPolicy for ArchivedConversationPolicy {
         fn validate_subscription_scope(
             &self,
-        _tenant_id: &str,
-        _organization_id: &str,
-        _principal_id: &str,
-        _principal_kind: &str,
-        scope_type: &str,
-        scope_id: &str,
-    ) -> Result<(), RealtimeRuntimeError> {
+            _tenant_id: &str,
+            _organization_id: &str,
+            _principal_id: &str,
+            _principal_kind: &str,
+            scope_type: &str,
+            scope_id: &str,
+        ) -> Result<(), RealtimeRuntimeError> {
             if scope_type == "conversation" && scope_id == "c_archived" {
                 return Err(RealtimeRuntimeError {
                     code: "conversation_archived",
@@ -3784,12 +3808,12 @@ mod tests {
 
         fn is_event_visible(
             &self,
-        _tenant_id: &str,
-        _organization_id: &str,
-        _principal_id: &str,
-        _principal_kind: &str,
-        event: &RealtimeEvent,
-    ) -> bool {
+            _tenant_id: &str,
+            _organization_id: &str,
+            _principal_id: &str,
+            _principal_kind: &str,
+            event: &RealtimeEvent,
+        ) -> bool {
             event.scope_type != "conversation" || event.scope_id != "c_archived"
         }
     }

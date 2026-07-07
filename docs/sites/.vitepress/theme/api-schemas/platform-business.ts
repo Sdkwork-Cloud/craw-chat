@@ -113,6 +113,7 @@ export const platformBusinessSchemas: ApiSchemaDefinitionMap = {
         required: true,
         summary: "View nested fields for items",
       }),
+      field("pageInfo", "SdkWorkListPageInfo", "Cursor pagination metadata.", { required: true }),
     ],
   },
   AuditExportBundle: {

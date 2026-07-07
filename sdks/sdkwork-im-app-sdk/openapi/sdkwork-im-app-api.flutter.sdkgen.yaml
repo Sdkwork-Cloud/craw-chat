@@ -31,7 +31,7 @@ paths:
             schema:
               $ref: '#/components/schemas/StartAgentResponseRequest'
       responses:
-        '200':
+        '201':
           description: Agent response stream session
           content:
             application/json:
@@ -195,7 +195,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AppendAgentResponseDeltaRequest'
       responses:
-        '200':
+        '201':
           description: Agent response stream frame
           content:
             application/json:
@@ -275,7 +275,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RequestAgentToolCallRequest'
       responses:
-        '200':
+        '201':
           description: Agent tool call
           content:
             application/json:
@@ -355,7 +355,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RequestAutomationExecution'
       responses:
-        '200':
+        '201':
           description: Automation execution request result
           content:
             application/json:
@@ -564,7 +564,7 @@ paths:
       operationId: notifications.list
       summary: List notifications for the current principal
       parameters:
-        - name: pageSize
+        - name: page_size
           in: query
           required: false
           schema:
@@ -640,7 +640,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RequestNotification'
       responses:
-        '200':
+        '201':
           description: Notification request result
           content:
             application/json:

@@ -5,16 +5,16 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_adapters_social_postgres::governance_store::SpaceMemberRecord;
 use im_app_context::AppContext;
-use serde::{Deserialize, Serialize};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
+use serde::{Deserialize, Serialize};
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::http::AppState;
-use crate::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
     actor_can_manage_space, actor_can_read_space, ensure_user_not_banned_in_space, load_space,
     normalize_space_member_role, parse_space_id,
@@ -111,7 +111,7 @@ pub async fn list_space_members(
         let space_id = parse_space_id(space_id.as_str())?;
         let space = load_space(&state, &auth, space_id)?;
         actor_can_read_space(&state, &auth, &space)?;
-        let paging = resolve_list_page(&query)?;
+        let paging = resolve_keyset_page(&query)?;
 
         let records = state
             .space_member_store
@@ -119,8 +119,9 @@ pub async fn list_space_members(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 space_id,
-                sql_fetch_limit(paging),
-                sql_fetch_offset(paging),
+                paging.cursor_sort_value.as_deref(),
+                paging.cursor_entity.as_deref(),
+                paging.fetch_limit(),
             )
             .map_err(|error| {
                 tracing::error!(error = ?error, "failed to list space members");
@@ -128,7 +129,11 @@ pub async fn list_space_members(
             })?;
 
         let items = records.into_iter().map(MemberResponse::from).collect();
-        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
+        Ok(keyset_list_page(
+            items,
+            paging.page_size,
+            |item: &MemberResponse| (item.joined_at.clone(), item.user_id.clone()),
+        ))
     })();
     finish_api_json(&ctx, result)
 }
@@ -190,7 +195,9 @@ pub async fn update_space_member(
             .ok_or_else(|| ApiProblem::not_found("space member not found"))?;
 
         if record.role == "owner" || user_id == space.owner_user_id {
-            return Err(ApiProblem::forbidden("space owner membership cannot be modified"));
+            return Err(ApiProblem::forbidden(
+                "space owner membership cannot be modified",
+            ));
         }
 
         if let Some(role) = request.role.as_deref() {
@@ -237,7 +244,13 @@ pub async fn remove_space_member(
             .ok_or_else(|| ApiProblem::not_found("space member not found"))?;
 
         let removed_at = chrono::Utc::now().to_rfc3339();
-        persist_space_member_removed(&state, &auth, space_id, user_id.as_str(), removed_at.as_str())?;
+        persist_space_member_removed(
+            &state,
+            &auth,
+            space_id,
+            user_id.as_str(),
+            removed_at.as_str(),
+        )?;
         Ok(())
     })();
     finish_api_response(&ctx, result.and_then(|_| no_content(&ctx)))

@@ -39,7 +39,7 @@
         { "method": "CreateThread", "operationId": "conversations.threads.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "BindDirectChat", "operationId": "conversations.directChats.bind", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "RetrieveConversation", "operationId": "conversations.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
-        { "method": "RetrieveInbox", "operationId": "inbox.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveInbox", "operationId": "inbox.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "ListConversationMembers", "operationId": "conversations.members.list", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "AddConversationMember", "operationId": "conversations.members.add", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "RemoveConversationMember", "operationId": "conversations.members.remove", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
@@ -87,9 +87,9 @@
         { "method": "DeleteMessageFavorite", "operationId": "messages.favorites.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "DeleteMessageVisibility", "operationId": "messages.visibility.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "CreateMessageReaction", "operationId": "messages.reactions.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
-        { "method": "DeleteMessageReaction", "operationId": "messages.reactions.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
-        { "method": "PinMessage", "operationId": "messages.pin.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
-        { "method": "UnpinMessage", "operationId": "messages.pin.delete", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
+        { "method": "DeleteMessageReaction", "operationId": "messages.reactions.remove", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "PinMessage", "operationId": "messages.pin", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "UnpinMessage", "operationId": "messages.unpin", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
       ]
     },
     {
@@ -98,7 +98,7 @@
       "surface": "app",
       "methods": [
         { "method": "CreateRoom", "operationId": "rooms.create", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
-        { "method": "RetrieveRoom", "operationId": "rooms.get", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
+        { "method": "RetrieveRoom", "operationId": "rooms.retrieve", "auth": "app-session", "idempotency": "none", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "EnterRoom", "operationId": "rooms.enter", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" },
         { "method": "LeaveRoom", "operationId": "rooms.leave", "auth": "app-session", "idempotency": "required", "streaming": "unary", "owner": "im-open-api", "compatibility": "v3" }
       ]

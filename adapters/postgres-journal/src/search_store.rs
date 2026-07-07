@@ -10,7 +10,9 @@ use im_platform_contracts::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, PostgresJournalPool};
+use crate::{PostgresJournalPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
+
+const SDKWORK_SEARCH_PAGE_SIZE_MAX: usize = 200;
 
 /// PostgreSQL-backed search provider.
 ///
@@ -25,6 +27,18 @@ use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io, Postgre
 pub struct PostgresSearchProvider {
     pool: PostgresJournalPool,
     plugin_id: &'static str,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MemberSearchQuery<'a> {
+    pub tenant_id: &'a str,
+    pub organization_id: &'a str,
+    pub principal_kind: &'a str,
+    pub principal_id: &'a str,
+    pub query: &'a str,
+    pub conversation_id: Option<&'a str>,
+    pub limit: usize,
+    pub cursor: Option<&'a str>,
 }
 
 impl PostgresSearchProvider {
@@ -233,10 +247,7 @@ fn escape_tsquery(query: &str) -> String {
 enum SearchListCursor {
     Start,
     Offset(usize),
-    Keyset {
-        created_at: String,
-        message_id: i64,
-    },
+    Keyset { created_at: String, message_id: i64 },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -265,10 +276,7 @@ fn parse_search_cursor(cursor: Option<&str>) -> SearchListCursor {
     SearchListCursor::Start
 }
 
-fn search_keyset_next_cursor(
-    rows: &[(MessageSearchHit, String)],
-    limit: usize,
-) -> Option<String> {
+fn search_keyset_next_cursor(rows: &[(MessageSearchHit, String)], limit: usize) -> Option<String> {
     if rows.len() <= limit {
         return None;
     }
@@ -278,6 +286,32 @@ fn search_keyset_next_cursor(
         message_id: hit.message_id,
     })
     .ok()
+}
+
+fn normalize_search_page_size(limit: usize) -> usize {
+    limit.clamp(1, SDKWORK_SEARCH_PAGE_SIZE_MAX)
+}
+
+fn search_fetch_limit(limit: usize) -> i64 {
+    (normalize_search_page_size(limit) + 1) as i64
+}
+
+fn offset_next_cursor(
+    offset: usize,
+    hit_count: usize,
+    limit: usize,
+    total_count: u64,
+) -> Option<String> {
+    if hit_count < limit || hit_count == 0 {
+        return None;
+    }
+
+    let next_offset = u64::try_from(offset.saturating_add(hit_count)).unwrap_or(u64::MAX);
+    if next_offset < total_count {
+        Some(next_offset.to_string())
+    } else {
+        None
+    }
 }
 
 fn row_created_at_rfc3339(row: &postgres::Row, index: usize) -> String {
@@ -302,7 +336,7 @@ impl SearchProvider for PostgresSearchProvider {
         cursor: Option<&str>,
     ) -> Result<SearchResult, ContractError> {
         let list_cursor = parse_search_cursor(cursor);
-        let limit = limit.clamp(1, 1000);
+        let limit = normalize_search_page_size(limit);
         let conversation_filter: Option<&str> = conversation_id;
 
         let tsquery = escape_tsquery(query);
@@ -365,11 +399,8 @@ impl SearchProvider for PostgresSearchProvider {
                         .map(|row| row.get(0))
                         .unwrap_or(0);
 
-                    let next_cursor = if hits.len() == limit {
-                        Some((offset + limit).to_string())
-                    } else {
-                        None
-                    };
+                    let next_cursor =
+                        offset_next_cursor(offset, hits.len(), limit, total_count as u64);
 
                     Ok(SearchResult {
                         hits,
@@ -378,7 +409,7 @@ impl SearchProvider for PostgresSearchProvider {
                     })
                 }
                 SearchListCursor::Start | SearchListCursor::Keyset { .. } => {
-                    let fetch_limit = (limit + 1) as i64;
+                    let fetch_limit = search_fetch_limit(limit);
                     let (keyset_created_at, keyset_message_id) = match list_cursor {
                         SearchListCursor::Keyset {
                             created_at,
@@ -470,19 +501,12 @@ impl PostgresSearchProvider {
     /// Membership-scoped search for interactive principals.
     pub fn search_for_member(
         &self,
-        tenant_id: &str,
-        organization_id: &str,
-        principal_kind: &str,
-        principal_id: &str,
-        query: &str,
-        conversation_id: Option<&str>,
-        limit: usize,
-        cursor: Option<&str>,
+        query: MemberSearchQuery<'_>,
     ) -> Result<SearchResult, ContractError> {
-        let list_cursor = parse_search_cursor(cursor);
-        let limit = limit.clamp(1, 200);
-        let conversation_filter: Option<&str> = conversation_id;
-        let tsquery = escape_tsquery(query);
+        let list_cursor = parse_search_cursor(query.cursor);
+        let limit = normalize_search_page_size(query.limit);
+        let conversation_filter: Option<&str> = query.conversation_id;
+        let tsquery = escape_tsquery(query.query);
         if tsquery.is_empty() {
             return Ok(SearchResult {
                 hits: Vec::new(),
@@ -492,10 +516,10 @@ impl PostgresSearchProvider {
         }
 
         let pool = self.pool.clone();
-        let tenant = tenant_id.to_owned();
-        let org = organization_id.to_owned();
-        let principal_kind = principal_kind.to_owned();
-        let principal_id = principal_id.to_owned();
+        let tenant = query.tenant_id.to_owned();
+        let org = query.organization_id.to_owned();
+        let principal_kind = query.principal_kind.to_owned();
+        let principal_id = query.principal_id.to_owned();
         let conv = conversation_filter.map(|s| s.to_owned());
 
         run_postgres_io(move || {
@@ -557,11 +581,8 @@ impl PostgresSearchProvider {
                         .map(|row| row.get(0))
                         .unwrap_or(0);
 
-                    let next_cursor = if hits.len() == limit {
-                        Some((offset + limit).to_string())
-                    } else {
-                        None
-                    };
+                    let next_cursor =
+                        offset_next_cursor(offset, hits.len(), limit, total_count as u64);
 
                     Ok(SearchResult {
                         hits,
@@ -570,7 +591,7 @@ impl PostgresSearchProvider {
                     })
                 }
                 SearchListCursor::Start | SearchListCursor::Keyset { .. } => {
-                    let fetch_limit = (limit + 1) as i64;
+                    let fetch_limit = search_fetch_limit(limit);
                     let (keyset_created_at, keyset_message_id) = match list_cursor {
                         SearchListCursor::Keyset {
                             created_at,
@@ -708,6 +729,30 @@ mod tests {
             parse_search_cursor(Some("40")),
             SearchListCursor::Offset(40)
         );
+    }
+
+    #[test]
+    fn search_limit_is_bounded_by_sdkwork_page_size_max() {
+        assert_eq!(normalize_search_page_size(0), 1);
+        assert_eq!(normalize_search_page_size(20), 20);
+        assert_eq!(normalize_search_page_size(200), 200);
+        assert_eq!(normalize_search_page_size(201), 200);
+        assert_eq!(normalize_search_page_size(1000), 200);
+    }
+
+    #[test]
+    fn search_fetch_limit_is_page_size_plus_one_with_sdkwork_bound() {
+        assert_eq!(search_fetch_limit(0), 2);
+        assert_eq!(search_fetch_limit(20), 21);
+        assert_eq!(search_fetch_limit(200), 201);
+        assert_eq!(search_fetch_limit(1000), 201);
+    }
+
+    #[test]
+    fn offset_next_cursor_uses_total_count_to_avoid_empty_tail_page() {
+        assert_eq!(offset_next_cursor(0, 20, 20, 41), Some("20".to_owned()));
+        assert_eq!(offset_next_cursor(20, 20, 20, 40), None);
+        assert_eq!(offset_next_cursor(20, 19, 20, 40), None);
     }
 
     #[test]

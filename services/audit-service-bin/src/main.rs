@@ -24,11 +24,14 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("audit-service failed to bind local listener: {error}"))?;
 
-    axum::serve(listener, sdkwork_routes_im_audit_backend_api::build_public_app())
-        .with_graceful_shutdown(async {
-            sdkwork_im_service_readiness::shutdown_signal().await;
-        })
-        .await
-        .map_err(|error| format!("audit-service server should run: {error}"))?;
+    axum::serve(
+        listener,
+        sdkwork_routes_im_audit_backend_api::build_public_app(),
+    )
+    .with_graceful_shutdown(async {
+        sdkwork_im_service_readiness::shutdown_signal().await;
+    })
+    .await
+    .map_err(|error| format!("audit-service server should run: {error}"))?;
     Ok(())
 }

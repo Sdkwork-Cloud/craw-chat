@@ -6,18 +6,22 @@ use im_app_context::AppContext;
 use tokio::time::Instant;
 
 use crate::frame::{
-    AUTH_INIT_MAX_FRAME_BYTES, AUTH_INIT_TIMEOUT_SECONDS, WebsocketAuthInitFrame, auth_error_payload,
-    auth_ok_payload_from_context,
+    AUTH_INIT_MAX_FRAME_BYTES, AUTH_INIT_TIMEOUT_SECONDS, WebsocketAuthInitFrame,
+    auth_error_payload, auth_ok_payload_from_context,
 };
 
-pub async fn read_websocket_auth_init_frame(socket: &mut WebSocket) -> Option<WebsocketAuthInitFrame> {
+pub async fn read_websocket_auth_init_frame(
+    socket: &mut WebSocket,
+) -> Option<WebsocketAuthInitFrame> {
     let deadline = Instant::now() + Duration::from_secs(AUTH_INIT_TIMEOUT_SECONDS);
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
             return None;
         }
-        let next_message = tokio::time::timeout(remaining, socket.next()).await.ok()??;
+        let next_message = tokio::time::timeout(remaining, socket.next())
+            .await
+            .ok()??;
         let Ok(message) = next_message else {
             return None;
         };

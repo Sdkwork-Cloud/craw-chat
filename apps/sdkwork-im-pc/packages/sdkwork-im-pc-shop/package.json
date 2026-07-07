@@ -4,7 +4,6 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
-    "@sdkwork/im-pc-chat": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
     "@sdkwork/im-pc-core": "workspace:*",
     "@sdkwork/shop-pc-consumer": "workspace:*",

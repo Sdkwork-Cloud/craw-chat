@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use axum::middleware::from_fn_with_state;
 use axum::Router;
+use axum::middleware::from_fn_with_state;
 use im_app_context::resolve_web_environment_from_process_env;
-use sdkwork_iam_web_adapter::{
-    IamAuthorizationPolicy, IamWebRequestContextResolver,
-};
-use sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env;
+use sdkwork_iam_web_adapter::{IamAuthorizationPolicy, IamWebRequestContextResolver};
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
+use sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env;
 use sdkwork_web_axum::with_web_request_context;
 use sdkwork_web_bootstrap::{
     HttpMethod, HttpRoute, HttpRouteManifest, ReadinessCheck, SecurityPolicy, WebEnvironment,
@@ -19,11 +17,30 @@ use sdkwork_web_store_sqlx::{
     shared_idempotency_store, shared_rate_limit_store, shared_security_event_emitter,
 };
 
+use crate::constants::{
+    GATEWAY_REQUEST_TIMEOUT_SECS_DEFAULT, GATEWAY_REQUEST_TIMEOUT_SECS_ENV,
+    GATEWAY_REQUEST_TIMEOUT_SECS_MAX,
+};
 use crate::gateway_protection::{
     TenantRateLimitConfig, TenantRateLimiter, per_tenant_rate_limit_middleware,
 };
 
 const IM_APP_API_PREFIX: &str = "/im/v3/api";
+
+/// Resolve the gateway-level HTTP request timeout from env, clamped to
+/// `[1, GATEWAY_REQUEST_TIMEOUT_SECS_MAX]`. Defaults to
+/// `GATEWAY_REQUEST_TIMEOUT_SECS_DEFAULT` (90s) which exceeds the upstream
+/// proxy timeout (60s) to allow upstream responses to complete and return
+/// through the gateway interceptor pipeline.
+fn resolve_gateway_request_timeout() -> std::time::Duration {
+    let secs = std::env::var(GATEWAY_REQUEST_TIMEOUT_SECS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|&v| v > 0)
+        .unwrap_or(GATEWAY_REQUEST_TIMEOUT_SECS_DEFAULT)
+        .min(GATEWAY_REQUEST_TIMEOUT_SECS_MAX);
+    std::time::Duration::from_secs(secs)
+}
 
 const GATEWAY_PUBLIC_ROUTES: &[HttpRoute] = &[HttpRoute::public(
     HttpMethod::Get,
@@ -48,7 +65,10 @@ fn gateway_security_policy(environment: &WebEnvironment) -> SecurityPolicy {
     security_policy
 }
 
-fn gateway_optional_features(environment: &WebEnvironment, sync_dev_assembly: bool) -> WebFrameworkOptionalFeatures {
+fn gateway_optional_features(
+    environment: &WebEnvironment,
+    sync_dev_assembly: bool,
+) -> WebFrameworkOptionalFeatures {
     if sync_dev_assembly || matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
         WebFrameworkOptionalFeatures::default()
     } else {
@@ -120,17 +140,17 @@ fn wrap_gateway_router_with_resolver(
         .route_manifest(route_manifest.clone())
         .authorization_policy(Arc::new(IamAuthorizationPolicy::new(route_manifest)))
         .tenant_isolation_policy(Arc::new(EnforcePrincipalTenantIsolationPolicy))
-        .optional_features(optional_features);
+        .optional_features(optional_features)
+        .request_timeout(resolve_gateway_request_timeout());
     if let Some(check) = readiness {
         framework_builder = framework_builder.readiness_check(check);
     }
     let framework = framework_builder.build();
     service_router(
-        with_web_request_context(router, framework.layer().clone())
-            .layer(from_fn_with_state(
-                TenantRateLimiter::new(TenantRateLimitConfig::from_env()),
-                per_tenant_rate_limit_middleware,
-            )),
+        with_web_request_context(router, framework.layer().clone()).layer(from_fn_with_state(
+            TenantRateLimiter::new(TenantRateLimitConfig::from_env()),
+            per_tenant_rate_limit_middleware,
+        )),
         framework.service_router_config(),
     )
 }
@@ -173,17 +193,17 @@ async fn wrap_gateway_router_with_resolver_from_env(
         .authorization_policy(Arc::new(IamAuthorizationPolicy::new(route_manifest)))
         .tenant_isolation_policy(Arc::new(EnforcePrincipalTenantIsolationPolicy))
         .optional_features(optional_features)
+        .request_timeout(resolve_gateway_request_timeout())
         .readiness_check(readiness);
     if production_assembly {
         framework_builder = configure_production_framework_builder(framework_builder).await;
     }
     let framework = framework_builder.build();
     service_router(
-        with_web_request_context(router, framework.layer().clone())
-            .layer(from_fn_with_state(
-                TenantRateLimiter::new(TenantRateLimitConfig::from_env()),
-                per_tenant_rate_limit_middleware,
-            )),
+        with_web_request_context(router, framework.layer().clone()).layer(from_fn_with_state(
+            TenantRateLimiter::new(TenantRateLimitConfig::from_env()),
+            per_tenant_rate_limit_middleware,
+        )),
         framework.service_router_config(),
     )
 }

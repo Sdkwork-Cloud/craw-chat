@@ -2,13 +2,13 @@
 
 use std::sync::Arc;
 
+use crate::SocialPostgresPool;
 use crate::governance_store::{SpaceMemberRecord, SpaceMemberStore};
 use crate::member_capacity::MemberInsertOutcome;
 use crate::organization_store::{
     GroupMemberRecord, GroupMemberStore, GroupRecord, GroupStore, SpaceRecord, SpaceStore,
 };
 use crate::wire_id::social_entity_id_to_i64;
-use crate::SocialPostgresPool;
 use im_domain_events::space::{
     GroupCreatedPayload, GroupDeletedPayload, GroupMemberJoinedPayload, GroupMemberRemovedPayload,
     GroupMemberUpdatedPayload, GroupOwnerTransferredPayload, GroupUpdatedPayload,
@@ -30,26 +30,18 @@ impl SpacePostgresMaterializer {
         let pool_arc = Arc::new(pool.inner().clone());
         Self {
             pool,
-            space_store: Arc::new(
-                crate::organization_store::PostgresSpaceStore::new(
-                    pool_arc.clone(),
-                ),
-            ),
-            space_member_store: Arc::new(
-                crate::governance_store::PostgresSpaceMemberStore::new(
-                    pool_arc.clone(),
-                ),
-            ),
-            group_store: Arc::new(
-                crate::organization_store::PostgresGroupStore::new(
-                    pool_arc.clone(),
-                ),
-            ),
-            group_member_store: Arc::new(
-                crate::organization_store::PostgresGroupMemberStore::new(
-                    pool_arc,
-                ),
-            ),
+            space_store: Arc::new(crate::organization_store::PostgresSpaceStore::new(
+                pool_arc.clone(),
+            )),
+            space_member_store: Arc::new(crate::governance_store::PostgresSpaceMemberStore::new(
+                pool_arc.clone(),
+            )),
+            group_store: Arc::new(crate::organization_store::PostgresGroupStore::new(
+                pool_arc.clone(),
+            )),
+            group_member_store: Arc::new(crate::organization_store::PostgresGroupMemberStore::new(
+                pool_arc,
+            )),
         }
     }
 
@@ -73,8 +65,7 @@ impl SpacePostgresMaterializer {
     pub fn materialize_commits(&self, commits: &[CommitEnvelope]) -> Result<(), String> {
         if commits.len() > 1 {
             return crate::space_materialize_writes::materialize_space_commits_in_transaction(
-                &self.pool,
-                commits,
+                &self.pool, commits,
             );
         }
         for commit in commits {
@@ -94,9 +85,8 @@ impl SpacePostgresMaterializer {
     fn try_compensate_commit(&self, commit: &CommitEnvelope) -> Result<(), String> {
         match commit.event_type.as_str() {
             "space.created" => {
-                let payload: SpaceCreatedPayload =
-                    serde_json::from_str(commit.payload.as_str())
-                        .map_err(|error| format!("invalid space.created payload: {error}"))?;
+                let payload: SpaceCreatedPayload = serde_json::from_str(commit.payload.as_str())
+                    .map_err(|error| format!("invalid space.created payload: {error}"))?;
                 self.space_store
                     .delete(
                         commit.tenant_id.as_str(),
@@ -300,10 +290,7 @@ impl SpacePostgresMaterializer {
             tenant_id: commit.tenant_id.clone(),
             organization_id: commit.organization_id.clone(),
             group_id: social_entity_id_to_i64(payload.group_id.as_str()),
-            space_id: payload
-                .space_id
-                .as_deref()
-                .map(social_entity_id_to_i64),
+            space_id: payload.space_id.as_deref().map(social_entity_id_to_i64),
             group_name: payload.group_name.clone(),
             group_type: payload.group_type,
             owner_user_id: payload.owner_user_id.clone(),
@@ -453,8 +440,9 @@ impl SpacePostgresMaterializer {
     }
 
     fn materialize_group_owner_transferred(&self, commit: &CommitEnvelope) -> Result<(), String> {
-        let payload: GroupOwnerTransferredPayload = serde_json::from_str(commit.payload.as_str())
-            .map_err(|error| format!("invalid group.owner_transferred payload: {error}"))?;
+        let payload: GroupOwnerTransferredPayload =
+            serde_json::from_str(commit.payload.as_str())
+                .map_err(|error| format!("invalid group.owner_transferred payload: {error}"))?;
         self.group_store
             .transfer_owner(
                 commit.tenant_id.as_str(),

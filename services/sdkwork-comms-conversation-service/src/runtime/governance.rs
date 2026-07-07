@@ -76,8 +76,11 @@ where
         command: ApplyConversationPolicyCommand,
         actor_kind: &str,
     ) -> Result<ConversationPolicy, RuntimeError> {
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let (payload, ordering_seq, actor_kind, applied_at) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.governance");
@@ -129,9 +132,8 @@ where
                 actor_kind.as_str(),
             ))?;
 
-        let retention_class = super::support::retention_class_from_policy_ref(
-            payload.retention_policy_ref.as_str(),
-        );
+        let retention_class =
+            super::support::retention_class_from_policy_ref(payload.retention_policy_ref.as_str());
         if im_domain_core::retention::retention_is_indefinite(retention_class.as_str()) {
             if let Some(store) = &self.retention_scope_store {
                 store

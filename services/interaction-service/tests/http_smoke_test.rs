@@ -114,8 +114,7 @@ async fn readyz_route_is_wired() {
         .expect("readyz request should complete");
 
     assert!(
-        response.status() == StatusCode::OK
-            || response.status() == StatusCode::SERVICE_UNAVAILABLE,
+        response.status() == StatusCode::OK || response.status() == StatusCode::SERVICE_UNAVAILABLE,
         "readyz should respond with 200 or 503, got {}",
         response.status()
     );

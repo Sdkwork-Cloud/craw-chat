@@ -30,7 +30,8 @@ const CALLING_MAX_REQUEST_BODY_BYTES_MAX: usize = 10 * 1024 * 1024;
 const CALLING_MAX_SIGNALS_PER_SESSION_ENV: &str = "SDKWORK_IM_CALLING_MAX_SIGNALS_PER_SESSION";
 const CALLING_MAX_SIGNALS_PER_SESSION_DEFAULT: usize = 1_024;
 const CALLING_MAX_SIGNALS_PER_SESSION_MAX: usize = 10_000;
-const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_ENV: &str = "SDKWORK_IM_CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX";
+const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_ENV: &str =
+    "SDKWORK_IM_CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX";
 const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_DEFAULT: usize = 4_096;
 const CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX_LIMIT: usize = 100_000;
 
@@ -93,7 +94,10 @@ pub(crate) fn resolve_signal_rate_tracker_cache_max() -> usize {
     })
 }
 
-pub(crate) fn trim_session_signals<T>(signals: &mut std::collections::BTreeMap<u64, T>, max_signals: usize) {
+pub(crate) fn trim_session_signals<T>(
+    signals: &mut std::collections::BTreeMap<u64, T>,
+    max_signals: usize,
+) {
     while signals.len() > max_signals {
         signals.pop_first();
     }

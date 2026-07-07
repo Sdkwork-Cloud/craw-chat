@@ -114,10 +114,15 @@ pub fn ensure_user_not_banned_in_space(
     }
 }
 
-pub fn normalize_space_member_role(role: Option<&str>, allow_owner: bool) -> Result<String, ApiProblem> {
+pub fn normalize_space_member_role(
+    role: Option<&str>,
+    allow_owner: bool,
+) -> Result<String, ApiProblem> {
     match role.unwrap_or("member") {
         "owner" if allow_owner => Ok("owner".to_owned()),
-        "owner" => Err(ApiProblem::bad_request("owner role cannot be assigned directly")),
+        "owner" => Err(ApiProblem::bad_request(
+            "owner role cannot be assigned directly",
+        )),
         "admin" => Ok("admin".to_owned()),
         "member" => Ok("member".to_owned()),
         "guest" => Ok("guest".to_owned()),

@@ -3,19 +3,19 @@
 //! Uses a PostgreSQL advisory lock so only one process purges expired rows per database
 //! even when multiple service processes (gateway + ops) are running.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use im_platform_contracts::ContractError;
 use tracing::{error, info, warn};
 
-use crate::{
-    postgres_pool_client, postgres_unavailable, purge_expired_retention_batch,
-    PostgresJournalConfig, PostgresJournalPool, RetentionCleanupReport,
-};
 use crate::retention_metrics::RetentionPurgeMetrics;
+use crate::{
+    PostgresJournalConfig, PostgresJournalPool, RetentionCleanupReport, postgres_pool_client,
+    postgres_unavailable, purge_expired_retention_batch,
+};
 
 const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const SCHEDULER_ENABLED_ENV: &str = "SDKWORK_IM_RETENTION_PURGE_SCHEDULER_ENABLED";
@@ -106,7 +106,9 @@ pub fn spawn_retention_purge_scheduler_from_env() -> Option<RetentionPurgeSchedu
         max_batches_per_tick = config.max_batches_per_tick,
         "retention purge scheduler started"
     );
-    Some(spawn_retention_purge_scheduler_with_pool_bootstrap(config, metrics))
+    Some(spawn_retention_purge_scheduler_with_pool_bootstrap(
+        config, metrics,
+    ))
 }
 
 fn spawn_retention_purge_scheduler_with_pool_bootstrap(
@@ -235,7 +237,10 @@ fn run_retention_purge_tick(
         let report = purge_expired_retention_batch(pool, Some(config.batch_size))?;
         aggregate.merge(&report);
         batches += 1;
-        metrics.record_batch(&report, started.elapsed().as_micros().min(u64::MAX as u128) as u64);
+        metrics.record_batch(
+            &report,
+            started.elapsed().as_micros().min(u64::MAX as u128) as u64,
+        );
         if report.is_empty() || batches >= config.max_batches_per_tick {
             break;
         }
@@ -273,7 +278,10 @@ impl RetentionPurgeLock {
         let acquired = crate::run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool_for_lock, "retention purge lock")?;
             let row = client
-                .query_one("SELECT pg_try_advisory_lock($1)", &[&RETENTION_PURGE_ADVISORY_LOCK_KEY])
+                .query_one(
+                    "SELECT pg_try_advisory_lock($1)",
+                    &[&RETENTION_PURGE_ADVISORY_LOCK_KEY],
+                )
                 .map_err(|error| postgres_unavailable("retention purge lock acquire", error))?;
             Ok(row.get::<_, bool>(0))
         })?;

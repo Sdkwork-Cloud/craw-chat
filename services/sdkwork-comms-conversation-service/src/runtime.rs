@@ -1,12 +1,15 @@
 use im_app_context::AppContext;
+use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{
     ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
     MessageStore, OutboxStore, ReadCursorRecord, RealtimeEventPublisher, RetentionScopeStore,
     StoredMessageRecord,
 };
-use im_domain_core::retention::retention_until_from_envelope;
 use sdkwork_im_contract_core::ContractError;
-use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
+use sdkwork_im_contract_message::{
+    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateScope,
+    CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition,
+};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -27,27 +30,29 @@ use im_domain_core::message::{
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
+use sdkwork_utils_rust::SdkWorkPageData;
+use sdkwork_utils_rust::sha256_hash;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use sdkwork_utils_rust::sha256_hash;
 
 mod actor_inbox;
 mod binding;
 mod creation;
 mod direct_message_access;
 mod durable_message_post;
-mod postgres_direct_message_gate;
 mod governance;
 mod handoff;
 pub mod http;
-mod journal_bootstrap;
 pub mod internal_rpc_dispatch;
-pub mod rpc_dispatch;
+mod journal_bootstrap;
 mod membership;
 mod message_realtime;
 mod policy;
+mod postgres_direct_message_gate;
 mod recovery;
 mod room;
+pub mod rpc_dispatch;
+mod rpc_projection_dispatch;
 mod support;
 
 use self::governance::ConversationPolicyAppliedPayload;
@@ -59,20 +64,19 @@ use self::support::{
     build_message_reaction_removed_envelope, build_message_recalled_envelope,
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
-    conversation_scope_key_for_envelope, conversation_timestamp, encode_conversation_key_segments,
-    event_id_component, next_member_episode, resolve_active_member, resolve_active_member_id,
-    resolve_active_member_id_with_kind, resolve_active_member_with_kind,
-    deactivate_roster_member, upsert_member, upsert_roster_member,
-    upsert_read_cursor,
+    conversation_scope_key_for_envelope, conversation_timestamp, deactivate_roster_member,
+    encode_conversation_key_segments, event_id_component, next_member_episode,
+    resolve_active_member, resolve_active_member_id, resolve_active_member_id_with_kind,
+    resolve_active_member_with_kind, upsert_member, upsert_read_cursor, upsert_roster_member,
 };
+pub use direct_message_access::DirectMessageAccessGate;
+pub use durable_message_post::DurableMessagePostWriter;
 pub use http::{
     PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory,
     bootstrap_conversation_app_state_from_env, build_default_app,
     build_default_app_with_principal_directory, build_public_app,
     build_public_app_with_allow_all_principals, build_public_app_with_principal_directory,
 };
-pub use direct_message_access::DirectMessageAccessGate;
-pub use durable_message_post::DurableMessagePostWriter;
 pub use journal_bootstrap::{
     ConversationCommitJournal, build_conversation_runtime_from_env,
     resolve_conversation_commit_journal_from_env,
@@ -96,7 +100,7 @@ const MESSAGE_BODY_MAX_BYTES: usize = 512 * 1024;
 const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 100;
 const MESSAGE_HISTORY_MAX_LIMIT: usize = 1000;
 const CONVERSATION_MEMBER_LIST_DEFAULT_LIMIT: usize = 100;
-const CONVERSATION_MEMBER_LIST_MAX_LIMIT: usize = 1000;
+pub(super) const CONVERSATION_MEMBER_LIST_MAX_LIMIT: usize = 1000;
 const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
 const CONVERSATION_MAX_IN_MEMORY_DEFAULT: usize = 10_000;
@@ -766,7 +770,6 @@ pub struct UnpinMessageCommand {
     pub unpinned_by: Sender,
 }
 
-
 pub(super) fn organization_id_from_auth_context(auth: &AppContext) -> String {
     im_domain_events::normalize_commit_organization_id(auth.organization_id.as_str())
 }
@@ -778,7 +781,6 @@ pub(super) fn default_organization_id() -> String {
 pub fn default_post_message_organization_id() -> String {
     default_organization_id()
 }
-
 
 impl CreateConversationCommand {
     pub fn from_auth_context(
@@ -1254,33 +1256,16 @@ pub struct MessageMutationResult {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageHistoryResult {
-    pub items: Vec<im_domain_core::message::StoredMessage>,
+    #[serde(flatten)]
+    pub page: SdkWorkPageData<im_domain_core::message::StoredMessage>,
     pub high_watermark: u64,
-    pub next_after_seq: Option<u64>,
-    pub has_more: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ListMembersResult {
-    pub items: Vec<ConversationMember>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
+pub type ListMembersResult = SdkWorkPageData<ConversationMember>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ListPinnedMessagesResult {
-    pub message_ids: Vec<String>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
+pub type ListPinnedMessagesResult = SdkWorkPageData<String>;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InboxRetrieveResult {
-    pub conversation_ids: Vec<String>,
-    pub next_cursor: Option<String>,
-    pub has_more: bool,
-}
+pub type InboxRetrieveResult = SdkWorkPageData<String>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1401,7 +1386,10 @@ struct RuntimeState {
     actor_inbox: actor_inbox::ActorInboxRuntimeStore,
 }
 
-pub(super) fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
+pub(super) fn lock_runtime_mutex<'a, T>(
+    mutex: &'a Mutex<T>,
+    label: &'static str,
+) -> MutexGuard<'a, T> {
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
@@ -1482,7 +1470,9 @@ impl RuntimeState {
                 (k.clone(), ts)
             })
             .collect();
-        entries.sort_by_key(|(_, ts)| *ts);
+        // O(n) partial sort: partition so that entries[0..evict_count] are the
+        // evict_count smallest timestamps, avoiding a full O(n log n) sort.
+        entries.select_nth_unstable_by_key(evict_count, |(_, ts)| *ts);
         for (key, _) in entries.iter().take(evict_count) {
             self.conversations.remove(key.as_str());
         }
@@ -2153,6 +2143,76 @@ impl CommitJournal for InMemoryJournal {
     fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
         Ok(InMemoryJournal::recorded(self))
     }
+
+    fn recorded_page(
+        &self,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let all = InMemoryJournal::recorded(self);
+        let limit = limit.max(1);
+        let start_index = cursor
+            .and_then(|cursor| {
+                all.iter().position(|envelope| {
+                    envelope.ordering_key == cursor.partition_key
+                        && envelope.ordering_seq == cursor.commit_offset
+                })
+            })
+            .map(|index| index.saturating_add(1))
+            .unwrap_or(0);
+        let page_items: Vec<_> = all.into_iter().skip(start_index).take(limit).collect();
+        let next_cursor = if page_items.len() == limit {
+            page_items.last().map(|envelope| CommitJournalReplayCursor {
+                partition_key: envelope.ordering_key.clone(),
+                commit_offset: envelope.ordering_seq,
+            })
+        } else {
+            None
+        };
+        Ok(CommitJournalReplayPage {
+            items: page_items,
+            next_cursor,
+        })
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let filtered: Vec<CommitEnvelope> = InMemoryJournal::recorded(self)
+            .into_iter()
+            .filter(|envelope| {
+                envelope.tenant_id == scope.tenant_id
+                    && (envelope.aggregate_id == scope.aggregate_id
+                        || envelope.scope_id == scope.aggregate_id)
+            })
+            .collect();
+        let limit = limit.max(1);
+        let start_index = cursor
+            .and_then(|cursor| {
+                filtered.iter().position(|envelope| {
+                    envelope.ordering_key == cursor.partition_key
+                        && envelope.ordering_seq == cursor.commit_offset
+                })
+            })
+            .map(|index| index.saturating_add(1))
+            .unwrap_or(0);
+        let page_items: Vec<_> = filtered.into_iter().skip(start_index).take(limit).collect();
+        let next_cursor = if page_items.len() == limit {
+            page_items.last().map(|envelope| CommitJournalReplayCursor {
+                partition_key: envelope.ordering_key.clone(),
+                commit_offset: envelope.ordering_seq,
+            })
+        } else {
+            None
+        };
+        Ok(CommitJournalReplayPage {
+            items: page_items,
+            next_cursor,
+        })
+    }
 }
 
 pub struct ConversationRuntime<J> {
@@ -2255,11 +2315,25 @@ where
     }
 
     pub fn recover_from_journal(&self) -> Result<usize, RuntimeError> {
-        let snapshot = self.journal.recorded().map_err(RuntimeError::from)?;
         let mut recovered_count = 0usize;
-        for envelope in &snapshot {
-            self.apply_recovered_envelope(envelope)?;
-            recovered_count = recovered_count.saturating_add(1);
+        let mut cursor = None;
+        loop {
+            let page = self
+                .journal
+                .recorded_page(cursor.as_ref(), COMMIT_JOURNAL_REPLAY_BATCH_LIMIT)
+                .map_err(RuntimeError::from)?;
+            if page.items.is_empty() {
+                break;
+            }
+            let batch_len = page.items.len();
+            for envelope in &page.items {
+                self.apply_recovered_envelope(envelope)?;
+                recovered_count = recovered_count.saturating_add(1);
+            }
+            cursor = page.next_cursor;
+            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
+                break;
+            }
         }
         {
             let mut state = write_runtime_state(&self.state, "runtime.state.rebuild-actor-inbox");
@@ -2279,12 +2353,32 @@ where
         tenant_id: &str,
         conversation_id: &str,
     ) -> Result<usize, RuntimeError> {
-        let snapshot = self.journal.recorded().map_err(RuntimeError::from)?;
+        let scope = CommitJournalAggregateScope {
+            tenant_id: tenant_id.to_owned(),
+            aggregate_id: conversation_id.to_owned(),
+        };
         let mut recovered = 0usize;
-        for envelope in &snapshot {
-            if envelope.tenant_id == tenant_id && envelope.scope_id == conversation_id {
+        let mut cursor = None;
+        loop {
+            let page = self
+                .journal
+                .recorded_page_for_aggregate(
+                    &scope,
+                    cursor.as_ref(),
+                    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
+                )
+                .map_err(RuntimeError::from)?;
+            if page.items.is_empty() {
+                break;
+            }
+            let batch_len = page.items.len();
+            for envelope in &page.items {
                 self.apply_recovered_envelope(envelope)?;
                 recovered += 1;
+            }
+            cursor = page.next_cursor;
+            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
+                break;
             }
         }
         if recovered == 0 {
@@ -2313,18 +2407,31 @@ where
             }
         }
         // 优先路径 1：有 AggregateStore 时从 DB 加载聚合状态。
+        //
+        // DB I/O is performed *outside* the write lock to avoid blocking other
+        // requests that need the runtime state lock. A double-check after
+        // acquiring the write lock prevents redundant inserts when another
+        // thread loaded the same conversation concurrently.
         if let Some(ref aggregate_store) = self.aggregate_store {
             let organization_id =
                 im_domain_events::normalize_commit_organization_id(organization_id);
+            let db_state = aggregate_store.load_aggregate_state(
+                tenant_id,
+                organization_id.as_str(),
+                conversation_id,
+            );
             let mut state =
                 write_runtime_state(&self.state, "ensure_conversation_loaded.aggregate");
+            // Double-check: another thread may have loaded this conversation
+            // while we were reading from the database.
+            if state.conversations.contains_key(scope_key.as_str()) {
+                return Ok(());
+            }
             let mut conversation_state = ConversationState {
                 last_accessed_at_ms: now_ms(),
                 ..Default::default()
             };
-            if let Ok(db_state) =
-                aggregate_store.load_aggregate_state(tenant_id, organization_id.as_str(), conversation_id)
-            {
+            if let Ok(db_state) = db_state {
                 for member_record in &db_state.members {
                     let member = conversation_member_from_record(member_record);
                     conversation_state.roster.upsert_member(member);
@@ -2393,7 +2500,8 @@ where
         if self.aggregate_store.is_none() {
             return;
         }
-        if let Err(error) = self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
+        if let Err(error) =
+            self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
         {
             tracing::warn!(
                 tenant_id,
@@ -2453,8 +2561,11 @@ where
             command.conversation_id.as_str(),
         )?;
         let request_key = post_message_request_key(&command);
-        let scope_key =
-            conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), command.conversation_id.as_str());
+        let scope_key = conversation_scope_key(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         let mutation = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.post_message");
@@ -2517,189 +2628,192 @@ where
                                 );
                             }
                         }
-                    let sender_member = resolve_active_member_with_kind(
-                        conversation,
-                        command.sender.id.as_str(),
-                        command.sender.kind.as_str(),
-                    )?;
-                    policy::ensure_actor_kind_matches_member(
-                        &sender_member,
-                        command.sender.kind.as_str(),
-                    )?;
-                    match policy {
-                        MessagePostPolicy::GenericPost => {
-                            policy::ensure_message_post_allowed(conversation, &sender_member)?;
-                            policy::ensure_room_message_post_allowed(conversation, &sender_member)?;
-                            direct_message_access::ensure_direct_message_post_allowed(
-                                command.tenant_id.as_str(),
-                                command.organization_id.as_str(),
-                                conversation,
-                                &sender_member,
-                                self.resolve_direct_message_access_gate().as_deref(),
-                            )?;
-                        }
-                        MessagePostPolicy::SystemChannelPublish => {
-                            policy::ensure_system_channel_publish_command_allowed(
-                                conversation,
-                                &sender_member,
-                            )?
-                        }
-                    }
-                    // Per-conversation ordinal seq: Redis batch prefetch or Postgres counter.
-                    let message_seq = if let Some(allocator) = &self.seq_allocator {
-                        allocator
-                            .allocate_seq(
-                                command.tenant_id.as_str(),
-                                command.organization_id.as_str(),
-                                command.conversation_id.as_str(),
-                            )
-                            .map_err(RuntimeError::from)?
-                    } else if let Some(store) = &self.message_store {
-                        store
-                            .allocate_message_seq(
-                                command.tenant_id.as_str(),
-                                command.organization_id.as_str(),
-                                command.conversation_id.as_str(),
-                            )
-                            .map_err(RuntimeError::from)?
-                    } else {
-                        conversation.message_log.high_watermark() + 1
-                    };
-
-                    let mut sender = command.sender.clone();
-                    if sender.member_id.is_none() {
-                        sender.member_id = Some(sender_member.member_id.clone());
-                    }
-
-                    // ID 生成：优先使用 Snowflake，fallback 到确定性字符串拼接
-                    let message_id = if let Some(generator) = &self.id_generator {
-                        generator.next_id().map_err(RuntimeError::from)?.to_string()
-                    } else {
-                        generated_message_id(command.conversation_id.as_str(), message_seq)
-                    };
-                    let message_timestamp = conversation_timestamp();
-                    let message = Message {
-                        tenant_id: command.tenant_id.clone(),
-                        conversation_id: command.conversation_id.clone(),
-                        message_id: message_id.clone(),
-                        message_seq,
-                        sender,
-                        message_type: command.message_type.clone(),
-                        delivery_mode: "discrete".into(),
-                        client_msg_id: command.client_msg_id.clone(),
-                        stream_session_id: None,
-                        rtc_session_id: rtc_session_id_from_signal_message(&command),
-                        body: command.body.clone(),
-                        attributes: BTreeMap::new(),
-                        metadata: BTreeMap::new(),
-                        occurred_at: message_timestamp.clone(),
-                        committed_at: Some(message_timestamp),
-                    };
-                    let event_id = if let Some(generator) = &self.id_generator {
-                        generator.next_id().map_err(RuntimeError::from)?.to_string()
-                    } else {
-                        format!("evt_{}_posted", message.message_id)
-                    };
-                    let retention_class = conversation_retention_class(conversation);
-                    let retention_until = retention_until_from_envelope(
-                        retention_class.as_str(),
-                        message.occurred_at.as_str(),
-                    );
-                    let journal_ordering_seq = conversation.aggregate.next_commit_seq();
-                    let envelope = CommitEnvelope {
-                        event_id: event_id.clone(),
-                        tenant_id: command.tenant_id.clone(),
-                        organization_id: command.organization_id.clone(),
-                        event_type: "message.posted".into(),
-                        event_version: 1,
-                        aggregate_type: AggregateType::Conversation,
-                        aggregate_id: command.conversation_id.clone(),
-                        scope_type: "conversation".into(),
-                        scope_id: command.conversation_id.clone(),
-                        ordering_key: CommitEnvelope::ordering_key(
-                            command.tenant_id.as_str(),
-                            command.conversation_id.as_str(),
-                        ),
-                        ordering_seq: journal_ordering_seq,
-                        causation_id: None,
-                        correlation_id: None,
-                        idempotency_key: command.client_msg_id.clone(),
-                        actor: EventActor {
-                            actor_id: message.sender.id.clone(),
-                            actor_kind: message.sender.kind.clone(),
-                            actor_session_id: message.sender.session_id.clone(),
-                        },
-                        occurred_at: message.occurred_at.clone(),
-                        committed_at: message
-                            .committed_at
-                            .clone()
-                            .unwrap_or_else(|| message.occurred_at.clone()),
-                        payload_schema: Some("message.posted.v1".into()),
-                        payload: runtime_json_string(&message)?,
-                        retention_class,
-                        audit_class: "default".into(),
-                    };
-
-                    let stored_record = StoredMessageRecord {
-                        tenant_id: message.tenant_id.clone(),
-                        organization_id: command.organization_id.clone(),
-                        conversation_id: message.conversation_id.clone(),
-                        message_id: message.message_id.parse::<i64>().unwrap_or(0),
-                        message_seq: message.message_seq,
-                        sender_principal_kind: message.sender.kind.clone(),
-                        sender_principal_id: message.sender.id.clone(),
-                        sender_device_id: message.sender.device_id.clone(),
-                        client_msg_id: message.client_msg_id.clone(),
-                        message_type: message.message_type.as_wire_value().to_owned(),
-                        payload_json: runtime_json_string(&message.body)?,
-                        payload_hash: sha256_message_hash(&message.body),
-                        created_at: message.occurred_at.clone(),
-                        updated_at: message.occurred_at.clone(),
-                        deleted_at: None,
-                        retention_until,
-                    };
-
-                    if let Some(writer) = &self.durable_message_post_writer {
-                        let outbox = self.build_message_posted_outbox_record(
-                            command.tenant_id.as_str(),
-                            command.organization_id.as_str(),
-                            &message,
+                        let sender_member = resolve_active_member_with_kind(
+                            conversation,
+                            command.sender.id.as_str(),
+                            command.sender.kind.as_str(),
                         )?;
-                        writer
-                            .persist_message_post(envelope, stored_record, outbox)
-                            .map_err(RuntimeError::from)?;
-                    } else {
-                        self.journal.append(envelope)?;
-
-                        if let Some(store) = &self.message_store {
-                            store
-                                .insert_message(stored_record)
-                                .map_err(RuntimeError::from)?;
+                        policy::ensure_actor_kind_matches_member(
+                            &sender_member,
+                            command.sender.kind.as_str(),
+                        )?;
+                        match policy {
+                            MessagePostPolicy::GenericPost => {
+                                policy::ensure_message_post_allowed(conversation, &sender_member)?;
+                                policy::ensure_room_message_post_allowed(
+                                    conversation,
+                                    &sender_member,
+                                )?;
+                                direct_message_access::ensure_direct_message_post_allowed(
+                                    command.tenant_id.as_str(),
+                                    command.organization_id.as_str(),
+                                    conversation,
+                                    &sender_member,
+                                    self.resolve_direct_message_access_gate().as_deref(),
+                                )?;
+                            }
+                            MessagePostPolicy::SystemChannelPublish => {
+                                policy::ensure_system_channel_publish_command_allowed(
+                                    conversation,
+                                    &sender_member,
+                                )?
+                            }
                         }
-                    }
+                        // Per-conversation ordinal seq: Redis batch prefetch or Postgres counter.
+                        let message_seq = if let Some(allocator) = &self.seq_allocator {
+                            allocator
+                                .allocate_seq(
+                                    command.tenant_id.as_str(),
+                                    command.organization_id.as_str(),
+                                    command.conversation_id.as_str(),
+                                )
+                                .map_err(RuntimeError::from)?
+                        } else if let Some(store) = &self.message_store {
+                            store
+                                .allocate_message_seq(
+                                    command.tenant_id.as_str(),
+                                    command.organization_id.as_str(),
+                                    command.conversation_id.as_str(),
+                                )
+                                .map_err(RuntimeError::from)?
+                        } else {
+                            conversation.message_log.high_watermark() + 1
+                        };
 
-                    conversation.message_log.store_posted(message.clone());
-                    if let Some(request_key) = request_key.as_ref() {
-                        conversation.posted_message_requests.insert(
-                            request_key.clone(),
-                            PostedMessageReplayRecord {
-                                sender_id: command.sender.id.clone(),
-                                sender_kind: command.sender.kind.clone(),
-                                message_type: command.message_type.clone(),
-                                body: command.body.clone(),
-                                message_id: message_id.clone(),
-                            },
-                        );
-                    }
-                    PostMessageMutation::Applied {
-                        result: PostMessageResult::applied(
-                            message_id,
+                        let mut sender = command.sender.clone();
+                        if sender.member_id.is_none() {
+                            sender.member_id = Some(sender_member.member_id.clone());
+                        }
+
+                        // ID 生成：优先使用 Snowflake，fallback 到确定性字符串拼接
+                        let message_id = if let Some(generator) = &self.id_generator {
+                            generator.next_id().map_err(RuntimeError::from)?.to_string()
+                        } else {
+                            generated_message_id(command.conversation_id.as_str(), message_seq)
+                        };
+                        let message_timestamp = conversation_timestamp();
+                        let message = Message {
+                            tenant_id: command.tenant_id.clone(),
+                            conversation_id: command.conversation_id.clone(),
+                            message_id: message_id.clone(),
                             message_seq,
-                            event_id,
-                            request_key.clone(),
-                        ),
-                        message,
-                    }
+                            sender,
+                            message_type: command.message_type.clone(),
+                            delivery_mode: "discrete".into(),
+                            client_msg_id: command.client_msg_id.clone(),
+                            stream_session_id: None,
+                            rtc_session_id: rtc_session_id_from_signal_message(&command),
+                            body: command.body.clone(),
+                            attributes: BTreeMap::new(),
+                            metadata: BTreeMap::new(),
+                            occurred_at: message_timestamp.clone(),
+                            committed_at: Some(message_timestamp),
+                        };
+                        let event_id = if let Some(generator) = &self.id_generator {
+                            generator.next_id().map_err(RuntimeError::from)?.to_string()
+                        } else {
+                            format!("evt_{}_posted", message.message_id)
+                        };
+                        let retention_class = conversation_retention_class(conversation);
+                        let retention_until = retention_until_from_envelope(
+                            retention_class.as_str(),
+                            message.occurred_at.as_str(),
+                        );
+                        let journal_ordering_seq = conversation.aggregate.next_commit_seq();
+                        let envelope = CommitEnvelope {
+                            event_id: event_id.clone(),
+                            tenant_id: command.tenant_id.clone(),
+                            organization_id: command.organization_id.clone(),
+                            event_type: "message.posted".into(),
+                            event_version: 1,
+                            aggregate_type: AggregateType::Conversation,
+                            aggregate_id: command.conversation_id.clone(),
+                            scope_type: "conversation".into(),
+                            scope_id: command.conversation_id.clone(),
+                            ordering_key: CommitEnvelope::ordering_key(
+                                command.tenant_id.as_str(),
+                                command.conversation_id.as_str(),
+                            ),
+                            ordering_seq: journal_ordering_seq,
+                            causation_id: None,
+                            correlation_id: None,
+                            idempotency_key: command.client_msg_id.clone(),
+                            actor: EventActor {
+                                actor_id: message.sender.id.clone(),
+                                actor_kind: message.sender.kind.clone(),
+                                actor_session_id: message.sender.session_id.clone(),
+                            },
+                            occurred_at: message.occurred_at.clone(),
+                            committed_at: message
+                                .committed_at
+                                .clone()
+                                .unwrap_or_else(|| message.occurred_at.clone()),
+                            payload_schema: Some("message.posted.v1".into()),
+                            payload: runtime_json_string(&message)?,
+                            retention_class,
+                            audit_class: "default".into(),
+                        };
+
+                        let stored_record = StoredMessageRecord {
+                            tenant_id: message.tenant_id.clone(),
+                            organization_id: command.organization_id.clone(),
+                            conversation_id: message.conversation_id.clone(),
+                            message_id: message.message_id.parse::<i64>().unwrap_or(0),
+                            message_seq: message.message_seq,
+                            sender_principal_kind: message.sender.kind.clone(),
+                            sender_principal_id: message.sender.id.clone(),
+                            sender_device_id: message.sender.device_id.clone(),
+                            client_msg_id: message.client_msg_id.clone(),
+                            message_type: message.message_type.as_wire_value().to_owned(),
+                            payload_json: runtime_json_string(&message.body)?,
+                            payload_hash: sha256_message_hash(&message.body),
+                            created_at: message.occurred_at.clone(),
+                            updated_at: message.occurred_at.clone(),
+                            deleted_at: None,
+                            retention_until,
+                        };
+
+                        if let Some(writer) = &self.durable_message_post_writer {
+                            let outbox = self.build_message_posted_outbox_record(
+                                command.tenant_id.as_str(),
+                                command.organization_id.as_str(),
+                                &message,
+                            )?;
+                            writer
+                                .persist_message_post(envelope, stored_record, outbox)
+                                .map_err(RuntimeError::from)?;
+                        } else {
+                            self.journal.append(envelope)?;
+
+                            if let Some(store) = &self.message_store {
+                                store
+                                    .insert_message(stored_record)
+                                    .map_err(RuntimeError::from)?;
+                            }
+                        }
+
+                        conversation.message_log.store_posted(message.clone());
+                        if let Some(request_key) = request_key.as_ref() {
+                            conversation.posted_message_requests.insert(
+                                request_key.clone(),
+                                PostedMessageReplayRecord {
+                                    sender_id: command.sender.id.clone(),
+                                    sender_kind: command.sender.kind.clone(),
+                                    message_type: command.message_type.clone(),
+                                    body: command.body.clone(),
+                                    message_id: message_id.clone(),
+                                },
+                            );
+                        }
+                        PostMessageMutation::Applied {
+                            result: PostMessageResult::applied(
+                                message_id,
+                                message_seq,
+                                event_id,
+                                request_key.clone(),
+                            ),
+                            message,
+                        }
                     }
                 }
             };
@@ -2752,8 +2866,11 @@ where
         let edited = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.edit_message");
-            let scope_key =
-                conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), conversation_id.as_str());
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+            );
             state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
@@ -2787,10 +2904,8 @@ where
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
             {
-                let request_key =
-                    message_mutation_request_key(&command.editor, idempotency_key);
-                if let Some(existing) = conversation.message_mutation_requests.get(&request_key)
-                {
+                let request_key = message_mutation_request_key(&command.editor, idempotency_key);
+                if let Some(existing) = conversation.message_mutation_requests.get(&request_key) {
                     if existing.result.message_id == command.message_id {
                         return Ok(existing.result.clone());
                     }
@@ -2849,8 +2964,10 @@ where
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            let mut state =
-                write_runtime_state(&self.state, "conversation-runtime.state.edit_message.idempotency");
+            let mut state = write_runtime_state(
+                &self.state,
+                "conversation-runtime.state.edit_message.idempotency",
+            );
             let scope_key = conversation_scope_key(
                 command.tenant_id.as_str(),
                 command.organization_id.as_str(),
@@ -2905,8 +3022,11 @@ where
         let recalled = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.recall_message");
-            let scope_key =
-                conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), conversation_id.as_str());
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+            );
             state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
@@ -2935,8 +3055,7 @@ where
             {
                 let request_key =
                     message_mutation_request_key(&command.recalled_by, idempotency_key);
-                if let Some(existing) = conversation.message_mutation_requests.get(&request_key)
-                {
+                if let Some(existing) = conversation.message_mutation_requests.get(&request_key) {
                     if existing.result.message_id == command.message_id {
                         return Ok(existing.result.clone());
                     }
@@ -3070,8 +3189,11 @@ where
                 &self.state,
                 "conversation-runtime.state.add_message_reaction",
             );
-            let scope_key =
-                conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), conversation_id.as_str());
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+            );
             state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
@@ -3200,8 +3322,11 @@ where
                 &self.state,
                 "conversation-runtime.state.remove_message_reaction",
             );
-            let scope_key =
-                conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), conversation_id.as_str());
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+            );
             state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
@@ -3323,8 +3448,11 @@ where
         let (pin, changed) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.pin_message");
-            let scope_key =
-                conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), conversation_id.as_str());
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+            );
             state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
@@ -3436,8 +3564,11 @@ where
         let (pin, changed) = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.unpin_message");
-            let scope_key =
-                conversation_scope_key(command.tenant_id.as_str(), command.organization_id.as_str(), conversation_id.as_str());
+            let scope_key = conversation_scope_key(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                conversation_id.as_str(),
+            );
             state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations

@@ -11,28 +11,37 @@ import type {
 } from '@sdkwork/im-sdk-generated';
 
 /** OpenAPI-aligned friend request with stable request id. */
-export interface FriendRequest extends GeneratedFriendRequest {
-  requestId: string;
+export interface FriendRequest extends Omit<GeneratedFriendRequest, 'requestId'> {
+  friendRequestId: string;
+  /** @deprecated Use friendRequestId. Retained for legacy wire compatibility. */
+  requestId?: string;
 }
 
-/** Unwrapped inbox list payload aligned with `sdkwork-im-im.openapi.yaml#InboxResponse`. */
+/** Unwrapped inbox list payload aligned with `sdkwork-im-im.openapi.yaml` list `data`. */
 export interface InboxResponse {
   items: ConversationInboxEntry[];
-  nextCursor?: string | null;
-  hasMore: boolean;
+  pageInfo: SdkWorkListPageInfo;
 }
 
-/** Unwrapped timeline list payload aligned with `sdkwork-im-im.openapi.yaml#TimelineResponse`. */
+/** Unwrapped timeline list payload aligned with OpenAPI list `data`. */
 export interface TimelineResponse {
   items: TimelineViewEntry[];
-  nextAfterSeq?: number | null;
-  hasMore: boolean;
+  pageInfo: SdkWorkListPageInfo;
 }
 
 export interface ListMembersResponse {
   items: ConversationMember[];
+  pageInfo: SdkWorkListPageInfo;
+}
+
+export interface SdkWorkListPageInfo {
+  mode: 'cursor' | 'offset';
+  hasMore?: boolean;
   nextCursor?: string | null;
-  hasMore: boolean;
+  page?: number | null;
+  pageSize?: number | null;
+  totalItems?: string | null;
+  totalPages?: number | null;
 }
 
 export interface PinnedMessagesResponse {
@@ -48,17 +57,6 @@ export interface FavoriteMessagesResponse {
 export interface DeleteMessageFavoriteResponse {
   favoriteId: string;
   deleted: boolean;
-}
-
-export interface MessageVisibilityMutationResult {
-  tenantId: string;
-  conversationId: string;
-  messageId: string;
-  messageSeq: number;
-  principalKind: string;
-  principalId: string;
-  isDeleted: boolean;
-  updatedAt: string;
 }
 
 export interface ContactsResponse {

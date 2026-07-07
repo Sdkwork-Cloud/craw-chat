@@ -372,14 +372,14 @@ pub(crate) fn validate_stream_frame_page_size(page_size: usize) -> Result<usize,
         return Err(StreamingError {
             status: axum::http::StatusCode::BAD_REQUEST,
             code: "page_size_invalid",
-            message: "pageSize must be greater than 0".into(),
+            message: "page_size must be greater than 0".into(),
         });
     }
     if page_size > max_page_size {
         return Err(StreamingError {
             status: axum::http::StatusCode::BAD_REQUEST,
             code: "page_size_invalid",
-            message: format!("pageSize must be less than or equal to {max_page_size}"),
+            message: format!("page_size must be less than or equal to {max_page_size}"),
         });
     }
     Ok(page_size)

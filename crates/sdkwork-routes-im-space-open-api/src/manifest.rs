@@ -14,12 +14,7 @@ pub const ROUTES: &[HttpRoute] = &[
         "space",
         "space.spaces.create",
     ),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::SPACES,
-        "space",
-        "space.spaces.list",
-    ),
+    HttpRoute::dual_token(HttpMethod::Get, paths::SPACES, "space", "space.spaces.list"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SPACE,

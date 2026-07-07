@@ -1,6 +1,10 @@
 /**
  * Canonical PC sidebar module catalog.
  * Capability packages register views; the shell owns module identity and defaults.
+ *
+ * `COMMERCIAL_RUNTIME_MODULES` is the only set eligible for sidebar navigation,
+ * lazy module rendering, workspace launcher, and settings module picker.
+ * `CONTRACT_PENDING_MODULES` remain in the catalog for future sibling SDK wiring.
  */
 
 export const ALL_APP_MODULES = [
@@ -79,26 +83,17 @@ export function listCommercialRuntimeModules(): AppModuleId[] {
 
 export const ALWAYS_CONFIGURABLE_MODULES = new Set<AppModuleId>(["notary"]);
 
-/** Maps workspace launcher app ids to sidebar module tabs. */
-export const WORKSPACE_APP_TAB_MAP: Record<string, AppModuleId> = {
-  notary: "notary",
-  mail: "mail",
-  drive: "drive",
-  calendar: "calendar",
-  approval: "approval",
-  report: "report",
-  attendance: "attendance",
-  knowledge: "knowledge",
-  devices: "devices",
-  enterprise: "enterprise",
-  community: "community",
-  course: "course",
-  videogen: "videogen",
-  imagegen: "imagegen",
-  voicegen: "voicegen",
-  musicgen: "musicgen",
-  writing: "writing",
-};
+export const WORKSPACE_APP_TAB_MAP: Record<string, AppModuleId> = Object.fromEntries(
+  Object.entries({
+    notary: 'notary',
+    drive: 'drive',
+    knowledge: 'knowledge',
+    community: 'community',
+    voice: 'voice',
+    shop: 'shop',
+    orders: 'orders',
+  }).filter(([appId]) => COMMERCIAL_RUNTIME_MODULES.has(appId as AppModuleId)),
+) as Record<string, AppModuleId>;
 
 export function resolveWorkspaceAppTab(appId: string): AppModuleId | undefined {
   return WORKSPACE_APP_TAB_MAP[appId];

@@ -5,17 +5,17 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
 use im_adapters_social_postgres::governance_store::ChannelAccessRuleRecord;
 use im_app_context::AppContext;
-use serde::{Deserialize, Serialize};
 use sdkwork_routes_web_framework_backend_api::response::{
     ApiProblem, ApiResult, finish_api_json, finish_api_response, no_content,
 };
 use sdkwork_utils_rust::{SdkWorkPageData, SdkWorkResourceData};
 use sdkwork_web_core::WebRequestContext;
+use serde::{Deserialize, Serialize};
 
-use crate::api_payload::{bounded_sql_list_page, resource_item};
+use crate::api_payload::{keyset_list_page, resource_item};
 use crate::http::AppState;
 use crate::id::next_entity_id;
-use crate::list_query::{resolve_list_page, sql_fetch_limit, sql_fetch_offset, ListQuery};
+use crate::list_query::{ListQuery, resolve_keyset_page};
 use crate::space_access::{
     actor_can_manage_space, actor_can_read_space, load_channel_in_space, load_space,
     parse_entity_id, parse_space_id,
@@ -130,7 +130,11 @@ pub async fn list_access_rules(
         let space = load_space(&state, &auth, space_id)?;
         actor_can_read_space(&state, &auth, &space)?;
         load_channel_in_space(&state, &auth, space_id, channel_id)?;
-        let paging = resolve_list_page(&query)?;
+        let paging = resolve_keyset_page(&query)?;
+        let cursor_rule_id = paging
+            .cursor_entity
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok());
 
         let records = state
             .channel_access_rule_store
@@ -138,8 +142,9 @@ pub async fn list_access_rules(
                 auth.tenant_id.as_str(),
                 auth.organization_id.as_str(),
                 channel_id,
-                sql_fetch_limit(paging),
-                sql_fetch_offset(paging),
+                paging.cursor_sort_value.as_deref(),
+                cursor_rule_id,
+                paging.fetch_limit(),
             )
             .map_err(|error| {
                 tracing::error!(error = ?error, "failed to list channel access rules");
@@ -147,7 +152,11 @@ pub async fn list_access_rules(
             })?;
 
         let items = records.into_iter().map(AccessRuleResponse::from).collect();
-        Ok(bounded_sql_list_page(items, paging.page_size, paging.offset))
+        Ok(keyset_list_page(
+            items,
+            paging.page_size,
+            |item: &AccessRuleResponse| (item.created_at.clone(), item.rule_id.clone()),
+        ))
     })();
     finish_api_json(&ctx, result)
 }

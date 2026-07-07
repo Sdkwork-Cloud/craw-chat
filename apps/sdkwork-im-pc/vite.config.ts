@@ -20,13 +20,13 @@ const generatedImBackendSdkEntry = path.resolve(
   __dirname,
   '../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts',
 );
-const generatedAppbaseAppSdkEntry = path.resolve(
+const appbaseAppSdkEntry = path.resolve(
   repoRoot,
-  '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts',
 );
-const generatedAppbaseBackendSdkEntry = path.resolve(
+const appbaseBackendSdkEntry = path.resolve(
   repoRoot,
-  '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+  '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts',
 );
 const generatedAiotAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-aiot'),
@@ -40,17 +40,17 @@ const generatedDriveAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-drive'),
   'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts',
 );
-const generatedCatalogAppSdkEntry = path.resolve(
+const catalogAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-catalog'),
-  'sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/src/index.ts',
 );
-const generatedShopAppSdkEntry = path.resolve(
+const shopAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-shop'),
-  'sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/src/index.ts',
 );
-const generatedOrderAppSdkEntry = path.resolve(
+const orderAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-order'),
-  'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts',
 );
 const generatedMembershipAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-membership'),
@@ -220,6 +220,7 @@ const sdkworkUtilsSourceRoot = path.resolve(
   'packages/sdkwork-utils-typescript/src',
 );
 const sdkworkUtilsEntry = path.resolve(sdkworkUtilsSourceRoot, 'index.ts');
+const adminSdkSourceRoot = path.resolve(__dirname, './packages/sdkwork-im-pc-admin-sdk/src');
 const adminCoreSourceRoot = path.resolve(__dirname, './packages/sdkwork-im-admin-core/src');
 const reactEntry = path.resolve(__dirname, 'node_modules/react/index.js');
 const reactJsxRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-runtime.js');
@@ -276,14 +277,14 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-core/src/sdk/agentsAppSdkClient.ts') },
         { find: '@sdkwork/aiot-app-sdk', replacement: generatedAiotAppSdkEntry },
         { find: '@sdkwork/aiot-backend-sdk', replacement: generatedAiotBackendSdkEntry },
-        { find: '@sdkwork/iam-app-sdk', replacement: generatedAppbaseAppSdkEntry },
-        { find: '@sdkwork/iam-backend-sdk', replacement: generatedAppbaseBackendSdkEntry },
+        { find: '@sdkwork/iam-app-sdk', replacement: appbaseAppSdkEntry },
+        { find: '@sdkwork/iam-backend-sdk', replacement: appbaseBackendSdkEntry },
         { find: '@sdkwork/drive-app-sdk', replacement: generatedDriveAppSdkEntry },
         { find: '@sdkwork/voice-app-sdk', replacement: generatedVoiceAppSdkEntry },
         { find: '@sdkwork/knowledgebase-app-sdk', replacement: generatedKnowledgebaseAppSdkEntry },
-        { find: '@sdkwork/catalog-app-sdk', replacement: generatedCatalogAppSdkEntry },
-        { find: '@sdkwork/shop-app-sdk', replacement: generatedShopAppSdkEntry },
-        { find: '@sdkwork/order-app-sdk', replacement: generatedOrderAppSdkEntry },
+        { find: '@sdkwork/catalog-app-sdk', replacement: catalogAppSdkEntry },
+        { find: '@sdkwork/shop-app-sdk', replacement: shopAppSdkEntry },
+        { find: '@sdkwork/order-app-sdk', replacement: orderAppSdkEntry },
         { find: '@sdkwork/membership-app-sdk', replacement: generatedMembershipAppSdkEntry },
         { find: '@sdkwork/mail-app-sdk', replacement: generatedMailAppSdkTransportEntry },
         { find: 'sdkwork-mail-app-sdk-generated-typescript', replacement: generatedMailAppSdkTransportEntry },
@@ -367,6 +368,8 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/community-app-sdk', replacement: path.resolve(dependencyRoot('sdkwork-community'), 'sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts') },
         { find: '@sdkwork/im-pc-enterprise', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-enterprise/src') },
         { find: '@sdkwork/im-console-core', replacement: path.resolve(__dirname, './packages/sdkwork-im-console-core/src') },
+        { find: /^@sdkwork\/im-pc-admin-sdk\/(.+)$/, replacement: `${adminSdkSourceRoot}/$1` },
+        { find: '@sdkwork/im-pc-admin-sdk', replacement: path.resolve(adminSdkSourceRoot, 'index.ts') },
         { find: /^@sdkwork\/im-admin-core\/(.+)$/, replacement: `${adminCoreSourceRoot}/$1` },
         { find: '@sdkwork/im-admin-core', replacement: adminCoreSourceRoot },
         { find: '@sdkwork/im-pc-approvals', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-approvals/src') },
@@ -449,6 +452,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork/utils',
         '@sdkwork/core-pc-react',
         '@sdkwork/ui-pc-react',
+        '@sdkwork/im-pc-admin-sdk',
       ],
     },
     build: {

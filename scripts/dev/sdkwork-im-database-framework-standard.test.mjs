@@ -10,6 +10,10 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
+function readJson(relativePath) {
+  return JSON.parse(read(relativePath));
+}
+
 const rootCargo = read('Cargo.toml');
 assert.match(
   rootCargo,
@@ -54,6 +58,31 @@ const postgresBaselinePath = 'database/ddl/baseline/postgres/0001_im_baseline.sq
 assert.ok(
   fs.existsSync(path.join(repoRoot, postgresBaselinePath)),
   `${postgresBaselinePath} must exist for L2 lifecycle`,
+);
+
+const databaseManifest = readJson('database/database.manifest.json');
+assert.deepEqual(
+  databaseManifest.engines,
+  ['postgres'],
+  'IM runtime persistence engines must match the PostgreSQL-only database manifest',
+);
+assert.equal(
+  databaseManifest.defaultEngine,
+  'postgres',
+  'IM runtime persistence must default to PostgreSQL',
+);
+
+const rootPackage = readJson('package.json');
+const materializeContractCommand = rootPackage.scripts?.['db:materialize:contract'] ?? '';
+assert.match(
+  materializeContractCommand,
+  /--engines\s+postgres(?:\s|$)/u,
+  'db:materialize:contract must materialize the PostgreSQL runtime authority',
+);
+assert.doesNotMatch(
+  materializeContractCommand,
+  /--engines\s+postgres,sqlite(?:\s|$)/u,
+  'db:materialize:contract must not imply durable SQLite IM runtime support from the PostgreSQL baseline',
 );
 
 process.stdout.write('sdkwork-im database framework standard contract passed\n');

@@ -72,7 +72,33 @@
         "requestSent": "已向 {{name}} 发送好友申请",
         "searchFailed": "搜索失败",
         "alreadyFriend": "对方已经是你的好友",
-        "requestPending": "好友申请已在处理中"
+        "requestPending": "好友申请已在处理中",
+        "requestBlocked": "无法向该用户发送好友申请"
+      }
+    },
+    "tags": {
+      "title": "标签管理",
+      "description": "分类管理您的联系人，方便快速查找",
+      "create": "新建标签",
+      "rename": "重命名",
+      "contactCount": "{{count}} 个联系人",
+      "addMembers": "添加人员",
+      "emptyMembers": "这里将展示 \"{{name}}\" 标签下的联系人列表",
+      "prompt": {
+        "createName": "请输入新标签名称：",
+        "renameName": "请输入新的标签名称",
+        "addMemberIds": "请输入要添加的联系人ID，逗号分隔："
+      },
+      "toast": {
+        "loadFailed": "加载标签失败",
+        "createSucceeded": "新建标签成功",
+        "createFailed": "新建标签失败",
+        "renameSucceeded": "重命名成功",
+        "renameFailed": "重命名失败",
+        "deleteSucceeded": "标签已删除",
+        "deleteFailed": "删除标签失败",
+        "addMembersSucceeded": "已成功将 {{count}} 个成员加入该标签",
+        "addMembersFailed": "添加标签成员失败"
       }
     },
     "groups": {
@@ -101,6 +127,7 @@
       "statusAdded": "已添加",
       "statusCancelled": "已撤回",
       "statusRejected": "已拒绝",
+      "empty": "暂无新的好友申请",
       "toast": {
         "loadFailed": "加载好友申请失败",
         "acceptSucceeded": "已通过申请",
@@ -126,6 +153,7 @@
     },
     "detail": {
       "addToBlacklist": "加入黑名单",
+      "removeFromBlacklist": "移出黑名单",
       "basicInfo": "基本信息",
       "chatId": "Chat ID",
       "company": "公司",
@@ -148,6 +176,8 @@
       "toast": {
         "blacklisted": "已加入黑名单",
         "blacklistFailed": "黑名单更新失败",
+        "unblacklisted": "已移出黑名单",
+        "unblacklistFailed": "移出黑名单失败",
         "chatIdCopied": "Chat ID 已复制",
         "chatIdNotReady": "Chat ID 尚未准备好，请稍后重试。",
         "deleted": "联系人已删除",
@@ -412,6 +442,12 @@
         "operationFailed": "会话操作失败",
         "markReadFailed": "标记已读失败"
       },
+      "confirm": {
+        "deleteTitle": "删除会话？",
+        "deleteMessage": "将从会话列表中移除「{{name}}」。",
+        "leaveGroupTitle": "退出群聊？",
+        "leaveGroupMessage": "你将退出「{{name}}」，并不再接收新消息。"
+      },
       "time": {
         "yesterday": "昨天"
       },
@@ -485,18 +521,30 @@
       },
       "recalledPlaceholder": "该消息已被撤回",
       "editedIndicator": "(已编辑)",
+      "sendState": {
+        "pending": "发送中…",
+        "retry": "重新发送"
+      },
+      "confirm": {
+        "deleteTitle": "删除消息？",
+        "deleteMessage": "确定删除选中的 {{count}} 条消息？此操作仅对你生效。"
+      },
       "toast": {
         "loadFailed": "加载消息失败",
         "deleteSuccess": "消息已删除",
         "deleteManySuccess": "已删除 {{count}} 条消息",
+        "deletePartial": "已删除 {{succeeded}} 条，{{failed}} 条失败",
         "deleteFailed": "删除消息失败",
         "openGroupFailed": "打开群聊失败",
         "copySuccess": "已复制",
+        "copyEmpty": "没有可复制的内容",
+        "copyFailed": "复制失败",
         "favoriteSuccess": "已收藏",
         "favoriteFailed": "收藏失败",
         "reactionFailed": "表情回应失败",
         "recallSuccess": "消息已撤回",
-        "recallFailed": "撤回消息失败"
+        "recallFailed": "撤回消息失败",
+        "retryFailed": "重新发送失败"
       }
     },
     "messageItems": {
@@ -780,6 +828,7 @@
       },
       "actions": {
         "cancel": "取消",
+        "confirm": "确认",
         "search": "搜索",
         "createWithCount": "创建 ({{count}})",
         "creating": "创建中...",

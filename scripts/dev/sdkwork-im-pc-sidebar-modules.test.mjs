@@ -37,7 +37,7 @@ const newFriendsContainerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-p
 const contactServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ContactService.ts');
 const messageListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/MessageList.tsx');
 const chatListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatList.tsx');
-const toastSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/Toast.tsx');
+const toastSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-commons/src/components/Toast.tsx');
 const zhLocale = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json');
 const enLocale = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json');
 
@@ -314,8 +314,26 @@ assert.match(
 );
 assert.match(
   capabilityModuleLoadersSource,
+  /COMMERCIAL_RUNTIME_MODULES/u,
+  'shell capability loaders must derive from commercial runtime module registry',
+);
+assert.match(
+  capabilityModuleLoadersSource,
   /notary:\s*\(\)\s*=>\s*import\(['"]@sdkwork\/notary-pc-notary['"]\)/u,
   'shell capability loaders must lazy-load the notary module when selected from sidebar or workspace',
+);
+assert.doesNotMatch(
+  capabilityModuleLoadersSource,
+  /im-pc-mail|course-pc-course|im-pc-calendar|im-pc-approvals|im-pc-attendance|im-pc-reports|im-pc-enterprise|im-pc-video-gen|im-pc-image-gen|im-pc-music-gen|im-pc-writing/u,
+  'shell capability loaders must not register contract-pending modules before SDK contracts ship',
+);
+const lazyCapabilityRendererSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/LazyCapabilityModuleRenderer.tsx',
+);
+assert.match(
+  lazyCapabilityRendererSource,
+  /isCommercialRuntimeModule\(activeTab\)/u,
+  'LazyCapabilityModuleRenderer must gate lazy module rendering to commercial runtime modules',
 );
 assert.match(
   moduleLayoutSource,

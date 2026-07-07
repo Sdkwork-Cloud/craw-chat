@@ -11,7 +11,7 @@ use im_platform_contracts::{ContractError, RealtimeCheckpointRecord, RealtimeChe
 use serde::Deserialize;
 use serde_json::{Value, json};
 use session_gateway::{
-    RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeRuntimeError,
+    RealtimeClusterBridge, RealtimeDeliveryRuntime, RealtimeEventWindowQuery, RealtimeRuntimeError,
     RealtimeSubscriptionItemInput,
 };
 
@@ -279,15 +279,17 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
     );
 
     for device_id in ["d_primary", "d_mobile", "d_tablet"] {
-        let window = expect_ok(runtime.list_events_for_principal_kind(
-            TENANT_ID,
-            "default",
-            PRINCIPAL_ID,
-            PRINCIPAL_KIND,
-            device_id,
-            0,
-            1_000,
-        ));
+        let window = expect_ok(
+            runtime.list_events_for_principal_kind(RealtimeEventWindowQuery {
+                tenant_id: TENANT_ID,
+                organization_id: "default",
+                principal_id: PRINCIPAL_ID,
+                principal_kind: PRINCIPAL_KIND,
+                device_id,
+                after_seq: 0,
+                limit: 1_000,
+            }),
+        );
         assert_eq!(window.items.len(), 1_000);
         assert_eq!(window.items[0].realtime_seq, 51);
         assert_eq!(
@@ -327,13 +329,15 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
         event_window_store.clone(),
     );
     let restored_primary = expect_ok(rebuilt_runtime.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_primary",
-        0,
-        1_000,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_primary",
+            after_seq: 0,
+            limit: 1_000,
+        },
     ));
     let restore_duration_ms = restore_started.elapsed().as_secs_f64() * 1000.0;
     assert_eq!(restored_primary.acked_through_seq, 800);
@@ -363,13 +367,15 @@ fn test_step11_im_realtime_core_quant_gate_emits_thresholded_metrics() {
     let compensation_rollback_ms = compensation_started.elapsed().as_secs_f64() * 1000.0;
     assert_eq!(error.code, "checkpoint_store_unavailable");
     let mobile_after_failed_ack = expect_ok(failure_runtime.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_mobile",
-        0,
-        1_000,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_mobile",
+            after_seq: 0,
+            limit: 1_000,
+        },
     ));
     assert_eq!(mobile_after_failed_ack.acked_through_seq, 700);
     assert_eq!(mobile_after_failed_ack.trimmed_through_seq, 700);
@@ -528,13 +534,15 @@ fn run_cluster_handoff_drill_ms() -> f64 {
     assert_eq!(routed.delivered, 1);
 
     let target_window = expect_ok(runtime_b.list_events_for_principal_kind(
-        TENANT_ID,
-        "default",
-        PRINCIPAL_ID,
-        PRINCIPAL_KIND,
-        "d_handoff",
-        12,
-        100,
+        RealtimeEventWindowQuery {
+            tenant_id: TENANT_ID,
+            organization_id: "default",
+            principal_id: PRINCIPAL_ID,
+            principal_kind: PRINCIPAL_KIND,
+            device_id: "d_handoff",
+            after_seq: 12,
+            limit: 100,
+        },
     ));
     assert_eq!(target_window.items.len(), 13);
     assert_eq!(target_window.items[12].realtime_seq, 25);

@@ -2,49 +2,36 @@
 
 use std::sync::Arc;
 
-use r2d2::Pool;
-use redis::Commands;
-use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_runtime_route::{
-    encode_route_key_segments, normalize_route_organization_id, RouteBinding, RouteBindingRequest,
-    RouteDirectory, RouteMigrationResult, RouteNodeLifecycle, RouteRuntimeError, RouteStore,
+    RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
+    RouteRuntimeError, RouteStore, encode_route_key_segments, normalize_route_organization_id,
 };
 
-use crate::redis_unavailable;
+use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
 
 const ROUTE_STORE_KEY_PREFIX: &str = "im:route:v1:binding:";
 const ROUTE_STORE_NODE_INDEX_PREFIX: &str = "im:route:v1:node:";
 
-type RedisPool = Pool<redis::Client>;
-
 #[derive(Clone)]
 pub struct RedisBackedRouteStore {
     memory: RouteDirectory,
-    pool: RedisPool,
+    client: redis::Client,
+    timeouts: RedisBlockingTimeouts,
 }
 
 impl RedisBackedRouteStore {
     pub fn new(redis_url: impl AsRef<str>) -> Result<Self, String> {
         let client = redis::Client::open(redis_url.as_ref())
             .map_err(|error| format!("invalid redis route store url: {error}"))?;
-        let pool = Pool::builder()
-            .max_size(16)
-            .build(client)
-            .map_err(|error| format!("redis route store pool init failed: {error}"))?;
         Ok(Self {
             memory: RouteDirectory::default(),
-            pool,
+            client,
+            timeouts: RedisBlockingTimeouts::from_env(),
         })
     }
 
     pub fn into_arc(self) -> Arc<dyn RouteStore> {
         Arc::new(self)
-    }
-
-    fn connection(&self) -> Result<r2d2::PooledConnection<redis::Client>, ContractError> {
-        self.pool.get().map_err(|error| {
-            ContractError::Unavailable(format!("redis route_store_connect failed: {error}"))
-        })
     }
 
     fn binding_key(route_key: &str) -> String {
@@ -72,56 +59,59 @@ impl RedisBackedRouteStore {
             message: format!("encode route binding failed: {error}"),
             node_id: binding.owner_node_id.clone(),
         })?;
-        let mut conn = self.connection().map_err(|error| RouteRuntimeError {
-            code: "route_store_unavailable",
-            message: format!("{error:?}"),
+        let binding_key = Self::binding_key(route_key.as_str());
+        let node_index_key = Self::node_index_key(binding.owner_node_id.as_str());
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "route_store_write",
+            move |mut connection| async move {
+                redis::cmd("SET")
+                    .arg(binding_key)
+                    .arg(payload)
+                    .query_async::<()>(&mut connection)
+                    .await?;
+                redis::cmd("SADD")
+                    .arg(node_index_key)
+                    .arg(route_key.as_str())
+                    .query_async::<i32>(&mut connection)
+                    .await?;
+                Ok(())
+            },
+        )
+        .map_err(|error| RouteRuntimeError {
+            code: "route_store_write_failed",
+            message: format!("persist route binding failed: {error:?}"),
             node_id: binding.owner_node_id.clone(),
-        })?;
-        let _: () = conn
-            .set(Self::binding_key(route_key.as_str()), payload)
-            .map_err(|error| RouteRuntimeError {
-                code: "route_store_write_failed",
-                message: format!("persist route binding failed: {error}"),
-                node_id: binding.owner_node_id.clone(),
-            })?;
-        let _: i32 = conn
-            .sadd(
-                Self::node_index_key(binding.owner_node_id.as_str()),
-                route_key.as_str(),
-            )
-            .map_err(|error| RouteRuntimeError {
-                code: "route_store_index_failed",
-                message: format!("index route binding failed: {error}"),
-                node_id: binding.owner_node_id.clone(),
-            })?;
-        Ok(())
+        })
     }
 
     fn remove_binding(&self, binding: &RouteBinding) -> Result<(), RouteRuntimeError> {
         let route_key = Self::route_key_for_binding(binding);
-        let mut conn = self.connection().map_err(|error| RouteRuntimeError {
-            code: "route_store_unavailable",
-            message: format!("{error:?}"),
+        let binding_key = Self::binding_key(route_key.as_str());
+        let node_index_key = Self::node_index_key(binding.owner_node_id.as_str());
+        run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "route_store_delete",
+            move |mut connection| async move {
+                redis::cmd("DEL")
+                    .arg(binding_key)
+                    .query_async::<i32>(&mut connection)
+                    .await?;
+                redis::cmd("SREM")
+                    .arg(node_index_key)
+                    .arg(route_key.as_str())
+                    .query_async::<i32>(&mut connection)
+                    .await?;
+                Ok(())
+            },
+        )
+        .map_err(|error| RouteRuntimeError {
+            code: "route_store_delete_failed",
+            message: format!("delete route binding failed: {error:?}"),
             node_id: binding.owner_node_id.clone(),
-        })?;
-        let _: i32 = conn
-            .del(Self::binding_key(route_key.as_str()))
-            .map_err(|error| RouteRuntimeError {
-                code: "route_store_delete_failed",
-                message: format!("delete route binding failed: {error}"),
-                node_id: binding.owner_node_id.clone(),
-            })?;
-        let _: i32 = conn
-            .srem(
-                Self::node_index_key(binding.owner_node_id.as_str()),
-                route_key.as_str(),
-            )
-            .map_err(|error| RouteRuntimeError {
-                code: "route_store_index_failed",
-                message: format!("unindex route binding failed: {error}"),
-                node_id: binding.owner_node_id.clone(),
-            })?;
-        Ok(())
+        })
     }
 
     fn hydrate_from_redis(
@@ -139,11 +129,19 @@ impl RedisBackedRouteStore {
             principal_id,
             device_id,
         ]);
-        let mut conn = self.connection().ok()?;
-        let payload: String = conn
-            .get(Self::binding_key(route_key.as_str()))
-            .map_err(|error| redis_unavailable("route_store_lookup", error))
-            .ok()?;
+        let binding_key = Self::binding_key(route_key.as_str());
+        let payload: String = run_bounded_redis_command(
+            &self.client,
+            self.timeouts,
+            "route_store_lookup",
+            move |mut connection| async move {
+                redis::cmd("GET")
+                    .arg(binding_key)
+                    .query_async(&mut connection)
+                    .await
+            },
+        )
+        .ok()?;
         let binding: RouteBinding = serde_json::from_str(payload.as_str()).ok()?;
         self.memory.register_node(binding.owner_node_id.as_str());
         self.memory.observe_external_binding(binding.clone());
@@ -280,7 +278,9 @@ impl RouteStore for RedisBackedRouteStore {
         expected_current: &RouteBinding,
         restore_to: RouteBinding,
     ) -> Option<RouteBinding> {
-        let restored = self.memory.restore_if_current(expected_current, restore_to)?;
+        let restored = self
+            .memory
+            .restore_if_current(expected_current, restore_to)?;
         if let Err(error) = self.persist_binding(&restored) {
             tracing::warn!(
                 target: "sdkwork.im",
@@ -321,6 +321,8 @@ mod tests {
         };
         let key = RedisBackedRouteStore::route_key_for_binding(&binding);
         assert!(key.contains("principal:segment"));
-        assert!(RedisBackedRouteStore::binding_key(key.as_str()).starts_with(ROUTE_STORE_KEY_PREFIX));
+        assert!(
+            RedisBackedRouteStore::binding_key(key.as_str()).starts_with(ROUTE_STORE_KEY_PREFIX)
+        );
     }
 }

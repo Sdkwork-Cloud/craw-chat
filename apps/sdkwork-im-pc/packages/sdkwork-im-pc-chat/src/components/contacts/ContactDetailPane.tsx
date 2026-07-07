@@ -29,6 +29,8 @@ export const ContactDetailPane: React.FC<{
   const { t } = useTranslation();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [pendingContactAction, setPendingContactAction] = useState<'blacklist' | 'delete' | null>(null);
   const [displayName, setDisplayName] = useState(user.name);
   const { promptConfig, customPrompt, closePrompt } = usePrompt();
   const displayUserChatId = user.chatId ?? '';
@@ -43,6 +45,14 @@ export const ContactDetailPane: React.FC<{
         setIsStarred(starred.some((starredUser) => starredUser.id === user.id));
       })
       .catch(() => setIsStarred(false));
+  }, [user.id]);
+
+  useEffect(() => {
+    contactService.getContactPreferences(user.id)
+      .then((preferences) => {
+        setIsBlocked(Boolean(preferences.isBlocked));
+      })
+      .catch(() => setIsBlocked(false));
   }, [user.id]);
 
   const handleToggleStar = async () => {
@@ -165,28 +175,56 @@ export const ContactDetailPane: React.FC<{
                       </button>
                       <div className="mx-2 my-1 h-px bg-white/10" />
                       <button
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                        disabled={pendingContactAction !== null}
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={async () => {
+                          if (pendingContactAction) {
+                            return;
+                          }
                           setShowMoreMenu(false);
+                          setPendingContactAction('blacklist');
                           try {
-                            await contactService.addToBlacklist(user.id);
-                            toast(t('contacts.detail.toast.blacklisted'), 'success');
+                            if (isBlocked) {
+                              await contactService.removeFromBlacklist(user.id);
+                              setIsBlocked(false);
+                              toast(t('contacts.detail.toast.unblacklisted'), 'success');
+                            } else {
+                              await contactService.addToBlacklist(user.id);
+                              setIsBlocked(true);
+                              toast(t('contacts.detail.toast.blacklisted'), 'success');
+                            }
                           } catch {
-                            toast(t('contacts.detail.toast.blacklistFailed'), 'error');
+                            toast(
+                              isBlocked
+                                ? t('contacts.detail.toast.unblacklistFailed')
+                                : t('contacts.detail.toast.blacklistFailed'),
+                              'error',
+                            );
+                          } finally {
+                            setPendingContactAction(null);
                           }
                         }}
                       >
-                        {t('contacts.detail.addToBlacklist')}
+                        {isBlocked
+                          ? t('contacts.detail.removeFromBlacklist')
+                          : t('contacts.detail.addToBlacklist')}
                       </button>
                       <button
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-500 transition-colors hover:bg-red-500/10"
+                        disabled={pendingContactAction !== null}
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={async () => {
+                          if (pendingContactAction) {
+                            return;
+                          }
                           setShowMoreMenu(false);
+                          setPendingContactAction('delete');
                           try {
                             await contactService.deleteContact(user.id);
                             toast(t('contacts.detail.toast.deleted'), 'success');
                           } catch {
                             toast(t('contacts.detail.toast.deleteFailed'), 'error');
+                          } finally {
+                            setPendingContactAction(null);
                           }
                         }}
                       >

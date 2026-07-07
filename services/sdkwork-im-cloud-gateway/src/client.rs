@@ -8,8 +8,9 @@ use crate::constants::{
     GATEWAY_MAX_REQUEST_BODY_BYTES_DEFAULT, GATEWAY_MAX_REQUEST_BODY_BYTES_ENV,
     GATEWAY_MAX_REQUEST_BODY_BYTES_MAX, GATEWAY_MAX_UPSTREAM_RESPONSE_BODY_BYTES_DEFAULT,
     GATEWAY_MAX_UPSTREAM_RESPONSE_BODY_BYTES_ENV, GATEWAY_MAX_UPSTREAM_RESPONSE_BODY_BYTES_MAX,
-    GATEWAY_UPSTREAM_TIMEOUT_SECONDS_DEFAULT, GATEWAY_UPSTREAM_TIMEOUT_SECONDS_ENV,
-    GATEWAY_UPSTREAM_TIMEOUT_SECONDS_MAX,
+    GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_DEFAULT, GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_ENV,
+    GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_MAX, GATEWAY_UPSTREAM_TIMEOUT_SECONDS_DEFAULT,
+    GATEWAY_UPSTREAM_TIMEOUT_SECONDS_ENV, GATEWAY_UPSTREAM_TIMEOUT_SECONDS_MAX,
 };
 
 // Connection pool configuration constants (P1-10 fix)
@@ -34,6 +35,15 @@ fn resolve_upstream_timeout_seconds() -> u64 {
         .filter(|value| *value > 0)
         .unwrap_or(GATEWAY_UPSTREAM_TIMEOUT_SECONDS_DEFAULT)
         .min(GATEWAY_UPSTREAM_TIMEOUT_SECONDS_MAX)
+}
+
+fn resolve_upstream_connect_timeout_seconds() -> u64 {
+    std::env::var(GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_DEFAULT)
+        .min(GATEWAY_UPSTREAM_CONNECT_TIMEOUT_SECONDS_MAX)
 }
 
 pub(crate) fn resolve_max_upstream_response_body_bytes() -> usize {
@@ -67,11 +77,16 @@ fn resolve_pool_idle_timeout_secs() -> u64 {
 /// - `pool_max_idle_per_host`: Maximum idle connections kept alive per upstream host
 /// - `pool_idle_timeout`: How long to keep idle connections before closing
 /// - `tcp_nodelay`: Disable Nagle's algorithm for lower latency
+/// - `connect_timeout`: Fail fast when upstream is unreachable in split-service mode
 ///
-/// These settings prevent connection pool exhaustion under high load (P1-10 fix).
+/// These settings prevent connection pool exhaustion under high load (P1-10 fix)
+/// and ensure fast failure when an upstream service is down.
 pub(crate) fn build_gateway_upstream_client() -> Client {
     Client::builder()
         .timeout(Duration::from_secs(resolve_upstream_timeout_seconds()))
+        .connect_timeout(Duration::from_secs(
+            resolve_upstream_connect_timeout_seconds(),
+        ))
         // Connection pool configuration for high throughput
         .pool_max_idle_per_host(resolve_pool_max_idle_per_host())
         .pool_idle_timeout(Some(Duration::from_secs(resolve_pool_idle_timeout_secs())))

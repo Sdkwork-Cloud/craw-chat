@@ -21,9 +21,9 @@ pub use crate::app::{
 pub use crate::bootstrap::{build_runtime_from_env, default_app_state, default_streaming_runtime};
 pub use crate::dto::{
     AbortStreamRequest, AppendStreamFrameOutcome, AppendStreamFrameRequest,
-    CheckpointStreamRequest, CompleteStreamRequest, OpenStreamRequest,
-    StreamFrameDeliveryStatus, StreamFrameMutationResponse,
-    StreamSessionDeliveryStatus, StreamSessionMutationOutcome, StreamSessionMutationResponse,
+    CheckpointStreamRequest, CompleteStreamRequest, OpenStreamRequest, StreamFrameDeliveryStatus,
+    StreamFrameMutationResponse, StreamSessionDeliveryStatus, StreamSessionMutationOutcome,
+    StreamSessionMutationResponse,
 };
 pub use crate::error::StreamingError;
 pub use crate::helpers::{
