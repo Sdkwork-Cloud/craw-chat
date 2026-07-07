@@ -50,7 +50,11 @@ pub struct RedisCachePool {
 impl RedisCachePool {
     pub async fn new(url: &str) -> RedisResult<Self> {
         let client = redis::Client::open(url)?;
-        let manager = ConnectionManager::new(client).await?;
+        let manager = redis_blocking::bounded_connection_manager(
+            client,
+            redis_blocking::RedisBlockingTimeouts::from_env(),
+        )
+        .await?;
         Ok(Self { manager })
     }
 
