@@ -12,29 +12,29 @@ public final class RoomOrchestrationServiceGrpc {
   public static final java.lang.String SERVICE_NAME = "sdkwork.communication.internal.v1.RoomOrchestrationService";
 
   // Static method descriptors that strictly reflect the proto.
-  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse> getCreateRoomMethod;
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.CreateRoomRequest,
+      com.sdkwork.communication.internal.v1.CreateRoomResponse> getCreateRoomMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "CreateRoom",
-      requestType = com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.class,
-      responseType = com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse.class,
+      requestType = com.sdkwork.communication.internal.v1.CreateRoomRequest.class,
+      responseType = com.sdkwork.communication.internal.v1.CreateRoomResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse> getCreateRoomMethod() {
-    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse> getCreateRoomMethod;
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.CreateRoomRequest,
+      com.sdkwork.communication.internal.v1.CreateRoomResponse> getCreateRoomMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.CreateRoomRequest, com.sdkwork.communication.internal.v1.CreateRoomResponse> getCreateRoomMethod;
     if ((getCreateRoomMethod = RoomOrchestrationServiceGrpc.getCreateRoomMethod) == null) {
       synchronized (RoomOrchestrationServiceGrpc.class) {
         if ((getCreateRoomMethod = RoomOrchestrationServiceGrpc.getCreateRoomMethod) == null) {
           RoomOrchestrationServiceGrpc.getCreateRoomMethod = getCreateRoomMethod =
-              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse>newBuilder()
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.CreateRoomRequest, com.sdkwork.communication.internal.v1.CreateRoomResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "CreateRoom"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.CreateRoomRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.CreateRoomResponse.getDefaultInstance()))
               .setSchemaDescriptor(new RoomOrchestrationServiceMethodDescriptorSupplier("CreateRoom"))
               .build();
         }
@@ -43,29 +43,29 @@ public final class RoomOrchestrationServiceGrpc {
     return getCreateRoomMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse> getRetrieveRoomMethod;
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.RetrieveRoomRequest,
+      com.sdkwork.communication.internal.v1.RetrieveRoomResponse> getRetrieveRoomMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "RetrieveRoom",
-      requestType = com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest.class,
-      responseType = com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse.class,
+      requestType = com.sdkwork.communication.internal.v1.RetrieveRoomRequest.class,
+      responseType = com.sdkwork.communication.internal.v1.RetrieveRoomResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse> getRetrieveRoomMethod() {
-    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse> getRetrieveRoomMethod;
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.RetrieveRoomRequest,
+      com.sdkwork.communication.internal.v1.RetrieveRoomResponse> getRetrieveRoomMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.RetrieveRoomRequest, com.sdkwork.communication.internal.v1.RetrieveRoomResponse> getRetrieveRoomMethod;
     if ((getRetrieveRoomMethod = RoomOrchestrationServiceGrpc.getRetrieveRoomMethod) == null) {
       synchronized (RoomOrchestrationServiceGrpc.class) {
         if ((getRetrieveRoomMethod = RoomOrchestrationServiceGrpc.getRetrieveRoomMethod) == null) {
           RoomOrchestrationServiceGrpc.getRetrieveRoomMethod = getRetrieveRoomMethod =
-              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse>newBuilder()
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.RetrieveRoomRequest, com.sdkwork.communication.internal.v1.RetrieveRoomResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "RetrieveRoom"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.RetrieveRoomRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.RetrieveRoomResponse.getDefaultInstance()))
               .setSchemaDescriptor(new RoomOrchestrationServiceMethodDescriptorSupplier("RetrieveRoom"))
               .build();
         }
@@ -74,29 +74,29 @@ public final class RoomOrchestrationServiceGrpc {
     return getRetrieveRoomMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse> getEnterRoomMethod;
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.EnterRoomRequest,
+      com.sdkwork.communication.internal.v1.EnterRoomResponse> getEnterRoomMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "EnterRoom",
-      requestType = com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest.class,
-      responseType = com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse.class,
+      requestType = com.sdkwork.communication.internal.v1.EnterRoomRequest.class,
+      responseType = com.sdkwork.communication.internal.v1.EnterRoomResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse> getEnterRoomMethod() {
-    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse> getEnterRoomMethod;
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.EnterRoomRequest,
+      com.sdkwork.communication.internal.v1.EnterRoomResponse> getEnterRoomMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.EnterRoomRequest, com.sdkwork.communication.internal.v1.EnterRoomResponse> getEnterRoomMethod;
     if ((getEnterRoomMethod = RoomOrchestrationServiceGrpc.getEnterRoomMethod) == null) {
       synchronized (RoomOrchestrationServiceGrpc.class) {
         if ((getEnterRoomMethod = RoomOrchestrationServiceGrpc.getEnterRoomMethod) == null) {
           RoomOrchestrationServiceGrpc.getEnterRoomMethod = getEnterRoomMethod =
-              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse>newBuilder()
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.EnterRoomRequest, com.sdkwork.communication.internal.v1.EnterRoomResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "EnterRoom"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.EnterRoomRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.EnterRoomResponse.getDefaultInstance()))
               .setSchemaDescriptor(new RoomOrchestrationServiceMethodDescriptorSupplier("EnterRoom"))
               .build();
         }
@@ -105,29 +105,29 @@ public final class RoomOrchestrationServiceGrpc {
     return getEnterRoomMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse> getLeaveRoomMethod;
+  private static volatile io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.LeaveRoomRequest,
+      com.sdkwork.communication.internal.v1.LeaveRoomResponse> getLeaveRoomMethod;
 
   @io.grpc.stub.annotations.RpcMethod(
       fullMethodName = SERVICE_NAME + '/' + "LeaveRoom",
-      requestType = com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest.class,
-      responseType = com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.class,
+      requestType = com.sdkwork.communication.internal.v1.LeaveRoomRequest.class,
+      responseType = com.sdkwork.communication.internal.v1.LeaveRoomResponse.class,
       methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
-  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest,
-      com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse> getLeaveRoomMethod() {
-    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse> getLeaveRoomMethod;
+  public static io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.LeaveRoomRequest,
+      com.sdkwork.communication.internal.v1.LeaveRoomResponse> getLeaveRoomMethod() {
+    io.grpc.MethodDescriptor<com.sdkwork.communication.internal.v1.LeaveRoomRequest, com.sdkwork.communication.internal.v1.LeaveRoomResponse> getLeaveRoomMethod;
     if ((getLeaveRoomMethod = RoomOrchestrationServiceGrpc.getLeaveRoomMethod) == null) {
       synchronized (RoomOrchestrationServiceGrpc.class) {
         if ((getLeaveRoomMethod = RoomOrchestrationServiceGrpc.getLeaveRoomMethod) == null) {
           RoomOrchestrationServiceGrpc.getLeaveRoomMethod = getLeaveRoomMethod =
-              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest, com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse>newBuilder()
+              io.grpc.MethodDescriptor.<com.sdkwork.communication.internal.v1.LeaveRoomRequest, com.sdkwork.communication.internal.v1.LeaveRoomResponse>newBuilder()
               .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
               .setFullMethodName(generateFullMethodName(SERVICE_NAME, "LeaveRoom"))
               .setSampledToLocalTracing(true)
               .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.LeaveRoomRequest.getDefaultInstance()))
               .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.getDefaultInstance()))
+                  com.sdkwork.communication.internal.v1.LeaveRoomResponse.getDefaultInstance()))
               .setSchemaDescriptor(new RoomOrchestrationServiceMethodDescriptorSupplier("LeaveRoom"))
               .build();
         }
@@ -201,29 +201,29 @@ public final class RoomOrchestrationServiceGrpc {
 
     /**
      */
-    default void createRoom(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse> responseObserver) {
+    default void createRoom(com.sdkwork.communication.internal.v1.CreateRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.CreateRoomResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getCreateRoomMethod(), responseObserver);
     }
 
     /**
      */
-    default void retrieveRoom(com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse> responseObserver) {
+    default void retrieveRoom(com.sdkwork.communication.internal.v1.RetrieveRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.RetrieveRoomResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getRetrieveRoomMethod(), responseObserver);
     }
 
     /**
      */
-    default void enterRoom(com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse> responseObserver) {
+    default void enterRoom(com.sdkwork.communication.internal.v1.EnterRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.EnterRoomResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getEnterRoomMethod(), responseObserver);
     }
 
     /**
      */
-    default void leaveRoom(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse> responseObserver) {
+    default void leaveRoom(com.sdkwork.communication.internal.v1.LeaveRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.LeaveRoomResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getLeaveRoomMethod(), responseObserver);
     }
   }
@@ -257,32 +257,32 @@ public final class RoomOrchestrationServiceGrpc {
 
     /**
      */
-    public void createRoom(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse> responseObserver) {
+    public void createRoom(com.sdkwork.communication.internal.v1.CreateRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.CreateRoomResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getCreateRoomMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
      */
-    public void retrieveRoom(com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse> responseObserver) {
+    public void retrieveRoom(com.sdkwork.communication.internal.v1.RetrieveRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.RetrieveRoomResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getRetrieveRoomMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
      */
-    public void enterRoom(com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse> responseObserver) {
+    public void enterRoom(com.sdkwork.communication.internal.v1.EnterRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.EnterRoomResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getEnterRoomMethod(), getCallOptions()), request, responseObserver);
     }
 
     /**
      */
-    public void leaveRoom(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest request,
-        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse> responseObserver) {
+    public void leaveRoom(com.sdkwork.communication.internal.v1.LeaveRoomRequest request,
+        io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.LeaveRoomResponse> responseObserver) {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getLeaveRoomMethod(), getCallOptions()), request, responseObserver);
     }
@@ -306,28 +306,28 @@ public final class RoomOrchestrationServiceGrpc {
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse createRoom(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest request) throws io.grpc.StatusException {
+    public com.sdkwork.communication.internal.v1.CreateRoomResponse createRoom(com.sdkwork.communication.internal.v1.CreateRoomRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getCreateRoomMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse retrieveRoom(com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest request) throws io.grpc.StatusException {
+    public com.sdkwork.communication.internal.v1.RetrieveRoomResponse retrieveRoom(com.sdkwork.communication.internal.v1.RetrieveRoomRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getRetrieveRoomMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse enterRoom(com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest request) throws io.grpc.StatusException {
+    public com.sdkwork.communication.internal.v1.EnterRoomResponse enterRoom(com.sdkwork.communication.internal.v1.EnterRoomRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getEnterRoomMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse leaveRoom(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest request) throws io.grpc.StatusException {
+    public com.sdkwork.communication.internal.v1.LeaveRoomResponse leaveRoom(com.sdkwork.communication.internal.v1.LeaveRoomRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getLeaveRoomMethod(), getCallOptions(), request);
     }
@@ -351,28 +351,28 @@ public final class RoomOrchestrationServiceGrpc {
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse createRoom(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest request) {
+    public com.sdkwork.communication.internal.v1.CreateRoomResponse createRoom(com.sdkwork.communication.internal.v1.CreateRoomRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getCreateRoomMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse retrieveRoom(com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest request) {
+    public com.sdkwork.communication.internal.v1.RetrieveRoomResponse retrieveRoom(com.sdkwork.communication.internal.v1.RetrieveRoomRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getRetrieveRoomMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse enterRoom(com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest request) {
+    public com.sdkwork.communication.internal.v1.EnterRoomResponse enterRoom(com.sdkwork.communication.internal.v1.EnterRoomRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getEnterRoomMethod(), getCallOptions(), request);
     }
 
     /**
      */
-    public com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse leaveRoom(com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest request) {
+    public com.sdkwork.communication.internal.v1.LeaveRoomResponse leaveRoom(com.sdkwork.communication.internal.v1.LeaveRoomRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getLeaveRoomMethod(), getCallOptions(), request);
     }
@@ -396,32 +396,32 @@ public final class RoomOrchestrationServiceGrpc {
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse> createRoom(
-        com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.CreateRoomResponse> createRoom(
+        com.sdkwork.communication.internal.v1.CreateRoomRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getCreateRoomMethod(), getCallOptions()), request);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse> retrieveRoom(
-        com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.RetrieveRoomResponse> retrieveRoom(
+        com.sdkwork.communication.internal.v1.RetrieveRoomRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getRetrieveRoomMethod(), getCallOptions()), request);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse> enterRoom(
-        com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.EnterRoomResponse> enterRoom(
+        com.sdkwork.communication.internal.v1.EnterRoomRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getEnterRoomMethod(), getCallOptions()), request);
     }
 
     /**
      */
-    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse> leaveRoom(
-        com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest request) {
+    public com.google.common.util.concurrent.ListenableFuture<com.sdkwork.communication.internal.v1.LeaveRoomResponse> leaveRoom(
+        com.sdkwork.communication.internal.v1.LeaveRoomRequest request) {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getLeaveRoomMethod(), getCallOptions()), request);
     }
@@ -450,20 +450,20 @@ public final class RoomOrchestrationServiceGrpc {
     public void invoke(Req request, io.grpc.stub.StreamObserver<Resp> responseObserver) {
       switch (methodId) {
         case METHODID_CREATE_ROOM:
-          serviceImpl.createRoom((com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest) request,
-              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse>) responseObserver);
+          serviceImpl.createRoom((com.sdkwork.communication.internal.v1.CreateRoomRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.CreateRoomResponse>) responseObserver);
           break;
         case METHODID_RETRIEVE_ROOM:
-          serviceImpl.retrieveRoom((com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest) request,
-              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse>) responseObserver);
+          serviceImpl.retrieveRoom((com.sdkwork.communication.internal.v1.RetrieveRoomRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.RetrieveRoomResponse>) responseObserver);
           break;
         case METHODID_ENTER_ROOM:
-          serviceImpl.enterRoom((com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest) request,
-              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse>) responseObserver);
+          serviceImpl.enterRoom((com.sdkwork.communication.internal.v1.EnterRoomRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.EnterRoomResponse>) responseObserver);
           break;
         case METHODID_LEAVE_ROOM:
-          serviceImpl.leaveRoom((com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest) request,
-              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse>) responseObserver);
+          serviceImpl.leaveRoom((com.sdkwork.communication.internal.v1.LeaveRoomRequest) request,
+              (io.grpc.stub.StreamObserver<com.sdkwork.communication.internal.v1.LeaveRoomResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -487,29 +487,29 @@ public final class RoomOrchestrationServiceGrpc {
           getCreateRoomMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
-              com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest,
-              com.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse>(
+              com.sdkwork.communication.internal.v1.CreateRoomRequest,
+              com.sdkwork.communication.internal.v1.CreateRoomResponse>(
                 service, METHODID_CREATE_ROOM)))
         .addMethod(
           getRetrieveRoomMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
-              com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest,
-              com.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse>(
+              com.sdkwork.communication.internal.v1.RetrieveRoomRequest,
+              com.sdkwork.communication.internal.v1.RetrieveRoomResponse>(
                 service, METHODID_RETRIEVE_ROOM)))
         .addMethod(
           getEnterRoomMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
-              com.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest,
-              com.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse>(
+              com.sdkwork.communication.internal.v1.EnterRoomRequest,
+              com.sdkwork.communication.internal.v1.EnterRoomResponse>(
                 service, METHODID_ENTER_ROOM)))
         .addMethod(
           getLeaveRoomMethod(),
           io.grpc.stub.ServerCalls.asyncUnaryCall(
             new MethodHandlers<
-              com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest,
-              com.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse>(
+              com.sdkwork.communication.internal.v1.LeaveRoomRequest,
+              com.sdkwork.communication.internal.v1.LeaveRoomResponse>(
                 service, METHODID_LEAVE_ROOM)))
         .build();
   }

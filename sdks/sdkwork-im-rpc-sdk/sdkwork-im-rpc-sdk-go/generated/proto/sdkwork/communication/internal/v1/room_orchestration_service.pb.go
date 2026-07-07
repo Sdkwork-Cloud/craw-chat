@@ -98,7 +98,7 @@ func (x *OrchestratedRoomView) GetMaxMembers() int32 {
 	return 0
 }
 
-type OrchestrateCreateRoomRequest struct {
+type CreateRoomRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	OrganizationId string                 `protobuf:"bytes,2,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
@@ -112,20 +112,20 @@ type OrchestrateCreateRoomRequest struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateCreateRoomRequest) Reset() {
-	*x = OrchestrateCreateRoomRequest{}
+func (x *CreateRoomRequest) Reset() {
+	*x = CreateRoomRequest{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateCreateRoomRequest) String() string {
+func (x *CreateRoomRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateCreateRoomRequest) ProtoMessage() {}
+func (*CreateRoomRequest) ProtoMessage() {}
 
-func (x *OrchestrateCreateRoomRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateRoomRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -137,68 +137,68 @@ func (x *OrchestrateCreateRoomRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateCreateRoomRequest.ProtoReflect.Descriptor instead.
-func (*OrchestrateCreateRoomRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateRoomRequest.ProtoReflect.Descriptor instead.
+func (*CreateRoomRequest) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *OrchestrateCreateRoomRequest) GetTenantId() string {
+func (x *CreateRoomRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetOrganizationId() string {
+func (x *CreateRoomRequest) GetOrganizationId() string {
 	if x != nil {
 		return x.OrganizationId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetActorId() string {
+func (x *CreateRoomRequest) GetActorId() string {
 	if x != nil {
 		return x.ActorId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetActorKind() string {
+func (x *CreateRoomRequest) GetActorKind() string {
 	if x != nil {
 		return x.ActorKind
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetConversationId() string {
+func (x *CreateRoomRequest) GetConversationId() string {
 	if x != nil {
 		return x.ConversationId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetRoomId() string {
+func (x *CreateRoomRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetRoomKind() string {
+func (x *CreateRoomRequest) GetRoomKind() string {
 	if x != nil {
 		return x.RoomKind
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomRequest) GetMetadata() *v1.RequestMetadata {
+func (x *CreateRoomRequest) GetMetadata() *v1.RequestMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateCreateRoomResponse struct {
+type CreateRoomResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	EventId        string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
@@ -208,20 +208,20 @@ type OrchestrateCreateRoomResponse struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateCreateRoomResponse) Reset() {
-	*x = OrchestrateCreateRoomResponse{}
+func (x *CreateRoomResponse) Reset() {
+	*x = CreateRoomResponse{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateCreateRoomResponse) String() string {
+func (x *CreateRoomResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateCreateRoomResponse) ProtoMessage() {}
+func (*CreateRoomResponse) ProtoMessage() {}
 
-func (x *OrchestrateCreateRoomResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateRoomResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -233,40 +233,40 @@ func (x *OrchestrateCreateRoomResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateCreateRoomResponse.ProtoReflect.Descriptor instead.
-func (*OrchestrateCreateRoomResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateRoomResponse.ProtoReflect.Descriptor instead.
+func (*CreateRoomResponse) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *OrchestrateCreateRoomResponse) GetConversationId() string {
+func (x *CreateRoomResponse) GetConversationId() string {
 	if x != nil {
 		return x.ConversationId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomResponse) GetEventId() string {
+func (x *CreateRoomResponse) GetEventId() string {
 	if x != nil {
 		return x.EventId
 	}
 	return ""
 }
 
-func (x *OrchestrateCreateRoomResponse) GetRoom() *OrchestratedRoomView {
+func (x *CreateRoomResponse) GetRoom() *OrchestratedRoomView {
 	if x != nil {
 		return x.Room
 	}
 	return nil
 }
 
-func (x *OrchestrateCreateRoomResponse) GetMetadata() *v1.ResponseMetadata {
+func (x *CreateRoomResponse) GetMetadata() *v1.ResponseMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateRetrieveRoomRequest struct {
+type RetrieveRoomRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	OrganizationId string                 `protobuf:"bytes,2,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
@@ -276,20 +276,20 @@ type OrchestrateRetrieveRoomRequest struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateRetrieveRoomRequest) Reset() {
-	*x = OrchestrateRetrieveRoomRequest{}
+func (x *RetrieveRoomRequest) Reset() {
+	*x = RetrieveRoomRequest{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateRetrieveRoomRequest) String() string {
+func (x *RetrieveRoomRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateRetrieveRoomRequest) ProtoMessage() {}
+func (*RetrieveRoomRequest) ProtoMessage() {}
 
-func (x *OrchestrateRetrieveRoomRequest) ProtoReflect() protoreflect.Message {
+func (x *RetrieveRoomRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -301,40 +301,40 @@ func (x *OrchestrateRetrieveRoomRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateRetrieveRoomRequest.ProtoReflect.Descriptor instead.
-func (*OrchestrateRetrieveRoomRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RetrieveRoomRequest.ProtoReflect.Descriptor instead.
+func (*RetrieveRoomRequest) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *OrchestrateRetrieveRoomRequest) GetTenantId() string {
+func (x *RetrieveRoomRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
 	return ""
 }
 
-func (x *OrchestrateRetrieveRoomRequest) GetOrganizationId() string {
+func (x *RetrieveRoomRequest) GetOrganizationId() string {
 	if x != nil {
 		return x.OrganizationId
 	}
 	return ""
 }
 
-func (x *OrchestrateRetrieveRoomRequest) GetRoomId() string {
+func (x *RetrieveRoomRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *OrchestrateRetrieveRoomRequest) GetMetadata() *v1.RequestMetadata {
+func (x *RetrieveRoomRequest) GetMetadata() *v1.RequestMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateRetrieveRoomResponse struct {
+type RetrieveRoomResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Room          *OrchestratedRoomView  `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
 	Metadata      *v1.ResponseMetadata   `protobuf:"bytes,15,opt,name=metadata,proto3" json:"metadata,omitempty"`
@@ -342,20 +342,20 @@ type OrchestrateRetrieveRoomResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *OrchestrateRetrieveRoomResponse) Reset() {
-	*x = OrchestrateRetrieveRoomResponse{}
+func (x *RetrieveRoomResponse) Reset() {
+	*x = RetrieveRoomResponse{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateRetrieveRoomResponse) String() string {
+func (x *RetrieveRoomResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateRetrieveRoomResponse) ProtoMessage() {}
+func (*RetrieveRoomResponse) ProtoMessage() {}
 
-func (x *OrchestrateRetrieveRoomResponse) ProtoReflect() protoreflect.Message {
+func (x *RetrieveRoomResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -367,26 +367,26 @@ func (x *OrchestrateRetrieveRoomResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateRetrieveRoomResponse.ProtoReflect.Descriptor instead.
-func (*OrchestrateRetrieveRoomResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RetrieveRoomResponse.ProtoReflect.Descriptor instead.
+func (*RetrieveRoomResponse) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *OrchestrateRetrieveRoomResponse) GetRoom() *OrchestratedRoomView {
+func (x *RetrieveRoomResponse) GetRoom() *OrchestratedRoomView {
 	if x != nil {
 		return x.Room
 	}
 	return nil
 }
 
-func (x *OrchestrateRetrieveRoomResponse) GetMetadata() *v1.ResponseMetadata {
+func (x *RetrieveRoomResponse) GetMetadata() *v1.ResponseMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateEnterRoomRequest struct {
+type EnterRoomRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	OrganizationId string                 `protobuf:"bytes,2,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
@@ -398,20 +398,20 @@ type OrchestrateEnterRoomRequest struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateEnterRoomRequest) Reset() {
-	*x = OrchestrateEnterRoomRequest{}
+func (x *EnterRoomRequest) Reset() {
+	*x = EnterRoomRequest{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateEnterRoomRequest) String() string {
+func (x *EnterRoomRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateEnterRoomRequest) ProtoMessage() {}
+func (*EnterRoomRequest) ProtoMessage() {}
 
-func (x *OrchestrateEnterRoomRequest) ProtoReflect() protoreflect.Message {
+func (x *EnterRoomRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -423,54 +423,54 @@ func (x *OrchestrateEnterRoomRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateEnterRoomRequest.ProtoReflect.Descriptor instead.
-func (*OrchestrateEnterRoomRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use EnterRoomRequest.ProtoReflect.Descriptor instead.
+func (*EnterRoomRequest) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *OrchestrateEnterRoomRequest) GetTenantId() string {
+func (x *EnterRoomRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomRequest) GetOrganizationId() string {
+func (x *EnterRoomRequest) GetOrganizationId() string {
 	if x != nil {
 		return x.OrganizationId
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomRequest) GetRoomId() string {
+func (x *EnterRoomRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomRequest) GetPrincipalId() string {
+func (x *EnterRoomRequest) GetPrincipalId() string {
 	if x != nil {
 		return x.PrincipalId
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomRequest) GetPrincipalKind() string {
+func (x *EnterRoomRequest) GetPrincipalKind() string {
 	if x != nil {
 		return x.PrincipalKind
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomRequest) GetMetadata() *v1.RequestMetadata {
+func (x *EnterRoomRequest) GetMetadata() *v1.RequestMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateEnterRoomResponse struct {
+type EnterRoomResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	MemberId       string                 `protobuf:"bytes,1,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
 	ConversationId string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -479,20 +479,20 @@ type OrchestrateEnterRoomResponse struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateEnterRoomResponse) Reset() {
-	*x = OrchestrateEnterRoomResponse{}
+func (x *EnterRoomResponse) Reset() {
+	*x = EnterRoomResponse{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateEnterRoomResponse) String() string {
+func (x *EnterRoomResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateEnterRoomResponse) ProtoMessage() {}
+func (*EnterRoomResponse) ProtoMessage() {}
 
-func (x *OrchestrateEnterRoomResponse) ProtoReflect() protoreflect.Message {
+func (x *EnterRoomResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -504,33 +504,33 @@ func (x *OrchestrateEnterRoomResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateEnterRoomResponse.ProtoReflect.Descriptor instead.
-func (*OrchestrateEnterRoomResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use EnterRoomResponse.ProtoReflect.Descriptor instead.
+func (*EnterRoomResponse) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *OrchestrateEnterRoomResponse) GetMemberId() string {
+func (x *EnterRoomResponse) GetMemberId() string {
 	if x != nil {
 		return x.MemberId
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomResponse) GetConversationId() string {
+func (x *EnterRoomResponse) GetConversationId() string {
 	if x != nil {
 		return x.ConversationId
 	}
 	return ""
 }
 
-func (x *OrchestrateEnterRoomResponse) GetMetadata() *v1.ResponseMetadata {
+func (x *EnterRoomResponse) GetMetadata() *v1.ResponseMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateLeaveRoomRequest struct {
+type LeaveRoomRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	OrganizationId string                 `protobuf:"bytes,2,opt,name=organization_id,json=organizationId,proto3" json:"organization_id,omitempty"`
@@ -542,20 +542,20 @@ type OrchestrateLeaveRoomRequest struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateLeaveRoomRequest) Reset() {
-	*x = OrchestrateLeaveRoomRequest{}
+func (x *LeaveRoomRequest) Reset() {
+	*x = LeaveRoomRequest{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateLeaveRoomRequest) String() string {
+func (x *LeaveRoomRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateLeaveRoomRequest) ProtoMessage() {}
+func (*LeaveRoomRequest) ProtoMessage() {}
 
-func (x *OrchestrateLeaveRoomRequest) ProtoReflect() protoreflect.Message {
+func (x *LeaveRoomRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -567,54 +567,54 @@ func (x *OrchestrateLeaveRoomRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateLeaveRoomRequest.ProtoReflect.Descriptor instead.
-func (*OrchestrateLeaveRoomRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use LeaveRoomRequest.ProtoReflect.Descriptor instead.
+func (*LeaveRoomRequest) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *OrchestrateLeaveRoomRequest) GetTenantId() string {
+func (x *LeaveRoomRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomRequest) GetOrganizationId() string {
+func (x *LeaveRoomRequest) GetOrganizationId() string {
 	if x != nil {
 		return x.OrganizationId
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomRequest) GetRoomId() string {
+func (x *LeaveRoomRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomRequest) GetPrincipalId() string {
+func (x *LeaveRoomRequest) GetPrincipalId() string {
 	if x != nil {
 		return x.PrincipalId
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomRequest) GetPrincipalKind() string {
+func (x *LeaveRoomRequest) GetPrincipalKind() string {
 	if x != nil {
 		return x.PrincipalKind
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomRequest) GetMetadata() *v1.RequestMetadata {
+func (x *LeaveRoomRequest) GetMetadata() *v1.RequestMetadata {
 	if x != nil {
 		return x.Metadata
 	}
 	return nil
 }
 
-type OrchestrateLeaveRoomResponse struct {
+type LeaveRoomResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	MemberId       string                 `protobuf:"bytes,1,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
 	ConversationId string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -624,20 +624,20 @@ type OrchestrateLeaveRoomResponse struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OrchestrateLeaveRoomResponse) Reset() {
-	*x = OrchestrateLeaveRoomResponse{}
+func (x *LeaveRoomResponse) Reset() {
+	*x = LeaveRoomResponse{}
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OrchestrateLeaveRoomResponse) String() string {
+func (x *LeaveRoomResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OrchestrateLeaveRoomResponse) ProtoMessage() {}
+func (*LeaveRoomResponse) ProtoMessage() {}
 
-func (x *OrchestrateLeaveRoomResponse) ProtoReflect() protoreflect.Message {
+func (x *LeaveRoomResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -649,33 +649,33 @@ func (x *OrchestrateLeaveRoomResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OrchestrateLeaveRoomResponse.ProtoReflect.Descriptor instead.
-func (*OrchestrateLeaveRoomResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use LeaveRoomResponse.ProtoReflect.Descriptor instead.
+func (*LeaveRoomResponse) Descriptor() ([]byte, []int) {
 	return file_sdkwork_communication_internal_v1_room_orchestration_service_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *OrchestrateLeaveRoomResponse) GetMemberId() string {
+func (x *LeaveRoomResponse) GetMemberId() string {
 	if x != nil {
 		return x.MemberId
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomResponse) GetConversationId() string {
+func (x *LeaveRoomResponse) GetConversationId() string {
 	if x != nil {
 		return x.ConversationId
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomResponse) GetStatus() string {
+func (x *LeaveRoomResponse) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *OrchestrateLeaveRoomResponse) GetMetadata() *v1.ResponseMetadata {
+func (x *LeaveRoomResponse) GetMetadata() *v1.ResponseMetadata {
 	if x != nil {
 		return x.Metadata
 	}
@@ -693,8 +693,8 @@ const file_sdkwork_communication_internal_v1_room_orchestration_service_proto_ra
 	"\x0fconversation_id\x18\x03 \x01(\tR\x0econversationId\x12.\n" +
 	"\x13active_member_count\x18\x04 \x01(\x05R\x11activeMemberCount\x12\x1f\n" +
 	"\vmax_members\x18\x05 \x01(\x05R\n" +
-	"maxMembers\"\xbd\x02\n" +
-	"\x1cOrchestrateCreateRoomRequest\x12\x1b\n" +
+	"maxMembers\"\xb2\x02\n" +
+	"\x11CreateRoomRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\x12\x19\n" +
 	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12\x1d\n" +
@@ -703,49 +703,49 @@ const file_sdkwork_communication_internal_v1_room_orchestration_service_proto_ra
 	"\x0fconversation_id\x18\x05 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\aroom_id\x18\x06 \x01(\tR\x06roomId\x12\x1b\n" +
 	"\troom_kind\x18\a \x01(\tR\broomKind\x12>\n" +
-	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xf1\x01\n" +
-	"\x1dOrchestrateCreateRoomResponse\x12'\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xe6\x01\n" +
+	"\x12CreateRoomResponse\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12K\n" +
 	"\x04room\x18\x03 \x01(\v27.sdkwork.communication.internal.v1.OrchestratedRoomViewR\x04room\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xbf\x01\n" +
-	"\x1eOrchestrateRetrieveRoomRequest\x12\x1b\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xb4\x01\n" +
+	"\x13RetrieveRoomRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12>\n" +
-	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xaf\x01\n" +
-	"\x1fOrchestrateRetrieveRoomResponse\x12K\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xa4\x01\n" +
+	"\x14RetrieveRoomResponse\x12K\n" +
 	"\x04room\x18\x01 \x01(\v27.sdkwork.communication.internal.v1.OrchestratedRoomViewR\x04room\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\x86\x02\n" +
-	"\x1bOrchestrateEnterRoomRequest\x12\x1b\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xfb\x01\n" +
+	"\x10EnterRoomRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12!\n" +
 	"\fprincipal_id\x18\x04 \x01(\tR\vprincipalId\x12%\n" +
 	"\x0eprincipal_kind\x18\x05 \x01(\tR\rprincipalKind\x12>\n" +
-	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xa5\x01\n" +
-	"\x1cOrchestrateEnterRoomResponse\x12\x1b\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\x9a\x01\n" +
+	"\x11EnterRoomResponse\x12\x1b\n" +
 	"\tmember_id\x18\x01 \x01(\tR\bmemberId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\x86\x02\n" +
-	"\x1bOrchestrateLeaveRoomRequest\x12\x1b\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata\"\xfb\x01\n" +
+	"\x10LeaveRoomRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0forganization_id\x18\x02 \x01(\tR\x0eorganizationId\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12!\n" +
 	"\fprincipal_id\x18\x04 \x01(\tR\vprincipalId\x12%\n" +
 	"\x0eprincipal_kind\x18\x05 \x01(\tR\rprincipalKind\x12>\n" +
-	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xbd\x01\n" +
-	"\x1cOrchestrateLeaveRoomResponse\x12\x1b\n" +
+	"\bmetadata\x18\x0f \x01(\v2\".sdkwork.common.v1.RequestMetadataR\bmetadata\"\xb2\x01\n" +
+	"\x11LeaveRoomResponse\x12\x1b\n" +
 	"\tmember_id\x18\x01 \x01(\tR\bmemberId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12?\n" +
-	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\xe2\x04\n" +
-	"\x18RoomOrchestrationService\x12\x8f\x01\n" +
+	"\bmetadata\x18\x0f \x01(\v2#.sdkwork.common.v1.ResponseMetadataR\bmetadata2\x86\x04\n" +
+	"\x18RoomOrchestrationService\x12y\n" +
 	"\n" +
-	"CreateRoom\x12?.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest\x1a@.sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse\x12\x95\x01\n" +
-	"\fRetrieveRoom\x12A.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest\x1aB.sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse\x12\x8c\x01\n" +
-	"\tEnterRoom\x12>.sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest\x1a?.sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse\x12\x8c\x01\n" +
-	"\tLeaveRoom\x12>.sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest\x1a?.sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponseB\xcc\x02\n" +
+	"CreateRoom\x124.sdkwork.communication.internal.v1.CreateRoomRequest\x1a5.sdkwork.communication.internal.v1.CreateRoomResponse\x12\x7f\n" +
+	"\fRetrieveRoom\x126.sdkwork.communication.internal.v1.RetrieveRoomRequest\x1a7.sdkwork.communication.internal.v1.RetrieveRoomResponse\x12v\n" +
+	"\tEnterRoom\x123.sdkwork.communication.internal.v1.EnterRoomRequest\x1a4.sdkwork.communication.internal.v1.EnterRoomResponse\x12v\n" +
+	"\tLeaveRoom\x123.sdkwork.communication.internal.v1.LeaveRoomRequest\x1a4.sdkwork.communication.internal.v1.LeaveRoomResponseB\xcc\x02\n" +
 	"%com.sdkwork.communication.internal.v1B\x1dRoomOrchestrationServiceProtoP\x01Z]github.com/sdkwork/im-rpc-sdk-go/generated/proto/sdkwork/communication/internal/v1;internalv1\xa2\x02\x03SCI\xaa\x02!Sdkwork.Communication.Internal.V1\xca\x02!Sdkwork\\Communication\\Internal\\V1\xe2\x02-Sdkwork\\Communication\\Internal\\V1\\GPBMetadata\xea\x02$Sdkwork::Communication::Internal::V1b\x06proto3"
 
 var (
@@ -762,37 +762,37 @@ func file_sdkwork_communication_internal_v1_room_orchestration_service_proto_raw
 
 var file_sdkwork_communication_internal_v1_room_orchestration_service_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_sdkwork_communication_internal_v1_room_orchestration_service_proto_goTypes = []any{
-	(*OrchestratedRoomView)(nil),            // 0: sdkwork.communication.internal.v1.OrchestratedRoomView
-	(*OrchestrateCreateRoomRequest)(nil),    // 1: sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest
-	(*OrchestrateCreateRoomResponse)(nil),   // 2: sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse
-	(*OrchestrateRetrieveRoomRequest)(nil),  // 3: sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest
-	(*OrchestrateRetrieveRoomResponse)(nil), // 4: sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse
-	(*OrchestrateEnterRoomRequest)(nil),     // 5: sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest
-	(*OrchestrateEnterRoomResponse)(nil),    // 6: sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse
-	(*OrchestrateLeaveRoomRequest)(nil),     // 7: sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest
-	(*OrchestrateLeaveRoomResponse)(nil),    // 8: sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse
-	(*v1.RequestMetadata)(nil),              // 9: sdkwork.common.v1.RequestMetadata
-	(*v1.ResponseMetadata)(nil),             // 10: sdkwork.common.v1.ResponseMetadata
+	(*OrchestratedRoomView)(nil), // 0: sdkwork.communication.internal.v1.OrchestratedRoomView
+	(*CreateRoomRequest)(nil),    // 1: sdkwork.communication.internal.v1.CreateRoomRequest
+	(*CreateRoomResponse)(nil),   // 2: sdkwork.communication.internal.v1.CreateRoomResponse
+	(*RetrieveRoomRequest)(nil),  // 3: sdkwork.communication.internal.v1.RetrieveRoomRequest
+	(*RetrieveRoomResponse)(nil), // 4: sdkwork.communication.internal.v1.RetrieveRoomResponse
+	(*EnterRoomRequest)(nil),     // 5: sdkwork.communication.internal.v1.EnterRoomRequest
+	(*EnterRoomResponse)(nil),    // 6: sdkwork.communication.internal.v1.EnterRoomResponse
+	(*LeaveRoomRequest)(nil),     // 7: sdkwork.communication.internal.v1.LeaveRoomRequest
+	(*LeaveRoomResponse)(nil),    // 8: sdkwork.communication.internal.v1.LeaveRoomResponse
+	(*v1.RequestMetadata)(nil),   // 9: sdkwork.common.v1.RequestMetadata
+	(*v1.ResponseMetadata)(nil),  // 10: sdkwork.common.v1.ResponseMetadata
 }
 var file_sdkwork_communication_internal_v1_room_orchestration_service_proto_depIdxs = []int32{
-	9,  // 0: sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,  // 1: sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse.room:type_name -> sdkwork.communication.internal.v1.OrchestratedRoomView
-	10, // 2: sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	9,  // 3: sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	0,  // 4: sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse.room:type_name -> sdkwork.communication.internal.v1.OrchestratedRoomView
-	10, // 5: sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	9,  // 6: sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	10, // 7: sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	9,  // 8: sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
-	10, // 9: sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
-	1,  // 10: sdkwork.communication.internal.v1.RoomOrchestrationService.CreateRoom:input_type -> sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest
-	3,  // 11: sdkwork.communication.internal.v1.RoomOrchestrationService.RetrieveRoom:input_type -> sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest
-	5,  // 12: sdkwork.communication.internal.v1.RoomOrchestrationService.EnterRoom:input_type -> sdkwork.communication.internal.v1.OrchestrateEnterRoomRequest
-	7,  // 13: sdkwork.communication.internal.v1.RoomOrchestrationService.LeaveRoom:input_type -> sdkwork.communication.internal.v1.OrchestrateLeaveRoomRequest
-	2,  // 14: sdkwork.communication.internal.v1.RoomOrchestrationService.CreateRoom:output_type -> sdkwork.communication.internal.v1.OrchestrateCreateRoomResponse
-	4,  // 15: sdkwork.communication.internal.v1.RoomOrchestrationService.RetrieveRoom:output_type -> sdkwork.communication.internal.v1.OrchestrateRetrieveRoomResponse
-	6,  // 16: sdkwork.communication.internal.v1.RoomOrchestrationService.EnterRoom:output_type -> sdkwork.communication.internal.v1.OrchestrateEnterRoomResponse
-	8,  // 17: sdkwork.communication.internal.v1.RoomOrchestrationService.LeaveRoom:output_type -> sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse
+	9,  // 0: sdkwork.communication.internal.v1.CreateRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,  // 1: sdkwork.communication.internal.v1.CreateRoomResponse.room:type_name -> sdkwork.communication.internal.v1.OrchestratedRoomView
+	10, // 2: sdkwork.communication.internal.v1.CreateRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	9,  // 3: sdkwork.communication.internal.v1.RetrieveRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	0,  // 4: sdkwork.communication.internal.v1.RetrieveRoomResponse.room:type_name -> sdkwork.communication.internal.v1.OrchestratedRoomView
+	10, // 5: sdkwork.communication.internal.v1.RetrieveRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	9,  // 6: sdkwork.communication.internal.v1.EnterRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	10, // 7: sdkwork.communication.internal.v1.EnterRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	9,  // 8: sdkwork.communication.internal.v1.LeaveRoomRequest.metadata:type_name -> sdkwork.common.v1.RequestMetadata
+	10, // 9: sdkwork.communication.internal.v1.LeaveRoomResponse.metadata:type_name -> sdkwork.common.v1.ResponseMetadata
+	1,  // 10: sdkwork.communication.internal.v1.RoomOrchestrationService.CreateRoom:input_type -> sdkwork.communication.internal.v1.CreateRoomRequest
+	3,  // 11: sdkwork.communication.internal.v1.RoomOrchestrationService.RetrieveRoom:input_type -> sdkwork.communication.internal.v1.RetrieveRoomRequest
+	5,  // 12: sdkwork.communication.internal.v1.RoomOrchestrationService.EnterRoom:input_type -> sdkwork.communication.internal.v1.EnterRoomRequest
+	7,  // 13: sdkwork.communication.internal.v1.RoomOrchestrationService.LeaveRoom:input_type -> sdkwork.communication.internal.v1.LeaveRoomRequest
+	2,  // 14: sdkwork.communication.internal.v1.RoomOrchestrationService.CreateRoom:output_type -> sdkwork.communication.internal.v1.CreateRoomResponse
+	4,  // 15: sdkwork.communication.internal.v1.RoomOrchestrationService.RetrieveRoom:output_type -> sdkwork.communication.internal.v1.RetrieveRoomResponse
+	6,  // 16: sdkwork.communication.internal.v1.RoomOrchestrationService.EnterRoom:output_type -> sdkwork.communication.internal.v1.EnterRoomResponse
+	8,  // 17: sdkwork.communication.internal.v1.RoomOrchestrationService.LeaveRoom:output_type -> sdkwork.communication.internal.v1.LeaveRoomResponse
 	14, // [14:18] is the sub-list for method output_type
 	10, // [10:14] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name

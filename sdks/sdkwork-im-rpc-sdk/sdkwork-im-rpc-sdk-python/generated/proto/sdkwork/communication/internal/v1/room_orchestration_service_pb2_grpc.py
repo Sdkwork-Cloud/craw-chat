@@ -16,23 +16,23 @@ class RoomOrchestrationServiceStub:
         """
         self.CreateRoom = channel.unary_unary(
                 '/sdkwork.communication.internal.v1.RoomOrchestrationService/CreateRoom',
-                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateCreateRoomRequest.SerializeToString,
-                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateCreateRoomResponse.FromString,
+                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.CreateRoomRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.CreateRoomResponse.FromString,
                 _registered_method=True)
         self.RetrieveRoom = channel.unary_unary(
                 '/sdkwork.communication.internal.v1.RoomOrchestrationService/RetrieveRoom',
-                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateRetrieveRoomRequest.SerializeToString,
-                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateRetrieveRoomResponse.FromString,
+                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.RetrieveRoomRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.RetrieveRoomResponse.FromString,
                 _registered_method=True)
         self.EnterRoom = channel.unary_unary(
                 '/sdkwork.communication.internal.v1.RoomOrchestrationService/EnterRoom',
-                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateEnterRoomRequest.SerializeToString,
-                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateEnterRoomResponse.FromString,
+                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.EnterRoomRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.EnterRoomResponse.FromString,
                 _registered_method=True)
         self.LeaveRoom = channel.unary_unary(
                 '/sdkwork.communication.internal.v1.RoomOrchestrationService/LeaveRoom',
-                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateLeaveRoomRequest.SerializeToString,
-                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateLeaveRoomResponse.FromString,
+                request_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.LeaveRoomRequest.SerializeToString,
+                response_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.LeaveRoomResponse.FromString,
                 _registered_method=True)
 
 
@@ -68,23 +68,23 @@ def add_RoomOrchestrationServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'CreateRoom': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateRoom,
-                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateCreateRoomRequest.FromString,
-                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateCreateRoomResponse.SerializeToString,
+                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.CreateRoomRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.CreateRoomResponse.SerializeToString,
             ),
             'RetrieveRoom': grpc.unary_unary_rpc_method_handler(
                     servicer.RetrieveRoom,
-                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateRetrieveRoomRequest.FromString,
-                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateRetrieveRoomResponse.SerializeToString,
+                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.RetrieveRoomRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.RetrieveRoomResponse.SerializeToString,
             ),
             'EnterRoom': grpc.unary_unary_rpc_method_handler(
                     servicer.EnterRoom,
-                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateEnterRoomRequest.FromString,
-                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateEnterRoomResponse.SerializeToString,
+                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.EnterRoomRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.EnterRoomResponse.SerializeToString,
             ),
             'LeaveRoom': grpc.unary_unary_rpc_method_handler(
                     servicer.LeaveRoom,
-                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateLeaveRoomRequest.FromString,
-                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateLeaveRoomResponse.SerializeToString,
+                    request_deserializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.LeaveRoomRequest.FromString,
+                    response_serializer=sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.LeaveRoomResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -112,8 +112,8 @@ class RoomOrchestrationService:
             request,
             target,
             '/sdkwork.communication.internal.v1.RoomOrchestrationService/CreateRoom',
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateCreateRoomRequest.SerializeToString,
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateCreateRoomResponse.FromString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.CreateRoomRequest.SerializeToString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.CreateRoomResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -139,8 +139,8 @@ class RoomOrchestrationService:
             request,
             target,
             '/sdkwork.communication.internal.v1.RoomOrchestrationService/RetrieveRoom',
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateRetrieveRoomRequest.SerializeToString,
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateRetrieveRoomResponse.FromString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.RetrieveRoomRequest.SerializeToString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.RetrieveRoomResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -166,8 +166,8 @@ class RoomOrchestrationService:
             request,
             target,
             '/sdkwork.communication.internal.v1.RoomOrchestrationService/EnterRoom',
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateEnterRoomRequest.SerializeToString,
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateEnterRoomResponse.FromString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.EnterRoomRequest.SerializeToString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.EnterRoomResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -193,8 +193,8 @@ class RoomOrchestrationService:
             request,
             target,
             '/sdkwork.communication.internal.v1.RoomOrchestrationService/LeaveRoom',
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateLeaveRoomRequest.SerializeToString,
-            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.OrchestrateLeaveRoomResponse.FromString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.LeaveRoomRequest.SerializeToString,
+            sdkwork_dot_communication_dot_internal_dot_v1_dot_room__orchestration__service__pb2.LeaveRoomResponse.FromString,
             options,
             channel_credentials,
             insecure,

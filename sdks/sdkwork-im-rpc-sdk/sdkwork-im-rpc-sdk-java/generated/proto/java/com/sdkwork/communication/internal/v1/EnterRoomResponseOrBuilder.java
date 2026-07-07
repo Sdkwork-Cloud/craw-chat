@@ -6,8 +6,8 @@
 package com.sdkwork.communication.internal.v1;
 
 @com.google.protobuf.Generated
-public interface OrchestrateLeaveRoomResponseOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.OrchestrateLeaveRoomResponse)
+public interface EnterRoomResponseOrBuilder extends
+    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.EnterRoomResponse)
     com.google.protobuf.MessageOrBuilder {
 
   /**
@@ -33,18 +33,6 @@ public interface OrchestrateLeaveRoomResponseOrBuilder extends
    */
   com.google.protobuf.ByteString
       getConversationIdBytes();
-
-  /**
-   * <code>string status = 3 [json_name = "status"];</code>
-   * @return The status.
-   */
-  java.lang.String getStatus();
-  /**
-   * <code>string status = 3 [json_name = "status"];</code>
-   * @return The bytes for status.
-   */
-  com.google.protobuf.ByteString
-      getStatusBytes();
 
   /**
    * <code>.sdkwork.common.v1.ResponseMetadata metadata = 15 [json_name = "metadata"];</code>

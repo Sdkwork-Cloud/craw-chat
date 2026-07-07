@@ -6,8 +6,8 @@
 package com.sdkwork.communication.internal.v1;
 
 @com.google.protobuf.Generated
-public interface OrchestrateRetrieveRoomRequestOrBuilder extends
-    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.OrchestrateRetrieveRoomRequest)
+public interface EnterRoomRequestOrBuilder extends
+    // @@protoc_insertion_point(interface_extends:sdkwork.communication.internal.v1.EnterRoomRequest)
     com.google.protobuf.MessageOrBuilder {
 
   /**
@@ -45,6 +45,30 @@ public interface OrchestrateRetrieveRoomRequestOrBuilder extends
    */
   com.google.protobuf.ByteString
       getRoomIdBytes();
+
+  /**
+   * <code>string principal_id = 4 [json_name = "principalId"];</code>
+   * @return The principalId.
+   */
+  java.lang.String getPrincipalId();
+  /**
+   * <code>string principal_id = 4 [json_name = "principalId"];</code>
+   * @return The bytes for principalId.
+   */
+  com.google.protobuf.ByteString
+      getPrincipalIdBytes();
+
+  /**
+   * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+   * @return The principalKind.
+   */
+  java.lang.String getPrincipalKind();
+  /**
+   * <code>string principal_kind = 5 [json_name = "principalKind"];</code>
+   * @return The bytes for principalKind.
+   */
+  com.google.protobuf.ByteString
+      getPrincipalKindBytes();
 
   /**
    * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>

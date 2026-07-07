@@ -6,13 +6,13 @@
 package com.sdkwork.communication.internal.v1;
 
 /**
- * Protobuf type {@code sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest}
+ * Protobuf type {@code sdkwork.communication.internal.v1.RetrieveRoomRequest}
  */
 @com.google.protobuf.Generated
-public final class OrchestrateCreateRoomRequest extends
+public final class RetrieveRoomRequest extends
     com.google.protobuf.GeneratedMessage implements
-    // @@protoc_insertion_point(message_implements:sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest)
-    OrchestrateCreateRoomRequestOrBuilder {
+    // @@protoc_insertion_point(message_implements:sdkwork.communication.internal.v1.RetrieveRoomRequest)
+    RetrieveRoomRequestOrBuilder {
 private static final long serialVersionUID = 0L;
   static {
     com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
@@ -21,38 +21,34 @@ private static final long serialVersionUID = 0L;
       /* minor= */ 35,
       /* patch= */ 1,
       /* suffix= */ "",
-      "OrchestrateCreateRoomRequest");
+      "RetrieveRoomRequest");
   }
-  // Use OrchestrateCreateRoomRequest.newBuilder() to construct.
-  private OrchestrateCreateRoomRequest(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+  // Use RetrieveRoomRequest.newBuilder() to construct.
+  private RetrieveRoomRequest(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
     super(builder);
   }
-  private OrchestrateCreateRoomRequest() {
+  private RetrieveRoomRequest() {
     tenantId_ = "";
     organizationId_ = "";
-    actorId_ = "";
-    actorKind_ = "";
-    conversationId_ = "";
     roomId_ = "";
-    roomKind_ = "";
   }
 
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
-    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor;
+    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor;
   }
 
   @java.lang.Override
   public com.google.protobuf.Descriptors.Descriptor getDescriptorForType() {
-    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor;
+    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor;
   }
 
   @java.lang.Override
   protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internalGetFieldAccessorTable() {
-    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_fieldAccessorTable
+    return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_fieldAccessorTable
         .ensureFieldAccessorsInitialized(
-            com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.class, com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.Builder.class);
+            com.sdkwork.communication.internal.v1.RetrieveRoomRequest.class, com.sdkwork.communication.internal.v1.RetrieveRoomRequest.Builder.class);
   }
 
   private int bitField0_;
@@ -134,128 +130,11 @@ private static final long serialVersionUID = 0L;
     }
   }
 
-  public static final int ACTOR_ID_FIELD_NUMBER = 3;
-  @SuppressWarnings("serial")
-  private volatile java.lang.Object actorId_ = "";
-  /**
-   * <code>string actor_id = 3 [json_name = "actorId"];</code>
-   * @return The actorId.
-   */
-  @java.lang.Override
-  public java.lang.String getActorId() {
-    java.lang.Object ref = actorId_;
-    if (ref instanceof java.lang.String) {
-      return (java.lang.String) ref;
-    } else {
-      com.google.protobuf.ByteString bs = 
-          (com.google.protobuf.ByteString) ref;
-      java.lang.String s = bs.toStringUtf8();
-      actorId_ = s;
-      return s;
-    }
-  }
-  /**
-   * <code>string actor_id = 3 [json_name = "actorId"];</code>
-   * @return The bytes for actorId.
-   */
-  @java.lang.Override
-  public com.google.protobuf.ByteString
-      getActorIdBytes() {
-    java.lang.Object ref = actorId_;
-    if (ref instanceof java.lang.String) {
-      com.google.protobuf.ByteString b = 
-          com.google.protobuf.ByteString.copyFromUtf8(
-              (java.lang.String) ref);
-      actorId_ = b;
-      return b;
-    } else {
-      return (com.google.protobuf.ByteString) ref;
-    }
-  }
-
-  public static final int ACTOR_KIND_FIELD_NUMBER = 4;
-  @SuppressWarnings("serial")
-  private volatile java.lang.Object actorKind_ = "";
-  /**
-   * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-   * @return The actorKind.
-   */
-  @java.lang.Override
-  public java.lang.String getActorKind() {
-    java.lang.Object ref = actorKind_;
-    if (ref instanceof java.lang.String) {
-      return (java.lang.String) ref;
-    } else {
-      com.google.protobuf.ByteString bs = 
-          (com.google.protobuf.ByteString) ref;
-      java.lang.String s = bs.toStringUtf8();
-      actorKind_ = s;
-      return s;
-    }
-  }
-  /**
-   * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-   * @return The bytes for actorKind.
-   */
-  @java.lang.Override
-  public com.google.protobuf.ByteString
-      getActorKindBytes() {
-    java.lang.Object ref = actorKind_;
-    if (ref instanceof java.lang.String) {
-      com.google.protobuf.ByteString b = 
-          com.google.protobuf.ByteString.copyFromUtf8(
-              (java.lang.String) ref);
-      actorKind_ = b;
-      return b;
-    } else {
-      return (com.google.protobuf.ByteString) ref;
-    }
-  }
-
-  public static final int CONVERSATION_ID_FIELD_NUMBER = 5;
-  @SuppressWarnings("serial")
-  private volatile java.lang.Object conversationId_ = "";
-  /**
-   * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-   * @return The conversationId.
-   */
-  @java.lang.Override
-  public java.lang.String getConversationId() {
-    java.lang.Object ref = conversationId_;
-    if (ref instanceof java.lang.String) {
-      return (java.lang.String) ref;
-    } else {
-      com.google.protobuf.ByteString bs = 
-          (com.google.protobuf.ByteString) ref;
-      java.lang.String s = bs.toStringUtf8();
-      conversationId_ = s;
-      return s;
-    }
-  }
-  /**
-   * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-   * @return The bytes for conversationId.
-   */
-  @java.lang.Override
-  public com.google.protobuf.ByteString
-      getConversationIdBytes() {
-    java.lang.Object ref = conversationId_;
-    if (ref instanceof java.lang.String) {
-      com.google.protobuf.ByteString b = 
-          com.google.protobuf.ByteString.copyFromUtf8(
-              (java.lang.String) ref);
-      conversationId_ = b;
-      return b;
-    } else {
-      return (com.google.protobuf.ByteString) ref;
-    }
-  }
-
-  public static final int ROOM_ID_FIELD_NUMBER = 6;
+  public static final int ROOM_ID_FIELD_NUMBER = 3;
   @SuppressWarnings("serial")
   private volatile java.lang.Object roomId_ = "";
   /**
-   * <code>string room_id = 6 [json_name = "roomId"];</code>
+   * <code>string room_id = 3 [json_name = "roomId"];</code>
    * @return The roomId.
    */
   @java.lang.Override
@@ -272,7 +151,7 @@ private static final long serialVersionUID = 0L;
     }
   }
   /**
-   * <code>string room_id = 6 [json_name = "roomId"];</code>
+   * <code>string room_id = 3 [json_name = "roomId"];</code>
    * @return The bytes for roomId.
    */
   @java.lang.Override
@@ -284,45 +163,6 @@ private static final long serialVersionUID = 0L;
           com.google.protobuf.ByteString.copyFromUtf8(
               (java.lang.String) ref);
       roomId_ = b;
-      return b;
-    } else {
-      return (com.google.protobuf.ByteString) ref;
-    }
-  }
-
-  public static final int ROOM_KIND_FIELD_NUMBER = 7;
-  @SuppressWarnings("serial")
-  private volatile java.lang.Object roomKind_ = "";
-  /**
-   * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-   * @return The roomKind.
-   */
-  @java.lang.Override
-  public java.lang.String getRoomKind() {
-    java.lang.Object ref = roomKind_;
-    if (ref instanceof java.lang.String) {
-      return (java.lang.String) ref;
-    } else {
-      com.google.protobuf.ByteString bs = 
-          (com.google.protobuf.ByteString) ref;
-      java.lang.String s = bs.toStringUtf8();
-      roomKind_ = s;
-      return s;
-    }
-  }
-  /**
-   * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-   * @return The bytes for roomKind.
-   */
-  @java.lang.Override
-  public com.google.protobuf.ByteString
-      getRoomKindBytes() {
-    java.lang.Object ref = roomKind_;
-    if (ref instanceof java.lang.String) {
-      com.google.protobuf.ByteString b = 
-          com.google.protobuf.ByteString.copyFromUtf8(
-              (java.lang.String) ref);
-      roomKind_ = b;
       return b;
     } else {
       return (com.google.protobuf.ByteString) ref;
@@ -375,20 +215,8 @@ private static final long serialVersionUID = 0L;
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(organizationId_)) {
       com.google.protobuf.GeneratedMessage.writeString(output, 2, organizationId_);
     }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(actorId_)) {
-      com.google.protobuf.GeneratedMessage.writeString(output, 3, actorId_);
-    }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(actorKind_)) {
-      com.google.protobuf.GeneratedMessage.writeString(output, 4, actorKind_);
-    }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(conversationId_)) {
-      com.google.protobuf.GeneratedMessage.writeString(output, 5, conversationId_);
-    }
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(roomId_)) {
-      com.google.protobuf.GeneratedMessage.writeString(output, 6, roomId_);
-    }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(roomKind_)) {
-      com.google.protobuf.GeneratedMessage.writeString(output, 7, roomKind_);
+      com.google.protobuf.GeneratedMessage.writeString(output, 3, roomId_);
     }
     if (((bitField0_ & 0x00000001) != 0)) {
       output.writeMessage(15, getMetadata());
@@ -403,20 +231,8 @@ private static final long serialVersionUID = 0L;
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(organizationId_)) {
       size += com.google.protobuf.GeneratedMessage.computeStringSize(2, organizationId_);
     }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(actorId_)) {
-      size += com.google.protobuf.GeneratedMessage.computeStringSize(3, actorId_);
-    }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(actorKind_)) {
-      size += com.google.protobuf.GeneratedMessage.computeStringSize(4, actorKind_);
-    }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(conversationId_)) {
-      size += com.google.protobuf.GeneratedMessage.computeStringSize(5, conversationId_);
-    }
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(roomId_)) {
-      size += com.google.protobuf.GeneratedMessage.computeStringSize(6, roomId_);
-    }
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(roomKind_)) {
-      size += com.google.protobuf.GeneratedMessage.computeStringSize(7, roomKind_);
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(3, roomId_);
     }
     if (((bitField0_ & 0x00000001) != 0)) {
       size += com.google.protobuf.CodedOutputStream
@@ -441,25 +257,17 @@ private static final long serialVersionUID = 0L;
     if (obj == this) {
      return true;
     }
-    if (!(obj instanceof com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest)) {
+    if (!(obj instanceof com.sdkwork.communication.internal.v1.RetrieveRoomRequest)) {
       return super.equals(obj);
     }
-    com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest other = (com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest) obj;
+    com.sdkwork.communication.internal.v1.RetrieveRoomRequest other = (com.sdkwork.communication.internal.v1.RetrieveRoomRequest) obj;
 
     if (!getTenantId()
         .equals(other.getTenantId())) return false;
     if (!getOrganizationId()
         .equals(other.getOrganizationId())) return false;
-    if (!getActorId()
-        .equals(other.getActorId())) return false;
-    if (!getActorKind()
-        .equals(other.getActorKind())) return false;
-    if (!getConversationId()
-        .equals(other.getConversationId())) return false;
     if (!getRoomId()
         .equals(other.getRoomId())) return false;
-    if (!getRoomKind()
-        .equals(other.getRoomKind())) return false;
     if (hasMetadata() != other.hasMetadata()) return false;
     if (hasMetadata()) {
       if (!getMetadata()
@@ -480,16 +288,8 @@ private static final long serialVersionUID = 0L;
     hash = (53 * hash) + getTenantId().hashCode();
     hash = (37 * hash) + ORGANIZATION_ID_FIELD_NUMBER;
     hash = (53 * hash) + getOrganizationId().hashCode();
-    hash = (37 * hash) + ACTOR_ID_FIELD_NUMBER;
-    hash = (53 * hash) + getActorId().hashCode();
-    hash = (37 * hash) + ACTOR_KIND_FIELD_NUMBER;
-    hash = (53 * hash) + getActorKind().hashCode();
-    hash = (37 * hash) + CONVERSATION_ID_FIELD_NUMBER;
-    hash = (53 * hash) + getConversationId().hashCode();
     hash = (37 * hash) + ROOM_ID_FIELD_NUMBER;
     hash = (53 * hash) + getRoomId().hashCode();
-    hash = (37 * hash) + ROOM_KIND_FIELD_NUMBER;
-    hash = (53 * hash) + getRoomKind().hashCode();
     if (hasMetadata()) {
       hash = (37 * hash) + METADATA_FIELD_NUMBER;
       hash = (53 * hash) + getMetadata().hashCode();
@@ -499,44 +299,44 @@ private static final long serialVersionUID = 0L;
     return hash;
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       java.nio.ByteBuffer data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       java.nio.ByteBuffer data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       com.google.protobuf.ByteString data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       com.google.protobuf.ByteString data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(byte[] data)
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(byte[] data)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       byte[] data,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws com.google.protobuf.InvalidProtocolBufferException {
     return PARSER.parseFrom(data, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(java.io.InputStream input)
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseWithIOException(PARSER, input);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
@@ -544,26 +344,26 @@ private static final long serialVersionUID = 0L;
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseDelimitedFrom(java.io.InputStream input)
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseDelimitedWithIOException(PARSER, input);
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseDelimitedFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       com.google.protobuf.CodedInputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessage
         .parseWithIOException(PARSER, input);
   }
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest parseFrom(
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest parseFrom(
       com.google.protobuf.CodedInputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
       throws java.io.IOException {
@@ -576,7 +376,7 @@ private static final long serialVersionUID = 0L;
   public static Builder newBuilder() {
     return DEFAULT_INSTANCE.toBuilder();
   }
-  public static Builder newBuilder(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest prototype) {
+  public static Builder newBuilder(com.sdkwork.communication.internal.v1.RetrieveRoomRequest prototype) {
     return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
   }
   @java.lang.Override
@@ -592,26 +392,26 @@ private static final long serialVersionUID = 0L;
     return builder;
   }
   /**
-   * Protobuf type {@code sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest}
+   * Protobuf type {@code sdkwork.communication.internal.v1.RetrieveRoomRequest}
    */
   public static final class Builder extends
       com.google.protobuf.GeneratedMessage.Builder<Builder> implements
-      // @@protoc_insertion_point(builder_implements:sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest)
-      com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequestOrBuilder {
+      // @@protoc_insertion_point(builder_implements:sdkwork.communication.internal.v1.RetrieveRoomRequest)
+      com.sdkwork.communication.internal.v1.RetrieveRoomRequestOrBuilder {
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor;
+      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor;
     }
 
     @java.lang.Override
     protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_fieldAccessorTable
+      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.class, com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.Builder.class);
+              com.sdkwork.communication.internal.v1.RetrieveRoomRequest.class, com.sdkwork.communication.internal.v1.RetrieveRoomRequest.Builder.class);
     }
 
-    // Construct using com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.newBuilder()
+    // Construct using com.sdkwork.communication.internal.v1.RetrieveRoomRequest.newBuilder()
     private Builder() {
       maybeForceBuilderInitialization();
     }
@@ -633,11 +433,7 @@ private static final long serialVersionUID = 0L;
       bitField0_ = 0;
       tenantId_ = "";
       organizationId_ = "";
-      actorId_ = "";
-      actorKind_ = "";
-      conversationId_ = "";
       roomId_ = "";
-      roomKind_ = "";
       metadata_ = null;
       if (metadataBuilder_ != null) {
         metadataBuilder_.dispose();
@@ -649,17 +445,17 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public com.google.protobuf.Descriptors.Descriptor
         getDescriptorForType() {
-      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor;
+      return com.sdkwork.communication.internal.v1.RoomOrchestrationServiceOuterClass.internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor;
     }
 
     @java.lang.Override
-    public com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest getDefaultInstanceForType() {
-      return com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.getDefaultInstance();
+    public com.sdkwork.communication.internal.v1.RetrieveRoomRequest getDefaultInstanceForType() {
+      return com.sdkwork.communication.internal.v1.RetrieveRoomRequest.getDefaultInstance();
     }
 
     @java.lang.Override
-    public com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest build() {
-      com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest result = buildPartial();
+    public com.sdkwork.communication.internal.v1.RetrieveRoomRequest build() {
+      com.sdkwork.communication.internal.v1.RetrieveRoomRequest result = buildPartial();
       if (!result.isInitialized()) {
         throw newUninitializedMessageException(result);
       }
@@ -667,14 +463,14 @@ private static final long serialVersionUID = 0L;
     }
 
     @java.lang.Override
-    public com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest buildPartial() {
-      com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest result = new com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest(this);
+    public com.sdkwork.communication.internal.v1.RetrieveRoomRequest buildPartial() {
+      com.sdkwork.communication.internal.v1.RetrieveRoomRequest result = new com.sdkwork.communication.internal.v1.RetrieveRoomRequest(this);
       if (bitField0_ != 0) { buildPartial0(result); }
       onBuilt();
       return result;
     }
 
-    private void buildPartial0(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest result) {
+    private void buildPartial0(com.sdkwork.communication.internal.v1.RetrieveRoomRequest result) {
       int from_bitField0_ = bitField0_;
       if (((from_bitField0_ & 0x00000001) != 0)) {
         result.tenantId_ = tenantId_;
@@ -683,22 +479,10 @@ private static final long serialVersionUID = 0L;
         result.organizationId_ = organizationId_;
       }
       if (((from_bitField0_ & 0x00000004) != 0)) {
-        result.actorId_ = actorId_;
-      }
-      if (((from_bitField0_ & 0x00000008) != 0)) {
-        result.actorKind_ = actorKind_;
-      }
-      if (((from_bitField0_ & 0x00000010) != 0)) {
-        result.conversationId_ = conversationId_;
-      }
-      if (((from_bitField0_ & 0x00000020) != 0)) {
         result.roomId_ = roomId_;
       }
-      if (((from_bitField0_ & 0x00000040) != 0)) {
-        result.roomKind_ = roomKind_;
-      }
       int to_bitField0_ = 0;
-      if (((from_bitField0_ & 0x00000080) != 0)) {
+      if (((from_bitField0_ & 0x00000008) != 0)) {
         result.metadata_ = metadataBuilder_ == null
             ? metadata_
             : metadataBuilder_.build();
@@ -709,16 +493,16 @@ private static final long serialVersionUID = 0L;
 
     @java.lang.Override
     public Builder mergeFrom(com.google.protobuf.Message other) {
-      if (other instanceof com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest) {
-        return mergeFrom((com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest)other);
+      if (other instanceof com.sdkwork.communication.internal.v1.RetrieveRoomRequest) {
+        return mergeFrom((com.sdkwork.communication.internal.v1.RetrieveRoomRequest)other);
       } else {
         super.mergeFrom(other);
         return this;
       }
     }
 
-    public Builder mergeFrom(com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest other) {
-      if (other == com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest.getDefaultInstance()) return this;
+    public Builder mergeFrom(com.sdkwork.communication.internal.v1.RetrieveRoomRequest other) {
+      if (other == com.sdkwork.communication.internal.v1.RetrieveRoomRequest.getDefaultInstance()) return this;
       if (!other.getTenantId().isEmpty()) {
         tenantId_ = other.tenantId_;
         bitField0_ |= 0x00000001;
@@ -729,29 +513,9 @@ private static final long serialVersionUID = 0L;
         bitField0_ |= 0x00000002;
         onChanged();
       }
-      if (!other.getActorId().isEmpty()) {
-        actorId_ = other.actorId_;
-        bitField0_ |= 0x00000004;
-        onChanged();
-      }
-      if (!other.getActorKind().isEmpty()) {
-        actorKind_ = other.actorKind_;
-        bitField0_ |= 0x00000008;
-        onChanged();
-      }
-      if (!other.getConversationId().isEmpty()) {
-        conversationId_ = other.conversationId_;
-        bitField0_ |= 0x00000010;
-        onChanged();
-      }
       if (!other.getRoomId().isEmpty()) {
         roomId_ = other.roomId_;
-        bitField0_ |= 0x00000020;
-        onChanged();
-      }
-      if (!other.getRoomKind().isEmpty()) {
-        roomKind_ = other.roomKind_;
-        bitField0_ |= 0x00000040;
+        bitField0_ |= 0x00000004;
         onChanged();
       }
       if (other.hasMetadata()) {
@@ -794,35 +558,15 @@ private static final long serialVersionUID = 0L;
               break;
             } // case 18
             case 26: {
-              actorId_ = input.readStringRequireUtf8();
+              roomId_ = input.readStringRequireUtf8();
               bitField0_ |= 0x00000004;
               break;
             } // case 26
-            case 34: {
-              actorKind_ = input.readStringRequireUtf8();
-              bitField0_ |= 0x00000008;
-              break;
-            } // case 34
-            case 42: {
-              conversationId_ = input.readStringRequireUtf8();
-              bitField0_ |= 0x00000010;
-              break;
-            } // case 42
-            case 50: {
-              roomId_ = input.readStringRequireUtf8();
-              bitField0_ |= 0x00000020;
-              break;
-            } // case 50
-            case 58: {
-              roomKind_ = input.readStringRequireUtf8();
-              bitField0_ |= 0x00000040;
-              break;
-            } // case 58
             case 122: {
               input.readMessage(
                   internalGetMetadataFieldBuilder().getBuilder(),
                   extensionRegistry);
-              bitField0_ |= 0x00000080;
+              bitField0_ |= 0x00000008;
               break;
             } // case 122
             default: {
@@ -986,225 +730,9 @@ private static final long serialVersionUID = 0L;
       return this;
     }
 
-    private java.lang.Object actorId_ = "";
-    /**
-     * <code>string actor_id = 3 [json_name = "actorId"];</code>
-     * @return The actorId.
-     */
-    public java.lang.String getActorId() {
-      java.lang.Object ref = actorId_;
-      if (!(ref instanceof java.lang.String)) {
-        com.google.protobuf.ByteString bs =
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        actorId_ = s;
-        return s;
-      } else {
-        return (java.lang.String) ref;
-      }
-    }
-    /**
-     * <code>string actor_id = 3 [json_name = "actorId"];</code>
-     * @return The bytes for actorId.
-     */
-    public com.google.protobuf.ByteString
-        getActorIdBytes() {
-      java.lang.Object ref = actorId_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        actorId_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    /**
-     * <code>string actor_id = 3 [json_name = "actorId"];</code>
-     * @param value The actorId to set.
-     * @return This builder for chaining.
-     */
-    public Builder setActorId(
-        java.lang.String value) {
-      if (value == null) { throw new NullPointerException(); }
-      actorId_ = value;
-      bitField0_ |= 0x00000004;
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string actor_id = 3 [json_name = "actorId"];</code>
-     * @return This builder for chaining.
-     */
-    public Builder clearActorId() {
-      actorId_ = getDefaultInstance().getActorId();
-      bitField0_ = (bitField0_ & ~0x00000004);
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string actor_id = 3 [json_name = "actorId"];</code>
-     * @param value The bytes for actorId to set.
-     * @return This builder for chaining.
-     */
-    public Builder setActorIdBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) { throw new NullPointerException(); }
-      checkByteStringIsUtf8(value);
-      actorId_ = value;
-      bitField0_ |= 0x00000004;
-      onChanged();
-      return this;
-    }
-
-    private java.lang.Object actorKind_ = "";
-    /**
-     * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-     * @return The actorKind.
-     */
-    public java.lang.String getActorKind() {
-      java.lang.Object ref = actorKind_;
-      if (!(ref instanceof java.lang.String)) {
-        com.google.protobuf.ByteString bs =
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        actorKind_ = s;
-        return s;
-      } else {
-        return (java.lang.String) ref;
-      }
-    }
-    /**
-     * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-     * @return The bytes for actorKind.
-     */
-    public com.google.protobuf.ByteString
-        getActorKindBytes() {
-      java.lang.Object ref = actorKind_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        actorKind_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    /**
-     * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-     * @param value The actorKind to set.
-     * @return This builder for chaining.
-     */
-    public Builder setActorKind(
-        java.lang.String value) {
-      if (value == null) { throw new NullPointerException(); }
-      actorKind_ = value;
-      bitField0_ |= 0x00000008;
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-     * @return This builder for chaining.
-     */
-    public Builder clearActorKind() {
-      actorKind_ = getDefaultInstance().getActorKind();
-      bitField0_ = (bitField0_ & ~0x00000008);
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string actor_kind = 4 [json_name = "actorKind"];</code>
-     * @param value The bytes for actorKind to set.
-     * @return This builder for chaining.
-     */
-    public Builder setActorKindBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) { throw new NullPointerException(); }
-      checkByteStringIsUtf8(value);
-      actorKind_ = value;
-      bitField0_ |= 0x00000008;
-      onChanged();
-      return this;
-    }
-
-    private java.lang.Object conversationId_ = "";
-    /**
-     * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-     * @return The conversationId.
-     */
-    public java.lang.String getConversationId() {
-      java.lang.Object ref = conversationId_;
-      if (!(ref instanceof java.lang.String)) {
-        com.google.protobuf.ByteString bs =
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        conversationId_ = s;
-        return s;
-      } else {
-        return (java.lang.String) ref;
-      }
-    }
-    /**
-     * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-     * @return The bytes for conversationId.
-     */
-    public com.google.protobuf.ByteString
-        getConversationIdBytes() {
-      java.lang.Object ref = conversationId_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        conversationId_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    /**
-     * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-     * @param value The conversationId to set.
-     * @return This builder for chaining.
-     */
-    public Builder setConversationId(
-        java.lang.String value) {
-      if (value == null) { throw new NullPointerException(); }
-      conversationId_ = value;
-      bitField0_ |= 0x00000010;
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-     * @return This builder for chaining.
-     */
-    public Builder clearConversationId() {
-      conversationId_ = getDefaultInstance().getConversationId();
-      bitField0_ = (bitField0_ & ~0x00000010);
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string conversation_id = 5 [json_name = "conversationId"];</code>
-     * @param value The bytes for conversationId to set.
-     * @return This builder for chaining.
-     */
-    public Builder setConversationIdBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) { throw new NullPointerException(); }
-      checkByteStringIsUtf8(value);
-      conversationId_ = value;
-      bitField0_ |= 0x00000010;
-      onChanged();
-      return this;
-    }
-
     private java.lang.Object roomId_ = "";
     /**
-     * <code>string room_id = 6 [json_name = "roomId"];</code>
+     * <code>string room_id = 3 [json_name = "roomId"];</code>
      * @return The roomId.
      */
     public java.lang.String getRoomId() {
@@ -1220,7 +748,7 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>string room_id = 6 [json_name = "roomId"];</code>
+     * <code>string room_id = 3 [json_name = "roomId"];</code>
      * @return The bytes for roomId.
      */
     public com.google.protobuf.ByteString
@@ -1237,7 +765,7 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>string room_id = 6 [json_name = "roomId"];</code>
+     * <code>string room_id = 3 [json_name = "roomId"];</code>
      * @param value The roomId to set.
      * @return This builder for chaining.
      */
@@ -1245,22 +773,22 @@ private static final long serialVersionUID = 0L;
         java.lang.String value) {
       if (value == null) { throw new NullPointerException(); }
       roomId_ = value;
-      bitField0_ |= 0x00000020;
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
     /**
-     * <code>string room_id = 6 [json_name = "roomId"];</code>
+     * <code>string room_id = 3 [json_name = "roomId"];</code>
      * @return This builder for chaining.
      */
     public Builder clearRoomId() {
       roomId_ = getDefaultInstance().getRoomId();
-      bitField0_ = (bitField0_ & ~0x00000020);
+      bitField0_ = (bitField0_ & ~0x00000004);
       onChanged();
       return this;
     }
     /**
-     * <code>string room_id = 6 [json_name = "roomId"];</code>
+     * <code>string room_id = 3 [json_name = "roomId"];</code>
      * @param value The bytes for roomId to set.
      * @return This builder for chaining.
      */
@@ -1269,79 +797,7 @@ private static final long serialVersionUID = 0L;
       if (value == null) { throw new NullPointerException(); }
       checkByteStringIsUtf8(value);
       roomId_ = value;
-      bitField0_ |= 0x00000020;
-      onChanged();
-      return this;
-    }
-
-    private java.lang.Object roomKind_ = "";
-    /**
-     * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-     * @return The roomKind.
-     */
-    public java.lang.String getRoomKind() {
-      java.lang.Object ref = roomKind_;
-      if (!(ref instanceof java.lang.String)) {
-        com.google.protobuf.ByteString bs =
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        roomKind_ = s;
-        return s;
-      } else {
-        return (java.lang.String) ref;
-      }
-    }
-    /**
-     * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-     * @return The bytes for roomKind.
-     */
-    public com.google.protobuf.ByteString
-        getRoomKindBytes() {
-      java.lang.Object ref = roomKind_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        roomKind_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    /**
-     * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-     * @param value The roomKind to set.
-     * @return This builder for chaining.
-     */
-    public Builder setRoomKind(
-        java.lang.String value) {
-      if (value == null) { throw new NullPointerException(); }
-      roomKind_ = value;
-      bitField0_ |= 0x00000040;
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-     * @return This builder for chaining.
-     */
-    public Builder clearRoomKind() {
-      roomKind_ = getDefaultInstance().getRoomKind();
-      bitField0_ = (bitField0_ & ~0x00000040);
-      onChanged();
-      return this;
-    }
-    /**
-     * <code>string room_kind = 7 [json_name = "roomKind"];</code>
-     * @param value The bytes for roomKind to set.
-     * @return This builder for chaining.
-     */
-    public Builder setRoomKindBytes(
-        com.google.protobuf.ByteString value) {
-      if (value == null) { throw new NullPointerException(); }
-      checkByteStringIsUtf8(value);
-      roomKind_ = value;
-      bitField0_ |= 0x00000040;
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1354,7 +810,7 @@ private static final long serialVersionUID = 0L;
      * @return Whether the metadata field is set.
      */
     public boolean hasMetadata() {
-      return ((bitField0_ & 0x00000080) != 0);
+      return ((bitField0_ & 0x00000008) != 0);
     }
     /**
      * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
@@ -1379,7 +835,7 @@ private static final long serialVersionUID = 0L;
       } else {
         metadataBuilder_.setMessage(value);
       }
-      bitField0_ |= 0x00000080;
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1393,7 +849,7 @@ private static final long serialVersionUID = 0L;
       } else {
         metadataBuilder_.setMessage(builderForValue.build());
       }
-      bitField0_ |= 0x00000080;
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1402,7 +858,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder mergeMetadata(com.sdkwork.common.v1.RequestMetadata value) {
       if (metadataBuilder_ == null) {
-        if (((bitField0_ & 0x00000080) != 0) &&
+        if (((bitField0_ & 0x00000008) != 0) &&
           metadata_ != null &&
           metadata_ != com.sdkwork.common.v1.RequestMetadata.getDefaultInstance()) {
           getMetadataBuilder().mergeFrom(value);
@@ -1413,7 +869,7 @@ private static final long serialVersionUID = 0L;
         metadataBuilder_.mergeFrom(value);
       }
       if (metadata_ != null) {
-        bitField0_ |= 0x00000080;
+        bitField0_ |= 0x00000008;
         onChanged();
       }
       return this;
@@ -1422,7 +878,7 @@ private static final long serialVersionUID = 0L;
      * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
      */
     public Builder clearMetadata() {
-      bitField0_ = (bitField0_ & ~0x00000080);
+      bitField0_ = (bitField0_ & ~0x00000008);
       metadata_ = null;
       if (metadataBuilder_ != null) {
         metadataBuilder_.dispose();
@@ -1435,7 +891,7 @@ private static final long serialVersionUID = 0L;
      * <code>.sdkwork.common.v1.RequestMetadata metadata = 15 [json_name = "metadata"];</code>
      */
     public com.sdkwork.common.v1.RequestMetadata.Builder getMetadataBuilder() {
-      bitField0_ |= 0x00000080;
+      bitField0_ |= 0x00000008;
       onChanged();
       return internalGetMetadataFieldBuilder().getBuilder();
     }
@@ -1467,23 +923,23 @@ private static final long serialVersionUID = 0L;
       return metadataBuilder_;
     }
 
-    // @@protoc_insertion_point(builder_scope:sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest)
+    // @@protoc_insertion_point(builder_scope:sdkwork.communication.internal.v1.RetrieveRoomRequest)
   }
 
-  // @@protoc_insertion_point(class_scope:sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest)
-  private static final com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest DEFAULT_INSTANCE;
+  // @@protoc_insertion_point(class_scope:sdkwork.communication.internal.v1.RetrieveRoomRequest)
+  private static final com.sdkwork.communication.internal.v1.RetrieveRoomRequest DEFAULT_INSTANCE;
   static {
-    DEFAULT_INSTANCE = new com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest();
+    DEFAULT_INSTANCE = new com.sdkwork.communication.internal.v1.RetrieveRoomRequest();
   }
 
-  public static com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest getDefaultInstance() {
+  public static com.sdkwork.communication.internal.v1.RetrieveRoomRequest getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
 
-  private static final com.google.protobuf.Parser<OrchestrateCreateRoomRequest>
-      PARSER = new com.google.protobuf.AbstractParser<OrchestrateCreateRoomRequest>() {
+  private static final com.google.protobuf.Parser<RetrieveRoomRequest>
+      PARSER = new com.google.protobuf.AbstractParser<RetrieveRoomRequest>() {
     @java.lang.Override
-    public OrchestrateCreateRoomRequest parsePartialFrom(
+    public RetrieveRoomRequest parsePartialFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -1502,17 +958,17 @@ private static final long serialVersionUID = 0L;
     }
   };
 
-  public static com.google.protobuf.Parser<OrchestrateCreateRoomRequest> parser() {
+  public static com.google.protobuf.Parser<RetrieveRoomRequest> parser() {
     return PARSER;
   }
 
   @java.lang.Override
-  public com.google.protobuf.Parser<OrchestrateCreateRoomRequest> getParserForType() {
+  public com.google.protobuf.Parser<RetrieveRoomRequest> getParserForType() {
     return PARSER;
   }
 
   @java.lang.Override
-  public com.sdkwork.communication.internal.v1.OrchestrateCreateRoomRequest getDefaultInstanceForType() {
+  public com.sdkwork.communication.internal.v1.RetrieveRoomRequest getDefaultInstanceForType() {
     return DEFAULT_INSTANCE;
   }
 

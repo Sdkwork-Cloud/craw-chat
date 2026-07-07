@@ -32,45 +32,45 @@ public final class RoomOrchestrationServiceOuterClass extends com.google.protobu
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_sdkwork_communication_internal_v1_OrchestratedRoomView_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor;
+    internal_static_sdkwork_communication_internal_v1_CreateRoomRequest_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_CreateRoomRequest_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomResponse_descriptor;
+    internal_static_sdkwork_communication_internal_v1_CreateRoomResponse_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomResponse_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_CreateRoomResponse_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomRequest_descriptor;
+    internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomRequest_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomResponse_descriptor;
+    internal_static_sdkwork_communication_internal_v1_RetrieveRoomResponse_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomResponse_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_RetrieveRoomResponse_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomRequest_descriptor;
+    internal_static_sdkwork_communication_internal_v1_EnterRoomRequest_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomRequest_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_EnterRoomRequest_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomResponse_descriptor;
+    internal_static_sdkwork_communication_internal_v1_EnterRoomResponse_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomResponse_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_EnterRoomResponse_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomRequest_descriptor;
+    internal_static_sdkwork_communication_internal_v1_LeaveRoomRequest_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomRequest_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_LeaveRoomRequest_fieldAccessorTable;
   static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor;
+    internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor;
   static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
-      internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_fieldAccessorTable;
+      internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -88,72 +88,67 @@ public final class RoomOrchestrationServiceOuterClass extends com.google.protobu
       "\002 \001(\tR\010roomKind\022\'\n\017conversation_id\030\003 \001(\t" +
       "R\016conversationId\022.\n\023active_member_count\030" +
       "\004 \001(\005R\021activeMemberCount\022\037\n\013max_members\030" +
-      "\005 \001(\005R\nmaxMembers\"\275\002\n\034OrchestrateCreateR" +
+      "\005 \001(\005R\nmaxMembers\"\262\002\n\021CreateRoomRequest\022" +
+      "\033\n\ttenant_id\030\001 \001(\tR\010tenantId\022\'\n\017organiza" +
+      "tion_id\030\002 \001(\tR\016organizationId\022\031\n\010actor_i" +
+      "d\030\003 \001(\tR\007actorId\022\035\n\nactor_kind\030\004 \001(\tR\tac" +
+      "torKind\022\'\n\017conversation_id\030\005 \001(\tR\016conver" +
+      "sationId\022\027\n\007room_id\030\006 \001(\tR\006roomId\022\033\n\troo" +
+      "m_kind\030\007 \001(\tR\010roomKind\022>\n\010metadata\030\017 \001(\013" +
+      "2\".sdkwork.common.v1.RequestMetadataR\010me" +
+      "tadata\"\346\001\n\022CreateRoomResponse\022\'\n\017convers" +
+      "ation_id\030\001 \001(\tR\016conversationId\022\031\n\010event_" +
+      "id\030\002 \001(\tR\007eventId\022K\n\004room\030\003 \001(\01327.sdkwor" +
+      "k.communication.internal.v1.Orchestrated" +
+      "RoomViewR\004room\022?\n\010metadata\030\017 \001(\0132#.sdkwo" +
+      "rk.common.v1.ResponseMetadataR\010metadata\"" +
+      "\264\001\n\023RetrieveRoomRequest\022\033\n\ttenant_id\030\001 \001" +
+      "(\tR\010tenantId\022\'\n\017organization_id\030\002 \001(\tR\016o" +
+      "rganizationId\022\027\n\007room_id\030\003 \001(\tR\006roomId\022>" +
+      "\n\010metadata\030\017 \001(\0132\".sdkwork.common.v1.Req" +
+      "uestMetadataR\010metadata\"\244\001\n\024RetrieveRoomR" +
+      "esponse\022K\n\004room\030\001 \001(\01327.sdkwork.communic" +
+      "ation.internal.v1.OrchestratedRoomViewR\004" +
+      "room\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common." +
+      "v1.ResponseMetadataR\010metadata\"\373\001\n\020EnterR" +
       "oomRequest\022\033\n\ttenant_id\030\001 \001(\tR\010tenantId\022" +
       "\'\n\017organization_id\030\002 \001(\tR\016organizationId" +
-      "\022\031\n\010actor_id\030\003 \001(\tR\007actorId\022\035\n\nactor_kin" +
-      "d\030\004 \001(\tR\tactorKind\022\'\n\017conversation_id\030\005 " +
-      "\001(\tR\016conversationId\022\027\n\007room_id\030\006 \001(\tR\006ro" +
-      "omId\022\033\n\troom_kind\030\007 \001(\tR\010roomKind\022>\n\010met" +
-      "adata\030\017 \001(\0132\".sdkwork.common.v1.RequestM" +
-      "etadataR\010metadata\"\361\001\n\035OrchestrateCreateR" +
-      "oomResponse\022\'\n\017conversation_id\030\001 \001(\tR\016co" +
-      "nversationId\022\031\n\010event_id\030\002 \001(\tR\007eventId\022" +
-      "K\n\004room\030\003 \001(\01327.sdkwork.communication.in" +
-      "ternal.v1.OrchestratedRoomViewR\004room\022?\n\010" +
-      "metadata\030\017 \001(\0132#.sdkwork.common.v1.Respo" +
-      "nseMetadataR\010metadata\"\277\001\n\036OrchestrateRet" +
-      "rieveRoomRequest\022\033\n\ttenant_id\030\001 \001(\tR\010ten" +
-      "antId\022\'\n\017organization_id\030\002 \001(\tR\016organiza" +
-      "tionId\022\027\n\007room_id\030\003 \001(\tR\006roomId\022>\n\010metad" +
-      "ata\030\017 \001(\0132\".sdkwork.common.v1.RequestMet" +
-      "adataR\010metadata\"\257\001\n\037OrchestrateRetrieveR" +
-      "oomResponse\022K\n\004room\030\001 \001(\01327.sdkwork.comm" +
-      "unication.internal.v1.OrchestratedRoomVi" +
-      "ewR\004room\022?\n\010metadata\030\017 \001(\0132#.sdkwork.com" +
-      "mon.v1.ResponseMetadataR\010metadata\"\206\002\n\033Or" +
-      "chestrateEnterRoomRequest\022\033\n\ttenant_id\030\001" +
-      " \001(\tR\010tenantId\022\'\n\017organization_id\030\002 \001(\tR" +
-      "\016organizationId\022\027\n\007room_id\030\003 \001(\tR\006roomId" +
-      "\022!\n\014principal_id\030\004 \001(\tR\013principalId\022%\n\016p" +
-      "rincipal_kind\030\005 \001(\tR\rprincipalKind\022>\n\010me" +
-      "tadata\030\017 \001(\0132\".sdkwork.common.v1.Request" +
-      "MetadataR\010metadata\"\245\001\n\034OrchestrateEnterR" +
-      "oomResponse\022\033\n\tmember_id\030\001 \001(\tR\010memberId" +
-      "\022\'\n\017conversation_id\030\002 \001(\tR\016conversationI" +
-      "d\022?\n\010metadata\030\017 \001(\0132#.sdkwork.common.v1." +
-      "ResponseMetadataR\010metadata\"\206\002\n\033Orchestra" +
-      "teLeaveRoomRequest\022\033\n\ttenant_id\030\001 \001(\tR\010t" +
-      "enantId\022\'\n\017organization_id\030\002 \001(\tR\016organi" +
-      "zationId\022\027\n\007room_id\030\003 \001(\tR\006roomId\022!\n\014pri" +
-      "ncipal_id\030\004 \001(\tR\013principalId\022%\n\016principa" +
-      "l_kind\030\005 \001(\tR\rprincipalKind\022>\n\010metadata\030" +
-      "\017 \001(\0132\".sdkwork.common.v1.RequestMetadat" +
-      "aR\010metadata\"\275\001\n\034OrchestrateLeaveRoomResp" +
-      "onse\022\033\n\tmember_id\030\001 \001(\tR\010memberId\022\'\n\017con" +
-      "versation_id\030\002 \001(\tR\016conversationId\022\026\n\006st" +
-      "atus\030\003 \001(\tR\006status\022?\n\010metadata\030\017 \001(\0132#.s" +
-      "dkwork.common.v1.ResponseMetadataR\010metad" +
-      "ata2\342\004\n\030RoomOrchestrationService\022\217\001\n\nCre" +
-      "ateRoom\022?.sdkwork.communication.internal" +
-      ".v1.OrchestrateCreateRoomRequest\032@.sdkwo" +
-      "rk.communication.internal.v1.Orchestrate" +
-      "CreateRoomResponse\022\225\001\n\014RetrieveRoom\022A.sd" +
-      "kwork.communication.internal.v1.Orchestr" +
-      "ateRetrieveRoomRequest\032B.sdkwork.communi" +
-      "cation.internal.v1.OrchestrateRetrieveRo" +
-      "omResponse\022\214\001\n\tEnterRoom\022>.sdkwork.commu" +
-      "nication.internal.v1.OrchestrateEnterRoo" +
-      "mRequest\032?.sdkwork.communication.interna" +
-      "l.v1.OrchestrateEnterRoomResponse\022\214\001\n\tLe" +
-      "aveRoom\022>.sdkwork.communication.internal" +
-      ".v1.OrchestrateLeaveRoomRequest\032?.sdkwor" +
-      "k.communication.internal.v1.OrchestrateL" +
-      "eaveRoomResponseB\225\001\n%com.sdkwork.communi" +
-      "cation.internal.v1P\001Zjgithub.com/sdkwork" +
-      "/im-rpc-sdk-go/generated/proto/sdkwork/c" +
-      "ommunication/internal/v1;communicationin" +
-      "ternalv1b\006proto3"
+      "\022\027\n\007room_id\030\003 \001(\tR\006roomId\022!\n\014principal_i" +
+      "d\030\004 \001(\tR\013principalId\022%\n\016principal_kind\030\005" +
+      " \001(\tR\rprincipalKind\022>\n\010metadata\030\017 \001(\0132\"." +
+      "sdkwork.common.v1.RequestMetadataR\010metad" +
+      "ata\"\232\001\n\021EnterRoomResponse\022\033\n\tmember_id\030\001" +
+      " \001(\tR\010memberId\022\'\n\017conversation_id\030\002 \001(\tR" +
+      "\016conversationId\022?\n\010metadata\030\017 \001(\0132#.sdkw" +
+      "ork.common.v1.ResponseMetadataR\010metadata" +
+      "\"\373\001\n\020LeaveRoomRequest\022\033\n\ttenant_id\030\001 \001(\t" +
+      "R\010tenantId\022\'\n\017organization_id\030\002 \001(\tR\016org" +
+      "anizationId\022\027\n\007room_id\030\003 \001(\tR\006roomId\022!\n\014" +
+      "principal_id\030\004 \001(\tR\013principalId\022%\n\016princ" +
+      "ipal_kind\030\005 \001(\tR\rprincipalKind\022>\n\010metada" +
+      "ta\030\017 \001(\0132\".sdkwork.common.v1.RequestMeta" +
+      "dataR\010metadata\"\262\001\n\021LeaveRoomResponse\022\033\n\t" +
+      "member_id\030\001 \001(\tR\010memberId\022\'\n\017conversatio" +
+      "n_id\030\002 \001(\tR\016conversationId\022\026\n\006status\030\003 \001" +
+      "(\tR\006status\022?\n\010metadata\030\017 \001(\0132#.sdkwork.c" +
+      "ommon.v1.ResponseMetadataR\010metadata2\206\004\n\030" +
+      "RoomOrchestrationService\022y\n\nCreateRoom\0224" +
+      ".sdkwork.communication.internal.v1.Creat" +
+      "eRoomRequest\0325.sdkwork.communication.int" +
+      "ernal.v1.CreateRoomResponse\022\177\n\014RetrieveR" +
+      "oom\0226.sdkwork.communication.internal.v1." +
+      "RetrieveRoomRequest\0327.sdkwork.communicat" +
+      "ion.internal.v1.RetrieveRoomResponse\022v\n\t" +
+      "EnterRoom\0223.sdkwork.communication.intern" +
+      "al.v1.EnterRoomRequest\0324.sdkwork.communi" +
+      "cation.internal.v1.EnterRoomResponse\022v\n\t" +
+      "LeaveRoom\0223.sdkwork.communication.intern" +
+      "al.v1.LeaveRoomRequest\0324.sdkwork.communi" +
+      "cation.internal.v1.LeaveRoomResponseB\225\001\n" +
+      "%com.sdkwork.communication.internal.v1P\001" +
+      "Zjgithub.com/sdkwork/im-rpc-sdk-go/gener" +
+      "ated/proto/sdkwork/communication/interna" +
+      "l/v1;communicationinternalv1b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -166,53 +161,53 @@ public final class RoomOrchestrationServiceOuterClass extends com.google.protobu
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_sdkwork_communication_internal_v1_OrchestratedRoomView_descriptor,
         new java.lang.String[] { "RoomId", "RoomKind", "ConversationId", "ActiveMemberCount", "MaxMembers", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor =
+    internal_static_sdkwork_communication_internal_v1_CreateRoomRequest_descriptor =
       getDescriptor().getMessageType(1);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_CreateRoomRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomRequest_descriptor,
+        internal_static_sdkwork_communication_internal_v1_CreateRoomRequest_descriptor,
         new java.lang.String[] { "TenantId", "OrganizationId", "ActorId", "ActorKind", "ConversationId", "RoomId", "RoomKind", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomResponse_descriptor =
+    internal_static_sdkwork_communication_internal_v1_CreateRoomResponse_descriptor =
       getDescriptor().getMessageType(2);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomResponse_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_CreateRoomResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateCreateRoomResponse_descriptor,
+        internal_static_sdkwork_communication_internal_v1_CreateRoomResponse_descriptor,
         new java.lang.String[] { "ConversationId", "EventId", "Room", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomRequest_descriptor =
+    internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor =
       getDescriptor().getMessageType(3);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomRequest_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomRequest_descriptor,
+        internal_static_sdkwork_communication_internal_v1_RetrieveRoomRequest_descriptor,
         new java.lang.String[] { "TenantId", "OrganizationId", "RoomId", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomResponse_descriptor =
+    internal_static_sdkwork_communication_internal_v1_RetrieveRoomResponse_descriptor =
       getDescriptor().getMessageType(4);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomResponse_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_RetrieveRoomResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateRetrieveRoomResponse_descriptor,
+        internal_static_sdkwork_communication_internal_v1_RetrieveRoomResponse_descriptor,
         new java.lang.String[] { "Room", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomRequest_descriptor =
+    internal_static_sdkwork_communication_internal_v1_EnterRoomRequest_descriptor =
       getDescriptor().getMessageType(5);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomRequest_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_EnterRoomRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomRequest_descriptor,
+        internal_static_sdkwork_communication_internal_v1_EnterRoomRequest_descriptor,
         new java.lang.String[] { "TenantId", "OrganizationId", "RoomId", "PrincipalId", "PrincipalKind", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomResponse_descriptor =
+    internal_static_sdkwork_communication_internal_v1_EnterRoomResponse_descriptor =
       getDescriptor().getMessageType(6);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomResponse_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_EnterRoomResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateEnterRoomResponse_descriptor,
+        internal_static_sdkwork_communication_internal_v1_EnterRoomResponse_descriptor,
         new java.lang.String[] { "MemberId", "ConversationId", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomRequest_descriptor =
+    internal_static_sdkwork_communication_internal_v1_LeaveRoomRequest_descriptor =
       getDescriptor().getMessageType(7);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomRequest_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_LeaveRoomRequest_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomRequest_descriptor,
+        internal_static_sdkwork_communication_internal_v1_LeaveRoomRequest_descriptor,
         new java.lang.String[] { "TenantId", "OrganizationId", "RoomId", "PrincipalId", "PrincipalKind", "Metadata", });
-    internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor =
+    internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor =
       getDescriptor().getMessageType(8);
-    internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_fieldAccessorTable = new
+    internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
-        internal_static_sdkwork_communication_internal_v1_OrchestrateLeaveRoomResponse_descriptor,
+        internal_static_sdkwork_communication_internal_v1_LeaveRoomResponse_descriptor,
         new java.lang.String[] { "MemberId", "ConversationId", "Status", "Metadata", });
     descriptor.resolveAllFeaturesImmutable();
     com.sdkwork.common.v1.Context.getDescriptor();
