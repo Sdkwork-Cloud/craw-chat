@@ -794,7 +794,6 @@ mod tests {
 
         // With 20% jitter, values should be within ±20%
         let backoff_with_jitter = policy.calculate_reconnect_backoff_with_jitter(3, 0.2);
-        let base = Duration::from_secs(8);
         let min_expected = Duration::from_millis(6400); // 8s * 0.8
         let max_expected = Duration::from_millis(9600); // 8s * 1.2
         assert!(

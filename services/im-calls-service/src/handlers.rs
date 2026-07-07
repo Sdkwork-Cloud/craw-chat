@@ -12,7 +12,7 @@
 use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::response::Response;
-use sdkwork_utils_rust::{SdkWorkPageData, cursor_list_page_data};
+use sdkwork_utils_rust::cursor_list_page_data;
 use serde::Deserialize;
 
 use im_app_context::AppContext;

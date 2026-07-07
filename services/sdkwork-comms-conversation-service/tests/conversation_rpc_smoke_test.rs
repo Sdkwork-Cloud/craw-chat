@@ -3,7 +3,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use conversation_runtime::http::default_app_state;
+use conversation_runtime::http::{AppState, bootstrap_conversation_app_state_from_env};
 use conversation_runtime::internal_rpc_dispatch::{
     CONVERSATION_INTERNAL_RPC_SERVICE_KEYS, ConversationInternalRpcDispatcher,
 };
@@ -32,6 +32,26 @@ use tonic::metadata::MetadataValue;
 struct RpcServerHandle {
     shutdown: tokio::sync::oneshot::Sender<()>,
     join: tokio::task::JoinHandle<()>,
+}
+
+static RPC_SMOKE_TEST_ENV: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
+fn ensure_rpc_smoke_test_environment() {
+    RPC_SMOKE_TEST_ENV.get_or_init(|| {
+        // SAFETY: This integration-test binary needs a deterministic dev/test
+        // environment before building conversation AppState. The value is set
+        // once for the whole test process and is not mutated afterwards.
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+            std::env::set_var("SDKWORK_IM_ALLOW_ALL_PRINCIPALS", "true");
+        }
+    });
+}
+
+fn rpc_smoke_app_state() -> AppState {
+    ensure_rpc_smoke_test_environment();
+    bootstrap_conversation_app_state_from_env()
+        .expect("conversation RPC smoke tests require a test AppState")
 }
 
 impl RpcServerHandle {
@@ -100,7 +120,7 @@ fn internal_service_metadata(idempotency_key: &str) -> RpcMetadata {
 
 #[tokio::test]
 async fn test_app_room_service_create_enter_over_grpc() {
-    let state = default_app_state();
+    let state = rpc_smoke_app_state();
     let dispatcher = Arc::new(ConversationRpcDispatcher::from_app_state(state));
     let (addr, server) =
         start_in_process_rpc_server(dispatcher, CONVERSATION_RPC_SERVICE_KEYS).await;
@@ -161,7 +181,7 @@ async fn test_app_room_service_create_enter_over_grpc() {
 
 #[tokio::test]
 async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
-    let state = default_app_state();
+    let state = rpc_smoke_app_state();
     let dispatcher = Arc::new(ConversationInternalRpcDispatcher::from_app_state(state));
     let (addr, server) =
         start_in_process_rpc_server(dispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS).await;
@@ -251,7 +271,7 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
 
 #[tokio::test]
 async fn test_app_rpc_host_rejects_service_mtls_metadata_without_dual_token() {
-    let state = default_app_state();
+    let state = rpc_smoke_app_state();
     let dispatcher = Arc::new(ConversationRpcDispatcher::from_app_state(state));
     let (addr, server) =
         start_in_process_rpc_server(dispatcher, CONVERSATION_RPC_SERVICE_KEYS).await;
@@ -284,7 +304,7 @@ async fn test_app_rpc_host_rejects_service_mtls_metadata_without_dual_token() {
 
 #[tokio::test]
 async fn test_internal_rpc_host_rejects_app_session_without_service_identity() {
-    let state = default_app_state();
+    let state = rpc_smoke_app_state();
     let dispatcher = Arc::new(ConversationInternalRpcDispatcher::from_app_state(state));
     let (addr, server) =
         start_in_process_rpc_server(dispatcher, CONVERSATION_INTERNAL_RPC_SERVICE_KEYS).await;
