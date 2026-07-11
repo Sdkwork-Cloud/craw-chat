@@ -5,12 +5,12 @@ import type { ConversationInboxEntry } from "@sdkwork/im-sdk";
 import { formatRelativeTime, useI18n } from "@sdkwork/im-h5-commons";
 
 import { fetchChatInboxPage, markConversationRead, readInboxPageState } from "../services/chatInboxService";
-import { mergeInboxEntries } from "../services/chatInboxUtils";
+import { mergeInboxEntries, mergeLatestInboxEntries } from "../services/chatInboxUtils";
 import {
   rememberConversationTitle,
   resolveConversationInboxEntryDisplayTitle,
 } from "../services/chatConversationTitleStore";
-import { subscribeInboxLiveRefresh } from "../services/chatRealtimeService";
+import { resolveInboxRealtimeUserId, subscribeInboxLiveRefresh } from "../services/chatRealtimeService";
 
 export function ChatInboxPage() {
   const { t } = useI18n();
@@ -22,8 +22,13 @@ export function ChatInboxPage() {
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
   const loadInboxRef = useRef<(options?: { silent?: boolean }) => void>(() => undefined);
+  const requestGenerationRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const loadedAdditionalPagesRef = useRef(false);
+  const pendingLiveRefreshRef = useRef(false);
 
   const loadInbox = useCallback((options?: { silent?: boolean }) => {
+    const requestGeneration = ++requestGenerationRef.current;
     if (!options?.silent) {
       setLoading(true);
     }
@@ -31,45 +36,74 @@ export function ChatInboxPage() {
 
     fetchChatInboxPage()
       .then((response) => {
-        setEntries(response.items ?? []);
+        if (requestGeneration !== requestGenerationRef.current) {
+          return;
+        }
+        const responseItems = response.items ?? [];
         const pageState = readInboxPageState(response);
-        setNextCursor(pageState.nextCursor);
-        setHasMore(pageState.hasMore);
+        if (options?.silent && loadedAdditionalPagesRef.current) {
+          setEntries((previous) => mergeLatestInboxEntries(previous, responseItems));
+        } else {
+          loadedAdditionalPagesRef.current = false;
+          setEntries(responseItems);
+          setNextCursor(pageState.nextCursor);
+          setHasMore(pageState.hasMore);
+        }
       })
       .catch((cause: unknown) => {
+        if (requestGeneration !== requestGenerationRef.current) {
+          return;
+        }
         const message = cause instanceof Error ? cause.message : t("chat.inbox.loadError");
         setError(message);
       })
       .finally(() => {
-        if (!options?.silent) {
+        if (requestGeneration === requestGenerationRef.current) {
           setLoading(false);
         }
       });
   }, [t]);
 
   const loadMoreInbox = useCallback(() => {
-    if (!hasMore || !nextCursor || loadingMore) {
+    if (!hasMore || !nextCursor || loadingMoreRef.current) {
       return;
     }
 
+    const requestGeneration = ++requestGenerationRef.current;
+    const requestCursor = nextCursor;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     setError(null);
 
-    fetchChatInboxPage({ cursor: nextCursor })
+    fetchChatInboxPage({ cursor: requestCursor })
       .then((response) => {
+        if (requestGeneration !== requestGenerationRef.current) {
+          return;
+        }
         setEntries((previous) => mergeInboxEntries(previous, response.items ?? []));
+        loadedAdditionalPagesRef.current = true;
         const pageState = readInboxPageState(response);
         setNextCursor(pageState.nextCursor);
         setHasMore(pageState.hasMore);
       })
       .catch((cause: unknown) => {
+        if (requestGeneration !== requestGenerationRef.current) {
+          return;
+        }
         const message = cause instanceof Error ? cause.message : t("chat.inbox.loadMoreError");
         setError(message);
       })
       .finally(() => {
-        setLoadingMore(false);
+        if (requestGeneration === requestGenerationRef.current) {
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+          if (pendingLiveRefreshRef.current) {
+            pendingLiveRefreshRef.current = false;
+            loadInboxRef.current({ silent: true });
+          }
+        }
       });
-  }, [hasMore, loadingMore, nextCursor, t]);
+  }, [hasMore, nextCursor, t]);
 
   loadInboxRef.current = loadInbox;
 
@@ -80,10 +114,19 @@ export function ChatInboxPage() {
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
+    const userId = resolveInboxRealtimeUserId();
+    if (!userId) {
+      setLiveConnected(false);
+      return undefined;
+    }
 
     void subscribeInboxLiveRefresh(() => {
+      if (loadingMoreRef.current) {
+        pendingLiveRefreshRef.current = true;
+        return;
+      }
       loadInboxRef.current({ silent: true });
-    })
+    }, userId)
       .then((dispose) => {
         if (cancelled) {
           dispose();
@@ -100,8 +143,8 @@ export function ChatInboxPage() {
 
     return () => {
       cancelled = true;
+      requestGenerationRef.current += 1;
       unsubscribe?.();
-      setLiveConnected(false);
     };
   }, []);
 

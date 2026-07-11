@@ -8,8 +8,8 @@ use sdkwork_utils_rust::sha256_hash;
 use serde::Deserialize;
 
 use crate::{
-    PostgresProjectionPool, default_projection_organization_id, now_rfc3339, postgres_pool_client,
-    postgres_timestamptz, postgres_unavailable, run_postgres_io,
+    PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_timestamptz,
+    postgres_unavailable, require_projection_organization_id, run_postgres_io,
 };
 
 const UPSERT_TIMELINE_ENTRY_SQL: &str = r#"
@@ -43,7 +43,13 @@ where tenant_id = $1
   and conversation_id = $3
   and (retention_until is null or retention_until > now())
 order by message_seq asc
+limit $4
 "#;
+
+/// Default row cap for unbounded timeline loads. Aligned with PAGINATION_SPEC
+/// maximum `page_size` (200) to prevent unbounded result sets at the SQL level
+/// instead of collecting then truncating in process memory.
+const LOAD_TIMELINE_DEFAULT_LIMIT: i64 = 200;
 
 const LOAD_TIMELINE_WINDOW_SQL: &str = r#"
 select message_seq, payload_json::text
@@ -92,6 +98,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         tenant_id: &str,
         timeline_scope: &str,
     ) -> Result<Vec<(u64, String)>, ContractError> {
+        let organization_id = require_projection_organization_id()?;
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let timeline_scope = timeline_scope.to_owned();
@@ -102,8 +109,9 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                     LOAD_TIMELINE_SQL,
                     &[
                         &tenant_id,
-                        &default_projection_organization_id(),
+                        &organization_id,
                         &timeline_scope,
+                        &LOAD_TIMELINE_DEFAULT_LIMIT,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("timeline load select", error))?;
@@ -125,6 +133,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
         after_seq: u64,
         limit: usize,
     ) -> Result<TimelineProjectionWindow, ContractError> {
+        let organization_id = require_projection_organization_id()?;
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let timeline_scope = timeline_scope.to_owned();
@@ -137,7 +146,7 @@ impl sdkwork_im_contract_message::TimelineProjectionStore for PostgresTimelinePr
                     LOAD_TIMELINE_WINDOW_SQL,
                     &[
                         &tenant_id,
-                        &default_projection_organization_id(),
+                        &organization_id,
                         &timeline_scope,
                         &after_seq_i64,
                         &fetch_limit,
@@ -204,6 +213,7 @@ fn upsert_timeline_rows(
     if rows.is_empty() {
         return Ok(());
     }
+    let organization_id = require_projection_organization_id()?;
     let pool = pool.clone();
     let rows = rows.to_vec();
     run_postgres_io(move || {
@@ -226,7 +236,7 @@ fn upsert_timeline_rows(
                     UPSERT_TIMELINE_ENTRY_SQL,
                     &[
                         &tenant_id,
-                        &default_projection_organization_id(),
+                        &organization_id,
                         &conversation_id,
                         &message_seq_i64,
                         &message_id,

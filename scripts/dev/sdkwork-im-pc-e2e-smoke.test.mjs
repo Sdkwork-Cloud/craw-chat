@@ -38,7 +38,11 @@ assert.equal(
 
 async function main() {
   await lifecycle.run(async ({ signal }) => {
-    await assertPortAvailable({ host: '0.0.0.0', port: serverPort });
+    await assertPortAvailable({
+      host: '0.0.0.0',
+      port: serverPort,
+      readinessHosts: ['127.0.0.1'],
+    });
     if (signal.aborted) {
       return;
     }

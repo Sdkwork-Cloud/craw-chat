@@ -781,6 +781,86 @@ paths:
   /im/v3/api/calls/sessions/{rtcSessionId}/signals:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
+    get:
+      tags:
+        - calls
+      operationId: calls.sessions.signals.list
+      summary: List IM call signaling events
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - items
+                          - pageInfo
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/RtcSignalEvent'
+                          pageInfo:
+                            type: object
+                            additionalProperties: false
+                            required:
+                              - mode
+                              - hasMore
+                            properties:
+                              mode:
+                                type: string
+                                enum:
+                                  - cursor
+                              nextCursor:
+                                type:
+                                  - string
+                                  - 'null'
+                              hasMore:
+                                type: boolean
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
     post:
       tags:
         - calls
@@ -863,6 +943,72 @@ paths:
       responses:
         '201':
           description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SdkWorkApiResponse'
+                  - type: object
+                    required:
+                      - data
+                    properties:
+                      data:
+                        type: object
+                        required:
+                          - item
+                        properties:
+                          item:
+                            $ref: '#/components/schemas/RtcParticipantCredential'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.im
+  /im/v3/api/calls/sessions/{rtcSessionId}/credentials/refresh:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    post:
+      tags:
+        - calls
+      operationId: calls.sessions.credentials.refresh
+      summary: Refresh an expiring RTC media participant credential
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueRtcParticipantCredentialRequest'
+      responses:
+        '200':
+          description: OK
           content:
             application/json:
               schema:
@@ -3586,6 +3732,8 @@ paths:
       summary: List member directory
       parameters:
         - $ref: '#/components/parameters/ConversationIdPath'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
       responses:
         '200':
           description: OK
@@ -3836,6 +3984,8 @@ paths:
       summary: List pinned messages
       parameters:
         - $ref: '#/components/parameters/ConversationIdPath'
+        - $ref: '#/components/parameters/CursorQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
       responses:
         '200':
           description: OK
@@ -6579,6 +6729,7 @@ components:
         format: int32
         minimum: 1
         maximum: 200
+        default: 20
     QQuery:
       name: q
       in: query

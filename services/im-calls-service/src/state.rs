@@ -25,8 +25,9 @@
 
 use std::collections::BTreeMap;
 use std::ops::Bound::Excluded;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::Instant;
 
 use dashmap::DashMap;
 use im_app_context::AppContext;
@@ -38,8 +39,9 @@ use im_domain_core::rtc::{
     StateRecord, StateStore,
 };
 use im_platform_contracts::{
-    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberAccessGate,
-    ConversationMemberRecord, IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord,
+    IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
 };
 use im_time::{rfc3339_add_secs, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_communication_rtc_service::{
@@ -66,6 +68,36 @@ const OUTBOX_AGGREGATE_TYPE: &str = "rtc_session";
 const DEFAULT_CALL_RING_TIMEOUT_SECS: u64 = 120;
 const CALL_RING_TIMEOUT_SECS_ENV: &str = "SDKWORK_IM_CALL_RING_TIMEOUT_SECS";
 
+/// Hard cap on total in-memory RTC sessions to prevent unbounded DashMap growth.
+/// When exceeded, session creation triggers a cleanup pass and then fails closed.
+const RTC_SESSIONS_MAX_ENTRIES: usize = 100_000;
+/// Hard cap on signals stored per session BTreeMap to prevent unbounded growth
+/// during a session's non-terminal lifetime. This is a ceiling that overrides
+/// the configurable `SDKWORK_IM_CALLING_MAX_SIGNALS_PER_SESSION` when lower.
+const RTC_SIGNALS_MAX_PER_SESSION: usize = 1_000;
+/// Stale-session cleanup thresholds (seconds) for signaling states that have
+/// an authoritative IM-side clock. Connected media activity is owned by RTC,
+/// so `Connected` and `OnHold` must not be expired from IM timestamps alone.
+const RTC_STALE_STARTED_SECS: u64 = 30 * 60;
+const RTC_STALE_RINGING_SECS: u64 = 5 * 60;
+const RTC_STALE_CONNECTING_SECS: u64 = 5 * 60;
+const RTC_STALE_RECONNECTING_SECS: u64 = 5 * 60;
+
+#[derive(Debug)]
+struct SignalRateTrackerEntry {
+    tracker: SignalRateTracker,
+    last_seen: Instant,
+}
+
+impl Default for SignalRateTrackerEntry {
+    fn default() -> Self {
+        Self {
+            tracker: SignalRateTracker::default(),
+            last_seen: Instant::now(),
+        }
+    }
+}
+
 fn is_active_conversation_member(member: &ConversationMemberRecord) -> bool {
     matches!(
         member.membership_state.as_str(),
@@ -88,6 +120,84 @@ fn rtc_session_participant_ids(session: &Session, exclude: Option<&str>) -> Vec<
         ids.remove(exclude);
     }
     ids.into_iter().map(str::to_owned).collect()
+}
+
+/// Determine if a non-terminal session is stale based on its current state
+/// and the corresponding lifecycle timestamp.
+///
+/// Each non-terminal state has a dedicated threshold (see `RTC_STALE_*`
+/// constants). If the state-specific timestamp is missing (e.g. older
+/// sessions without migration 0008 lifecycle fields), `started_at` is used
+/// as a fallback so no stale session escapes cleanup.
+fn is_non_terminal_session_stale(session: &Session, now: &str, ring_timeout_secs: u64) -> bool {
+    fn is_older_than(threshold_secs: u64, timestamp: Option<&str>, now: &str) -> bool {
+        let Some(ts) = timestamp.filter(|ts| !ts.is_empty()) else {
+            return false;
+        };
+        rfc3339_add_secs(now, -(threshold_secs as i64))
+            .is_some_and(|cutoff| rfc3339_le(ts, cutoff.as_str()))
+    }
+
+    match session.state {
+        // Legacy `Started` state: ring timeout (default 120s) OR 30-min
+        // absolute safety cap, whichever fires first.
+        SessionState::Started => {
+            is_older_than(ring_timeout_secs, Some(session.started_at.as_str()), now)
+                || is_older_than(
+                    RTC_STALE_STARTED_SECS,
+                    Some(session.started_at.as_str()),
+                    now,
+                )
+        }
+        // `Initiating` is the pre-ringing state; use the 30-min cap.
+        SessionState::Initiating => {
+            is_older_than(
+                RTC_STALE_STARTED_SECS,
+                session.initiating_at.as_deref(),
+                now,
+            ) || is_older_than(
+                RTC_STALE_STARTED_SECS,
+                Some(session.started_at.as_str()),
+                now,
+            )
+        }
+        SessionState::Ringing => {
+            is_older_than(RTC_STALE_RINGING_SECS, session.ringing_at.as_deref(), now)
+                || is_older_than(
+                    RTC_STALE_RINGING_SECS,
+                    Some(session.started_at.as_str()),
+                    now,
+                )
+        }
+        // `Accepted` is a legacy alias for `Connecting`.
+        SessionState::Connecting | SessionState::Accepted => {
+            is_older_than(
+                RTC_STALE_CONNECTING_SECS,
+                session.connecting_at.as_deref(),
+                now,
+            ) || is_older_than(
+                RTC_STALE_CONNECTING_SECS,
+                Some(session.started_at.as_str()),
+                now,
+            )
+        }
+        SessionState::Reconnecting => {
+            is_older_than(
+                RTC_STALE_RECONNECTING_SECS,
+                session.reconnecting_since.as_deref(),
+                now,
+            ) || is_older_than(
+                RTC_STALE_RECONNECTING_SECS,
+                Some(session.started_at.as_str()),
+                now,
+            )
+        }
+        // Media liveness belongs to sdkwork-rtc. IM signaling timestamps do
+        // not prove that a connected or held media session is abandoned.
+        SessionState::Connected | SessionState::OnHold => false,
+        // Terminal states are never stale (already cleaned up by persist_state).
+        _ => false,
+    }
 }
 
 /// High-performance concurrent call signaling runtime.
@@ -156,7 +266,7 @@ pub struct CallingRuntime {
     /// Monotonically increasing, never reused.
     epoch_counter: AtomicU64,
     /// Per-sender signal rate trackers keyed by `{scope}:{sender_kind}:{sender_id}`.
-    signal_rate_by_sender: DashMap<String, SignalRateTracker>,
+    signal_rate_by_sender: DashMap<String, SignalRateTrackerEntry>,
     /// Optional Redis-backed shared rate limiter for multi-instance deployments.
     shared_signal_rate_limiter: Option<im_adapters_redis_cache::RedisSignalRateLimiter>,
 }
@@ -743,6 +853,25 @@ impl CallingRuntime {
             rtc_session_scope_key(auth.tenant_id.as_str(), request.rtc_session_id.as_str());
         self.ensure_rtc_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
 
+        // Enforce global in-memory sessions cap for new sessions only.
+        // Existing sessions (idempotent replays) are allowed through. The
+        // check runs outside the entry shard lock to avoid deadlocking with
+        // the cleanup iteration.
+        let is_new_session = !self.sessions.contains_key(scope_key.as_str());
+        if is_new_session && self.sessions.len() >= RTC_SESSIONS_MAX_ENTRIES {
+            self.expire_stale_non_terminal_sessions();
+            if self.sessions.len() >= RTC_SESSIONS_MAX_ENTRIES {
+                return Err(CallingError {
+                    status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    code: "rtc_sessions_capacity_exceeded",
+                    message: format!(
+                        "RTC in-memory sessions capacity exceeded (max {RTC_SESSIONS_MAX_ENTRIES}); \
+                         retry after cleanup"
+                    ),
+                });
+            }
+        }
+
         // Atomically claim the session slot via the entry API. Previous
         // implementation used a read-then-insert pattern (get → check →
         // insert), which allowed two concurrent create requests for the same
@@ -836,7 +965,18 @@ impl CallingRuntime {
 
                 vacant.insert(session.clone());
                 self.signals.entry(scope_key).or_default();
-                self.persist_state(auth, request.rtc_session_id.as_str())?;
+                if let Err(error) = self.persist_state(auth, request.rtc_session_id.as_str()) {
+                    // Provider media creation precedes IM-state persistence.
+                    // Compensate a failed durable write so an unreachable
+                    // provider room and its credentials are not orphaned.
+                    self.revoke_session_credentials_with_session(
+                        auth,
+                        request.rtc_session_id.as_str(),
+                        &session,
+                        "state_persist_failed",
+                    );
+                    return Err(error);
+                }
 
                 // Audit + outbox emission after durable persistence succeeds.
                 let metadata = serde_json::json!({
@@ -963,14 +1103,13 @@ impl CallingRuntime {
 
         // Idempotent: if the same signaling_stream_id was already set and no
         // new participants are being added, return the unmodified session.
-        let stream_id_unchanged = match (
-            session_ref.signaling_stream_id.as_deref(),
-            request.signaling_stream_id.as_deref(),
-        ) {
-            (Some(existing), Some(new)) => existing == new,
-            (None, None) => true,
-            _ => false,
-        };
+        // An omitted stream id means "leave the current stream unchanged".
+        // Treating `None` as a replacement previously cleared a stream on an
+        // otherwise idempotent retry from clients that only resend members.
+        let stream_id_unchanged = request
+            .signaling_stream_id
+            .as_deref()
+            .is_none_or(|new| session_ref.signaling_stream_id.as_deref() == Some(new));
         let all_already_invited = participant_ids
             .iter()
             .all(|id| session_ref.participants.invited_ids.contains(id));
@@ -986,7 +1125,9 @@ impl CallingRuntime {
         // Apply signaling stream id and merge new participants (deduped).
         let stream_id_changed = !stream_id_unchanged;
         let mut added_participant_ids: Vec<String> = Vec::new();
-        session_ref.signaling_stream_id = request.signaling_stream_id.clone();
+        if let Some(signaling_stream_id) = request.signaling_stream_id {
+            session_ref.signaling_stream_id = Some(signaling_stream_id);
+        }
         for participant_id in participant_ids {
             if !session_ref
                 .participants
@@ -1115,20 +1256,10 @@ impl CallingRuntime {
             });
         }
 
-        if session_ref.state == SessionState::Accepted {
-            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref()
-            {
-                let session = session_ref.clone();
-                drop(session_ref);
-                return Ok(SessionMutationOutcome {
-                    session,
-                    applied: false,
-                });
-            }
-            return Err(CallingError::conflict(rtc_session_id));
-        }
-
-        if session_ref.state != SessionState::Started {
+        if !matches!(
+            session_ref.state,
+            SessionState::Started | SessionState::Accepted
+        ) {
             let invalid_state = session_ref.state.as_str().to_string();
             drop(session_ref);
             self.emit_audit(
@@ -1149,25 +1280,44 @@ impl CallingRuntime {
             });
         }
 
+        let already_accepted = session_ref
+            .participants
+            .accepted_ids
+            .contains(&auth.actor_id);
+        let artifact_changed = request
+            .artifact_message_id
+            .as_deref()
+            .is_some_and(|requested| session_ref.artifact_message_id.as_deref() != Some(requested));
+        if session_ref.state == SessionState::Accepted && artifact_changed {
+            return Err(CallingError::conflict(rtc_session_id));
+        }
+        if session_ref.state == SessionState::Accepted && already_accepted {
+            let session = session_ref.clone();
+            drop(session_ref);
+            return Ok(SessionMutationOutcome {
+                session,
+                applied: false,
+            });
+        }
+
         // Increment epoch and version for fencing
         let new_epoch = self.allocate_epoch();
         let now = utc_now_rfc3339_millis();
+        let from_state = session_ref.state.clone();
         session_ref.epoch = new_epoch;
         session_ref.version += 1;
         session_ref.state = SessionState::Accepted;
-        session_ref.connecting_at = Some(now.clone());
+        if session_ref.connecting_at.is_none() {
+            session_ref.connecting_at = Some(now.clone());
+        }
         session_ref.last_activity_at = Some(now.clone());
         if let Some(artifact_message_id) = request.artifact_message_id {
             session_ref.artifact_message_id = Some(artifact_message_id);
         }
         // Track accepted participant (deduped; an initiator who calls accept
         // twice via different code paths should not appear twice).
-        let mut newly_accepted = false;
-        if !session_ref
-            .participants
-            .accepted_ids
-            .contains(&auth.actor_id)
-        {
+        let newly_accepted = !already_accepted;
+        if newly_accepted {
             session_ref
                 .participants
                 .accepted_ids
@@ -1180,7 +1330,7 @@ impl CallingRuntime {
 
         // Audit + outbox emission after durable persistence succeeds.
         let metadata = serde_json::json!({
-            "from_state": SessionState::Started.as_str(),
+            "from_state": from_state.as_str(),
             "to_state": session.state.as_str(),
             "artifact_message_id": session.artifact_message_id,
             "newly_accepted_participant": newly_accepted,
@@ -1437,35 +1587,26 @@ impl CallingRuntime {
             });
         }
 
-        if session_ref.state == SessionState::Ended {
-            if session_ref.artifact_message_id.as_deref() == request.artifact_message_id.as_deref()
-            {
-                let session = session_ref.clone();
-                drop(session_ref);
-                return Ok(SessionMutationOutcome {
-                    session,
-                    applied: false,
-                });
+        if session_ref.state.is_terminal() {
+            let artifact_conflicts =
+                request
+                    .artifact_message_id
+                    .as_deref()
+                    .is_some_and(|requested| {
+                        session_ref.artifact_message_id.as_deref() != Some(requested)
+                    });
+            if session_ref.state == SessionState::Ended && artifact_conflicts {
+                return Err(CallingError::conflict(rtc_session_id));
             }
-            return Err(CallingError::conflict(rtc_session_id));
-        }
 
-        if session_ref.state == SessionState::Rejected {
-            let invalid_state = session_ref.state.as_str().to_string();
+            // Terminal states are irreversible. A racing end command after a
+            // reject/timeout/failure is an idempotent observation of the final
+            // session, not permission to rewrite its terminal classification.
+            let session = session_ref.clone();
             drop(session_ref);
-            self.emit_audit(
-                auth,
-                AuditEventType::MutationCallSessionStateChanged,
-                "end_call_session",
-                rtc_session_id,
-                AuditOutcome::Failure,
-                Some("call_session_already_rejected".into()),
-                serde_json::json!({ "state": invalid_state }),
-            );
-            return Err(CallingError {
-                status: axum::http::StatusCode::BAD_REQUEST,
-                code: "call_session_state_invalid",
-                message: format!("call session is already rejected: {rtc_session_id}"),
+            return Ok(SessionMutationOutcome {
+                session,
+                applied: false,
             });
         }
 
@@ -1665,7 +1806,7 @@ impl CallingRuntime {
         signals_ref.insert(event.signal_seq, event.clone());
         crate::helpers::trim_session_signals(
             &mut signals_ref,
-            crate::helpers::resolve_max_signals_per_session(),
+            crate::helpers::resolve_max_signals_per_session().min(RTC_SIGNALS_MAX_PER_SESSION),
         );
         drop(signals_ref);
         self.evict_signal_rate_trackers_if_needed();
@@ -2499,15 +2640,18 @@ impl CallingRuntime {
         let mut tracker = self
             .signal_rate_by_sender
             .entry(sender_rate_key.to_owned())
-            .or_insert_with(SignalRateTracker::default);
-        if !tracker.check_rate_limit(
+            .or_default();
+        tracker.last_seen = Instant::now();
+        if !tracker.tracker.check_rate_limit(
             SignalRateTracker::DEFAULT_MAX_SIGNALS,
             SignalRateTracker::DEFAULT_WINDOW_SECS,
             occurred_at,
         ) {
             return false;
         }
-        tracker.record_signal(SignalRateTracker::DEFAULT_WINDOW_SECS, occurred_at);
+        tracker
+            .tracker
+            .record_signal(SignalRateTracker::DEFAULT_WINDOW_SECS, occurred_at);
         true
     }
 
@@ -2517,74 +2661,95 @@ impl CallingRuntime {
             return;
         }
         let overflow = self.signal_rate_by_sender.len().saturating_sub(max_entries);
-        let keys_to_remove = self
+        // Evict least-recently-used trackers first (LRU). Collect all
+        // (key, last_seen) pairs, sort by last_seen ascending, and remove the
+        // oldest `overflow` entries.
+        // This avoids evicting active senders, which the previous
+        // non-deterministic DashMap iteration order could do.
+        let mut entries: Vec<(String, Instant)> = self
             .signal_rate_by_sender
             .iter()
-            .take(overflow)
-            .map(|entry| entry.key().clone())
-            .collect::<Vec<_>>();
-        for key in keys_to_remove {
+            .map(|entry| (entry.key().clone(), entry.value().last_seen))
+            .collect();
+        entries.sort_by_key(|entry| entry.1);
+        for (key, _) in entries.into_iter().take(overflow) {
             self.signal_rate_by_sender.remove(key.as_str());
         }
     }
 
-    /// Expire call sessions stuck in `started` beyond the ring timeout.
-    pub fn expire_stale_started_sessions(&self) -> usize {
+    /// Expire call sessions stuck in any non-terminal state beyond their
+    /// state-specific staleness threshold.
+    ///
+    /// This is the maintenance reaper's primary cleanup entry point. It
+    /// scans all in-memory sessions, identifies signaling states
+    /// (`Started`, `Initiating`, `Ringing`, `Connecting`, `Accepted`, and
+    /// `Reconnecting`) whose authoritative lifecycle timestamp exceeds the
+    /// corresponding threshold, and transitions them to `Timeout`.
+    ///
+    /// Terminal states (`Ended`, `Rejected`, `Canceled`, `Failed`,
+    /// `Timeout`) are already evicted by `persist_state` and are skipped.
+    pub fn expire_stale_non_terminal_sessions(&self) -> usize {
         let ring_timeout_secs = std::env::var(CALL_RING_TIMEOUT_SECS_ENV)
             .ok()
             .and_then(|value| value.trim().parse::<u64>().ok())
             .filter(|value| *value > 0)
             .unwrap_or(DEFAULT_CALL_RING_TIMEOUT_SECS);
         let now = utc_now_rfc3339_millis();
-        let Some(cutoff) = rfc3339_add_secs(now.as_str(), -(ring_timeout_secs as i64)) else {
-            return 0;
-        };
         let candidates = self
             .sessions
             .iter()
-            .filter(|entry| entry.state == SessionState::Started)
-            .filter(|entry| {
-                !entry.started_at.is_empty()
-                    && rfc3339_le(entry.started_at.as_str(), cutoff.as_str())
-            })
+            .filter(|entry| entry.state.is_active())
+            .filter(|entry| is_non_terminal_session_stale(&entry, now.as_str(), ring_timeout_secs))
             .map(|entry| (entry.tenant_id.clone(), entry.rtc_session_id.clone()))
             .collect::<Vec<_>>();
         let mut expired = 0usize;
         for (tenant_id, rtc_session_id) in candidates {
-            if self
-                .expire_started_session_system(
+            if matches!(
+                self.expire_stale_session_system(
                     tenant_id.as_str(),
                     rtc_session_id.as_str(),
                     now.as_str(),
-                )
-                .is_ok()
-            {
+                    ring_timeout_secs,
+                ),
+                Ok(true)
+            ) {
                 expired += 1;
             }
         }
         expired
     }
 
-    fn expire_started_session_system(
+    fn expire_stale_session_system(
         &self,
         tenant_id: &str,
         rtc_session_id: &str,
         ended_at: &str,
-    ) -> Result<(), CallingError> {
+        ring_timeout_secs: u64,
+    ) -> Result<bool, CallingError> {
         let scope_key = rtc_session_scope_key(tenant_id, rtc_session_id);
         let Some(mut session_ref) = self.sessions.get_mut(scope_key.as_str()) else {
-            return Ok(());
+            return Ok(false);
         };
-        if session_ref.state != SessionState::Started {
-            return Ok(());
+        // Skip sessions that have already reached a terminal state (a
+        // concurrent transition may have completed between the candidate
+        // scan and this write lock acquisition).
+        if session_ref.state.is_terminal() {
+            return Ok(false);
         }
+        // Activity may have advanced after the candidate scan. Re-check under
+        // the session write lock so a concurrent signal/state update cannot be
+        // overwritten by a stale timeout decision.
+        if !is_non_terminal_session_stale(&session_ref, ended_at, ring_timeout_secs) {
+            return Ok(false);
+        }
+        let previous_state = session_ref.state.clone();
         let initiator_id = session_ref.initiator_id.clone();
         let initiator_kind = session_ref.initiator_kind.clone();
-        session_ref.state = SessionState::Ended;
+        session_ref.state = SessionState::Timeout;
         session_ref.ended_at = Some(ended_at.to_owned());
         session_ref.ended_reason = Some("timeout".into());
         session_ref.timeout_at = Some(ended_at.to_owned());
-        session_ref.epoch = session_ref.epoch.saturating_add(1);
+        session_ref.epoch = self.allocate_epoch();
         session_ref.version = session_ref.version.saturating_add(1);
         session_ref.last_activity_at = Some(ended_at.to_owned());
         let session = session_ref.clone();
@@ -2653,10 +2818,11 @@ impl CallingRuntime {
         tracing::info!(
             rtc_session_id = rtc_session_id,
             tenant_id = tenant_id,
+            previous_state = previous_state.as_str(),
             ended_reason = "timeout",
-            "expired stale started call session"
+            "expired stale non-terminal call session"
         );
-        Ok(())
+        Ok(true)
     }
 }
 
@@ -2787,7 +2953,7 @@ fn signal_index(signals: Vec<SignalEvent>) -> BTreeMap<u64, SignalEvent> {
         .collect::<BTreeMap<_, _>>();
     crate::helpers::trim_session_signals(
         &mut map,
-        crate::helpers::resolve_max_signals_per_session(),
+        crate::helpers::resolve_max_signals_per_session().min(RTC_SIGNALS_MAX_PER_SESSION),
     );
     map
 }

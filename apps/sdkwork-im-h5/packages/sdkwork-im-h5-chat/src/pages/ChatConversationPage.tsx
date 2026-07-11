@@ -43,7 +43,6 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
   const [entries, setEntries] = useState<ConversationMessageEntry[]>([]);
   const [pagination, setPagination] = useState<MessageHistoryPaginationState>({
     hasMore: false,
-    nextAfterSeq: 0,
   });
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -59,6 +58,13 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
   const messageHistoryRef = useRef<HTMLDivElement>(null);
   const loadingOlderRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const conversationIdRef = useRef(conversationId);
+  conversationIdRef.current = conversationId;
+  const historyRequestGenerationRef = useRef(0);
+  const paginationRef = useRef(pagination);
+  paginationRef.current = pagination;
+  const latestMessageRefreshRef = useRef<Promise<void> | null>(null);
+  const latestMessageRefreshPendingRef = useRef(false);
 
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
@@ -77,10 +83,14 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       latestSeqRef.current = resolveLatestMessageSeq(next);
       return next;
     });
-    setPagination(responsePagination);
+    if (mode !== "merge") {
+      setPagination(responsePagination);
+    }
   }, []);
 
   const loadMessageHistory = useCallback((options?: { silent?: boolean }) => {
+    const requestGeneration = ++historyRequestGenerationRef.current;
+    const requestConversationId = conversationId;
     if (!options?.silent) {
       setLoading(true);
     }
@@ -88,6 +98,12 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
 
     fetchConversationMessages(conversationId)
       .then((response) => {
+        if (
+          requestGeneration !== historyRequestGenerationRef.current
+          || conversationIdRef.current !== requestConversationId
+        ) {
+          return;
+        }
         applyConversationMessagePage(
           response.items ?? [],
           pickMessageHistoryPagination(response),
@@ -95,36 +111,63 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         );
       })
       .catch((cause: unknown) => {
+        if (
+          requestGeneration !== historyRequestGenerationRef.current
+          || conversationIdRef.current !== requestConversationId
+        ) {
+          return;
+        }
         const message = cause instanceof Error ? cause.message : t("chat.conversation.loadError");
         setError(message);
       })
       .finally(() => {
-        if (!options?.silent) {
+        if (!options?.silent && requestGeneration === historyRequestGenerationRef.current) {
           setLoading(false);
         }
       });
   }, [applyConversationMessagePage, conversationId, t]);
 
   const appendNewMessageEntries = useCallback(async () => {
-    const afterSeq = latestSeqRef.current;
-    if (afterSeq <= 0) {
-      return;
+    if (latestMessageRefreshRef.current) {
+      latestMessageRefreshPendingRef.current = true;
+      return latestMessageRefreshRef.current;
     }
-    try {
-      const response = await fetchConversationMessageDelta(conversationId, afterSeq);
-      if ((response.items ?? []).length === 0) {
-        return;
+    const requestGeneration = historyRequestGenerationRef.current;
+    const requestConversationId = conversationId;
+    const refreshPromise = (async () => {
+      do {
+        latestMessageRefreshPendingRef.current = false;
+        try {
+          const response = await fetchConversationMessageDelta(conversationId);
+          if (
+            requestGeneration !== historyRequestGenerationRef.current
+            || conversationIdRef.current !== requestConversationId
+          ) {
+            return;
+          }
+          if ((response.items ?? []).length > 0) {
+            applyConversationMessagePage(response.items, pickMessageHistoryPagination(response), "merge");
+          }
+        } catch {
+          // Keep existing messages visible when incremental sync fails.
+        }
+      } while (latestMessageRefreshPendingRef.current);
+    })().finally(() => {
+      if (latestMessageRefreshRef.current === refreshPromise) {
+        latestMessageRefreshRef.current = null;
       }
-      applyConversationMessagePage(response.items ?? [], pickMessageHistoryPagination(response), "merge");
-    } catch {
-      // Keep existing messages visible when incremental sync fails.
-    }
+    });
+    latestMessageRefreshRef.current = refreshPromise;
+    return refreshPromise;
   }, [applyConversationMessagePage, conversationId]);
 
   const loadOlderMessages = useCallback(async () => {
-    if (loadingOlderRef.current || !pagination.hasMore) {
+    const currentPagination = paginationRef.current;
+    if (loadingOlderRef.current || !currentPagination.hasMore || !currentPagination.nextCursor) {
       return;
     }
+    const requestGeneration = historyRequestGenerationRef.current;
+    const requestConversationId = conversationId;
     loadingOlderRef.current = true;
     setLoadingOlder(true);
     const listElement = messageHistoryRef.current;
@@ -132,9 +175,15 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
 
     try {
       const response = await fetchConversationMessages(conversationId, {
-        afterSeq: pagination.nextAfterSeq,
+        cursor: currentPagination.nextCursor,
         pageSize: 50,
       });
+      if (
+        requestGeneration !== historyRequestGenerationRef.current
+        || conversationIdRef.current !== requestConversationId
+      ) {
+        return;
+      }
       applyConversationMessagePage(response.items ?? [], pickMessageHistoryPagination(response), "append");
       requestAnimationFrame(() => {
         if (listElement) {
@@ -142,13 +191,35 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         }
       });
     } catch (cause: unknown) {
+      if (
+        requestGeneration !== historyRequestGenerationRef.current
+        || conversationIdRef.current !== requestConversationId
+      ) {
+        return;
+      }
       const message = cause instanceof Error ? cause.message : t("chat.conversation.loadEarlierError");
       setError(message);
     } finally {
-      loadingOlderRef.current = false;
-      setLoadingOlder(false);
+      if (
+        requestGeneration === historyRequestGenerationRef.current
+        && conversationIdRef.current === requestConversationId
+      ) {
+        loadingOlderRef.current = false;
+        setLoadingOlder(false);
+      }
     }
-  }, [applyConversationMessagePage, conversationId, pagination.hasMore, pagination.nextAfterSeq, t]);
+  }, [applyConversationMessagePage, conversationId, t]);
+
+  useEffect(() => {
+    historyRequestGenerationRef.current += 1;
+    loadingOlderRef.current = false;
+    latestMessageRefreshRef.current = null;
+    latestMessageRefreshPendingRef.current = false;
+    setEntries([]);
+    setPagination({ hasMore: false });
+    latestSeqRef.current = 0;
+    setError(null);
+  }, [conversationId]);
 
   useEffect(() => {
     loadMessageHistory();
@@ -188,14 +259,22 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
   const flushPendingSends = useCallback(async () => {
     await runPendingTextSendFlush(async (pending) => {
       const scoped = pending.filter((payload) => payload.conversationId === conversationId);
-      for (const payload of scoped) {
+      const scopedIds = new Set(scoped.map((payload) => payload.clientMsgId));
+      for (const payload of pending) {
+        if (!scopedIds.has(payload.clientMsgId)) {
+          await releasePendingTextSendClaim(payload.clientMsgId, payload.claimId);
+        }
+      }
+      for (const [index, payload] of scoped.entries()) {
         try {
           await sendConversationText(conversationId, payload.text, {
             clientMsgId: payload.clientMsgId,
           });
           await removePendingTextSend(payload.clientMsgId);
         } catch {
-          await releasePendingTextSendClaim(payload.clientMsgId, payload.claimId);
+          for (const remaining of scoped.slice(index)) {
+            await releasePendingTextSendClaim(remaining.clientMsgId, remaining.claimId);
+          }
           break;
         }
       }
@@ -333,7 +412,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         </div>
       ) : null}
 
-      {!loading && !error ? (
+      {!loading ? (
         <div
           ref={messageHistoryRef}
           className="im-h5-chat-message-history"
@@ -354,6 +433,8 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
                 return (
                   <li
                     key={entry.messageId}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
                     className="im-h5-chat-message-history-item"
                     style={{
                       position: "absolute",

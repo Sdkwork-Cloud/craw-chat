@@ -66,7 +66,7 @@
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
-          "generatedPlaceholder": true
+          "generatedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
         }
       },
       "platform": [],
@@ -93,7 +93,7 @@
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
-          "generatedPlaceholder": true,
+          "generatedPlaceholder": false,
           "altText": "Sdkwork IM PC app screenshot."
         }
       }
@@ -115,7 +115,7 @@
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
-          "generatedPlaceholder": true,
+          "generatedPlaceholder": false,
           "altText": "Sdkwork IM PC preview cover."
         }
       }

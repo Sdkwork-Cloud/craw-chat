@@ -58,6 +58,7 @@ const standardChecks = [
   'check:pnpm-script-standard',
   'check:dependency-management',
   'test:sdkwork-im-pc-i18n',
+  'test:sdkwork-im-pc-workspace',
   'test:sdkwork-im-pc-request-context',
   'test:sdkwork-im-pc-html-sanitize',
   'test:commercial-deployment-contract',

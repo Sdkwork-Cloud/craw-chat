@@ -213,14 +213,16 @@ mod tests {
         assert_eq!(rejected.state, SessionState::Rejected);
         assert!(rejected.ended_at.is_some());
 
-        // Cannot end or accept after reject
+        // A racing end after reject observes the existing terminal state and
+        // must not rewrite it to Ended.
         let end = crate::dto::UpdateRtcSessionRequest {
             artifact_message_id: None,
         };
-        let end_err = runtime
-            .end_session(&auth, "rtc_test_4", end)
-            .expect_err("end after reject should fail");
-        assert_eq!(end_err.code, "call_session_state_invalid");
+        let end_outcome = runtime
+            .end_session_with_outcome(&auth, "rtc_test_4", end)
+            .expect("end after reject should be idempotent");
+        assert!(!end_outcome.applied);
+        assert_eq!(end_outcome.session.state, SessionState::Rejected);
     }
 
     /// Verify that `invite_session` records invited participant IDs so that
@@ -249,18 +251,14 @@ mod tests {
             .invite_session(&auth, "rtc_invite_1", invite)
             .expect("invite should succeed");
         assert_eq!(invited.participants.invited_ids.len(), 2);
-        assert!(
-            invited
-                .participants
-                .invited_ids
-                .contains(&"user-2".to_owned())
-        );
-        assert!(
-            invited
-                .participants
-                .invited_ids
-                .contains(&"user-3".to_owned())
-        );
+        assert!(invited
+            .participants
+            .invited_ids
+            .contains(&"user-2".to_owned()));
+        assert!(invited
+            .participants
+            .invited_ids
+            .contains(&"user-3".to_owned()));
 
         // Idempotent: re-inviting the same participants does not duplicate.
         let invite_again = crate::dto::InviteRtcSessionRequest {
@@ -274,6 +272,18 @@ mod tests {
             replayed.participants.invited_ids.len(),
             2,
             "re-inviting existing participant must not duplicate"
+        );
+
+        let invite_without_stream = crate::dto::InviteRtcSessionRequest {
+            signaling_stream_id: None,
+            participant_ids: vec!["user-2".into()],
+        };
+        let replayed_without_stream = runtime
+            .invite_session(&auth, "rtc_invite_1", invite_without_stream)
+            .expect("omitting stream id should preserve the active stream");
+        assert_eq!(
+            replayed_without_stream.signaling_stream_id.as_deref(),
+            Some("stream_invite")
         );
     }
 
@@ -303,6 +313,133 @@ mod tests {
             .expect("accept should succeed");
         assert_eq!(accepted.participants.accepted_ids.len(), 1);
         assert_eq!(accepted.participants.accepted_ids[0], "user-1");
+    }
+
+    #[test]
+    fn test_group_participants_accept_independently() {
+        let runtime = CallingRuntime::with_store(Arc::new(RuntimeMemoryStateStore::default()));
+        let initiator = create_test_auth();
+        runtime
+            .create_session(
+                &initiator,
+                crate::dto::CreateRtcSessionRequest {
+                    rtc_session_id: "rtc_group_accept".into(),
+                    conversation_id: None,
+                    rtc_mode: "video".into(),
+                },
+            )
+            .expect("create group call");
+        runtime
+            .invite_session(
+                &initiator,
+                "rtc_group_accept",
+                crate::dto::InviteRtcSessionRequest {
+                    signaling_stream_id: Some("stream_group".into()),
+                    participant_ids: vec!["user-2".into(), "user-3".into()],
+                },
+            )
+            .expect("invite group participants");
+
+        let user_2 = im_app_context::local_service_app_context(
+            "100001",
+            "user-2",
+            "user",
+            Some("device-2"),
+            Vec::<&str>::new(),
+        );
+        let user_3 = im_app_context::local_service_app_context(
+            "100001",
+            "user-3",
+            "user",
+            Some("device-3"),
+            Vec::<&str>::new(),
+        );
+        let request = crate::dto::UpdateRtcSessionRequest {
+            artifact_message_id: None,
+        };
+
+        let first = runtime
+            .accept_session_with_outcome(&user_2, "rtc_group_accept", request.clone())
+            .expect("first participant accepts");
+        assert!(first.applied);
+        assert_eq!(first.session.state, SessionState::Accepted);
+        assert_eq!(first.session.participants.accepted_ids, vec!["user-2"]);
+
+        let second = runtime
+            .accept_session_with_outcome(&user_3, "rtc_group_accept", request)
+            .expect("second participant accepts after session is already accepted");
+        assert!(second.applied);
+        assert_eq!(second.session.state, SessionState::Accepted);
+        assert_eq!(
+            second.session.participants.accepted_ids,
+            vec!["user-2", "user-3"]
+        );
+    }
+
+    #[test]
+    fn test_stale_reaper_preserves_connected_media_sessions() {
+        let runtime = CallingRuntime::with_store(Arc::new(RuntimeMemoryStateStore::default()));
+        let auth = create_test_auth();
+        runtime
+            .create_session(
+                &auth,
+                crate::dto::CreateRtcSessionRequest {
+                    rtc_session_id: "rtc_connected_long_call".into(),
+                    conversation_id: None,
+                    rtc_mode: "voice".into(),
+                },
+            )
+            .expect("create call");
+        {
+            let mut session = runtime
+                .sessions
+                .get_mut("100001:rtc_connected_long_call")
+                .expect("session cached");
+            session.state = SessionState::Connected;
+            session.started_at = "2000-01-01T00:00:00.000Z".into();
+            session.last_activity_at = Some("2000-01-01T00:00:00.000Z".into());
+        }
+
+        assert_eq!(runtime.expire_stale_non_terminal_sessions(), 0);
+        assert_eq!(
+            runtime
+                .session(&auth, "rtc_connected_long_call")
+                .expect("connected session remains")
+                .state,
+            SessionState::Connected
+        );
+    }
+
+    #[test]
+    fn test_stale_reaper_transitions_ringing_session_to_timeout() {
+        let runtime = CallingRuntime::with_store(Arc::new(RuntimeMemoryStateStore::default()));
+        let auth = create_test_auth();
+        runtime
+            .create_session(
+                &auth,
+                crate::dto::CreateRtcSessionRequest {
+                    rtc_session_id: "rtc_stale_ringing".into(),
+                    conversation_id: None,
+                    rtc_mode: "voice".into(),
+                },
+            )
+            .expect("create call");
+        {
+            let mut session = runtime
+                .sessions
+                .get_mut("100001:rtc_stale_ringing")
+                .expect("session cached");
+            session.started_at = "2000-01-01T00:00:00.000Z".into();
+            session.last_activity_at = Some("2000-01-01T00:00:00.000Z".into());
+        }
+
+        assert_eq!(runtime.expire_stale_non_terminal_sessions(), 1);
+        let timed_out = runtime
+            .session(&auth, "rtc_stale_ringing")
+            .expect("timeout state is durable");
+        assert_eq!(timed_out.state, SessionState::Timeout);
+        assert_eq!(timed_out.ended_reason.as_deref(), Some("timeout"));
+        assert!(timed_out.timeout_at.is_some());
     }
 
     /// Verify that `post_signal` rejects signals against a terminal session.

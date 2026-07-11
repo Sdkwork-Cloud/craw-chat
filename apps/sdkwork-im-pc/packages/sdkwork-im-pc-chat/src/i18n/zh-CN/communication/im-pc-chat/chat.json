@@ -447,6 +447,12 @@
       "videoCall": "视频通话",
       "more": "更多"
     },
+    "moduleError": {
+      "title": "当前模块暂不可用",
+      "description": "当前页面无法正常显示，请返回稳定页面后继续使用。",
+      "returnToWorkspace": "返回工作台",
+      "returnToChat": "返回聊天"
+    },
     "menu": {
       "moreActions": "新建会话",
       "startGroup": "发起群聊",

@@ -234,7 +234,7 @@ fn read_im_postgres_pool_tuning() -> ImPostgresPoolTuning {
 pub(crate) fn build_im_postgres_r2d2_pool(
     config: &DatabaseConfig,
 ) -> Result<ImSharedPostgresR2d2Pool, String> {
-    verify_production_sslmode(config.url.as_str());
+    verify_production_sslmode(config.url.as_str())?;
     let pg_config = config.url.parse().map_err(|error| {
         format!(
             "invalid postgres url ({}): {error}",
@@ -266,7 +266,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
     Ok(postgres_native_tls::MakeTlsConnector::new(connector))
 }
 
-fn verify_production_sslmode(database_url: &str) {
+fn verify_production_sslmode(database_url: &str) -> Result<(), String> {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()
         .trim()
@@ -276,7 +276,7 @@ fn verify_production_sslmode(database_url: &str) {
         "" | "dev" | "development" | "test" | "testing"
     );
     if !is_production {
-        return;
+        return Ok(());
     }
     let lowered = database_url.to_ascii_lowercase();
     let requires_tls = lowered.contains("sslmode=require")
@@ -285,10 +285,14 @@ fn verify_production_sslmode(database_url: &str) {
         || lowered.contains("sslmode=verifyca")
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
-        panic!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
-        );
+        return Err(format!(
+            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+             sslmode=require or sslmode=verify-full in production \
+             (current environment={environment}). Refusing to start with a \
+             plaintext database connection."
+        ));
     }
+    Ok(())
 }
 
 fn redact_postgres_url(database_url: &str) -> String {

@@ -4,6 +4,7 @@ use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursor, read_cursor_storage_key,
 };
 
+use crate::conversation_catalog::normalize_conversation_catalog_entry;
 use crate::model::ConversationCatalogEntry;
 use crate::{ConversationSummaryView, TimelineProjectionService, lock_projection_mutex, snapshot};
 
@@ -57,6 +58,19 @@ impl TimelineProjectionService {
             snapshot::CONVERSATION_CATALOG_KEY,
         ) {
             Ok(Some(entry)) => {
+                let entry = match normalize_conversation_catalog_entry(entry) {
+                    Ok(entry) => entry,
+                    Err(error) => {
+                        tracing::warn!(
+                            target: "sdkwork.im.projection.read_through",
+                            event = "im.projection.conversation_catalog_snapshot_invalid",
+                            scope = %scope,
+                            error = %error,
+                            "durable conversation catalog snapshot failed invariant validation",
+                        );
+                        return None;
+                    }
+                };
                 lock_projection_mutex(&self.conversations, "conversation store")
                     .insert(scope.to_owned(), entry.clone());
                 Some(entry)

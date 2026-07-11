@@ -12,6 +12,7 @@ use im_platform_contracts::{
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::contacts::{contact_map_from_items, contact_runtime_scope, contact_snapshot_items};
+use crate::conversation_catalog::normalize_conversation_catalog_entry;
 use crate::interactions::{
     StoredMessageInteractionSummary, interaction_map_from_items, interaction_snapshot_items,
 };
@@ -332,7 +333,9 @@ impl TimelineProjectionService {
                 metadata_store,
                 scope.as_str(),
                 CONVERSATION_CATALOG_KEY,
-            )?;
+            )?
+            .map(normalize_conversation_catalog_entry)
+            .transpose()?;
             let members = load_metadata_snapshot::<Vec<ConversationMember>>(
                 metadata_store,
                 scope.as_str(),

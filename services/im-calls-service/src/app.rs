@@ -160,9 +160,18 @@ fn build_default_state_store() -> Arc<dyn StateStore> {
     let redis_url = std::env::var(ENV_RTC_STATE_REDIS_URL).ok();
 
     // Priority 1: PostgreSQL (durable source of truth).
-    if let Some(store) = build_postgres_rtc_state_store_optional(pg_url.as_deref()) {
-        tracing::info!("RTC state store: PostgreSQL (durable)");
-        return store as Arc<dyn StateStore>;
+    match build_postgres_rtc_state_store_optional(pg_url.as_deref()) {
+        Ok(Some(store)) => {
+            tracing::info!("RTC state store: PostgreSQL (durable)");
+            return store as Arc<dyn StateStore>;
+        }
+        Ok(None) => {}
+        Err(err) => {
+            tracing::error!(
+                error = %format!("{err:?}"),
+                "PostgresRtcStateStore connection failed; falling back to require_durable check"
+            );
+        }
     }
 
     // Fail-closed: if durable is required but PostgreSQL is unavailable,
@@ -403,7 +412,8 @@ pub fn build_business_router(runtime: Arc<CallingRuntime>) -> Router {
 
 const CALL_SESSION_MAINTENANCE_INTERVAL_SECS: u64 = 60;
 
-/// Background reaper for call sessions stuck in `started` beyond ring timeout.
+/// Background reaper for call sessions stuck in any non-terminal state beyond
+/// their state-specific staleness threshold.
 pub fn spawn_call_session_maintenance(runtime: Arc<CallingRuntime>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(
@@ -412,11 +422,11 @@ pub fn spawn_call_session_maintenance(runtime: Arc<CallingRuntime>) -> tokio::ta
         interval.tick().await;
         loop {
             interval.tick().await;
-            let expired = runtime.expire_stale_started_sessions();
+            let expired = runtime.expire_stale_non_terminal_sessions();
             if expired > 0 {
                 tracing::info!(
                     expired_count = expired,
-                    "expired stale started RTC call sessions"
+                    "expired stale non-terminal RTC call sessions"
                 );
             }
         }

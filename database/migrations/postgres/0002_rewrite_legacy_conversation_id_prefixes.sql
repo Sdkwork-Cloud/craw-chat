@@ -169,9 +169,9 @@ WHERE target_conversation_id IS NOT NULL
 -- matches inside unrelated text.
 
 UPDATE im_outbox_events
-SET payload = regexp_replace(
+SET payload_json = regexp_replace(
         regexp_replace(
-            payload,
+            payload_json,
             '"conversationId"\s*:\s*"c_direct_([0-9a-f]+)"',
             '"conversationId":"c_\1"',
             'g'
@@ -180,12 +180,12 @@ SET payload = regexp_replace(
         '"conversationId":"a_\1"',
         'g'
     )
-WHERE payload LIKE '%c_direct_%' OR payload LIKE '%c_agent_%';
+WHERE payload_json LIKE '%c_direct_%' OR payload_json LIKE '%c_agent_%';
 
 UPDATE im_inbox_events
-SET payload = regexp_replace(
+SET payload_json = regexp_replace(
         regexp_replace(
-            payload,
+            payload_json,
             '"conversationId"\s*:\s*"c_direct_([0-9a-f]+)"',
             '"conversationId":"c_\1"',
             'g'
@@ -194,12 +194,12 @@ SET payload = regexp_replace(
         '"conversationId":"a_\1"',
         'g'
     )
-WHERE payload LIKE '%c_direct_%' OR payload LIKE '%c_agent_%';
+WHERE payload_json LIKE '%c_direct_%' OR payload_json LIKE '%c_agent_%';
 
 UPDATE im_commit_journal
-SET payload = regexp_replace(
+SET payload_json = regexp_replace(
         regexp_replace(
-            payload,
+            payload_json,
             '"conversationId"\s*:\s*"c_direct_([0-9a-f]+)"',
             '"conversationId":"c_\1"',
             'g'
@@ -208,9 +208,9 @@ SET payload = regexp_replace(
         '"conversationId":"a_\1"',
         'g'
     )
-WHERE payload LIKE '%c_direct_%' OR payload LIKE '%c_agent_%';
+WHERE payload_json LIKE '%c_direct_%' OR payload_json LIKE '%c_agent_%';
 
--- The aggregate_id and scope_id columns in im_commit_journal also carry the
+-- The aggregate_id and partition_key columns in im_commit_journal also carry the
 -- conversation id for conversation-scoped events.
 
 UPDATE im_commit_journal
@@ -218,17 +218,17 @@ SET aggregate_id = pg_temp.rewrite_conversation_id(aggregate_id)
 WHERE aggregate_id LIKE 'c_direct_%' OR aggregate_id LIKE 'c_agent_%';
 
 UPDATE im_commit_journal
-SET scope_id = pg_temp.rewrite_conversation_id(scope_id)
-WHERE scope_id LIKE 'c_direct_%' OR scope_id LIKE 'c_agent_%';
+SET partition_key = pg_temp.rewrite_conversation_id(partition_key)
+WHERE partition_key LIKE 'c_direct_%' OR partition_key LIKE 'c_agent_%';
 
--- The ordering_key column uses a composite format
+-- The commit_offset column uses a composite format
 -- (tenant_id#conversation_id) but the conversation id portion may still
 -- contain legacy prefixes.  Rewrite the conversation id segment only.
 
 UPDATE im_commit_journal
-SET ordering_key = regexp_replace(
+SET commit_offset = regexp_replace(
         regexp_replace(
-            ordering_key,
+            commit_offset,
             '#c_direct_([0-9a-f]+)',
             '#c_\1',
             'g'
@@ -237,7 +237,7 @@ SET ordering_key = regexp_replace(
         '#a_\1',
         'g'
     )
-WHERE ordering_key LIKE '%#c_direct_%' OR ordering_key LIKE '%#c_agent_%';
+WHERE commit_offset LIKE '%#c_direct_%' OR commit_offset LIKE '%#c_agent_%';
 
 -- Idempotency keys ------------------------------------------------------------
 --
@@ -287,8 +287,8 @@ BEGIN
     FROM im_commit_journal
     WHERE aggregate_id LIKE 'c_direct_%'
        OR aggregate_id LIKE 'c_agent_%'
-       OR scope_id LIKE 'c_direct_%'
-       OR scope_id LIKE 'c_agent_%';
+       OR partition_key LIKE 'c_direct_%'
+       OR partition_key LIKE 'c_agent_%';
     IF stale_count > 0 THEN
         RAISE EXCEPTION 'im_commit_journal still has % legacy conversation ids in aggregate/scope', stale_count;
     END IF;

@@ -83,6 +83,31 @@ export function listCommercialRuntimeModules(): AppModuleId[] {
 
 export const ALWAYS_CONFIGURABLE_MODULES = new Set<AppModuleId>(["notary"]);
 
+/**
+ * Optional permission codes required to mount a commercial module's routes.
+ *
+ * Absent entry means the module is available to any authenticated user.
+ * Permission matching follows the backend `AppContext::has_permission`
+ * semantics (`*`, `tenant.admin`, exact code, and `<prefix>.*` wildcards all
+ * grant access), resolved via `@sdkwork/im-pc-core` `hasAppSdkPermission`.
+ *
+ * The commercial sidebar modules (chat, contacts, drive, …) are user-facing
+ * and therefore intentionally unlisted: they require only authentication.
+ * Entries below gate modules that surface privileged operator/admin data and
+ * must not mount when the session token lacks the declared permission claim.
+ */
+export const MODULE_REQUIRED_PERMISSIONS: Partial<Record<AppModuleId, string>> = {
+  // Commercial sidebar modules are user-facing; no admin/control permission
+  // is required beyond authentication. Add entries here when a commercial
+  // module begins surfacing privileged operator/admin data.
+};
+
+export function resolveModuleRequiredPermission(
+  moduleId: string,
+): string | undefined {
+  return MODULE_REQUIRED_PERMISSIONS[moduleId as AppModuleId];
+}
+
 export const WORKSPACE_APP_TAB_MAP: Record<string, AppModuleId> = Object.fromEntries(
   Object.entries({
     notary: 'notary',

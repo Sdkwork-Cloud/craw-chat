@@ -18,10 +18,12 @@ pub use im_domain_core::conversation::{
     AgentHandoffStateView, ChangeAgentHandoffStatusView, ConversationBusinessBinding,
 };
 use im_domain_core::conversation::{
-    ConversationAggregateState, ConversationMember, ConversationPolicy, ConversationReadCursor,
-    ConversationReadCursorView, ConversationRoster, MembershipRole, MembershipState,
-    build_conversation_member_with_attributes, build_default_read_cursor, member_episode_id,
-    member_id,
+    ConversationAgentAssignment, ConversationAgentAssignmentError, ConversationAgentAssignmentSet,
+    ConversationAgentAssignmentSource, ConversationAggregateState, ConversationMember,
+    ConversationPolicy, ConversationReadCursor, ConversationReadCursorView, ConversationRoster,
+    LEGACY_GROUP_AGENT_DEFAULT_POLICY_ID, LEGACY_GROUP_AGENT_DEFAULT_POLICY_VERSION,
+    MembershipRole, MembershipState, build_conversation_member_with_attributes,
+    build_default_read_cursor, legacy_group_agent_assignment_set, member_episode_id, member_id,
 };
 use im_domain_core::media::{DriveReference, MediaResource, MediaSource};
 use im_domain_core::message::{
@@ -37,6 +39,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 
 mod actor_inbox;
+mod agents;
 mod binding;
 #[cfg(test)]
 mod bounded_soak_tests;
@@ -166,6 +169,27 @@ pub struct CreateGroupConversationCommand {
     pub creator_id: String,
     pub group_name: String,
     pub client_request_key: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplaceConversationAgentsCommand {
+    pub tenant_id: String,
+    #[serde(default = "default_organization_id")]
+    pub organization_id: String,
+    pub conversation_id: String,
+    pub replaced_by: String,
+    pub expected_generation: u64,
+    pub agents: Vec<ConversationAgentAssignment>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplaceConversationAgentsResult {
+    pub event_id: String,
+    pub previous_generation: u64,
+    pub assignments: ConversationAgentAssignmentSet,
+    pub replaced_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -2507,6 +2531,7 @@ pub struct ConversationRuntime<J> {
     journal: J,
     state: RwLock<RuntimeState>,
     metrics: ConversationRuntimeMetrics,
+    group_agent_default_policy: agents::GroupAgentDefaultPolicy,
     /// 可选的消息真值存储。注入后 post_message 走 DB seq 分配 + 真值写入路径。
     message_store: Option<Arc<dyn MessageStore>>,
     /// 可选的 Outbox 存储。注入后事件通过 outbox 异步投递。
@@ -2538,6 +2563,7 @@ where
             journal,
             state: RwLock::new(RuntimeState::default()),
             metrics: ConversationRuntimeMetrics::default(),
+            group_agent_default_policy: agents::GroupAgentDefaultPolicy::default(),
             message_store: None,
             outbox_store: None,
             id_generator: None,
@@ -3128,6 +3154,13 @@ where
             command.sender.kind.as_str(),
             command.sender.id.as_str(),
         )?;
+        if agents::message_has_agent_mentions(&command.body) {
+            self.hydrate_conversation_agent_metadata_if_missing(
+                command.tenant_id.as_str(),
+                command.organization_id.as_str(),
+                command.conversation_id.as_str(),
+            )?;
+        }
         let request_key = post_message_request_key(&command);
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
@@ -3227,6 +3260,11 @@ where
                                 )?
                             }
                         }
+                        let _resolved_agent_mentions = agents::resolve_message_agent_mentions(
+                            conversation,
+                            &sender_member,
+                            &command.body,
+                        )?;
                         // Per-conversation ordinal seq: Redis batch prefetch or Postgres counter.
                         let message_seq = if let Some(allocator) = &self.seq_allocator {
                             allocator

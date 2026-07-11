@@ -106,6 +106,7 @@
     "test:sdkwork-im-flutter-mobile-architecture-standard": "node scripts/dev/sdkwork-im-flutter-mobile-architecture-standard.test.mjs",
     "test:im-sdk-flutter-composed": "node scripts/dev/run-im-sdk-flutter-composed-test.mjs",
     "test:sdkwork-im-pc-i18n": "node scripts/dev/sdkwork-im-pc-i18n.test.mjs",
+    "test:sdkwork-im-pc-workspace": "pnpm --dir apps/sdkwork-im-pc test:workspace",
     "test:sdkwork-im-pc-request-context": "node scripts/dev/sdkwork-im-pc-request-context.test.mjs",
     "test:sdkwork-im-pc-html-sanitize": "pnpm --dir apps/sdkwork-im-pc exec node ../../scripts/dev/run-tsx-cli.mjs ../../scripts/dev/sdkwork-im-pc-html-sanitize.test.ts",
     "test:sdkwork-im-pc-safe-url": "node scripts/dev/sdkwork-im-pc-safe-url.test.mjs",
@@ -159,6 +160,7 @@
     "test:flutter-drive-standard": "node scripts/dev/sdkwork-im-flutter-drive-standard.test.mjs",
     "test:chat-drive-upload-attribution-standard": "node scripts/dev/sdkwork-im-chat-drive-upload-attribution-standard.test.mjs",
     "test:production-security-standard": "node scripts/dev/sdkwork-im-production-security-standard.test.mjs",
+    "test:k8s-secret-guard": "node scripts/dev/sdkwork-im-k8s-secret-guard.test.mjs",
     "test:app-context-module-standard": "node scripts/dev/sdkwork-im-app-context-module-standard.test.mjs"
   },
   "dependencies": {

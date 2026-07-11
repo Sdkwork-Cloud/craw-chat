@@ -86,7 +86,7 @@ Product detail lives in the linked PRD shards below.
 
 | Channel | Version | Status |
 | --- | --- | --- |
-| STABLE | 0.2.0 | Security hardening, K8s compliance, frontend performance |
+| STABLE | 0.1.0 | Security hardening, K8s compliance, frontend performance, RBAC, memory safety, pagination alignment |
 
 ## 6. Dependencies
 
@@ -141,8 +141,8 @@ As of 2026-07-10:
 
 | Surface | Root | Status | Notes |
 | --- | --- | --- | --- |
-| PC web/desktop | `apps/sdkwork-im-pc` | **Production release-candidate remediation in progress** | Core chat uses generated/composed SDKs and server pagination. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Large-list memory evidence, authorization gaps, capacity evidence, and signed release artifacts remain release blockers. |
-| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production release-candidate remediation in progress** | Reachable SDK-backed operations are enabled; route-level RBAC, secret-redaction, and unsupported-capability removal remain release blockers. |
+| PC web/desktop | `apps/sdkwork-im-pc` | **Production release-candidate remediation in progress** | Core chat uses generated/composed SDKs and server pagination. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Route-level RBAC is implemented (`RequirePermission` gates `/console/*` and `/admin/*`), realtime HashMap entries are capped (`RTC_SESSIONS_MAX_ENTRIES` / `RTC_SIGNALS_MAX_PER_SESSION`), and supply-chain placeholder media is cleaned up. Signed release artifacts (checksum/signature/SBOM via CI) remain the release blocker. |
+| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production release-candidate remediation in progress** | Reachable SDK-backed operations are enabled. Route-level RBAC and secret-redaction are implemented. Signed release artifacts remain release blockers. |
 | H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox pagination (memory cap 200) + virtualized message history window (cap 500), incremental WebSocket message sync, offline text send queue (IndexedDB + claim/lease, cap 100), Drive via `@sdkwork/drive-app-sdk`, user-visible retry on load failures |
 | Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket message sync (cap 500), explicit message-history pagination, offline text send queue (`shared_preferences` v2 + claim/lease, cap 100), Drive upload facade; tokens in `flutter_secure_storage`; inbox error/retry UX |
 

@@ -182,6 +182,7 @@ pub(super) fn tracked_live_projection_lag_scope_id(event: &CommitEnvelope) -> Op
     if matches!(
         event.event_type.as_str(),
         "conversation.created"
+            | "conversation.agents_replaced"
             | "conversation.policy_applied"
             | "conversation.agent_handoff_status_changed"
             | "message.posted"

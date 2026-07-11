@@ -20,3 +20,14 @@ export function mergeInboxEntries(
   }
   return merged.slice(0, MAX_INBOX_ENTRIES);
 }
+
+export function mergeLatestInboxEntries(
+  existing: readonly ConversationInboxEntry[],
+  latestPage: readonly ConversationInboxEntry[],
+): ConversationInboxEntry[] {
+  const latestIds = new Set(latestPage.map((entry) => entry.conversationId));
+  return [
+    ...latestPage,
+    ...existing.filter((entry) => !latestIds.has(entry.conversationId)),
+  ].slice(0, MAX_INBOX_ENTRIES);
+}

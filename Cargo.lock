@@ -5394,6 +5394,7 @@ dependencies = [
 name = "sdkwork-database-sqlx"
 version = "0.1.0"
 dependencies = [
+ "libsqlite3-sys",
  "sdkwork-database-config",
  "serde",
  "sqlx",
@@ -6803,6 +6804,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "sdkwork-contract-service",
+ "sdkwork-database-id",
  "sdkwork-database-sqlx",
  "sdkwork-merchandise-service",
  "serde",
@@ -6818,6 +6820,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "sdkwork-contract-service",
+ "sdkwork-utils-rust",
  "serde",
  "serde_json",
  "uuid",
@@ -6888,8 +6891,11 @@ dependencies = [
  "dotenvy",
  "sdkwork-contract-service",
  "sdkwork-database-config",
+ "sdkwork-database-id",
  "sdkwork-database-sqlx",
  "sdkwork-drive-workspace-service",
+ "sdkwork-merchandise-repository-sqlx",
+ "sdkwork-merchandise-service",
  "sdkwork-notary-case-contract",
  "sdkwork-notary-case-repository-sqlx",
  "sdkwork-notary-case-service",

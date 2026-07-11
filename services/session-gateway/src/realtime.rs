@@ -57,6 +57,12 @@ pub(crate) const REALTIME_EVENT_WINDOW_MAX_LIMIT: usize = 1000;
 const REALTIME_CLIENT_ROUTE_WINDOW_MAX_RETAINED_EVENTS: usize = REALTIME_EVENT_WINDOW_MAX_LIMIT;
 const REALTIME_CLIENT_ROUTE_WINDOW_CRITICAL_USAGE_PERMILLE: u64 = 950;
 const REALTIME_MUTATION_LOCK_SHARDS: usize = 256;
+/// Global cap on per-client-route in-memory HashMap entries. Sits above
+/// `REALTIME_MAX_WEBSOCKET_CONNECTIONS_DEFAULT` (10_000) because a single
+/// connection may materialise multiple route entries. Exceeded maps are
+/// trimmed by `enforce_client_route_maps_capacity` during the periodic
+/// maintenance job as a safety net beyond the normal disconnect fence.
+const REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES: usize = 20_000;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -2781,6 +2787,214 @@ impl RealtimeDeliveryRuntime {
             }
             !device_ids.is_empty()
         });
+    }
+
+    /// Enforce a global cap on per-client-route in-memory maps to prevent
+    /// unbounded growth from leaked entries (e.g., disconnect fences that
+    /// never fire or routes orphaned by failed cleanup). This is a safety
+    /// net beyond the normal disconnect fence and maintenance cleanup,
+    /// invoked periodically by the realtime maintenance job.
+    ///
+    /// When a map exceeds `REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES`, the
+    /// oldest entries are evicted first. For client-route-keyed maps the
+    /// eviction priority is derived from `last_capacity_trimmed_at` (oldest
+    /// trim timestamp first); entries without a timestamp are treated as
+    /// most recently active and kept last. No I/O is performed while
+    /// holding locks.
+    pub fn enforce_client_route_maps_capacity(&self) {
+        // Build eviction priority from last_capacity_trimmed_at. RFC3339
+        // timestamps sort chronologically as strings, so the oldest trim
+        // timestamps surface first as eviction candidates.
+        let eviction_priority: Vec<String> = {
+            let timestamps = lock_realtime_mutex(
+                &self.last_capacity_trimmed_at,
+                "realtime capacity trim timestamp store",
+            );
+            let mut keyed: Vec<(String, String)> = timestamps
+                .iter()
+                .map(|(scope_key, ts)| (scope_key.clone(), ts.clone()))
+                .collect();
+            keyed.sort_by(|a, b| a.1.cmp(&b.1));
+            keyed.into_iter().map(|(k, _)| k).collect()
+        };
+
+        enforce_realtime_string_map_capacity(
+            &self.subscriptions,
+            "realtime subscription store",
+            "subscriptions",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.windows,
+            "realtime window store",
+            "windows",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.latest_sequences,
+            "realtime sequence store",
+            "latest_sequences",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.acked_sequences,
+            "realtime ack store",
+            "acked_sequences",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.trimmed_sequences,
+            "realtime trim store",
+            "trimmed_sequences",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.capacity_trimmed_event_counts,
+            "realtime capacity trim count store",
+            "capacity_trimmed_event_counts",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.capacity_trimmed_sequences,
+            "realtime capacity trim sequence store",
+            "capacity_trimmed_sequences",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.last_capacity_trimmed_at,
+            "realtime capacity trim timestamp store",
+            "last_capacity_trimmed_at",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.notifiers,
+            "realtime notifier store",
+            "notifiers",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.disconnect_generations,
+            "realtime disconnect generation store",
+            "disconnect_generations",
+            &eviction_priority,
+        );
+        enforce_realtime_string_map_capacity(
+            &self.disconnect_notifiers,
+            "realtime disconnect notifier store",
+            "disconnect_notifiers",
+            &eviction_priority,
+        );
+
+        self.enforce_subscription_scope_index_capacity();
+        self.enforce_migrated_out_scopes_capacity();
+    }
+
+    fn enforce_subscription_scope_index_capacity(&self) {
+        let mut guard = lock_realtime_mutex(
+            &self.subscription_scope_index,
+            "realtime scope fanout index",
+        );
+        let excess = guard
+            .len()
+            .saturating_sub(REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES);
+        if excess == 0 {
+            return;
+        }
+        // First reclaim stale entries whose device maps are already empty.
+        let before = guard.len();
+        guard.retain(|_, device_ids| !device_ids.is_empty());
+        let removed_empty = before - guard.len();
+        // If still over cap, evict excess entries in a deterministic order
+        // keyed by the principal scope Debug representation.
+        let still_excess = guard
+            .len()
+            .saturating_sub(REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES);
+        let mut removed_excess = 0usize;
+        if still_excess > 0 {
+            let mut keys: Vec<(String, RealtimePrincipalScopeKey)> = guard
+                .keys()
+                .map(|k| (format!("{k:?}"), k.clone()))
+                .collect();
+            keys.sort_by(|a, b| a.0.cmp(&b.0));
+            for (_, key) in keys.into_iter().take(still_excess) {
+                guard.remove(&key);
+                removed_excess += 1;
+            }
+        }
+        if removed_empty > 0 || removed_excess > 0 {
+            tracing::warn!(
+                map = "subscription_scope_index",
+                removed_empty_count = removed_empty,
+                removed_excess_count = removed_excess,
+                remaining_count = guard.len(),
+                cap = REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES,
+                "enforced subscription scope index capacity cap; leaked entries evicted"
+            );
+        }
+    }
+
+    fn enforce_migrated_out_scopes_capacity(&self) {
+        let mut guard = lock_realtime_mutex(
+            &self.migrated_out_client_route_scopes,
+            "realtime migrated-out device scope store",
+        );
+        let excess = guard
+            .len()
+            .saturating_sub(REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES);
+        if excess == 0 {
+            return;
+        }
+        // Evict excess tombstones in lexicographic order so removal is deterministic.
+        let mut keys: Vec<String> = guard.iter().cloned().collect();
+        keys.sort();
+        let mut removed = 0usize;
+        for key in keys.into_iter().take(excess) {
+            guard.remove(&key);
+            removed += 1;
+        }
+        if removed > 0 {
+            tracing::warn!(
+                map = "migrated_out_client_route_scopes",
+                removed_count = removed,
+                remaining_count = guard.len(),
+                cap = REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES,
+                "enforced migrated-out client route scopes capacity cap; leaked entries evicted"
+            );
+        }
+    }
+}
+
+fn enforce_realtime_string_map_capacity<T>(
+    map: &Arc<Mutex<HashMap<String, T>>>,
+    lock_name: &'static str,
+    map_name: &'static str,
+    eviction_priority: &[String],
+) {
+    let mut guard = lock_realtime_mutex(map, lock_name);
+    let excess = guard
+        .len()
+        .saturating_sub(REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES);
+    if excess == 0 {
+        return;
+    }
+    // Evict the oldest entries first using the precomputed eviction priority.
+    let mut removed = 0usize;
+    for scope_key in eviction_priority {
+        if removed >= excess {
+            break;
+        }
+        if guard.remove(scope_key.as_str()).is_some() {
+            removed += 1;
+        }
+    }
+    if removed > 0 {
+        tracing::warn!(
+            map = map_name,
+            removed_count = removed,
+            remaining_count = guard.len(),
+            cap = REALTIME_CLIENT_ROUTE_MAPS_MAX_ENTRIES,
+            "enforced client route map capacity cap; leaked entries evicted"
+        );
     }
 }
 

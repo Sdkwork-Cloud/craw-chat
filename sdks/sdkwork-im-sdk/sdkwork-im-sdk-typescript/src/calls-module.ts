@@ -9,9 +9,9 @@ import type {
   RtcSignalEvent,
   UpdateRtcSessionRequest,
 } from '../generated/server-openapi/dist/index.js';
-import { requireStringIdentifier } from './identifier-boundary';
-import type { ImConnectOptions, ImLiveConnection, ImRealtimeEventContext, ImSubscription } from './realtime';
-import type { ImTransportClientLike } from './transport-client-like';
+import { requireStringIdentifier } from './identifier-boundary.js';
+import type { ImConnectOptions, ImLiveConnection, ImRealtimeEventContext, ImSubscription } from './realtime.js';
+import type { ImTransportClientLike } from './transport-client-like.js';
 
 export type ImCallSession = RtcSession;
 export type ImCallSessionMutationResponse = RtcSessionMutationResponse;

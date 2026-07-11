@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { spawn, spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import * as playwrightRunner from './sdkwork-im-pc-playwright-runner.mjs';
 import {
@@ -39,6 +40,127 @@ class FakeChild extends EventEmitter {
     this.exitCode = code;
     this.signalCode = signal;
     this.emit('exit', code, signal);
+  }
+}
+
+class FakeAvailablePortServer extends EventEmitter {
+  constructor(checkedHosts) {
+    super();
+    this.checkedHosts = checkedHosts;
+  }
+
+  unref() {}
+
+  listen({ host }, callback) {
+    this.checkedHosts.push(host);
+    queueMicrotask(callback);
+  }
+
+  close(callback) {
+    queueMicrotask(() => callback());
+  }
+}
+
+function waitForCondition(check, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      if (check()) {
+        resolve();
+        return;
+      }
+      if (Date.now() >= deadline) {
+        reject(new Error(`condition was not satisfied within ${timeoutMs}ms`));
+        return;
+      }
+      setTimeout(attempt, 20);
+    };
+    attempt();
+  });
+}
+
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function waitForProcessExit(child, timeoutMs = 10_000) {
+  return new Promise((resolve, reject) => {
+    let timer;
+    const finish = (error, result) => {
+      clearTimeout(timer);
+      child.removeListener('error', onError);
+      child.removeListener('exit', onExit);
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(result);
+    };
+    const onError = (error) => finish(error);
+    const onExit = (code, signal) => finish(null, [code, signal]);
+    child.once('error', onError);
+    child.once('exit', onExit);
+    timer = setTimeout(
+      () => finish(new Error(`process did not exit within ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+  });
+}
+
+function waitForProcessMessage(child, timeoutMs = 10_000) {
+  return new Promise((resolve, reject) => {
+    let timer;
+    const finish = (error, message) => {
+      clearTimeout(timer);
+      child.removeListener('error', onError);
+      child.removeListener('exit', onExit);
+      child.removeListener('message', onMessage);
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(message);
+    };
+    const onError = (error) => finish(error);
+    const onExit = (code, signal) => finish(
+      new Error(`process exited before sending readiness message with ${code ?? signal ?? 'unknown'} status`),
+    );
+    const onMessage = (message) => finish(null, message);
+    child.once('error', onError);
+    child.once('exit', onExit);
+    child.once('message', onMessage);
+    timer = setTimeout(
+      () => finish(new Error(`process did not send readiness message within ${timeoutMs}ms`)),
+      timeoutMs,
+    );
+  });
+}
+
+function forceTerminateTestProcessTree(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    return;
+  }
+  if (process.platform === 'win32') {
+    spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    return;
+  }
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch (error) {
+    if (error?.code !== 'ESRCH') {
+      throw error;
+    }
   }
 }
 
@@ -77,6 +199,38 @@ await assert.doesNotReject(
   'the same port must become available after the existing listener closes',
 );
 
+const checkedPortHosts = [];
+await assert.doesNotReject(
+  assertPortAvailable({
+    createServer: () => new FakeAvailablePortServer(checkedPortHosts),
+    host: '0.0.0.0',
+    port: occupiedAddress.port,
+    readinessHosts: ['127.0.0.1', '127.0.0.1'],
+  }),
+  'an available server port must check every distinct address used to bind or probe it',
+);
+assert.deepEqual(
+  checkedPortHosts,
+  ['127.0.0.1', '0.0.0.0'],
+  'readiness-specific addresses must be checked before the wildcard bind address',
+);
+
+const loopbackOccupiedServer = net.createServer();
+const loopbackOccupiedAddress = await listen(loopbackOccupiedServer, '127.0.0.1');
+try {
+  await assert.rejects(
+    assertPortAvailable({
+      host: '0.0.0.0',
+      port: loopbackOccupiedAddress.port,
+      readinessHosts: ['127.0.0.1'],
+    }),
+    /already in use/u,
+    'a loopback listener must fail wildcard server preflight before a child process is spawned',
+  );
+} finally {
+  await close(loopbackOccupiedServer);
+}
+
 const hangingServer = http.createServer(() => {});
 const hangingAddress = await listen(hangingServer);
 await assert.rejects(
@@ -85,6 +239,26 @@ await assert.rejects(
   'one unresponsive HTTP socket must not consume the entire readiness deadline',
 );
 await close(hangingServer);
+
+const trickleServer = http.createServer((_request, response) => {
+  response.writeHead(200, { 'content-type': 'text/plain' });
+  const trickle = setInterval(() => response.write('x'), 5);
+  const finish = setTimeout(() => {
+    clearInterval(trickle);
+    response.end('done');
+  }, 150);
+  response.once('close', () => {
+    clearInterval(trickle);
+    clearTimeout(finish);
+  });
+});
+const trickleAddress = await listen(trickleServer);
+await assert.rejects(
+  probeHttp(`http://127.0.0.1:${trickleAddress.port}/`, { requestTimeoutMs: 40 }),
+  /timed out after 40ms/u,
+  'continuous trickle bytes must not extend the absolute HTTP readiness deadline',
+);
+await close(trickleServer);
 
 const oversizedServer = http.createServer((_request, response) => {
   response.end('x'.repeat(4_096));
@@ -308,6 +482,32 @@ assert.match(reportedCleanupErrors[0].message, /simulated cleanup failure/u);
 assert.equal(cleanupFailureTarget.listenerCount('SIGINT'), 0);
 assert.equal(cleanupFailureTarget.listenerCount('SIGTERM'), 0);
 
+const combinedFailureTarget = new EventEmitter();
+combinedFailureTarget.exitCode = undefined;
+const combinedFailureLifecycle = playwrightRunner.createOwnedProcessLifecycle({
+  processTarget: combinedFailureTarget,
+  async stopChild() {
+    throw new Error('combined cleanup failure');
+  },
+});
+await assert.rejects(
+  combinedFailureLifecycle.run(async () => {
+    combinedFailureLifecycle.track(new FakeChild(9301));
+    throw new Error('combined work failure');
+  }),
+  (error) => {
+    assert.equal(error instanceof AggregateError, true);
+    assert.deepEqual(
+      error.errors.map((nestedError) => nestedError.message),
+      ['combined work failure', 'combined cleanup failure'],
+      'combined work and cleanup failures must both remain diagnosable',
+    );
+    return true;
+  },
+);
+assert.equal(combinedFailureTarget.listenerCount('SIGINT'), 0);
+assert.equal(combinedFailureTarget.listenerCount('SIGTERM'), 0);
+
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const e2eWrapperSource = fs.readFileSync(
   path.join(scriptsDirectory, 'sdkwork-im-pc-playwright-e2e.test.mjs'),
@@ -336,6 +536,11 @@ for (const [label, source] of [
     /lifecycle\.track\s*\(/u,
     `${label} wrapper must register every spawned child for process-tree cleanup`,
   );
+  assert.match(
+    source,
+    /readinessHosts:\s*\[['"]127\.0\.0\.1['"]\]/u,
+    `${label} wrapper must preflight the loopback address used by HTTP readiness`,
+  );
 }
 assert.match(
   smokeWrapperSource,
@@ -347,5 +552,95 @@ assert.match(
   /runCommand[\s\S]*lifecycle\.track\s*\(/u,
   'the Playwright command child must be tracked in addition to the two HTTP servers',
 );
+
+const runnerModuleUrl = pathToFileURL(
+  path.join(scriptsDirectory, 'sdkwork-im-pc-playwright-runner.mjs'),
+).href;
+const signalFixtureSource = `
+import { spawn } from 'node:child_process';
+import { createOwnedProcessLifecycle } from ${JSON.stringify(runnerModuleUrl)};
+
+const lifecycle = createOwnedProcessLifecycle();
+const onMessage = (message) => {
+  if (message?.signal === 'SIGTERM') {
+    process.emit('SIGTERM');
+  }
+};
+process.on('message', onMessage);
+try {
+  await lifecycle.run(async ({ signal }) => {
+    const processGroup = process.platform !== 'win32';
+    const child = lifecycle.track(spawn(
+      process.execPath,
+      ['-e', 'setInterval(() => {}, 1000)'],
+      {
+        detached: processGroup,
+        stdio: 'ignore',
+        windowsHide: true,
+      },
+    ), { processGroup });
+    process.send({ kind: 'ready', pid: child.pid });
+    await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+  });
+} finally {
+  process.removeListener('message', onMessage);
+  process.disconnect();
+}
+`;
+const signalFixture = spawn(
+  process.execPath,
+  ['--input-type=module', '-e', signalFixtureSource],
+  {
+    stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+    windowsHide: true,
+  },
+);
+let signalFixtureStderr = '';
+signalFixture.stderr.setEncoding('utf8');
+signalFixture.stderr.on('data', (chunk) => {
+  signalFixtureStderr += chunk;
+});
+const readyMessage = await waitForProcessMessage(signalFixture);
+assert.equal(readyMessage.kind, 'ready');
+assert.equal(Number.isSafeInteger(readyMessage.pid), true);
+assert.equal(isProcessAlive(readyMessage.pid), true, 'the fixture grandchild must be live before signal cleanup');
+signalFixture.send({ signal: 'SIGTERM' });
+const [signalFixtureExitCode, signalFixtureExitSignal] = await waitForProcessExit(signalFixture);
+assert.equal(signalFixtureExitSignal, null, signalFixtureStderr);
+assert.equal(signalFixtureExitCode, 143, signalFixtureStderr);
+await waitForCondition(() => !isProcessAlive(readyMessage.pid));
+
+if (process.platform === 'win32') {
+  const hardTerminationFixture = spawn(
+    process.execPath,
+    ['--input-type=module', '-e', signalFixtureSource],
+    {
+      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+      windowsHide: true,
+    },
+  );
+  let hardTerminationFixtureStderr = '';
+  hardTerminationFixture.stderr.setEncoding('utf8');
+  hardTerminationFixture.stderr.on('data', (chunk) => {
+    hardTerminationFixtureStderr += chunk;
+  });
+  const hardTerminationReady = await waitForProcessMessage(hardTerminationFixture);
+  try {
+    assert.equal(
+      isProcessAlive(hardTerminationReady.pid),
+      true,
+      'the hard-termination fixture child must be live before its parent is terminated',
+    );
+    hardTerminationFixture.kill('SIGTERM');
+    const [_exitCode, exitSignal] = await waitForProcessExit(hardTerminationFixture);
+    assert.equal(exitSignal, 'SIGTERM', hardTerminationFixtureStderr);
+    await waitForCondition(
+      () => !isProcessAlive(hardTerminationReady.pid),
+      3_000,
+    );
+  } finally {
+    forceTerminateTestProcessTree(hardTerminationReady.pid);
+  }
+}
 
 console.log('sdkwork-im PC Playwright runner lifecycle contract passed');

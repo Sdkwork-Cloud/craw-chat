@@ -7,6 +7,7 @@ export interface ModuleRenderHostProps {
   activeTab: string;
   chatSurface: React.ReactNode;
   capabilitySurface: React.ReactNode;
+  errorFallback?: React.ReactNode;
 }
 
 /**
@@ -17,9 +18,10 @@ export const ModuleRenderHost: React.FC<ModuleRenderHostProps> = ({
   activeTab,
   chatSurface,
   capabilitySurface,
+  errorFallback,
 }) => {
   return (
-    <AppErrorBoundary>
+    <AppErrorBoundary fallback={errorFallback} key={activeTab}>
       {isChatModule(activeTab) ? (
         chatSurface
       ) : (

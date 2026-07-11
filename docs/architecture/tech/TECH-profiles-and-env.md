@@ -81,9 +81,9 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 | `SDKWORK_IM_SESSION_GATEWAY_RPC_BIND_ADDR` | gRPC bind for `session-gateway-rpc` Phase 1 host. |
 | `SDKWORK_IM_SESSION_GATEWAY_RPC_PUBLIC_ENDPOINT` | Advertised gRPC endpoint for internal callers. |
 | `SDKWORK_IM_GATEWAY_EMBED_REALTIME_PLANE` | When `true`/`1`, embed session-gateway in the gateway process for single-node dev or HA drills. |
-| `SDKWORK_IM_REALTIME_TCP_BIND_ADDR` | Optional TCP link listener (`ccp/tcp/1`). |
-| `SDKWORK_IM_REALTIME_UDP_BIND_ADDR` | Optional UDP datagram listener (`ccp/udp/1`). |
-| `SDKWORK_IM_REALTIME_QUIC_BIND_ADDR` | Optional QUIC listener (`ccp/quic/1`); requires TLS cert/key env vars. |
+| `SDKWORK_IM_REALTIME_TCP_BIND_ADDR` | Optional TCP link listener (`ccp/tcp/1`). When set, session-gateway accepts TCP connections with 4-byte length-prefix framing. Client SDK uses `transport: 'tcp'` or `transportPolicy` to connect. Example: `127.0.0.1:18080`. |
+| `SDKWORK_IM_REALTIME_UDP_BIND_ADDR` | Optional UDP datagram listener (`ccp/udp/1`). When set, session-gateway accepts UDP datagrams (max 64KB each). Client SDK uses `transport: 'udp'`. Suitable for control-frame handshake and heartbeat; business messages should use WebSocket/TCP. Example: `127.0.0.1:18081`. |
+| `SDKWORK_IM_REALTIME_QUIC_BIND_ADDR` | Optional QUIC listener (`ccp/quic/1`); requires TLS cert/key env vars. When set, session-gateway accepts QUIC connections with TLS. Example: `127.0.0.1:18082`. |
 | `SDKWORK_IM_REALTIME_QUIC_TLS_CERT_PATH` | PEM certificate for QUIC listener. |
 | `SDKWORK_IM_REALTIME_QUIC_TLS_KEY_PATH` | PEM private key for QUIC listener. |
 | `SDKWORK_IM_REALTIME_ROUTE_STORE_URL` | Redis-backed route store (tiered with Postgres when both set). |

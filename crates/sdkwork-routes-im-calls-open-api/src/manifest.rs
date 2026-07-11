@@ -63,7 +63,7 @@ pub const ROUTES: &[HttpRoute] = &[
     ),
     HttpRoute::dual_token(
         HttpMethod::Post,
-        "/im/v3/api/calls/sessions/{rtcSessionId}/credentials/refresh",
+        paths::CALL_SESSION_CREDENTIALS_REFRESH,
         "calls",
         "calls.sessions.credentials.refresh",
     ),

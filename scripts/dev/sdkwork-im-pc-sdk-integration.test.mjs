@@ -4054,7 +4054,8 @@ assert.doesNotMatch(
   'console layout must not keep generic under-development placeholder copy',
 );
 const workspaceServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/services/WorkspaceService.ts');
-const workspaceViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/index.tsx');
+const workspaceEntrySource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/index.tsx');
+const workspaceViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/WorkspaceView.tsx');
 assert.match(
   workspaceServiceSource,
   /getAppSdkClientWithSession/u,
@@ -4082,13 +4083,18 @@ assert.match(
 );
 assert.match(
   workspaceViewSource,
-  /workspaceService\.getApps\s*\(\s*\)/u,
-  'workspace view must render apps from the SDK-backed workspace service',
+  /service\.getWorkspaceData\s*\(\s*\)/u,
+  'workspace view must render apps and recent documents from the SDK-backed aggregate service',
 );
 assert.match(
-  workspaceViewSource,
-  /workspaceService\.getRecentDocuments\s*\(\s*\)/u,
-  'workspace view must render recent documents from the SDK-backed workspace service',
+  workspaceServiceSource,
+  /Promise\.all\s*\(\s*\[\s*this\.loadApps\(\),\s*this\.loadRecentDocuments\(\),?\s*\]\s*\)/u,
+  'workspace service must load the app catalog and recent documents without serial SDK latency',
+);
+assert.doesNotMatch(
+  workspaceEntrySource,
+  /useState|workspaceService/u,
+  'workspace public entrypoint must remain a thin export boundary',
 );
 assert.match(
   workspaceServiceSource,
@@ -4105,15 +4111,10 @@ assert.doesNotMatch(
   /count:\s*3|leading-none">12<|Simulated notification badge/u,
   'workspace view must not keep hard-coded dashboard metrics or simulated badges',
 );
-assert.match(
-  workspaceViewSource,
-  /workspaceAppCenterUnavailable/u,
-  'workspace add-app-center flow must fail closed until the app center contract exists',
-);
 assert.doesNotMatch(
   workspaceViewSource,
-  /connectingAppCenter.*success/u,
-  'workspace add-app-center flow must not simulate successful connections',
+  /workspaceAppCenterUnavailable|connectingAppCenter/u,
+  'workspace view must not expose a placeholder app-center flow without an integration contract',
 );
 assert.doesNotMatch(workspaceServiceSource, /class\s+WorkspaceCatalogService/u, 'workspace service must not be mock-backed');
 assert.doesNotMatch(workspaceServiceSource, /setTimeout|mockMails|recentDocumentCatalog/u, 'workspace service must not keep mock catalog branches');
@@ -4122,8 +4123,8 @@ assert.doesNotMatch(workspaceServiceSource, /\/(?:im|app|backend)\/v3/u, 'worksp
 assert.doesNotMatch(workspaceServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'workspace service must not assemble auth headers manually');
 assert.doesNotMatch(
   workspaceServiceSource,
-  /\btenantId\b/u,
-  'workspace service must not pass tenantId in SDK requests; server context comes from AuthToken and Access-Token',
+  /\btenantId\s*:/u,
+  'workspace service must not pass tenantId in SDK request objects; server context comes from AuthToken and Access-Token',
 );
 assert.match(
   chatLayoutSource,

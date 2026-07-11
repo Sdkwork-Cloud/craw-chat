@@ -1,5 +1,7 @@
 import React from 'react';
 
+export type { DriveOpenRequest } from '@sdkwork/drive-pc-drive';
+
 import {
   COMMERCIAL_RUNTIME_MODULES,
   type AppModuleId,

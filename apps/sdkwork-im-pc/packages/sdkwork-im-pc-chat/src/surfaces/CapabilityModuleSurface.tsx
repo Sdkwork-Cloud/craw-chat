@@ -4,8 +4,12 @@ import {
   isShellCapabilityModule,
   LazyCapabilityModuleRenderer,
   resolveWorkspaceAppTab,
+  type DriveOpenRequest,
 } from "@sdkwork/im-pc-shell";
-import { WorkspaceView } from "@sdkwork/im-pc-workspace";
+import {
+  WorkspaceView,
+  type WorkspaceDocumentOpenTarget,
+} from "@sdkwork/im-pc-workspace";
 import type { Chat, User } from "@sdkwork/im-pc-types";
 
 import { AgentView, type Agent, CreateAgentView } from "@sdkwork/agents-pc-agents";
@@ -17,11 +21,14 @@ import { AgentsPcEmbedSurface } from "./AgentsPcEmbedSurface";
 
 export interface CapabilityModuleSurfaceProps {
   activeTab: string;
+  driveOpenRequest?: DriveOpenRequest;
   searchQuery: string;
   editAgentId?: string;
   pendingCommunityId: string | null;
   t: TFunction;
   onTabChange: (tab: string) => void;
+  onWorkspaceDocumentOpen: (target: WorkspaceDocumentOpenTarget) => void;
+  onDriveOpenRequestHandled: (requestId: string) => void;
   onEditAgentIdChange: (agentId?: string) => void;
   onOpenCreateAgentModal: () => void;
   onPendingCommunityHandled: () => void;
@@ -37,11 +44,14 @@ export interface CapabilityModuleSurfaceProps {
 
 export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = ({
   activeTab,
+  driveOpenRequest,
   searchQuery,
   editAgentId,
   pendingCommunityId,
   t,
   onTabChange,
+  onWorkspaceDocumentOpen,
+  onDriveOpenRequestHandled,
   onEditAgentIdChange,
   onOpenCreateAgentModal,
   onPendingCommunityHandled,
@@ -64,7 +74,14 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
         return <ModuleComponent onNavigateToOrders={() => onTabChange("orders")} />;
       case "notary":
       case "mail":
+        return <ModuleComponent />;
       case "drive":
+        return (
+          <ModuleComponent
+            openRequest={driveOpenRequest}
+            onOpenRequestHandled={onDriveOpenRequestHandled}
+          />
+        );
       case "calendar":
       case "approval":
       case "report":
@@ -154,6 +171,7 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
     case "workspace":
       return (
         <WorkspaceView
+          onDocumentOpen={onWorkspaceDocumentOpen}
           onAppSelect={(appId) => {
             const tab = resolveWorkspaceAppTab(appId);
             if (tab) {

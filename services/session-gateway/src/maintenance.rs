@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 
 use crate::RealtimePlaneAssembly;
 
-const REALTIME_MAINTENANCE_INTERVAL_SECS: u64 = 300;
+const REALTIME_MAINTENANCE_INTERVAL_SECS: u64 = 60;
 const WEBSOCKET_IDLE_TIMEOUT_SECS_ENV: &str = "SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS";
 const WEBSOCKET_IDLE_TIMEOUT_DEFAULT_SECS: u64 = 90;
 const PRESENCE_STALE_MULTIPLIER: i64 = 2;
@@ -34,6 +34,9 @@ pub fn spawn_realtime_maintenance_jobs(assembly: RealtimePlaneAssembly) -> Optio
             cluster.cleanup_stale_route_epoch_notifiers();
             cluster.cleanup_stale_disconnect_fences();
             cluster.purge_expired_disconnect_fences();
+            assembly
+                .realtime_runtime()
+                .enforce_client_route_maps_capacity();
             expire_stale_presence_devices(assembly.presence_runtime().as_ref());
         }
     }))

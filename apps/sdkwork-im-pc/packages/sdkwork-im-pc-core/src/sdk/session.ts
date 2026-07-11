@@ -684,3 +684,65 @@ export function isAppSdkSessionExpired(session = readAppSdkSessionTokens()): boo
 export function isAppSdkSessionAuthenticated(session = readAppSdkSessionTokens()): boolean {
   return Boolean(session?.authToken && session?.accessToken) && !isAppSdkSessionExpired(session);
 }
+
+/**
+ * Resolves the permission scope codes attached to a session.
+ *
+ * Sources, in priority order: JWT claim `permissionScope`/`permission_scope`/`scope`/`scp`
+ * (access then auth token), falling back to the normalized `SdkworkChatAppContext.permissionScope`.
+ * Matches the projection used by `createSdkworkChatRequestContext` so route guards and
+ * request interceptors see the same authorization surface.
+ */
+export function resolveAppSdkPermissionScope(session = readAppSdkSessionTokens()): string[] {
+  const context = session?.context;
+  return pickClaimStringArray(
+    session,
+    ['permissionScope', 'permission_scope', 'scope', 'scp'],
+    context?.permissionScope,
+  );
+}
+
+/**
+ * Verifies whether a session grants a permission code, mirroring the backend
+ * `AppContext::has_permission` semantics (`crates/im-app-context/src/lib.rs`):
+ *
+ * - empty permission never grants;
+ * - `*` and `tenant.admin` grant everything;
+ * - exact code match grants;
+ * - `<prefix>.*` wildcards grant any deeper code in the same namespace
+ *   (e.g. `control.*` grants `control.read` and `control.write`).
+ *
+ * Used by route-level RBAC guards and commercial module mount checks so the
+ * client refuses to mount privileged surfaces when the token lacks the claim.
+ */
+export function hasAppSdkPermission(
+  session: SdkworkChatSession | null | undefined,
+  permission: string,
+): boolean {
+  const trimmed = permission.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  const scope = resolveAppSdkPermissionScope(session ?? undefined);
+  if (scope.includes('*') || scope.includes('tenant.admin') || scope.includes(trimmed)) {
+    return true;
+  }
+
+  const segments = trimmed.split('.');
+  for (let index = 1; index < segments.length; index++) {
+    if (scope.includes(`${segments.slice(0, index).join('.')}.*`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Convenience overload that reads the persisted session for callers that only
+ * have the permission code in scope (e.g. synchronous module-mount checks).
+ */
+export function hasAppSdkPermissionForCurrentSession(permission: string): boolean {
+  return hasAppSdkPermission(readAppSdkSessionTokens(), permission);
+}

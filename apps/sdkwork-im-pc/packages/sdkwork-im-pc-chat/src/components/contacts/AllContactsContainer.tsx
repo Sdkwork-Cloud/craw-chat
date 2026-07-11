@@ -191,8 +191,8 @@ export const AllContactsContainer: React.FC<{
         </div>
 
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-[2px] z-20">
-           {['↑', ...letters, '#'].map(l => (
-              <button 
+           {['↑', ...letters].map(l => (
+              <button
                  key={l}
                  onClick={() => l === '↑' ? scrollContainerRef.current?.scrollTo({top:0, behavior:'smooth'}) : scrollToLetter(l)}
                  className="w-5 h-5 flex items-center justify-center text-[10px] text-gray-400 hover:bg-indigo-500 hover:text-white rounded-md transition-colors"

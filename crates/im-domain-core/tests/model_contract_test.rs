@@ -7,13 +7,14 @@ use im_domain_core::conversation::{
 };
 use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
-    ContentPart, DataPart, MediaPart, Message, MessageBody, MessageEdited, MessageLocatorIndex,
-    MessageRecalled, MessageType, SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX,
-    SDKWORK_IM_MESSAGE_SCHEMA_AGENT, SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE,
-    SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO, SDKWORK_IM_MESSAGE_SCHEMA_CARD,
-    SDKWORK_IM_MESSAGE_SCHEMA_CONTACT, SDKWORK_IM_MESSAGE_SCHEMA_LINK,
-    SDKWORK_IM_MESSAGE_SCHEMA_LOCATION, SDKWORK_IM_MESSAGE_SCHEMA_MUSIC,
-    SDKWORK_IM_MESSAGE_SCHEMA_STICKER, SDKWORK_IM_MESSAGE_SCHEMA_VOICE, Sender,
+    ContentPart, DataPart, MediaPart, MentionPart, MentionTargetKind, Message, MessageBody,
+    MessageEdited, MessageLocatorIndex, MessageRecalled, MessageType,
+    SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX, SDKWORK_IM_MESSAGE_SCHEMA_AGENT,
+    SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE, SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO,
+    SDKWORK_IM_MESSAGE_SCHEMA_CARD, SDKWORK_IM_MESSAGE_SCHEMA_CONTACT,
+    SDKWORK_IM_MESSAGE_SCHEMA_LINK, SDKWORK_IM_MESSAGE_SCHEMA_LOCATION,
+    SDKWORK_IM_MESSAGE_SCHEMA_MUSIC, SDKWORK_IM_MESSAGE_SCHEMA_STICKER,
+    SDKWORK_IM_MESSAGE_SCHEMA_VOICE, Sender,
 };
 use im_domain_core::presence::{
     PresenceClientView, PresenceResumeView, PresenceSnapshotView, PresenceStatus,
@@ -157,6 +158,52 @@ fn test_message_body_serializes_content_parts_with_expected_shape() {
     assert_eq!(
         value["body"]["parts"][1]["resource"]["metadata"]["origin"],
         json!("test")
+    );
+}
+
+#[test]
+fn test_agent_mention_content_part_has_authoritative_target_shape() {
+    let mention = ContentPart::Mention(MentionPart {
+        target_kind: MentionTargetKind::Agent,
+        target_id: "agent.im.reviewer".into(),
+        display_text: "@Reviewer".into(),
+        assignment_generation: 7,
+    });
+
+    let value = serde_json::to_value(&mention).expect("mention should serialize");
+    assert_eq!(value["kind"], Value::String("mention".into()));
+    assert_eq!(value["targetKind"], Value::String("agent".into()));
+    assert_eq!(value["targetId"], Value::String("agent.im.reviewer".into()));
+    assert_eq!(value["displayText"], Value::String("@Reviewer".into()));
+    assert_eq!(value["assignmentGeneration"], Value::Number(7.into()));
+
+    let decoded: ContentPart = serde_json::from_value(value).expect("mention should deserialize");
+    assert_eq!(decoded, mention);
+}
+
+#[test]
+fn test_agent_mention_requires_a_native_numeric_assignment_generation() {
+    let missing_generation = json!({
+        "kind": "mention",
+        "targetKind": "agent",
+        "targetId": "agent.im.reviewer",
+        "displayText": "@Reviewer"
+    });
+    assert!(
+        serde_json::from_value::<ContentPart>(missing_generation).is_err(),
+        "an agent mention without the authoritative assignment generation must be rejected"
+    );
+
+    let non_numeric_generation = json!({
+        "kind": "mention",
+        "targetKind": "agent",
+        "targetId": "agent.im.reviewer",
+        "displayText": "@Reviewer",
+        "assignmentGeneration": "garbage"
+    });
+    assert!(
+        serde_json::from_value::<ContentPart>(non_numeric_generation).is_err(),
+        "the domain model must not accept a stringly typed assignment generation"
     );
 }
 

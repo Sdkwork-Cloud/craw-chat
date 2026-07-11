@@ -279,6 +279,7 @@ impl TimelineProjectionService {
                         created_at: metadata.updated_at.to_owned(),
                         history_visibility: "joined".into(),
                         title: None,
+                        agent_assignments: None,
                     });
             if entry.conversation_type.trim().is_empty() || entry.conversation_type == "unknown" {
                 entry.conversation_type = "group".into();

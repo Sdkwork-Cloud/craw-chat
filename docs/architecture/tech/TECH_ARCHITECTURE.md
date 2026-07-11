@@ -81,6 +81,7 @@ Manages WebSocket lifecycle, presence, and cluster routing:
 - **Heartbeat Mechanism**: Server-initiated heartbeat at configurable interval (default 30s) detects silent disconnects and enforces idle timeout (default 90s). This prevents zombie connections that would otherwise occupy route slots indefinitely. Configurable via `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` and `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS`.
 - **Route Epoch Change Grace**: 250ms grace window gives clients time to handle route migrations without missing state changes.
 - **Graceful Drain**: SIGINT/SIGTERM first flips shared readiness to not-ready and marks the route node draining. HTTP shutdown is triggered, link listeners and maintenance jobs stop, every owned route is fenced before conditional release, and the Redis subscriber is cancelled. `SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS` is one total deadline (default 45 seconds, valid 5-300); Kubernetes grants 75 seconds before forced termination.
+- **Maintenance Interval**: `spawn_realtime_maintenance_jobs` runs every 60 seconds (`REALTIME_MAINTENANCE_INTERVAL_SECS`) to reclaim stale route-epoch notifiers, in-memory disconnect-fence cache entries, and expired online presence devices, preventing unbounded growth from long-offline devices.
 
 ### 2.3 Comms Conversation Service
 
@@ -140,10 +141,11 @@ im_commit_journal (
 ### 3.3 Multi-Tenant Isolation
 
 All organization-scoped tables enforce:
-1. `organization_id TEXT NOT NULL DEFAULT '0'` — column constraint
+1. `organization_id TEXT NOT NULL DEFAULT '0'` — column constraint (the literal column default `'0'` is the sentinel for the tenant root organization, not the projection store default)
 2. `CHECK (organization_id <> '')` — non-empty validation (migration 0005, idempotent)
 3. Composite indexes prefixed with `(tenant_id, organization_id, ...)` — query performance
 4. Application-level contract test (`sdkwork-im-multi-tenant-isolation-contract.test.mjs`) validates SQL queries include `organization_id` filtering
+5. Projection stores scope every read/write by `(tenant_id, organization_id)` — the timeline/postgres projection port no longer hard-codes organization to `default`; cross-organization isolation is enforced at the store boundary (closes REVIEW-2026-0710 High: Projection tenant isolation)
 
 ## 4. WebSocket / Realtime Architecture
 
@@ -182,7 +184,7 @@ In HA deployments, session gateway nodes exchange route events through the Redis
 
 **Realtime scope access (production):** When shared IM PostgreSQL pools are installed, the embedded realtime plane wires `ConversationMemberRealtimeScopeAccessPolicy`. Conversation scopes require active membership in `im_projection_conversation_members`; user scopes are limited to the authenticated principal. Development-only bypass: `SDKWORK_IM_REALTIME_PERMISSIVE_SCOPE_ACCESS=true`.
 
-**Maintenance jobs** (embedded session-gateway): `spawn_realtime_maintenance_jobs` runs every 5 minutes to reclaim stale route-epoch notifiers and in-memory disconnect-fence cache entries. Disable with `SDKWORK_IM_REALTIME_MAINTENANCE_DISABLED=true`.
+**Maintenance jobs** (embedded session-gateway): `spawn_realtime_maintenance_jobs` runs every 60 seconds to reclaim stale route-epoch notifiers, in-memory disconnect-fence cache entries, and expired online presence devices. Disable with `SDKWORK_IM_REALTIME_MAINTENANCE_DISABLED=true`.
 
 ### 4.5 Typing Indicators
 
@@ -382,6 +384,26 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 | `SDKWORK_IM_GATEWAY_POOL_MAX_IDLE_PER_HOST` | `50` | HTTP connection pool max idle per host |
 | `SDKWORK_IM_GATEWAY_POOL_IDLE_TIMEOUT_SECS` | `90` | HTTP connection pool idle timeout |
 
+### 10.1 Topology Env Lint Guard
+
+`scripts/dev/sdkwork-im-topology-env-lint.test.mjs` validates every `.env` file under `configs/topology/` to prevent production fail-closed guard regressions:
+
+- Each `KEY=VALUE` pair occupies its own line (no concatenated entries joined by bare `\r`).
+- No inline `KEY=VALUE1KEY2=VALUE2` concatenations.
+- `SDKWORK_IM_ENVIRONMENT` is on its own line when present.
+
+This guards against the `cloud.production.env` line-break regression where a bare `\r` between `SDKWORK_IM_DEPLOYMENT_PROFILE=cloud` and `SDKWORK_IM_ENVIRONMENT=production` caused env loaders to register only the first variable and silently drop `SDKWORK_IM_ENVIRONMENT`, disabling every production fail-closed guard (dev JWT secret rejection, JTI enforcement, `ALLOW_ALL_PRINCIPALS` production ban).
+
+### 10.2 Kubernetes Secret Template Guard
+
+`scripts/dev/sdkwork-im-k8s-secret-guard.test.mjs` validates `deployments/kubernetes/cloud/configmaps-and-secrets.yaml`:
+
+- No legacy `CHANGE_ME` placeholder remains anywhere in the template.
+- The canonical `<REPLACE_WITH_ACTUAL_VALUE>` placeholder is documented by a `WARNING` header comment so operators know to substitute real credentials (or use `kubectl create secret generic`) before applying to production.
+- `<REPLACE_WITH_ACTUAL_VALUE>` placeholders only appear inside `Secret` resources, never inside `ConfigMap` resources (non-sensitive runtime configuration shared in plaintext).
+
+This guards against reintroducing the ambiguous `CHANGE_ME` placeholder and against leaking credential placeholders into non-sensitive ConfigMaps.
+
 ## 11. Domain Core Modules
 
 The `im-domain-core` crate provides foundational domain logic with full test coverage (73 tests passing).
@@ -444,6 +466,11 @@ Extended presence status beyond simple Online/Offline:
 - Max signals: 100 per window default
 - Two-bucket sliding window for accurate rate calculation
 - Prevents "boundary problem" of fixed window rate limiters
+
+**In-Memory DashMap Caps**: `CallingRuntime` enforces hard caps on the concurrent `DashMap` collections to prevent unbounded growth:
+- `RTC_SESSIONS_MAX_ENTRIES` = `100 000` — total in-memory RTC sessions; new session creation triggers a stale-session cleanup pass (`expire_stale_non_terminal_sessions`) when the cap is reached, then fails closed with `rtc_sessions_capacity_exceeded` if still at capacity.
+- `RTC_SIGNALS_MAX_PER_SESSION` = `1 000` — signals stored per session `BTreeMap`; `trim_session_signals` evicts oldest signals beyond the cap (ceiling overrides the configurable `SDKWORK_IM_CALLING_MAX_SIGNALS_PER_SESSION` when lower).
+- `signal_rate_by_sender` DashMap — LRU eviction (`evict_signal_rate_trackers_if_needed`) trims to `SDKWORK_IM_CALLING_SIGNAL_RATE_TRACKER_CACHE_MAX` (default `10 000`) when exceeded, evicting least-recently-used trackers first.
 
 ### 11.7 Test Coverage Summary
 

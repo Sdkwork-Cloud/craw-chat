@@ -9,17 +9,21 @@ use conversation_runtime::{
     ChangeAgentHandoffStatusView, ChangeConversationMemberRoleCommand, CloseAgentHandoffCommand,
     ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
     CreateAgentHandoffCommand, CreateConversationCommand, CreateGroupConversationCommand,
-    CreateSystemChannelCommand, CreateThreadConversationCommand, DirectMessageAccessGate,
-    EditMessageCommand, LeaveConversationCommand, PinMessageCommand, PostMessageCommand,
-    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveConversationMemberCommand,
-    RemoveMessageReactionCommand, ResolveAgentHandoffCommand, RuntimeError,
+    CreateRoomCommand, CreateSystemChannelCommand, CreateThreadConversationCommand,
+    DirectMessageAccessGate, EditMessageCommand, LeaveConversationCommand, PinMessageCommand,
+    PostMessageCommand, PostMessageDeliveryStatus, PublishSystemChannelMessageCommand,
+    RecallMessageCommand, RemoveConversationMemberCommand, RemoveMessageReactionCommand,
+    ReplaceConversationAgentsCommand, ResolveAgentHandoffCommand, RuntimeError,
     SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand, UnpinMessageCommand,
     UpdateReadCursorCommand,
 };
 use im_domain_core::conversation::{
-    ConversationMember, ConversationPolicy, MembershipRole, MembershipState,
+    ConversationAgentAssignment, ConversationAgentAssignmentSource, ConversationMember,
+    ConversationPolicy, MembershipRole, MembershipState,
 };
-use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
+use im_domain_core::message::{
+    ContentPart, MentionPart, MentionTargetKind, MessageBody, MessageType, Sender,
+};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
     CommitJournal, CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
@@ -3662,6 +3666,697 @@ fn test_create_group_conversation_created_event_preserves_group_name_title() {
     assert_eq!(payload["conversationType"], "group");
     assert_eq!(payload["groupName"], "Backend Group");
     assert_eq!(payload["title"], "Backend Group");
+}
+
+#[test]
+fn test_group_creation_embeds_a_default_synthetic_agent_assignment() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_default_agent".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+
+    let assignments = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", "c_group_default_agent")
+        .expect("group should expose its effective agent assignments");
+    assert_eq!(assignments.generation, 1);
+    assert_eq!(
+        assignments.source,
+        ConversationAgentAssignmentSource::DefaultPolicy
+    );
+    assert_eq!(assignments.agents.len(), 1);
+    assert_eq!(assignments.agents[0].agent_id, "agent.im.default");
+    assert_eq!(
+        assignments.agents[0].revision_id.as_deref(),
+        Some("revision.im.default.1")
+    );
+
+    let members = runtime
+        .list_members("100001", "0", "c_group_default_agent")
+        .expect("group members should remain readable");
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].principal_id, "1");
+    assert!(
+        members
+            .iter()
+            .all(|member| member.principal_id != "agent.im.default"),
+        "synthetic agent assignments must not become conversation members"
+    );
+    assert!(matches!(
+        runtime.read_cursor_view("100001", "0", "c_group_default_agent", "agent.im.default"),
+        Err(RuntimeError::PermissionDenied(_))
+    ));
+
+    let created = journal
+        .recorded()
+        .into_iter()
+        .find(|event| event.event_type == "conversation.created")
+        .expect("conversation.created should be recorded");
+    assert_eq!(created.event_version, 2);
+    assert_eq!(
+        created.payload_schema.as_deref(),
+        Some("conversation.created.v2")
+    );
+    let payload: serde_json::Value =
+        serde_json::from_str(created.payload.as_str()).expect("created payload should be json");
+    assert_eq!(payload["agentAssignments"]["generation"], 1);
+    assert_eq!(payload["agentAssignments"]["source"], "default_policy");
+    assert_eq!(
+        payload["agentAssignments"]["agents"][0]["agentId"],
+        "agent.im.default"
+    );
+    assert_eq!(
+        payload["agentAssignments"]["policyId"],
+        "policy.im.group.default"
+    );
+    assert_eq!(payload["agentAssignments"]["policyVersion"], 1);
+}
+
+#[test]
+fn test_group_owner_and_admin_atomically_replace_ordered_agent_assignments() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_replace".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+    runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_replace".into(),
+            principal_id: "2".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Admin,
+            invited_by: "1".into(),
+        })
+        .expect("owner should add an admin");
+
+    let owner_result = runtime
+        .replace_conversation_agents(ReplaceConversationAgentsCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_replace".into(),
+            replaced_by: "1".into(),
+            expected_generation: 1,
+            agents: vec![
+                ConversationAgentAssignment::new(
+                    "agent.im.reviewer",
+                    Some("revision.im.reviewer.3".into()),
+                ),
+                ConversationAgentAssignment::new("agent.im.writer", None),
+            ],
+        })
+        .expect("owner should replace group agents");
+    assert_eq!(owner_result.assignments.generation, 2);
+    assert_eq!(
+        owner_result
+            .assignments
+            .agents
+            .iter()
+            .map(|agent| agent.agent_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["agent.im.reviewer", "agent.im.writer"]
+    );
+
+    let admin_result = runtime
+        .replace_conversation_agents(ReplaceConversationAgentsCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_replace".into(),
+            replaced_by: "2".into(),
+            expected_generation: 2,
+            agents: vec![ConversationAgentAssignment::new(
+                "agent.im.facilitator",
+                Some("revision.im.facilitator.4".into()),
+            )],
+        })
+        .expect("admin should replace group agents");
+    assert_eq!(admin_result.assignments.generation, 3);
+    assert_eq!(
+        admin_result.assignments.source,
+        ConversationAgentAssignmentSource::ConversationOverride
+    );
+
+    let stale = runtime.replace_conversation_agents(ReplaceConversationAgentsCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_group_agent_replace".into(),
+        replaced_by: "1".into(),
+        expected_generation: 2,
+        agents: vec![ConversationAgentAssignment::new("agent.im.stale", None)],
+    });
+    assert!(matches!(stale, Err(RuntimeError::Conflict(_))));
+
+    let effective = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_replace")
+        .expect("effective assignments should remain readable");
+    assert_eq!(effective, admin_result.assignments);
+    assert_eq!(
+        runtime
+            .list_members("100001", "0", "c_group_agent_replace")
+            .expect("members should remain readable")
+            .len(),
+        2,
+        "agent replacement must not change the human member roster"
+    );
+    assert_eq!(
+        journal
+            .recorded()
+            .iter()
+            .filter(|event| event.event_type == "conversation.agents_replaced")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn test_regular_group_member_cannot_replace_agent_assignments() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_member_denied".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+    runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_member_denied".into(),
+            principal_id: "2".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "1".into(),
+        })
+        .expect("regular member should join");
+
+    let before = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_member_denied")
+        .expect("default assignments should be readable");
+    let event_count_before = journal.recorded().len();
+    let denied = runtime.replace_conversation_agents(ReplaceConversationAgentsCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_group_agent_member_denied".into(),
+        replaced_by: "2".into(),
+        expected_generation: before.generation,
+        agents: vec![ConversationAgentAssignment::new("agent.im.writer", None)],
+    });
+
+    assert!(matches!(denied, Err(RuntimeError::PermissionDenied(_))));
+    assert_eq!(
+        runtime
+            .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_member_denied",)
+            .expect("assignments should remain readable"),
+        before
+    );
+    assert_eq!(journal.recorded().len(), event_count_before);
+}
+
+#[test]
+fn test_group_agent_replacement_rejects_invalid_sets_and_non_group_conversations() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_validation".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+
+    let invalid_sets = vec![
+        Vec::new(),
+        vec![
+            ConversationAgentAssignment::new("agent.im.duplicate", None),
+            ConversationAgentAssignment::new("agent.im.duplicate", None),
+        ],
+        vec![ConversationAgentAssignment::new("not-an-agent-id", None)],
+        vec![ConversationAgentAssignment::new(
+            "agent.im.reviewer",
+            Some("not-a-revision-id".into()),
+        )],
+        (0..17)
+            .map(|index| ConversationAgentAssignment::new(format!("agent.im.agent{index}"), None))
+            .collect(),
+    ];
+    for agents in invalid_sets {
+        let result = runtime.replace_conversation_agents(ReplaceConversationAgentsCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_validation".into(),
+            replaced_by: "1".into(),
+            expected_generation: 1,
+            agents,
+        });
+        assert!(matches!(result, Err(RuntimeError::InvalidInput(_))));
+    }
+    assert_eq!(
+        runtime
+            .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_validation",)
+            .expect("invalid attempts must preserve the default assignment")
+            .generation,
+        1
+    );
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_direct_agent_validation".into(),
+            creator_id: "1".into(),
+            conversation_type: "direct".into(),
+        })
+        .expect("direct conversation should be created");
+    let non_group = runtime.replace_conversation_agents(ReplaceConversationAgentsCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_direct_agent_validation".into(),
+        replaced_by: "1".into(),
+        expected_generation: 0,
+        agents: vec![ConversationAgentAssignment::new("agent.im.writer", None)],
+    });
+    assert!(matches!(
+        non_group,
+        Err(RuntimeError::ConversationTypeInvalid(_))
+    ));
+}
+
+#[test]
+fn test_group_agent_replacement_does_not_leak_when_journal_append_fails() {
+    let journal = FailAfterNJournal::new(3);
+    let runtime = ConversationRuntime::new(journal.clone());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_commit_fail".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group creation should consume the first two journal appends");
+
+    let failed = runtime.replace_conversation_agents(ReplaceConversationAgentsCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_group_agent_commit_fail".into(),
+        replaced_by: "1".into(),
+        expected_generation: 1,
+        agents: vec![ConversationAgentAssignment::new("agent.im.writer", None)],
+    });
+    assert!(matches!(
+        failed,
+        Err(RuntimeError::Contract(ContractError::Unavailable(message)))
+            if message == "forced journal append failure"
+    ));
+    let effective = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_commit_fail")
+        .expect("failed replacement must preserve the committed assignment");
+    assert_eq!(effective.generation, 1);
+    assert_eq!(effective.agents[0].agent_id, "agent.im.default");
+    assert_eq!(journal.recorded().len(), 2);
+}
+
+#[test]
+fn test_group_agent_mentions_require_current_assignment_ids_and_generation() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_mentions".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+
+    let original = PostMessageCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_group_agent_mentions".into(),
+        sender: Sender {
+            id: "1".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: None,
+            session_id: Some("session_mentions".into()),
+            metadata: BTreeMap::new(),
+        },
+        client_msg_id: Some("client_agent_mention_original".into()),
+        message_type: MessageType::Standard,
+        body: MessageBody {
+            summary: Some("ask default".into()),
+            parts: vec![ContentPart::Mention(MentionPart {
+                target_kind: MentionTargetKind::Agent,
+                target_id: "agent.im.default".into(),
+                display_text: "@Completely Different Display Name".into(),
+                assignment_generation: 1,
+            })],
+            render_hints: BTreeMap::new(),
+            reply_to: None,
+        },
+    };
+    runtime
+        .post_message(original.clone())
+        .expect("authoritative target id should allow a spoofed non-authoritative display label");
+
+    runtime
+        .replace_conversation_agents(ReplaceConversationAgentsCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_mentions".into(),
+            replaced_by: "1".into(),
+            expected_generation: 1,
+            agents: vec![
+                ConversationAgentAssignment::new("agent.im.reviewer", None),
+                ConversationAgentAssignment::new("agent.im.writer", None),
+            ],
+        })
+        .expect("group agents should be replaced");
+
+    let replayed = runtime
+        .post_message(original)
+        .expect("an already committed idempotent request should replay after assignment changes");
+    assert_eq!(
+        replayed.delivery_status,
+        PostMessageDeliveryStatus::Replayed
+    );
+
+    let stale = runtime.post_message(PostMessageCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_group_agent_mentions".into(),
+        sender: Sender {
+            id: "1".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: None,
+            session_id: Some("session_mentions".into()),
+            metadata: BTreeMap::new(),
+        },
+        client_msg_id: Some("client_agent_mention_stale".into()),
+        message_type: MessageType::Standard,
+        body: MessageBody {
+            summary: Some("stale".into()),
+            parts: vec![ContentPart::Mention(MentionPart {
+                target_kind: MentionTargetKind::Agent,
+                target_id: "agent.im.reviewer".into(),
+                display_text: "@Reviewer".into(),
+                assignment_generation: 1,
+            })],
+            render_hints: BTreeMap::new(),
+            reply_to: None,
+        },
+    });
+    assert!(matches!(stale, Err(RuntimeError::Conflict(_))));
+
+    let unknown = runtime.post_message(PostMessageCommand {
+        tenant_id: "100001".into(),
+        organization_id: "0".into(),
+        conversation_id: "c_group_agent_mentions".into(),
+        sender: Sender {
+            id: "1".into(),
+            kind: "user".into(),
+            member_id: None,
+            device_id: None,
+            session_id: Some("session_mentions".into()),
+            metadata: BTreeMap::new(),
+        },
+        client_msg_id: Some("client_agent_mention_unknown".into()),
+        message_type: MessageType::Standard,
+        body: MessageBody {
+            summary: Some("unknown".into()),
+            parts: vec![ContentPart::Mention(MentionPart {
+                target_kind: MentionTargetKind::Agent,
+                target_id: "agent.im.unassigned".into(),
+                display_text: "@Reviewer".into(),
+                assignment_generation: 2,
+            })],
+            render_hints: BTreeMap::new(),
+            reply_to: None,
+        },
+    });
+    assert!(matches!(unknown, Err(RuntimeError::InvalidInput(_))));
+
+    let valid = runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_mentions".into(),
+            sender: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: None,
+                session_id: Some("session_mentions".into()),
+                metadata: BTreeMap::new(),
+            },
+            client_msg_id: Some("client_agent_mention_multi".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("review and write".into()),
+                parts: vec![
+                    ContentPart::Mention(MentionPart {
+                        target_kind: MentionTargetKind::Agent,
+                        target_id: "agent.im.reviewer".into(),
+                        display_text: "@Reviewer".into(),
+                        assignment_generation: 2,
+                    }),
+                    ContentPart::Mention(MentionPart {
+                        target_kind: MentionTargetKind::Agent,
+                        target_id: "agent.im.reviewer".into(),
+                        display_text: "@Reviewer Again".into(),
+                        assignment_generation: 2,
+                    }),
+                    ContentPart::Mention(MentionPart {
+                        target_kind: MentionTargetKind::Agent,
+                        target_id: "agent.im.writer".into(),
+                        display_text: "@Writer".into(),
+                        assignment_generation: 2,
+                    }),
+                ],
+                render_hints: BTreeMap::new(),
+                reply_to: None,
+            },
+        })
+        .expect("distinct assigned targets and repeated mentions should validate atomically");
+    assert!(valid.is_applied());
+}
+
+#[test]
+fn test_group_agent_replacement_survives_recovery_with_the_same_generation() {
+    let journal = InMemoryJournal::default();
+    let source = ConversationRuntime::new(journal.clone());
+    source
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_recovery".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+    let replaced = source
+        .replace_conversation_agents(ReplaceConversationAgentsCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_recovery".into(),
+            replaced_by: "1".into(),
+            expected_generation: 1,
+            agents: vec![
+                ConversationAgentAssignment::new("agent.im.reviewer", None),
+                ConversationAgentAssignment::new("agent.im.writer", None),
+            ],
+        })
+        .expect("owner should replace group agents");
+
+    let recovered = ConversationRuntime::new(InMemoryJournal::default());
+    for envelope in journal.recorded() {
+        recovered
+            .apply_recovered_envelope(&envelope)
+            .expect("journal replay should recover group agents");
+    }
+    assert_eq!(
+        recovered
+            .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_recovery",)
+            .expect("recovered assignments should be readable"),
+        replaced.assignments
+    );
+}
+
+#[test]
+fn test_cold_aggregate_load_hydrates_group_agent_assignments_from_journal() {
+    let journal = InMemoryJournal::default();
+    let source = ConversationRuntime::new(journal.clone());
+    source
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_cold_load".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("group conversation should be created");
+    let replaced = source
+        .replace_conversation_agents(ReplaceConversationAgentsCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_cold_load".into(),
+            replaced_by: "1".into(),
+            expected_generation: 1,
+            agents: vec![ConversationAgentAssignment::new(
+                "agent.im.reviewer",
+                Some("revision.im.reviewer.5".into()),
+            )],
+        })
+        .expect("group agents should be replaced");
+
+    let mut owner = joined_member_record("100001", "0", "c_group_agent_cold_load", "user", "1");
+    owner.membership_role = "owner".into();
+    let runtime = ConversationRuntime::new(journal).with_aggregate_store(Arc::new(
+        TestAggregateStore::snapshot(PersistedConversationAggregateState {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_group_agent_cold_load".into(),
+            members: vec![owner],
+            read_cursors: Vec::new(),
+            high_watermark: 0,
+        }),
+    ));
+
+    let assignments = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_cold_load")
+        .expect("cold aggregate load should hydrate assignments from the journal");
+    assert_eq!(assignments, replaced.assignments);
+    assert_eq!(
+        runtime
+            .list_members("100001", "0", "c_group_agent_cold_load")
+            .expect("durable members should remain available")
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn test_legacy_v1_group_creation_recovers_the_fixed_compatibility_default() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    let mut created = journal_event(
+        "100001",
+        "0",
+        "c_group_agent_legacy_v1",
+        "conversation.created",
+        0,
+    );
+    created.actor = EventActor {
+        actor_id: "1".into(),
+        actor_kind: "user".into(),
+        actor_session_id: None,
+    };
+    created.payload_schema = Some("conversation.created.v1".into());
+    created.payload = serde_json::json!({
+        "conversationId": "c_group_agent_legacy_v1",
+        "conversationType": "group",
+        "agentAssignments": {
+            "generation": 99,
+            "source": "conversation_override",
+            "agents": [{"agentId": "agent.im.injected"}]
+        }
+    })
+    .to_string();
+
+    runtime
+        .apply_recovered_envelope(&created)
+        .expect("legacy group creation should replay");
+    let assignments = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_legacy_v1")
+        .expect("legacy group should receive its fixed compatibility default");
+    assert_eq!(assignments.generation, 1);
+    assert_eq!(assignments.agents[0].agent_id, "agent.im.default");
+    assert_eq!(
+        assignments.agents[0].revision_id.as_deref(),
+        Some("revision.im.default.1")
+    );
+}
+
+#[test]
+fn test_group_created_v2_recovery_requires_an_explicit_assignment_snapshot() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    let mut created = journal_event(
+        "100001",
+        "0",
+        "c_group_agent_invalid_v2",
+        "conversation.created",
+        0,
+    );
+    created.event_version = 2;
+    created.payload_schema = Some("conversation.created.v2".into());
+    created.payload = serde_json::json!({
+        "conversationId": "c_group_agent_invalid_v2",
+        "conversationType": "group"
+    })
+    .to_string();
+
+    let result = runtime.apply_recovered_envelope(&created);
+    assert!(matches!(result, Err(RuntimeError::Conflict(_))));
+    assert!(matches!(
+        runtime.conversation_agent_assignments_snapshot("100001", "0", "c_group_agent_invalid_v2"),
+        Err(RuntimeError::ConversationNotFound(_))
+    ));
+}
+
+#[test]
+fn test_room_group_creation_also_embeds_default_agent_assignments() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+    let created = runtime
+        .create_room_with_creator_kind(
+            CreateRoomCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: String::new(),
+                room_id: "room_agent_default".into(),
+                room_kind: "chat".into(),
+                creator_id: "1".into(),
+            },
+            "user",
+        )
+        .expect("room conversation should be created");
+
+    let assignments = runtime
+        .conversation_agent_assignments_snapshot("100001", "0", created.conversation_id.as_str())
+        .expect("room-backed group should expose default agent assignments");
+    assert_eq!(assignments.generation, 1);
+    assert_eq!(assignments.agents[0].agent_id, "agent.im.default");
+
+    let created_event = journal
+        .recorded()
+        .into_iter()
+        .find(|event| event.event_type == "conversation.created")
+        .expect("room creation event should be recorded");
+    assert_eq!(created_event.event_version, 2);
+    assert_eq!(
+        created_event.payload_schema.as_deref(),
+        Some("conversation.created.v2")
+    );
 }
 
 #[test]

@@ -56,10 +56,10 @@
         "alphaChannel": false,
         "sortOrder": 0,
         "enabled": true,
-        "metadata": { "generatedPlaceholder": true }
+        "metadata": { "generatedBy": "sdkwork-im-manifest-v3" }
       },
       "platform": [],
-      "metadata": { "generatedPlaceholder": true }
+      "metadata": { "generatedBy": "sdkwork-im-manifest-v3" }
     },
     "screenshots": [],
     "previews": [],

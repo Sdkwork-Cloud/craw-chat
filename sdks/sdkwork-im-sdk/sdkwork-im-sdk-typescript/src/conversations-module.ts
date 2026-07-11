@@ -22,11 +22,11 @@ import type {
   ConversationInboxPage,
   ListMembersResponse,
   PinnedMessagesResponse,
-} from './openapi-compat-types';
-import { requireStringIdentifier } from './identifier-boundary';
-import type { ImTransportClientLike, MessageHistoryListParams } from './transport-client-like';
+} from './openapi-compat-types.js';
+import { requireStringIdentifier } from './identifier-boundary.js';
+import type { ImTransportClientLike, MessageHistoryListParams } from './transport-client-like.js';
 
-export type { MessageHistoryListParams } from './transport-client-like';
+export type { MessageHistoryListParams } from './transport-client-like.js';
 
 export class ImConversationsModule {
   constructor(private readonly transportClient: ImTransportClientLike) {}

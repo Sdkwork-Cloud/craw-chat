@@ -77,6 +77,9 @@ fn calling_service_summary(path: &str, method: HttpMethod) -> String {
         ("/im/v3/api/calls/sessions/{rtc_session_id}/end", HttpMethod::Post) => {
             "End an IM call signaling session".to_owned()
         }
+        ("/im/v3/api/calls/sessions/{rtc_session_id}/signals", HttpMethod::Get) => {
+            "List IM call signaling events".to_owned()
+        }
         ("/im/v3/api/calls/sessions/{rtc_session_id}/signals", HttpMethod::Post) => {
             "Post an IM call signaling event".to_owned()
         }

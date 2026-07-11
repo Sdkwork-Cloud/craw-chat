@@ -2026,15 +2026,14 @@ class SdkworkChatService implements ChatService {
   }
 
   private readInboxPageInfo(
-    response: { hasMore?: boolean; nextCursor?: string | null; pageInfo?: { hasMore?: boolean; nextCursor?: string | null } },
+    response: { pageInfo?: { hasMore?: boolean; nextCursor?: string | null } },
   ): Pick<ChatListPage, 'hasMore' | 'nextCursor'> {
     if (response.pageInfo) {
       return readSdkCursorPageInfo(response.pageInfo);
     }
-    const hasMore = response.hasMore === true;
     return {
-      hasMore,
-      nextCursor: hasMore ? (response.nextCursor ?? undefined) : undefined,
+      hasMore: false,
+      nextCursor: undefined,
     };
   }
 

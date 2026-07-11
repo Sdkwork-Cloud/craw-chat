@@ -171,6 +171,14 @@ where
             }),
             ..ConversationState::default()
         };
+        let created_agent_assignments = if command.conversation_type == "group" {
+            Some(agents::apply_current_group_agent_default(
+                &mut conversation.aggregate,
+                &self.group_agent_default_policy,
+            )?)
+        } else {
+            None
+        };
         let creator_ordering_seq = conversation.aggregate.next_member_epoch();
         upsert_member(
             &mut state.actor_inbox,
@@ -197,12 +205,25 @@ where
                 created_payload["groupName"] = json!(title);
             }
         }
+        if let Some(agent_assignments) = created_agent_assignments.as_ref() {
+            created_payload["agentAssignments"] =
+                serde_json::to_value(agent_assignments).map_err(|error| {
+                    RuntimeError::InvalidInput(format!(
+                        "failed to serialize group agent assignments: {error}"
+                    ))
+                })?;
+        }
+        let created_event_version = if created_agent_assignments.is_some() {
+            2
+        } else {
+            1
+        };
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
             organization_id: command.organization_id.clone(),
             event_type: "conversation.created".into(),
-            event_version: 1,
+            event_version: created_event_version,
             aggregate_type: AggregateType::Conversation,
             aggregate_id: command.conversation_id.clone(),
             scope_type: "conversation".into(),
@@ -222,7 +243,7 @@ where
             },
             occurred_at: created_at.clone(),
             committed_at: created_at.clone(),
-            payload_schema: Some("conversation.created.v1".into()),
+            payload_schema: Some(format!("conversation.created.v{created_event_version}")),
             payload: created_payload.to_string(),
             retention_class: "standard".into(),
             audit_class: "default".into(),

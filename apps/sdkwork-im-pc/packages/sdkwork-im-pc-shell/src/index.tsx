@@ -9,9 +9,11 @@ export {
   COMMERCIAL_RUNTIME_MODULES,
   CONTRACT_PENDING_MODULES,
   DEFAULT_SIDEBAR_MODULES,
+  MODULE_REQUIRED_PERMISSIONS,
   WORKSPACE_APP_TAB_MAP,
   isCommercialRuntimeModule,
   listCommercialRuntimeModules,
+  resolveModuleRequiredPermission,
   resolveWorkspaceAppTab,
 } from './moduleRegistry';
 export type { AppModuleId } from './moduleRegistry';
@@ -20,6 +22,6 @@ export {
   resolveLazyCapabilityModule,
   SHELL_CAPABILITY_MODULE_LOADERS,
 } from './capabilityModuleLoaders';
-export type { CapabilityModuleLoader } from './capabilityModuleLoaders';
+export type { CapabilityModuleLoader, DriveOpenRequest } from './capabilityModuleLoaders';
 export { LazyCapabilityModuleRenderer } from './LazyCapabilityModuleRenderer';
 export type { LazyCapabilityModuleRendererProps } from './LazyCapabilityModuleRenderer';

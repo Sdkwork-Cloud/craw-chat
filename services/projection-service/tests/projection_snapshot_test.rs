@@ -7,6 +7,7 @@ use projection_service::{
     ClientRouteSyncFeedWindowQuery, FavoriteMessageRequest, TimelineProjectionService,
     UpdateConversationPreferencesRequest,
 };
+use std::sync::Arc;
 
 fn app_context(
     tenant_id: &str,
@@ -555,6 +556,61 @@ fn test_projection_service_restores_tenant_scoped_conversation_snapshots_from_sh
         .expect("beta summary should restore");
     assert_eq!(beta_summary.last_message_id.as_deref(), Some("msg_beta_1"));
     assert_eq!(beta_summary.last_summary.as_deref(), Some("beta summary"));
+}
+
+#[test]
+fn test_cold_projection_catalog_reads_through_before_agent_replacement() {
+    let metadata_store = MemoryMetadataStore::default();
+    let timeline_store = MemoryTimelineProjectionStore::default();
+    let source = TimelineProjectionService::default();
+    source
+        .apply(&conversation_created_event(
+            "100001",
+            "c_group_agents_cold_projection",
+            "group",
+        ))
+        .expect("legacy group creation should project");
+    source
+        .persist_conversation_snapshot(
+            "100001",
+            "default",
+            "c_group_agents_cold_projection",
+            &metadata_store,
+            &timeline_store,
+        )
+        .expect("conversation catalog snapshot should persist");
+
+    let cold = TimelineProjectionService::default();
+    cold.configure_durable_metadata(Arc::new(metadata_store.clone()));
+    let replacement = im_domain_events::CommitEnvelope::minimal(
+        "evt_group_agents_cold_replacement",
+        "100001",
+        "conversation.agents_replaced",
+        "conversation",
+        "c_group_agents_cold_projection",
+        1,
+    )
+    .with_payload(
+        "conversation.agents_replaced.v1",
+        r#"{
+            "conversationId":"c_group_agents_cold_projection",
+            "previousGeneration":1,
+            "agentAssignments":{
+                "generation":2,
+                "source":"conversation_override",
+                "agents":[{"agentId":"agent.im.reviewer"}]
+            },
+            "replacedAt":"2026-07-11T00:03:00.000Z"
+        }"#,
+    );
+
+    cold.apply(&replacement)
+        .expect("replacement should read through the durable conversation catalog");
+    let assignments = cold
+        .conversation_agent_assignments("100001", "default", "c_group_agents_cold_projection")
+        .expect("cold catalog replacement should be visible");
+    assert_eq!(assignments.generation, 2);
+    assert_eq!(assignments.agents[0].agent_id, "agent.im.reviewer");
 }
 
 #[test]

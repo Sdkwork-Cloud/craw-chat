@@ -25,12 +25,7 @@ export function parseTcpPort(value, label = 'TCP port') {
   return port;
 }
 
-export function assertPortAvailable({
-  createServer = net.createServer,
-  host = '127.0.0.1',
-  port,
-} = {}) {
-  const normalizedPort = parseTcpPort(port);
+function assertHostPortAvailable({ createServer, host, port }) {
   return new Promise((resolve, reject) => {
     const server = createServer();
     let settled = false;
@@ -50,17 +45,42 @@ export function assertPortAvailable({
     server.unref?.();
     server.once('error', (error) => {
       if (error?.code === 'EADDRINUSE') {
-        settle(new Error(`TCP port ${host}:${normalizedPort} is already in use`));
+        settle(new Error(`TCP port ${host}:${port} is already in use`));
         return;
       }
-      settle(new Error(`failed to verify TCP port ${host}:${normalizedPort}`));
+      settle(new Error(`failed to verify TCP port ${host}:${port}`));
     });
-    server.listen({ exclusive: true, host, port: normalizedPort }, () => {
+    server.listen({ exclusive: true, host, port }, () => {
       server.close((error) => {
-        settle(error ? new Error(`failed to release TCP port ${host}:${normalizedPort}`) : null);
+        settle(error ? new Error(`failed to release TCP port ${host}:${port}`) : null);
       });
     });
   });
+}
+
+export async function assertPortAvailable({
+  createServer = net.createServer,
+  host = '127.0.0.1',
+  port,
+  readinessHosts = [],
+} = {}) {
+  const normalizedPort = parseTcpPort(port);
+  if (!Array.isArray(readinessHosts)) {
+    throw new Error('TCP readiness hosts must be an array');
+  }
+
+  const hosts = [...new Set([...readinessHosts, host])];
+  if (hosts.some((candidate) => typeof candidate !== 'string' || candidate.length === 0)) {
+    throw new Error('TCP port check hosts must be non-empty strings');
+  }
+
+  for (const candidate of hosts) {
+    await assertHostPortAvailable({
+      createServer,
+      host: candidate,
+      port: normalizedPort,
+    });
+  }
 }
 
 export function probeHttp(url, {
@@ -72,12 +92,14 @@ export function probeHttp(url, {
   const normalizedTimeout = normalizePositiveInteger(requestTimeoutMs, 'HTTP request timeout');
 
   return new Promise((resolve, reject) => {
+    let absoluteTimeout;
     let settled = false;
     const settle = (error, result) => {
       if (settled) {
         return;
       }
       settled = true;
+      clearTimeout(absoluteTimeout);
       if (error) {
         reject(error);
         return;
@@ -132,12 +154,17 @@ export function probeHttp(url, {
       return;
     }
 
-    request.setTimeout(normalizedTimeout, () => {
-      request.destroy(
-        new Error(`HTTP readiness request to ${url} timed out after ${normalizedTimeout}ms`),
-      );
-    });
     request.once('error', (error) => settle(error));
+    if (settled) {
+      return;
+    }
+    absoluteTimeout = setTimeout(() => {
+      const error = new Error(
+        `HTTP readiness request to ${url} timed out after ${normalizedTimeout}ms`,
+      );
+      settle(error);
+      request.destroy(error);
+    }, normalizedTimeout);
   });
 }
 
@@ -562,7 +589,15 @@ export function createOwnedProcessLifecycle({
           return undefined;
         }
         if (cleanupErrors.length > 0) {
-          throw new AggregateError(cleanupErrors, 'failed to clean one or more owned child processes');
+          const failures = outcome.kind === 'failure'
+            ? [outcome.error, ...cleanupErrors]
+            : cleanupErrors;
+          throw new AggregateError(
+            failures,
+            outcome.kind === 'failure'
+              ? 'Playwright work and owned-process cleanup both failed'
+              : 'failed to clean one or more owned child processes',
+          );
         }
         if (outcome.kind === 'failure') {
           throw outcome.error;

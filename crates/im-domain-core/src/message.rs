@@ -806,6 +806,21 @@ pub struct StreamRefPart {
     pub state: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MentionTargetKind {
+    Agent,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MentionPart {
+    pub target_kind: MentionTargetKind,
+    pub target_id: String,
+    pub display_text: String,
+    pub assignment_generation: u64,
+}
+
 impl MessageBody {
     pub fn derived_summary(&self) -> Option<String> {
         self.parts
@@ -846,6 +861,7 @@ pub enum ContentPart {
     Text(TextPart),
     Data(DataPart),
     Media(MediaPart),
+    Mention(MentionPart),
     Signal(SignalPart),
     StreamRef(StreamRefPart),
 }
@@ -864,6 +880,7 @@ impl ContentPart {
             Self::Text(_) => "text",
             Self::Data(_) => "data",
             Self::Media(_) => "media",
+            Self::Mention(_) => "mention",
             Self::Signal(_) => "signal",
             Self::StreamRef(_) => "stream_ref",
         }
@@ -872,6 +889,13 @@ impl ContentPart {
     pub fn as_media(&self) -> Option<&MediaPart> {
         match self {
             Self::Media(part) => Some(part),
+            _ => None,
+        }
+    }
+
+    pub fn as_mention(&self) -> Option<&MentionPart> {
+        match self {
+            Self::Mention(part) => Some(part),
             _ => None,
         }
     }
@@ -886,6 +910,7 @@ impl ContentPart {
     fn fallback_summary(&self) -> Option<String> {
         match self {
             Self::Media(part) => summarize_media_part(part),
+            Self::Mention(part) => compact_summary_text(part.display_text.as_str()),
             Self::Signal(part) => compact_summary_text(part.signal_type.as_str()),
             Self::StreamRef(part) => compact_summary_text(part.stream_type.as_str())
                 .map(|stream_type| format!("Stream: {stream_type}"))

@@ -375,16 +375,35 @@ pub fn spawn_cluster_route_event_subscriber(
                 if payload.is_empty() {
                     continue;
                 }
-                if let Err(delivery_error) =
-                    cluster.ingest_cluster_route_event_for_node(node_id.as_str(), payload.as_str())
-                {
-                    warn!(
-                        target: "sdkwork.im",
-                        event = "im.realtime.cluster.ingress_failed",
-                        node_id = %node_id,
-                        code = delivery_error.code,
-                        message = %delivery_error.message,
-                    );
+                let cluster_handle = cluster.clone();
+                let node_id_owned = node_id.clone();
+                let payload_owned = payload.clone();
+                let ingress = tokio::task::spawn_blocking(move || {
+                    cluster_handle.ingest_cluster_route_event_for_node(
+                        node_id_owned.as_str(),
+                        payload_owned.as_str(),
+                    )
+                })
+                .await;
+                match ingress {
+                    Ok(Ok(_)) => {}
+                    Ok(Err(delivery_error)) => {
+                        warn!(
+                            target: "sdkwork.im",
+                            event = "im.realtime.cluster.ingress_failed",
+                            node_id = %node_id,
+                            code = delivery_error.code,
+                            message = %delivery_error.message,
+                        );
+                    }
+                    Err(join_error) => {
+                        warn!(
+                            target: "sdkwork.im",
+                            event = "im.realtime.cluster.ingress_task_failed",
+                            node_id = %node_id,
+                            error = %join_error,
+                        );
+                    }
                 }
             }
         }

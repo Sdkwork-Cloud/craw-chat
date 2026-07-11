@@ -5,6 +5,7 @@ use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_platform_contracts::ContractError;
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use sdkwork_utils_rust::sha256_hash;
+use tracing::warn;
 
 use crate::{
     PostgresJournalPool, now_rfc3339, postgres_jsonb_payload, postgres_pool_client,
@@ -25,11 +26,14 @@ select tenant_id, notification_id, source_event_id, source_event_type, category,
     requested_at, dispatched_at, failure_reason, updated_at
 from im_notification_tasks
 where tenant_id = $1 and recipient_kind = $2 and recipient_id = $3
+  and ($4::timestamptz is null or (updated_at, notification_id) < ($4, $5))
 order by updated_at desc, notification_id desc
-limit $4 offset $5
+limit $6
 "#;
 
 const NOTIFICATION_TASK_RESTORE_BATCH_SIZE: i64 = 200;
+
+const NOTIFICATION_TASK_RESTORE_MAX_TOTAL_RECORDS: usize = 10_000;
 
 const UPSERT_TASK_SQL: &str = r#"
 insert into im_notification_tasks (
@@ -127,7 +131,8 @@ fn list_tasks_for_recipient_blocking(
     recipient_id: &str,
 ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
     let mut client = postgres_pool_client(pool, "notification task list")?;
-    let mut offset = 0i64;
+    let mut last_updated_at: Option<DateTime<Utc>> = None;
+    let mut last_notification_id: Option<String> = None;
     let mut records = Vec::new();
     loop {
         let rows = client
@@ -137,19 +142,40 @@ fn list_tasks_for_recipient_blocking(
                     &tenant_id,
                     &recipient_kind,
                     &recipient_id,
+                    &last_updated_at,
+                    &last_notification_id,
                     &NOTIFICATION_TASK_RESTORE_BATCH_SIZE,
-                    &offset,
                 ],
             )
             .map_err(|error| postgres_unavailable("notification task list", error))?;
         let batch_len = rows.len();
+        if batch_len == 0 {
+            break;
+        }
+        let last_row = rows.last().expect("non-empty batch has a last row");
+        let next_updated_at: DateTime<Utc> = last_row.get(15);
+        let next_notification_id: String = last_row.get(1);
         for row in rows {
             records.push(task_record_from_row(&row)?);
+        }
+        if records.len() >= NOTIFICATION_TASK_RESTORE_MAX_TOTAL_RECORDS {
+            warn!(
+                target: "sdkwork.im",
+                event = "im.notification_task.list_max_total_records_reached",
+                tenant_id = %tenant_id,
+                recipient_kind = %recipient_kind,
+                recipient_id = %recipient_id,
+                records = records.len(),
+                limit = NOTIFICATION_TASK_RESTORE_MAX_TOTAL_RECORDS,
+                "notification task list hit max_total_records safety cap; truncating restore"
+            );
+            break;
         }
         if batch_len < NOTIFICATION_TASK_RESTORE_BATCH_SIZE as usize {
             break;
         }
-        offset = offset.saturating_add(NOTIFICATION_TASK_RESTORE_BATCH_SIZE);
+        last_updated_at = Some(next_updated_at);
+        last_notification_id = Some(next_notification_id);
     }
     Ok(records)
 }

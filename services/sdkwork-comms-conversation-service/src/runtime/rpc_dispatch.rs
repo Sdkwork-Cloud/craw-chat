@@ -1833,6 +1833,17 @@ fn content_part_to_proto(part: &ContentPart) -> MessageBodyPart {
             )),
             payload_json: String::new(),
         },
+        ContentPart::Mention(mention_part) => MessageBodyPart {
+            kind: "mention".into(),
+            text: mention_part.display_text.clone(),
+            media: None,
+            payload_json: serde_json::json!({
+                "targetKind": "agent",
+                "targetId": mention_part.target_id,
+                "assignmentGeneration": mention_part.assignment_generation,
+            })
+            .to_string(),
+        },
         ContentPart::Signal(signal_part) => MessageBodyPart {
             kind: "signal".into(),
             text: signal_part.signal_type.clone(),
@@ -1913,6 +1924,29 @@ fn proto_parts_to_message_body(
             }));
             continue;
         }
+        if kind == "mention" {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase", deny_unknown_fields)]
+            struct RpcAgentMentionPayload {
+                target_kind: im_domain_core::message::MentionTargetKind,
+                target_id: String,
+                assignment_generation: u64,
+            }
+
+            let mention: RpcAgentMentionPayload = serde_json::from_str(part.payload_json.as_str())
+                .map_err(|error| {
+                    http::ApiError::from(RuntimeError::InvalidInput(format!(
+                        "message mention payload is invalid: {error}"
+                    )))
+                })?;
+            content_parts.push(ContentPart::Mention(im_domain_core::message::MentionPart {
+                target_kind: mention.target_kind,
+                target_id: mention.target_id,
+                display_text: part.text,
+                assignment_generation: mention.assignment_generation,
+            }));
+            continue;
+        }
         if kind == "media" {
             if let Some(media) = part.media {
                 if let Some(drive) = media.drive {
@@ -1983,6 +2017,28 @@ pub(crate) fn page_request(
         .and_then(|value| optional_string(value.cursor))
         .filter(|value| !value.is_empty());
     Ok((limit, cursor))
+}
+
+#[cfg(test)]
+mod agent_mention_rpc_mapping_tests {
+    use super::*;
+    use im_domain_core::message::{MentionPart, MentionTargetKind};
+
+    #[test]
+    fn structured_agent_mention_round_trips_through_existing_rpc_body_part() {
+        let mention = ContentPart::Mention(MentionPart {
+            target_kind: MentionTargetKind::Agent,
+            target_id: "agent.im.reviewer".into(),
+            display_text: "@Reviewer".into(),
+            assignment_generation: 7,
+        });
+
+        let proto = content_part_to_proto(&mention);
+        let decoded = proto_parts_to_message_body(vec![proto], None)
+            .expect("mention rpc body part should decode");
+
+        assert_eq!(decoded.parts, vec![mention]);
+    }
 }
 
 pub(crate) fn page_response(

@@ -124,7 +124,7 @@ CREATE TABLE im_message_media_refs (
         media_source IN ('drive', 'external_url', 'data_url', 'provider_asset', 'generated')
     ),
     CONSTRAINT chk_im_message_media_refs_size_bytes CHECK (
-        size_bytes IS NULL OR size_bytes ~ '^[0-9]+$'
+        size_bytes IS NULL OR size_bytes GLOB '[0-9]*'
     )
 );
 
@@ -573,7 +573,11 @@ CREATE TABLE im_rtc_sessions (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retention_until TEXT,
     CONSTRAINT pk_im_rtc_sessions PRIMARY KEY (tenant_id, organization_id, rtc_session_id),
-    CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN ('started', 'accepted', 'rejected', 'ended'))
+    CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN (
+        'started', 'accepted', 'rejected', 'ended',
+        'initiating', 'ringing', 'connecting', 'connected',
+        'on_hold', 'reconnecting', 'canceled', 'failed', 'timeout'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_conversation
@@ -611,7 +615,14 @@ CREATE TABLE im_rtc_signals (
     occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retention_until TEXT,
-    CONSTRAINT pk_im_rtc_signals PRIMARY KEY (tenant_id, organization_id, rtc_session_id, signal_seq)
+    CONSTRAINT pk_im_rtc_signals PRIMARY KEY (tenant_id, organization_id, rtc_session_id, signal_seq),
+    CONSTRAINT chk_im_rtc_signals_signal_type CHECK (signal_type IN (
+        'offer', 'answer', 'ice_candidate', 'renegotiate',
+        'add_participant', 'remove_participant', 'kick_participant',
+        'mute', 'unmute', 'screen_share_start', 'screen_share_stop',
+        'hold', 'resume', 'reconnect', 'quality_report',
+        'recording_start', 'recording_stop', 'recording_status'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_session_seq
@@ -639,12 +650,21 @@ CREATE TABLE im_audit_records (
     actor_session_id TEXT,
     payload TEXT,
     recorded_at TEXT NOT NULL,
+    occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    target_type TEXT,
+    target_id TEXT,
+    retention_class TEXT NOT NULL DEFAULT 'access',
+    integrity_anchor TEXT,
+    integrity_anchored_at TEXT,
     chain_prev_hash TEXT,
     chain_hash TEXT NOT NULL,
     created_at TEXT NOT NULL,
     retention_until TEXT,
     CONSTRAINT pk_im_audit_records PRIMARY KEY (tenant_id, organization_id, audit_seq),
-    CONSTRAINT uk_im_audit_records_record_id UNIQUE (tenant_id, organization_id, record_id)
+    CONSTRAINT uk_im_audit_records_record_id UNIQUE (tenant_id, organization_id, record_id),
+    CONSTRAINT chk_im_audit_records_retention_class CHECK (retention_class IN (
+        'security', 'access', 'admin', 'data_lifecycle'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_seq
@@ -656,6 +676,23 @@ CREATE INDEX IF NOT EXISTS idx_im_audit_records_aggregate
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_retention_until
     ON im_audit_records (tenant_id, organization_id, retention_until)
     WHERE retention_until IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_occurred
+    ON im_audit_records (tenant_id, organization_id, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_target
+    ON im_audit_records (tenant_id, organization_id, target_type, target_id, occurred_at DESC)
+    WHERE target_type IS NOT NULL AND target_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_actor
+    ON im_audit_records (tenant_id, organization_id, actor_id, actor_kind, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_retention_class
+    ON im_audit_records (tenant_id, organization_id, retention_class, occurred_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_integrity_anchor_pending
+    ON im_audit_records (tenant_id, organization_id, audit_seq)
+    WHERE integrity_anchor IS NULL;
 
 -- ============================================================
 -- 18. 通知任务
@@ -821,7 +858,7 @@ CREATE TABLE im_projection_conversation_members (
     invited_by TEXT,
     joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     removed_at TEXT,
-    attributes_json TEXT NOT NULL DEFAULT '{}'::TEXT,
+    attributes_json TEXT NOT NULL DEFAULT '{}',
     payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
     payload_hash TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1704,24 +1741,6 @@ CREATE TABLE IF NOT EXISTS im_projection_metadata_snapshots (
 CREATE INDEX IF NOT EXISTS idx_im_projection_metadata_snapshots_key
     ON im_projection_metadata_snapshots (snapshot_key);
 
--- folded migration: migrations/sqlite/0002_im_projection_metadata_snapshots.up.sql
--- Durable metadata snapshots for projection-service snapshot restore/persist.
--- SQLite-compatible version of the PostgreSQL migration.
--- Uses TEXT instead of TEXT, TEXT instead of TEXT.
-
-CREATE TABLE IF NOT EXISTS im_projection_metadata_snapshots (
-    snapshot_scope TEXT NOT NULL,
-    snapshot_key TEXT NOT NULL,
-    payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
-    payload_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    CONSTRAINT pk_im_projection_metadata_snapshots PRIMARY KEY (snapshot_scope, snapshot_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_im_projection_metadata_snapshots_key
-    ON im_projection_metadata_snapshots (snapshot_key);
-
 -- folded migration: migrations/sqlite/0003_im_commit_journal_organization_scope.up.sql
 -- Align im_commit_journal with organization-scoped journal writes.
 -- SQLite-compatible version: SQLite does not support ADD COLUMN IF NOT EXISTS,
@@ -1878,25 +1897,13 @@ BEGIN
 END;
 
 -- folded migration: migrations/sqlite/0006_fix_missing_aggregate_type.up.sql
--- Fix for missing columns that should exist per baseline schema.
--- This migration ensures critical columns exist even if the database was bootstrapped
--- before the baseline rebuild or with incomplete migrations.
-
--- Add aggregate_type to im_commit_journal (already exists, but idempotent check)
-ALTER TABLE im_commit_journal
-    ADD COLUMN IF NOT EXISTS aggregate_type TEXT NOT NULL DEFAULT 'conversation';
-
--- Add aggregate_id to im_commit_journal (already exists, but idempotent check)
-ALTER TABLE im_commit_journal
-    ADD COLUMN IF NOT EXISTS aggregate_id TEXT NOT NULL DEFAULT '';
-
--- Add aggregate_type to im_audit_records (missing in current schema)
-ALTER TABLE im_audit_records
-    ADD COLUMN IF NOT EXISTS aggregate_type TEXT NOT NULL DEFAULT 'unknown';
-
--- Add aggregate_id to im_audit_records (missing in current schema)
-ALTER TABLE im_audit_records
-    ADD COLUMN IF NOT EXISTS aggregate_id TEXT NOT NULL DEFAULT '';
+-- Columns aggregate_type / aggregate_id are already declared in the CREATE TABLE
+-- definitions above (im_commit_journal and im_audit_records). The previous
+-- ALTER TABLE ADD COLUMN IF NOT EXISTS block was removed because:
+--   1. Old SQLite versions (< 3.35) do not support ADD COLUMN IF NOT EXISTS.
+--   2. The columns already exist in the baseline CREATE TABLE, making these
+--      ALTER statements redundant and causing "duplicate column" errors on
+--      fresh databases.
 
 -- folded migration: migrations/sqlite/0008_im_rtc_state_machine_expansion.up.sql
 -- ============================================================================
@@ -1976,7 +1983,16 @@ CREATE TABLE IF NOT EXISTS im_rtc_outbox_events (
     retention_until     TEXT,
     CONSTRAINT pk_im_rtc_outbox_events PRIMARY KEY (tenant_id, organization_id, outbox_id),
     CONSTRAINT uk_im_rtc_outbox_events_event UNIQUE (tenant_id, organization_id, event_id),
-    CONSTRAINT chk_im_rtc_outbox_events_status CHECK (publish_status IN ('pending', 'published', 'failed'))
+    CONSTRAINT chk_im_rtc_outbox_events_status CHECK (publish_status IN ('pending', 'published', 'failed')),
+    CONSTRAINT chk_im_rtc_outbox_events_type CHECK (event_type IN (
+        'session.created', 'session.ringing', 'session.connected',
+        'session.ended', 'session.canceled', 'session.rejected',
+        'session.failed', 'session.timeout', 'session.hold', 'session.resumed',
+        'participant.invited', 'participant.joined', 'participant.left',
+        'participant.kicked', 'participant.credential_issued',
+        'participant.credential_revoked',
+        'recording.started', 'recording.stopped', 'recording.failed'
+    ))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_outbox_events_status_available
@@ -2045,7 +2061,7 @@ CREATE TABLE IF NOT EXISTS im_rtc_participant_credentials (
     revoked_reason              TEXT,
     revoked_by_principal_kind   TEXT,
     revoked_by_principal_id     TEXT,
-    credential_payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+    credential_payload_json TEXT NOT NULL CHECK (json_valid(credential_payload_json)),
     credential_payload_hash     TEXT NOT NULL,
     created_at                  TEXT NOT NULL,
     updated_at                  TEXT NOT NULL,
@@ -2064,44 +2080,107 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_participant_credentials_expiry
     ON im_rtc_participant_credentials (tenant_id, organization_id, expires_at)
     WHERE credential_state = 'active';
 
--- folded migration: migrations/sqlite/0010_im_audit_records_schema_alignment.up.sql
--- ============================================================================
--- Audit Records Schema Alignment (SQLite)
--- ============================================================================
--- SQLite adaptation of postgres migration 0010.
--- Adds occurred_at, target_type, target_id, retention_class, integrity_anchor,
--- integrity_anchored_at columns.
--- ============================================================================
+-- ============================================================
+-- Contact Tags (SQLite-compatible version of PostgreSQL baseline)
+-- Source: postgres baseline im_contact_tags
+-- ============================================================
 
-ALTER TABLE im_audit_records ADD COLUMN occurred_at TEXT;
-ALTER TABLE im_audit_records ADD COLUMN target_type TEXT;
-ALTER TABLE im_audit_records ADD COLUMN target_id TEXT;
-ALTER TABLE im_audit_records ADD COLUMN retention_class TEXT NOT NULL DEFAULT 'access';
-ALTER TABLE im_audit_records ADD COLUMN integrity_anchor TEXT;
-ALTER TABLE im_audit_records ADD COLUMN integrity_anchored_at TEXT;
+CREATE TABLE IF NOT EXISTS im_contact_tags (
+    tenant_id           TEXT NOT NULL,
+    organization_id     TEXT NOT NULL DEFAULT '0',
+    owner_user_id       TEXT NOT NULL,
+    tag_id              INTEGER NOT NULL,
+    name                TEXT NOT NULL,
+    color               TEXT NOT NULL,
+    count               INTEGER NOT NULL DEFAULT 0,
+    bg                  TEXT NOT NULL DEFAULT '',
+    border              TEXT NOT NULL DEFAULT '',
+    created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_im_contact_tags PRIMARY KEY (tenant_id, organization_id, owner_user_id, tag_id)
+);
 
--- Backfill occurred_at from recorded_at
-UPDATE im_audit_records
-    SET occurred_at = recorded_at
-    WHERE occurred_at IS NULL AND recorded_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_im_contact_tags_owner
+    ON im_contact_tags (tenant_id, organization_id, owner_user_id, updated_at DESC, tag_id DESC);
 
-UPDATE im_audit_records
-    SET occurred_at = created_at
-    WHERE occurred_at IS NULL;
+-- ============================================================
+-- Contact Preferences (SQLite-compatible version of PostgreSQL baseline)
+-- Source: postgres baseline im_contact_preferences
+-- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_audit_records_tenant_occurred
-    ON im_audit_records (tenant_id, organization_id, occurred_at);
+CREATE TABLE IF NOT EXISTS im_contact_preferences (
+    tenant_id           TEXT NOT NULL,
+    organization_id     TEXT NOT NULL DEFAULT '0',
+    owner_user_id       TEXT NOT NULL,
+    target_user_id      TEXT NOT NULL,
+    is_starred          INTEGER NOT NULL DEFAULT 0,
+    is_blocked          INTEGER NOT NULL DEFAULT 0,
+    remark              TEXT,
+    updated_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_im_contact_preferences PRIMARY KEY (tenant_id, organization_id, owner_user_id, target_user_id)
+);
 
-CREATE INDEX IF NOT EXISTS idx_audit_records_target
-    ON im_audit_records (tenant_id, organization_id, target_type, target_id, occurred_at)
-    WHERE target_type IS NOT NULL AND target_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_im_contact_preferences_owner
+    ON im_contact_preferences (tenant_id, organization_id, owner_user_id, updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_audit_records_actor
-    ON im_audit_records (tenant_id, organization_id, actor_id, actor_kind, occurred_at);
+-- ============================================================
+-- Contact Recommendations (SQLite-compatible version of PostgreSQL baseline)
+-- Source: postgres baseline im_contact_recommendations
+-- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_audit_records_retention_class
-    ON im_audit_records (tenant_id, organization_id, retention_class, occurred_at);
+CREATE TABLE IF NOT EXISTS im_contact_recommendations (
+    tenant_id               TEXT NOT NULL,
+    organization_id         TEXT NOT NULL DEFAULT '0',
+    owner_user_id           TEXT NOT NULL,
+    target_user_id          TEXT NOT NULL,
+    recommendation_id       INTEGER NOT NULL,
+    target_conversation_id  TEXT,
+    created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_im_contact_recommendations PRIMARY KEY (tenant_id, organization_id, recommendation_id)
+);
 
-CREATE INDEX IF NOT EXISTS idx_audit_records_integrity_anchor_pending
-    ON im_audit_records (tenant_id, organization_id, audit_seq)
-    WHERE integrity_anchor IS NULL;
+CREATE INDEX IF NOT EXISTS idx_im_contact_recommendations_owner_target
+    ON im_contact_recommendations (tenant_id, organization_id, owner_user_id, target_user_id, created_at DESC);
+
+-- ============================================================
+-- FTS5 Full-Text Search (SQLite equivalent of PostgreSQL GIN search_vector index)
+-- Mirrors PostgreSQL idx_im_messages_search (USING GIN(search_vector) WHERE deleted_at IS NULL).
+-- Indexes message text extracted from im_conversation_messages.payload_json
+-- (text, caption, description fields). Triggers keep the FTS table in sync.
+-- ============================================================
+
+CREATE VIRTUAL TABLE IF NOT EXISTS im_conversation_messages_fts USING fts5(
+    tenant_id UNINDEXED,
+    organization_id UNINDEXED,
+    conversation_id UNINDEXED,
+    message_id UNINDEXED,
+    content,
+    tokenize = 'unicode61'
+);
+
+CREATE TRIGGER IF NOT EXISTS im_conversation_messages_fts_ai AFTER INSERT ON im_conversation_messages
+BEGIN
+    INSERT INTO im_conversation_messages_fts(tenant_id, organization_id, conversation_id, message_id, content)
+    VALUES (NEW.tenant_id, NEW.organization_id, NEW.conversation_id, NEW.message_id,
+        COALESCE(json_extract(NEW.payload_json, '$.text'), '') || ' ' ||
+        COALESCE(json_extract(NEW.payload_json, '$.caption'), '') || ' ' ||
+        COALESCE(json_extract(NEW.payload_json, '$.description'), ''));
+END;
+
+CREATE TRIGGER IF NOT EXISTS im_conversation_messages_fts_ad AFTER DELETE ON im_conversation_messages
+BEGIN
+    DELETE FROM im_conversation_messages_fts
+    WHERE tenant_id = OLD.tenant_id AND organization_id = OLD.organization_id AND message_id = OLD.message_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS im_conversation_messages_fts_au AFTER UPDATE ON im_conversation_messages
+BEGIN
+    DELETE FROM im_conversation_messages_fts
+    WHERE tenant_id = OLD.tenant_id AND organization_id = OLD.organization_id AND message_id = OLD.message_id;
+    INSERT INTO im_conversation_messages_fts(tenant_id, organization_id, conversation_id, message_id, content)
+    SELECT NEW.tenant_id, NEW.organization_id, NEW.conversation_id, NEW.message_id,
+        COALESCE(json_extract(NEW.payload_json, '$.text'), '') || ' ' ||
+        COALESCE(json_extract(NEW.payload_json, '$.caption'), '') || ' ' ||
+        COALESCE(json_extract(NEW.payload_json, '$.description'), '')
+    WHERE NEW.deleted_at IS NULL;
+END;

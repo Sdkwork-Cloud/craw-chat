@@ -4,7 +4,7 @@ export const MAX_MESSAGE_HISTORY_ENTRIES = 500;
 
 export interface MessageHistoryPaginationState {
   hasMore: boolean;
-  nextAfterSeq: number;
+  nextCursor?: string;
 }
 
 export function readCursorPageInfo(
@@ -18,14 +18,7 @@ export function readCursorPageInfo(
 }
 
 export function readSeqPageInfo(pageInfo?: SdkWorkListPageInfo): MessageHistoryPaginationState {
-  const hasMore = pageInfo?.hasMore === true;
-  const parsed = hasMore && pageInfo?.nextCursor
-    ? Number.parseInt(pageInfo.nextCursor, 10)
-    : 0;
-  return {
-    hasMore,
-    nextAfterSeq: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
-  };
+  return readCursorPageInfo(pageInfo);
 }
 
 export function resolveLatestMessageSeq(entries: readonly ConversationMessageEntry[]): number {
@@ -44,7 +37,17 @@ export function mergeConversationMessageEntries(
     byId.set(entry.messageId, entry);
   }
   return Array.from(byId.values())
-    .sort((left, right) => left.messageSeq - right.messageSeq)
+    .sort((left, right) => {
+      const sequenceDifference = (left.messageSeq ?? 0) - (right.messageSeq ?? 0);
+      if (sequenceDifference !== 0) {
+        return sequenceDifference;
+      }
+      const occurredAtDifference = Date.parse(left.occurredAt) - Date.parse(right.occurredAt);
+      if (Number.isFinite(occurredAtDifference) && occurredAtDifference !== 0) {
+        return occurredAtDifference;
+      }
+      return left.messageId.localeCompare(right.messageId);
+    })
     .slice(-MAX_MESSAGE_HISTORY_ENTRIES);
 }
 
