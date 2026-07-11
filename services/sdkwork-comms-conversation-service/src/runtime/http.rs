@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{DefaultBodyLimit, Extension, FromRequest, Path, Query, State};
-use axum::http::{HeaderMap, Request};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, Uri, header};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{
@@ -17,14 +17,19 @@ use im_app_context::{AppContext, resolve_app_context};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
-use im_domain_core::message::{ContentPart, MessageBody, MessageType};
+use im_domain_core::message::{ContentPart, Message, MessageBody, MessageType, Sender};
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
-use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
-use sdkwork_utils_rust::{SdkWorkCursorListQuery, SdkWorkSeqWindowQuery};
+use sdkwork_routes_web_framework_backend_api::response::{
+    ApiProblem, ApiResult, created_json, finish_api_json, finish_api_response,
+};
+use sdkwork_utils_rust::{
+    SDKWORK_TRACE_ID_HEADER, SdkWorkCursorListQuery, SdkWorkPageData, SdkWorkProblemDetail,
+    SdkWorkResourceData, SdkWorkResultCode,
+};
 use sdkwork_web_core::{
     ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
     problem_response,
@@ -236,10 +241,99 @@ struct SharedChannelSyncRateLimitBucket {
 }
 
 #[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 struct MessageHistoryQuery {
     #[serde(flatten)]
-    paging: SdkWorkSeqWindowQuery,
+    paging: SdkWorkCursorListQuery,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationMessageEntry {
+    tenant_id: String,
+    conversation_id: String,
+    message_id: String,
+    message_seq: u64,
+    summary: Option<String>,
+    sender: Sender,
+    body: MessageBody,
+    message_type: MessageType,
+    delivery_mode: String,
+    client_msg_id: Option<String>,
+    stream_session_id: Option<String>,
+    rtc_session_id: Option<String>,
+    occurred_at: String,
+    committed_at: Option<String>,
+}
+
+impl From<&Message> for ConversationMessageEntry {
+    fn from(message: &Message) -> Self {
+        Self {
+            tenant_id: message.tenant_id.clone(),
+            conversation_id: message.conversation_id.clone(),
+            message_id: message.message_id.clone(),
+            message_seq: message.message_seq,
+            summary: message.body.summary_or_derived(),
+            sender: message.sender.clone(),
+            body: message.body.clone(),
+            message_type: message.message_type.clone(),
+            delivery_mode: message.delivery_mode.clone(),
+            client_msg_id: message.client_msg_id.clone(),
+            stream_session_id: message.stream_session_id.clone(),
+            rtc_session_id: message.rtc_session_id.clone(),
+            occurred_at: message.occurred_at.clone(),
+            committed_at: message.committed_at.clone(),
+        }
+    }
+}
+
+impl From<&im_domain_core::message::StoredMessage> for ConversationMessageEntry {
+    fn from(stored: &im_domain_core::message::StoredMessage) -> Self {
+        Self::from(&stored.message)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationMessageListResponse {
+    #[serde(flatten)]
+    page: SdkWorkPageData<ConversationMessageEntry>,
+    high_watermark: u64,
+}
+
+impl ConversationMessageListResponse {
+    fn from_history(history: MessageHistoryResult, next_cursor: Option<String>) -> Self {
+        let MessageHistoryResult {
+            page,
+            high_watermark,
+            ..
+        } = history;
+        let SdkWorkPageData {
+            items,
+            mut page_info,
+        } = page;
+        page_info.next_cursor = next_cursor;
+        Self {
+            page: SdkWorkPageData {
+                items: items.iter().map(ConversationMessageEntry::from).collect(),
+                page_info,
+            },
+            high_watermark,
+        }
+    }
+}
+
+fn created_resource_response<T: Serialize>(
+    ctx: &WebRequestContext,
+    result: ApiResult<T>,
+) -> Response {
+    finish_api_response(
+        ctx,
+        result.and_then(|item| created_json(ctx, SdkWorkResourceData { item })),
+    )
+}
+
+fn resource_response<T: Serialize>(ctx: &WebRequestContext, result: ApiResult<T>) -> Response {
+    finish_api_json(ctx, result.map(|item| SdkWorkResourceData { item }))
 }
 
 impl SharedChannelSyncRateLimiter {
@@ -413,8 +507,21 @@ struct MessageReactionRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateConversationRequest {
-    conversation_id: String,
+    /// Client-supplied conversation id. Required for `direct` and other generic
+    /// conversation types; ignored for `group` conversations where the server
+    /// derives a canonical `g_` id from creator + group name + client request
+    /// key.
+    #[serde(default)]
+    conversation_id: Option<String>,
     conversation_type: String,
+    /// Group display name. Required when `conversationType` is `group`; ignored
+    /// otherwise.
+    #[serde(default)]
+    group_name: Option<String>,
+    /// Client-supplied idempotency seed for group creation. Required when
+    /// `conversationType` is `group`; ignored otherwise.
+    #[serde(default)]
+    client_request_key: Option<String>,
     policy_version: Option<String>,
     capability_flags: Option<Vec<String>>,
     history_visibility: Option<String>,
@@ -449,7 +556,8 @@ struct CreateSystemChannelRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateRoomRequest {
-    conversation_id: String,
+    #[serde(default)]
+    conversation_id: Option<String>,
     room_id: String,
     room_kind: String,
 }
@@ -611,41 +719,36 @@ impl CreateConversationRequest {
 #[derive(Debug)]
 pub(crate) struct ApiError {
     status: axum::http::StatusCode,
-    code: &'static str,
     message: String,
 }
 
 struct AppJson<T>(T);
 
 impl ApiError {
-    fn internal(code: &'static str, message: impl Into<String>) -> Self {
+    fn internal(_code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            code,
             message: message.into(),
         }
     }
 
-    fn bad_request(code: &'static str, message: impl Into<String>) -> Self {
+    fn bad_request(_code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::BAD_REQUEST,
-            code,
             message: message.into(),
         }
     }
 
-    fn forbidden(code: &'static str, message: impl Into<String>) -> Self {
+    fn forbidden(_code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::FORBIDDEN,
-            code,
             message: message.into(),
         }
     }
 
-    fn too_many_requests(code: &'static str, message: impl Into<String>) -> Self {
+    fn too_many_requests(_code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::TOO_MANY_REQUESTS,
-            code,
             message: message.into(),
         }
     }
@@ -655,7 +758,6 @@ impl From<JsonRejection> for ApiError {
     fn from(rejection: JsonRejection) -> Self {
         Self {
             status: rejection.status(),
-            code: "invalid_json",
             message: rejection.body_text(),
         }
     }
@@ -665,7 +767,6 @@ impl From<QueryRejection> for ApiError {
     fn from(rejection: QueryRejection) -> Self {
         Self {
             status: rejection.status(),
-            code: "invalid_query",
             message: rejection.body_text(),
         }
     }
@@ -675,7 +776,6 @@ impl From<projection_service::ProjectionAccessError> for ApiError {
     fn from(error: projection_service::ProjectionAccessError) -> Self {
         Self {
             status: error.status(),
-            code: error.code(),
             message: error.message().to_owned(),
         }
     }
@@ -748,22 +848,18 @@ impl From<RuntimeError> for ApiError {
             }
             RuntimeError::PayloadTooLarge(message) => Self {
                 status: axum::http::StatusCode::PAYLOAD_TOO_LARGE,
-                code: "payload_too_large",
                 message,
             },
             RuntimeError::ConversationNotFound(message) => Self {
                 status: axum::http::StatusCode::NOT_FOUND,
-                code: "conversation_not_found",
                 message,
             },
             RuntimeError::ConversationBindingNotFound(message) => Self {
                 status: axum::http::StatusCode::NOT_FOUND,
-                code: "conversation_binding_not_found",
                 message,
             },
             RuntimeError::MessageNotFound(message) => Self {
                 status: axum::http::StatusCode::NOT_FOUND,
-                code: "message_not_found",
                 message,
             },
             RuntimeError::MessageAlreadyRecalled(message) => Self::bad_request(
@@ -775,7 +871,6 @@ impl From<RuntimeError> for ApiError {
             }
             RuntimeError::MemberNotFound(message) => Self {
                 status: axum::http::StatusCode::NOT_FOUND,
-                code: "conversation_member_not_found",
                 message,
             },
             RuntimeError::PermissionDenied(message) => {
@@ -783,7 +878,6 @@ impl From<RuntimeError> for ApiError {
             }
             RuntimeError::Conflict(message) => Self {
                 status: axum::http::StatusCode::CONFLICT,
-                code: "conversation_conflict",
                 message,
             },
             RuntimeError::ReadCursorInvalid(message) => {
@@ -792,22 +886,18 @@ impl From<RuntimeError> for ApiError {
             RuntimeError::Contract(error) => match error {
                 sdkwork_im_contract_core::ContractError::Unavailable(message) => Self {
                     status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                    code: "journal_unavailable",
                     message,
                 },
                 sdkwork_im_contract_core::ContractError::Conflict(message) => Self {
                     status: axum::http::StatusCode::CONFLICT,
-                    code: "journal_conflict",
                     message,
                 },
                 sdkwork_im_contract_core::ContractError::UnsupportedCapability(message) => Self {
                     status: axum::http::StatusCode::NOT_IMPLEMENTED,
-                    code: "journal_capability_unsupported",
                     message,
                 },
                 sdkwork_im_contract_core::ContractError::Invalid(message) => Self {
                     status: axum::http::StatusCode::BAD_REQUEST,
-                    code: "journal_invalid",
                     message,
                 },
             },
@@ -1143,7 +1233,6 @@ async fn enforce_in_flight_gate(
             }
             return ApiError {
                 status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "http_overloaded",
                 message: "server is at maximum in-flight request capacity, please retry later"
                     .to_owned(),
             }
@@ -1264,12 +1353,12 @@ async fn create_room(
         ensure_active_http_auth_principal(&state, &auth)?;
         Ok(state.runtime.create_room_from_auth_context(
             &auth,
-            request.conversation_id,
+            request.conversation_id.unwrap_or_default(),
             request.room_id,
             request.room_kind,
         )?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn get_room(
@@ -1282,7 +1371,7 @@ async fn get_room(
         ensure_active_http_auth_principal(&state, &auth)?;
         Ok(state.runtime.room_view_from_auth_context(&auth, room_id)?)
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn enter_room(
@@ -1296,7 +1385,7 @@ async fn enter_room(
         let member = state.runtime.enter_room_from_auth_context(&auth, room_id)?;
         Ok(EnterRoomResponse { member })
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn leave_room(
@@ -1310,7 +1399,7 @@ async fn leave_room(
         let member = state.runtime.leave_room_from_auth_context(&auth, room_id)?;
         Ok(EnterRoomResponse { member })
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn create_conversation(
@@ -1323,11 +1412,62 @@ async fn create_conversation(
         ensure_active_http_auth_principal(&state, &auth)?;
         let organization_id = organization_id_from_auth_context(&auth);
         let policy = request.conversation_policy()?;
-        let result = state.runtime.create_conversation_from_auth_context(
-            &auth,
-            request.conversation_id,
-            request.conversation_type,
-        )?;
+        let conversation_type = request.conversation_type.trim();
+        if conversation_type.is_empty() {
+            return Err(ApiProblem::from(ApiError::bad_request(
+                "conversation_type_required",
+                "conversationType is required",
+            )));
+        }
+        // Group conversations use a server-derived canonical `g_` id seeded
+        // from creator + group name + client request key. Direct and other
+        // generic conversation types continue to accept a client-supplied id.
+        let result = if conversation_type.eq_ignore_ascii_case("group") {
+            let group_name = request
+                .group_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    ApiProblem::from(ApiError::bad_request(
+                        "conversation_group_name_required",
+                        "groupName is required for group conversations",
+                    ))
+                })?;
+            let client_request_key = request
+                .client_request_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    ApiProblem::from(ApiError::bad_request(
+                        "conversation_client_request_key_required",
+                        "clientRequestKey is required for group conversations",
+                    ))
+                })?;
+            state.runtime.create_group_conversation_from_auth_context(
+                &auth,
+                group_name.to_owned(),
+                client_request_key.to_owned(),
+            )?
+        } else {
+            let conversation_id = request
+                .conversation_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    ApiProblem::from(ApiError::bad_request(
+                        "conversation_id_required",
+                        "conversationId is required",
+                    ))
+                })?;
+            state.runtime.create_conversation_from_auth_context(
+                &auth,
+                conversation_id.to_owned(),
+                conversation_type.to_owned(),
+            )?
+        };
         if let Some(policy) = policy {
             if result.is_applied() {
                 state.runtime.apply_conversation_policy_from_auth_context(
@@ -1360,7 +1500,7 @@ async fn create_conversation(
         }
         Ok(result)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn create_agent_dialog(
@@ -1377,7 +1517,7 @@ async fn create_agent_dialog(
             request.agent_id,
         )?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn create_agent_handoff(
@@ -1403,7 +1543,7 @@ async fn create_agent_handoff(
             request.handoff_reason,
         )?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn create_system_channel(
@@ -1426,7 +1566,7 @@ async fn create_system_channel(
             request.subscriber_id,
         )?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn create_thread_conversation(
@@ -1444,7 +1584,7 @@ async fn create_thread_conversation(
             request.root_message_id,
         )?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn bind_direct_chat_conversation(
@@ -1479,7 +1619,7 @@ async fn bind_direct_chat_conversation(
                 request.right_actor_kind,
             )?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 pub(crate) fn resolve_active_rpc_auth_context(
@@ -1488,7 +1628,6 @@ pub(crate) fn resolve_active_rpc_auth_context(
 ) -> Result<AppContext, ApiError> {
     let auth = resolve_app_context(headers).map_err(|value| ApiError {
         status: axum::http::StatusCode::UNAUTHORIZED,
-        code: value.code(),
         message: value.message().to_owned(),
     })?;
     ensure_active_http_auth_principal(state, &auth)?;
@@ -1577,7 +1716,6 @@ fn map_principal_directory_error(error: PrincipalDirectoryError) -> ApiError {
         ),
         PrincipalDirectoryError::Unavailable(message) => ApiError {
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            code: "principal_directory_unavailable",
             message,
         },
     }
@@ -1586,6 +1724,105 @@ fn map_principal_directory_error(error: PrincipalDirectoryError) -> ApiError {
 fn validate_message_history_limit(limit: Option<usize>) -> Result<usize, ApiError> {
     normalize_message_history_limit(limit)
         .map_err(|message| ApiError::bad_request("limit_invalid", message))
+}
+
+fn validate_message_history_page_size(query: &SdkWorkCursorListQuery) -> Result<usize, ApiError> {
+    let Some(page_size) = query.page_size else {
+        return validate_message_history_limit(None);
+    };
+    if page_size < 1 {
+        return Err(ApiError::bad_request(
+            "limit_invalid",
+            format!(
+                "message history limit must be between 1 and {MESSAGE_HISTORY_MAX_LIMIT}: {page_size}"
+            ),
+        ));
+    }
+    validate_message_history_limit(Some(page_size as usize))
+}
+
+fn validate_member_list_page_size(query: &SdkWorkCursorListQuery) -> Result<usize, ApiError> {
+    let Some(page_size) = query.page_size else {
+        return normalize_member_list_limit(None)
+            .map_err(|message| ApiError::bad_request("limit_invalid", message));
+    };
+    if page_size < 1 {
+        return Err(ApiError::bad_request(
+            "limit_invalid",
+            format!(
+                "conversation member list limit must be between 1 and {CONVERSATION_MEMBER_LIST_MAX_LIMIT}: {page_size}"
+            ),
+        ));
+    }
+    normalize_member_list_limit(Some(page_size as usize))
+        .map_err(|message| ApiError::bad_request("limit_invalid", message))
+}
+
+fn query_key(raw_pair: &str) -> &str {
+    raw_pair
+        .split_once('=')
+        .map(|(key, _)| key)
+        .unwrap_or(raw_pair)
+}
+
+fn invalid_message_history_query(uri: &Uri) -> Option<String> {
+    let Some(query) = uri.query() else {
+        return None;
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    for raw_pair in query.split('&').filter(|pair| !pair.is_empty()) {
+        let key = query_key(raw_pair);
+        if !matches!(key, "cursor" | "page_size") {
+            return Some(format!(
+                "query parameter `{key}` is not supported; message history accepts only `cursor` and `page_size`"
+            ));
+        }
+        if !seen.insert(key) {
+            return Some(format!(
+                "query parameter `{key}` must not be supplied more than once"
+            ));
+        }
+    }
+    None
+}
+
+fn invalid_parameter_response(ctx: &WebRequestContext, detail: impl Into<String>) -> Response {
+    let trace_id = ctx.resolved_trace_id();
+    let problem = SdkWorkProblemDetail::platform(
+        SdkWorkResultCode::InvalidParameter,
+        detail,
+        trace_id.clone(),
+    );
+    let status = axum::http::StatusCode::from_u16(problem.status)
+        .unwrap_or(axum::http::StatusCode::BAD_REQUEST);
+    let mut response = (status, Json(problem)).into_response();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/problem+json"),
+    );
+    if let Ok(value) = HeaderValue::from_str(trace_id.as_str())
+        && let Ok(name) = HeaderName::from_bytes(SDKWORK_TRACE_ID_HEADER.as_bytes())
+    {
+        response.headers_mut().insert(name, value);
+    }
+    response
+}
+
+fn message_history_cursor_error_response(
+    ctx: &WebRequestContext,
+    error: super::message_history_cursor::MessageHistoryCursorError,
+) -> Response {
+    match error {
+        super::message_history_cursor::MessageHistoryCursorError::Invalid => {
+            invalid_parameter_response(ctx, "message history cursor is invalid")
+        }
+        super::message_history_cursor::MessageHistoryCursorError::Configuration(message) => {
+            finish_api_json(
+                ctx,
+                Err::<(), ApiProblem>(ApiProblem::dependency_unavailable(message)),
+            )
+        }
+    }
 }
 
 async fn sync_shared_channel_linked_member(
@@ -1769,18 +2006,13 @@ async fn list_members(
     let result: ApiResult<ListMembersResponse> = (|| {
         let Query(query) = query.map_err(ApiError::from)?;
         ensure_active_http_auth_principal(&state, &auth)?;
-        let paging = query.resolve().map_err(|_| {
-            ApiError::bad_request(
-                "cursor_invalid",
-                "conversation member list cursor is invalid",
-            )
-        })?;
+        let page_size = validate_member_list_page_size(&query)?;
         state
             .runtime
             .list_members_window_from_auth_context(
                 &auth,
                 conversation_id.as_str(),
-                Some(paging.page_size),
+                Some(page_size),
                 query.cursor.as_deref(),
             )
             .map_err(|error| match error {
@@ -1932,7 +2164,7 @@ async fn get_read_cursor(
             .runtime
             .read_cursor_view_from_auth_context(&auth, conversation_id.as_str())?)
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn list_messages(
@@ -1940,20 +2172,82 @@ async fn list_messages(
     Extension(auth): Extension<AppContext>,
     State(state): State<AppState>,
     Path(conversation_id): Path<String>,
+    uri: Uri,
     query: Result<Query<MessageHistoryQuery>, QueryRejection>,
 ) -> Response {
-    let result: ApiResult<MessageHistoryResult> = (|| {
-        let Query(query) = query.map_err(ApiError::from)?;
+    if let Some(detail) = invalid_message_history_query(&uri) {
+        return invalid_parameter_response(&ctx, detail);
+    }
+    let Query(query) = match query {
+        Ok(query) => query,
+        Err(rejection) => {
+            return invalid_parameter_response(&ctx, rejection.body_text());
+        }
+    };
+    let limit = match validate_message_history_page_size(&query.paging) {
+        Ok(limit) => limit,
+        Err(error) => return invalid_parameter_response(&ctx, error.message),
+    };
+    let cursor_tenant_id = auth.tenant_id.clone();
+    let cursor_organization_id = organization_id_from_auth_context(&auth);
+    let cursor_conversation_id = conversation_id.clone();
+    let cursor_scope = super::message_history_cursor::MessageHistoryCursorScope {
+        tenant_id: cursor_tenant_id.as_str(),
+        organization_id: cursor_organization_id.as_str(),
+        conversation_id: cursor_conversation_id.as_str(),
+    };
+    let before_seq = match query.paging.cursor.as_deref() {
+        Some(cursor) => {
+            match super::message_history_cursor::decode_message_history_cursor(cursor, cursor_scope)
+            {
+                Ok(before_seq) => Some(before_seq),
+                Err(error) => return message_history_cursor_error_response(&ctx, error),
+            }
+        }
+        None => None,
+    };
+    let result = run_blocking_conversation(state, auth, move |state, auth| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        let limit = validate_message_history_limit(Some(query.paging.resolved_page_size()))?;
         Ok(state.runtime.list_messages_window_from_auth_context(
             &auth,
             conversation_id.as_str(),
-            query.paging.after_seq,
+            before_seq,
             limit,
         )?)
-    })();
-    finish_api_json(&ctx, result)
+    })
+    .await;
+    let history = match result {
+        Ok(history) => history,
+        Err(problem) => {
+            return finish_api_json::<ConversationMessageListResponse>(&ctx, Err(problem));
+        }
+    };
+    let next_cursor = if history.page.page_info.has_more == Some(true) {
+        let Some(next_before_seq) = history.next_before_seq else {
+            return finish_api_json::<ConversationMessageListResponse>(
+                &ctx,
+                Err(ApiProblem::internal_server_error(
+                    "message history page reported hasMore without a continuation position",
+                )),
+            );
+        };
+        match super::message_history_cursor::encode_message_history_cursor(
+            cursor_scope,
+            next_before_seq,
+        ) {
+            Ok(cursor) => Some(cursor),
+            Err(error) => return message_history_cursor_error_response(&ctx, error),
+        }
+    } else {
+        None
+    };
+    finish_api_json(
+        &ctx,
+        Ok(ConversationMessageListResponse::from_history(
+            history,
+            next_cursor,
+        )),
+    )
 }
 
 async fn update_read_cursor(
@@ -1976,7 +2270,7 @@ async fn update_read_cursor(
             .runtime
             .read_cursor_view_from_auth_context(&auth, conversation_id.as_str())?)
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn post_message(
@@ -1994,7 +2288,12 @@ async fn post_message(
         request.render_hints,
     ) {
         Ok(body) => body,
-        Err(error) => return finish_api_json::<PostMessageResult>(&ctx, Err(error.into())),
+        Err(error) => {
+            return finish_api_json::<SdkWorkResourceData<PostMessageResult>>(
+                &ctx,
+                Err(error.into()),
+            );
+        }
     };
     let command = PostMessageCommand::from_auth_context(
         &auth,
@@ -2008,7 +2307,10 @@ async fn post_message(
         Ok(state.runtime.post_message(command)?)
     })
     .await;
-    finish_api_json(&ctx, result)
+    finish_api_response(
+        &ctx,
+        result.and_then(|item| created_json(&ctx, SdkWorkResourceData { item })),
+    )
 }
 
 async fn publish_system_channel_message(
@@ -2018,7 +2320,7 @@ async fn publish_system_channel_message(
     Path(conversation_id): Path<String>,
     AppJson(request): AppJson<PostMessageRequest>,
 ) -> Response {
-    let result: ApiResult<PostMessageResult> = (|| {
+    let result: ApiResult<SdkWorkResourceData<PostMessageResult>> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
         let body = build_message_body(
             request.summary,
@@ -2028,14 +2330,15 @@ async fn publish_system_channel_message(
             request.render_hints,
         )?;
 
-        Ok(state.runtime.publish_system_channel_message(
+        let item = state.runtime.publish_system_channel_message(
             PublishSystemChannelMessageCommand::from_auth_context(
                 &auth,
                 conversation_id,
                 request.client_msg_id,
                 body,
             ),
-        )?)
+        )?;
+        Ok(SdkWorkResourceData { item })
     })();
     finish_api_json(&ctx, result)
 }
@@ -2047,7 +2350,7 @@ async fn edit_message(
     Path(message_id): Path<String>,
     AppJson(request): AppJson<EditMessageRequest>,
 ) -> Response {
-    let result: ApiResult<MessageMutationResult> = (|| {
+    let result: ApiResult<SdkWorkResourceData<MessageMutationResult>> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
         let body = build_message_body(
             request.summary,
@@ -2056,14 +2359,15 @@ async fn edit_message(
             request.parts,
             request.render_hints,
         )?;
-        Ok(state.runtime.edit_message(EditMessageCommand {
+        let item = state.runtime.edit_message(EditMessageCommand {
             tenant_id: auth.tenant_id.clone(),
             organization_id: organization_id_from_auth_context(&auth),
             message_id,
             editor: sender_from_auth_context(&auth),
             body,
             idempotency_key: request.idempotency_key,
-        })?)
+        })?;
+        Ok(SdkWorkResourceData { item })
     })();
     finish_api_json(&ctx, result)
 }
@@ -2075,15 +2379,16 @@ async fn recall_message(
     Path(message_id): Path<String>,
     AppJson(request): AppJson<RecallMessageRequest>,
 ) -> Response {
-    let result: ApiResult<MessageMutationResult> = (|| {
+    let result: ApiResult<SdkWorkResourceData<MessageMutationResult>> = (|| {
         ensure_active_http_auth_principal(&state, &auth)?;
-        Ok(state.runtime.recall_message(RecallMessageCommand {
+        let item = state.runtime.recall_message(RecallMessageCommand {
             tenant_id: auth.tenant_id.clone(),
             organization_id: organization_id_from_auth_context(&auth),
             message_id,
             recalled_by: sender_from_auth_context(&auth),
             idempotency_key: request.idempotency_key,
-        })?)
+        })?;
+        Ok(SdkWorkResourceData { item })
     })();
     finish_api_json(&ctx, result)
 }
@@ -2113,7 +2418,7 @@ async fn add_message_reaction(
                 request.reaction_key,
             ))?)
     })();
-    finish_api_json(&ctx, result)
+    created_resource_response(&ctx, result)
 }
 
 async fn remove_message_reaction(
@@ -2141,7 +2446,7 @@ async fn remove_message_reaction(
             ),
         )?)
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn pin_message(
@@ -2156,7 +2461,7 @@ async fn pin_message(
             .runtime
             .pin_message(PinMessageCommand::from_auth_context(&auth, message_id))?)
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 async fn unpin_message(
@@ -2171,7 +2476,7 @@ async fn unpin_message(
             .runtime
             .unpin_message(UnpinMessageCommand::from_auth_context(&auth, message_id))?)
     })();
-    finish_api_json(&ctx, result)
+    resource_response(&ctx, result)
 }
 
 fn build_message_body(
@@ -2209,7 +2514,7 @@ fn build_message_body(
 mod tests {
     use super::*;
     use axum::body::Body;
-    use axum::http::{HeaderMap, HeaderValue, Request, StatusCode};
+    use axum::http::{Request, StatusCode};
     use http_body_util::BodyExt;
     use im_app_context::DualTokenRequestBuilderExt;
     use std::collections::BTreeSet;
@@ -2262,14 +2567,6 @@ mod tests {
             let previous = std::env::var(name).ok();
             unsafe {
                 std::env::set_var(name, value);
-            }
-            Self { name, previous }
-        }
-
-        fn remove(name: &'static str) -> Self {
-            let previous = std::env::var(name).ok();
-            unsafe {
-                std::env::remove_var(name);
             }
             Self { name, previous }
         }
@@ -2616,6 +2913,141 @@ mod tests {
                 .as_str()
                 .expect("detail should be string")
                 .contains("principal not found in directory")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_list_messages_rejects_page_size_above_contract_over_http() {
+        let runtime = Arc::new(ConversationRuntime::new(ConversationCommitJournal::Memory(
+            InMemoryJournal::default(),
+        )));
+        let app = build_test_app_with_runtime_and_directory(
+            runtime,
+            Arc::new(StrictKnownPrincipalDirectory::new(&["1"])),
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(
+                        "/im/v3/api/chat/conversations/c_history_limit_http/messages?page_size=201",
+                    )
+                    .with_dual_token_context("100001", "1", "user", None, ["*"])
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("oversized history page request should return response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("response should be valid json");
+        assert!(
+            value["detail"]
+                .as_str()
+                .expect("detail should be string")
+                .contains("message history limit must be between 1 and 200: 201")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_list_messages_rejects_non_standard_pagination_aliases_over_http() {
+        for alias in ["pageSize", "limit", "page_no", "pageNo", "per_page", "size"] {
+            let runtime = Arc::new(ConversationRuntime::new(ConversationCommitJournal::Memory(
+                InMemoryJournal::default(),
+            )));
+            let app = build_test_app_with_runtime_and_directory(
+                runtime,
+                Arc::new(StrictKnownPrincipalDirectory::new(&["1"])),
+            );
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .method("GET")
+                        .uri(format!(
+                            "/im/v3/api/chat/conversations/c_history_alias_http/messages?{alias}=20"
+                        ))
+                        .with_dual_token_context("100001", "1", "user", None, ["*"])
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .expect("non-standard history pagination alias request should return response");
+
+            assert_eq!(
+                response.status(),
+                StatusCode::BAD_REQUEST,
+                "alias {alias} should be rejected"
+            );
+            let body = response
+                .into_body()
+                .collect()
+                .await
+                .expect("body should collect")
+                .to_bytes();
+            let value: serde_json::Value =
+                serde_json::from_slice(&body).expect("response should be valid json");
+            assert_eq!(value["code"], 40003);
+            assert!(
+                value["detail"]
+                    .as_str()
+                    .expect("detail should be string")
+                    .contains("accepts only `cursor` and `page_size`"),
+                "alias {alias} should identify the canonical history parameters"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_agent_dialog_returns_created_resource_envelope_over_http() {
+        let runtime = Arc::new(ConversationRuntime::new(ConversationCommitJournal::Memory(
+            InMemoryJournal::default(),
+        )));
+        let app = build_test_app_with_runtime_and_directory(
+            runtime,
+            Arc::new(StrictKnownPrincipalDirectory::new(&["1"])),
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/im/v3/api/chat/conversations/agent_dialogs")
+                    .header("content-type", "application/json")
+                    .with_dual_token_context("100001", "1", "user", None, ["*"])
+                    .body(Body::from(r#"{"agentId":"agent.support"}"#))
+                    .unwrap(),
+            )
+            .await
+            .expect("create agent dialog request should return response");
+
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body should collect")
+            .to_bytes();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("response should be valid json");
+        assert_eq!(value["code"], 0);
+        assert!(
+            value["data"]["item"]["conversationId"]
+                .as_str()
+                .expect("conversation id should be in data.item")
+                .starts_with("a_")
+        );
+        assert!(
+            value["data"]["conversationId"].is_null(),
+            "create response must be nested under data.item, not flattened under data"
         );
     }
 }

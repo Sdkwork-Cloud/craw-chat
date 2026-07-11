@@ -399,6 +399,7 @@ fn test_stream_frame_serializes_transport_shape() {
 fn test_rtc_session_serializes_signal_binding_fields() {
     let session = Session {
         tenant_id: "100001".into(),
+        organization_id: "default".into(),
         rtc_session_id: "rtc_demo".into(),
         conversation_id: Some("c_demo".into()),
         rtc_mode: "voice".into(),

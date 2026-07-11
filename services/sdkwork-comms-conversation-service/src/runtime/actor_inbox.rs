@@ -12,6 +12,18 @@ pub(super) struct ActorInboxRuntimeStore {
 }
 
 impl ActorInboxRuntimeStore {
+    pub(super) fn actor_count(&self) -> usize {
+        self.conversation_ids_by_actor.len()
+    }
+
+    pub(super) fn conversation_association_count(&self) -> usize {
+        self.conversation_ids_by_actor
+            .values()
+            .fold(0usize, |count, conversation_ids| {
+                count.saturating_add(conversation_ids.len())
+            })
+    }
+
     fn actor_key(
         tenant_id: &str,
         organization_id: &str,
@@ -56,15 +68,13 @@ impl ActorInboxRuntimeStore {
         }
     }
 
-    pub(super) fn purge_conversation(
+    pub(super) fn remove_conversation(
         &mut self,
         organization_id: &str,
+        conversation_id: &str,
         conversation: &ConversationState,
     ) {
         for member in conversation.roster.members().values() {
-            if !member.is_active() {
-                continue;
-            }
             let actor_key = Self::actor_key(
                 member.tenant_id.as_str(),
                 organization_id,
@@ -75,7 +85,7 @@ impl ActorInboxRuntimeStore {
             else {
                 continue;
             };
-            conversation_ids.remove(member.conversation_id.as_str());
+            conversation_ids.remove(conversation_id);
             if conversation_ids.is_empty() {
                 self.conversation_ids_by_actor.remove(actor_key.as_str());
             }
@@ -120,15 +130,6 @@ impl RuntimeState {
         for member in members {
             self.actor_inbox.sync_member(organization_id, member);
         }
-    }
-
-    pub(super) fn rebuild_actor_inbox_for_conversation(
-        &mut self,
-        organization_id: &str,
-        conversation: &ConversationState,
-    ) {
-        self.actor_inbox
-            .rebuild_for_conversation(organization_id, conversation);
     }
 
     pub(super) fn rebuild_all_actor_inboxes(&mut self) {

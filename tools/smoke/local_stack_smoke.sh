@@ -1,11 +1,11 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -euo pipefail
 
 show_help() {
   cat <<'EOF'
 Usage: bash tools/smoke/local_stack_smoke.sh [--base-url <url>]
 
-Run a minimal local-stack smoke check against the self-hosted.split-services.development deployment profile.
+Run a minimal local-stack smoke check against the standalone.development deployment profile.
 EOF
 }
 

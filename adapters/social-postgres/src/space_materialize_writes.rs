@@ -20,7 +20,7 @@ ON CONFLICT (tenant_id, organization_id, space_id) DO NOTHING
 "#;
 
 const SPACE_GET_BY_ID_SQL: &str = r#"
-SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at::text, updated_at::text
 FROM im_spaces WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
 "#;
 
@@ -57,7 +57,7 @@ FROM locked_space ls, member_count mc
 "#;
 
 const SPACE_MEMBER_GET_SQL: &str = r#"
-SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at, updated_at
+SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at::text, updated_at::text
 FROM im_space_members
 WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3 AND user_id = $4
 "#;
@@ -80,7 +80,7 @@ ON CONFLICT (tenant_id, organization_id, group_id) DO NOTHING
 "#;
 
 const GROUP_GET_BY_ID_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at::text, updated_at::text
 FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
 "#;
 
@@ -135,7 +135,7 @@ FROM locked_group lg, member_count mc
 "#;
 
 const GROUP_MEMBER_GET_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at, updated_at
+SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at::text, updated_at::text
 FROM im_group_members
 WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
 "#;

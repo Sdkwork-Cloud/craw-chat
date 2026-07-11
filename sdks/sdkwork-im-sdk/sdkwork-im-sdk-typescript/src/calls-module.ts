@@ -8,7 +8,8 @@ import type {
   RtcSessionMutationResponse,
   RtcSignalEvent,
   UpdateRtcSessionRequest,
-} from '@sdkwork/im-sdk-generated';
+} from '../generated/server-openapi/dist/index.js';
+import { requireStringIdentifier } from './identifier-boundary';
 import type { ImConnectOptions, ImLiveConnection, ImRealtimeEventContext, ImSubscription } from './realtime';
 import type { ImTransportClientLike } from './transport-client-like';
 
@@ -109,7 +110,11 @@ function parseUserScopeRtcSession(
     initiatorKind: pickString(inner.initiator_kind, inner.initiatorKind, cachedSession?.initiatorKind) ?? 'user',
     state,
     signalingStreamId: pickString(inner.signaling_stream_id, inner.signalingStreamId, cachedSession?.signalingStreamId) ?? null,
-    artifactMessageId: cachedSession?.artifactMessageId ?? null,
+    artifactMessageId: pickString(
+      inner.artifact_message_id,
+      inner.artifactMessageId,
+      cachedSession?.artifactMessageId,
+    ) ?? null,
     startedAt: pickString(inner.started_at, inner.startedAt, cachedSession?.startedAt) ?? '',
     ...(pickString(inner.ended_at, inner.endedAt, cachedSession?.endedAt)
       ? { endedAt: pickString(inner.ended_at, inner.endedAt, cachedSession?.endedAt) }
@@ -176,7 +181,6 @@ function isClosingCallSignal(signalType: string, state: string | undefined): boo
   return signalType === 'rtc.accept'
     || signalType === 'rtc.reject'
     || signalType === 'rtc.end'
-    || state === 'accepted'
     || state === 'rejected'
     || state === 'ended';
 }
@@ -256,31 +260,32 @@ export class ImCallsModule {
   readonly sessions = {
     create: (body: CreateRtcSessionRequest): Promise<RtcSessionMutationResponse> =>
       this.transportClient.calls.sessions.create(body),
-    retrieve: (rtcSessionId: string | number): Promise<RtcSession> =>
+    retrieve: (rtcSessionId: string): Promise<RtcSession> =>
       this.retrieve(rtcSessionId),
-    invite: (rtcSessionId: string | number, body: InviteRtcSessionRequest): Promise<RtcSessionMutationResponse> =>
-      this.transportClient.calls.sessions.invite(rtcSessionId, body),
-    accept: (rtcSessionId: string | number, body: UpdateRtcSessionRequest = {}): Promise<RtcSessionMutationResponse> =>
-      this.transportClient.calls.sessions.accept(rtcSessionId, body),
-    reject: (rtcSessionId: string | number, body: UpdateRtcSessionRequest = {}): Promise<RtcSessionMutationResponse> =>
-      this.transportClient.calls.sessions.reject(rtcSessionId, body),
-    end: (rtcSessionId: string | number, body: UpdateRtcSessionRequest = {}): Promise<RtcSessionMutationResponse> =>
-      this.transportClient.calls.sessions.end(rtcSessionId, body),
+    invite: (rtcSessionId: string, body: InviteRtcSessionRequest): Promise<RtcSessionMutationResponse> =>
+      this.transportClient.calls.sessions.invite(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), body),
+    accept: (rtcSessionId: string, body: UpdateRtcSessionRequest = {}): Promise<RtcSessionMutationResponse> =>
+      this.transportClient.calls.sessions.accept(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), body),
+    reject: (rtcSessionId: string, body: UpdateRtcSessionRequest = {}): Promise<RtcSessionMutationResponse> =>
+      this.transportClient.calls.sessions.reject(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), body),
+    end: (rtcSessionId: string, body: UpdateRtcSessionRequest = {}): Promise<RtcSessionMutationResponse> =>
+      this.transportClient.calls.sessions.end(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), body),
     signals: {
-      create: (rtcSessionId: string | number, body: PostRtcSignalRequest): Promise<RtcSignalEvent> =>
-        this.transportClient.calls.sessions.signals.create(rtcSessionId, body),
+      create: (rtcSessionId: string, body: PostRtcSignalRequest): Promise<RtcSignalEvent> =>
+        this.transportClient.calls.sessions.signals.create(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), body),
     },
     credentials: {
       create: (
-        rtcSessionId: string | number,
+        rtcSessionId: string,
         body: IssueRtcParticipantCredentialRequest,
       ): Promise<RtcParticipantCredential> =>
-        this.transportClient.calls.sessions.credentials.create(rtcSessionId, body),
+        this.transportClient.calls.sessions.credentials.create(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), body),
     },
   };
 
   private readonly connect?: (options: ImConnectOptions) => Promise<ImLiveConnection>;
   private readonly incomingSessions = new Map<string, RtcSession>();
+  private readonly outgoingSessionIds = new Set<string>();
   private readonly listeners = new Set<ImCallSessionListener>();
   private watchConnection?: ImLiveConnection;
   private watchConversationIdsKey = '';
@@ -294,79 +299,121 @@ export class ImCallsModule {
   }
 
   start(options: ImCallStartOptions): Promise<RtcSessionMutationResponse> {
-    return this.cacheSessionResult(this.transportClient.calls.sessions.create({
-      conversationId: optionalString(options.conversationId),
-      rtcMode: options.rtcMode,
-      rtcSessionId: options.rtcSessionId,
-    }));
+    // 在 HTTP 调用前就标记为外呼会话，避免 `rtc.session.created` outbox 事件
+    // 通过 WebSocket（relay 轮询 50ms）先于 HTTP 响应到达时，外呼会话被
+    // `firstIncomingSession` 误识别为来电。rtcSessionId 由客户端提供，
+    // 因此可以在请求发出前即加入追踪集合。
+    this.outgoingSessionIds.add(options.rtcSessionId);
+    return this.cacheSessionResult(
+      this.transportClient.calls.sessions.create({
+        conversationId: optionalString(options.conversationId),
+        rtcMode: options.rtcMode,
+        rtcSessionId: options.rtcSessionId,
+      }),
+    ).then((response) => {
+      // 如果服务端返回的 ID 与客户端提供的不同（理论上不会发生，
+      // 但防御性处理），修正追踪集合。
+      if (response.rtcSessionId !== options.rtcSessionId) {
+        this.outgoingSessionIds.delete(options.rtcSessionId);
+        this.outgoingSessionIds.add(response.rtcSessionId);
+      }
+      return response;
+    });
   }
 
-  retrieve(rtcSessionId: string | number): Promise<RtcSession> {
-    return this.cacheSessionResult(this.transportClient.calls.sessions.retrieve(rtcSessionId));
+  retrieve(rtcSessionId: string): Promise<RtcSession> {
+    return this.cacheSessionResult(
+      this.transportClient.calls.sessions.retrieve(requireStringIdentifier(rtcSessionId, 'rtcSessionId')),
+    );
   }
 
   invite(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallInviteOptions = {},
   ): Promise<RtcSessionMutationResponse> {
-    return this.cacheSessionResult(this.transportClient.calls.sessions.invite(rtcSessionId, {
-      signalingStreamId: optionalString(options.signalingStreamId),
-    }));
+    return this.cacheSessionResult(
+      this.transportClient.calls.sessions.invite(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), {
+        signalingStreamId: optionalString(options.signalingStreamId),
+      }),
+    );
   }
 
   listSignals(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallListSignalsOptions = {},
   ): Promise<{ items: RtcSignalEvent[]; pageInfo: { mode: string; hasMore?: boolean; nextCursor?: string | null } }> {
-    return this.transportClient.calls.sessions.signals.list(String(rtcSessionId), options);
+    return this.transportClient.calls.sessions.signals.list(
+      requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
+      options,
+    );
   }
 
   accept(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallUpdateOptions = {},
   ): Promise<RtcSessionMutationResponse> {
-    return this.cacheSessionResult(this.transportClient.calls.sessions.accept(rtcSessionId, {
-      artifactMessageId: optionalString(options.artifactMessageId),
-    }));
+    return this.cacheSessionResult(
+      this.transportClient.calls.sessions.accept(requireStringIdentifier(rtcSessionId, 'rtcSessionId'), {
+        artifactMessageId: optionalString(options.artifactMessageId),
+      }),
+    );
   }
 
   reject(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallUpdateOptions = {},
   ): Promise<RtcSessionMutationResponse> {
-    return this.cacheSessionResult(this.transportClient.calls.sessions.reject(rtcSessionId, {
-      artifactMessageId: optionalString(options.artifactMessageId),
-    }), true);
+    return this.cacheSessionResult(this.transportClient.calls.sessions.reject(
+      requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
+      {
+        artifactMessageId: optionalString(options.artifactMessageId),
+      },
+    ), true).then((response) => {
+      this.outgoingSessionIds.delete(response.rtcSessionId);
+      return response;
+    });
   }
 
   end(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallUpdateOptions = {},
   ): Promise<RtcSessionMutationResponse> {
-    return this.cacheSessionResult(this.transportClient.calls.sessions.end(rtcSessionId, {
-      artifactMessageId: optionalString(options.artifactMessageId),
-    }), true);
+    return this.cacheSessionResult(this.transportClient.calls.sessions.end(
+      requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
+      {
+        artifactMessageId: optionalString(options.artifactMessageId),
+      },
+    ), true).then((response) => {
+      this.outgoingSessionIds.delete(response.rtcSessionId);
+      return response;
+    });
   }
 
   sendSignal(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallSignalOptions,
   ): Promise<RtcSignalEvent> {
-    return this.transportClient.calls.sessions.signals.create(rtcSessionId, {
-      payload: options.payload,
-      schemaRef: optionalString(options.schemaRef),
-      signalingStreamId: optionalString(options.signalingStreamId),
-      signalType: options.signalType,
-    });
+    return this.transportClient.calls.sessions.signals.create(
+      requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
+      {
+        payload: options.payload,
+        schemaRef: optionalString(options.schemaRef),
+        signalingStreamId: optionalString(options.signalingStreamId),
+        signalType: options.signalType,
+      },
+    );
   }
 
   issueParticipantCredential(
-    rtcSessionId: string | number,
+    rtcSessionId: string,
     options: ImCallCredentialOptions,
   ): Promise<RtcParticipantCredential> {
-    return this.transportClient.calls.sessions.credentials.create(rtcSessionId, {
-      participantId: options.participantId,
-    });
+    return this.transportClient.calls.sessions.credentials.create(
+      requireStringIdentifier(rtcSessionId, 'rtcSessionId'),
+      {
+        participantId: options.participantId,
+      },
+    );
   }
 
   async watchIncoming(options: ImCallWatchIncomingOptions | string[] = {}): Promise<RtcSession | null> {
@@ -418,8 +465,6 @@ export class ImCallsModule {
     if (!connection) {
       return;
     }
-    this.watchConnection = connection;
-    this.watchConversationIdsKey = conversationIdsKey;
     this.bindIncomingConnection(connection, conversationIds, true, principalId);
   }
 
@@ -431,6 +476,12 @@ export class ImCallsModule {
   ): void {
     this.watchUnsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
     this.pruneIncomingSessions(conversationIds);
+    // 即使是外部传入的连接（closeWithModule === false），也需要记录
+    // watchConnection 和 watchConversationIdsKey，这样后续调用
+    // ensureIncomingWatchConnection 时能正确检测到已有监听并先清理旧订阅，
+    // 避免创建重复连接导致事件重复投递。
+    this.watchConnection = connection;
+    this.watchConversationIdsKey = [conversationIds.join('\n'), principalId ?? ''].join('|');
     for (const conversationId of conversationIds) {
       this.watchUnsubscribers.push(
         connection.events.onConversation(conversationId, (_event, context) => {
@@ -464,22 +515,52 @@ export class ImCallsModule {
 
   private consumeUserScopeRtcEnvelope(messagePayload: Record<string, unknown>): void {
     const eventType = pickString(messagePayload.eventType);
-    if (!eventType?.startsWith('rtc.session.')) {
+    if (!eventType?.startsWith('rtc.')) {
       return;
     }
+
+    // rtc.signal.posted 事件仅包含信号元数据（signal_seq、signal_type 等），
+    // 不包含实际的 SDP/ICE 负载。实际信号通过会话消息流（conversation-scope）
+    // 的 body.parts 投递，由 consumeRealtimePayload → parseCallSignals 处理。
+    // 此处跳过以避免无负载的空处理和重复投递。
+    if (eventType === 'rtc.signal.posted') {
+      return;
+    }
+
     const inner = isRecord(messagePayload.payload) ? messagePayload.payload : messagePayload;
+
+    // rtc.credentials.revoked 负载使用 terminal_state 而非 state 字段，
+    // 且缺少 rtc_mode 等会话字段。将 terminal_state 映射为 state，
+    // 使 parseUserScopeRtcSession 能从缓存会话补全其余字段并正确解析终态。
+    if (eventType === 'rtc.credentials.revoked') {
+      const terminalState = pickString(inner.terminal_state);
+      if (terminalState) {
+        inner.state = terminalState;
+      }
+    }
+
     const rtcSessionId = pickString(inner.rtc_session_id, inner.rtcSessionId);
     const cachedSession = rtcSessionId ? this.incomingSessions.get(rtcSessionId) : undefined;
     const session = parseUserScopeRtcSession(messagePayload, cachedSession);
     if (!session) {
       return;
     }
-    if (eventType === 'rtc.session.ended' || eventType === 'rtc.session.rejected') {
+    if (
+      eventType === 'rtc.session.ended'
+      || eventType === 'rtc.session.rejected'
+      || eventType === 'rtc.session.revoked'
+      || eventType === 'rtc.credentials.revoked'
+    ) {
       this.emitIncoming(session);
       this.incomingSessions.delete(session.rtcSessionId);
+      this.outgoingSessionIds.delete(session.rtcSessionId);
       return;
     }
-    if (eventType === 'rtc.session.invited' || eventType === 'rtc.session.created') {
+    if (
+      eventType === 'rtc.session.invited'
+      || eventType === 'rtc.session.created'
+      || eventType === 'rtc.session.accepted'
+    ) {
       this.incomingSessions.set(session.rtcSessionId, session);
       this.emitIncoming(session);
     }
@@ -515,6 +596,11 @@ export class ImCallsModule {
 
   private firstIncomingSession(conversationIds: string[]): RtcSession | null {
     for (const session of this.incomingSessions.values()) {
+      // Skip sessions that were started locally (outgoing calls) so they
+      // are not mistaken for incoming calls.
+      if (this.outgoingSessionIds.has(session.rtcSessionId)) {
+        continue;
+      }
       if (conversationIds.length > 0 && !conversationIds.includes(session.conversationId ?? '')) {
         continue;
       }

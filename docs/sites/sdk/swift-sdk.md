@@ -29,7 +29,7 @@ semantic Swift package remains reserved under `composed`.
 
 - live-schema generation from the Sdkwork IM OpenAPI 3.x export
 - Swift workspace normalization that preserves the generated package name `ImSdkGenerated`
-- verified generated package boundary and assembly metadata
+- verified generated package boundary and SDK manifest metadata
 - a raw generated transport client named `ImTransportClient`
 
 For exact generated installation and raw API examples, use
@@ -56,7 +56,7 @@ concern to the matching HTTP reference:
 | SDKWork appbase credential pass-through and portal reads | generated token hooks and portal route groups on `ImTransportClient` | [Portal Access](/api-reference/app/portal-access) |
 | Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/im/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/im/membership-and-read-state) |
-| Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
+| Message send payloads and message history schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/im/media) |
 | Realtime Presence, presence, and realtime coordination | session, presence, and realtime route groups | [Realtime Presence](/api-reference/im/session-and-realtime) |
 | IM call lifecycle and signaling-side HTTP operations | calls route groups | [Calls](/api-reference/im/calls) |

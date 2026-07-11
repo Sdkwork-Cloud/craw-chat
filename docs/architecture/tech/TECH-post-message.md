@@ -16,7 +16,7 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/messages</code>
-  <span class="api-op-id">operationId: postMessage</span>
+  <span class="api-op-id">operationId: conversations.messages.create</span>
 </div>
 
 Posts a regular conversation message.
@@ -26,7 +26,7 @@ Posts a regular conversation message.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 PostMessageResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -39,7 +39,7 @@ Posts a regular conversation message.
 
 <ApiSchemaTable schema="PostMessageRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="PostMessageResult" />
 
@@ -66,4 +66,3 @@ Posts a regular conversation message.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

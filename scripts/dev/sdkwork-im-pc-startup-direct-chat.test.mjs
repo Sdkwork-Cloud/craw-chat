@@ -11,7 +11,7 @@ const imSyncSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/se
 
 assert.match(
   chatServiceSource,
-  /async startDirectChat\s*\([\s\S]*?this\.client\(\)\.conversations\.bindDirectChat/u,
+  /async startDirectChat\s*\([\s\S]*?\(?await\s+this\.client\(\)\)?\.conversations\.bindDirectChat/u,
   'startDirectChat must bind direct chats through the generated IM SDK',
 );
 assert.match(
@@ -38,17 +38,17 @@ assert.match(
 assert.match(
   imSyncSource,
   /syncStartup[\s\S]*?this\.chatService\.syncOfflineMessages/u,
-  'startup sync must refresh chat message windows through ChatService',
+  'startup sync must refresh chat inbox metadata through ChatService without preloading every message window',
 );
-assert.match(
+assert.doesNotMatch(
   imSyncSource,
-  /syncStartup[\s\S]*?this\.contactService\.syncContacts/u,
-  'startup sync must refresh contacts through ContactService',
+  /this\.contactService|result\.contacts\s*=/u,
+  'startup sync must not refresh contacts before the contacts surface is opened',
 );
-assert.match(
+assert.doesNotMatch(
   imSyncSource,
   /syncStartup[\s\S]*?this\.groupService\.syncGroupMembers/u,
-  'startup sync must refresh group members through GroupService',
+  'startup sync must not refresh every group member list before a group conversation is active',
 );
 
 console.log('sdkwork-im-pc startup and direct chat contract passed');

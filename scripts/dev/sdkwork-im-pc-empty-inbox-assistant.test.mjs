@@ -10,6 +10,27 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
+function readJson(relativePath) {
+  return JSON.parse(read(relativePath));
+}
+
+function mergeJson(relativePaths) {
+  return Object.assign({}, ...relativePaths.map(readJson));
+}
+
+function readChatLocale(locale) {
+  return mergeJson([
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/sidebar.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/agent.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/profile.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/contacts.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/favorites.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/settings-modal.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/chat.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/scan-qr.json`,
+  ]);
+}
+
 function assertFile(relativePath, message) {
   assert.ok(fs.existsSync(path.join(repoRoot, relativePath)), message ?? `${relativePath} must exist`);
 }
@@ -32,8 +53,8 @@ const messageListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/s
 const chatLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/ChatLayout.tsx');
 const chatListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatList.tsx');
 const packageIndexSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/index.ts');
-const chatEnLocale = JSON.parse(read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json'));
-const chatZhLocale = JSON.parse(read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json'));
+const chatEnLocale = readChatLocale('en-US');
+const chatZhLocale = readChatLocale('zh-CN');
 const oldAssistantLabelPattern = new RegExp(['SDKWork', 'Assistant'].join(' '), 'u');
 
 assert.match(
@@ -41,10 +62,10 @@ assert.match(
   /SYSTEM_ASSISTANT_AGENT[\s\S]*id:\s*['"]agent\.sdkwork_assistant['"]/u,
   'system assistant must use a standard agent id accepted by IM agent dialogs',
 );
-assert.match(
+assert.doesNotMatch(
   systemAssistantSource,
   /chatService\.startAgentChat|startAgentChat\s*\(/u,
-  'system assistant service must create the assistant conversation through ChatService.startAgentChat',
+  'system assistant startup must not create agent dialogs outside the unified conversation list flow',
 );
 assert.doesNotMatch(
   systemAssistantSource,

@@ -2568,6 +2568,7 @@ dependencies = [
 name = "im-adapters-postgres-projection"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "im-domain-core",
  "im-platform-contracts",
  "im-time",
@@ -2611,6 +2612,7 @@ dependencies = [
 name = "im-adapters-postgres-rtc-state"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "im-app-context",
  "im-domain-core",
  "native-tls",
@@ -2703,6 +2705,7 @@ dependencies = [
  "axum 0.8.9",
  "hmac 0.12.1",
  "im-adapters-redis-cache",
+ "rand 0.8.6",
  "sdkwork-im-ccp-core",
  "sdkwork-utils-rust",
  "sdkwork-web-core",
@@ -5115,6 +5118,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "chrono",
+ "getrandom 0.3.4",
  "http-body-util",
  "im-adapters-postgres-journal",
  "im-adapters-redis-cache",
@@ -5268,6 +5272,9 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-course-embedded-bootstrap",
+ "sdkwork-routes-course-app-api",
+ "sdkwork-routes-course-backend-api",
+ "sdkwork-routes-course-http-auth",
  "tokio",
 ]
 
@@ -5431,6 +5438,7 @@ name = "sdkwork-drive-contract"
 version = "0.1.0"
 dependencies = [
  "sdkwork-drive-storage-contract",
+ "sdkwork-utils-rust",
  "serde",
  "serde_json",
 ]
@@ -5848,15 +5856,18 @@ dependencies = [
  "im-adapters-redis-cache",
  "im-app-context",
  "im-platform-contracts",
+ "rand 0.8.6",
  "reqwest",
  "sdkwork-api-config",
  "sdkwork-api-product-runtime",
+ "sdkwork-comms-conversation-service",
  "sdkwork-iam-database-host",
  "sdkwork-iam-web-adapter",
  "sdkwork-im-api-registry",
  "sdkwork-im-cloud-gateway-config",
  "sdkwork-im-cloud-gateway-observability",
  "sdkwork-im-database-pool",
+ "sdkwork-im-gateway-assembly",
  "sdkwork-im-iam-application-bootstrap",
  "sdkwork-im-openapi",
  "sdkwork-im-realtime-api-paths",
@@ -6058,7 +6069,9 @@ dependencies = [
 name = "sdkwork-im-rpc-service-rust"
 version = "0.1.0"
 dependencies = [
+ "axum 0.8.9",
  "futures-util",
+ "im-app-context",
  "prost 0.14.4",
  "sdkwork-im-rpc-sdk-rust",
  "sdkwork-rpc-client",
@@ -6305,6 +6318,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "url",
  "urlencoding",
  "uuid",
 ]
@@ -6622,6 +6636,7 @@ dependencies = [
  "sdkwork-web-bootstrap",
  "serde",
  "serde_json",
+ "thiserror 1.0.69",
  "tokio",
  "tower 0.5.3",
  "tracing",
@@ -6895,6 +6910,9 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-notary-embedded-bootstrap",
+ "sdkwork-routes-notary-app-api",
+ "sdkwork-routes-notary-backend-api",
+ "sdkwork-routes-notary-http-auth",
  "tokio",
 ]
 
@@ -6907,6 +6925,7 @@ dependencies = [
  "sdkwork-database-lifecycle",
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
+ "sqlx",
 ]
 
 [[package]]
@@ -6954,6 +6973,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-order-integration-payment"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-contract-service",
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
+ "sdkwork-order-service",
+ "sdkwork-payment-providers",
+ "sdkwork-payment-repository-sqlx",
+ "sdkwork-payment-service",
+ "sqlx",
+]
+
+[[package]]
 name = "sdkwork-order-repository-sqlx"
 version = "0.1.0"
 dependencies = [
@@ -6990,7 +7024,9 @@ dependencies = [
  "sdkwork-order-database-host",
  "sdkwork-order-integration-account",
  "sdkwork-order-integration-membership",
+ "sdkwork-order-integration-payment",
  "sdkwork-order-service",
+ "sqlx",
 ]
 
 [[package]]
@@ -7695,6 +7731,8 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -8518,6 +8556,7 @@ dependencies = [
  "im-time",
  "prost 0.14.4",
  "quinn",
+ "rand 0.8.6",
  "rcgen",
  "redis 0.27.6",
  "rustls 0.23.41",

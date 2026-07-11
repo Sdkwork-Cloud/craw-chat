@@ -65,7 +65,8 @@ pool:
 生产 server 环境变量前缀为 `SDKWORK_IM_*`：
 
 ```env
-SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
 SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
 SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat

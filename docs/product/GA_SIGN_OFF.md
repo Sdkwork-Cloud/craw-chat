@@ -230,7 +230,7 @@ Phase 1 items are complete except the three explicitly deferred to later phases.
 - [x] TLS encryption (in transit)
 - [x] At-rest encryption
 - [x] API response envelope (`SdkWorkApiResponse` with `code: 0`, `data`, `traceId`)
-- [x] Error handling (`ProblemDetail` with numeric `code` and `traceId`, HTTP 4xx/5xx)
+- [x] Error handling (`ProblemDetail` with numeric `code`, `traceId`, route-template `instance`, `operationId`, and `i18nKey`, HTTP 4xx/5xx)
 - [x] Monitoring (Prometheus / Grafana with SLO dashboards)
 - [x] Operations manual
 - [x] SLA / SLO documentation

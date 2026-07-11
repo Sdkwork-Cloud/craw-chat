@@ -1,4 +1,4 @@
-{
+﻿{
   "annotations": {
     "list": [
       {
@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "SDKWork IM split-services operations dashboard. Covers deployment readiness, probe health, HTTP error rate, and request throughput. Aligned with deployments/observability/prometheus-rules.yaml.",
+  "description": "SDKWork IM cloud operations dashboard. Covers deployment readiness, probe health, HTTP error rate, and request throughput. Aligned with deployments/observability/prometheus-rules.yaml.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,

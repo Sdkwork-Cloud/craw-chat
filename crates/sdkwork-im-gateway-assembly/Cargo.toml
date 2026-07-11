@@ -11,8 +11,8 @@ path = "src/lib.rs"
 
 [dependencies]
 axum.workspace = true
-chrono = "0.4.44"
 tokio = { version = "1.48", features = ["macros", "rt-multi-thread", "sync", "time"] }
+chrono = "0.4.44"
 tracing.workspace = true
 serde_json.workspace = true
 im-app-context = { path = "../im-app-context" }
@@ -27,6 +27,7 @@ conversation_runtime = { path = "../../services/sdkwork-comms-conversation-servi
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_im_database_pool = { workspace = true }
 calls-service = { path = "../../services/im-calls-service" }
+projection-service = { path = "../../services/projection-service" }
 sdkwork_routes_im_audit_backend_api = { workspace = true }
 sdkwork_routes_im_automation_app_api = { workspace = true }
 sdkwork_routes_im_calls_open_api = { workspace = true }
@@ -37,7 +38,6 @@ sdkwork_routes_im_notification_app_api = { workspace = true }
 sdkwork_routes_im_ops_backend_api = { workspace = true }
 sdkwork_routes_im_portal_app_api = { workspace = true }
 sdkwork_routes_im_projection_open_api = { workspace = true }
-projection-service = { path = "../../services/projection-service" }
 sdkwork_routes_im_realtime_open_api = { workspace = true }
 sdkwork_routes_im_social_backend_api = { workspace = true }
 sdkwork_routes_im_social_open_api = { workspace = true }

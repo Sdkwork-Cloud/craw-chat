@@ -11,12 +11,25 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::{ProjectionRuntime, TimelineProjectionService};
+use crate::{ProjectionError, ProjectionRuntime, TimelineProjectionService};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const PROJECTION_JOURNAL_CONSUMER_POLL_MS_ENV: &str =
     "SDKWORK_IM_PROJECTION_JOURNAL_CONSUMER_POLL_MS";
 const DEFAULT_PROJECTION_JOURNAL_CONSUMER_POLL_MS: u64 = 250;
+
+/// Maximum number of durable persist attempts before the consumer surrenders
+/// for the current cycle. Each failure is followed by an exponentially growing
+/// backoff drawn from [`PROJECTION_PERSIST_RETRY_BACKOFFS`]. The combined
+/// worst-case sleep (50ms + 100ms = 150ms) stays below the default 250ms poll
+/// interval so the consumer never falls behind because of retries.
+const PROJECTION_PERSIST_RETRY_ATTEMPTS: usize = 3;
+
+/// Backoff schedule between durable persist attempts. Index `attempt - 1` is
+/// used after the `attempt`-th failure, so only the first `retry - 1` entries
+/// are ever slept.
+const PROJECTION_PERSIST_RETRY_BACKOFFS: &[Duration] =
+    &[Duration::from_millis(50), Duration::from_millis(100)];
 
 pub struct ProjectionJournalConsumerHandle {
     shutdown: watch::Sender<()>,
@@ -135,12 +148,11 @@ async fn run_projection_journal_consumer(
 
         match journal.recorded_after(replay_cursor.as_ref()) {
             Ok((events, next_cursor)) if !events.is_empty() => {
-                apply_journal_events(
-                    &events,
-                    service.as_ref(),
-                    runtime.as_ref(),
-                    &mut applied_event_ids,
-                );
+                let applied_new =
+                    apply_journal_events(&events, service.as_ref(), &mut applied_event_ids);
+                if applied_new {
+                    persist_durable_state_with_retry(runtime.as_ref()).await;
+                }
                 replay_cursor = next_cursor;
             }
             Ok(_) => {}
@@ -159,9 +171,8 @@ async fn run_projection_journal_consumer(
 fn apply_journal_events(
     events: &[CommitEnvelope],
     service: &TimelineProjectionService,
-    runtime: &ProjectionRuntime,
     applied_event_ids: &mut BoundedAppliedEventDedup,
-) {
+) -> bool {
     let mut applied_new = false;
     for event in events {
         if !applied_event_ids.insert(event.event_id.clone()) {
@@ -179,9 +190,51 @@ fn apply_journal_events(
         }
         applied_new = true;
     }
+    applied_new
+}
 
-    if applied_new && let Err(error) = runtime.persist_durable_state() {
-        warn!(error = %error, "projection journal consumer durable persist failed");
+/// Persist durable projection state with a bounded retry loop.
+///
+/// Transient Postgres hiccups (brief pool exhaustion, momentary network
+/// blips) used to be swallowed by a single best-effort `warn!`, which let
+/// memory and durable snapshots drift apart indefinitely. We now retry up to
+/// [`PROJECTION_PERSIST_RETRY_ATTEMPTS`] times with escalating backoff. Because
+/// `persist_durable_state` writes the current memory state (not deltas),
+/// re-attempts are idempotent. When every attempt fails, the consumer keeps
+/// advancing — the next cycle re-attempts the full accumulated state — but the
+/// failure is logged with the attempt count so operators can spot drift.
+async fn persist_durable_state_with_retry(runtime: &ProjectionRuntime) {
+    let mut last_error: Option<ProjectionError> = None;
+    for attempt in 1..=PROJECTION_PERSIST_RETRY_ATTEMPTS {
+        match runtime.persist_durable_state() {
+            Ok(()) => {
+                if attempt > 1 {
+                    info!(
+                        attempt = attempt,
+                        "projection journal consumer durable persist recovered after retry"
+                    );
+                }
+                return;
+            }
+            Err(error) => {
+                last_error = Some(error);
+                if attempt < PROJECTION_PERSIST_RETRY_ATTEMPTS {
+                    let backoff = PROJECTION_PERSIST_RETRY_BACKOFFS
+                        .get(attempt - 1)
+                        .copied()
+                        .unwrap_or(Duration::from_millis(100));
+                    tokio::time::sleep(backoff).await;
+                }
+            }
+        }
+    }
+    if let Some(error) = last_error {
+        warn!(
+            error = %error,
+            attempts = PROJECTION_PERSIST_RETRY_ATTEMPTS,
+            "projection journal consumer durable persist failed after retries; \
+             memory state advanced, durable snapshot will be retried next cycle"
+        );
     }
 }
 

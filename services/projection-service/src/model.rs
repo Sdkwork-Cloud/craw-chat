@@ -36,6 +36,10 @@ pub struct TimelineViewEntry {
     pub committed_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retention_until: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reaction_counts: Vec<MessageReactionCountView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pin: Option<MessagePinView>,
 }
 
 pub type TimelineWindowView = SdkWorkPageData<TimelineViewEntry>;
@@ -375,6 +379,8 @@ pub(super) struct ConversationCatalogEntry {
     pub(super) created_at: String,
     #[serde(default = "default_history_visibility")]
     pub(super) history_visibility: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) title: Option<String>,
 }
 
 fn default_history_visibility() -> String {

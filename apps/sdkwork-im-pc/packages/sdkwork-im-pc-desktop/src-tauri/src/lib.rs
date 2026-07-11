@@ -1,9 +1,9 @@
 mod notification;
+mod offline_store;
 mod qr_code;
 mod session_store;
 mod tray;
 mod window_control;
-mod offline_store;
 
 pub fn run() {
     tauri::Builder::default()
@@ -35,7 +35,9 @@ pub fn run() {
             offline_store::sdkwork_im_pc_offline_list_pending_sends,
             offline_store::sdkwork_im_pc_offline_claim_pending_sends,
             offline_store::sdkwork_im_pc_offline_release_pending_send_claim,
-            offline_store::sdkwork_im_pc_offline_delete_pending_send
+            offline_store::sdkwork_im_pc_offline_delete_pending_send,
+            offline_store::sdkwork_im_pc_offline_quarantine_pending_send,
+            offline_store::sdkwork_im_pc_offline_purge_principal_cache
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Sdkwork IM PC");

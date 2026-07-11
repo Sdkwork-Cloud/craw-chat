@@ -36,17 +36,17 @@ public class ChatApi {
     }
 
     /// Create an agent handoff
-    public func conversationsAgentHandoffsCreate(body: CreateAgentDialogRequest) async throws -> ConversationsAgentHandoffsCreateResponse201? {
+    public func conversationsAgentHandoffsCreate(body: CreateAgentHandoffRequest) async throws -> ConversationsAgentHandoffsCreateResponse201? {
         return try await client.post(ApiPaths.imPath("/chat/conversations/agent_handoffs"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsAgentHandoffsCreateResponse201.self)
     }
 
     /// Create a system channel
-    public func conversationsSystemChannelsCreate(body: CreateConversationRequest) async throws -> ConversationsSystemChannelsCreateResponse201? {
+    public func conversationsSystemChannelsCreate(body: CreateSystemChannelRequest) async throws -> ConversationsSystemChannelsCreateResponse201? {
         return try await client.post(ApiPaths.imPath("/chat/conversations/system_channels"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsSystemChannelsCreateResponse201.self)
     }
 
     /// Create a thread conversation
-    public func conversationsThreadsCreate(body: CreateConversationRequest) async throws -> ConversationsThreadsCreateResponse201? {
+    public func conversationsThreadsCreate(body: CreateThreadConversationRequest) async throws -> ConversationsThreadsCreateResponse201? {
         return try await client.post(ApiPaths.imPath("/chat/conversations/threads"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: ConversationsThreadsCreateResponse201.self)
     }
 
@@ -154,13 +154,13 @@ public class ChatApi {
         return try await client.get(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/member_directory"), responseType: ConversationsMemberDirectoryListResponse.self)
     }
 
-    /// List conversation message timeline
-    public func conversationsMessagesList(conversationId: String, afterSeq: Int? = nil, pageSize: Int? = nil) async throws -> ConversationsMessagesListResponse? {
+    /// List conversation message history
+    public func conversationsMessagesList(conversationId: String, afterSeq: Int? = nil, pageSize: Int? = nil) async throws -> ConversationMessageListResponse? {
         let query = buildQueryString([
             QueryParameterSpec(name: "afterSeq", value: afterSeq, style: "form", explode: true, allowReserved: false, contentType: nil),
             QueryParameterSpec(name: "page_size", value: pageSize, style: "form", explode: true, allowReserved: false, contentType: nil)
         ])
-        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), query), responseType: ConversationsMessagesListResponse.self)
+        return try await client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/\(serializePathParameter(conversationId, PathParameterSpec(name: "conversationId", style: "simple", explode: false)))/messages"), query), responseType: ConversationMessageListResponse.self)
     }
 
     /// Post a conversation message
@@ -189,8 +189,8 @@ public class ChatApi {
     }
 
     /// Recall a message
-    public func messagesRecall(messageId: String) async throws -> MessagesRecallResponse? {
-        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/recall"), body: nil, responseType: MessagesRecallResponse.self)
+    public func messagesRecall(messageId: String, body: RecallMessageRequest) async throws -> MessagesRecallResponse? {
+        return try await client.post(ApiPaths.imPath("/chat/messages/\(serializePathParameter(messageId, PathParameterSpec(name: "messageId", style: "simple", explode: false)))/recall"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: MessagesRecallResponse.self)
     }
 
     /// List message favorites

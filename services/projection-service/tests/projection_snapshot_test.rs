@@ -316,6 +316,70 @@ fn direct_chat_bound_event(
     )
 }
 
+fn group_created_event(
+    tenant_id: &str,
+    group_id: &str,
+    conversation_id: &str,
+    group_name: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{tenant_id}_{group_id}_group_created"),
+        tenant_id,
+        "group.created",
+        "chat_group",
+        group_id,
+        1,
+    )
+    .with_payload(
+        "space.group.created.v1",
+        &serde_json::json!({
+            "groupId": group_id,
+            "spaceId": null,
+            "groupName": group_name,
+            "groupType": "normal",
+            "ownerUserId": "1",
+            "conversationId": conversation_id,
+            "maxMembers": 200,
+            "description": "created group description",
+            "avatarUrl": "https://example.test/created-group.png",
+            "announcement": "created group notice",
+            "settingsJson": "{}",
+            "createdAt": "2026-07-09T15:19:08.782Z",
+            "updatedAt": "2026-07-09T15:19:08.782Z"
+        })
+        .to_string(),
+    )
+}
+
+fn group_updated_without_conversation_id_event(
+    tenant_id: &str,
+    group_id: &str,
+    group_name: &str,
+) -> im_domain_events::CommitEnvelope {
+    im_domain_events::CommitEnvelope::minimal(
+        &format!("evt_{tenant_id}_{group_id}_group_updated"),
+        tenant_id,
+        "group.updated",
+        "chat_group",
+        group_id,
+        2,
+    )
+    .with_payload(
+        "space.group.updated.v1",
+        &serde_json::json!({
+            "groupId": group_id,
+            "groupName": group_name,
+            "description": "restored group description",
+            "avatarUrl": "https://example.test/restored-group.png",
+            "announcement": "restored group notice",
+            "maxMembers": 200,
+            "settingsJson": "{}",
+            "updatedAt": "2026-07-09T15:20:08.782Z"
+        })
+        .to_string(),
+    )
+}
+
 fn message_reaction_added_event(
     tenant_id: &str,
     conversation_id: &str,
@@ -1028,6 +1092,55 @@ fn test_projection_service_restores_contacts_view_from_snapshot_metadata() {
         restored.direct_chat_id_for_conversation("t_alpha", "default", "c_direct_001"),
         Some("dc_001".into())
     );
+}
+
+#[test]
+fn test_projection_service_restores_group_conversation_binding_for_group_profile_updates() {
+    let metadata_store = MemoryMetadataStore::default();
+    let timeline_store = MemoryTimelineProjectionStore::default();
+    let service = TimelineProjectionService::default();
+    let tenant_id = "100001";
+    let group_id = "4941";
+    let conversation_id = "pc-group-24c6420e-fd13-4a85-9fa0-955e23d10e04";
+
+    service
+        .apply(&group_created_event(
+            tenant_id,
+            group_id,
+            conversation_id,
+            "Legacy PC Group",
+        ))
+        .expect("group metadata projection should succeed");
+    service
+        .apply(&conversation_created_event(
+            tenant_id,
+            conversation_id,
+            "group",
+        ))
+        .expect("conversation projection should succeed");
+    service
+        .persist_all_durable_snapshots(&metadata_store, &timeline_store)
+        .expect("durable snapshots should persist");
+
+    let restored = TimelineProjectionService::default();
+    restored
+        .restore_all_durable_snapshots(&metadata_store, &timeline_store, &[])
+        .expect("durable snapshots should restore group binding catalog");
+    restored
+        .apply(&group_updated_without_conversation_id_event(
+            tenant_id,
+            group_id,
+            "Restored Legacy PC Group",
+        ))
+        .expect("group update should use restored conversation binding");
+
+    let profile = restored.conversation_profile(tenant_id, "0", conversation_id);
+    assert_eq!(profile.display_name, "Restored Legacy PC Group");
+    assert_eq!(
+        profile.avatar_url,
+        "https://example.test/restored-group.png"
+    );
+    assert_eq!(profile.notice, "restored group notice");
 }
 
 #[test]

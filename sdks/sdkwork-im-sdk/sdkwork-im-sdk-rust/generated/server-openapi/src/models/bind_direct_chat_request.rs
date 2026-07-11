@@ -11,22 +11,14 @@ pub struct BindDirectChatRequest {
     pub direct_chat_id: Option<String>,
 
     #[serde(rename = "leftActorId")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub left_actor_id: Option<String>,
+    pub left_actor_id: String,
 
     #[serde(rename = "leftActorKind")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub left_actor_kind: Option<String>,
+    pub left_actor_kind: String,
 
     #[serde(rename = "rightActorId")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub right_actor_id: Option<String>,
+    pub right_actor_id: String,
 
     #[serde(rename = "rightActorKind")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub right_actor_kind: Option<String>,
-
-    #[serde(rename = "targetUserId")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target_user_id: Option<String>,
+    pub right_actor_kind: String,
 }

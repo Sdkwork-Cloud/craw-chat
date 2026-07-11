@@ -1,14 +1,14 @@
-param(
+﻿param(
     [string]$InstanceName = "default",
     [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
     [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Data")),
     [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
     [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
-    [string]$BindAddress = "0.0.0.0:18080",
-    [string]$BaseUrl = "http://127.0.0.1:18080",
-    [string]$ApiBaseUrl = "http://127.0.0.1:18080",
-    [string]$WebsocketBaseUrl = "ws://127.0.0.1:18080",
-    [string]$BrowserOrigins = "http://127.0.0.1:18080,http://localhost:18080",
+    [string]$BindAddress = "0.0.0.0:18079",
+    [string]$BaseUrl = "http://127.0.0.1:18079",
+    [string]$ApiBaseUrl = "http://127.0.0.1:18079",
+    [string]$WebsocketBaseUrl = "ws://127.0.0.1:18079",
+    [string]$BrowserOrigins = "http://127.0.0.1:18079,http://localhost:18079",
     [switch]$NonInteractive,
     [switch]$Force,
     [switch]$Help
@@ -81,7 +81,8 @@ if ((-not (Test-Path $chatTomlPath)) -or $Force) {
     @"
 [runtime]
 environment = "production"
-deployment_mode = "server"
+deployment_profile = "standalone"
+runtime_target = "server"
 app_code = "chat"
 
 [server]
@@ -127,7 +128,8 @@ max_connections = 16
 
 if ((-not (Test-Path $serverEnvPath)) -or $Force) {
     @"
-SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_CONFIG_FILE=$chatTomlPath
 SDKWORK_IM_DATA_DIR=$DataDir
 SDKWORK_IM_LOG_DIR=$LogDir
@@ -140,7 +142,7 @@ SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=127.0.0.1
 SDKWORK_IM_DATABASE_PORT=5432
 SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_prod
-SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_prod_chat_prod
+SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_prod
 SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_prod
 SDKWORK_IM_DATABASE_PASSWORD_FILE=$passwordFilePath
 SDKWORK_IM_DATABASE_SSL_MODE=require

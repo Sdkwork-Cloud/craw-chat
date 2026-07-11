@@ -12,3 +12,6 @@ class EditMessageRequest:
     text: Optional[str] = None
     parts: Optional[List[ContentPart]] = None
     reply_to: Optional[MessageReplyReference] = None
+    summary: Optional[str] = None
+    render_hints: Optional[Dict[str, Any]] = None
+    idempotency_key: Optional[str] = None

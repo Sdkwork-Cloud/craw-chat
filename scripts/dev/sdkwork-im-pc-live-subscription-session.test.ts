@@ -8,6 +8,12 @@ import type {
   ImSdkClient,
 } from '@sdkwork/im-sdk';
 import { createSdkworkChatService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService';
+import {
+  acquirePcLiveConnectionLease,
+  configurePcRealtimeConnectionManager,
+  resetPcRealtimeConnectionManagerForTests,
+  subscribePcRealtimeScope,
+} from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/pcRealtimeConnectionManager';
 import type { SdkworkChatSession } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
 type MessageListener = (message: ImDecodedMessage, context: ImMessageContext) => void;
@@ -48,9 +54,16 @@ async function flushRealtimeMicrotasks(): Promise<void> {
   }
 }
 
+async function flushChatListCoalesceWindow(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 420));
+  await flushRealtimeMicrotasks();
+}
+
 class FakeLiveConnection implements ImLiveConnection {
   readonly disconnectCalls: Array<{ code?: number; reason?: string }> = [];
   readonly messageListeners = new Map<string, Set<MessageListener>>();
+  readonly messageSubscribeCounts = new Map<string, number>();
+  readonly messageUnsubscribeCounts = new Map<string, number>();
   readonly syncedConversationSnapshots: string[][] = [];
   readonly scopeEventListeners = new Map<string, Set<ScopeEventListener>>();
   readonly syncedScopeSnapshots: Array<Array<{ eventTypes?: string[]; scopeId: string; scopeType: string }>> = [];
@@ -104,8 +117,16 @@ class FakeLiveConnection implements ImLiveConnection {
       const listeners = this.messageListeners.get(conversationId) ?? new Set<MessageListener>();
       listeners.add(handler);
       this.messageListeners.set(conversationId, listeners);
+      this.messageSubscribeCounts.set(
+        conversationId,
+        (this.messageSubscribeCounts.get(conversationId) ?? 0) + 1,
+      );
       return () => {
         listeners.delete(handler);
+        this.messageUnsubscribeCounts.set(
+          conversationId,
+          (this.messageUnsubscribeCounts.get(conversationId) ?? 0) + 1,
+        );
       };
     },
   };
@@ -288,20 +309,151 @@ class FakeLiveConnection implements ImLiveConnection {
 }
 
 async function main(): Promise<void> {
+  resetPcRealtimeConnectionManagerForTests();
+  const terminalHistoryConnections: FakeLiveConnection[] = [];
+  const terminalHistoryListCalls: Array<{ afterSeq?: number; conversationId: string; pageSize?: number }> = [];
+  const terminalHistoryClient = {
+    chat: {
+      inbox: {
+        async list() {
+          return {
+            items: [
+              {
+                tenantId: 'test-tenant',
+                conversationId: 'terminal-history-chat-1',
+                conversationType: 'group',
+                displayName: 'Terminal history chat',
+                lastActivityAt: '2026-06-08T10:00:00.000Z',
+                lastMessageAt: '2026-06-08T10:00:00.000Z',
+                lastMessageId: 'terminal-history-message-1',
+                lastMessageSeq: 1,
+                lastSenderId: 'user-history',
+                lastSummary: 'terminal first page',
+                messageCount: 1,
+                unreadCount: 0,
+              },
+            ],
+            pageInfo: { hasMore: false, mode: 'cursor' },
+          };
+        },
+      },
+    },
+    conversations: {
+      async listMessages(
+        conversationId: string,
+        params?: { afterSeq?: number; pageSize?: number },
+      ) {
+        terminalHistoryListCalls.push({
+          afterSeq: params?.afterSeq,
+          conversationId,
+          pageSize: params?.pageSize,
+        });
+        if (params?.afterSeq === 0) {
+          return {
+            highWatermark: 1,
+            items: [
+              {
+                body: {
+                  parts: [{ kind: 'text', text: 'terminal first page' }],
+                  renderHints: { sdkworkChatPcType: 'text' },
+                  summary: 'terminal first page',
+                },
+                conversationId,
+                deliveryMode: 'discrete',
+                messageId: 'terminal-history-message-1',
+                messageSeq: 1,
+                messageType: 'standard',
+                occurredAt: '2026-06-08T10:00:00.000Z',
+                sender: { id: 'user-history', kind: 'user', metadata: {} },
+                summary: 'terminal first page',
+              },
+            ],
+            pageInfo: { hasMore: false, mode: 'cursor', pageSize: 20 },
+          };
+        }
+        return {
+          highWatermark: 1,
+          items: [],
+          pageInfo: { hasMore: false, mode: 'cursor', pageSize: 20 },
+        };
+      },
+    },
+    async connect() {
+      const connection = new FakeLiveConnection();
+      terminalHistoryConnections.push(connection);
+      return connection;
+    },
+  } as unknown as ImSdkClient;
+  const terminalHistoryService = createRealtimeChatService(() => terminalHistoryClient);
+  await terminalHistoryService.listChatsPage();
+  const terminalInitialLoad = terminalHistoryService.getMessages('terminal-history-chat-1');
+  const terminalHistoryNotifications: string[] = [];
+  const unsubscribeTerminalHistory = terminalHistoryService.subscribeMessages(
+    'terminal-history-chat-1',
+    (message) => {
+      terminalHistoryNotifications.push(message.content);
+    },
+  );
+  const terminalHistoryMessages = await terminalInitialLoad;
+  await flushRealtimeMicrotasks();
+  assert.deepEqual(
+    terminalHistoryListCalls,
+    [{ afterSeq: 0, conversationId: 'terminal-history-chat-1', pageSize: 20 }],
+    'initial live subscription catch-up must not request another message page after the first history page returns hasMore=false',
+  );
+  assert.deepEqual(
+    terminalHistoryMessages.map((message) => message.content),
+    ['terminal first page'],
+    'initial terminal history page must still populate the opened conversation',
+  );
+  assert.deepEqual(
+    terminalHistoryNotifications,
+    [],
+    'terminal initial history load must not be replayed through the live subscription handler',
+  );
+  assert.equal(
+    terminalHistoryConnections[0].messageSubscribeCounts.get('terminal-history-chat-1'),
+    1,
+    'terminal history regression must still create the realtime wire subscription',
+  );
+  unsubscribeTerminalHistory();
+  resetPcRealtimeConnectionManagerForTests();
+
   const connections: FakeLiveConnection[] = [];
   const connectCalls: Array<{
     deviceId?: string;
     conversations?: string[];
   }> = [];
+  let inboxListCalls = 0;
+  let messageHistoryListCalls = 0;
+  const readCursorUpdates: Array<{ conversationId: string; readSeq: number }> = [];
   const fakeClient = {
     chat: {
       inbox: {
         async list() {
+          inboxListCalls += 1;
           return {
             hasMore: false,
             items: [],
           };
         },
+      },
+    },
+    conversations: {
+      async listMessages() {
+        messageHistoryListCalls += 1;
+        return {
+          highWatermark: 999,
+          items: [],
+          pageInfo: {
+            hasMore: false,
+            mode: 'cursor',
+            nextCursor: null,
+          },
+        };
+      },
+      async updateReadCursor(conversationId: string, body: { readSeq: number }) {
+        readCursorUpdates.push({ conversationId, readSeq: body.readSeq });
       },
     },
     async connect(options?: { deviceId?: string; subscriptions?: { conversations?: string[] } }) {
@@ -368,7 +520,7 @@ async function main(): Promise<void> {
     messageSeq: 1,
     senderId: 'friend-user-1',
   });
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await flushChatListCoalesceWindow();
   assert.deepEqual(
     chatListUpdates.at(-1),
     ['new-friend-chat-1:hello from a friend'],
@@ -389,6 +541,63 @@ async function main(): Promise<void> {
     ['new-friend-chat-1:hello from a friend'],
     'ChatService getChats must preserve locally created unknown conversations even before inbox catches up',
   );
+  const inboxCallsBeforeBurst = inboxListCalls;
+  connections[0].emitUserMessage('current-user', 'burst-chat-1', 'burst hello 1', 21, {
+    messageId: 'message-burst-chat-1',
+    messageSeq: 1,
+    senderId: 'friend-user-burst',
+  });
+  connections[0].emitUserMessage('current-user', 'burst-chat-1', 'burst hello 2', 22, {
+    messageId: 'message-burst-chat-2',
+    messageSeq: 2,
+    senderId: 'friend-user-burst',
+  });
+  connections[0].emitUserMessage('current-user', 'burst-chat-2', 'burst hello 3', 23, {
+    messageId: 'message-burst-chat-3',
+    messageSeq: 1,
+    senderId: 'friend-user-burst',
+  });
+  await flushChatListCoalesceWindow();
+  assert.ok(
+    inboxListCalls >= inboxCallsBeforeBurst && inboxListCalls <= inboxCallsBeforeBurst + 1,
+    'ChatService must coalesce burst realtime conversation-list refreshes into at most one inbox page request',
+  );
+  const messageHistoryCallsBeforeActiveRead = messageHistoryListCalls;
+  service.setReadFocusContext({
+    activeConversationId: 'active-read-chat-1',
+    isWindowFocused: true,
+  });
+  connections[0].emitUserMessage('current-user', 'active-read-chat-1', 'active read hello 1', 31, {
+    messageId: 'message-active-read-chat-1',
+    messageSeq: 31,
+    senderId: 'friend-user-active-read',
+  });
+  connections[0].emitUserMessage('current-user', 'active-read-chat-1', 'active read hello 2', 32, {
+    messageId: 'message-active-read-chat-2',
+    messageSeq: 32,
+    senderId: 'friend-user-active-read',
+  });
+  connections[0].emitUserMessage('current-user', 'active-read-chat-1', 'active read hello 3', 33, {
+    messageId: 'message-active-read-chat-3',
+    messageSeq: 33,
+    senderId: 'friend-user-active-read',
+  });
+  await flushRealtimeMicrotasks();
+  assert.equal(
+    messageHistoryListCalls,
+    messageHistoryCallsBeforeActiveRead,
+    'active realtime read cursor sync must use the event sequence and must not issue per-message listMessages lookups',
+  );
+  assert.deepEqual(
+    readCursorUpdates.filter((update) => update.conversationId === 'active-read-chat-1'),
+    [{ conversationId: 'active-read-chat-1', readSeq: 33 }],
+    'active realtime read cursor sync must coalesce burst messages into one max-sequence read update',
+  );
+  await flushChatListCoalesceWindow();
+  service.setReadFocusContext({
+    activeConversationId: undefined,
+    isWindowFocused: true,
+  });
   const openedAfterUserScopeMessages: string[] = [];
   const unsubscribeOpenedAfterUserScope = service.subscribeMessages('new-friend-chat-1', (message) => {
     openedAfterUserScopeMessages.push(message.content);
@@ -464,13 +673,14 @@ async function main(): Promise<void> {
     const unsubscribeChatListOnly = chatListOnlyService.subscribeChats(() => undefined);
     await Promise.resolve();
     await Promise.resolve();
+    const callbacksBeforeDrop = chatListReconnectCallbacks.length;
     chatListOnlyConnections[0].emitState({ status: 'closed', reason: 'chat list socket dropped' });
     assert.equal(
       chatListReconnectCallbacks.length,
-      1,
+      callbacksBeforeDrop + 1,
       'ChatService must schedule reconnect when only the conversation-list realtime subscription is active',
     );
-    chatListReconnectCallbacks[0]();
+    chatListReconnectCallbacks.at(-1)?.();
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(
@@ -821,7 +1031,7 @@ async function main(): Promise<void> {
     });
   }
 
-  const timelineClient = {
+  const messageHistoryClient = {
     conversations: {
       async getMessageInteractionSummary() {
         return { reactionCounts: [] };
@@ -836,11 +1046,11 @@ async function main(): Promise<void> {
                   {
                     kind: 'signal',
                     payload: JSON.stringify({
-                      conversationId: 'timeline-call-chat-1',
-                      initiatorId: 'timeline-caller',
-                      receiverId: 'timeline-callee',
+                      conversationId: 'message-history-call-chat-1',
+                      initiatorId: 'message-history-caller',
+                      receiverId: 'message-history-callee',
                       rtcMode: 'voice',
-                      rtcSessionId: 'timeline-rtc-session-1',
+                      rtcSessionId: 'message-history-rtc-session-1',
                       state: 'started',
                     }),
                     signalType: 'rtc.invite',
@@ -848,13 +1058,13 @@ async function main(): Promise<void> {
                 ],
                 summary: 'rtc.invite',
               },
-              conversationId: 'timeline-call-chat-1',
+              conversationId: 'message-history-call-chat-1',
               deliveryMode: 'discrete',
-              messageId: 'timeline-rtc-invite-message',
+              messageId: 'message-history-rtc-invite-message',
               messageSeq: 1,
               messageType: 'signal',
               occurredAt: '2026-06-08T10:00:01.000Z',
-              sender: { id: 'timeline-caller', kind: 'user', metadata: {} },
+              sender: { id: 'message-history-caller', kind: 'user', metadata: {} },
               summary: 'rtc.invite',
             },
             {
@@ -863,10 +1073,10 @@ async function main(): Promise<void> {
                   {
                     kind: 'signal',
                     payload: JSON.stringify({
-                      actorId: 'timeline-callee',
-                      conversationId: 'timeline-call-chat-1',
+                      actorId: 'message-history-callee',
+                      conversationId: 'message-history-call-chat-1',
                       rtcMode: 'voice',
-                      rtcSessionId: 'timeline-rtc-session-1',
+                      rtcSessionId: 'message-history-rtc-session-1',
                       state: 'rejected',
                     }),
                     signalType: 'rtc.reject',
@@ -874,13 +1084,13 @@ async function main(): Promise<void> {
                 ],
                 summary: 'rtc.reject',
               },
-              conversationId: 'timeline-call-chat-1',
+              conversationId: 'message-history-call-chat-1',
               deliveryMode: 'discrete',
-              messageId: 'timeline-rtc-reject-message',
+              messageId: 'message-history-rtc-reject-message',
               messageSeq: 2,
               messageType: 'signal',
               occurredAt: '2026-06-08T10:00:02.000Z',
-              sender: { id: 'timeline-callee', kind: 'user', metadata: {} },
+              sender: { id: 'message-history-callee', kind: 'user', metadata: {} },
               summary: 'rtc.reject',
             },
           ],
@@ -888,20 +1098,20 @@ async function main(): Promise<void> {
       },
     },
   } as unknown as ImSdkClient;
-  const timelineService = createRealtimeChatService(() => timelineClient);
-  const timelineMessages = await timelineService.getMessages('timeline-call-chat-1');
+  const messageHistoryService = createRealtimeChatService(() => messageHistoryClient);
+  const messageHistoryMessages = await messageHistoryService.getMessages('message-history-call-chat-1');
   assert.equal(
-    timelineMessages.length,
+    messageHistoryMessages.length,
     1,
-    'ChatService must collapse timeline RTC signaling entries into one call message after reload/offline catch-up',
+    'ChatService must collapse message history RTC signaling entries into one call message after reload/offline catch-up',
   );
-  assert.equal(timelineMessages[0]?.id, 'call:timeline-rtc-session-1');
-  assert.equal(timelineMessages[0]?.type, 'video_call');
-  assert.equal(timelineMessages[0]?.senderId, 'timeline-caller');
+  assert.equal(messageHistoryMessages[0]?.id, 'call:message-history-rtc-session-1');
+  assert.equal(messageHistoryMessages[0]?.type, 'video_call');
+  assert.equal(messageHistoryMessages[0]?.senderId, 'message-history-caller');
   assert.match(
-    timelineMessages[0]?.content ?? '',
-    /timeline-caller.*timeline-callee.*(拒绝|rejected)/u,
-    'The collapsed timeline call message must keep the latest rejected state',
+    messageHistoryMessages[0]?.content ?? '',
+    /message-history-caller.*message-history-callee.*(拒绝|rejected)/u,
+    'The collapsed message history call message must keep the latest rejected state',
   );
 
   const catchupTimeoutCallbacks: Array<() => void> = [];
@@ -1071,12 +1281,12 @@ async function main(): Promise<void> {
     assert.deepEqual(
       catchupMessages,
       ['live before disconnect', 'second missed while offline', 'third missed while offline'],
-      'ChatService must pull every missed timeline page after a recovered realtime connection',
+      'ChatService must pull every missed message history page after a recovered realtime connection',
     );
     assert.deepEqual(
       catchupListCalls.map((call) => call.afterSeq),
-      [0, 1, 2, 3],
-      'ChatService reconnect catch-up must advance from messageSeq checkpoints, not websocket realtime sequence ids',
+      [0, 2, 3],
+      'ChatService must not probe an empty page after initial hasMore=false and must reconnect catch-up from messageSeq checkpoints',
     );
     unsubscribeCatchupChat();
   } finally {
@@ -1412,6 +1622,57 @@ async function main(): Promise<void> {
       });
     }
   }
+
+  resetPcRealtimeConnectionManagerForTests();
+  const leaseOnlyConnections: FakeLiveConnection[] = [];
+  const leaseOnlyClient = {
+    async connect() {
+      const connection = new FakeLiveConnection();
+      leaseOnlyConnections.push(connection);
+      return connection;
+    },
+  } as unknown as ImSdkClient;
+  configurePcRealtimeConnectionManager({
+    getClient: () => leaseOnlyClient,
+    getDeviceId: () => 'lease-device-1',
+    getSession: () => authenticatedSession,
+  });
+  const releaseLeaseOnlyConversation = acquirePcLiveConnectionLease('lease-only-watch', {
+    conversationIds: ['lease-only-conversation-1'],
+  });
+  await flushRealtimeMicrotasks();
+  assert.equal(
+    leaseOnlyConnections[0].messageSubscribeCounts.get('lease-only-conversation-1'),
+    1,
+    'PC realtime manager must create one wire listener for a lease-only conversation',
+  );
+  assert.deepEqual(
+    leaseOnlyConnections[0].syncedConversationSnapshots.at(-1),
+    ['lease-only-conversation-1'],
+    'PC realtime manager must include lease-only conversations in subscription sync',
+  );
+  const unsubscribeLeaseOnlyScope = subscribePcRealtimeScope(
+    {
+      eventTypes: ['conversation.created'],
+      scopeId: 'current-user',
+      scopeType: 'user',
+    },
+    () => undefined,
+  );
+  await flushRealtimeMicrotasks();
+  assert.equal(
+    leaseOnlyConnections[0].messageSubscribeCounts.get('lease-only-conversation-1'),
+    1,
+    'PC realtime manager must not resubscribe lease-only conversations during later scope syncs',
+  );
+  assert.equal(
+    leaseOnlyConnections[0].messageUnsubscribeCounts.get('lease-only-conversation-1') ?? 0,
+    0,
+    'PC realtime manager must not drop lease-only conversation listeners while the lease is active',
+  );
+  unsubscribeLeaseOnlyScope();
+  releaseLeaseOnlyConversation();
+  resetPcRealtimeConnectionManagerForTests();
 
   console.log('sdkwork-im-pc live subscription session contract passed');
 }

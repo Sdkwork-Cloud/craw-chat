@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Alias("base-url")]
     [string]$BaseUrl,
     [Alias("tenant-id")]
@@ -60,7 +60,7 @@ function Resolve-BaseUrl {
         return $RequestedBaseUrl
     }
 
-    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) "configs\topology\self-hosted.split-services.development.env"
+    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) "configs\topology\standalone.development.env"
     $httpUrl = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"
     if (-not [string]::IsNullOrWhiteSpace($httpUrl)) {
         return $httpUrl.TrimEnd('/')

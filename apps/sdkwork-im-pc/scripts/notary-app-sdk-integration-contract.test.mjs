@@ -210,7 +210,7 @@ assert.match(
 assert.match(
   devRunnerSource,
   /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitNotaryAppApiUpstream[\s\S]*SDKWORK_IM_NOTARY_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-notary traffic through the shared gateway root while preserving explicit Notary split upstream overrides.',
+  'PC dev runner must default sdkwork-notary traffic through the shared gateway root while preserving explicit Notary external upstream overrides.',
 );
 
 assert.match(

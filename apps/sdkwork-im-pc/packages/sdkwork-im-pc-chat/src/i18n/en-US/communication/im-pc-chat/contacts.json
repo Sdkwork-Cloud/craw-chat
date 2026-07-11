@@ -1,0 +1,210 @@
+{
+  "contacts": {
+    "menu": {
+      "all": "All friends",
+      "new": "New friends",
+      "groups": "My groups",
+      "organization": "Organization",
+      "tags": "Tags"
+    },
+    "starred": {
+      "title": "Starred contacts",
+      "loading": "Loading...",
+      "emptyTitle": "Starred contacts",
+      "emptyDescription": "Select a starred contact on the left to view details",
+      "loadFailed": "Failed to load contacts"
+    },
+    "addFriend": {
+      "add": "Add",
+      "placeholder": "Email, Chat ID, or phone",
+      "searchAction": "Search",
+      "searchingAction": "Searching...",
+      "title": "Add Friend",
+      "notice": {
+        "noResults": "No contact found for {{query}}",
+        "searching": "Searching contacts..."
+      },
+      "toast": {
+        "requestFailed": "Friend request failed",
+        "requestSent": "Friend request sent to {{name}}",
+        "searchFailed": "Search failed",
+        "alreadyFriend": "This user is already your friend",
+        "requestPending": "Friend request is already pending",
+        "requestBlocked": "You cannot send a friend request to this user"
+      }
+    },
+    "tags": {
+      "title": "Tag management",
+      "description": "Organize contacts with tags for quick lookup",
+      "create": "New tag",
+      "rename": "Rename",
+      "contactCount": "{{count}} contacts",
+      "addMembers": "Add members",
+      "emptyMembers": "Contacts tagged \"{{name}}\" will appear here",
+      "prompt": {
+        "createName": "Enter a tag name:",
+        "renameName": "Enter a new tag name",
+        "addMemberIds": "Enter contact IDs separated by commas:"
+      },
+      "toast": {
+        "loadFailed": "Failed to load tags",
+        "createSucceeded": "Tag created",
+        "createFailed": "Failed to create tag",
+        "renameSucceeded": "Tag renamed",
+        "renameFailed": "Failed to rename tag",
+        "deleteSucceeded": "Tag deleted",
+        "deleteFailed": "Failed to delete tag",
+        "addMembersSucceeded": "Added {{count}} members to this tag",
+        "addMembersFailed": "Failed to add tag members"
+      }
+    },
+    "groups": {
+      "title": "My groups",
+      "description": "Manage all groups you have joined",
+      "promptName": "Enter a new group name:",
+      "startGroup": "Start group",
+      "loading": "Loading...",
+      "memberStats": "{{count}} members · {{activeCount}} active",
+      "toast": {
+        "loadFailed": "Failed to load groups",
+        "createSucceeded": "Group created",
+        "createFailed": "Failed to create group"
+      }
+    },
+    "newFriends": {
+      "title": "New friends",
+      "description": "Review and respond to friend requests",
+      "addFriend": "Add friend",
+      "loading": "Loading...",
+      "incomingDefaultMsg": "Sent you a friend request",
+      "outgoingDefaultMsg": "Waiting for verification",
+      "accept": "Accept",
+      "reject": "Reject",
+      "cancel": "Withdraw",
+      "statusAdded": "Added",
+      "statusCancelled": "Withdrawn",
+      "statusRejected": "Rejected",
+      "empty": "No new friend requests",
+      "toast": {
+        "loadFailed": "Failed to load friend requests",
+        "acceptSucceeded": "Friend request accepted",
+        "rejectSucceeded": "Friend request rejected",
+        "cancelSucceeded": "Friend request withdrawn",
+        "handleFailed": "Failed to handle friend request",
+        "cancelFailed": "Failed to withdraw friend request",
+        "incomingSingle": "New friend request received",
+        "incomingMultiple": "{{count}} new friend requests received"
+      }
+    },
+    "allContacts": {
+      "title": "All contacts",
+      "count": "{{count}} contacts",
+      "addContact": "Add contact",
+      "loading": "Loading...",
+      "loadingMore": "Loading more contacts...",
+      "groupLabel": "All contacts",
+      "scrollTop": "Top",
+      "toast": {
+        "loadFailed": "Failed to load contacts"
+      }
+    },
+    "detail": {
+      "addToBlacklist": "Add to blacklist",
+      "removeFromBlacklist": "Remove from blacklist",
+      "basicInfo": "Basic Info",
+      "chatId": "Chat ID",
+      "company": "Company",
+      "copyChatId": "Copy Chat ID",
+      "delete": "Delete",
+      "department": "Department",
+      "email": "Email",
+      "location": "Location",
+      "message": "Message",
+      "more": "More",
+      "phone": "Phone",
+      "recommend": "Recommend",
+      "setRemark": "Set remark",
+      "signature": "Signature",
+      "starContact": "Star contact",
+      "unknownPosition": "Unknown position",
+      "unstarContact": "Unstar contact",
+      "videoCall": "Video call",
+      "voiceCall": "Voice call",
+      "toast": {
+        "blacklisted": "Added to blacklist",
+        "blacklistFailed": "Blacklist update failed",
+        "unblacklisted": "Removed from blacklist",
+        "unblacklistFailed": "Failed to remove from blacklist",
+        "chatIdCopied": "Chat ID copied",
+        "chatIdNotReady": "Chat ID is not ready. Please try again.",
+        "deleted": "Contact deleted",
+        "deleteFailed": "Delete contact failed",
+        "mailSelected": "Mail app selected",
+        "messagingUnavailable": "Messaging is unavailable",
+        "recommendationFailed": "Recommendation failed",
+        "recommendationSent": "Recommendation sent",
+        "remarkUpdated": "Remark updated",
+        "remarkUpdateFailed": "Remark update failed",
+        "starred": "Contact starred",
+        "unstarred": "Contact unstarred",
+        "updateFailed": "Contact update failed",
+        "videoUnavailable": "Video calling is unavailable",
+        "voiceUnavailable": "Voice calling is unavailable"
+      }
+    },
+    "emptyDetail": "Select a contact to view details",
+    "unknownContent": "No content selected",
+    "missingView": "No view is available for this module",
+    "organizationDirectory": {
+      "treeTitle": "Organization",
+      "searchPlaceholder": "Search organizations, departments, members",
+      "loading": "Loading...",
+      "emptyTree": "No organization data",
+      "membersTitle": "Members",
+      "emptyMembers": "No members",
+      "loadingMembers": "Loading members...",
+      "addMember": "Add member",
+      "inviteMember": "Invite member",
+      "close": "Close",
+      "add": "Add",
+      "invite": "Invite",
+      "selectDepartment": "Select department",
+      "assignmentType": "Assignment type",
+      "userIdPlaceholder": "User ID",
+      "displayNamePlaceholder": "Name",
+      "emailPlaceholder": "Email",
+      "positionIdPlaceholder": "Position ID",
+      "roleCodesPlaceholder": "Role codes",
+      "submitting": "Submitting",
+      "submit": "Submit",
+      "managementUnavailable": "Organization member management is not connected",
+      "unknownOrganization": "Unknown organization",
+      "sendMessage": "Send message",
+      "positionCount": "{{count}} positions",
+      "assignment": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "acting": "Acting"
+      },
+      "boundary": {
+        "operatingSubject": "Independent entity",
+        "organizationIsolated": "Organization data domain",
+        "regulatedIsolated": "Regulated data domain",
+        "appBoundary": "App boundary"
+      },
+      "toast": {
+        "loadTreeFailed": "Failed to load organization directory",
+        "loadMembersFailed": "Failed to load department members",
+        "selectOrganization": "Select an organization",
+        "managementUnavailable": "Organization member management is not connected",
+        "noManagePermission": "No permission to manage organization members",
+        "inviteUnavailable": "Organization member invitation is not connected",
+        "selectDepartment": "Select a department",
+        "enterUserId": "Enter a user ID",
+        "memberSubmitted": "Member management submitted",
+        "memberSubmitFailed": "Member management submission failed",
+        "chatUnavailable": "Chat is not connected, so a conversation cannot be started"
+      }
+    }
+  }
+}

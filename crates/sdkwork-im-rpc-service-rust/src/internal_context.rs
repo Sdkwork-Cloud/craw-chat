@@ -19,12 +19,11 @@ pub struct InternalOrchestrationContext {
 pub fn resolve_internal_orchestration_context(
     metadata: &RpcMetadata,
 ) -> Result<InternalOrchestrationContext, ImRpcError> {
-    let service_identity = resolve_service_identity(metadata)?
-        .ok_or_else(|| {
-            ImRpcError::unauthenticated(
-                "internal RPC requires x-sdkwork-service metadata or Service authorization",
-            )
-        })?;
+    let service_identity = resolve_service_identity(metadata)?.ok_or_else(|| {
+        ImRpcError::unauthenticated(
+            "internal RPC requires x-sdkwork-service metadata or Service authorization",
+        )
+    })?;
     let headers = orchestration_headers_from_rpc_metadata(metadata);
     let app_context = resolve_orchestration_app_context_from_projection_headers(&headers)
         .map_err(map_app_context_error)?;
@@ -97,34 +96,26 @@ mod tests {
                 ["*"],
             ),
         };
-        assert!(assert_body_scope_matches_authoritative_context(
-            &authoritative,
-            "100001",
-            "org_a",
-        )
-        .is_ok());
-        assert!(assert_body_scope_matches_authoritative_context(
-            &authoritative,
-            "100002",
-            "org_a",
-        )
-        .is_err());
+        assert!(
+            assert_body_scope_matches_authoritative_context(&authoritative, "100001", "org_a",)
+                .is_ok()
+        );
+        assert!(
+            assert_body_scope_matches_authoritative_context(&authoritative, "100002", "org_a",)
+                .is_err()
+        );
     }
 
     #[test]
     fn orchestration_context_resolves_from_projection_headers() {
-        let headers = build_signed_orchestration_projection_headers(
-            "100001",
-            "org_a",
-            "1040",
-            "user",
-        )
-        .expect("orchestration headers should build in test env");
+        let headers =
+            build_signed_orchestration_projection_headers("100001", "org_a", "1040", "user")
+                .expect("orchestration headers should build in test env");
         let metadata = RpcMetadata::from_orchestration_http_headers(
             &headers,
             Some("sdkwork-game-runtime".into()),
             Some("idem-1".into()),
-            Some("req-1".into()),
+            Some("trace-1".into()),
         );
         let resolved = resolve_internal_orchestration_context(&metadata)
             .expect("orchestration context should resolve");

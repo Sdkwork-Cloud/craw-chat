@@ -90,7 +90,7 @@ assert.match(
 assert.match(
   devRunnerSource,
   /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitMailAppApiUpstream[\s\S]*SDKWORK_IM_MAIL_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-mail traffic through the shared gateway root while preserving explicit Mail split upstream overrides.',
+  'PC dev runner must default sdkwork-mail traffic through the shared gateway root while preserving explicit Mail external upstream overrides.',
 );
 
 assert.match(
@@ -130,16 +130,16 @@ assert.equal(
   'sdkwork-mail app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const splitOverrideEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.splitOverrideEnvKeys?.['sdkwork-mail-app-api'];
+const explicitExternalUpstreamEnvKeys =
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.['sdkwork-mail-app-api'];
 assert.deepEqual(
-  splitOverrideEnvKeys,
+  explicitExternalUpstreamEnvKeys,
   [
     'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
     'SDKWORK_MAIL_APP_API_UPSTREAM',
     'SDKWORK_MAIL_APP_API_BASE_URL',
   ],
-  'component.spec.json must document mail split upstream override env keys.',
+  'component.spec.json must document mail explicit external upstream env keys.',
 );
 
 function extractCommercialRuntimeModuleIds(source) {
@@ -206,8 +206,8 @@ assert.match(
 );
 
 assert.ok(
-  tsconfig.compilerOptions?.paths?.['sdkwork-mail-app-sdk-generated-typescript'],
-  'tsconfig must map sdkwork-mail-app-sdk-generated-typescript for PC mail integration.',
+  tsconfig.compilerOptions?.paths?.['@sdkwork/mail-app-sdk'],
+  'tsconfig must map @sdkwork/mail-app-sdk for PC mail integration.',
 );
 
 console.log('mail app SDK integration contract checks passed');

@@ -11,7 +11,7 @@ use sdkwork_im_runtime_link::{
     OutboundQueuePolicy, ResumeWindow, link_idle_timeout_goaway, session_disconnect_goaway,
 };
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use crate::ApiError;
@@ -53,7 +53,6 @@ fn resolve_idle_timeout() -> Duration {
 struct StreamClientFrameEnvelope {
     #[serde(rename = "type")]
     frame_type: String,
-    request_id: Option<String>,
     #[serde(default)]
     items: Vec<RealtimeSubscriptionItemInput>,
     after_seq: Option<u64>,
@@ -588,7 +587,6 @@ where
         "cc.realtime.event.window.v1",
         json!({
             "type": "event.window",
-            "requestId": Value::Null,
             "reason": reason,
             "window": window
         }),
@@ -747,8 +745,7 @@ where
             false
         }
         Err(FramedPushDrainError::Runtime(error)) => {
-            let _ =
-                send_framed_runtime_error(writer, context.ccp, context.route, None, &error).await;
+            let _ = send_framed_runtime_error(writer, context.ccp, context.route, &error).await;
             false
         }
         Err(FramedPushDrainError::Fence) => false,
@@ -758,7 +755,6 @@ where
                 writer,
                 context.ccp,
                 context.route,
-                None,
                 &RealtimeRuntimeError {
                     code: "push_drain_blocking_join_failed",
                     message,
@@ -787,7 +783,6 @@ async fn send_framed_runtime_error<W>(
     writer: &mut W,
     ccp: &FramedStreamCcpCodec,
     route: &CcpRoute,
-    request_id: Option<String>,
     error: &RealtimeRuntimeError,
 ) -> Result<(), String>
 where
@@ -799,7 +794,6 @@ where
         "cc.realtime.error.v1",
         json!({
             "type": "error",
-            "requestId": request_id,
             "code": error.code,
             "message": error.message
         }),
@@ -811,7 +805,6 @@ async fn send_framed_business_error<W>(
     writer: &mut W,
     ccp: &FramedStreamCcpCodec,
     route: &CcpRoute,
-    request_id: Option<String>,
     code: &str,
     message: impl Into<String>,
 ) -> Result<(), String>
@@ -824,7 +817,6 @@ where
         "cc.realtime.error.v1",
         json!({
             "type": "error",
-            "requestId": request_id,
             "code": code,
             "message": message.into()
         }),
@@ -855,7 +847,6 @@ where
             writer,
             context.ccp,
             context.route,
-            None,
             "frame_type_unsupported",
             format!("unexpected post-auth control frame: {}", envelope.kind),
         )
@@ -870,7 +861,6 @@ where
                 writer,
                 context.ccp,
                 context.route,
-                None,
                 "invalid_frame",
                 "frame must be valid json",
             )
@@ -883,14 +873,12 @@ where
         envelope,
         &LinkClientBusinessFrame {
             frame_type: frame.frame_type.clone(),
-            request_id: frame.request_id.clone(),
         },
     ) {
         let _ = send_framed_business_error(
             writer,
             context.ccp,
             context.route,
-            frame.request_id.clone(),
             "invalid_frame",
             message,
         )
@@ -944,7 +932,6 @@ where
                             "cc.realtime.subscriptions.synced.v1",
                             json!({
                                 "type": "subscriptions.synced",
-                                "requestId": frame.request_id,
                                 "snapshot": snapshot
                             }),
                         )
@@ -952,14 +939,8 @@ where
                     write_framed_bytes(writer, bytes.as_slice()).await.is_ok()
                 }
                 Ok(Err(error)) => {
-                    let _ = send_framed_runtime_error(
-                        writer,
-                        context.ccp,
-                        context.route,
-                        frame.request_id,
-                        &error,
-                    )
-                    .await;
+                    let _ =
+                        send_framed_runtime_error(writer, context.ccp, context.route, &error).await;
                     true
                 }
                 Err(join_error) => {
@@ -967,7 +948,6 @@ where
                         writer,
                         context.ccp,
                         context.route,
-                        frame.request_id,
                         &RealtimeRuntimeError {
                             code: "subscriptions_blocking_join_failed",
                             message: join_error.to_string(),
@@ -1021,14 +1001,8 @@ where
                     true
                 }
                 Ok(Err(error)) => {
-                    let _ = send_framed_runtime_error(
-                        writer,
-                        context.ccp,
-                        context.route,
-                        frame.request_id,
-                        &error,
-                    )
-                    .await;
+                    let _ =
+                        send_framed_runtime_error(writer, context.ccp, context.route, &error).await;
                     true
                 }
                 Err(join_error) => {
@@ -1036,7 +1010,6 @@ where
                         writer,
                         context.ccp,
                         context.route,
-                        frame.request_id,
                         &RealtimeRuntimeError {
                             code: "events_pull_blocking_join_failed",
                             message: join_error.to_string(),
@@ -1078,7 +1051,6 @@ where
                                     "cc.realtime.events.acked.v1",
                                     json!({
                                         "type": "events.acked",
-                                        "requestId": frame.request_id,
                                         "ack": ack
                                     }),
                                 )
@@ -1090,7 +1062,6 @@ where
                                 writer,
                                 context.ccp,
                                 context.route,
-                                frame.request_id,
                                 &error,
                             )
                             .await;
@@ -1101,7 +1072,6 @@ where
                                 writer,
                                 context.ccp,
                                 context.route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "events_ack_blocking_join_failed",
                                     message: join_error.to_string(),
@@ -1117,7 +1087,6 @@ where
                         writer,
                         context.ccp,
                         context.route,
-                        frame.request_id,
                         "invalid_frame",
                         "events.ack requires ackedSeq",
                     )
@@ -1131,7 +1100,6 @@ where
                 writer,
                 context.ccp,
                 context.route,
-                frame.request_id,
                 "frame_type_unsupported",
                 format!("unsupported frame type: {}", frame.frame_type),
             )

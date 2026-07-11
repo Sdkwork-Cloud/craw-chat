@@ -1,8 +1,8 @@
-#!/bin/bash
-# 文件: scripts/verify-deployment.sh
-# 描述: SDKWork IM 部署后功能验证脚本，覆盖健康检查、依赖连通性、API 与 WebSocket 可用性
-# 用法: ./scripts/verify-deployment.sh [--gateway-url http://localhost:18079] [--ws-url ws://localhost:18080]
-# 创建日期: 2026-07-03
+﻿#!/bin/bash
+# 鏂囦欢: scripts/verify-deployment.sh
+# 鎻忚堪: SDKWork IM 閮ㄧ讲鍚庡姛鑳介獙璇佽剼鏈紝瑕嗙洊鍋ュ悍妫€鏌ャ€佷緷璧栬繛閫氭€с€丄PI 涓?WebSocket 鍙敤鎬?
+# 鐢ㄦ硶: ./scripts/verify-deployment.sh [--gateway-url http://localhost:18079] [--ws-url ws://localhost:18079]
+# 鍒涘缓鏃ユ湡: 2026-07-03
 
 set -e
 
@@ -16,11 +16,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 GATEWAY_URL="http://localhost:18079"
-WS_URL="ws://localhost:18080"
+WS_URL="ws://localhost:18079"
 DATABASE_URL="${SDKWORK_IM_DATABASE_URL:-}"
 REDIS_NODES="${SDKWORK_IM_REDIS_CLUSTER_NODES:-${SDKWORK_IM_REDIS_URL:-}}"
 
-# 解析参数
+# 瑙ｆ瀽鍙傛暟
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --gateway-url) GATEWAY_URL="$2"; shift 2 ;;
@@ -39,14 +39,14 @@ ERRORS=0
 PASSED=0
 
 print_header() {
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣${NC}"
     echo -e "${BLUE}  $1${NC}"
-    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣${NC}"
 }
 
-check_pass() { echo -e "${GREEN}✅ PASS${NC}: $1"; PASSED=$((PASSED + 1)); }
-check_fail() { echo -e "${RED}❌ FAIL${NC}: $1"; echo -e "${RED}         $2${NC}"; ERRORS=$((ERRORS + 1)); }
-check_warn() { echo -e "${YELLOW}⚠️  WARN${NC}: $1"; echo -e "${YELLOW}         $2${NC}"; }
+check_pass() { echo -e "${GREEN}鉁?PASS${NC}: $1"; PASSED=$((PASSED + 1)); }
+check_fail() { echo -e "${RED}鉂?FAIL${NC}: $1"; echo -e "${RED}         $2${NC}"; ERRORS=$((ERRORS + 1)); }
+check_warn() { echo -e "${YELLOW}鈿狅笍  WARN${NC}: $1"; echo -e "${YELLOW}         $2${NC}"; }
 
 echo -e "${BLUE}=== SDKWork IM Deployment Verification ===${NC}"
 echo "Gateway URL: $GATEWAY_URL"
@@ -55,7 +55,7 @@ echo "Timestamp: $(date)"
 echo ""
 
 # ============================================================================
-# 1. 健康检查端点
+# 1. 鍋ュ悍妫€鏌ョ鐐?
 # ============================================================================
 print_header "1. Health Endpoint Checks"
 
@@ -72,7 +72,7 @@ else
 fi
 
 # ============================================================================
-# 2. 数据库连通性
+# 2. 鏁版嵁搴撹繛閫氭€?
 # ============================================================================
 print_header "2. Database Connectivity"
 
@@ -93,7 +93,7 @@ else
 fi
 
 # ============================================================================
-# 3. Redis 连通性
+# 3. Redis 杩為€氭€?
 # ============================================================================
 print_header "3. Redis Connectivity"
 
@@ -123,7 +123,7 @@ else
 fi
 
 # ============================================================================
-# 4. WebSocket 可达性
+# 4. WebSocket 鍙揪鎬?
 # ============================================================================
 print_header "4. WebSocket Reachability"
 
@@ -134,7 +134,7 @@ if command -v wscat >/dev/null 2>&1; then
         check_warn "WebSocket handshake timed out or rejected" "Auth may be required; verify ingress and port"
     fi
 else
-    # 回退到 HTTP Upgrade 探测
+    # 鍥為€€鍒?HTTP Upgrade 鎺㈡祴
     if curl -sf -o /dev/null -w "%{http_code}" \
         -H "Connection: Upgrade" -H "Upgrade: websocket" \
         -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
@@ -146,7 +146,7 @@ else
 fi
 
 # ============================================================================
-# 5. API 烟雾测试
+# 5. API 鐑熼浘娴嬭瘯
 # ============================================================================
 print_header "5. API Smoke Test"
 
@@ -168,9 +168,9 @@ echo -e "${RED}Errors:${NC} $ERRORS"
 echo ""
 
 if [ "$ERRORS" -gt 0 ]; then
-    echo -e "${RED}❌ Deployment verification failed with $ERRORS error(s)${NC}"
+    echo -e "${RED}鉂?Deployment verification failed with $ERRORS error(s)${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ All deployment checks passed${NC}"
+echo -e "${GREEN}鉁?All deployment checks passed${NC}"
 exit 0

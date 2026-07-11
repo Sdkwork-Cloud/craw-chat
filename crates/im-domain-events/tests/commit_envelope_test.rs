@@ -23,7 +23,7 @@ fn test_commit_envelope_normalizes_organization_id() {
         )
         .with_organization_id("")
         .normalized_organization_id(),
-        "default"
+        "0"
     );
 }
 

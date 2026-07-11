@@ -177,7 +177,7 @@ assert.match(
 assert.match(
   devRunnerSource,
   /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitKnowledgebaseAppApiUpstream[\s\S]*SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-knowledgebase traffic through the shared gateway root while preserving explicit Knowledgebase split upstream overrides.',
+  'PC dev runner must default sdkwork-knowledgebase traffic through the shared gateway root while preserving explicit Knowledgebase external upstream overrides.',
 );
 
 assert.match(
@@ -220,27 +220,29 @@ assert.equal(
   'sdkwork-knowledgebase app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const splitOverrideEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.splitOverrideEnvKeys?.['sdkwork-knowledgebase-app-api'];
+const explicitExternalUpstreamEnvKeys =
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.[
+    'sdkwork-knowledgebase-app-api'
+  ];
 assert.deepEqual(
-  splitOverrideEnvKeys,
+  explicitExternalUpstreamEnvKeys,
   [
     'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
     'SDKWORK_KNOWLEDGEBASE_APP_API_UPSTREAM',
     'SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL',
   ],
-  'component.spec.json must document knowledgebase split upstream override env keys.',
+  'component.spec.json must document knowledgebase explicit external upstream env keys.',
 );
 
 assert.ok(
-  componentSpec.integration?.foundationApiGateway?.standaloneUnifiedEmbeddedAuthorities?.includes(
+  componentSpec.integration?.foundationApiGateway?.standaloneEmbeddedAuthorities?.includes(
     'sdkwork-knowledgebase-app-api',
   ),
-  'component.spec.json must embed sdkwork-knowledgebase-app-api in standalone unified-process mode.',
+  'component.spec.json must embed sdkwork-knowledgebase-app-api in standalone single-ingress mode.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.standaloneUnifiedDeferredAuthorities?.includes(
+  componentSpec.integration?.foundationApiGateway?.standaloneDeferredAuthorities?.includes(
     'sdkwork-knowledgebase-app-api',
   ),
   false,
@@ -256,7 +258,7 @@ const embeddedRoutesSource = readRepoText(
 assert.match(
   embeddedRoutesSource,
   /bootstrap_embedded_knowledgebase_routes[\s\S]*sdkwork_knowledgebase_gateway_assembly::assemble_application_business_router/u,
-  'IM standalone gateway must embed sdkwork-knowledgebase routes in unified-process mode.',
+  'IM standalone gateway must embed sdkwork-knowledgebase routes in standalone single-ingress mode.',
 );
 
 assert.match(

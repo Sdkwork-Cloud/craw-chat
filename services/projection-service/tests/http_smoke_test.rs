@@ -267,7 +267,8 @@ fn message_pinned_event(
 }
 
 #[tokio::test]
-async fn test_timeline_query_returns_projected_messages() {
+async fn test_projection_service_does_not_own_public_message_history_route_and_still_projects_summary()
+ {
     let service = projection_service::TimelineProjectionService::default();
     service
         .apply(
@@ -332,7 +333,7 @@ async fn test_timeline_query_returns_projected_messages() {
 
     let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
 
-    let response = app
+    let message_history_response = app
         .clone()
         .oneshot(
             Request::builder()
@@ -344,21 +345,13 @@ async fn test_timeline_query_returns_projected_messages() {
                 .unwrap(),
         )
         .await
-        .expect("timeline request should succeed");
+        .expect("message history route request should return response");
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("body should collect")
-        .to_bytes();
-    let value: serde_json::Value =
-        serde_json::from_slice(&body).expect("response should be valid json");
-
-    assert_eq!(value["code"], 0);
-    assert_eq!(value["data"]["items"][0]["messageId"], "m_demo");
-    assert_eq!(value["data"]["items"][0]["summary"], "hello");
+    assert_eq!(
+        message_history_response.status(),
+        StatusCode::NOT_FOUND,
+        "projection-service must not register public conversations.messages.list; conversation-service owns message history"
+    );
 
     let summary_response = app
         .clone()
@@ -389,10 +382,10 @@ async fn test_timeline_query_returns_projected_messages() {
     assert_eq!(summary_value["data"]["lastMessageId"], "m_demo");
     assert_eq!(summary_value["data"]["lastSender"]["id"], "1");
 
-    let forbidden_timeline_response = app
+    let summary_forbidden_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_demo/messages")
+                .uri("/im/v3/api/chat/conversations/c_demo")
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1030")
                 .with_dual_token_actor_kind("user")
@@ -400,8 +393,8 @@ async fn test_timeline_query_returns_projected_messages() {
                 .unwrap(),
         )
         .await
-        .expect("forbidden timeline request should succeed");
-    assert_eq!(forbidden_timeline_response.status(), StatusCode::FORBIDDEN);
+        .expect("forbidden summary request should succeed");
+    assert_eq!(summary_forbidden_response.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -450,16 +443,15 @@ async fn test_message_visibility_delete_returns_no_content_and_hides_message() {
         ))
         .expect("timeline projection should succeed");
 
-    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
+    let service = std::sync::Arc::new(service);
+    let app = projection_service::build_integration_test_app(service.clone());
 
     let delete_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri(format!(
-                    "/im/v3/api/chat/messages/{message_id}/visibility"
-                ))
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/visibility"))
                 .with_dual_token_context("100001", "1", "user", None, ["*"])
                 .body(Body::empty())
                 .unwrap(),
@@ -479,334 +471,15 @@ async fn test_message_visibility_delete_returns_no_content_and_hides_message() {
         "204 visibility delete response must not serialize a JSON body"
     );
 
-    let timeline_response = app
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/im/v3/api/chat/conversations/{conversation_id}/messages?afterSeq=0&page_size=20"
-                ))
-                .with_dual_token_context("100001", "1", "user", None, ["*"])
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("timeline query should return response");
-
-    assert_eq!(timeline_response.status(), StatusCode::OK);
-    let timeline_body = timeline_response
-        .into_body()
-        .collect()
-        .await
-        .expect("timeline body should collect")
-        .to_bytes();
-    let timeline_value: serde_json::Value =
-        serde_json::from_slice(&timeline_body).expect("timeline body should be valid json");
-    assert_eq!(timeline_value["code"], 0);
-    assert_eq!(
-        timeline_value["data"]["items"]
-            .as_array()
-            .expect("timeline items should be an array")
-            .len(),
-        0
-    );
-}
-
-#[tokio::test]
-async fn test_timeline_http_returns_bounded_cursor_window() {
-    let service = projection_service::TimelineProjectionService::default();
-
-    service
-        .apply(
-            &im_domain_events::CommitEnvelope::minimal(
-                "evt_member",
-                "100001",
-                "conversation.member_joined",
-                "conversation",
-                "c_timeline_page",
-                1,
-            )
-            .with_payload(
-                "conversation.member.v1",
-                r#"{
-                    "tenantId":"100001",
-                    "conversationId":"c_timeline_page",
-                    "memberId":"cm_demo",
-                    "principalId":"1",
-                    "principalKind":"user",
-                    "role":"owner",
-                    "state":"joined",
-                    "invitedBy":null,
-                    "joinedAt":"2026-04-05T10:00:00Z",
-                    "removedAt":null,
-                    "attributes":{}
-                }"#,
-            ),
-        )
-        .expect("member projection should succeed");
-    for seq in 1..=3 {
-        service
-            .apply(&timeline_message_posted_event(
-                "100001",
-                "c_timeline_page",
-                &format!("m_page_{seq}"),
-                seq,
-                "1",
-                "cm_demo",
-                &format!("message {seq}"),
-            ))
-            .expect("message projection should succeed");
-    }
-
-    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
-
-    let first_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(
-                    "/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&page_size=2",
-                )
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("first timeline request should succeed");
-    assert_eq!(first_response.status(), StatusCode::OK);
-    let first_body = first_response
-        .into_body()
-        .collect()
-        .await
-        .expect("first body should collect")
-        .to_bytes();
-    let first_value: serde_json::Value =
-        serde_json::from_slice(&first_body).expect("first page should be valid json");
-    assert_eq!(first_value["code"], 0);
-    assert_eq!(first_value["data"]["items"].as_array().unwrap().len(), 2);
-    assert_eq!(first_value["data"]["items"][0]["messageSeq"], 1);
-    assert_eq!(first_value["data"]["items"][1]["messageSeq"], 2);
-    assert_eq!(first_value["data"]["pageInfo"]["nextCursor"], "2");
-    assert_eq!(first_value["data"]["pageInfo"]["hasMore"], true);
-
-    let second_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri(
-                    "/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=2&page_size=2",
-                )
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("second timeline request should succeed");
-    assert_eq!(second_response.status(), StatusCode::OK);
-    let second_body = second_response
-        .into_body()
-        .collect()
-        .await
-        .expect("second body should collect")
-        .to_bytes();
-    let second_value: serde_json::Value =
-        serde_json::from_slice(&second_body).expect("second page should be valid json");
-    assert_eq!(second_value["code"], 0);
-    assert_eq!(second_value["data"]["items"].as_array().unwrap().len(), 1);
-    assert_eq!(second_value["data"]["items"][0]["messageSeq"], 3);
-    assert_eq!(second_value["data"]["pageInfo"]["nextCursor"], "3");
-    assert_eq!(second_value["data"]["pageInfo"]["hasMore"], false);
-
-    let invalid_page_size_response = app
-        .oneshot(
-            Request::builder()
-                .uri(
-                    "/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&page_size=0",
-                )
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("invalid page_size request should complete");
-    assert_eq!(invalid_page_size_response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(
-        invalid_page_size_response
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok()),
-        Some("application/problem+json")
-    );
-    let invalid_body = invalid_page_size_response
-        .into_body()
-        .collect()
-        .await
-        .expect("invalid body should collect")
-        .to_bytes();
-    let invalid_value: serde_json::Value =
-        serde_json::from_slice(&invalid_body).expect("invalid response should be valid json");
-    assert_eq!(
-        invalid_value["type"],
-        "https://docs.sdkwork.com/problems/40003",
-    );
-    assert_eq!(invalid_value["title"], "Invalid parameter");
-    assert_eq!(invalid_value["status"], 400);
+    let visibility = service
+        .message_visibility_for_principal("100001", "default", "user", "1", message_id)
+        .expect("visibility delete should record principal-scoped state");
+    assert_eq!(visibility.message_id, message_id);
+    assert_eq!(visibility.conversation_id.as_str(), conversation_id);
     assert!(
-        invalid_value["detail"]
-            .as_str()
-            .expect("detail should be present")
-            .contains("pagination")
+        visibility.is_deleted,
+        "visibility delete should hide the message for the current principal"
     );
-    assert_eq!(invalid_value["code"].as_i64(), Some(40003));
-}
-
-#[tokio::test]
-async fn test_timeline_query_rejects_invalid_after_seq_with_problem_detail() {
-    let app = projection_service::build_integration_test_app(std::sync::Arc::new(
-        projection_service::TimelineProjectionService::default(),
-    ));
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=not-a-number")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("invalid afterSeq request should complete");
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(
-        response
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok()),
-        Some("application/problem+json")
-    );
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("invalid afterSeq body should collect")
-        .to_bytes();
-    let value: serde_json::Value =
-        serde_json::from_slice(&body).expect("invalid afterSeq response should be valid json");
-    assert_eq!(value["code"].as_i64(), Some(40001));
-    assert_eq!(value["status"], 400);
-}
-
-#[tokio::test]
-async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http() {
-    let service = projection_service::TimelineProjectionService::default();
-    service
-        .apply(
-            &im_domain_events::CommitEnvelope::minimal(
-                "evt_actor_kind_member",
-                "100001",
-                "conversation.member_joined",
-                "conversation",
-                "c_actor_kind_guard",
-                0,
-            )
-            .with_payload(
-                "conversation.member.v1",
-                r#"{
-                    "tenantId":"100001",
-                    "conversationId":"c_actor_kind_guard",
-                    "memberId":"cm_actor_kind_guard_demo",
-                    "principalId":"1",
-                    "principalKind":"user",
-                    "role":"owner",
-                    "state":"joined",
-                    "invitedBy":null,
-                    "joinedAt":"2026-04-13T10:00:00Z",
-                    "removedAt":null,
-                    "attributes":{}
-                }"#,
-            ),
-        )
-        .expect("member projection should succeed");
-    service
-        .apply(
-            &im_domain_events::CommitEnvelope::minimal(
-                "evt_actor_kind_message",
-                "100001",
-                "message.posted",
-                "conversation",
-                "c_actor_kind_guard",
-                1,
-            )
-            .with_payload(
-                "message.posted.v1",
-                r#"{
-                    "tenantId":"100001",
-                    "conversationId":"c_actor_kind_guard",
-                    "messageId":"msg_actor_kind_guard_1",
-                    "messageSeq":1,
-                    "sender":{"id":"1","kind":"user","memberId":"cm_actor_kind_guard_demo","deviceId":"d_demo","sessionId":"s_demo","metadata":{}},
-                    "messageType":"standard",
-                    "deliveryMode":"discrete",
-                    "clientMsgId":"client_actor_kind_guard_1",
-                    "streamSessionId":null,
-                    "rtcSessionId":null,
-                    "body":{"summary":"guarded","parts":[{"kind":"text","text":"guarded"}],"renderHints":{}},
-                    "attributes":{},
-                    "metadata":{},
-                    "occurredAt":"2026-04-13T10:00:01Z",
-                    "committedAt":"2026-04-13T10:00:01Z"
-                }"#,
-            ),
-        )
-        .expect("message projection should succeed");
-
-    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_actor_kind_guard/messages")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("system")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("actor-kind mismatch timeline request should return response");
-
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
-    assert_eq!(
-        response
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|header| header.to_str().ok()),
-        Some("application/problem+json")
-    );
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("response body should collect")
-        .to_bytes();
-    let value: serde_json::Value =
-        serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["type"], "https://docs.sdkwork.com/problems/40301");
-    assert_eq!(value["title"], "Permission required");
-    assert_eq!(value["status"], 403);
-    assert!(
-        !value["detail"]
-            .as_str()
-            .expect("detail should be present")
-            .is_empty()
-    );
-    assert_eq!(value["code"].as_i64(), Some(40301));
 }
 
 #[tokio::test]
@@ -1038,6 +711,19 @@ async fn test_inbox_query_returns_projected_entries() {
             ),
         )
         .expect("message projection should succeed");
+    service.update_conversation_preferences(
+        "100001",
+        "0",
+        "c_inbox",
+        "user",
+        "1",
+        projection_service::UpdateConversationPreferencesRequest {
+            is_pinned: Some(true),
+            is_muted: Some(true),
+            is_marked_unread: Some(true),
+            is_hidden: Some(false),
+        },
+    );
 
     let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
     let response = app
@@ -1067,6 +753,13 @@ async fn test_inbox_query_returns_projected_entries() {
     assert_eq!(value["data"]["items"][0]["conversationId"], "c_inbox");
     assert_eq!(value["data"]["items"][0]["conversationType"], "group");
     assert_eq!(value["data"]["items"][0]["messageCount"], 2);
+    assert_eq!(value["data"]["items"][0]["preferences"]["isPinned"], true);
+    assert_eq!(value["data"]["items"][0]["preferences"]["isMuted"], true);
+    assert_eq!(
+        value["data"]["items"][0]["preferences"]["isMarkedUnread"],
+        true
+    );
+    assert_eq!(value["data"]["items"][0]["preferences"]["isHidden"], false);
 }
 
 #[tokio::test]
@@ -1308,7 +1001,7 @@ async fn test_inbox_query_rejects_page_and_cursor_combination() {
 }
 
 #[tokio::test]
-async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
+async fn test_read_cursor_query_rejects_oversized_conversation_id_over_http() {
     let app = projection_service::build_integration_test_app(std::sync::Arc::new(
         projection_service::TimelineProjectionService::default(),
     ));
@@ -1317,7 +1010,7 @@ async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/im/v3/api/chat/conversations/{}/messages",
+                    "/im/v3/api/chat/conversations/{}/read_cursor",
                     "c".repeat(2048)
                 ))
                 .with_dual_token_tenant("100001")
@@ -1327,7 +1020,7 @@ async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
                 .unwrap(),
         )
         .await
-        .expect("oversized timeline query should return response");
+        .expect("oversized read cursor query should return response");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
     let body = response
@@ -2073,6 +1766,391 @@ async fn test_conversation_profile_and_preferences_support_get_and_patch() {
     assert_eq!(patch_preferences_value["code"], 0);
     assert_eq!(patch_preferences_value["data"]["item"]["isPinned"], true);
     assert_eq!(patch_preferences_value["data"]["item"]["isHidden"], false);
+}
+
+#[tokio::test]
+async fn test_group_conversation_profile_uses_created_title_before_profile_patch() {
+    let service = projection_service::TimelineProjectionService::default();
+    let conversation_id = "g_profile_created_title";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_profile_group_created",
+                "100001",
+                "conversation.created",
+                "conversation",
+                conversation_id,
+                0,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"g_profile_created_title",
+                    "conversationType":"group",
+                    "title":"Backend Group"
+                }"#,
+            ),
+        )
+        .expect("group conversation projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_profile_group_owner",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"100001",
+                    "conversationId":"g_profile_created_title",
+                    "memberId":"cm_profile_group_owner",
+                    "principalId":"1",
+                    "principalKind":"user",
+                    "role":"owner",
+                    "state":"joined",
+                    "invitedBy":null,
+                    "joinedAt":"2026-07-09T10:00:00Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("member projection should succeed");
+
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("profile response should be valid json");
+    assert_eq!(value["code"], 0);
+    assert_eq!(value["data"]["item"]["displayName"], "Backend Group");
+}
+
+#[tokio::test]
+async fn test_legacy_pc_group_profile_uses_group_metadata_projection() {
+    let service = projection_service::TimelineProjectionService::default();
+    let conversation_id = "pc-group-24c6420e-fd13-4a85-9fa0-955e23d10e04";
+    let group_id = "4941";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_group_created",
+                "100001",
+                "group.created",
+                "chat_group",
+                group_id,
+                0,
+            )
+            .with_payload(
+                "space.group.created.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "spaceId": null,
+                    "groupName": "Legacy PC Group",
+                    "groupType": "normal",
+                    "ownerUserId": "1",
+                    "conversationId": conversation_id,
+                    "maxMembers": 200,
+                    "description": "legacy group description",
+                    "avatarUrl": "https://example.test/legacy-group.png",
+                    "announcement": "legacy group notice",
+                    "settingsJson": "{}",
+                    "createdAt": "2026-07-09T15:19:08.782Z",
+                    "updatedAt": "2026-07-09T15:19:08.782Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group metadata projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_conversation_created",
+                "100001",
+                "conversation.created",
+                "conversation",
+                conversation_id,
+                1,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "conversationType": "group"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("legacy conversation projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_group_updated",
+                "100001",
+                "group.updated",
+                "chat_group",
+                group_id,
+                2,
+            )
+            .with_payload(
+                "space.group.updated.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "groupName": "Renamed Legacy PC Group",
+                    "description": "renamed description",
+                    "avatarUrl": "https://example.test/renamed-group.png",
+                    "announcement": "renamed notice",
+                    "maxMembers": 200,
+                    "settingsJson": "{}",
+                    "updatedAt": "2026-07-09T15:20:08.782Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group update projection should use stored conversation binding");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_legacy_pc_owner_joined",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                3,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "memberId": "cm_legacy_pc_group_owner",
+                    "principalId": "1",
+                    "principalKind": "user",
+                    "role": "owner",
+                    "state": "joined",
+                    "invitedBy": null,
+                    "joinedAt": "2026-07-09T15:19:08.782Z",
+                    "removedAt": null,
+                    "attributes": {}
+                })
+                .to_string(),
+            ),
+        )
+        .expect("member projection should succeed");
+
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("profile response should be valid json");
+    assert_eq!(value["code"], 0);
+    assert_eq!(
+        value["data"]["item"]["displayName"],
+        "Renamed Legacy PC Group"
+    );
+    assert_eq!(
+        value["data"]["item"]["avatarUrl"],
+        "https://example.test/renamed-group.png"
+    );
+    assert_eq!(value["data"]["item"]["notice"], "renamed notice");
+}
+
+#[tokio::test]
+async fn test_g_prefixed_group_profile_uses_group_metadata_without_explicit_conversation_id() {
+    let service = projection_service::TimelineProjectionService::default();
+    let group_id = "4941c67e5ee0964744b02f55";
+    let conversation_id = "g_4941c67e5ee0964744b02f55";
+
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_created_without_conversation_id",
+                "100001",
+                "group.created",
+                "chat_group",
+                group_id,
+                0,
+            )
+            .with_payload(
+                "space.group.created.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "spaceId": null,
+                    "groupName": "Recovered G Group",
+                    "groupType": "normal",
+                    "ownerUserId": "1",
+                    "maxMembers": 200,
+                    "description": "created g group description",
+                    "avatarUrl": "https://example.test/g-group-created.png",
+                    "announcement": "created g group notice",
+                    "settingsJson": "{}",
+                    "createdAt": "2026-07-10T00:27:16.163Z",
+                    "updatedAt": "2026-07-10T00:27:16.163Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group metadata projection should infer g conversation binding");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_conversation_created_without_title",
+                "100001",
+                "conversation.created",
+                "conversation",
+                conversation_id,
+                1,
+            )
+            .with_payload(
+                "conversation.created.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "conversationType": "group"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("g conversation projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_updated_without_conversation_id",
+                "100001",
+                "group.updated",
+                "chat_group",
+                group_id,
+                2,
+            )
+            .with_payload(
+                "space.group.updated.v1",
+                &serde_json::json!({
+                    "groupId": group_id,
+                    "groupName": "Renamed Recovered G Group",
+                    "description": "renamed g group description",
+                    "avatarUrl": "https://example.test/g-group-renamed.png",
+                    "announcement": "renamed g group notice",
+                    "maxMembers": 200,
+                    "settingsJson": "{}",
+                    "updatedAt": "2026-07-10T00:30:16.163Z"
+                })
+                .to_string(),
+            ),
+        )
+        .expect("group update projection should use inferred g conversation binding");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
+                "evt_g_group_owner_joined",
+                "100001",
+                "conversation.member_joined",
+                "conversation",
+                conversation_id,
+                3,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                &serde_json::json!({
+                    "tenantId": "100001",
+                    "conversationId": conversation_id,
+                    "memberId": "cm_g_group_owner",
+                    "principalId": "1",
+                    "principalKind": "user",
+                    "role": "owner",
+                    "state": "joined",
+                    "invitedBy": null,
+                    "joinedAt": "2026-07-10T00:27:16.163Z",
+                    "removedAt": null,
+                    "attributes": {}
+                })
+                .to_string(),
+            ),
+        )
+        .expect("member projection should succeed");
+
+    let app = projection_service::build_integration_test_app(std::sync::Arc::new(service));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/profile"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("profile get should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("profile body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("profile response should be valid json");
+    assert_eq!(value["code"], 0);
+    assert_eq!(
+        value["data"]["item"]["displayName"],
+        "Renamed Recovered G Group"
+    );
+    assert_eq!(
+        value["data"]["item"]["avatarUrl"],
+        "https://example.test/g-group-renamed.png"
+    );
+    assert_eq!(value["data"]["item"]["notice"], "renamed g group notice");
 }
 
 #[tokio::test]

@@ -3,7 +3,7 @@
 ## Purpose
 
 Shared dependency-aware readiness probes for Sdkwork IM HTTP services. Centralizes IAM,
-IM database, and Redis health checks for gateway `/readyz` and split-service env probes.
+IM database, and Redis health checks for gateway `/readyz` and cloud service env probes.
 
 ## Owner
 

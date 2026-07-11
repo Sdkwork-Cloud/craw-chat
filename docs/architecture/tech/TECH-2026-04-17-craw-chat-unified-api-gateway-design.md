@@ -134,12 +134,18 @@ The gateway exposes four contract layers:
 
 ### 7.2 Method-Level Ownership
 
-Ownership is method-specific. The same path may be owned by different services for different HTTP methods. For example:
+Ownership is method-specific and path-specific. The unified and cloud gateway route the conversation
+truth reads and writes to conversation runtime:
 
-- `GET /im/v3/api/chat/conversations/{conversationId}/messages` -> `projection-service`
-- `POST /im/v3/api/chat/conversations/{conversationId}/messages` -> `conversation-runtime`
+- `GET /im/v3/api/chat/conversations/{conversationId}/messages` -> `comms-conversation-service`
+- `POST /im/v3/api/chat/conversations/{conversationId}/messages` -> `comms-conversation-service`
+- `GET /im/v3/api/chat/conversations/{conversationId}/members` -> `comms-conversation-service`
 
-The gateway must not resolve such cases by path prefix alone.
+Projection-service owns derived read models such as conversation summary, member directory, pins,
+message interaction summary, profile/preferences, message search, and message favorites. The gateway
+must not resolve these cases by a broad `/conversations/{*path}` prefix because that can send
+conversation runtime truth reads to projection-service and mask missing dependencies as page-entry
+failures.
 
 ## 8. Route Registry Standard
 
@@ -316,4 +322,3 @@ Retire `local-minimal-node` as the implied contract authority and keep it only a
 - direct service schemas available for debugging and internal contract review
 - startup logs print gateway, schema, docs, and upstream endpoints
 - SDK and docs consume the same authority contracts
-

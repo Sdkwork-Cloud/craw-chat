@@ -54,6 +54,39 @@ The gate must fail closed:
 - `exit code 2`: implementation checks pass but required release evidence is incomplete.
 - `exit code 0`: all required implementation checks and release evidence pass.
 
+## Release Package Matrix
+
+The SDKWork IM release package matrix is authoritative only when these four
+surfaces match exactly:
+
+- `sdkwork.workflow.json` target ids;
+- `scripts/release/plan-sdkwork-im-install-packages.mjs --json --check` output;
+- `sdkwork.app.config.json` `artifacts.installConfig.packages[].id`;
+- current release note `packageIds`.
+
+Current `0.1.0` package targets:
+
+- `web-universal-cloud-browser-zip`: cloud browser web ZIP bundle.
+- `linux-x64-standalone-server-tar-gz`
+- `linux-arm64-standalone-server-tar-gz`
+- `macos-x64-standalone-server-tar-gz`
+- `macos-arm64-standalone-server-tar-gz`
+- `windows-x64-standalone-server-zip`
+- `windows-arm64-standalone-server-zip`
+- `linux-x64-standalone-desktop-zip`
+- `linux-arm64-standalone-desktop-zip`
+- `macos-x64-standalone-desktop-zip`
+- `macos-arm64-standalone-desktop-zip`
+- `windows-x64-standalone-desktop-zip`
+- `windows-arm64-standalone-desktop-zip`
+
+Browser web release packages must stage `web/sdkwork-im-pc/dist/` plus
+`web-manifest.json`. Server and desktop package targets remain standalone
+runtime targets. Retired targets such as `macos-universal-standalone-desktop-dmg`
+and `linux-x64-standalone-desktop-appimage` must not reappear without a new
+approved package target and matching workflow, manifest, release note, staging,
+packaging, validation, and commercial-readiness evidence.
+
 ## Evidence Rules
 
 Release evidence must be real and reproducible:
@@ -65,8 +98,49 @@ Release evidence must be real and reproducible:
 - Step 11 capacity evidence must include `capacity-tier-evidence-index.json` collected from real load, soak, failover, and resource-limit runs.
 - Step 11 pre-release evidence must include `pre-release-tier-evidence-index.json` collected from real verification runs.
 - UI release evidence that covers browser or desktop flows must include Playwright run output, screenshots, traces, or equivalent recorded artifacts from the exercised release candidate.
+- Evidence values must be non-empty strings, arrays, or objects with explicit
+  `ref`, `path`, `url`, `uri`, or equivalent reference fields.
+- Empty evidence objects or arrays are blockers.
+- Local relative evidence references are validated from the repository root,
+  must use portable forward-slash paths, must stay inside the repository, and
+  must exist. Remote URL or URI evidence references are accepted as remote
+  references but must still point to real release evidence.
 
 Missing checksums, signatures, SBOMs, provenance, attestations, media assets, or Step 11 evidence are release blockers. Do not replace them with empty values, placeholder strings, inferred values, or documentation claims.
+
+## Release Evidence Synchronization
+
+After real package archives are built under `dist/release-packages/`, synchronize
+package evidence into `sdkwork.app.config.json` through the explicit evidence
+sync script:
+
+```bash
+pnpm release:validate:evidence -- --json
+pnpm release:stage:evidence -- --json
+```
+
+The script reads:
+
+- `dist/release-packages/release-packages-manifest.json`;
+- package archives and adjacent `*.manifest.json` files under
+  `dist/release-packages/`;
+- package evidence under `dist/release-evidence/<package-id>/`.
+
+Supported package evidence file names are based on the archive file name:
+
+- signing: `<archive>.sig`, `<archive>.asc`, `<archive>.sigstore.json`,
+  `<archive>.minisig`, or `<archive>.p7s`;
+- SBOM: `<archive>.cdx.json` or `<archive>.spdx.json`;
+- provenance or attestation: `<archive>.intoto.jsonl`,
+  `<archive>.attestation.jsonl`, or `<archive>.provenance.json`.
+
+`release:validate:evidence` is read-only and fails when any selected enabled
+direct distribution package lacks a real archive, adjacent manifest, signature,
+SBOM, or provenance/attestation file. `release:stage:evidence` writes
+`sdkwork.app.config.json` only after the evidence plan is complete. The script
+computes SHA-256 from the real archive bytes and keeps published package URLs
+unchanged. It does not generate signatures, SBOMs, provenance, attestations, or
+media assets.
 
 ## Go/No-Go Rule
 

@@ -37,7 +37,7 @@ Returns the principal-profile provider health snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `503` | `*_unavailable` | The provider health source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `503` | `50301` | The provider health source is unavailable. |
 
 </section>

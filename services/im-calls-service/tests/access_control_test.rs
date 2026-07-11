@@ -5,9 +5,9 @@ use std::sync::Arc;
 use calls_service::CallingRuntime;
 use im_app_context::local_service_app_context;
 use im_platform_contracts::{
-    AggregateStoreConversationMemberAccessGate, ConversationAggregateState,
-    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord,
-    ReadCursorRecord,
+    AggregateStoreConversationMemberAccessGate, ConversationAggregateStore,
+    ConversationMemberAccessGate, ConversationMemberPage, ConversationMemberPageCursor,
+    ConversationMemberRecord, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
 };
 use sdkwork_im_contract_core::ContractError;
 
@@ -30,13 +30,19 @@ fn ensure_test_environment() {
 struct DenyAllMembersStore;
 
 impl ConversationAggregateStore for DenyAllMembersStore {
-    fn load_members(
+    fn load_members_page(
         &self,
         _: &str,
         _: &str,
         _: &str,
-    ) -> Result<Vec<ConversationMemberRecord>, ContractError> {
-        Ok(Vec::new())
+        _: Option<&ConversationMemberPageCursor>,
+        _: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        Ok(ConversationMemberPage {
+            items: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+        })
     }
 
     fn load_member(
@@ -48,6 +54,34 @@ impl ConversationAggregateStore for DenyAllMembersStore {
         _: &str,
     ) -> Result<Option<ConversationMemberRecord>, ContractError> {
         Ok(None)
+    }
+
+    fn load_member_by_id(
+        &self,
+        _: &str,
+        _: &str,
+        _: &str,
+        _: i64,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        Ok(None)
+    }
+
+    fn load_event_recipients_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        _joined_before_or_at: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        self.load_members_page(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            cursor,
+            page_size,
+        )
     }
 
     fn upsert_member(&self, _: ConversationMemberRecord) -> Result<(), ContractError> {
@@ -70,13 +104,19 @@ impl ConversationAggregateStore for DenyAllMembersStore {
         ))
     }
 
-    fn load_read_cursors(
+    fn load_read_cursors_page(
         &self,
         _: &str,
         _: &str,
         _: &str,
-    ) -> Result<Vec<ReadCursorRecord>, ContractError> {
-        Ok(Vec::new())
+        _: Option<&ReadCursorPageCursor>,
+        _: usize,
+    ) -> Result<ReadCursorPage, ContractError> {
+        Ok(ReadCursorPage {
+            items: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+        })
     }
 
     fn load_read_cursor(
@@ -95,15 +135,8 @@ impl ConversationAggregateStore for DenyAllMembersStore {
         ))
     }
 
-    fn load_aggregate_state(
-        &self,
-        _: &str,
-        _: &str,
-        _: &str,
-    ) -> Result<ConversationAggregateState, ContractError> {
-        Err(ContractError::UnsupportedCapability(
-            "not implemented in test store".into(),
-        ))
+    fn load_high_watermark(&self, _: &str, _: &str, _: &str) -> Result<u64, ContractError> {
+        Ok(0)
     }
 
     fn allocate_member_id(&self) -> Result<i64, ContractError> {
@@ -175,13 +208,22 @@ struct AllowMembersStore {
 }
 
 impl ConversationAggregateStore for AllowMembersStore {
-    fn load_members(
+    fn load_members_page(
         &self,
         _: &str,
         _: &str,
         _: &str,
-    ) -> Result<Vec<ConversationMemberRecord>, ContractError> {
-        Ok(self.members.clone())
+        _: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        let mut items = self.members.clone();
+        let has_more = items.len() > page_size;
+        items.truncate(page_size);
+        Ok(ConversationMemberPage {
+            items,
+            next_cursor: None,
+            has_more,
+        })
     }
 
     fn load_member(
@@ -201,6 +243,38 @@ impl ConversationAggregateStore for AllowMembersStore {
             .cloned())
     }
 
+    fn load_member_by_id(
+        &self,
+        _: &str,
+        _: &str,
+        _: &str,
+        member_id: i64,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        Ok(self
+            .members
+            .iter()
+            .find(|member| member.member_id == member_id)
+            .cloned())
+    }
+
+    fn load_event_recipients_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        _joined_before_or_at: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        self.load_members_page(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            cursor,
+            page_size,
+        )
+    }
+
     fn upsert_member(&self, _: ConversationMemberRecord) -> Result<(), ContractError> {
         Err(ContractError::UnsupportedCapability("test".into()))
     }
@@ -217,13 +291,19 @@ impl ConversationAggregateStore for AllowMembersStore {
         Err(ContractError::UnsupportedCapability("test".into()))
     }
 
-    fn load_read_cursors(
+    fn load_read_cursors_page(
         &self,
         _: &str,
         _: &str,
         _: &str,
-    ) -> Result<Vec<ReadCursorRecord>, ContractError> {
-        Ok(Vec::new())
+        _: Option<&ReadCursorPageCursor>,
+        _: usize,
+    ) -> Result<ReadCursorPage, ContractError> {
+        Ok(ReadCursorPage {
+            items: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+        })
     }
 
     fn load_read_cursor(
@@ -240,13 +320,8 @@ impl ConversationAggregateStore for AllowMembersStore {
         Err(ContractError::UnsupportedCapability("test".into()))
     }
 
-    fn load_aggregate_state(
-        &self,
-        _: &str,
-        _: &str,
-        _: &str,
-    ) -> Result<ConversationAggregateState, ContractError> {
-        Err(ContractError::UnsupportedCapability("test".into()))
+    fn load_high_watermark(&self, _: &str, _: &str, _: &str) -> Result<u64, ContractError> {
+        Ok(0)
     }
 
     fn allocate_member_id(&self) -> Result<i64, ContractError> {

@@ -50,13 +50,13 @@ pub async fn read_websocket_auth_init_frame(
 
 pub async fn send_websocket_auth_ok(
     socket: &mut WebSocket,
-    request_id: Option<&str>,
+    trace_id: &str,
     auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ()> {
     socket
         .send(Message::Text(
-            auth_ok_payload_from_context(request_id, auth, device_id).into(),
+            auth_ok_payload_from_context(trace_id, auth, device_id).into(),
         ))
         .await
         .map_err(|_| ())
@@ -64,13 +64,13 @@ pub async fn send_websocket_auth_ok(
 
 pub async fn close_websocket_with_auth_error(
     socket: &mut WebSocket,
-    request_id: Option<&str>,
+    trace_id: &str,
     code: &str,
     message: &str,
 ) {
     let _ = socket
         .send(Message::Text(
-            auth_error_payload(request_id, code, message).into(),
+            auth_error_payload(trace_id, code, message).into(),
         ))
         .await;
     let _ = socket

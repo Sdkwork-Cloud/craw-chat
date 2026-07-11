@@ -7,6 +7,9 @@ use super::ConversationSummaryView;
 #[serde(rename_all = "camelCase")]
 pub(super) struct ConversationCreatedPayload {
     pub(super) conversation_type: String,
+    pub(super) title: Option<String>,
+    pub(super) group_name: Option<String>,
+    pub(super) display_name: Option<String>,
     pub(super) source: Option<ProjectionActorView>,
     pub(super) target: Option<ProjectionActorView>,
     pub(super) handoff: Option<ConversationCreatedHandoffPayload>,
@@ -129,6 +132,19 @@ pub(super) fn handoff_view_from_created_payload(
         closed_at: None,
         closed_by: None,
     }))
+}
+
+pub(super) fn title_from_created_payload(payload: &ConversationCreatedPayload) -> Option<String> {
+    [
+        payload.title.as_deref(),
+        payload.group_name.as_deref(),
+        payload.display_name.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .map(str::trim)
+    .find(|value| !value.is_empty())
+    .map(str::to_owned)
 }
 
 pub(super) fn handoff_view_from_state_payload(

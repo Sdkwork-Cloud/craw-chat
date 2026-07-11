@@ -1,0 +1,26 @@
+{
+  "favorites": {
+    "filters": {
+      "all": "All favorites",
+      "links": "Links",
+      "images": "Images & video",
+      "files": "Files",
+      "chat": "Chat history"
+    },
+    "title": "All favorites",
+    "description": "Sync important links, images, and work files across devices",
+    "searchPlaceholder": "Search favorites...",
+    "loading": "Loading...",
+    "empty": "No favorites yet",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
+    "fromSource": "From {{source}}",
+    "remove": "Remove favorite",
+    "toast": {
+      "loadFailed": "Failed to load favorites",
+      "opening": "Opening: {{title}}",
+      "removeSucceeded": "Removed from favorites",
+      "removeFailed": "Failed to remove favorite"
+    }
+  }
+}

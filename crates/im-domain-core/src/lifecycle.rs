@@ -14,20 +14,22 @@
 //!
 //! ```rust
 //! use im_domain_core::lifecycle::{GracefulShutdown, HealthCheckProbes, ServiceState};
+//! use std::time::Duration;
 //!
 //! let shutdown = GracefulShutdown::new(Duration::from_secs(30));
 //! let probes = HealthCheckProbes::new();
 //!
-//! // Register shutdown signal
-//! shutdown.register_signal_handler();
-//!
 //! // Check health
+//! probes.set_state(ServiceState::Ready);
 //! if probes.is_ready() {
 //!     // Accept new requests
+//!     shutdown.track_request("request-1");
+//!     shutdown.finish_request("request-1");
 //! }
 //!
-//! // Wait for graceful shutdown
-//! shutdown.wait().await;
+//! // Runtime signal handling requests shutdown, then drains tracked work.
+//! shutdown.request_shutdown();
+//! shutdown.wait_for_completion().expect("requests should drain");
 //! ```
 
 use std::collections::HashMap;

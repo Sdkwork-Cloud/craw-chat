@@ -66,7 +66,7 @@ func (a *ChatApi) ConversationsAgentDialogsCreate(body sdktypes.CreateAgentDialo
 }
 
 // Create an agent handoff
-func (a *ChatApi) ConversationsAgentHandoffsCreate(body sdktypes.CreateAgentDialogRequest) (sdktypes.ConversationsAgentHandoffsCreateResponse201, error) {
+func (a *ChatApi) ConversationsAgentHandoffsCreate(body sdktypes.CreateAgentHandoffRequest) (sdktypes.ConversationsAgentHandoffsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath("/chat/conversations/agent_handoffs"), body, nil, nil, "application/json")
     if err != nil {
         var zero sdktypes.ConversationsAgentHandoffsCreateResponse201
@@ -76,7 +76,7 @@ func (a *ChatApi) ConversationsAgentHandoffsCreate(body sdktypes.CreateAgentDial
 }
 
 // Create a system channel
-func (a *ChatApi) ConversationsSystemChannelsCreate(body sdktypes.CreateConversationRequest) (sdktypes.ConversationsSystemChannelsCreateResponse201, error) {
+func (a *ChatApi) ConversationsSystemChannelsCreate(body sdktypes.CreateSystemChannelRequest) (sdktypes.ConversationsSystemChannelsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath("/chat/conversations/system_channels"), body, nil, nil, "application/json")
     if err != nil {
         var zero sdktypes.ConversationsSystemChannelsCreateResponse201
@@ -86,7 +86,7 @@ func (a *ChatApi) ConversationsSystemChannelsCreate(body sdktypes.CreateConversa
 }
 
 // Create a thread conversation
-func (a *ChatApi) ConversationsThreadsCreate(body sdktypes.CreateConversationRequest) (sdktypes.ConversationsThreadsCreateResponse201, error) {
+func (a *ChatApi) ConversationsThreadsCreate(body sdktypes.CreateThreadConversationRequest) (sdktypes.ConversationsThreadsCreateResponse201, error) {
     raw, err := a.client.Post(ImApiPath("/chat/conversations/threads"), body, nil, nil, "application/json")
     if err != nil {
         var zero sdktypes.ConversationsThreadsCreateResponse201
@@ -299,18 +299,18 @@ func (a *ChatApi) ConversationsMemberDirectoryList(conversationId string) (sdkty
     return decodeResult[sdktypes.ConversationsMemberDirectoryListResponse](raw)
 }
 
-// List conversation message timeline
-func (a *ChatApi) ConversationsMessagesList(conversationId string, afterSeq *int, pageSize *int) (sdktypes.ConversationsMessagesListResponse, error) {
+// List conversation message history
+func (a *ChatApi) ConversationsMessagesList(conversationId string, afterSeq *int, pageSize *int) (sdktypes.ConversationMessageListResponse, error) {
     query := BuildQueryString([]QueryParameterSpec{
         {Name: "afterSeq", Value: func() interface{} { if afterSeq == nil { return nil }; return *afterSeq }(), Style: "form", Explode: true, AllowReserved: false},
         {Name: "page_size", Value: func() interface{} { if pageSize == nil { return nil }; return *pageSize }(), Style: "form", Explode: true, AllowReserved: false},
     })
     raw, err := a.client.Get(AppendQueryString(ImApiPath(fmt.Sprintf("/chat/conversations/%s/messages", SerializePathParameter(conversationId, PathParameterSpec{Name: "conversationId", Style: "simple", Explode: false}))), query), nil, nil)
     if err != nil {
-        var zero sdktypes.ConversationsMessagesListResponse
+        var zero sdktypes.ConversationMessageListResponse
         return zero, err
     }
-    return decodeResult[sdktypes.ConversationsMessagesListResponse](raw)
+    return decodeResult[sdktypes.ConversationMessageListResponse](raw)
 }
 
 // Post a conversation message
@@ -364,8 +364,8 @@ func (a *ChatApi) MessagesEdit(messageId string, body sdktypes.EditMessageReques
 }
 
 // Recall a message
-func (a *ChatApi) MessagesRecall(messageId string) (sdktypes.MessagesRecallResponse, error) {
-    raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/chat/messages/%s/recall", SerializePathParameter(messageId, PathParameterSpec{Name: "messageId", Style: "simple", Explode: false}))), nil, nil, nil, "")
+func (a *ChatApi) MessagesRecall(messageId string, body sdktypes.RecallMessageRequest) (sdktypes.MessagesRecallResponse, error) {
+    raw, err := a.client.Post(ImApiPath(fmt.Sprintf("/chat/messages/%s/recall", SerializePathParameter(messageId, PathParameterSpec{Name: "messageId", Style: "simple", Explode: false}))), body, nil, nil, "application/json")
     if err != nil {
         var zero sdktypes.MessagesRecallResponse
         return zero, err

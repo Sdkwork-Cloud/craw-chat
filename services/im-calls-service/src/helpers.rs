@@ -18,7 +18,7 @@ const CALL_MAX_SIGNAL_PAYLOAD_BYTES: usize = 256 * 1024;
 const CALL_MAX_ARTIFACT_MESSAGE_ID_BYTES: usize = 256;
 /// Maximum number of participant IDs accepted in a single invite request.
 /// Bounds the work done deduplicating and persisting invited_ids.
-const CALL_MAX_PARTICIPANT_IDS: usize = 256;
+pub(crate) const CALL_MAX_PARTICIPANT_IDS: usize = 256;
 /// Maximum length of a single participant ID in bytes.
 const CALL_MAX_PARTICIPANT_ID_BYTES: usize = 256;
 const CALLING_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_CALLING_MAX_IN_FLIGHT_REQUESTS";

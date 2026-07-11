@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
@@ -7,31 +7,68 @@ import { chatService } from '../services/ChatService';
 import { ModalWrapper } from './ModalWrapper';
 import type { Chat, Message } from '@sdkwork/im-pc-types';
 
+function mergeChatsById(previous: Chat[], next: Chat[]): Chat[] {
+  const byId = new Map(previous.map((chat) => [chat.id, chat]));
+  for (const chat of next) {
+    byId.set(chat.id, chat);
+  }
+  return Array.from(byId.values());
+}
+
 export const ForwardModal: React.FC<{ isOpen: boolean; onClose: () => void; messages: Message[] }> = ({ isOpen, onClose, messages }) => {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [forwarding, setForwarding] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
-      chatService.getChats()
-        .then(data => {
-          setChats(data);
+      chatService.listChatsPage()
+        .then(page => {
+          setChats(page.items);
+          setHasMore(page.hasMore);
+          setNextCursor(page.nextCursor);
         })
         .catch(() => {
           setChats([]);
+          setHasMore(false);
+          setNextCursor(undefined);
           toast(t('chat.forwardModal.toast.loadFailed'), 'error');
         })
         .finally(() => setLoading(false));
     } else {
       setSelected(new Set());
       setSearchQuery('');
+      setChats([]);
+      setHasMore(false);
+      setNextCursor(undefined);
+      setLoading(false);
+      setLoadingMore(false);
     }
   }, [isOpen, t]);
+
+  const loadMoreChats = useCallback(() => {
+    if (!hasMore || !nextCursor || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    chatService.listChatsPage({ cursor: nextCursor })
+      .then(page => {
+        setChats(previous => mergeChatsById(previous, page.items));
+        setHasMore(page.hasMore);
+        setNextCursor(page.nextCursor);
+      })
+      .catch(() => {
+        toast(t('chat.forwardModal.toast.loadFailed'), 'error');
+      })
+      .finally(() => setLoadingMore(false));
+  }, [hasMore, loadingMore, nextCursor, t]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -104,6 +141,16 @@ export const ForwardModal: React.FC<{ isOpen: boolean; onClose: () => void; mess
           ))
         ) : (
           <div className="text-center py-8 text-gray-500 text-sm">{t('chat.forwardModal.empty')}</div>
+        )}
+        {!loading && hasMore && (
+          <button
+            type="button"
+            onClick={loadMoreChats}
+            disabled={loadingMore}
+            className="mt-3 w-full px-3 py-2 rounded bg-white/5 text-gray-300 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm"
+          >
+            {loadingMore ? t('chat.list.loadingMore') : t('chat.list.loadMore')}
+          </button>
         )}
       </div>
     </ModalWrapper>

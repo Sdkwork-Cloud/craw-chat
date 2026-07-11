@@ -3,11 +3,17 @@ import {
   deleteDesktopOfflinePendingSend,
   enqueueDesktopOfflinePendingSend,
   listDesktopOfflinePendingSends,
+  quarantineDesktopOfflinePendingSend,
   releaseDesktopOfflinePendingSendClaim,
+  type DesktopOfflinePendingSendRecord,
 } from './desktopOfflineStore';
 import { ensureDesktopOfflineChatCache } from './desktopOfflineChatCache';
 import type { DesktopOfflineMessage } from './desktopOfflineChatTypes';
-import { resolveAppSdkTenantId, readAppSdkSessionTokens } from './session';
+import {
+  desktopOfflineScopesEqual,
+  resolveDesktopOfflinePrincipalScope,
+  type DesktopOfflinePrincipalScope,
+} from './desktopOfflineScope';
 
 export type DesktopPendingMediaPart = {
   kind?: string;
@@ -28,15 +34,112 @@ export type DesktopPendingSendPayload = {
   renderHints?: Record<string, unknown>;
 };
 
+export type DesktopPendingSendClaim = DesktopPendingSendPayload & {
+  clientMsgId: string;
+  claimId: string;
+  scope: DesktopOfflinePrincipalScope;
+};
+
+export type DesktopPendingSendFlushResult = {
+  retryableFailure: boolean;
+};
+
+type DrainOptions<T = never> = {
+  signal?: AbortSignal;
+  maxBatches?: number;
+  backoff?: (delayMs: number, signal?: AbortSignal) => Promise<void>;
+  isCurrent?: () => boolean;
+  abandon?: (batch: T[]) => Promise<void>;
+};
+
+type PendingSendFlushOptions = Pick<DrainOptions<DesktopPendingSendClaim>, 'signal'> & {
+  generation?: number;
+};
+
 const DEFAULT_PENDING_SEND_FLUSH_LIMIT = 50;
-let pendingSendFlushInFlight: Promise<void> | null = null;
+const MAX_PENDING_SEND_BATCHES_PER_RUN = 200;
+const MAX_QUARANTINE_BATCHES_PER_CLAIM = 20;
+const MAX_PENDING_SEND_BACKOFF_MS = 1_000;
+const MAX_CONCURRENT_PENDING_SEND_FLUSH_SCOPES = 32;
+const pendingSendFlushesInFlight = new Map<string, Promise<void>>();
 
 function createPendingSendClaimId(): string {
-  return `pc-flush-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  if (!globalThis.crypto?.randomUUID) {
+    throw new Error('Secure random UUID support is required for offline send claims.');
+  }
+  return `pc-flush-${globalThis.crypto.randomUUID()}`;
 }
 
-function resolveTenantId(): string | undefined {
-  return resolveAppSdkTenantId(readAppSdkSessionTokens());
+function resolveScope(): DesktopOfflinePrincipalScope | undefined {
+  return resolveDesktopOfflinePrincipalScope();
+}
+
+function pendingSendFlushScopeKey(
+  scope: DesktopOfflinePrincipalScope,
+  generation: number | undefined,
+): string {
+  return JSON.stringify([
+    scope.tenantId,
+    scope.organizationId,
+    scope.principalKind,
+    scope.principalId,
+    generation ?? null,
+  ]);
+}
+
+export function waitForDesktopPendingSendBackoff(
+  delayMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (delayMs <= 0 || signal?.aborted) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeout: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout !== undefined) {
+        globalThis.clearTimeout(timeout);
+      }
+      signal?.removeEventListener('abort', finish);
+      resolve();
+    };
+    timeout = globalThis.setTimeout(finish, delayMs);
+    signal?.addEventListener('abort', finish, { once: true });
+  });
+}
+
+export async function drainDesktopPendingSendBatches<T>(
+  claim: () => Promise<T[]>,
+  flush: (batch: T[]) => Promise<DesktopPendingSendFlushResult>,
+  options: DrainOptions<T> = {},
+): Promise<void> {
+  const maxBatches = options.maxBatches ?? MAX_PENDING_SEND_BATCHES_PER_RUN;
+  const backoff = options.backoff ?? waitForDesktopPendingSendBackoff;
+  for (let batchIndex = 0; batchIndex < maxBatches; batchIndex += 1) {
+    if (options.signal?.aborted || options.isCurrent?.() === false) {
+      return;
+    }
+    const pending = await claim();
+    if (pending.length === 0) {
+      return;
+    }
+    if (options.signal?.aborted || options.isCurrent?.() === false) {
+      await options.abandon?.(pending);
+      return;
+    }
+    const result = await flush(pending);
+    if (result.retryableFailure || options.signal?.aborted) {
+      return;
+    }
+    const delayMs = Math.min(25 * (2 ** Math.min(batchIndex, 5)), MAX_PENDING_SEND_BACKOFF_MS);
+    await backoff(delayMs, options.signal);
+  }
+  throw new Error('Offline pending send drain exceeded its bounded batch budget.');
 }
 
 export function isRetryableDesktopSendError(error: unknown): boolean {
@@ -76,15 +179,12 @@ function isValidPendingSendPayload(record: DesktopPendingSendPayload): boolean {
 export async function enqueueDesktopPendingSend(
   payload: DesktopPendingSendPayload,
 ): Promise<void> {
-  if (!(await ensureDesktopOfflineChatCache())) {
-    return;
-  }
-  const tenantId = resolveTenantId();
-  if (!tenantId) {
+  const scope = resolveScope();
+  if (!scope || !(await ensureDesktopOfflineChatCache())) {
     return;
   }
   await enqueueDesktopOfflinePendingSend({
-    tenantId,
+    scope,
     clientMsgId: payload.clientMsgId,
     conversationId: payload.chatId,
     payloadJson: JSON.stringify(payload),
@@ -96,82 +196,150 @@ export async function enqueueDesktopPendingSend(
 export async function listDesktopPendingSends(
   limit = DEFAULT_PENDING_SEND_FLUSH_LIMIT,
 ): Promise<Array<DesktopPendingSendPayload & { clientMsgId: string }>> {
-  if (!(await ensureDesktopOfflineChatCache())) {
+  const scope = resolveScope();
+  if (!scope || !(await ensureDesktopOfflineChatCache())) {
     return [];
   }
-  const tenantId = resolveTenantId();
-  if (!tenantId) {
-    return [];
+  const rows = await listDesktopOfflinePendingSends({ scope, limit });
+  return partitionDesktopPendingSendRows(rows).payloads;
+}
+
+async function claimDesktopPendingSendsForScope(
+  scope: DesktopOfflinePrincipalScope,
+  limit = DEFAULT_PENDING_SEND_FLUSH_LIMIT,
+): Promise<DesktopPendingSendClaim[]> {
+  for (let batchIndex = 0; batchIndex < MAX_QUARANTINE_BATCHES_PER_CLAIM; batchIndex += 1) {
+    if (!desktopOfflineScopesEqual(scope, resolveScope())) {
+      return [];
+    }
+    const claimId = createPendingSendClaimId();
+    const rows = await claimDesktopOfflinePendingSends({ scope, claimId, limit });
+    const partitioned = partitionDesktopPendingSendRows(rows);
+    const quarantineResults = await Promise.all(partitioned.quarantined.map((item) => (
+      quarantineDesktopOfflinePendingSend({
+        scope,
+        clientMsgId: item.clientMsgId,
+        claimId,
+        reason: item.reason,
+      })
+    )));
+    if (quarantineResults.some((accepted) => !accepted)) {
+      throw new Error('Offline pending send quarantine claim is stale.');
+    }
+    if (partitioned.payloads.length > 0 || rows.length === 0) {
+      return partitioned.payloads.map((payload) => ({
+        ...payload,
+        claimId,
+        scope,
+      }));
+    }
   }
-  const rows = await listDesktopOfflinePendingSends({ tenantId, limit });
-  return parseDesktopPendingSendRows(rows);
+  throw new Error('Offline pending send quarantine exceeded its bounded batch budget.');
 }
 
 export async function claimDesktopPendingSends(
   limit = DEFAULT_PENDING_SEND_FLUSH_LIMIT,
-): Promise<Array<DesktopPendingSendPayload & { clientMsgId: string; claimId: string }>> {
-  if (!(await ensureDesktopOfflineChatCache())) {
+): Promise<DesktopPendingSendClaim[]> {
+  const scope = resolveScope();
+  if (!scope || !(await ensureDesktopOfflineChatCache())) {
     return [];
   }
-  const tenantId = resolveTenantId();
-  if (!tenantId) {
-    return [];
-  }
-  const claimId = createPendingSendClaimId();
-  const rows = await claimDesktopOfflinePendingSends({ tenantId, claimId, limit });
-  return parseDesktopPendingSendRows(rows).map((payload) => ({
-    ...payload,
-    claimId,
-  }));
+  return claimDesktopPendingSendsForScope(scope, limit);
+}
+
+export function isDesktopPendingSendClaimCurrent(claim: DesktopPendingSendClaim): boolean {
+  return desktopOfflineScopesEqual(claim.scope, resolveScope());
 }
 
 export async function releaseDesktopPendingSendClaim(
-  clientMsgId: string,
-  claimId: string,
+  claim: Pick<DesktopPendingSendClaim, 'scope' | 'clientMsgId' | 'claimId'>,
 ): Promise<void> {
-  if (!(await ensureDesktopOfflineChatCache())) {
-    return;
-  }
-  const tenantId = resolveTenantId();
-  if (!tenantId) {
-    return;
-  }
-  await releaseDesktopOfflinePendingSendClaim({ tenantId, clientMsgId, claimId });
+  await releaseDesktopOfflinePendingSendClaim(claim);
+}
+
+export async function removeDesktopPendingSend(
+  claim: Pick<DesktopPendingSendClaim, 'scope' | 'clientMsgId' | 'claimId'>,
+): Promise<void> {
+  await deleteDesktopOfflinePendingSend(claim);
 }
 
 export async function runDesktopPendingSendFlush(
-  flush: (
-    pending: Array<DesktopPendingSendPayload & { clientMsgId: string; claimId: string }>,
-  ) => Promise<void>,
+  flush: (pending: DesktopPendingSendClaim[]) => Promise<DesktopPendingSendFlushResult>,
+  options: PendingSendFlushOptions = {},
 ): Promise<void> {
-  if (pendingSendFlushInFlight) {
-    await pendingSendFlushInFlight;
+  const scope = resolveScope();
+  if (!scope) {
     return;
   }
-  pendingSendFlushInFlight = (async () => {
-    const pending = await claimDesktopPendingSends();
-    if (pending.length === 0) {
+  const scopeKey = pendingSendFlushScopeKey(scope, options.generation);
+  const existing = pendingSendFlushesInFlight.get(scopeKey);
+  if (existing) {
+    await existing;
+    return;
+  }
+  if (pendingSendFlushesInFlight.size >= MAX_CONCURRENT_PENDING_SEND_FLUSH_SCOPES) {
+    throw new RangeError(
+      `Concurrent pending-send flush scope limit (${MAX_CONCURRENT_PENDING_SEND_FLUSH_SCOPES}) reached.`,
+    );
+  }
+  let flushPromise: Promise<void>;
+  flushPromise = (async () => {
+    if (!(await ensureDesktopOfflineChatCache())) {
       return;
     }
-    await flush(pending);
+    if (!desktopOfflineScopesEqual(scope, resolveScope())) {
+      return;
+    }
+    await drainDesktopPendingSendBatches(
+      () => claimDesktopPendingSendsForScope(scope),
+      async (pending) => {
+        if (!desktopOfflineScopesEqual(scope, resolveScope())) {
+          await Promise.all(pending.map((claim) => releaseDesktopPendingSendClaim(claim)));
+          return { retryableFailure: true };
+        }
+        return flush(pending);
+      },
+      {
+        ...options,
+        isCurrent: () => desktopOfflineScopesEqual(scope, resolveScope()),
+        abandon: async (pending) => {
+          await Promise.all(pending.map((claim) => releaseDesktopPendingSendClaim(claim)));
+        },
+      },
+    );
   })().finally(() => {
-    pendingSendFlushInFlight = null;
+    if (pendingSendFlushesInFlight.get(scopeKey) === flushPromise) {
+      pendingSendFlushesInFlight.delete(scopeKey);
+    }
   });
-  await pendingSendFlushInFlight;
+  pendingSendFlushesInFlight.set(scopeKey, flushPromise);
+  await flushPromise;
 }
 
-function parseDesktopPendingSendRows(
-  rows: Awaited<ReturnType<typeof listDesktopOfflinePendingSends>>,
-): Array<DesktopPendingSendPayload & { clientMsgId: string }> {
+export function partitionDesktopPendingSendRows(
+  rows: DesktopOfflinePendingSendRecord[],
+): {
+  payloads: Array<DesktopPendingSendPayload & { clientMsgId: string }>;
+  quarantined: Array<{ clientMsgId: string; reason: string }>;
+} {
   const payloads: Array<DesktopPendingSendPayload & { clientMsgId: string }> = [];
+  const quarantined: Array<{ clientMsgId: string; reason: string }> = [];
   for (const row of rows) {
     try {
       const parsed: unknown = JSON.parse(row.payloadJson);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        quarantined.push({
+          clientMsgId: row.clientMsgId,
+          reason: 'invalid pending send payload',
+        });
         continue;
       }
       const record = parsed as DesktopPendingSendPayload;
       if (!isValidPendingSendPayload(record)) {
+        quarantined.push({
+          clientMsgId: row.clientMsgId,
+          reason: 'invalid pending send payload',
+        });
         continue;
       }
       payloads.push({
@@ -179,19 +347,11 @@ function parseDesktopPendingSendRows(
         clientMsgId: row.clientMsgId,
       });
     } catch {
-      // Skip corrupt queue rows.
+      quarantined.push({
+        clientMsgId: row.clientMsgId,
+        reason: 'invalid pending send payload',
+      });
     }
   }
-  return payloads;
-}
-
-export async function removeDesktopPendingSend(clientMsgId: string): Promise<void> {
-  if (!(await ensureDesktopOfflineChatCache())) {
-    return;
-  }
-  const tenantId = resolveTenantId();
-  if (!tenantId) {
-    return;
-  }
-  await deleteDesktopOfflinePendingSend({ tenantId, clientMsgId });
+  return { payloads, quarantined };
 }

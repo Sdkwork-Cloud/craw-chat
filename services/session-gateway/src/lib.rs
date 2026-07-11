@@ -16,6 +16,7 @@ mod client_route_registration;
 mod client_route_state;
 mod cluster;
 mod cluster_route_event_auth;
+mod drain_timeout;
 mod gateway_embed;
 mod http_guardrails;
 mod http_limits;
@@ -37,6 +38,8 @@ mod rpc_dispatch;
 mod runtime_bootstrap;
 mod scope_access_policy;
 mod service_readiness;
+mod session_fence;
+mod trace_identity;
 mod websocket;
 mod websocket_auth_init;
 mod websocket_frame_rate_limit;
@@ -54,6 +57,9 @@ pub use cluster::{
     RealtimeNodeLifecycleView, RealtimeRouteDeliveryResult, RealtimeRouteMigrationResult,
 };
 pub use cluster_route_event_auth::REALTIME_CLUSTER_BUS_SECRET_ENV;
+pub use drain_timeout::{
+    SESSION_GATEWAY_DRAIN_TIMEOUT_SECS_ENV, resolve_session_gateway_drain_timeout,
+};
 pub use gateway_embed::{GatewayEmbeddedRealtimePlane, bootstrap_gateway_embedded_realtime_plane};
 pub use http_guardrails::apply_public_http_guardrails;
 pub use http_limits::{
@@ -86,10 +92,12 @@ pub use realtime::{
 };
 pub use rpc_dispatch::{SESSION_GATEWAY_RPC_SERVICE_KEYS, SessionGatewayRpcDispatcher};
 pub use runtime_bootstrap::{
-    RealtimePlaneBootstrap, bootstrap_realtime_plane_from_env, spawn_cluster_route_event_subscriber,
+    ClusterRouteEventSubscriber, RealtimePlaneBootstrap, bootstrap_realtime_plane_from_env,
+    spawn_cluster_route_event_subscriber,
 };
 pub use scope_access_policy::ConversationMemberRealtimeScopeAccessPolicy;
-use service_readiness::{ServiceReadiness, healthz, readyz};
+pub use service_readiness::ServiceReadiness;
+use service_readiness::{healthz, readyz};
 pub use websocket::{
     CCP_WEBSOCKET_SUBPROTOCOL, REALTIME_OVERLOAD_CLOSE_CODE, REALTIME_OVERLOAD_CLOSE_REASON,
     RealtimeRouteOwner, RealtimeRouteOwnerError, RealtimeWebsocketMode,
@@ -254,13 +262,15 @@ impl AppState {
     }
 
     pub fn from_realtime_bootstrap(bootstrap: &RealtimePlaneBootstrap) -> Self {
-        Self::with_cluster_runtime_presence_node_and_auth(
+        let mut state = Self::with_cluster_runtime_presence_node_and_auth(
             bootstrap.assembly.realtime_cluster(),
             bootstrap.assembly.realtime_runtime(),
             bootstrap.assembly.presence_runtime(),
             bootstrap.node_id.clone(),
             RealtimeAuthContextResolver::new(bootstrap.iam_auth_pool.clone()),
-        )
+        );
+        state.readiness = bootstrap.assembly.readiness();
+        state
     }
 
     fn with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Self {

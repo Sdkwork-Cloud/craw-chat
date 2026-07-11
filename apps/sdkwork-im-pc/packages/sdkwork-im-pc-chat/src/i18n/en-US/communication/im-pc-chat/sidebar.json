@@ -1,0 +1,23 @@
+{
+  "sidebar": {
+    "chat": "Chat",
+    "workspace": "Workspace",
+    "orders": "Orders",
+    "shop": "Shop",
+    "calendar": "Calendar",
+    "notary": "Notary",
+    "knowledge": "Knowledge Base",
+    "drive": "Cloud Drive",
+    "enterprise": "Enterprise",
+    "devices": "Devices",
+    "community": "Community",
+    "agent": "AI Agents",
+    "voice": "Voice Market",
+    "course": "Courses",
+    "contacts": "Contacts",
+    "favorites": "Favorites",
+    "mobile": "Mobile Desktop",
+    "settings": "Settings",
+    "settingsLocked": "Current app settings are locked"
+  }
+}

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -8,19 +8,36 @@ use conversation_runtime::{
     ApplyConversationPolicyCommand, BindDirectChatConversationCommand,
     ChangeAgentHandoffStatusView, ChangeConversationMemberRoleCommand, CloseAgentHandoffCommand,
     ConversationBusinessBinding, ConversationRuntime, CreateAgentDialogCommand,
-    CreateAgentHandoffCommand, CreateConversationCommand, CreateSystemChannelCommand,
-    CreateThreadConversationCommand, EditMessageCommand, LeaveConversationCommand,
-    PinMessageCommand, PostMessageCommand, PublishSystemChannelMessageCommand,
-    RecallMessageCommand, RemoveConversationMemberCommand, RemoveMessageReactionCommand,
-    ResolveAgentHandoffCommand, RuntimeError, SyncSharedChannelLinkedMemberCommand,
-    TransferConversationOwnerCommand, UnpinMessageCommand, UpdateReadCursorCommand,
+    CreateAgentHandoffCommand, CreateConversationCommand, CreateGroupConversationCommand,
+    CreateSystemChannelCommand, CreateThreadConversationCommand, DirectMessageAccessGate,
+    EditMessageCommand, LeaveConversationCommand, PinMessageCommand, PostMessageCommand,
+    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveConversationMemberCommand,
+    RemoveMessageReactionCommand, ResolveAgentHandoffCommand, RuntimeError,
+    SyncSharedChannelLinkedMemberCommand, TransferConversationOwnerCommand, UnpinMessageCommand,
+    UpdateReadCursorCommand,
 };
 use im_domain_core::conversation::{
     ConversationMember, ConversationPolicy, MembershipRole, MembershipState,
 };
 use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
-use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
+use im_platform_contracts::{
+    CommitJournal, CommitJournalAggregateScope, CommitJournalReplayCursor, CommitJournalReplayPage,
+    CommitPosition, ContractError,
+    ConversationAggregateState as PersistedConversationAggregateState, ConversationAggregateStore,
+    ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, MessageStore,
+    MessageWindow, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord, StoredMessageRecord,
+};
+
+fn ensure_conversation_cursor_test_secret() {
+    static TEST_SECRET: OnceLock<()> = OnceLock::new();
+    TEST_SECRET.get_or_init(|| unsafe {
+        std::env::set_var(
+            "SDKWORK_IM_MESSAGE_HISTORY_CURSOR_HS256_SECRET",
+            "test-conversation-cursor-secret-at-least-32-bytes",
+        );
+    });
+}
 
 #[derive(Clone, Default)]
 struct InMemoryJournal {
@@ -38,6 +55,89 @@ impl CommitJournal for InMemoryJournal {
         let mut events = self.events.lock().expect("journal should lock");
         events.push(envelope);
         Ok(CommitPosition::new("p0", events.len() as u64))
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        let filtered: Vec<CommitEnvelope> = self
+            .recorded()
+            .into_iter()
+            .filter(|envelope| {
+                envelope.tenant_id == scope.tenant_id
+                    && (envelope.aggregate_id == scope.aggregate_id
+                        || envelope.scope_id == scope.aggregate_id)
+            })
+            .collect();
+        let limit = limit.max(1);
+        let start_index = cursor
+            .and_then(|cursor| {
+                filtered.iter().position(|envelope| {
+                    envelope.ordering_key == cursor.partition_key
+                        && envelope.ordering_seq == cursor.commit_offset
+                })
+            })
+            .map(|index| index.saturating_add(1))
+            .unwrap_or(0);
+        let page_items: Vec<_> = filtered.into_iter().skip(start_index).take(limit).collect();
+        let next_cursor = if page_items.len() == limit {
+            page_items.last().map(|envelope| CommitJournalReplayCursor {
+                partition_key: envelope.ordering_key.clone(),
+                commit_offset: envelope.ordering_seq,
+            })
+        } else {
+            None
+        };
+        Ok(CommitJournalReplayPage {
+            items: page_items,
+            next_cursor,
+        })
+    }
+}
+
+#[derive(Clone, Default)]
+struct PositionCheckedJournal {
+    inner: InMemoryJournal,
+}
+
+impl PositionCheckedJournal {
+    fn recorded(&self) -> Vec<CommitEnvelope> {
+        self.inner.recorded()
+    }
+}
+
+impl CommitJournal for PositionCheckedJournal {
+    fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
+        let mut events = self.inner.events.lock().expect("journal should lock");
+        if let Some(existing) = events.iter().find(|event| {
+            event.ordering_key == envelope.ordering_key
+                && event.ordering_seq == envelope.ordering_seq
+        }) {
+            if existing.event_id == envelope.event_id {
+                return Ok(CommitPosition::new(
+                    existing.ordering_key.clone(),
+                    existing.ordering_seq,
+                ));
+            }
+            return Err(ContractError::Conflict(format!(
+                "journal position (partition_key={}, ordering_seq={}) is already occupied by event_id={}; cannot append event_id={}",
+                envelope.ordering_key, envelope.ordering_seq, existing.event_id, envelope.event_id
+            )));
+        }
+        events.push(envelope);
+        Ok(CommitPosition::new("p0", events.len() as u64))
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        self.inner.recorded_page_for_aggregate(scope, cursor, limit)
     }
 }
 
@@ -62,6 +162,20 @@ impl FailAfterNJournal {
     }
 }
 
+struct AllowAllDirectMessageAccessGate;
+
+impl DirectMessageAccessGate for AllowAllDirectMessageAccessGate {
+    fn ensure_direct_message_allowed(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _sender_user_id: &str,
+        _peer_user_id: &str,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+}
+
 impl CommitJournal for FailAfterNJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
         let mut append_count = self.append_count.lock().expect("append count should lock");
@@ -73,6 +187,498 @@ impl CommitJournal for FailAfterNJournal {
         }
         drop(append_count);
         self.inner.append(envelope)
+    }
+}
+
+#[derive(Clone)]
+enum TestAggregateStore {
+    Empty,
+    Unavailable(String),
+    WriteUnavailable(String),
+    Snapshot {
+        state: PersistedConversationAggregateState,
+    },
+    MemberOnly {
+        member: ConversationMemberRecord,
+        _aggregate_error: String,
+        aggregate_loads: Arc<Mutex<usize>>,
+    },
+    Recording {
+        members: Arc<Mutex<Vec<ConversationMemberRecord>>>,
+        cursors: Arc<Mutex<Vec<ReadCursorRecord>>>,
+    },
+}
+
+impl TestAggregateStore {
+    fn empty() -> Self {
+        Self::Empty
+    }
+
+    fn unavailable(message: impl Into<String>) -> Self {
+        Self::Unavailable(message.into())
+    }
+
+    fn write_unavailable(message: impl Into<String>) -> Self {
+        Self::WriteUnavailable(message.into())
+    }
+
+    fn snapshot(state: PersistedConversationAggregateState) -> Self {
+        Self::Snapshot { state }
+    }
+
+    fn member_only(member: ConversationMemberRecord, aggregate_error: impl Into<String>) -> Self {
+        Self::MemberOnly {
+            member,
+            _aggregate_error: aggregate_error.into(),
+            aggregate_loads: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    fn recording() -> Self {
+        Self::Recording {
+            members: Arc::new(Mutex::new(Vec::new())),
+            cursors: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn upserted_members(&self) -> Vec<ConversationMemberRecord> {
+        match self {
+            Self::Recording { members, .. } => members
+                .lock()
+                .expect("recording members should lock")
+                .clone(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn upserted_cursors(&self) -> Vec<ReadCursorRecord> {
+        match self {
+            Self::Recording { cursors, .. } => cursors
+                .lock()
+                .expect("recording cursors should lock")
+                .clone(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn aggregate_load_count(&self) -> usize {
+        match self {
+            Self::MemberOnly {
+                aggregate_loads, ..
+            } => *aggregate_loads
+                .lock()
+                .expect("aggregate load counter should lock"),
+            Self::Empty
+            | Self::Unavailable(_)
+            | Self::WriteUnavailable(_)
+            | Self::Snapshot { .. }
+            | Self::Recording { .. } => 0,
+        }
+    }
+
+    fn load_error(&self) -> Option<ContractError> {
+        match self {
+            Self::Empty => None,
+            Self::Unavailable(message) => Some(ContractError::Unavailable(message.clone())),
+            Self::WriteUnavailable(_)
+            | Self::Snapshot { .. }
+            | Self::MemberOnly { .. }
+            | Self::Recording { .. } => None,
+        }
+    }
+}
+
+impl ConversationAggregateStore for TestAggregateStore {
+    fn load_members_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        if let Self::MemberOnly {
+            aggregate_loads, ..
+        } = self
+        {
+            *aggregate_loads
+                .lock()
+                .expect("aggregate load counter should lock") += 1;
+        }
+        let mut members = match self {
+            Self::MemberOnly { member, .. } => vec![member.clone()],
+            Self::Snapshot { state } => state.members.clone(),
+            _ => Vec::new(),
+        };
+        members.retain(|member| {
+            member.tenant_id == tenant_id
+                && member.organization_id == organization_id
+                && member.conversation_id == conversation_id
+                && cursor.is_none_or(|cursor| {
+                    (member.principal_kind.as_str(), member.principal_id.as_str())
+                        > (cursor.principal_kind.as_str(), cursor.principal_id.as_str())
+                })
+        });
+        members.sort_by(|left, right| {
+            (&left.principal_kind, &left.principal_id)
+                .cmp(&(&right.principal_kind, &right.principal_id))
+        });
+        let has_more = members.len() > page_size;
+        members.truncate(page_size);
+        let next_cursor =
+            has_more
+                .then(|| members.last())
+                .flatten()
+                .map(|member| ConversationMemberPageCursor {
+                    principal_kind: member.principal_kind.clone(),
+                    principal_id: member.principal_id.clone(),
+                });
+        Ok(ConversationMemberPage {
+            items: members,
+            next_cursor,
+            has_more,
+        })
+    }
+
+    fn load_member(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        let members = match self {
+            Self::MemberOnly { member, .. } => vec![member.clone()],
+            Self::Snapshot { state } => state.members.clone(),
+            _ => Vec::new(),
+        };
+        Ok(members.into_iter().find(|member| {
+            member.tenant_id == tenant_id
+                && member.organization_id == organization_id
+                && member.conversation_id == conversation_id
+                && member.principal_kind == principal_kind
+                && member.principal_id == principal_id
+        }))
+    }
+
+    fn load_member_by_id(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        let members = match self {
+            Self::MemberOnly { member, .. } => vec![member.clone()],
+            Self::Snapshot { state } => state.members.clone(),
+            _ => Vec::new(),
+        };
+        Ok(members.into_iter().find(|member| {
+            member.tenant_id == tenant_id
+                && member.organization_id == organization_id
+                && member.conversation_id == conversation_id
+                && member.member_id == member_id
+        }))
+    }
+
+    fn load_event_recipients_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        _joined_before_or_at: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        self.load_members_page(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            cursor,
+            page_size,
+        )
+    }
+
+    fn upsert_member(&self, member: ConversationMemberRecord) -> Result<(), ContractError> {
+        match self {
+            Self::WriteUnavailable(message) => {
+                return Err(ContractError::Unavailable(message.clone()));
+            }
+            Self::Recording { members, .. } => {
+                members
+                    .lock()
+                    .expect("recording members should lock")
+                    .push(member);
+            }
+            Self::Empty
+            | Self::Unavailable(_)
+            | Self::Snapshot { .. }
+            | Self::MemberOnly { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn remove_member(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
+        _principal_kind: &str,
+        _principal_id: &str,
+        _removed_at: &str,
+    ) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn load_read_cursors_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        cursor: Option<&ReadCursorPageCursor>,
+        page_size: usize,
+    ) -> Result<ReadCursorPage, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        let mut cursors = match self {
+            Self::Snapshot { state } => state.read_cursors.clone(),
+            _ => Vec::new(),
+        };
+        cursors.retain(|read_cursor| {
+            read_cursor.tenant_id == tenant_id
+                && read_cursor.organization_id == organization_id
+                && read_cursor.conversation_id == conversation_id
+                && cursor.is_none_or(|cursor| {
+                    (read_cursor.member_id, read_cursor.device_id.as_str())
+                        > (cursor.member_id, cursor.device_id.as_str())
+                })
+        });
+        cursors.sort_by(|left, right| {
+            (left.member_id, left.device_id.as_str())
+                .cmp(&(right.member_id, right.device_id.as_str()))
+        });
+        let has_more = cursors.len() > page_size;
+        cursors.truncate(page_size);
+        let next_cursor =
+            has_more
+                .then(|| cursors.last())
+                .flatten()
+                .map(|cursor| ReadCursorPageCursor {
+                    member_id: cursor.member_id,
+                    device_id: cursor.device_id.clone(),
+                });
+        Ok(ReadCursorPage {
+            items: cursors,
+            next_cursor,
+            has_more,
+        })
+    }
+
+    fn load_read_cursor(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
+        _member_id: i64,
+    ) -> Result<Option<ReadCursorRecord>, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        match self {
+            Self::Snapshot { state } => Ok(state
+                .read_cursors
+                .iter()
+                .find(|cursor| {
+                    cursor.tenant_id == _tenant_id
+                        && cursor.organization_id == _organization_id
+                        && cursor.conversation_id == _conversation_id
+                        && cursor.member_id == _member_id
+                })
+                .cloned()),
+            _ => Ok(None),
+        }
+    }
+
+    fn upsert_read_cursor(&self, cursor: ReadCursorRecord) -> Result<(), ContractError> {
+        match self {
+            Self::WriteUnavailable(message) => {
+                return Err(ContractError::Unavailable(message.clone()));
+            }
+            Self::Recording { cursors, .. } => {
+                cursors
+                    .lock()
+                    .expect("recording cursors should lock")
+                    .push(cursor);
+            }
+            Self::Empty
+            | Self::Unavailable(_)
+            | Self::Snapshot { .. }
+            | Self::MemberOnly { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn load_high_watermark(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
+    ) -> Result<u64, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        if let Self::Snapshot { state } = self {
+            return Ok(state.high_watermark);
+        }
+        Ok(0)
+    }
+
+    fn allocate_member_id(&self) -> Result<i64, ContractError> {
+        Ok(1)
+    }
+
+    fn conversation_exists(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
+    ) -> Result<bool, ContractError> {
+        if let Some(error) = self.load_error() {
+            return Err(error);
+        }
+        Ok(matches!(
+            self,
+            Self::MemberOnly { .. } | Self::Snapshot { .. }
+        ))
+    }
+}
+
+#[derive(Clone)]
+struct TestMessageStore {
+    messages: Vec<StoredMessageRecord>,
+}
+
+impl TestMessageStore {
+    fn new(messages: Vec<StoredMessageRecord>) -> Self {
+        Self { messages }
+    }
+}
+
+impl MessageStore for TestMessageStore {
+    fn allocate_message_seq(
+        &self,
+        _tenant_id: &str,
+        _organization_id: &str,
+        _conversation_id: &str,
+    ) -> Result<u64, ContractError> {
+        Ok(self.read_high_watermark(_tenant_id, _organization_id, _conversation_id)? + 1)
+    }
+
+    fn insert_message(&self, _message: StoredMessageRecord) -> Result<(), ContractError> {
+        Ok(())
+    }
+
+    fn read_history_window(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        before_seq: Option<u64>,
+        limit: usize,
+    ) -> Result<MessageWindow, ContractError> {
+        let mut matching: Vec<StoredMessageRecord> = self
+            .messages
+            .iter()
+            .filter(|message| {
+                message.tenant_id == tenant_id
+                    && message.organization_id == organization_id
+                    && message.conversation_id == conversation_id
+                    && before_seq.is_none_or(|before_seq| message.message_seq < before_seq)
+            })
+            .cloned()
+            .collect();
+        matching.sort_by(|left, right| right.message_seq.cmp(&left.message_seq));
+        let has_more = matching.len() > limit;
+        matching.truncate(limit);
+        let next_before_seq = has_more
+            .then(|| matching.last().map(|message| message.message_seq))
+            .flatten();
+        matching.reverse();
+        Ok(MessageWindow {
+            items: matching,
+            high_watermark: self.read_high_watermark(
+                tenant_id,
+                organization_id,
+                conversation_id,
+            )?,
+            next_before_seq,
+            has_more,
+        })
+    }
+
+    fn read_message_by_id(
+        &self,
+        tenant_id: &str,
+        message_id: i64,
+    ) -> Result<Option<StoredMessageRecord>, ContractError> {
+        Ok(self
+            .messages
+            .iter()
+            .find(|message| message.tenant_id == tenant_id && message.message_id == message_id)
+            .cloned())
+    }
+
+    fn read_message_by_client_id(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        sender_principal_kind: &str,
+        sender_principal_id: &str,
+        client_msg_id: &str,
+    ) -> Result<Option<StoredMessageRecord>, ContractError> {
+        Ok(self
+            .messages
+            .iter()
+            .find(|message| {
+                message.tenant_id == tenant_id
+                    && message.organization_id == organization_id
+                    && message.conversation_id == conversation_id
+                    && message.sender_principal_kind == sender_principal_kind
+                    && message.sender_principal_id == sender_principal_id
+                    && message.client_msg_id.as_deref() == Some(client_msg_id)
+            })
+            .cloned())
+    }
+
+    fn read_high_watermark(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<u64, ContractError> {
+        Ok(self
+            .messages
+            .iter()
+            .filter(|message| {
+                message.tenant_id == tenant_id
+                    && message.organization_id == organization_id
+                    && message.conversation_id == conversation_id
+            })
+            .map(|message| message.message_seq)
+            .max()
+            .unwrap_or_default())
     }
 }
 
@@ -120,6 +726,906 @@ fn canonical_agent_dialog_command(requester_id: &str, agent_id: &str) -> CreateA
     }
 }
 
+fn joined_member_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+) -> ConversationMemberRecord {
+    ConversationMemberRecord {
+        tenant_id: tenant_id.into(),
+        organization_id: organization_id.into(),
+        conversation_id: conversation_id.into(),
+        principal_kind: principal_kind.into(),
+        principal_id: principal_id.into(),
+        member_id: 1001,
+        membership_role: "member".into(),
+        membership_state: "joined".into(),
+        invited_by: None,
+        joined_at: "2026-07-08T00:00:00.000Z".into(),
+        removed_at: None,
+        attributes_json: "{}".into(),
+    }
+}
+
+fn stored_message_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    message_seq: u64,
+    sender_id: &str,
+    text: &str,
+) -> StoredMessageRecord {
+    StoredMessageRecord {
+        tenant_id: tenant_id.into(),
+        organization_id: organization_id.into(),
+        conversation_id: conversation_id.into(),
+        message_id: 9000 + message_seq as i64,
+        message_seq,
+        sender_principal_kind: "user".into(),
+        sender_principal_id: sender_id.into(),
+        sender_device_id: Some("device_test".into()),
+        client_msg_id: Some(format!("client_msg_{message_seq}")),
+        message_type: "standard".into(),
+        payload_json: serde_json::to_string(&MessageBody {
+            summary: Some(text.into()),
+            parts: vec![ContentPart::text(text)],
+            render_hints: Default::default(),
+            reply_to: None,
+        })
+        .expect("message body should serialize"),
+        payload_hash: format!("hash_{message_seq}"),
+        created_at: "2026-07-08T00:00:00.000Z".into(),
+        updated_at: "2026-07-08T00:00:00.000Z".into(),
+        deleted_at: None,
+        retention_until: None,
+    }
+}
+
+fn runtime_with_current_durable_message(
+    conversation_id: &str,
+    message_seq: u64,
+) -> (ConversationRuntime<InMemoryJournal>, String) {
+    let mut durable_message = stored_message_record(
+        "100001",
+        "0",
+        conversation_id,
+        message_seq,
+        "1",
+        "durable message",
+    );
+    let current_time = im_time::utc_now_rfc3339_millis();
+    durable_message.created_at = current_time.clone();
+    durable_message.updated_at = current_time;
+    let message_id = durable_message.message_id.to_string();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_message_store(Arc::new(TestMessageStore::new(vec![durable_message])));
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: conversation_id.into(),
+            conversation_type: "group".into(),
+            creator_id: "1".into(),
+        })
+        .expect("conversation should be created");
+    (runtime, message_id)
+}
+
+fn journal_event(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    event_type: &str,
+    ordering_seq: u64,
+) -> CommitEnvelope {
+    CommitEnvelope {
+        event_id: format!("evt_{conversation_id}_{event_type}_{ordering_seq}"),
+        tenant_id: tenant_id.into(),
+        organization_id: organization_id.into(),
+        event_type: event_type.into(),
+        event_version: 1,
+        aggregate_type: AggregateType::Conversation,
+        aggregate_id: conversation_id.into(),
+        scope_type: "conversation".into(),
+        scope_id: conversation_id.into(),
+        ordering_key: CommitEnvelope::ordering_key(tenant_id, conversation_id),
+        ordering_seq,
+        causation_id: None,
+        correlation_id: None,
+        idempotency_key: None,
+        actor: EventActor {
+            actor_id: "system".into(),
+            actor_kind: "system".into(),
+            actor_session_id: None,
+        },
+        occurred_at: "2026-07-08T00:00:00.000Z".into(),
+        committed_at: "2026-07-08T00:00:00.000Z".into(),
+        payload_schema: Some(format!("{event_type}.v1")),
+        payload: "{}".into(),
+        retention_class: "standard".into(),
+        audit_class: "default".into(),
+    }
+}
+
+#[test]
+fn test_aggregate_store_load_failure_does_not_cache_empty_roster_as_permission_denied() {
+    let runtime =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
+            TestAggregateStore::unavailable("forced aggregate load failure"),
+        ));
+
+    for attempt in 0..2 {
+        let error = runtime
+            .require_active_member_with_kind(
+                "100001",
+                "0",
+                "c_direct_missing",
+                "330339707122622464",
+                "user",
+            )
+            .expect_err("aggregate store outage must remain a dependency error");
+
+        assert!(
+            matches!(
+                error,
+                RuntimeError::Contract(ContractError::Unavailable(ref message))
+                    if message.contains("forced aggregate load failure")
+            ),
+            "attempt {attempt} should not be converted to PermissionDenied: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn test_message_history_uses_member_projection_and_message_store_without_full_aggregate_load() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_direct_lightweight_history";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let aggregate_store = TestAggregateStore::member_only(
+        member,
+        "forced full aggregate load failure for message history",
+    );
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(aggregate_store.clone()))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                1,
+                principal_id,
+                "hello from store",
+            ),
+        ])));
+
+    let history = runtime
+        .list_messages_with_actor_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            "user",
+            None,
+            20,
+        )
+        .expect(
+            "message history should read through the message store after member projection auth",
+        );
+
+    assert_eq!(history.page.items.len(), 1);
+    assert_eq!(
+        history.page.items[0].message.body.summary.as_deref(),
+        Some("hello from store")
+    );
+    assert_eq!(history.high_watermark, 1);
+    assert_eq!(
+        aggregate_store.aggregate_load_count(),
+        0,
+        "message history reads must not require full aggregate restore when member projection and message store are available"
+    );
+}
+
+#[test]
+fn test_high_cardinality_member_auth_uses_targeted_lookup_beyond_bootstrap_page() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_high_cardinality_auth";
+    let mut members = Vec::new();
+    for index in 0..201_i64 {
+        let principal_id = format!("user_{index:03}");
+        let mut member = joined_member_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            "user",
+            principal_id.as_str(),
+        );
+        member.member_id = 10_000 + index;
+        members.push(member);
+    }
+    let runtime =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
+            TestAggregateStore::snapshot(PersistedConversationAggregateState {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                members,
+                read_cursors: Vec::new(),
+                high_watermark: 0,
+            }),
+        ));
+
+    let member = runtime
+        .require_active_member_with_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            "user_200",
+            "user",
+        )
+        .expect("page-external active member should hydrate through targeted lookup");
+
+    assert_eq!(member.principal_id, "user_200");
+    assert_eq!(member.member_id, "10200");
+}
+
+#[test]
+fn test_high_cardinality_member_list_reads_store_pages_beyond_bootstrap_window() {
+    ensure_conversation_cursor_test_secret();
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_high_cardinality_list";
+    let mut members = Vec::new();
+    for index in 0..201_i64 {
+        let principal_id = format!("user_{index:03}");
+        let mut member = joined_member_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            "user",
+            principal_id.as_str(),
+        );
+        member.member_id = 30_000 + index;
+        members.push(member);
+    }
+    let runtime =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
+            TestAggregateStore::snapshot(PersistedConversationAggregateState {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                members,
+                read_cursors: Vec::new(),
+                high_watermark: 0,
+            }),
+        ));
+
+    let first = runtime
+        .list_members_window(tenant_id, organization_id, conversation_id, Some(100), None)
+        .expect("first member page should load from the durable store");
+    assert_eq!(first.items.len(), 100);
+    assert_eq!(first.page_info.has_more, Some(true));
+    let first_cursor = first
+        .page_info
+        .next_cursor
+        .as_deref()
+        .expect("first member page should have an opaque cursor");
+    assert!(first_cursor.parse::<usize>().is_err());
+
+    let second = runtime
+        .list_members_window(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            Some(100),
+            Some(first_cursor),
+        )
+        .expect("second member page should continue from the durable keyset");
+    assert_eq!(second.items.len(), 100);
+    assert_eq!(second.page_info.has_more, Some(true));
+    let second_cursor = second
+        .page_info
+        .next_cursor
+        .as_deref()
+        .expect("second member page should have an opaque cursor");
+
+    let third = runtime
+        .list_members_window(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            Some(100),
+            Some(second_cursor),
+        )
+        .expect("third member page should include the page-external member");
+    assert_eq!(third.items.len(), 1);
+    assert_eq!(third.items[0].principal_id, "user_200");
+    assert_eq!(third.page_info.has_more, Some(false));
+    assert!(third.page_info.next_cursor.is_none());
+}
+
+#[test]
+fn test_high_cardinality_message_edit_hydrates_page_external_sender() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_high_cardinality_edit";
+    let mut members = Vec::new();
+    for index in 0..201_i64 {
+        let principal_id = format!("user_{index:03}");
+        let mut member = joined_member_record(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            "user",
+            principal_id.as_str(),
+        );
+        member.member_id = 20_000 + index;
+        members.push(member);
+    }
+    let mut durable_message = stored_message_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        1,
+        "user_200",
+        "before high-cardinality edit",
+    );
+    let current_time = im_time::utc_now_rfc3339_millis();
+    durable_message.created_at = current_time.clone();
+    durable_message.updated_at = current_time;
+    let message_id = durable_message.message_id.to_string();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::snapshot(
+            PersistedConversationAggregateState {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                members,
+                read_cursors: Vec::new(),
+                high_watermark: 1,
+            },
+        )))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![durable_message])));
+
+    let edited = runtime
+        .edit_message(EditMessageCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            message_id: message_id.clone(),
+            editor: Sender {
+                id: "user_200".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("device_test".into()),
+                session_id: None,
+                metadata: Default::default(),
+            },
+            body: MessageBody {
+                summary: Some("after high-cardinality edit".into()),
+                parts: vec![ContentPart::text("after high-cardinality edit")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+            idempotency_key: Some("high-cardinality-edit-1".into()),
+        })
+        .expect("page-external sender should hydrate before editing own durable message");
+
+    assert_eq!(edited.message_id, message_id);
+    assert_eq!(edited.conversation_id, conversation_id);
+}
+
+#[test]
+fn test_hot_message_history_uses_loaded_conversation_when_member_projection_is_unavailable() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_hot_history_projection_unavailable";
+    let principal_id = "330339707122622464";
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::unavailable(
+            "forced member projection outage for hot message history",
+        )))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                1,
+                principal_id,
+                "hello from hot conversation",
+            ),
+        ])));
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            creator_id: principal_id.into(),
+            conversation_type: "group".into(),
+        })
+        .expect("conversation creation should keep a hot runtime conversation");
+
+    let history = runtime
+        .list_messages_with_actor_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            "user",
+            None,
+            20,
+        )
+        .expect("hot message history should not require the member projection dependency");
+
+    assert_eq!(history.page.items.len(), 1);
+    assert_eq!(
+        history.page.items[0].message.body.summary.as_deref(),
+        Some("hello from hot conversation")
+    );
+}
+
+#[test]
+fn test_message_history_page_info_preserves_requested_page_size_for_partial_store_window() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_history_partial_page_size";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::member_only(
+            member,
+            "aggregate should not be loaded for store-backed message history",
+        )))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                1,
+                principal_id,
+                "single message",
+            ),
+        ])));
+
+    let history = runtime
+        .list_messages_with_actor_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            "user",
+            None,
+            20,
+        )
+        .expect("store-backed partial message history should succeed");
+
+    assert_eq!(history.page.items.len(), 1);
+    assert_eq!(history.page.page_info.page_size, Some(20));
+    assert_eq!(history.page.page_info.has_more, Some(false));
+    assert_eq!(history.next_before_seq, None);
+}
+
+#[test]
+fn test_message_history_store_window_uses_cursor_page_contract() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_history_cursor_contract";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::member_only(
+            member,
+            "aggregate should not be loaded for store-backed message history",
+        )))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                1,
+                principal_id,
+                "message 1",
+            ),
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                2,
+                principal_id,
+                "message 2",
+            ),
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                3,
+                principal_id,
+                "message 3",
+            ),
+        ])));
+
+    let first = runtime
+        .list_messages_with_actor_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            "user",
+            None,
+            2,
+        )
+        .expect("first cursor page should succeed");
+
+    assert_eq!(first.page.items.len(), 2);
+    assert_eq!(first.page.items[0].message.message_seq, 2);
+    assert_eq!(first.page.items[1].message.message_seq, 3);
+    assert_eq!(first.page.page_info.page_size, Some(2));
+    assert_eq!(first.page.page_info.has_more, Some(true));
+    assert_eq!(first.next_before_seq, Some(2));
+    assert_eq!(first.high_watermark, 3);
+
+    let second = runtime
+        .list_messages_with_actor_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            "user",
+            Some(2),
+            2,
+        )
+        .expect("second cursor page should succeed");
+
+    assert_eq!(second.page.items.len(), 1);
+    assert_eq!(second.page.items[0].message.message_seq, 1);
+    assert_eq!(second.page.page_info.page_size, Some(2));
+    assert_eq!(second.page.page_info.has_more, Some(false));
+    assert_eq!(second.next_before_seq, None);
+    assert_eq!(second.high_watermark, 3);
+}
+
+#[test]
+fn test_message_history_store_window_rejects_invalid_stored_payload() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_history_invalid_payload";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let mut bad_message = stored_message_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        1,
+        principal_id,
+        "invalid payload",
+    );
+    bad_message.payload_json = "{not-json".into();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::member_only(
+            member,
+            "aggregate should not be loaded for store-backed message history",
+        )))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![bad_message])));
+
+    let error = runtime
+        .list_messages_with_actor_kind(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            "user",
+            None,
+            20,
+        )
+        .expect_err("invalid stored payload must not be silently omitted from history");
+
+    assert!(
+        matches!(error, RuntimeError::InvalidInput(ref message) if message.contains("invalid stored message payload")),
+        "unexpected error: {error:?}"
+    );
+}
+
+#[test]
+fn test_read_cursor_update_restores_persisted_high_watermark_after_cold_aggregate_load() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_cursor_cold_high_watermark";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let runtime =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
+            TestAggregateStore::snapshot(PersistedConversationAggregateState {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                members: vec![member],
+                read_cursors: Vec::new(),
+                high_watermark: 6,
+            }),
+        ));
+
+    let cursor = runtime
+        .update_read_cursor(UpdateReadCursorCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            principal_id: principal_id.into(),
+            device_id: None,
+            read_seq: 6,
+            last_read_message_id: Some("9006".into()),
+        })
+        .expect("read cursor should accept persisted high watermark after cold aggregate load");
+
+    assert_eq!(cursor.read_seq, 6);
+}
+
+#[test]
+fn test_read_cursor_update_uses_message_store_high_watermark_when_cache_is_stale() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_cursor_store_high_watermark";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::snapshot(
+            PersistedConversationAggregateState {
+                tenant_id: tenant_id.into(),
+                organization_id: organization_id.into(),
+                conversation_id: conversation_id.into(),
+                members: vec![member],
+                read_cursors: Vec::new(),
+                high_watermark: 0,
+            },
+        )))
+        .with_message_store(Arc::new(TestMessageStore::new(vec![
+            stored_message_record(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                6,
+                principal_id,
+                "message seq 6",
+            ),
+        ])));
+
+    let cursor = runtime
+        .update_read_cursor(UpdateReadCursorCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            principal_id: principal_id.into(),
+            device_id: None,
+            read_seq: 6,
+            last_read_message_id: Some("9006".into()),
+        })
+        .expect("read cursor should use message store high watermark when cache is stale");
+
+    assert_eq!(cursor.read_seq, 6);
+}
+
+#[test]
+fn test_read_cursor_update_after_cold_aggregate_load_uses_journal_watermark() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_cursor_journal_watermark";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let journal = PositionCheckedJournal::default();
+    for (event_type, ordering_seq) in [
+        ("conversation.created", 0),
+        ("conversation.member_joined", 1),
+        ("conversation.member_joined", 2),
+        ("message.posted", 5),
+    ] {
+        journal
+            .append(journal_event(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                event_type,
+                ordering_seq,
+            ))
+            .expect("seed event should append");
+    }
+    let runtime = ConversationRuntime::new(journal.clone()).with_aggregate_store(Arc::new(
+        TestAggregateStore::snapshot(PersistedConversationAggregateState {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            members: vec![member],
+            read_cursors: Vec::new(),
+            high_watermark: 1,
+        }),
+    ));
+
+    let cursor = runtime
+        .update_read_cursor(UpdateReadCursorCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            principal_id: principal_id.into(),
+            device_id: None,
+            read_seq: 1,
+            last_read_message_id: Some("9001".into()),
+        })
+        .expect("read cursor update must not reuse occupied journal positions after cold load");
+
+    assert_eq!(cursor.read_seq, 1);
+    let read_event = journal
+        .recorded()
+        .into_iter()
+        .find(|event| event.event_type == "conversation.read_cursor_updated")
+        .expect("read cursor event should be appended");
+    assert_eq!(
+        read_event.ordering_seq, 6,
+        "cold aggregate load must restore the journal watermark before allocating read cursor events"
+    );
+}
+
+#[test]
+fn test_read_cursor_update_refreshes_journal_watermark_when_loaded_aggregate_is_stale() {
+    let tenant_id = "100001";
+    let organization_id = "0";
+    let conversation_id = "c_cursor_loaded_journal_watermark";
+    let principal_id = "330339707122622464";
+    let member = joined_member_record(
+        tenant_id,
+        organization_id,
+        conversation_id,
+        "user",
+        principal_id,
+    );
+    let journal = PositionCheckedJournal::default();
+    for (event_type, ordering_seq) in [
+        ("conversation.created", 0),
+        ("conversation.member_joined", 1),
+    ] {
+        journal
+            .append(journal_event(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                event_type,
+                ordering_seq,
+            ))
+            .expect("seed event should append");
+    }
+    let runtime = ConversationRuntime::new(journal.clone()).with_aggregate_store(Arc::new(
+        TestAggregateStore::snapshot(PersistedConversationAggregateState {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            members: vec![member],
+            read_cursors: Vec::new(),
+            high_watermark: 2,
+        }),
+    ));
+
+    runtime
+        .update_read_cursor(UpdateReadCursorCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            principal_id: principal_id.into(),
+            device_id: None,
+            read_seq: 1,
+            last_read_message_id: Some("9001".into()),
+        })
+        .expect("first read cursor update should load aggregate state");
+
+    journal
+        .append(journal_event(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            "conversation.member_joined",
+            3,
+        ))
+        .expect("external member event should append after the runtime loaded the aggregate");
+
+    let cursor = runtime
+        .update_read_cursor(UpdateReadCursorCommand {
+            tenant_id: tenant_id.into(),
+            organization_id: organization_id.into(),
+            conversation_id: conversation_id.into(),
+            principal_id: principal_id.into(),
+            device_id: None,
+            read_seq: 2,
+            last_read_message_id: Some("9002".into()),
+        })
+        .expect("read cursor update must refresh journal watermark after a stale in-memory aggregate conflict");
+
+    assert_eq!(cursor.read_seq, 2);
+    let read_events: Vec<_> = journal
+        .recorded()
+        .into_iter()
+        .filter(|event| event.event_type == "conversation.read_cursor_updated")
+        .collect();
+    assert_eq!(read_events.len(), 2);
+    assert_eq!(
+        read_events[1].ordering_seq, 4,
+        "loaded aggregate retry must observe the journal watermark before allocating the replacement read cursor event"
+    );
+}
+
+#[test]
+fn test_empty_aggregate_state_recovers_members_from_journal_instead_of_caching_empty_roster() {
+    let source_journal = InMemoryJournal::default();
+    let source_runtime = ConversationRuntime::new(source_journal.clone());
+    let created = source_runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            canonical_bind_direct_chat_command(
+                "100001",
+                "330339707122622464",
+                "330339707122622465",
+            ),
+            "system",
+        )
+        .expect("direct chat creation should persist creation events");
+
+    let replay_runtime = ConversationRuntime::new(source_journal.clone())
+        .with_aggregate_store(Arc::new(TestAggregateStore::empty()));
+
+    let member = replay_runtime
+        .require_active_member_with_kind(
+            "100001",
+            "0",
+            created.conversation_id.as_str(),
+            "330339707122622464",
+            "user",
+        )
+        .expect("empty aggregate projection should recover active member from journal");
+
+    assert_eq!(member.principal_id, "330339707122622464");
+    assert_eq!(member.principal_kind, "user");
+}
+
 #[test]
 fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
     let runtime = ConversationRuntime::new(InMemoryJournal::default());
@@ -133,7 +1639,7 @@ fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
         })
         .expect("conversation should be created");
 
-    for invalid_limit in [0, 1001] {
+    for invalid_limit in [0, 201] {
         let result = runtime.list_messages_window(
             "100001",
             "default",
@@ -145,7 +1651,7 @@ fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
         assert!(matches!(
             result,
             Err(RuntimeError::InvalidInput(message))
-                if message == format!("message history limit must be between 1 and 1000: {invalid_limit}")
+                if message == format!("message history limit must be between 1 and 200: {invalid_limit}")
         ));
     }
 }
@@ -202,6 +1708,15 @@ impl CommitJournal for FailNextBatchJournal {
             positions.push(self.inner.append(envelope)?);
         }
         Ok(positions)
+    }
+
+    fn recorded_page_for_aggregate(
+        &self,
+        scope: &CommitJournalAggregateScope,
+        cursor: Option<&CommitJournalReplayCursor>,
+        limit: usize,
+    ) -> Result<CommitJournalReplayPage, ContractError> {
+        self.inner.recorded_page_for_aggregate(scope, cursor, limit)
     }
 }
 
@@ -278,7 +1793,8 @@ fn test_bind_direct_chat_does_not_leak_state_when_batch_commit_fails() {
         .expect("retry should succeed after failed direct chat bind");
 
     let conversation_id = created.conversation_id.clone();
-    assert!(conversation_id.starts_with("c_direct_"));
+    assert!(conversation_id.starts_with("c_"));
+    assert!(!conversation_id.starts_with("c_direct_"));
     let binding = runtime
         .conversation_business_binding("100001", "default", conversation_id.as_str())
         .expect("binding should exist after retry");
@@ -451,6 +1967,172 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     assert_eq!(events[1].event_type, "conversation.member_joined");
     assert_eq!(events[2].event_type, "message.posted");
     assert_eq!(events[2].ordering_seq, 2);
+}
+
+#[test]
+fn test_message_locator_drops_entries_evicted_from_hot_message_cache() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_locator_bound".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("conversation should be created");
+
+    let mut first_message_id = None;
+    let mut latest_message_id = String::new();
+    for index in 0..=im_domain_core::message::CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES {
+        let result = runtime
+            .post_message(PostMessageCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_locator_bound".into(),
+                sender: Sender {
+                    id: "1".into(),
+                    kind: "user".into(),
+                    member_id: None,
+                    device_id: None,
+                    session_id: None,
+                    metadata: BTreeMap::new(),
+                },
+                client_msg_id: None,
+                message_type: MessageType::Standard,
+                body: MessageBody {
+                    summary: Some(format!("message {index}")),
+                    parts: vec![ContentPart::text(format!("message {index}"))],
+                    render_hints: BTreeMap::new(),
+                    reply_to: None,
+                },
+            })
+            .expect("message post should succeed");
+        first_message_id.get_or_insert_with(|| result.message_id.clone());
+        latest_message_id = result.message_id;
+    }
+
+    let first_message_id = first_message_id.expect("first message id should be captured");
+    assert!(matches!(
+        runtime.conversation_id_for_message("100001", first_message_id.as_str()),
+        Err(RuntimeError::MessageNotFound(message_id)) if message_id == first_message_id
+    ));
+    assert_eq!(
+        runtime
+            .conversation_id_for_message("100001", latest_message_id.as_str())
+            .expect("latest locator should remain hot"),
+        "c_locator_bound"
+    );
+}
+
+#[test]
+fn test_message_edit_hydrates_durable_message_when_hot_locator_misses() {
+    let (runtime, message_id) = runtime_with_current_durable_message("c_durable_edit", 1);
+
+    let edited = runtime
+        .edit_message(EditMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: message_id.clone(),
+            editor: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("device_test".into()),
+                session_id: None,
+                metadata: Default::default(),
+            },
+            body: MessageBody {
+                summary: Some("durable after edit".into()),
+                parts: vec![ContentPart::text("durable after edit")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+            idempotency_key: Some("durable-edit-1".into()),
+        })
+        .expect("durable message should hydrate before edit");
+
+    assert_eq!(edited.conversation_id, "c_durable_edit");
+    assert_eq!(edited.message_id, message_id);
+    assert_eq!(edited.message_seq, 1);
+}
+
+#[test]
+fn test_message_recall_hydrates_durable_message_when_hot_locator_misses() {
+    let (runtime, message_id) = runtime_with_current_durable_message("c_durable_recall", 2);
+
+    let recalled = runtime
+        .recall_message(RecallMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: message_id.clone(),
+            recalled_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("device_test".into()),
+                session_id: None,
+                metadata: Default::default(),
+            },
+            idempotency_key: Some("durable-recall-1".into()),
+        })
+        .expect("durable message should hydrate before recall");
+
+    assert_eq!(recalled.conversation_id, "c_durable_recall");
+    assert_eq!(recalled.message_id, message_id);
+    assert_eq!(recalled.message_seq, 2);
+}
+
+#[test]
+fn test_message_reaction_hydrates_durable_message_when_hot_locator_misses() {
+    let (runtime, message_id) = runtime_with_current_durable_message("c_durable_reaction", 3);
+
+    let reacted = runtime
+        .add_message_reaction(AddMessageReactionCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: message_id.clone(),
+            reaction_key: "like".into(),
+            reacted_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("device_test".into()),
+                session_id: None,
+                metadata: Default::default(),
+            },
+        })
+        .expect("durable message should hydrate before reaction");
+
+    assert_eq!(reacted.conversation_id, "c_durable_reaction");
+    assert_eq!(reacted.message_id, message_id);
+    assert_eq!(reacted.message_seq, 3);
+}
+
+#[test]
+fn test_message_pin_hydrates_durable_message_when_hot_locator_misses() {
+    let (runtime, message_id) = runtime_with_current_durable_message("c_durable_pin", 4);
+
+    let pinned = runtime
+        .pin_message(PinMessageCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            message_id: message_id.clone(),
+            pinned_by: Sender {
+                id: "1".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("device_test".into()),
+                session_id: None,
+                metadata: Default::default(),
+            },
+        })
+        .expect("durable message should hydrate before pin");
+
+    assert_eq!(pinned.conversation_id, "c_durable_pin");
+    assert_eq!(pinned.message_id, message_id);
+    assert_eq!(pinned.message_seq, 4);
+    assert!(pinned.changed);
 }
 
 #[test]
@@ -1115,7 +2797,7 @@ fn test_create_agent_dialog_creates_requester_and_agent_members() {
         .expect("agent dialog create should succeed");
 
     let conversation_id = created.conversation_id.clone();
-    assert!(conversation_id.starts_with("c_agent_"));
+    assert!(conversation_id.starts_with("a_"));
 
     let members = runtime
         .list_members("100001", "default", conversation_id.as_str())
@@ -1949,6 +3631,40 @@ fn test_create_group_member_joined_event_preserves_system_actor_kind() {
 }
 
 #[test]
+fn test_create_group_conversation_created_event_preserves_group_name_title() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    let result = runtime
+        .create_group_conversation_with_creator_kind(
+            CreateGroupConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                creator_id: "1".into(),
+                group_name: "Backend Group".into(),
+                client_request_key: "group-title-contract".into(),
+            },
+            "user",
+        )
+        .expect("group conversation should be created");
+
+    let created = journal
+        .recorded()
+        .into_iter()
+        .find(|event| {
+            event.event_type == "conversation.created"
+                && event.aggregate_id == result.conversation_id
+        })
+        .expect("conversation.created event should be recorded");
+    let payload: serde_json::Value =
+        serde_json::from_str(created.payload.as_str()).expect("created payload should be json");
+
+    assert_eq!(payload["conversationType"], "group");
+    assert_eq!(payload["groupName"], "Backend Group");
+    assert_eq!(payload["title"], "Backend Group");
+}
+
+#[test]
 fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal.clone());
@@ -2198,8 +3914,11 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
         .filter(|event| event.event_type == "conversation.read_cursor_updated")
         .collect();
     assert_eq!(read_events.len(), 2);
-    assert_eq!(read_events[0].ordering_seq, 1);
-    assert_eq!(read_events[1].ordering_seq, 2);
+    // Cursor events allocate `ordering_seq` from the conversation aggregate's
+    // monotonic `next_commit_seq()` (shared with `message.posted`), not from
+    // `read_seq`. Verify strictly increasing journal slots rather than equality
+    // with `read_seq`.
+    assert!(read_events[0].ordering_seq < read_events[1].ordering_seq);
 }
 
 #[test]
@@ -2818,7 +4537,6 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
         .find(|event| {
             event.event_type == "conversation.read_cursor_updated"
                 && event.aggregate_id == conversation_id.as_str()
-                && event.ordering_seq == 1
         })
         .expect("read cursor update event should exist");
     assert_eq!(read_cursor_event.actor.actor_id, "agent.demo");
@@ -3312,7 +5030,8 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
 #[test]
 fn test_direct_conversation_owner_cannot_recall_other_members_message() {
     let journal = InMemoryJournal::default();
-    let runtime = ConversationRuntime::new(journal);
+    let runtime = ConversationRuntime::new(journal)
+        .with_direct_message_access_gate(Arc::new(AllowAllDirectMessageAccessGate));
 
     runtime
         .create_conversation(CreateConversationCommand {
@@ -6341,7 +8060,8 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
         .conversation_business_binding("100001", "default", conversation_id.as_str())
         .expect("binding should be queryable")
         .business_id;
-    assert!(conversation_id.starts_with("c_direct_"));
+    assert!(conversation_id.starts_with("c_"));
+    assert!(!conversation_id.starts_with("c_direct_"));
 
     let binding = runtime
         .conversation_business_binding("100001", "default", conversation_id.as_str())
@@ -6385,6 +8105,54 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
     assert_eq!(created_payload["conversationType"], "direct");
     assert_eq!(created_payload["businessType"], "direct_chat");
     assert_eq!(created_payload["businessId"], direct_chat_id);
+}
+
+#[test]
+fn test_user_participant_can_bind_own_direct_chat_conversation() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    let mut command = canonical_bind_direct_chat_command("100001", "actor_a", "actor_b");
+    command.bound_by = "actor_a".into();
+
+    let created = runtime
+        .bind_direct_chat_conversation_with_binder_kind(command, "user")
+        .expect("direct chat participants must be allowed to bind their own conversation");
+
+    let actor_member = runtime
+        .require_active_member_with_kind(
+            "100001",
+            "0",
+            created.conversation_id.as_str(),
+            "actor_a",
+            "user",
+        )
+        .expect("binding user should be an active direct chat member immediately");
+    let peer_member = runtime
+        .require_active_member_with_kind(
+            "100001",
+            "0",
+            created.conversation_id.as_str(),
+            "actor_b",
+            "user",
+        )
+        .expect("direct chat peer should be an active direct chat member immediately");
+
+    assert_eq!(actor_member.principal_id, "actor_a");
+    assert_eq!(peer_member.principal_id, "actor_b");
+}
+
+#[test]
+fn test_user_cannot_bind_direct_chat_for_other_participants() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+    let mut command = canonical_bind_direct_chat_command("100001", "actor_a", "actor_b");
+    command.bound_by = "actor_c".into();
+
+    let result = runtime.bind_direct_chat_conversation_with_binder_kind(command, "user");
+
+    assert!(matches!(
+        result,
+        Err(RuntimeError::PermissionDenied(message))
+            if message.contains("direct chat binding requester must be one of the participants")
+    ));
 }
 
 #[test]
@@ -7385,4 +9153,208 @@ fn test_post_message_rejects_oversized_render_hints() {
         }
         other => panic!("expected payload_too_large, got {other:?}"),
     }
+}
+
+#[test]
+fn test_direct_chat_creation_persists_both_members_to_aggregate_store() {
+    let aggregate_store = TestAggregateStore::recording();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(aggregate_store.clone()));
+
+    runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            canonical_bind_direct_chat_command("100001", "anchor_user", "peer_user"),
+            "system",
+        )
+        .expect("direct chat creation should persist aggregate state");
+
+    let members = aggregate_store.upserted_members();
+    assert_eq!(
+        members.len(),
+        2,
+        "direct chat creation must persist both anchor and peer members to the aggregate store"
+    );
+    assert!(
+        members.iter().any(|member| {
+            member.principal_id == "anchor_user" && member.membership_state == "joined"
+        }),
+        "anchor member should be persisted as joined: {members:?}"
+    );
+    assert!(
+        members.iter().any(|member| {
+            member.principal_id == "peer_user" && member.membership_state == "joined"
+        }),
+        "peer member must be persisted as joined (regression scenario for RTC auth 40301): {members:?}"
+    );
+    assert!(
+        !aggregate_store.upserted_cursors().is_empty(),
+        "direct chat creation must persist read cursors alongside members: {:?}",
+        aggregate_store.upserted_cursors()
+    );
+}
+
+#[test]
+fn test_direct_chat_binding_fails_when_member_projection_cannot_persist() {
+    let runtime =
+        ConversationRuntime::new(InMemoryJournal::default()).with_aggregate_store(Arc::new(
+            TestAggregateStore::write_unavailable("forced direct chat member projection failure"),
+        ));
+
+    let error = runtime
+        .bind_direct_chat_conversation_with_binder_kind(
+            canonical_bind_direct_chat_command("100001", "anchor_user", "peer_user"),
+            "system",
+        )
+        .expect_err("direct chat binding must fail when member projection cannot be persisted");
+
+    assert!(
+        matches!(
+            error,
+            RuntimeError::Contract(ContractError::Unavailable(ref message))
+                if message.contains("forced direct chat member projection failure")
+        ),
+        "direct chat binding must surface aggregate projection persistence failure: {error:?}"
+    );
+}
+
+#[test]
+fn test_create_conversation_persists_creator_member() {
+    let aggregate_store = TestAggregateStore::recording();
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(aggregate_store.clone()));
+
+    runtime
+        .create_conversation_with_creator_kind_and_attributes(
+            CreateConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_create_persist_creator".into(),
+                creator_id: "creator_user".into(),
+                conversation_type: "group".into(),
+            },
+            "user",
+            BTreeMap::new(),
+        )
+        .expect("conversation creation should persist creator aggregate state");
+
+    let members = aggregate_store.upserted_members();
+    assert_eq!(
+        members.len(),
+        1,
+        "conversation creation must persist the creator member to the aggregate store"
+    );
+    assert_eq!(members[0].principal_id, "creator_user");
+    assert_eq!(members[0].principal_kind, "user");
+    assert_eq!(members[0].membership_state, "joined");
+}
+
+#[test]
+fn test_change_member_role_persists_aggregate_state() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::recording()));
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_role_change_persist".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+    let member = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_role_change_persist".into(),
+            principal_id: "1043".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "1".into(),
+        })
+        .expect("owner should be able to add member");
+
+    let aggregate_store = TestAggregateStore::recording();
+    let runtime = runtime.with_aggregate_store(Arc::new(aggregate_store.clone()));
+
+    runtime
+        .change_conversation_member_role_with_actor_kind(
+            ChangeConversationMemberRoleCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_role_change_persist".into(),
+                target_member_id: member.member_id.clone(),
+                new_role: MembershipRole::Admin,
+                changed_by: "1".into(),
+            },
+            "user",
+        )
+        .expect("owner should be able to change member role");
+
+    let members = aggregate_store.upserted_members();
+    assert!(
+        !members.is_empty(),
+        "role change must persist aggregate state to the member projection table"
+    );
+    assert!(
+        members
+            .iter()
+            .any(|item| item.principal_id == "1043" && item.membership_role == "admin"),
+        "promoted member should be persisted with admin role: {members:?}"
+    );
+}
+
+#[test]
+fn test_transfer_owner_persists_aggregate_state() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default())
+        .with_aggregate_store(Arc::new(TestAggregateStore::recording()));
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_transfer_persist".into(),
+            creator_id: "1".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+    let target = runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            conversation_id: "c_transfer_persist".into(),
+            principal_id: "1058".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "1".into(),
+        })
+        .expect("owner should be able to add member");
+
+    let aggregate_store = TestAggregateStore::recording();
+    let runtime = runtime.with_aggregate_store(Arc::new(aggregate_store.clone()));
+
+    runtime
+        .transfer_conversation_owner_with_actor_kind(
+            TransferConversationOwnerCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_transfer_persist".into(),
+                target_member_id: target.member_id.clone(),
+                transferred_by: "1".into(),
+            },
+            "user",
+        )
+        .expect("owner should be able to transfer ownership");
+
+    let members = aggregate_store.upserted_members();
+    assert!(
+        !members.is_empty(),
+        "owner transfer must persist aggregate state to the member projection table"
+    );
+    assert!(
+        members
+            .iter()
+            .any(|item| item.principal_id == "1058" && item.membership_role == "owner"),
+        "transferred target should be persisted with owner role: {members:?}"
+    );
 }

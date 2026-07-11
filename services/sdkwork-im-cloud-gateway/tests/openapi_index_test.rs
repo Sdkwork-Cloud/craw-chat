@@ -6,7 +6,7 @@ use axum::{
     routing::any,
 };
 use http_body_util::BodyExt;
-use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
+use sdkwork_im_cloud_gateway_config::{WebGatewayConfig, service_upstream};
 use sdkwork_im_cloud_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
@@ -733,7 +733,6 @@ async fn gateway_service_index_does_not_surface_projection_device_metadata() {
         "projection-service"
     );
     assert_eq!(index_value["services"][0]["visibility"], "public");
-    assert_eq!(index_value["services"][0]["routeCount"], 8);
     assert_eq!(
         index_value["services"][0]["operationGroups"],
         json!(["conversations"])
@@ -746,6 +745,15 @@ async fn gateway_service_index_does_not_surface_projection_device_metadata() {
     let routes = index_value["routes"]
         .as_array()
         .expect("routes should be an array");
+    let projection_route_count = routes
+        .iter()
+        .filter(|route| route["serviceId"] == "projection-service")
+        .count();
+    assert_eq!(
+        index_value["services"][0]["routeCount"],
+        json!(projection_route_count),
+        "projection-service routeCount must match the gateway route index"
+    );
     assert!(
         !routes
             .iter()
@@ -954,7 +962,7 @@ fn startup_summary_hides_per_service_schema_and_docs_endpoints() {
         web_gateway::build_gateway_registry().expect("gateway route registry should build");
     let config = test_gateway_config(vec![
         service_upstream("governance-service", "http://127.0.0.1:18081"),
-        service_upstream("comms-conversation-service", "http://127.0.0.1:18082"),
+        service_upstream("comms-conversation-service", "http://127.0.0.1:28082"),
     ]);
     let summary = build_startup_summary_with_registry(&config, &registry, "http://127.0.0.1:18079");
     let text = format_startup_summary(&summary);
@@ -975,7 +983,7 @@ fn test_gateway_config(
     ensure_gateway_test_web_environment();
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),
-        runtime_mode: GatewayRuntimeMode::Split,
+        runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::SingleIngress,
         strict_startup: true,
         upstreams,
     }

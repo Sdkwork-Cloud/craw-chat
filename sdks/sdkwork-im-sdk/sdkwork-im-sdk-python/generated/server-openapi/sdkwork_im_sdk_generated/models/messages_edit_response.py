@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 if TYPE_CHECKING:
-    from .posted_message_response import PostedMessageResponse
+    from .message_mutation_result import MessageMutationResult
 
 
 @dataclass

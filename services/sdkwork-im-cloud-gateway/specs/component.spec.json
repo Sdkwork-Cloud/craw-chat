@@ -100,7 +100,9 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS"
+    ],
     "routeManifest": null
   },
   "integration": {

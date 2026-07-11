@@ -1,6 +1,7 @@
 [runtime]
 environment = "production"
-deployment_mode = "desktop"
+deployment_profile = "standalone"
+runtime_target = "desktop"
 app_code = "chat"
 
 [paths]
@@ -15,7 +16,7 @@ runtime_directory = "~/.sdkwork/chat/tmp"
 # connect to a local or remote PostgreSQL instance. SQLite is not supported
 # as an IM business store (no SQLite adapter is implemented in this repo).
 [database]
-engine = "postgres"
+engine = "postgresql"
 url = "postgresql://sdkwork:sdkwork@127.0.0.1:5432/chat"
 max_connections = 8
 auto_migrate = true

@@ -8,10 +8,27 @@
 //! All data access MUST validate tenant context consistency:
 //!
 //! ```rust
-//! use im_domain_core::security::TenantIsolationValidator;
+//! use im_domain_core::security::{SecurityContext, TenantIsolationValidator};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let validator = TenantIsolationValidator::new();
-//! validator.validate_access(&request_context, resource_tenant_id)?;
+//! let request_context = SecurityContext {
+//!     tenant_id: "tenant-1".to_owned(),
+//!     organization_id: "0".to_owned(),
+//!     login_scope: "TENANT".to_owned(),
+//!     user_id: Some("user-1".to_owned()),
+//!     session_id: Some("session-1".to_owned()),
+//!     actor_id: "user-1".to_owned(),
+//!     actor_kind: "USER".to_owned(),
+//!     permission_scope: vec!["im:messages:read".to_owned()],
+//!     data_scope: "TENANT".to_owned(),
+//!     auth_level: "password".to_owned(),
+//!     request_id: Some("request-1".to_owned()),
+//!     trace_id: Some("trace-1".to_owned()),
+//! };
+//! validator.validate_access(&request_context, "tenant-1")?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Security Event Emission

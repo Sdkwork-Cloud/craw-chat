@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type { ImSdkClient } from '@sdkwork/im-sdk';
 import type { User } from '@sdkwork/im-pc-types';
 import { createSdkworkChatService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService';
+import type { SdkworkChatSession } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
 type StartDirectChatCall =
   | {
@@ -17,6 +18,26 @@ type StartDirectChatCall =
 const calls: StartDirectChatCall[] = [];
 
 const CANONICAL_DIRECT_CHAT_ID = 'c_direct_0123456789abcdef01234567';
+const authenticatedSession: SdkworkChatSession = {
+  accessToken: 'test-access-token',
+  authToken: 'test-auth-token',
+  context: {
+    appId: 'sdkwork-im-pc',
+    authLevel: 'password',
+    dataScope: [],
+    deploymentMode: 'saas',
+    environment: 'dev',
+    permissionScope: [],
+    sessionId: 'session-1',
+    tenantId: '100001',
+    userId: 'session-user-1',
+  },
+  sessionId: 'session-1',
+  user: {
+    id: 'cached-local-user',
+    userId: 'session-user-1',
+  },
+};
 
 const fakeClient = {
   conversations: {
@@ -54,7 +75,10 @@ const fakeClient = {
 } as unknown as ImSdkClient;
 
 async function main(): Promise<void> {
-  const service = createSdkworkChatService(() => fakeClient);
+  const service = createSdkworkChatService({
+    getClient: () => fakeClient,
+    getSession: () => authenticatedSession,
+  });
   const user: User = {
     id: 'u_alice',
     name: 'Alice Chen',
@@ -68,7 +92,7 @@ async function main(): Promise<void> {
     {
       method: 'conversations.bindDirectChat',
       body: {
-        leftActorId: 'current-user',
+        leftActorId: 'session-user-1',
         leftActorKind: 'user',
         rightActorId: 'u_alice',
         rightActorKind: 'user',

@@ -52,6 +52,7 @@ const scannedTextExtensions = new Set([
   '.swift',
   '.toml',
   '.ts',
+  '.tsx',
   '.yaml',
   '.yml',
 ]);
@@ -196,6 +197,43 @@ function assertNoActiveAppBusinessSdkSurfaceInImFamily() {
   );
 }
 
+function assertNoStaleMessageHistoryContractMarkers() {
+  const scanTargets = [
+    'sdks/sdkwork-im-sdk',
+    'apps/sdkwork-im-pc/e2e',
+    'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat',
+    'apps/sdkwork-im-h5/packages/sdkwork-im-h5-chat',
+    'apps/sdkwork-im-flutter-mobile/packages/sdkwork_im_flutter_mobile_chat',
+    'apps/sdkwork-im-flutter-mobile/test',
+    'docs/sites/api-reference',
+    'docs/architecture/tech',
+  ];
+  const forbiddenMarkers = [
+    marker('Conversations', 'Messages', 'List', 'Response'),
+    marker('Posted', 'Message', 'Response'),
+    marker('Timeline', 'List', 'Response'),
+    marker('Timeline', 'Response'),
+    marker('get', 'Timeline'),
+  ];
+  const violations = [];
+  for (const scanTarget of scanTargets) {
+    const targetPath = path.join(repoRoot, ...scanTarget.split('/'));
+    for (const filePath of collectTextFiles(targetPath)) {
+      const source = readFileSync(filePath, 'utf8');
+      for (const markerText of forbiddenMarkers) {
+        if (source.includes(markerText)) {
+          violations.push(`${toPosixPath(path.relative(repoRoot, filePath))}: stale message history contract marker ${markerText}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(
+    violations,
+    [],
+    'Active IM SDKs, consumers, and docs must use ConversationMessageListResponse and PostMessageResult without stale timeline/history DTO markers.',
+  );
+}
+
 const sharedFamilySource = read('workspace-im-v3-sdk-family.mjs');
 const sharedOpenApiStandardSource = read('workspace-openapi-v3-standard.mjs');
 const sharedOpenApiSource = read('workspace-openapi-source-shared.mjs');
@@ -217,6 +255,7 @@ const imRefreshSource = read('sdkwork-im-sdk/bin/refresh-live-openapi-source.mjs
 const imSeedMaterializerSource = read('sdkwork-im-sdk/bin/materialize-local-openapi-seed.mjs');
 const imGeneratePowerShellSource = read('sdkwork-im-sdk/bin/generate-sdk.ps1');
 const imGenerateShellSource = read('sdkwork-im-sdk/bin/generate-sdk.sh');
+const imTypeScriptCompatSource = read('sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/openapi-compat-types.ts');
 const pageSizeWireAlignmentSource = readRepo('scripts/dev/align-im-openapi-page-size-wire.mjs');
 const sdkWorkspaceIndexSource = read('README.md');
 const appReadmeSource = read('sdkwork-im-app-sdk/README.md');
@@ -228,10 +267,10 @@ const appTypeScriptDistRuntimeSource = read('sdkwork-im-app-sdk/sdkwork-im-app-s
 const appFlutterClientSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-flutter/generated/server-openapi/lib/app_client.dart');
 const appRustClientSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-rust/generated/server-openapi/src/client.rs');
 const appRustLibSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-rust/generated/server-openapi/src/lib.rs');
-const appAssembly = JSON.parse(read('sdkwork-im-app-sdk/.sdkwork-assembly.json'));
+const appSdkManifest = JSON.parse(read('sdkwork-im-app-sdk/sdk-manifest.json'));
 const appComponentSpec = JSON.parse(read('sdkwork-im-app-sdk/specs/component.spec.json'));
 const appComponentSpecSource = read('sdkwork-im-app-sdk/specs/README.md');
-const backendAssembly = JSON.parse(read('sdkwork-im-backend-sdk/.sdkwork-assembly.json'));
+const backendSdkManifest = JSON.parse(read('sdkwork-im-backend-sdk/sdk-manifest.json'));
 const backendComponentSpec = JSON.parse(read('sdkwork-im-backend-sdk/specs/component.spec.json'));
 const backendComponentSpecSource = read('sdkwork-im-backend-sdk/specs/README.md');
 const backendReadmeSource = read('sdkwork-im-backend-sdk/README.md');
@@ -425,6 +464,68 @@ function operationEntries(document) {
     }
   }
   return entries;
+}
+
+function operationById(document, operationId) {
+  const entry = operationEntries(document).find(({ operation }) => operation?.operationId === operationId);
+  assert.ok(entry, `${operationId} operation must exist.`);
+  return entry.operation;
+}
+
+function resolveSchemaRef(document, schema) {
+  if (typeof schema?.$ref !== 'string') {
+    return schema;
+  }
+  const schemaName = schema.$ref.match(/^#\/components\/schemas\/([^/]+)$/)?.[1];
+  assert.ok(schemaName, `schema ref ${schema.$ref} must target components.schemas.`);
+  const resolved = document.components?.schemas?.[schemaName];
+  assert.ok(resolved, `schema ${schemaName} must exist.`);
+  return resolved;
+}
+
+function sdkworkEnvelopeDataSchema(document, schema) {
+  const resolved = resolveSchemaRef(document, schema);
+  const envelopeOverlay = resolved.allOf?.find((part) => part?.properties?.data);
+  const data = envelopeOverlay?.properties?.data;
+  assert.ok(data, 'SdkWorkApiResponse envelope data schema must be explicit.');
+  return data;
+}
+
+function sdkworkEnvelopeItemRef(document, schema) {
+  const data = sdkworkEnvelopeDataSchema(document, schema);
+  const itemRef = data.properties?.item?.$ref;
+  assert.ok(itemRef, 'SdkWorkApiResponse envelope data.item schema ref must be explicit.');
+  return itemRef;
+}
+
+function operationRequestSchemaRef(document, operationId) {
+  const operation = operationById(document, operationId);
+  const schemaRef = operation.requestBody?.content?.['application/json']?.schema?.$ref;
+  assert.ok(schemaRef, `${operationId} request body schema ref must be explicit.`);
+  return schemaRef;
+}
+
+function operationResponseItemRef(document, operationId, status) {
+  const operation = operationById(document, operationId);
+  const schema = operation.responses?.[status]?.content?.['application/json']?.schema;
+  assert.ok(schema, `${operationId} ${status} response schema must be explicit.`);
+  return sdkworkEnvelopeItemRef(document, schema);
+}
+
+function assertObjectSchemaShape(document, label, schemaName, expectedProperties, expectedRequired) {
+  const schema = document.components?.schemas?.[schemaName];
+  assert.ok(schema, `${label} ${schemaName} schema must exist.`);
+  assert.equal(schema.type, 'object', `${label} ${schemaName} must be an object schema.`);
+  assert.deepEqual(
+    Object.keys(schema.properties ?? {}).sort(),
+    [...expectedProperties].sort(),
+    `${label} ${schemaName} properties must match the runtime DTO.`,
+  );
+  assert.deepEqual(
+    (schema.required ?? []).sort(),
+    [...expectedRequired].sort(),
+    `${label} ${schemaName} required fields must match the runtime DTO.`,
+  );
 }
 
 function collectSchemaRefs(value, refs = new Set()) {
@@ -823,16 +924,16 @@ for (const marker of [
   );
 }
 assert.deepEqual(
-  appAssembly.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
+  appSdkManifest.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
   ['sdkwork-aiot-app-sdk', 'sdkwork-iam-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
-  'app SDK assembly must declare appbase, AIoT, IM, and RTC SDK dependencies.',
+  'app SDK manifest must declare appbase, AIoT, IM, and RTC SDK dependencies.',
 );
 assert.deepEqual(
   appComponentSpec.contracts?.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
   ['sdkwork-aiot-app-sdk', 'sdkwork-iam-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
   'app SDK component spec must declare appbase, AIoT, IM, and RTC SDK dependencies.',
 );
-for (const dependency of appAssembly.sdkDependencies ?? []) {
+for (const dependency of appSdkManifest.sdkDependencies ?? []) {
   assert.equal(dependency.required, true, `${dependency.workspace} dependency must be required.`);
   assert.equal(dependency.dependencyMode, 'consumer-sdk', `${dependency.workspace} dependency must use consumer-sdk mode.`);
   assert.equal(
@@ -843,8 +944,8 @@ for (const dependency of appAssembly.sdkDependencies ?? []) {
 }
 assert.deepEqual(
   appComponentSpec.contracts?.sdkDependencies,
-  appAssembly.sdkDependencies,
-  'app SDK component spec sdkDependencies must match .sdkwork-assembly.json.',
+  appSdkManifest.sdkDependencies,
+  'app SDK component spec sdkDependencies must match sdk-manifest.json.',
 );
 for (const marker of [
   'sdkDependencies',
@@ -865,7 +966,7 @@ for (const marker of [
 assertGeneratedTransportDoesNotImportSdkDependencies(
   'app SDK',
   'sdkwork-im-app-sdk',
-  appAssembly.sdkDependencies.flatMap((dependency) => Object.values(dependency.packageByLanguage ?? {})),
+  appSdkManifest.sdkDependencies.flatMap((dependency) => Object.values(dependency.packageByLanguage ?? {})),
 );
 assertFlutterDerivedExpandsPrimitiveComponentRefs('app SDK Flutter derived OpenAPI', appFlutterDerived);
 for (const appRequiredPath of [
@@ -1052,16 +1153,16 @@ for (const marker of [
   );
 }
 assert.deepEqual(
-  backendAssembly.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
+  backendSdkManifest.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
   ['sdkwork-iam-backend-sdk'],
-  'backend SDK assembly must declare appbase backend SDK dependency.',
+  'backend SDK manifest must declare appbase backend SDK dependency.',
 );
 assert.deepEqual(
   backendComponentSpec.contracts?.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
   ['sdkwork-iam-backend-sdk'],
   'backend SDK component spec must declare appbase backend SDK dependency.',
 );
-for (const dependency of backendAssembly.sdkDependencies ?? []) {
+for (const dependency of backendSdkManifest.sdkDependencies ?? []) {
   assert.equal(dependency.required, true, `${dependency.workspace} dependency must be required.`);
   assert.equal(dependency.dependencyMode, 'consumer-sdk', `${dependency.workspace} dependency must use consumer-sdk mode.`);
   assert.equal(
@@ -1072,8 +1173,8 @@ for (const dependency of backendAssembly.sdkDependencies ?? []) {
 }
 assert.deepEqual(
   backendComponentSpec.contracts?.sdkDependencies,
-  backendAssembly.sdkDependencies,
-  'backend SDK component spec sdkDependencies must match .sdkwork-assembly.json.',
+  backendSdkManifest.sdkDependencies,
+  'backend SDK component spec sdkDependencies must match sdk-manifest.json.',
 );
 for (const marker of [
   'sdkDependencies',
@@ -1091,7 +1192,7 @@ for (const marker of [
 assertGeneratedTransportDoesNotImportSdkDependencies(
   'backend SDK',
   'sdkwork-im-backend-sdk',
-  backendAssembly.sdkDependencies.flatMap((dependency) => Object.values(dependency.packageByLanguage ?? {})),
+  backendSdkManifest.sdkDependencies.flatMap((dependency) => Object.values(dependency.packageByLanguage ?? {})),
 );
 for (const backendRequiredPath of [
   '/backend/v3/api/ops/health',
@@ -1248,7 +1349,176 @@ for (const [label, document] of [
   ['IM derived', imDerived],
   ['IM Flutter derived', imFlutterDerived],
 ]) {
+  const listMessages = operationById(document, 'conversations.messages.list');
+  const listMessagesSchema = listMessages.responses?.['200']?.content?.['application/json']?.schema;
+  const listMessagesData = sdkworkEnvelopeDataSchema(document, listMessagesSchema);
+  assert.deepEqual(
+    Object.keys(listMessagesData.properties ?? {}).sort(),
+    ['highWatermark', 'items', 'pageInfo'],
+    `${label} conversations.messages.list data must expose only the standard page plus highWatermark.`,
+  );
+  assert.deepEqual(
+    (listMessagesData.required ?? []).sort(),
+    ['highWatermark', 'items', 'pageInfo'],
+    `${label} conversations.messages.list data must require items, pageInfo, and highWatermark.`,
+  );
+  assert.equal(
+    listMessagesData.properties?.items?.items?.$ref,
+    '#/components/schemas/ConversationMessageEntry',
+    `${label} conversations.messages.list items must be ConversationMessageEntry, not StoredMessage or retired timeline DTOs.`,
+  );
+  assert.equal(
+    listMessagesData.properties?.pageInfo?.$ref,
+    '#/components/schemas/PageInfo',
+    `${label} conversations.messages.list must use PageInfo for cursor pagination.`,
+  );
+  assert.ok(
+    listMessagesData.properties?.highWatermark,
+    `${label} conversations.messages.list must expose highWatermark.`,
+  );
+
+  const createMessage = operationById(document, 'conversations.messages.create');
+  assert.ok(
+    createMessage.responses?.['201'],
+    `${label} conversations.messages.create must use HTTP 201 for create semantics.`,
+  );
+  assert.equal(
+    sdkworkEnvelopeItemRef(document, createMessage.responses?.['201']?.content?.['application/json']?.schema),
+    '#/components/schemas/PostMessageResult',
+    `${label} conversations.messages.create must return runtime PostMessageResult.`,
+  );
+
+  const publishSystemChannel = operationById(document, 'conversations.systemChannel.publish');
+  assert.equal(
+    sdkworkEnvelopeItemRef(document, publishSystemChannel.responses?.['200']?.content?.['application/json']?.schema),
+    '#/components/schemas/PostMessageResult',
+    `${label} conversations.systemChannel.publish must return runtime PostMessageResult.`,
+  );
+
+  for (const operationId of ['messages.edit', 'messages.recall']) {
+    const operation = operationById(document, operationId);
+    assert.equal(
+      sdkworkEnvelopeItemRef(document, operation.responses?.['200']?.content?.['application/json']?.schema),
+      '#/components/schemas/MessageMutationResult',
+      `${label} ${operationId} must return runtime MessageMutationResult.`,
+    );
+  }
+
+  const postMessageResult = document.components?.schemas?.PostMessageResult;
+  assert.deepEqual(
+    Object.keys(postMessageResult?.properties ?? {}).sort(),
+    ['deliveryStatus', 'eventId', 'messageId', 'messageSeq', 'proofVersion', 'requestKey'],
+    `${label} PostMessageResult must expose runtime result fields only.`,
+  );
+  assert.deepEqual(
+    (postMessageResult?.required ?? []).sort(),
+    ['deliveryStatus', 'eventId', 'messageId', 'messageSeq'],
+    `${label} PostMessageResult must require runtime non-optional fields.`,
+  );
+  assert.deepEqual(
+    postMessageResult?.properties?.deliveryStatus?.enum,
+    ['applied', 'replayed'],
+    `${label} PostMessageResult.deliveryStatus must match runtime snake_case enum values.`,
+  );
+
+  const messageMutationResult = document.components?.schemas?.MessageMutationResult;
+  assert.deepEqual(
+    Object.keys(messageMutationResult?.properties ?? {}).sort(),
+    ['conversationId', 'eventId', 'messageId', 'messageSeq'],
+    `${label} MessageMutationResult must expose runtime mutation result fields only.`,
+  );
+  assert.deepEqual(
+    (messageMutationResult?.required ?? []).sort(),
+    ['conversationId', 'eventId', 'messageId', 'messageSeq'],
+    `${label} MessageMutationResult must require runtime mutation result fields.`,
+  );
+  assert.ok(
+    !document.components?.schemas?.[marker('Posted', 'Message', 'Response')],
+    `${label} must not keep the stale posted-message response schema after runtime contract alignment.`,
+  );
+
+  for (const [operationId, requestSchema] of [
+    ['conversations.create', 'CreateConversationRequest'],
+    ['conversations.agentDialogs.create', 'CreateAgentDialogRequest'],
+    ['conversations.agentHandoffs.create', 'CreateAgentHandoffRequest'],
+    ['conversations.systemChannels.create', 'CreateSystemChannelRequest'],
+    ['conversations.threads.create', 'CreateThreadConversationRequest'],
+    ['conversations.directChats.bindings.create', 'BindDirectChatRequest'],
+  ]) {
+    assert.equal(
+      operationRequestSchemaRef(document, operationId),
+      `#/components/schemas/${requestSchema}`,
+      `${label} ${operationId} request body must use ${requestSchema}.`,
+    );
+    assert.equal(
+      operationResponseItemRef(document, operationId, '201'),
+      '#/components/schemas/CreateConversationResult',
+      `${label} ${operationId} must return 201 data.item CreateConversationResult.`,
+    );
+  }
+
+  assertObjectSchemaShape(
+    document,
+    label,
+    'CreateConversationRequest',
+    [
+      'capabilityFlags',
+      'clientRequestKey',
+      'conversationId',
+      'conversationType',
+      'groupName',
+      'historyVisibility',
+      'policyVersion',
+      'retentionPolicyRef',
+    ],
+    ['conversationType'],
+  );
+  assertObjectSchemaShape(
+    document,
+    label,
+    'CreateAgentDialogRequest',
+    ['agentId', 'conversationId'],
+    ['agentId'],
+  );
+  assertObjectSchemaShape(
+    document,
+    label,
+    'CreateAgentHandoffRequest',
+    ['conversationId', 'handoffReason', 'handoffSessionId', 'targetId', 'targetKind'],
+    ['conversationId', 'handoffSessionId', 'targetId', 'targetKind'],
+  );
+  assertObjectSchemaShape(
+    document,
+    label,
+    'CreateSystemChannelRequest',
+    ['conversationId', 'subscriberId'],
+    ['conversationId', 'subscriberId'],
+  );
+  assertObjectSchemaShape(
+    document,
+    label,
+    'CreateThreadConversationRequest',
+    ['conversationId', 'parentConversationId', 'rootMessageId'],
+    ['conversationId', 'parentConversationId', 'rootMessageId'],
+  );
+  assertObjectSchemaShape(
+    document,
+    label,
+    'BindDirectChatRequest',
+    ['conversationId', 'directChatId', 'leftActorId', 'leftActorKind', 'rightActorId', 'rightActorKind'],
+    ['leftActorId', 'leftActorKind', 'rightActorId', 'rightActorKind'],
+  );
+
   const operationIds = operationEntries(document).map(({ operation }) => String(operation?.operationId ?? ''));
+  assert.deepEqual(
+    operationIds.filter((operationId) => operationId.startsWith('conversations.agentDialogs.')).sort(),
+    ['conversations.agentDialogs.create'],
+    `${label} agent_dialogs must remain a create command only; unified list/read belongs to inbox.list.`,
+  );
+  assert.ok(
+    operationIds.includes('inbox.list'),
+    `${label} must expose unified inbox.list for human, group, system, and agent conversations.`,
+  );
   for (const forbiddenOperationId of [
     'device.sessions.resume',
     'device.sessions.disconnect',
@@ -1290,6 +1560,13 @@ assert.match(
   /materialize-im-v3-openapi-boundaries\.mjs/,
   'IM generate entrypoint must normalize OpenAPI SDK boundaries before generator execution.',
 );
+const imSeedStepIndex = imGenerateSource.indexOf('materialize-local-openapi-seed.mjs');
+const imBoundaryStepIndex = imGenerateSource.indexOf('materialize-im-v3-openapi-boundaries.mjs');
+const imSyncStepIndex = imGenerateSource.indexOf('sync-openapi-authority-mirror.mjs');
+assert.ok(
+  imSeedStepIndex >= 0 && imBoundaryStepIndex > imSeedStepIndex && imSyncStepIndex > imBoundaryStepIndex,
+  'IM generate entrypoint must run seed, then boundary normalization, then sync the normalized authority mirror.',
+);
 assert.match(
   imGenerateSource,
   /assemble-sdk\.mjs/,
@@ -1325,6 +1602,12 @@ assert.match(
   /page_size wire name/,
   'OpenAPI page-size wire alignment check must describe page_size as the HTTP wire standard.',
 );
+assert.match(
+  imTypeScriptCompatSource,
+  /export interface ConversationMessageListResponse\s*{[\s\S]*items:\s*ConversationMessageEntry\[\];[\s\S]*pageInfo:\s*SdkWorkListPageInfo;[\s\S]*highWatermark:\s*number;/,
+  'IM TypeScript composed ConversationMessageListResponse must expose items, pageInfo, and highWatermark from the OpenAPI data payload.',
+);
+assertNoStaleMessageHistoryContractMarkers();
 assert.doesNotMatch(
   imGenerateSource,
   /normalize-typescript-generated-package-manifest\.mjs/,
@@ -1342,8 +1625,8 @@ assert.doesNotMatch(
 );
 assert.equal(
   imTypeScriptGeneratedPackage.name,
-  '@sdkwork/im-sdk-generated',
-  'IM TypeScript generated package name must be owned by the generator output.',
+  'sdkwork-im-sdk-generated-typescript',
+  'IM TypeScript generated package name must be the generated transport id.',
 );
 assert.equal(
   imTypeScriptGeneratedPackage.private,

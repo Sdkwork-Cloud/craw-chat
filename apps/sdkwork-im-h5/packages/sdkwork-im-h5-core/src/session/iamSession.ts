@@ -5,7 +5,7 @@ import {
   type AuthTokens,
 } from "@sdkwork/sdk-common";
 
-import { DEFAULT_APP_SESSION, type ImH5AppSession } from "./appSession";
+import type { ImH5AppSession } from "./appSession";
 
 export interface ImH5IamSessionUser {
   displayName?: string;
@@ -55,39 +55,20 @@ function dispatchImH5IamSessionChanged(session: ImH5IamSession | null): void {
 
 function parseStoredImH5IamSession(raw: string): ImH5IamSession | null {
   try {
-    const parsed = JSON.parse(raw) as Partial<ImH5IamSession> & Partial<ImH5AppSession>;
+    const parsed = JSON.parse(raw) as Partial<ImH5IamSession>;
     const accessToken = normalizeToken(parsed.accessToken);
     const authToken = normalizeToken(parsed.authToken);
-    if (accessToken || authToken) {
-      return {
-        ...(accessToken ? { accessToken } : {}),
-        ...(authToken ? { authToken } : {}),
-        ...(normalizeToken(parsed.refreshToken) ? { refreshToken: parsed.refreshToken } : {}),
-        ...(parsed.sessionId ? { sessionId: parsed.sessionId } : {}),
-        ...(parsed.context ? { context: parsed.context } : {}),
-        ...(parsed.user ? { user: parsed.user } : {}),
-      };
-    }
-
-    if (!accessToken) {
+    if (!accessToken || !authToken) {
       return null;
     }
 
     return {
       accessToken,
-      authToken: authToken ?? accessToken,
-      context: {
-        appId: "sdkwork-im-h5",
-        authLevel: "password",
-        dataScope: [],
-        deploymentMode: "saas",
-        environment: "dev",
-        organizationId: parsed.organizationId ?? DEFAULT_APP_SESSION.organizationId,
-        permissionScope: [],
-        sessionId: parsed.sessionId?.trim() || "migrated-session",
-        tenantId: parsed.tenantId ?? DEFAULT_APP_SESSION.tenantId,
-        userId: parsed.userId ?? DEFAULT_APP_SESSION.userId,
-      },
+      authToken,
+      ...(normalizeToken(parsed.refreshToken) ? { refreshToken: parsed.refreshToken } : {}),
+      ...(parsed.sessionId ? { sessionId: parsed.sessionId } : {}),
+      ...(parsed.context ? { context: parsed.context } : {}),
+      ...(parsed.user ? { user: parsed.user } : {}),
     };
   } catch {
     return null;
@@ -106,7 +87,7 @@ export function readImH5IamSessionTokens(): ImH5IamSession | null {
   }
 
   const session = parseStoredImH5IamSession(raw);
-  if (!session || (!normalizeToken(session.accessToken) && !normalizeToken(session.authToken))) {
+  if (!session || !normalizeToken(session.accessToken) || !normalizeToken(session.authToken)) {
     return null;
   }
   return session;
@@ -114,9 +95,14 @@ export function readImH5IamSessionTokens(): ImH5IamSession | null {
 
 export function applyImH5IamSessionTokens(session: ImH5IamSession): ImH5IamSession {
   const storage = getStorage();
+  const accessToken = normalizeToken(session.accessToken);
+  const authToken = normalizeToken(session.authToken);
+  if (!accessToken || !authToken) {
+    throw new Error("IM H5 IAM session requires both accessToken and authToken.");
+  }
   const normalized: ImH5IamSession = {
-    ...(normalizeToken(session.accessToken) ? { accessToken: session.accessToken } : {}),
-    ...(normalizeToken(session.authToken) ? { authToken: session.authToken } : {}),
+    accessToken,
+    authToken,
     ...(normalizeToken(session.refreshToken) ? { refreshToken: session.refreshToken } : {}),
     ...(session.sessionId ? { sessionId: session.sessionId } : {}),
     ...(session.context ? { context: session.context } : {}),
@@ -153,17 +139,21 @@ export function toImH5AppSession(session: ImH5IamSession | null): ImH5AppSession
   if (!isImH5IamSessionAuthenticated(session)) {
     return null;
   }
+  const tenantId = session!.context?.tenantId?.trim();
+  const organizationId = session!.context?.organizationId?.trim();
+  const userId =
+    session!.context?.userId?.trim()
+    || session!.user?.userId?.trim()
+    || session!.user?.id?.trim();
+  if (!tenantId || !organizationId || !userId) {
+    return null;
+  }
   return {
     accessToken: session!.accessToken!.trim(),
     authToken: session!.authToken!.trim(),
-    tenantId: session!.context?.tenantId?.trim() || DEFAULT_APP_SESSION.tenantId,
-    organizationId:
-      session!.context?.organizationId?.trim() || DEFAULT_APP_SESSION.organizationId,
-    userId:
-      session!.context?.userId?.trim()
-      || session!.user?.userId?.trim()
-      || session!.user?.id?.trim()
-      || DEFAULT_APP_SESSION.userId,
+    tenantId,
+    organizationId,
+    userId,
   };
 }
 

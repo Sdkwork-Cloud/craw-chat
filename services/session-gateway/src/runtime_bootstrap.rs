@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use std::time::Duration;
 
+use futures_util::StreamExt;
 use im_adapters_local_memory::{
     MemoryPresenceStateStore, MemoryRealtimeCheckpointStore, MemoryRealtimeDisconnectFenceStore,
     MemoryRealtimeEventWindowStore, MemoryRealtimeSubscriptionStore,
@@ -33,6 +35,8 @@ use im_adapters_postgres_journal::{
     PostgresJournalPool, conversation_member_access_gate_from_pool,
 };
 use sdkwork_im_database_pool::clone_shared_im_postgres_r2d2_pool;
+use tokio::sync::watch;
+use tokio::task::JoinHandle;
 use tracing::warn;
 
 const REALTIME_CLUSTER_BUS_URL_ENV: &str = "SDKWORK_IM_REALTIME_CLUSTER_BUS_URL";
@@ -299,19 +303,77 @@ fn resolve_route_store_redis_url() -> Option<String> {
         })
 }
 
+pub struct ClusterRouteEventSubscriber {
+    shutdown_tx: watch::Sender<bool>,
+    handle: JoinHandle<()>,
+}
+
+impl ClusterRouteEventSubscriber {
+    pub async fn shutdown(self, timeout: Duration) {
+        let _ = self.shutdown_tx.send(true);
+        let mut handle = self.handle;
+        if tokio::time::timeout(timeout, &mut handle).await.is_err() {
+            handle.abort();
+            let _ = handle.await;
+        }
+    }
+}
+
 pub fn spawn_cluster_route_event_subscriber(
     bootstrap: &RealtimePlaneBootstrap,
-) -> Option<std::thread::JoinHandle<()>> {
+) -> Option<ClusterRouteEventSubscriber> {
     let cluster_bus = bootstrap.cluster_bus.as_ref()?.clone();
     let cluster = bootstrap.assembly.realtime_cluster();
     let node_id = bootstrap.node_id.clone();
-
-    Some(std::thread::spawn(move || {
-        loop {
-            match cluster_bus.subscribe_connection(|message| -> redis::ControlFlow<()> {
+    let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
+    let handle = tokio::spawn(async move {
+        while !*shutdown_rx.borrow() {
+            let subscription = tokio::select! {
+                changed = shutdown_rx.changed() => {
+                    if changed.is_err() || *shutdown_rx.borrow() {
+                        return;
+                    }
+                    continue;
+                }
+                result = cluster_bus.subscribe_async() => result,
+            };
+            let mut pubsub = match subscription {
+                Ok(pubsub) => pubsub,
+                Err(error) => {
+                    warn!(
+                        target: "sdkwork.im",
+                        event = "im.realtime.cluster.subscribe_failed",
+                        node_id = %node_id,
+                        error = ?error,
+                    );
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+                        changed = shutdown_rx.changed() => {
+                            if changed.is_err() || *shutdown_rx.borrow() {
+                                return;
+                            }
+                        }
+                    }
+                    continue;
+                }
+            };
+            let mut messages = pubsub.on_message();
+            loop {
+                let message = tokio::select! {
+                    changed = shutdown_rx.changed() => {
+                        if changed.is_err() || *shutdown_rx.borrow() {
+                            return;
+                        }
+                        continue;
+                    }
+                    message = messages.next() => message,
+                };
+                let Some(message) = message else {
+                    break;
+                };
                 let payload = message.get_payload::<String>().unwrap_or_default();
                 if payload.is_empty() {
-                    return redis::ControlFlow::Continue;
+                    continue;
                 }
                 if let Err(delivery_error) =
                     cluster.ingest_cluster_route_event_for_node(node_id.as_str(), payload.as_str())
@@ -324,19 +386,37 @@ pub fn spawn_cluster_route_event_subscriber(
                         message = %delivery_error.message,
                     );
                 }
-                redis::ControlFlow::Continue
-            }) {
-                Ok(_) => break,
-                Err(error) => {
-                    warn!(
-                        target: "sdkwork.im",
-                        event = "im.realtime.cluster.subscribe_failed",
-                        node_id = %node_id,
-                        error = ?error,
-                    );
-                    std::thread::sleep(std::time::Duration::from_secs(1));
-                }
             }
         }
-    }))
+    });
+    Some(ClusterRouteEventSubscriber {
+        shutdown_tx,
+        handle,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::sync::watch;
+
+    use super::ClusterRouteEventSubscriber;
+
+    #[tokio::test]
+    async fn cluster_subscriber_shutdown_aborts_an_unresponsive_task() {
+        let (shutdown_tx, _shutdown_rx) = watch::channel(false);
+        let handle = tokio::spawn(std::future::pending());
+        let subscriber = ClusterRouteEventSubscriber {
+            shutdown_tx,
+            handle,
+        };
+
+        tokio::time::timeout(
+            Duration::from_millis(100),
+            subscriber.shutdown(Duration::ZERO),
+        )
+        .await
+        .expect("subscriber shutdown must not wait forever after its deadline");
+    }
 }

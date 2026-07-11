@@ -6,10 +6,10 @@ Mobile browser application root for SDKWork IM chat.
 
 - IAM authentication with `platform: "h5"` via `@sdkwork/auth-runtime-pc-react`
 - Inbox via `@sdkwork/im-sdk` `conversations.list()`
-- Conversation timeline and text send via REST (`listMessages`, `postText`)
+- Conversation message history and text send via REST (`listMessages`, `postText`)
   - WebSocket live updates via `@sdkwork/im-sdk` `connect()` on one shared connection; disposed on session reset
   - Inbox refresh via user-scope `events.onScope`
-  - Conversation timeline via `messages.onConversation`
+  - Conversation message updates via `messages.onConversation`
 
 ## Development
 

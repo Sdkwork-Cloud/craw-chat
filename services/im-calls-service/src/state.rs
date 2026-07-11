@@ -38,8 +38,8 @@ use im_domain_core::rtc::{
     StateRecord, StateStore,
 };
 use im_platform_contracts::{
-    ConversationAggregateStore, ConversationMemberAccessGate, ConversationMemberRecord,
-    IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberAccessGate,
+    ConversationMemberRecord, IdGenerator, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
 };
 use im_time::{rfc3339_add_secs, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_communication_rtc_service::{
@@ -291,33 +291,46 @@ impl CallingRuntime {
         let Some(store) = self.conversation_aggregate_store.as_ref() else {
             return Ok(Vec::new());
         };
-        let members = store
-            .load_members(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                conversation_id,
-            )
-            .map_err(|error| CallingError {
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "conversation_roster_unavailable",
-                message: format!("failed to load conversation roster: {error:?}"),
-            })?;
-        let mut resolved = Vec::new();
-        for member in members {
-            if !is_active_conversation_member(&member) {
-                continue;
+        let mut cursor = None;
+        let mut resolved = std::collections::BTreeSet::new();
+        loop {
+            let page = store
+                .load_members_page(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    conversation_id,
+                    cursor.as_ref(),
+                    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+                )
+                .map_err(|error| CallingError {
+                    status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    code: "conversation_roster_unavailable",
+                    message: format!("failed to load conversation roster page: {error:?}"),
+                })?;
+            for member in page.items {
+                if is_active_conversation_member(&member)
+                    && member.principal_id != auth.actor_id
+                    && member.principal_kind == "user"
+                {
+                    resolved.insert(member.principal_id);
+                    if resolved.len() > crate::helpers::CALL_MAX_PARTICIPANT_IDS {
+                        return Err(CallingError {
+                            status: axum::http::StatusCode::CONFLICT,
+                            code: "conversation_participant_limit_exceeded",
+                            message: format!(
+                                "conversation has more than {} callable participants; provide an explicit participant selection",
+                                crate::helpers::CALL_MAX_PARTICIPANT_IDS
+                            ),
+                        });
+                    }
+                }
             }
-            if member.principal_id == auth.actor_id {
-                continue;
+            if !page.has_more {
+                break;
             }
-            if member.principal_kind != "user" {
-                continue;
-            }
-            if !resolved.iter().any(|id| id == &member.principal_id) {
-                resolved.push(member.principal_id.clone());
-            }
+            cursor = page.next_cursor;
         }
-        Ok(resolved)
+        Ok(resolved.into_iter().collect())
     }
 
     fn ensure_invite_participants_in_conversation_roster(
@@ -344,25 +357,23 @@ impl CallingRuntime {
             );
             return Ok(());
         };
-        let members = store
-            .load_members(
-                auth.tenant_id.as_str(),
-                auth.organization_id.as_str(),
-                conversation_id,
-            )
-            .map_err(|error| CallingError {
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "conversation_roster_unavailable",
-                message: format!("failed to load conversation roster: {error:?}"),
-            })?;
-        let roster: std::collections::HashSet<String> = members
-            .iter()
-            .filter(|member| is_active_conversation_member(member))
-            .filter(|member| member.principal_kind == "user")
-            .map(|member| member.principal_id.clone())
-            .collect();
         for participant_id in participant_ids {
-            if !roster.contains(participant_id) {
+            let member = store
+                .load_member(
+                    auth.tenant_id.as_str(),
+                    auth.organization_id.as_str(),
+                    conversation_id,
+                    "user",
+                    participant_id.as_str(),
+                )
+                .map_err(|error| CallingError {
+                    status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    code: "conversation_roster_unavailable",
+                    message: format!("failed to load conversation member: {error:?}"),
+                })?;
+            if member.as_ref().is_none_or(|member| {
+                !is_active_conversation_member(member) || member.principal_kind != "user"
+            }) {
                 return Err(CallingError::forbidden(
                     "participant_not_in_conversation_roster",
                     format!(
@@ -790,6 +801,7 @@ impl CallingRuntime {
 
                 let session = Session {
                     tenant_id: auth.tenant_id.clone(),
+                    organization_id: auth.organization_id.clone(),
                     rtc_session_id: request.rtc_session_id.clone(),
                     conversation_id: request.conversation_id,
                     rtc_mode: request.rtc_mode,
@@ -972,6 +984,7 @@ impl CallingRuntime {
         }
 
         // Apply signaling stream id and merge new participants (deduped).
+        let stream_id_changed = !stream_id_unchanged;
         let mut added_participant_ids: Vec<String> = Vec::new();
         session_ref.signaling_stream_id = request.signaling_stream_id.clone();
         for participant_id in participant_ids {
@@ -1010,6 +1023,20 @@ impl CallingRuntime {
             None,
             metadata.clone(),
         );
+        // Recipients: newly added participants always get notified. When the
+        // signaling_stream_id changed (e.g. audio→video upgrade) but no new
+        // participants were added, existing participants must also be notified
+        // so they can switch to the new signaling stream. Merge both groups
+        // and exclude the caller.
+        let mut recipients = added_participant_ids.clone();
+        if stream_id_changed {
+            let existing = rtc_session_participant_ids(&session, Some(auth.actor_id.as_str()));
+            for id in existing {
+                if !recipients.contains(&id) {
+                    recipients.push(id);
+                }
+            }
+        }
         self.enqueue_outbox_event(
             auth,
             rtc_session_id,
@@ -1028,7 +1055,7 @@ impl CallingRuntime {
                 "invited_ids": session.participants.invited_ids,
                 "epoch": session.epoch,
             }),
-            added_participant_ids.clone(),
+            recipients,
         );
 
         Ok(SessionMutationOutcome {
@@ -1178,11 +1205,16 @@ impl CallingRuntime {
                 "rtc_session_id": session.rtc_session_id,
                 "tenant_id": session.tenant_id,
                 "organization_id": auth.organization_id,
+                "conversation_id": session.conversation_id,
+                "rtc_mode": session.rtc_mode,
+                "initiator_id": session.initiator_id,
+                "initiator_kind": session.initiator_kind,
                 "state": session.state.as_str(),
                 "accepted_participant_id": auth.actor_id,
                 "newly_accepted": newly_accepted,
                 "accepted_ids": session.participants.accepted_ids,
                 "artifact_message_id": session.artifact_message_id,
+                "signaling_stream_id": session.signaling_stream_id,
                 "epoch": session.epoch,
                 "connecting_at": session.connecting_at,
             }),
@@ -1323,10 +1355,15 @@ impl CallingRuntime {
                 "rtc_session_id": session.rtc_session_id,
                 "tenant_id": session.tenant_id,
                 "organization_id": auth.organization_id,
+                "conversation_id": session.conversation_id,
+                "rtc_mode": session.rtc_mode,
+                "initiator_id": session.initiator_id,
+                "initiator_kind": session.initiator_kind,
                 "state": session.state.as_str(),
                 "rejecting_participant_id": auth.actor_id,
                 "ended_reason": session.ended_reason,
                 "artifact_message_id": session.artifact_message_id,
+                "signaling_stream_id": session.signaling_stream_id,
                 "epoch": session.epoch,
                 "ended_at": session.ended_at,
             }),
@@ -1336,7 +1373,12 @@ impl CallingRuntime {
         // Revoke active media credentials by closing the provider session.
         // Best-effort: failures are logged and swallowed so a provider
         // outage during teardown cannot block the terminal transition.
-        self.revoke_session_credentials(auth, rtc_session_id, session.state.as_str());
+        self.revoke_session_credentials_with_session(
+            auth,
+            rtc_session_id,
+            &session,
+            session.state.as_str(),
+        );
 
         Ok(SessionMutationOutcome {
             session,
@@ -1470,10 +1512,15 @@ impl CallingRuntime {
                 "rtc_session_id": session.rtc_session_id,
                 "tenant_id": session.tenant_id,
                 "organization_id": auth.organization_id,
+                "conversation_id": session.conversation_id,
+                "rtc_mode": session.rtc_mode,
+                "initiator_id": session.initiator_id,
+                "initiator_kind": session.initiator_kind,
                 "state": session.state.as_str(),
                 "ending_participant_id": auth.actor_id,
                 "ended_reason": session.ended_reason,
                 "artifact_message_id": session.artifact_message_id,
+                "signaling_stream_id": session.signaling_stream_id,
                 "epoch": session.epoch,
                 "ended_at": session.ended_at,
             }),
@@ -1483,7 +1530,12 @@ impl CallingRuntime {
         // Revoke active media credentials by closing the provider session.
         // Best-effort: failures are logged and swallowed so a provider
         // outage during teardown cannot block the terminal transition.
-        self.revoke_session_credentials(auth, rtc_session_id, session.state.as_str());
+        self.revoke_session_credentials_with_session(
+            auth,
+            rtc_session_id,
+            &session,
+            session.state.as_str(),
+        );
 
         Ok(SessionMutationOutcome {
             session,
@@ -2155,21 +2207,20 @@ impl CallingRuntime {
     /// during teardown cannot block the session state transition. The session
     /// state is already persisted as terminal; lingering credentials will
     /// expire per their TTL.
-    fn revoke_session_credentials(
+    ///
+    /// Revoke credentials using a session snapshot captured by the caller
+    /// before `persist_state` evicts the terminal session from memory.
+    fn revoke_session_credentials_with_session(
         &self,
         auth: &AppContext,
         rtc_session_id: &str,
+        session: &Session,
         terminal_state: &str,
     ) {
         let Some(rtc_provider) = self.rtc_provider.as_ref() else {
             return;
         };
-        let scope_key = rtc_session_scope_key(auth.tenant_id.as_str(), rtc_session_id);
-        let recipient_principal_ids = self
-            .sessions
-            .get(scope_key.as_str())
-            .map(|session| rtc_session_participant_ids(&session, None))
-            .unwrap_or_default();
+        let recipient_principal_ids = rtc_session_participant_ids(session, None);
         let result = rtc_provider.close_session(auth.tenant_id.as_str(), rtc_session_id);
         match result {
             Ok(closed) => {
@@ -2353,10 +2404,16 @@ impl CallingRuntime {
                         rtc_session_id,
                         "rtc.session.revoked",
                         serde_json::json!({
-                            "rtc_session_id": rtc_session_id,
-                            "tenant_id": auth.tenant_id,
+                            "rtc_session_id": session.rtc_session_id,
+                            "tenant_id": session.tenant_id,
                             "organization_id": auth.organization_id,
+                            "conversation_id": session.conversation_id,
+                            "rtc_mode": session.rtc_mode,
+                            "initiator_id": session.initiator_id,
+                            "initiator_kind": session.initiator_kind,
                             "state": session.state.as_str(),
+                            "signaling_stream_id": session.signaling_stream_id,
+                            "artifact_message_id": session.artifact_message_id,
                             "epoch": session.epoch,
                             "version": session.version,
                             "reason": "state_persist_failed",
@@ -2530,11 +2587,25 @@ impl CallingRuntime {
         session_ref.epoch = session_ref.epoch.saturating_add(1);
         session_ref.version = session_ref.version.saturating_add(1);
         session_ref.last_activity_at = Some(ended_at.to_owned());
+        let session = session_ref.clone();
         drop(session_ref);
-        self.signals.remove(scope_key.as_str());
+        // NOTE: do NOT remove signals here. `persist_state` evicts both the
+        // session and its signals from memory after durable persistence
+        // succeeds for terminal states. Removing signals prematurely would
+        // cause `state_record` (called inside `persist_state`) to read an
+        // empty signal set, losing durable signal history.
         let auth = AppContext {
             tenant_id: tenant_id.to_owned(),
-            organization_id: "0".into(),
+            // Reconstruct the owning org from the session snapshot so the
+            // timeout outbox event is enqueued under the same scope that the
+            // relay drains (`tenant_id`, `organization_id`). Sessions
+            // persisted before `organization_id` existed default to empty;
+            // fall back to the relay default so events are still drained.
+            organization_id: if session.organization_id.is_empty() {
+                "default".into()
+            } else {
+                session.organization_id.clone()
+            },
             user_id: initiator_id.clone(),
             actor_id: initiator_id,
             actor_kind: initiator_kind,
@@ -2548,6 +2619,37 @@ impl CallingRuntime {
             device_id: None,
         };
         self.persist_state(&auth, rtc_session_id)?;
+
+        // Notify all participants that the session timed out so clients can
+        // stop ringing and tear down any pending media. Without this outbox
+        // event, the callee would ring indefinitely until its own client-side
+        // timeout fires.
+        self.enqueue_outbox_event(
+            &auth,
+            rtc_session_id,
+            "rtc.session.ended",
+            serde_json::json!({
+                "rtc_session_id": session.rtc_session_id,
+                "tenant_id": session.tenant_id,
+                "organization_id": auth.organization_id,
+                "conversation_id": session.conversation_id,
+                "rtc_mode": session.rtc_mode,
+                "initiator_id": session.initiator_id,
+                "initiator_kind": session.initiator_kind,
+                "state": session.state.as_str(),
+                "ending_participant_id": session.initiator_id,
+                "ended_reason": session.ended_reason,
+                "artifact_message_id": session.artifact_message_id,
+                "signaling_stream_id": session.signaling_stream_id,
+                "epoch": session.epoch,
+                "ended_at": session.ended_at,
+            }),
+            rtc_session_participant_ids(&session, None),
+        );
+
+        // Best-effort credential revocation (same as end_session path).
+        self.revoke_session_credentials_with_session(&auth, rtc_session_id, &session, "timeout");
+
         tracing::info!(
             rtc_session_id = rtc_session_id,
             tenant_id = tenant_id,

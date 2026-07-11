@@ -14,7 +14,8 @@ const SAFE_PLAN_ENV_KEYS = Object.freeze([
   'SDKWORK_IM_PORTAL_SITE_DIR',
   'SDKWORK_IM_SERVER_BINARY_PATH',
   'SDKWORK_IM_CONFIG_FILE',
-  'SDKWORK_IM_DEPLOYMENT_MODE',
+  'SDKWORK_IM_DEPLOYMENT_PROFILE',
+  'SDKWORK_IM_RUNTIME_TARGET',
   'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
   'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL',
   'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL',
@@ -207,6 +208,7 @@ function createResolvedSourceServerEnv({
   platform = process.platform,
 } = {}) {
   const fileEnv = readSourceServerEnvFile(envFile);
+  rejectRetiredSourceServerEnv(fileEnv, env);
   const sourceDistDir = path.join(root, 'apps', 'sdkwork-im-pc', 'dist');
   const resolvedBinaryPath = binaryPath
     || env.SDKWORK_IM_SERVER_BINARY_PATH
@@ -226,13 +228,25 @@ function createResolvedSourceServerEnv({
       SDKWORK_IM_CONFIG_FILE: env.SDKWORK_IM_CONFIG_FILE
         || fileEnv.SDKWORK_IM_CONFIG_FILE
         || path.join(configDir, 'chat.toml'),
-      SDKWORK_IM_DEPLOYMENT_MODE: env.SDKWORK_IM_DEPLOYMENT_MODE
-        || fileEnv.SDKWORK_IM_DEPLOYMENT_MODE
+      SDKWORK_IM_DEPLOYMENT_PROFILE: env.SDKWORK_IM_DEPLOYMENT_PROFILE
+        || fileEnv.SDKWORK_IM_DEPLOYMENT_PROFILE
+        || 'standalone',
+      SDKWORK_IM_RUNTIME_TARGET: env.SDKWORK_IM_RUNTIME_TARGET
+        || fileEnv.SDKWORK_IM_RUNTIME_TARGET
         || 'server',
     },
   );
 
   return merged;
+}
+
+function rejectRetiredSourceServerEnv(fileEnv = {}, env = {}) {
+  const retiredKeys = ['SDKWORK_IM_DEPLOYMENT_MODE'];
+  for (const key of retiredKeys) {
+    if (Object.hasOwn(fileEnv, key) || Object.hasOwn(env, key)) {
+      throw new Error(`${key} is retired; use SDKWORK_IM_DEPLOYMENT_PROFILE and SDKWORK_IM_RUNTIME_TARGET`);
+    }
+  }
 }
 
 function createBuildStep({ env, platform, root }) {

@@ -43,9 +43,9 @@ Writes a new audit record.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The audit anchor payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `audit.write`. |
+| `400` | `40001` | The audit anchor payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `audit.write`. |
 
 </section>
 <a id="list-audit-records"></a>
@@ -77,8 +77,8 @@ Lists audit records visible to the current principal.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `audit.read`. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `audit.read`. |
 
 </section>
 <a id="verify-audit-chain"></a>
@@ -111,8 +111,8 @@ The response includes `chainHeadHash` and `chainValid` for operator-side integri
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `audit.read`. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `audit.read`. |
 
 </section>
 <a id="export-audit-bundle"></a>
@@ -147,7 +147,7 @@ tampering before import.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `audit.read`. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `audit.read`. |
 
 </section>

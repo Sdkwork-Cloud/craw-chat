@@ -43,8 +43,8 @@ Reads a single notification task by identifier.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller is not allowed to read the target notification scope. |
-| `404` | `notification_not_found` | The requested notification task does not exist. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to read the target notification scope. |
+| `404` | `40401` | The requested notification task does not exist. |
 
 </section>

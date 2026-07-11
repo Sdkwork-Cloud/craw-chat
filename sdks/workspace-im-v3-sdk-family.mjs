@@ -216,36 +216,68 @@ function generatedDescriptionFor(config, language) {
   return `Generator-owned ${languageDisplayName[language] || language} transport SDK for the ${config.generatedApiLabel}.`;
 }
 
-function normalizeAssemblyDescriptions(root, config) {
-  const assemblyPath = path.join(root, '.sdkwork-assembly.json');
-  if (!existsSync(assemblyPath)) {
+function normalizeSdkManifestMetadata(root, config) {
+  const manifestPath = sdkManifestPath(root);
+  if (!existsSync(manifestPath)) {
     return;
   }
-  const assembly = readJson(assemblyPath);
+  const manifest = readJson(manifestPath);
   let changed = false;
-  if (config.sdkOwner && assembly.sdkOwner !== config.sdkOwner) {
-    assembly.sdkOwner = config.sdkOwner;
+  if (config.sdkOwner && manifest.sdkOwner !== config.sdkOwner) {
+    manifest.sdkOwner = config.sdkOwner;
     changed = true;
   }
-  if (config.apiAuthority && assembly.apiAuthority !== config.apiAuthority) {
-    assembly.apiAuthority = config.apiAuthority;
+  if (config.apiAuthority && manifest.apiAuthority !== config.apiAuthority) {
+    manifest.apiAuthority = config.apiAuthority;
+    changed = true;
+  }
+  if (manifest.sdkFamily !== config.sdkName) {
+    manifest.sdkFamily = config.sdkName;
+    changed = true;
+  }
+  if (manifest.sdkName !== config.sdkName) {
+    manifest.sdkName = config.sdkName;
+    changed = true;
+  }
+  const consumerPackageName = typeScriptConsumerPackageName(config);
+  const transportPackageName = languagePackageName(config, 'typescript');
+  if (manifest.packageName !== consumerPackageName) {
+    manifest.packageName = consumerPackageName;
+    changed = true;
+  }
+  if (manifest.transportPackageName !== transportPackageName) {
+    manifest.transportPackageName = transportPackageName;
     changed = true;
   }
   if (config.generatedApiLabel) {
-    for (const entry of assembly.languages ?? []) {
+    for (const entry of manifest.languages ?? []) {
       const expected = generatedDescriptionFor(config, entry.language);
       if (expected && entry.description !== expected) {
         entry.description = expected;
         changed = true;
       }
+      if (entry.language === 'typescript') {
+        if (entry.name !== transportPackageName) {
+          entry.name = transportPackageName;
+          changed = true;
+        }
+        if (entry.consumerPackageName !== consumerPackageName) {
+          entry.consumerPackageName = consumerPackageName;
+          changed = true;
+        }
+        if (entry.transportPackageName !== transportPackageName) {
+          entry.transportPackageName = transportPackageName;
+          changed = true;
+        }
+      }
     }
   }
-  if (Array.isArray(config.sdkDependencies) && !deepEqualJson(assembly.sdkDependencies, config.sdkDependencies)) {
-    assembly.sdkDependencies = config.sdkDependencies;
+  if (Array.isArray(config.sdkDependencies) && !deepEqualJson(manifest.sdkDependencies, config.sdkDependencies)) {
+    manifest.sdkDependencies = config.sdkDependencies;
     changed = true;
   }
   if (changed) {
-    writeFileSync(assemblyPath, `${JSON.stringify(assembly, null, 2)}\n`, 'utf8');
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   }
 }
 
@@ -278,6 +310,7 @@ function normalizeGeneratedPackageMetadata(root, config, language) {
 
   const outputDir = languageOutputDir(root, config, language);
   const expectedPackageName = languagePackageName(config, language);
+  const expectedConsumerPackageName = typeScriptConsumerPackageName(config);
   const packageJsonPath = path.join(outputDir, 'package.json');
   if (existsSync(packageJsonPath)) {
     const packageJson = readJson(packageJsonPath);
@@ -307,6 +340,9 @@ function normalizeGeneratedPackageMetadata(root, config, language) {
     }
     if (sdkMetadata.transportPackageName !== expectedPackageName) {
       sdkMetadata.transportPackageName = expectedPackageName;
+    }
+    if (sdkMetadata.consumerPackageName !== expectedConsumerPackageName) {
+      sdkMetadata.consumerPackageName = expectedConsumerPackageName;
     }
     writeJsonIfChanged(sdkMetadataPath, sdkMetadata);
   }
@@ -338,6 +374,21 @@ function manifestNameFor(config, language) {
 
 function languagePackageName(config, language) {
   return config.packages[language];
+}
+
+function sdkManifestPath(root) {
+  return path.join(root, 'sdk-manifest.json');
+}
+
+function typeScriptConsumerPackageName(config) {
+  return config.consumerPackages?.typescript ?? `@sdkwork/${config.sdkName.replace(/^sdkwork-/u, '')}`;
+}
+
+function generatorPackageName(config, language) {
+  if (language === 'typescript') {
+    return typeScriptConsumerPackageName(config);
+  }
+  return languagePackageName(config, language);
 }
 
 function stableJson(value) {
@@ -389,7 +440,7 @@ function generatorArgs(root, config, language, resolvedVersion, baseUrl) {
     '--sdk-name',
     config.sdkName,
     '--package-name',
-    languagePackageName(config, language),
+    generatorPackageName(config, language),
     '--standard-profile',
     'sdkwork-v3',
   ];
@@ -544,17 +595,17 @@ function verifySdkDependencyShape(dependency, index, failures) {
 }
 
 function verifySdkDependencies(root, config, failures) {
-  const assemblyPath = path.join(root, '.sdkwork-assembly.json');
+  const manifestPath = sdkManifestPath(root);
   const componentSpecPath = path.join(root, 'specs/component.spec.json');
   const readmePath = path.join(root, 'README.md');
-  const assembly = existsSync(assemblyPath) ? readJson(assemblyPath) : {};
+  const manifest = existsSync(manifestPath) ? readJson(manifestPath) : {};
   const componentSpec = existsSync(componentSpecPath) ? readJson(componentSpecPath) : {};
   const readmeSource = existsSync(readmePath) ? readText(readmePath) : '';
   const configuredDependencies = config.sdkDependencies;
 
   if (configuredDependencies == null) {
-    if (Array.isArray(assembly.sdkDependencies) && assembly.sdkDependencies.length > 0) {
-      failures.push('.sdkwork-assembly.json must not declare sdkDependencies without sdk-family-config.mjs');
+    if (Array.isArray(manifest.sdkDependencies) && manifest.sdkDependencies.length > 0) {
+      failures.push('sdk-manifest.json must not declare sdkDependencies without sdk-family-config.mjs');
     }
     if (Array.isArray(componentSpec.contracts?.sdkDependencies) && componentSpec.contracts.sdkDependencies.length > 0) {
       failures.push('specs/component.spec.json must not declare contracts.sdkDependencies without sdk-family-config.mjs');
@@ -565,10 +616,10 @@ function verifySdkDependencies(root, config, failures) {
     failures.push('sdk-family-config.mjs sdkDependencies must be an array');
     return;
   }
-  if (!Array.isArray(assembly.sdkDependencies)) {
-    failures.push('.sdkwork-assembly.json must declare sdkDependencies');
-  } else if (!deepEqualJson(assembly.sdkDependencies, configuredDependencies)) {
-    failures.push('.sdkwork-assembly.json sdkDependencies must match sdk-family-config.mjs sdkDependencies');
+  if (!Array.isArray(manifest.sdkDependencies)) {
+    failures.push('sdk-manifest.json must declare sdkDependencies');
+  } else if (!deepEqualJson(manifest.sdkDependencies, configuredDependencies)) {
+    failures.push('sdk-manifest.json sdkDependencies must match sdk-family-config.mjs sdkDependencies');
   }
   if (!existsSync(componentSpecPath)) {
     failures.push('specs/component.spec.json is required when sdkDependencies are declared');
@@ -619,49 +670,68 @@ function verifyReadme(root, config, failures) {
   }
 }
 
-function verifyAssembly(root, config, languages, failures) {
-  const assemblyPath = path.join(root, '.sdkwork-assembly.json');
-  if (!existsSync(assemblyPath)) {
-    failures.push('.sdkwork-assembly.json is required');
+function verifySdkManifest(root, config, languages, failures) {
+  const manifestPath = sdkManifestPath(root);
+  if (!existsSync(manifestPath)) {
+    failures.push('sdk-manifest.json is required');
     return;
   }
-  const assembly = readJson(assemblyPath);
-  if (assembly.workspace !== config.sdkName) {
-    failures.push('.sdkwork-assembly.json workspace must match SDK name');
+  const manifest = readJson(manifestPath);
+  if (manifest.sdkFamily !== config.sdkName || manifest.sdkName !== config.sdkName || manifest.workspace !== config.sdkName) {
+    failures.push('sdk-manifest.json SDK family fields must match SDK name');
   }
-  if (config.sdkOwner && assembly.sdkOwner !== config.sdkOwner) {
-    failures.push(`.sdkwork-assembly.json sdkOwner must be ${config.sdkOwner}`);
+  if (config.sdkOwner && manifest.sdkOwner !== config.sdkOwner) {
+    failures.push(`sdk-manifest.json sdkOwner must be ${config.sdkOwner}`);
   }
-  if (config.apiAuthority && assembly.apiAuthority !== config.apiAuthority) {
-    failures.push(`.sdkwork-assembly.json apiAuthority must be ${config.apiAuthority}`);
+  if (config.apiAuthority && manifest.apiAuthority !== config.apiAuthority) {
+    failures.push(`sdk-manifest.json apiAuthority must be ${config.apiAuthority}`);
   }
-  if (assembly.discoverySurface?.apiPrefix !== config.apiPrefix) {
-    failures.push('.sdkwork-assembly.json discoverySurface.apiPrefix must match API prefix');
+  if (manifest.discoverySurface?.apiPrefix !== config.apiPrefix) {
+    failures.push('sdk-manifest.json discoverySurface.apiPrefix must match API prefix');
   }
-  if (assembly.discoverySurface?.sdkTarget !== config.sdkTarget) {
-    failures.push('.sdkwork-assembly.json discoverySurface.sdkTarget must match SDK target');
+  if (manifest.discoverySurface?.sdkTarget !== config.sdkTarget) {
+    failures.push('sdk-manifest.json discoverySurface.sdkTarget must match SDK target');
   }
-  if (assembly.generationInputSpec !== config.derivedSpec) {
-    failures.push(`.sdkwork-assembly.json generationInputSpec must be ${config.derivedSpec}`);
+  if (manifest.generationInputSpec !== config.derivedSpec) {
+    failures.push(`sdk-manifest.json generationInputSpec must be ${config.derivedSpec}`);
   }
-  const entries = new Map((assembly.languages ?? []).map((entry) => [entry.language, entry]));
+  const expectedConsumerPackageName = typeScriptConsumerPackageName(config);
+  const expectedTransportPackageName = languagePackageName(config, 'typescript');
+  if (manifest.packageName !== expectedConsumerPackageName) {
+    failures.push(`sdk-manifest.json packageName must be ${expectedConsumerPackageName}`);
+  }
+  if (manifest.transportPackageName !== expectedTransportPackageName) {
+    failures.push(`sdk-manifest.json transportPackageName must be ${expectedTransportPackageName}`);
+  }
+  const entries = new Map((manifest.languages ?? []).map((entry) => [entry.language, entry]));
   for (const language of languages) {
     const entry = entries.get(language);
     if (!entry) {
-      failures.push(`.sdkwork-assembly.json must list language ${language}`);
+      failures.push(`sdk-manifest.json must list language ${language}`);
       continue;
     }
     const expectedWorkspace = `${config.sdkName}-${language}`;
     const expectedPath = `${expectedWorkspace}/generated/server-openapi`;
     if (entry.workspace !== expectedWorkspace) {
-      failures.push(`.sdkwork-assembly.json ${language}.workspace must be ${expectedWorkspace}`);
+      failures.push(`sdk-manifest.json ${language}.workspace must be ${expectedWorkspace}`);
     }
     if (entry.generatedPath !== expectedPath) {
-      failures.push(`.sdkwork-assembly.json ${language}.generatedPath must be ${expectedPath}`);
+      failures.push(`sdk-manifest.json ${language}.generatedPath must be ${expectedPath}`);
+    }
+    if (language === 'typescript') {
+      if (entry.name !== expectedTransportPackageName) {
+        failures.push(`sdk-manifest.json typescript.name must be ${expectedTransportPackageName}`);
+      }
+      if (entry.consumerPackageName !== expectedConsumerPackageName) {
+        failures.push(`sdk-manifest.json typescript.consumerPackageName must be ${expectedConsumerPackageName}`);
+      }
+      if (entry.transportPackageName !== expectedTransportPackageName) {
+        failures.push(`sdk-manifest.json typescript.transportPackageName must be ${expectedTransportPackageName}`);
+      }
     }
     const expectedDescription = generatedDescriptionFor(config, language);
     if (expectedDescription && entry.description !== expectedDescription) {
-      failures.push(`.sdkwork-assembly.json ${language}.description must be ${expectedDescription}`);
+      failures.push(`sdk-manifest.json ${language}.description must be ${expectedDescription}`);
     }
   }
 }
@@ -713,6 +783,9 @@ function verifyGeneratedLanguage(root, config, language, failures) {
       }
       if (metadata.transportPackageName !== languagePackageName(config, language)) {
         failures.push(`typescript sdkwork-sdk.json transportPackageName must be ${languagePackageName(config, language)}`);
+      }
+      if (metadata.consumerPackageName !== typeScriptConsumerPackageName(config)) {
+        failures.push(`typescript sdkwork-sdk.json consumerPackageName must be ${typeScriptConsumerPackageName(config)}`);
       }
     }
     if (existsSync(manifestPath)) {
@@ -838,7 +911,7 @@ export async function runGenerateSdkFamily(config, argv) {
         '--fixed-sdk-version',
         fixedSdkVersion,
         '--package-name',
-        config.packages.typescript,
+        typeScriptConsumerPackageName(config),
         '--no-sync-published-version',
       ], { cwd: root, step: 'resolve-sdk-version', capture: true })
     : fixedSdkVersion;
@@ -857,7 +930,7 @@ export async function runGenerateSdkFamily(config, argv) {
     }
   }
 
-  normalizeAssemblyDescriptions(root, config);
+  normalizeSdkManifestMetadata(root, config);
   await runVerifySdkFamily(config, ['--language', languages.join(',')]);
 }
 
@@ -897,7 +970,7 @@ export async function runVerifySdkFamily(config, argv) {
     }
   }
   verifyReadme(root, config, failures);
-  verifyAssembly(root, config, languages, failures);
+  verifySdkManifest(root, config, languages, failures);
   verifySdkDependencies(root, config, failures);
   for (const language of languages) {
     verifyGeneratedLanguage(root, config, language, failures);

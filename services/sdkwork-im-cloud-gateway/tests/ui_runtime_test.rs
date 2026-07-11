@@ -7,7 +7,7 @@ use sdkwork_api_config::StandaloneConfig;
 use sdkwork_api_product_runtime::{
     ProductSiteDirs, RouterProductRuntimeOptions, build_product_runtime_router,
 };
-use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
+use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -126,7 +126,7 @@ fn write_file(path: &Path, contents: &str) {
 fn test_gateway_config() -> WebGatewayConfig {
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),
-        runtime_mode: GatewayRuntimeMode::Split,
+        runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::SingleIngress,
         strict_startup: true,
         upstreams: Vec::new(),
     }

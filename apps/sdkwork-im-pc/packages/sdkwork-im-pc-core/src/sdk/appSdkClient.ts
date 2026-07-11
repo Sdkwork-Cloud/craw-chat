@@ -1,8 +1,8 @@
 import {
   createClient,
-  type SdkworkImAppClient as GeneratedSdkworkImAppClient,
+  type SdkworkImAppClient,
   type SdkworkAppConfig,
-} from '@sdkwork-internal/im-app-api-generated';
+} from '@sdkwork/im-app-sdk';
 import {
   createSdkworkChatRequestContextInterceptors,
   getSdkworkChatGlobalTokenManager,
@@ -14,7 +14,7 @@ import {
 import { resolveApplicationOrPlatformHttpBaseUrlOrThrow } from './sdkBaseUrls';
 import type { Interceptors } from '@sdkwork/sdk-common';
 
-export type SdkworkImAppClient = GeneratedSdkworkImAppClient;
+export type { SdkworkImAppClient };
 export type SdkworkImAppClientConfig = SdkworkAppConfig & {
   interceptors?: Interceptors;
 };
@@ -54,4 +54,25 @@ export function getAppSdkClientWithSession(session = readAppSdkSessionTokens()):
 
 export function resetAppSdkClient(): void {
   appSdkClient = null;
+  portalHomeInFlight = null;
+}
+
+// Shared in-flight deduplication for portal.home.retrieve(). Multiple
+// services (SettingsService, EnterpriseService, WorkspaceService) call this
+// endpoint at startup; without sharing, each fires its own network request.
+let portalHomeInFlight: Promise<unknown> | null = null;
+
+export async function retrievePortalHome<TClient extends { portal: { home: { retrieve: () => Promise<TRaw> } }; }, TRaw = unknown>(
+  client: TClient,
+): Promise<TRaw> {
+  if (portalHomeInFlight) {
+    return portalHomeInFlight as Promise<TRaw>;
+  }
+  const promise = client.portal.home.retrieve().finally(() => {
+    if (portalHomeInFlight === promise) {
+      portalHomeInFlight = null;
+    }
+  });
+  portalHomeInFlight = promise;
+  return promise;
 }

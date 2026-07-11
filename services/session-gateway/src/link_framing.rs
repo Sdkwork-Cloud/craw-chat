@@ -7,7 +7,10 @@ use sdkwork_im_runtime_link::{
     CCP_QUIC_FRAME_HEADER_BYTES, CCP_QUIC_MAX_FRAME_BYTES, CCP_TCP_FRAME_HEADER_BYTES,
     CCP_TCP_MAX_FRAME_BYTES, quic_framed_message_length, tcp_framed_message_length,
 };
+use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+use crate::trace_identity::new_server_trace_id;
 
 pub struct FramedStreamCcpCodec {
     transport: TransportBinding,
@@ -29,6 +32,8 @@ impl FramedStreamCcpCodec {
         schema: &str,
         payload: serde_json::Value,
     ) -> Result<Vec<u8>, String> {
+        let trace_id = new_server_trace_id();
+        let payload = payload_with_trace_id(payload, trace_id.as_str());
         let envelope = CcpEnvelope::new(
             ProtocolVersion::new("ccp", 1, 0),
             self.transport.clone(),
@@ -37,7 +42,7 @@ impl FramedStreamCcpCodec {
             None,
             Some(route.clone()),
             std::iter::empty::<String>(),
-            None,
+            Some(trace_id),
             payload.to_string(),
         );
         self.encode_framed(&envelope)
@@ -48,6 +53,7 @@ impl FramedStreamCcpCodec {
         route: &CcpRoute,
         frame: &ControlFrame,
     ) -> Result<Vec<u8>, String> {
+        let trace_id = new_server_trace_id();
         let envelope = CcpEnvelope::new(
             ProtocolVersion::new("ccp", 1, 0),
             self.transport.clone(),
@@ -56,7 +62,7 @@ impl FramedStreamCcpCodec {
             None,
             Some(route.clone()),
             ["control"],
-            None,
+            Some(trace_id),
             serde_json::to_string(frame)
                 .map_err(|error| format!("control encode failed: {error}"))?,
         );
@@ -90,10 +96,18 @@ impl FramedStreamCcpCodec {
     }
 }
 
+fn payload_with_trace_id(mut payload: Value, trace_id: &str) -> Value {
+    if let Value::Object(fields) = &mut payload {
+        fields.insert("traceId".to_owned(), Value::String(trace_id.to_owned()));
+    }
+    payload
+}
+
 pub fn encode_framed_control_envelope(
     binding: TransportBinding,
     frame: &ControlFrame,
 ) -> Result<Vec<u8>, String> {
+    let trace_id = new_server_trace_id();
     let envelope = CcpEnvelope::new(
         ProtocolVersion::new("ccp", 1, 0),
         binding,
@@ -102,7 +116,7 @@ pub fn encode_framed_control_envelope(
         None,
         None,
         ["control"],
-        None,
+        Some(trace_id),
         serde_json::to_string(frame)
             .map_err(|error| format!("control frame encode failed: {error}"))?,
     );

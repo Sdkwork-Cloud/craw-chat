@@ -1,5 +1,6 @@
 import {
   getAppSdkClientWithSession,
+  retrievePortalHome,
   type SdkworkImAppClient,
 } from '@sdkwork/im-pc-core/sdk/appSdkClient';
 import {
@@ -269,7 +270,7 @@ class SdkworkWorkspaceService implements WorkspaceService {
   async getApps(): Promise<AppItem[]> {
     let enabledModules: string[] = [];
     try {
-      enabledModules = collectEnabledModules(await this.getClient().portal.home.retrieve());
+      enabledModules = collectEnabledModules(await retrievePortalHome(this.getClient()));
     } catch (error) {
       console.warn('Failed to load workspace app catalog from app SDK portal.home', error);
     }

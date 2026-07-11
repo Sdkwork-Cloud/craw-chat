@@ -88,7 +88,7 @@ export const pageOperationGroups = {
     {
       text: "Inbox and Provisioning",
       anchors: [
-        "get-inbox",
+        "inbox-list",
         "create-conversation",
         "create-agent-dialog",
         "create-agent-handoff",
@@ -130,7 +130,7 @@ export const pageOperationGroups = {
     { text: "Read Cursor", anchors: ["get-read-cursor", "update-read-cursor"] },
   ],
   "/api-reference/im/messages": [
-    { text: "Timeline Read", anchors: ["get-timeline"] },
+    { text: "Message History", anchors: ["list-messages"] },
     {
       text: "Message Submission and Mutation",
       anchors: [

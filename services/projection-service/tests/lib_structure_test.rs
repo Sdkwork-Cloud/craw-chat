@@ -198,9 +198,8 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
     let http_source = include_str!("../src/http.rs");
 
     for required_symbol in [
-        ".inbox_window_from_auth_context(",
+        ".inbox_window_from_auth_context_filtered(",
         ".contact_window_from_auth_context(",
-        ".timeline_window_from_auth_context(",
         ".conversation_summary_from_auth_context(",
         ".message_interaction_summary_from_auth_context(",
         ".pinned_messages_window_from_auth_context(",
@@ -218,6 +217,9 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
         "/im/v3/api/devices/{device_id}/sync_feed",
         "async fn register_client_route(",
         "async fn get_client_route_sync_feed(",
+        "async fn get_timeline(",
+        r#"/im/v3/api/chat/conversations/{conversation_id}/messages",
+            get(get_timeline),"#,
         ".register_client_route_from_auth_context(",
         ".client_route_sync_feed_window_from_auth_context(",
         ".register_client_route(\n        auth.tenant_id.as_str(),",
@@ -538,13 +540,13 @@ fn test_projection_service_member_store_uses_principal_inbox_index() {
     assert!(
         member_store_source
             .contains("conversation_members_by_typed_principal: HashMap<String, BTreeSet<String>>"),
-        "projection-service member cache must index tenant+principalKind+principalId to active conversation scopes for typed inbox reads"
+        "projection-service member cache must index tenant+organization+principalKind+principalId to active conversation scopes for typed inbox reads"
     );
     assert!(
         member_store_source.contains(
-            "encode_member_index_key_segments([tenant_id, principal_kind, principal_id])"
+            "encode_member_index_key_segments([tenant_id, organization_id, principal_kind, principal_id])"
         ),
-        "projection-service member principal index key must use segment-safe length-prefixed encoding"
+        "projection-service member principal index key must use segment-safe tenant+organization+principalKind+principalId encoding"
     );
     assert!(
         !member_store_source.contains("format!(\"{tenant_id}:{principal_kind}:{principal_id}\")"),
@@ -680,18 +682,39 @@ fn test_projection_service_wires_personalization_snapshot_into_durable_restore_a
 }
 
 #[test]
-fn test_projection_supplemental_router_serves_timeline_reads_for_gateway_merge() {
+fn test_projection_routers_do_not_reclaim_conversation_message_list() {
     let http_source = include_str!("../src/http.rs");
+    let supplemental_source = http_source
+        .split("pub fn build_supplemental_domain_api_router")
+        .nth(1)
+        .and_then(|tail| tail.split("pub fn build_domain_api_router").next())
+        .expect("projection supplemental router function must be followed by domain router");
+    let domain_source = http_source
+        .split("pub fn build_domain_api_router")
+        .nth(1)
+        .and_then(|tail| tail.split("pub fn build_public_app").next())
+        .expect("projection domain router function must be followed by public app builder");
 
     assert!(
         http_source.contains("pub fn build_supplemental_domain_api_router"),
         "projection supplemental router must exist for unified gateway merge"
     );
     assert!(
-        http_source.contains(
+        !supplemental_source.contains(
             r#"/im/v3/api/chat/conversations/{conversation_id}/messages",
             get(get_timeline),"#
         ),
-        "supplemental router must expose GET timeline reads for conversations.messages.list"
+        "projection supplemental router must not register conversations.messages.list; conversation runtime owns that method/path in the unified gateway"
+    );
+    assert!(
+        !domain_source.contains(
+            r#"/im/v3/api/chat/conversations/{conversation_id}/messages",
+            get(get_timeline),"#
+        ),
+        "projection domain router must not register conversations.messages.list; conversation runtime owns that method/path"
+    );
+    assert!(
+        supplemental_source.contains(r#"/im/v3/api/chat/inbox", get(get_inbox)"#),
+        "projection supplemental router must still expose inbox projection reads"
     );
 }

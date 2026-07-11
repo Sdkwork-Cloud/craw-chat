@@ -11,7 +11,7 @@ async function main(): Promise<void> {
       async syncOfflineMessages() {
         calls.push({ method: 'chat.syncOfflineMessages' });
         return {
-          appliedMessages: 2,
+          appliedMessages: 0,
           refreshedChats: 1,
         };
       },
@@ -19,16 +19,13 @@ async function main(): Promise<void> {
     contactService: {
       async syncContacts() {
         calls.push({ method: 'contact.syncContacts' });
-        return {
-          contacts: [],
-          refreshedContacts: 0,
-        };
+        throw new Error('startup must not enumerate contact pages');
       },
     },
     groupService: {
       async syncGroupMembers() {
         calls.push({ method: 'group.syncGroupMembers' });
-        return [];
+        throw new Error('startup must not enumerate every group member');
       },
     },
   });
@@ -39,19 +36,14 @@ async function main(): Promise<void> {
     calls,
     [
       { method: 'chat.syncOfflineMessages' },
-      { method: 'contact.syncContacts' },
-      { method: 'group.syncGroupMembers' },
     ],
-    'startup sync must refresh IM state through chat, contact, and group SDK windows without IM device feed state',
+    'startup sync must refresh chat inbox metadata without preloading contacts or every group member list',
   );
   assert.deepEqual(result.chat, {
-    appliedMessages: 2,
+    appliedMessages: 0,
     refreshedChats: 1,
   });
-  assert.deepEqual(result.contacts, {
-    contacts: [],
-    refreshedContacts: 0,
-  });
+  assert.equal(result.contacts, undefined);
   assert.deepEqual(result.groups, []);
   assert.deepEqual(result.recoveredRtcSessions, []);
   assert.equal(result.errors.length, 0);

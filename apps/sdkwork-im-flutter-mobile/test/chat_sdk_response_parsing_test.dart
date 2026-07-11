@@ -2,13 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sdkwork_im_flutter_mobile_chat/sdkwork_im_flutter_mobile_chat.dart';
 
 void main() {
-  test('reads timeline data and pagination from SDK response data', () {
-    final response = ConversationsMessagesListResponse(
+  test('reads message history data and pagination from SDK response data', () {
+    final response = ConversationMessageListResponse(
       code: 0,
       data: <String, dynamic>{
         'items': <Map<String, dynamic>>[
-          _timelineEntry(41).toJson(),
-          _timelineEntry(42).toJson(),
+          _messageEntry(41).toJson(),
+          _messageEntry(42).toJson(),
         ],
         'pageInfo': PageInfo(
           mode: 'cursor',
@@ -16,10 +16,10 @@ void main() {
           hasMore: true,
         ).toJson(),
       },
-      traceId: 'trace-timeline',
+      traceId: 'trace-message-history',
     );
 
-    final page = readTimelinePageFromSdkResponse(response);
+    final page = readMessageHistoryPageFromSdkResponse(response);
 
     expect(page.items.map((entry) => entry.messageSeq), <int>[41, 42]);
     expect(page.pagination.hasMore, isTrue);
@@ -50,12 +50,11 @@ void main() {
   });
 
   test('reads created message item from SDK command response data', () {
-    final posted = PostedMessageResponse(
-      conversationId: 'c_1',
+    final posted = PostMessageResult(
       messageId: 'm_1',
       messageSeq: 7,
-      body: MessageBody(text: 'hello', parts: <ContentPart>[]),
-      occurredAt: '2026-07-07T00:00:00Z',
+      eventId: 'evt_1',
+      deliveryStatus: 'applied',
     );
     final response = ConversationsMessagesCreateResponse201(
       code: 0,
@@ -65,15 +64,15 @@ void main() {
       traceId: 'trace-post',
     );
 
-    final item = readPostedMessageFromSdkResponse(response);
+    final item = readPostMessageResultFromSdkResponse(response);
 
     expect(item?.messageId, 'm_1');
     expect(item?.messageSeq, 7);
   });
 }
 
-TimelineViewEntry _timelineEntry(int messageSeq) {
-  return TimelineViewEntry(
+ConversationMessageEntry _messageEntry(int messageSeq) {
+  return ConversationMessageEntry(
     tenantId: 'tenant-1',
     conversationId: 'c_1',
     messageId: 'm_$messageSeq',

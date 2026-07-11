@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -38,6 +38,8 @@ for (const [scriptName, expectedCommand] of Object.entries({
   'release:package': 'node scripts/release/build-sdkwork-im-install-package.mjs',
   'release:package:check': 'node scripts/release/build-sdkwork-im-install-package.mjs --check --dry-run --all',
   'release:validate': 'node scripts/release/validate-sdkwork-im-install-artifacts.mjs',
+  'release:validate:evidence': 'node scripts/release/sync-sdkwork-im-release-evidence.mjs --check',
+  'release:stage:evidence': 'node scripts/release/sync-sdkwork-im-release-evidence.mjs --write',
   'release:build:desktop': 'node scripts/release/build-sdkwork-im-production.mjs --target desktop',
 })) {
   assert.equal(rootPackageJson.scripts?.[scriptName], expectedCommand, `package.json script ${scriptName}`);
@@ -52,6 +54,7 @@ for (const relativePath of [
   'scripts/release/collect-sdkwork-im-desktop-bundles.mjs',
   'scripts/release/desktop-targets.mjs',
   'scripts/release/validate-sdkwork-im-install-artifacts.mjs',
+  'scripts/release/sync-sdkwork-im-release-evidence.mjs',
 ]) {
   assertFile(relativePath);
 }
@@ -63,7 +66,7 @@ for (const exportName of [
   'renderSdkworkImInstallPackagePlan',
   'SUPPORTED_PLATFORMS',
   'SUPPORTED_ARCHITECTURES',
-  'SUPPORTED_DEPLOYMENT_MODES',
+  'SUPPORTED_PACKAGE_PROFILES',
 ]) {
   assert.equal(typeof planModule[exportName], exportName.startsWith('SUPPORTED_') ? 'object' : 'function', `${exportName} export`);
 }
@@ -86,11 +89,12 @@ assert.equal(releasePlan.packageName, 'sdkwork-chat');
 assert.equal(releasePlan.artifactPolicy?.noSecretsInPackage, true);
 assert.equal(releasePlan.artifactPolicy?.envLocalGeneratedOnHost, true);
 assert.equal(releasePlan.artifactPolicy?.generatedFromProductionBuild, true);
-assert.deepEqual(releasePlan.deploymentModes, ['server-archive', 'desktop']);
+assert.deepEqual(releasePlan.deploymentProfiles, ['cloud', 'standalone']);
+assert.deepEqual(releasePlan.profiles, ['browser', 'server', 'desktop']);
 
 const serverPackagesByPlatform = new Map(
   releasePlan.packages
-    .filter((item) => item.deploymentMode === 'server-archive' && item.architecture === 'x64')
+    .filter((item) => item.profile === 'server' && item.architecture === 'x64')
     .map((item) => [item.platform, item]),
 );
 assert.equal(
@@ -173,18 +177,19 @@ assert.equal(
 );
 
 const expectedPackageIds = [
-  'linux-x64-server-archive',
-  'linux-arm64-server-archive',
-  'macos-x64-server-archive',
-  'macos-arm64-server-archive',
-  'windows-x64-server-archive',
-  'windows-arm64-server-archive',
-  'linux-x64-desktop',
-  'linux-arm64-desktop',
-  'macos-x64-desktop',
-  'macos-arm64-desktop',
-  'windows-x64-desktop',
-  'windows-arm64-desktop',
+  'web-universal-cloud-browser-zip',
+  'linux-x64-standalone-server-tar-gz',
+  'linux-arm64-standalone-server-tar-gz',
+  'macos-x64-standalone-server-tar-gz',
+  'macos-arm64-standalone-server-tar-gz',
+  'windows-x64-standalone-server-zip',
+  'windows-arm64-standalone-server-zip',
+  'linux-x64-standalone-desktop-zip',
+  'linux-arm64-standalone-desktop-zip',
+  'macos-x64-standalone-desktop-zip',
+  'macos-arm64-standalone-desktop-zip',
+  'windows-x64-standalone-desktop-zip',
+  'windows-arm64-standalone-desktop-zip',
 ];
 assert.deepEqual(releasePlan.packages.map((item) => item.id), expectedPackageIds);
 
@@ -196,7 +201,7 @@ const subsetPlanJson = execFileSync(
     'windows',
     '--architecture',
     'x64',
-    '--deployment-mode',
+    '--profile',
     'desktop',
     '--version',
     '1.2.3',
@@ -208,15 +213,31 @@ const subsetPlanPayload = JSON.parse(subsetPlanJson);
 assert.equal(subsetPlanPayload.ok, true, 'filtered release plan should validate');
 assert.deepEqual(
   subsetPlanPayload.plan.packages.map((item) => item.id),
-  ['windows-x64-desktop'],
+  ['windows-x64-standalone-desktop-zip'],
   'filtered release plan should include only the requested package id',
 );
 
 for (const packageItem of releasePlan.packages) {
   assert.equal(packageItem.security?.noSecretsInPackage, true, `${packageItem.id} no secrets policy`);
   assert.equal(packageItem.version, '1.2.3', `${packageItem.id} version`);
-  if (packageItem.deploymentMode === 'server-archive') {
-    assert.equal(packageItem.runtimeProfile, 'server', `${packageItem.id} runtime profile`);
+  if (packageItem.profile === 'browser') {
+    assert.equal(packageItem.deploymentProfile, 'cloud', `${packageItem.id} deployment profile`);
+    assert.equal(packageItem.runtimeTarget, 'browser', `${packageItem.id} runtime target`);
+    assert.equal(packageItem.platform, 'web', `${packageItem.id} platform`);
+    assert.equal(packageItem.architecture, 'universal', `${packageItem.id} architecture`);
+    assert.equal(packageItem.format, 'zip', `${packageItem.id} format`);
+    assert.equal(packageItem.databasePolicy, null, `${packageItem.id} database policy`);
+    for (const expectedArtifact of ['pc-web-dist', 'web-manifest']) {
+      assert.equal(
+        packageItem.artifacts.some((artifact) => artifact.kind === expectedArtifact && artifact.required === true),
+        true,
+        `${packageItem.id} should include ${expectedArtifact}`,
+      );
+    }
+    assert.match(packageItem.archiveName, /^sdkwork-im-web-universal-cloud-browser-zip-.+\.zip$/u);
+  } else if (packageItem.profile === 'server') {
+    assert.equal(packageItem.deploymentProfile, 'standalone', `${packageItem.id} deployment profile`);
+    assert.equal(packageItem.runtimeTarget, 'server', `${packageItem.id} runtime target`);
     assert.equal(packageItem.databasePolicy?.defaultEngine, 'postgresql', `${packageItem.id} database engine`);
     assert.equal(packageItem.databasePolicy?.requiresExternalDatabase, true, `${packageItem.id} external database`);
     assert.equal(packageItem.databasePolicy?.defaultDatabase, 'sdkwork', `${packageItem.id} production database`);
@@ -238,11 +259,17 @@ for (const packageItem of releasePlan.packages) {
         `${packageItem.id} should include ${expectedArtifact}`,
       );
     }
-    assert.match(packageItem.archiveName, /^sdkwork-im-server-.+\.(zip|tar\.gz)$/u);
+    assert.match(packageItem.archiveName, /^sdkwork-im-.+standalone-server-.+\.(zip|tar\.gz)$/u);
   } else {
-    assert.equal(packageItem.runtimeProfile, 'desktop', `${packageItem.id} runtime profile`);
-    assert.equal(packageItem.databasePolicy?.defaultEngine, 'sqlite', `${packageItem.id} database engine`);
-    assert.equal(packageItem.databasePolicy?.requiresExternalDatabase, false, `${packageItem.id} external database`);
+    assert.equal(packageItem.deploymentProfile, 'standalone', `${packageItem.id} deployment profile`);
+    assert.equal(packageItem.runtimeTarget, 'desktop', `${packageItem.id} runtime target`);
+    assert.equal(packageItem.databasePolicy?.defaultEngine, 'postgresql', `${packageItem.id} database engine`);
+    assert.equal(packageItem.databasePolicy?.requiresExternalDatabase, true, `${packageItem.id} external database`);
+    assert.equal(packageItem.databasePolicy?.passwordFile?.required, true, `${packageItem.id} password file required`);
+    assert.ok(
+      packageItem.databasePolicy?.envOverrides?.includes('SDKWORK_IM_DATABASE_PASSWORD_FILE'),
+      `${packageItem.id} database password file env override`,
+    );
     for (const expectedArtifact of ['desktop-installers', 'desktop-manifest']) {
       assert.equal(
         packageItem.artifacts.some((artifact) => artifact.kind === expectedArtifact && artifact.required === true),
@@ -250,7 +277,7 @@ for (const packageItem of releasePlan.packages) {
         `${packageItem.id} should include ${expectedArtifact}`,
       );
     }
-    assert.match(packageItem.archiveName, /^sdkwork-im-desktop-.+\.zip$/u);
+    assert.match(packageItem.archiveName, /^sdkwork-im-.+standalone-desktop-zip-.+\.zip$/u);
   }
 }
 
@@ -279,9 +306,26 @@ assert.deepEqual(
   ],
   'desktop-only production build should prepare web assets before Tauri packaging',
 );
+const browserProductionDryRunPayload = JSON.parse(execFileSync(
+  process.execPath,
+  ['scripts/release/build-sdkwork-im-production.mjs', '--target', 'browser', '--dry-run', '--json'],
+  {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      SDKWORK_IM_TEST_SECRET: 'do-not-leak-release-secret',
+    },
+  },
+));
+assert.deepEqual(
+  browserProductionDryRunPayload.plan.steps.map((step) => step.label),
+  ['build sdkwork-im-pc web assets'],
+  'browser production build should build only the PC web assets',
+);
 
 const dryRunBuildPlan = packageBuilder.createSdkworkImInstallPackageBuildPlan({
-  packageId: 'windows-x64-server-archive',
+  packageId: 'windows-x64-standalone-server-zip',
   version: '1.2.3',
   requireStagedFiles: false,
 });
@@ -309,12 +353,35 @@ for (const exportName of [
 
 const validatorTempRoot = mkTempDir('sdkwork-im-release-validator-');
 try {
-  const serverStage = path.join(validatorTempRoot, 'stage', 'windows-x64-server-archive');
-  const desktopStage = path.join(validatorTempRoot, 'stage', 'windows-x64-desktop');
+  const browserStage = path.join(validatorTempRoot, 'stage', 'web-universal-cloud-browser-zip');
+  const serverStage = path.join(validatorTempRoot, 'stage', 'windows-x64-standalone-server-zip');
+  const desktopStage = path.join(validatorTempRoot, 'stage', 'windows-x64-standalone-desktop-zip');
   const outputDir = path.join(validatorTempRoot, 'out');
+  writeFixture(browserStage, 'web/sdkwork-im-pc/dist/index.html', '<!doctype html>');
+  writeFixture(browserStage, 'web-manifest.json', '{"product":"chat"}');
+  const browserBuildPlan = packageBuilder.createSdkworkImInstallPackageBuildPlan({
+    outputDir,
+    packageId: 'web-universal-cloud-browser-zip',
+    root: repoRoot,
+    stagingRoot: browserStage,
+    version: '1.2.3',
+  });
+  const browserArchive = await packageBuilder.buildSdkworkImInstallPackageArchive(browserBuildPlan);
+  assert.equal(browserArchive.manifest.package.deploymentProfile, 'cloud');
+  assert.equal(browserArchive.manifest.package.profile, 'browser');
+  assert.equal(browserArchive.manifest.package.runtimeTarget, 'browser');
+  assert.equal(browserArchive.manifest.package.format, 'zip');
+  const browserValidation = validatorModule.validateSdkworkImInstallArtifact({
+    artifactPath: browserArchive.archivePath,
+    packageId: 'web-universal-cloud-browser-zip',
+    root: repoRoot,
+    version: '1.2.3',
+  });
+  assert.equal(browserValidation.ok, true, `browser archive validation issues: ${browserValidation.issues.join('; ')}`);
+
   writeFixture(serverStage, 'bin/sdkwork-im-server.exe', 'server');
-  writeFixture(serverStage, 'config/chat.toml.example', '[server]\nbind_address = "127.0.0.1:18080"\n');
-  writeFixture(serverStage, 'config/server.env.example', 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=127.0.0.1:18080\n');
+  writeFixture(serverStage, 'config/chat.toml.example', '[server]\nbind_address = "127.0.0.1:18079"\n');
+  writeFixture(serverStage, 'config/server.env.example', 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=127.0.0.1:18079\n');
   writeFixture(serverStage, 'config/postgresql.yaml.example', 'engine: postgresql');
   writeFixture(serverStage, 'INSTALL.md', '# install');
   writeFixture(serverStage, 'install-manifest.json', '{"product":"chat"}');
@@ -322,15 +389,29 @@ try {
   writeFixture(serverStage, 'service/windows/SdkworkImServer.xml', '<service />');
   const serverBuildPlan = packageBuilder.createSdkworkImInstallPackageBuildPlan({
     outputDir,
-    packageId: 'windows-x64-server-archive',
+    packageId: 'windows-x64-standalone-server-zip',
     root: repoRoot,
     stagingRoot: serverStage,
     version: '1.2.3',
   });
   const serverArchive = await packageBuilder.buildSdkworkImInstallPackageArchive(serverBuildPlan);
+  assert.equal(serverArchive.manifest.package.deploymentProfile, 'standalone');
+  assert.equal(serverArchive.manifest.package.profile, 'server');
+  assert.equal(serverArchive.manifest.package.runtimeTarget, 'server');
+  assert.equal(serverArchive.manifest.package.format, 'zip');
+  assert.equal(
+    Object.hasOwn(serverArchive.manifest.package, 'deploymentMode'),
+    false,
+    'release package manifest must not keep retired deploymentMode',
+  );
+  assert.equal(
+    Object.hasOwn(serverArchive.manifest.package, 'runtimeProfile'),
+    false,
+    'release package manifest must not keep retired runtimeProfile',
+  );
   const serverValidation = validatorModule.validateSdkworkImInstallArtifact({
     artifactPath: serverArchive.archivePath,
-    packageId: 'windows-x64-server-archive',
+    packageId: 'windows-x64-standalone-server-zip',
     root: repoRoot,
     version: '1.2.3',
   });
@@ -344,15 +425,29 @@ try {
   }));
   const desktopBuildPlan = packageBuilder.createSdkworkImInstallPackageBuildPlan({
     outputDir,
-    packageId: 'windows-x64-desktop',
+    packageId: 'windows-x64-standalone-desktop-zip',
     root: repoRoot,
     stagingRoot: desktopStage,
     version: '1.2.3',
   });
   const desktopArchive = await packageBuilder.buildSdkworkImInstallPackageArchive(desktopBuildPlan);
+  assert.equal(desktopArchive.manifest.package.deploymentProfile, 'standalone');
+  assert.equal(desktopArchive.manifest.package.profile, 'desktop');
+  assert.equal(desktopArchive.manifest.package.runtimeTarget, 'desktop');
+  assert.equal(desktopArchive.manifest.package.format, 'zip');
+  assert.equal(
+    Object.hasOwn(desktopArchive.manifest.package, 'deploymentMode'),
+    false,
+    'desktop release package manifest must not keep retired deploymentMode',
+  );
+  assert.equal(
+    Object.hasOwn(desktopArchive.manifest.package, 'runtimeProfile'),
+    false,
+    'desktop release package manifest must not keep retired runtimeProfile',
+  );
   const desktopValidation = validatorModule.validateSdkworkImInstallArtifact({
     artifactPath: desktopArchive.archivePath,
-    packageId: 'windows-x64-desktop',
+    packageId: 'windows-x64-standalone-desktop-zip',
     root: repoRoot,
     version: '1.2.3',
   });
@@ -392,14 +487,55 @@ try {
 }
 
 const stagingModule = await importRepoModule('scripts/release/stage-sdkwork-im-release-package.mjs');
+const browserDryRunStagingPlan = stagingModule.createSdkworkImReleaseStagingPlan({
+  packageId: 'web-universal-cloud-browser-zip',
+  version: '1.2.3',
+});
+assert.equal(
+  stagingModule.validateSdkworkImReleaseStagingPlan(browserDryRunStagingPlan, { requireSources: false }).length,
+  0,
+  'browser dry-run staging plan should be valid without source artifacts',
+);
+const browserInstallManifest = stagingModule.createInstallManifest(browserDryRunStagingPlan.package);
+assert.equal(browserInstallManifest.package.deploymentProfile, 'cloud');
+assert.equal(browserInstallManifest.package.profile, 'browser');
+assert.equal(browserInstallManifest.package.runtimeTarget, 'browser');
+assert.equal(browserInstallManifest.package.format, 'zip');
+const browserStagingArchivePaths = new Set(browserDryRunStagingPlan.actions.map((action) => action.archivePath).filter(Boolean));
+for (const expectedPath of [
+  'web/sdkwork-im-pc/dist',
+  'web-manifest.json',
+]) {
+  assert.equal(
+    browserStagingArchivePaths.has(expectedPath),
+    true,
+    `browser staging plan should expose archive path ${expectedPath}`,
+  );
+}
+
 const dryRunStagingPlan = stagingModule.createSdkworkImReleaseStagingPlan({
-  packageId: 'windows-x64-server-archive',
+  packageId: 'windows-x64-standalone-server-zip',
   version: '1.2.3',
 });
 assert.equal(
   stagingModule.validateSdkworkImReleaseStagingPlan(dryRunStagingPlan, { requireSources: false }).length,
   0,
   'dry-run staging plan should be valid without source artifacts',
+);
+const installManifest = stagingModule.createInstallManifest(dryRunStagingPlan.package);
+assert.equal(installManifest.package.deploymentProfile, 'standalone');
+assert.equal(installManifest.package.profile, 'server');
+assert.equal(installManifest.package.runtimeTarget, 'server');
+assert.equal(installManifest.package.format, 'zip');
+assert.equal(
+  Object.hasOwn(installManifest.package, 'deploymentMode'),
+  false,
+  'install manifest must not keep retired deploymentMode',
+);
+assert.equal(
+  Object.hasOwn(installManifest.package, 'runtimeProfile'),
+  false,
+  'install manifest must not keep retired runtimeProfile',
 );
 const stagingArchivePaths = new Set(dryRunStagingPlan.actions.map((action) => action.archivePath).filter(Boolean));
 for (const expectedPath of [
@@ -418,7 +554,7 @@ for (const expectedPath of [
 }
 
 const linuxStagingPlan = stagingModule.createSdkworkImReleaseStagingPlan({
-  packageId: 'linux-x64-server-archive',
+  packageId: 'linux-x64-standalone-server-tar-gz',
   version: '1.2.3',
 });
 const linuxGeneratedEnvAction = linuxStagingPlan.actions.find((action) => action.label === 'server env template');
@@ -599,6 +735,7 @@ assert.doesNotMatch(
 );
 
 const expectedWorkflowTargetIds = [
+  'web-universal-cloud-browser-zip',
   'linux-x64-standalone-server-tar-gz',
   'linux-arm64-standalone-server-tar-gz',
   'macos-x64-standalone-server-tar-gz',
@@ -615,8 +752,59 @@ const expectedWorkflowTargetIds = [
 assert.deepEqual(
   workflowConfig.targets?.map((target) => target.id),
   expectedWorkflowTargetIds,
-  'sdkwork.workflow.json should expose canonical package ids for the supported server archives and desktop bundles',
+  'sdkwork.workflow.json should expose canonical package ids for the supported browser, server, and desktop packages',
 );
+assert.deepEqual(
+  appManifest.artifacts?.installConfig?.packages?.map((releasePackage) => releasePackage.id),
+  expectedWorkflowTargetIds,
+  'sdkwork.app.config.json install packages should match sdkwork.workflow.json targets exactly',
+);
+assert.deepEqual(
+  appManifest.release?.notes?.find((note) => note.current === true)?.packageIds,
+  expectedWorkflowTargetIds,
+  'sdkwork.app.config.json current release note packageIds should match sdkwork.workflow.json targets exactly',
+);
+const workflowTargetsById = new Map((workflowConfig.targets ?? []).map((target) => [target.id, target]));
+for (const releasePackage of appManifest.artifacts?.installConfig?.packages ?? []) {
+  const workflowTarget = workflowTargetsById.get(releasePackage.id);
+  assert.ok(workflowTarget, `${releasePackage.id} should have a workflow target`);
+  assert.equal(releasePackage.deploymentProfile, workflowTarget.deploymentProfile, `${releasePackage.id} deploymentProfile`);
+  assert.equal(releasePackage.runtimeTarget, workflowTarget.runtimeTarget, `${releasePackage.id} runtimeTarget`);
+  assert.equal(releasePackage.architecture, workflowTarget.architecture, `${releasePackage.id} architecture`);
+  assert.equal(
+    releasePackage.packageFormat,
+    packageFormatForManifest(workflowTarget.formats?.[0]),
+    `${releasePackage.id} packageFormat`,
+  );
+}
+const workflowConfigText = JSON.stringify(workflowConfig);
+for (const forbiddenText of [
+  'Resolve-SdkworkImLegacyPackageId',
+  'legacyPackageId',
+  'server-archive',
+  'windows-x64-desktop',
+  'linux-x64-server-archive',
+  'deploymentMode',
+  'runtimeProfile',
+]) {
+  assert.doesNotMatch(
+    workflowConfigText,
+    new RegExp(forbiddenText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `sdkwork.workflow.json must not retain release package legacy marker: ${forbiddenText}`,
+  );
+}
+for (const [phase, expectedCommand] of Object.entries({
+  stage: 'pnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID',
+  package: 'pnpm release:package -- --package-id $env:SDKWORK_PACKAGE_ID',
+  validate: 'pnpm release:validate -- --package-id $env:SDKWORK_PACKAGE_ID',
+})) {
+  const phaseScript = workflowConfig.lifecycle?.[phase]?.map((step) => step.run).join('\n') ?? '';
+  assert.match(
+    phaseScript,
+    new RegExp(expectedCommand.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `sdkwork.workflow.json lifecycle.${phase} must consume canonical SDKWORK_PACKAGE_ID directly`,
+  );
+}
 for (const target of workflowConfig.targets ?? []) {
   assert.equal(
     target.id,
@@ -679,4 +867,11 @@ function writeFixture(root, relativePath, content) {
   const absolutePath = path.join(root, ...relativePath.split('/'));
   mkdirSync(path.dirname(absolutePath), { recursive: true });
   writeFileSync(absolutePath, content);
+}
+
+function packageFormatForManifest(format) {
+  if (format === 'tar.gz') {
+    return 'TAR_GZ';
+  }
+  return String(format ?? '').replaceAll('.', '_').replaceAll('-', '_').toUpperCase();
 }

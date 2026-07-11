@@ -5,7 +5,7 @@ Capability: im
 Package type: rust-service  
 Status: active
 
-Standalone IM gateway binary for local and packaged deployments. Composes `sdkwork-web-framework` ingress, embedded IAM app-api routes, IM route registry, and product runtime static assets without the full split-service topology.
+Standalone IM gateway binary for local and packaged deployments. Composes `sdkwork-web-framework` ingress, embedded IAM app-api routes, IM route registry, and product runtime static assets through the current single-ingress topology.
 
 Default standalone unified development binds IM application ingress to `http://127.0.0.1:18079`. Do not use `127.0.0.1:3900` as the IM gateway health/API authority unless the selected topology explicitly starts a shared platform API gateway on that port.
 
@@ -55,6 +55,10 @@ This preserves a single edge rate-limit decision for the whole standalone ingres
 ## Configuration
 
 Reads gateway bind URLs, upstream service endpoints, and static site directories from the resolved standalone gateway config file.
+
+Direct binary execution, `pnpm dev`, and `pnpm gateway:run:standalone` route IM foundation APIs through embedded in-process handlers unless an explicit cloud upstream is configured.
+
+Split upstream routing belongs to `sdkwork-im-cloud-gateway` and cloud topology profiles. If `/openapi/runtime-summary.json` reports `runtimeMode: "split"` for `sdkwork-im-standalone-gateway`, the running process is stale or not using the current binary.
 
 ## Verification
 

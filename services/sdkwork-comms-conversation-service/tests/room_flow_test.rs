@@ -7,12 +7,12 @@ use im_domain_core::message::{ContentPart, MessageBody, MessageType, Sender};
 fn test_game_room_create_enter_and_post_message() {
     let runtime = ConversationRuntime::new(InMemoryJournal::default());
 
-    runtime
+    let created = runtime
         .create_room_with_creator_kind(
             CreateRoomCommand {
                 tenant_id: "100001".into(),
                 organization_id: "org_a".into(),
-                conversation_id: "c_game_room_flow".into(),
+                conversation_id: String::new(),
                 room_id: "room_game_flow".into(),
                 room_kind: "game".into(),
                 creator_id: "1".into(),
@@ -20,6 +20,7 @@ fn test_game_room_create_enter_and_post_message() {
             "user",
         )
         .expect("game room create should succeed");
+    assert!(created.conversation_id.starts_with("r_"));
 
     runtime
         .enter_room_with_principal_kind(
@@ -38,7 +39,7 @@ fn test_game_room_create_enter_and_post_message() {
         .post_message(PostMessageCommand {
             tenant_id: "100001".into(),
             organization_id: "org_a".into(),
-            conversation_id: "c_game_room_flow".into(),
+            conversation_id: created.conversation_id,
             sender: Sender {
                 id: "1040".into(),
                 kind: "user".into(),
@@ -68,12 +69,12 @@ fn test_game_room_create_enter_and_post_message() {
 #[test]
 fn test_live_room_message_rate_limit_rejects_burst_posts() {
     let runtime = ConversationRuntime::new(InMemoryJournal::default());
-    runtime
+    let created = runtime
         .create_room_with_creator_kind(
             CreateRoomCommand {
                 tenant_id: "100001".into(),
                 organization_id: "org_a".into(),
-                conversation_id: "c_live_room_rate".into(),
+                conversation_id: String::new(),
                 room_id: "room_live_rate".into(),
                 room_kind: "live".into(),
                 creator_id: "1".into(),
@@ -81,6 +82,8 @@ fn test_live_room_message_rate_limit_rejects_burst_posts() {
             "user",
         )
         .expect("live room create should succeed");
+    assert!(created.conversation_id.starts_with("r_"));
+    let conversation_id = created.conversation_id;
 
     unsafe {
         std::env::set_var("SDKWORK_IM_LIVE_ROOM_MESSAGE_RATE_LIMIT", "2");
@@ -90,7 +93,7 @@ fn test_live_room_message_rate_limit_rejects_burst_posts() {
         runtime.post_message(PostMessageCommand {
             tenant_id: "100001".into(),
             organization_id: "org_a".into(),
-            conversation_id: "c_live_room_rate".into(),
+            conversation_id: conversation_id.clone(),
             sender: Sender {
                 id: "1".into(),
                 kind: "user".into(),

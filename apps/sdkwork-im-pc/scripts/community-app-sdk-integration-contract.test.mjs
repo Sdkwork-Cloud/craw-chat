@@ -102,7 +102,7 @@ assert.match(
 assert.match(
   devRunnerSource,
   /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitCommunityAppApiUpstream[\s\S]*SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-community traffic through the shared gateway root while preserving explicit Community split upstream overrides.',
+  'PC dev runner must default sdkwork-community traffic through the shared gateway root while preserving explicit Community external upstream overrides.',
 );
 
 assert.match(
@@ -142,16 +142,16 @@ assert.equal(
   'sdkwork-community app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const splitOverrideEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.splitOverrideEnvKeys?.['sdkwork-community-app-api'];
+const explicitExternalUpstreamEnvKeys =
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.['sdkwork-community-app-api'];
 assert.deepEqual(
-  splitOverrideEnvKeys,
+  explicitExternalUpstreamEnvKeys,
   [
     'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
     'SDKWORK_COMMUNITY_APP_API_UPSTREAM',
     'SDKWORK_COMMUNITY_APP_API_BASE_URL',
   ],
-  'component.spec.json must document community split upstream override env keys.',
+  'component.spec.json must document community explicit external upstream env keys.',
 );
 
 assert.match(

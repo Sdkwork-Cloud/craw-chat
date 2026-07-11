@@ -1,4 +1,4 @@
-import type { PostedMessageResponse } from './posted-message-response';
+import type { MessageMutationResult } from './message-mutation-result';
 
 export interface MessagesEditResponse {
   code: 0;

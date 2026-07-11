@@ -66,14 +66,14 @@ Creates an IM-owned call signaling session.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.calls`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `call.create` capability when the session is bound to a conversation.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSessionMutationResponse`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 RtcSessionMutationResponse in data.item`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="CreateRtcSessionRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="RtcSessionMutationResponse" />
 
@@ -81,12 +81,12 @@ Creates an IM-owned call signaling session.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -124,11 +124,11 @@ Retrieves current IM call signaling session state for reconnect and backfill.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -170,12 +170,12 @@ Sends an IM call invite and publishes the corresponding realtime signal message.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -217,12 +217,12 @@ Accepts an incoming IM call signaling session.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -264,12 +264,12 @@ Rejects an incoming IM call signaling session.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -311,12 +311,12 @@ Ends an active IM call signaling session.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -338,7 +338,7 @@ call watchers can parse invite, accept, reject, end, SDP, ICE, and provider-spec
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.calls`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `call.signal` capability.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSignalEvent`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 RtcSignalEvent in data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -351,7 +351,7 @@ call watchers can parse invite, accept, reject, end, SDP, ICE, and provider-spec
 
 <ApiSchemaTable schema="PostRtcSignalRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="RtcSignalEvent" />
 
@@ -359,12 +359,12 @@ call watchers can parse invite, accept, reject, end, SDP, ICE, and provider-spec
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -385,7 +385,7 @@ Issues an RTC media participant credential after IM authorization.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.calls`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `call.issue_credential` capability.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcParticipantCredential`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 RtcParticipantCredential in data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -398,7 +398,7 @@ Issues an RTC media participant credential after IM authorization.
 
 <ApiSchemaTable schema="IssueRtcParticipantCredentialRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="RtcParticipantCredential" />
 
@@ -406,11 +406,11 @@ Issues an RTC media participant credential after IM authorization.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

@@ -731,10 +731,10 @@ pub(in crate::runtime) fn canonical_agent_dialog_conversation_id(
     let seed = encode_conversation_key_segments([
         tenant_id,
         normalize_commit_organization_id(organization_id).as_str(),
-        "agent_dialog",
+        "agent",
         business_id.as_str(),
     ]);
-    deterministic_conversation_resource_id("c_agent_", seed.as_str())
+    deterministic_conversation_resource_id("a_", seed.as_str())
 }
 
 pub(in crate::runtime) fn resolve_agent_dialog_conversation_id(
@@ -790,10 +790,115 @@ pub(in crate::runtime) fn canonical_direct_chat_conversation_id(
     let seed = encode_conversation_key_segments([
         tenant_id,
         normalize_commit_organization_id(organization_id).as_str(),
-        "direct_chat",
+        "direct",
         direct_chat_business_id,
     ]);
-    deterministic_conversation_resource_id("c_direct_", seed.as_str())
+    deterministic_conversation_resource_id("c_", seed.as_str())
+}
+
+/// Canonical conversation id for group chats.
+///
+/// Groups have no natural deterministic pair key (membership and name can
+/// change over time), so the canonical id seeds from the creator identity,
+/// the group display name at creation, and a client-supplied request key
+/// (or the server creation timestamp when no request key is provided). This
+/// keeps ids unique per creation event while remaining reproducible for an
+/// idempotent retry that reuses the same request key.
+pub(in crate::runtime) fn canonical_group_conversation_id(
+    tenant_id: &str,
+    organization_id: &str,
+    creator_kind: &str,
+    creator_id: &str,
+    group_name: &str,
+    request_key: &str,
+) -> String {
+    let seed = encode_conversation_key_segments([
+        tenant_id,
+        normalize_commit_organization_id(organization_id).as_str(),
+        "group",
+        creator_kind,
+        creator_id,
+        group_name,
+        request_key,
+    ]);
+    deterministic_conversation_resource_id("g_", seed.as_str())
+}
+
+/// Resolve a group conversation id from a client request. When the client
+/// omits `conversation_id` the server derives the canonical `g_` id from the
+/// creator + group name + request key. When supplied, the id must already
+/// match the canonical form (defensive guard against legacy client-local
+/// prefixes such as `pc-group-`).
+pub(in crate::runtime) fn resolve_group_conversation_id(
+    tenant_id: &str,
+    organization_id: &str,
+    creator_kind: &str,
+    creator_id: &str,
+    group_name: &str,
+    request_key: &str,
+    requested_conversation_id: &str,
+) -> Result<String, RuntimeError> {
+    let canonical = canonical_group_conversation_id(
+        tenant_id,
+        organization_id,
+        creator_kind,
+        creator_id,
+        group_name,
+        request_key,
+    );
+    let requested = requested_conversation_id.trim();
+    if requested.is_empty() || requested == canonical {
+        return Ok(canonical);
+    }
+    Err(RuntimeError::InvalidInput(format!(
+        "conversationId must be omitted or match the canonical group id; expected {canonical}"
+    )))
+}
+
+pub(in crate::runtime) fn canonical_room_conversation_id(
+    tenant_id: &str,
+    organization_id: &str,
+    creator_kind: &str,
+    creator_id: &str,
+    room_id: &str,
+    room_kind: &str,
+) -> String {
+    let seed = encode_conversation_key_segments([
+        tenant_id,
+        normalize_commit_organization_id(organization_id).as_str(),
+        "room",
+        creator_kind,
+        creator_id,
+        room_kind,
+        room_id,
+    ]);
+    deterministic_conversation_resource_id("r_", seed.as_str())
+}
+
+pub(in crate::runtime) fn resolve_room_create_conversation_id(
+    tenant_id: &str,
+    organization_id: &str,
+    creator_kind: &str,
+    creator_id: &str,
+    room_id: &str,
+    room_kind: &str,
+    requested_conversation_id: &str,
+) -> Result<String, RuntimeError> {
+    let canonical = canonical_room_conversation_id(
+        tenant_id,
+        organization_id,
+        creator_kind,
+        creator_id,
+        room_id,
+        room_kind,
+    );
+    let requested = requested_conversation_id.trim();
+    if requested.is_empty() || requested == canonical {
+        return Ok(canonical);
+    }
+    Err(RuntimeError::InvalidInput(format!(
+        "conversationId must be omitted or match the canonical room id; expected {canonical}"
+    )))
 }
 
 pub(in crate::runtime) fn resolve_direct_chat_binding_ids(
@@ -844,8 +949,9 @@ pub(super) fn conversation_timestamp() -> String {
 mod canonical_id_tests {
     use super::{
         canonical_agent_dialog_conversation_id, canonical_direct_chat_business_id,
-        canonical_direct_chat_conversation_id, resolve_agent_dialog_conversation_id,
-        resolve_direct_chat_binding_ids,
+        canonical_direct_chat_conversation_id, canonical_group_conversation_id,
+        resolve_agent_dialog_conversation_id, resolve_direct_chat_binding_ids,
+        resolve_group_conversation_id,
     };
 
     #[test]
@@ -865,8 +971,8 @@ mod canonical_id_tests {
             "agent.sdkwork_assistant",
         );
         assert_eq!(first, second);
-        assert!(first.starts_with("c_agent_"));
-        assert_eq!(first.len(), "c_agent_".len() + 24);
+        assert!(first.starts_with("a_"));
+        assert_eq!(first.len(), "a_".len() + 24);
         assert!(
             !first.contains("329673763828277248"),
             "conversation id must not embed raw principal ids"
@@ -913,12 +1019,81 @@ mod canonical_id_tests {
     }
 
     #[test]
+    fn canonical_group_conversation_id_is_unique_per_request_key() {
+        let first = canonical_group_conversation_id(
+            "100001",
+            "default",
+            "user",
+            "user1",
+            "Design team",
+            "req-key-1",
+        );
+        let second = canonical_group_conversation_id(
+            "100001",
+            "default",
+            "user",
+            "user1",
+            "Design team",
+            "req-key-2",
+        );
+        assert!(first.starts_with("g_"));
+        assert_eq!(first.len(), "g_".len() + 24);
+        assert_ne!(
+            first, second,
+            "different request keys must yield different group ids"
+        );
+        assert!(
+            !first.contains("user1") && !first.contains("Design"),
+            "group conversation id must not embed raw creator id or group name"
+        );
+    }
+
+    #[test]
+    fn resolve_group_conversation_id_accepts_omitted_or_exact_match() {
+        let canonical = canonical_group_conversation_id(
+            "100001",
+            "default",
+            "user",
+            "user1",
+            "Design team",
+            "req-key-1",
+        );
+        assert_eq!(
+            resolve_group_conversation_id(
+                "100001",
+                "default",
+                "user",
+                "user1",
+                "Design team",
+                "req-key-1",
+                "",
+            )
+            .expect("empty conversation id should derive canonical group id"),
+            canonical
+        );
+        assert!(
+            resolve_group_conversation_id(
+                "100001",
+                "default",
+                "user",
+                "user1",
+                "Design team",
+                "req-key-1",
+                "pc-group-legacy-uuid",
+            )
+            .is_err(),
+            "legacy client-local group ids must be rejected"
+        );
+    }
+
+    #[test]
     fn resolve_direct_chat_binding_ids_derives_stable_pair_scoped_ids() {
         let (conversation_id, direct_chat_id) = resolve_direct_chat_binding_ids(
             "100001", "default", "user", "u_alice", "user", "u_bob", "", "",
         )
         .expect("direct chat ids should resolve");
-        assert!(conversation_id.starts_with("c_direct_"));
+        assert!(conversation_id.starts_with("c_"));
+        assert!(!conversation_id.starts_with("c_direct_"));
         assert!(!direct_chat_id.starts_with("pc-dc-"));
         assert_eq!(
             resolve_direct_chat_binding_ids(

@@ -13,7 +13,7 @@ use im_app_context::{AppContext, build_dual_token_headers_for_context, local_ser
 use sdkwork_im_api_registry::{
     HttpMethod, RouteDescriptor, RouteProtocol, RouteVisibility, SdkTarget, build_registry,
 };
-use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
+use sdkwork_im_cloud_gateway_config::{WebGatewayConfig, service_upstream};
 use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -53,7 +53,7 @@ fn test_gateway_config(
 ) -> WebGatewayConfig {
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),
-        runtime_mode: GatewayRuntimeMode::Split,
+        runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::SingleIngress,
         strict_startup: true,
         upstreams,
     }
@@ -103,6 +103,19 @@ fn has_sdkwork_internal_header(headers: &HeaderMap) -> bool {
     ]
     .iter()
     .any(|name| headers.contains_key(*name))
+}
+
+fn assert_server_trace_contract(payload: &serde_json::Value, label: &str) {
+    assert!(
+        payload.get("requestId").is_none(),
+        "{label} must not expose the legacy correlation field: {payload:?}"
+    );
+    assert!(
+        payload["traceId"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "{label} must include server-owned traceId: {payload:?}"
+    );
 }
 
 async fn websocket_echo(ws: WebSocketUpgrade) -> impl IntoResponse {
@@ -280,7 +293,6 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
         .send(TungsteniteMessage::Text(
             json!({
                 "type": "auth.init",
-                "requestId": "auth-1",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
                 "deviceId": "device_real"
@@ -302,7 +314,7 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
     let auth_ok: serde_json::Value =
         serde_json::from_str(text.as_str()).expect("auth.ok frame should be json");
     assert_eq!(auth_ok["type"], "auth.ok", "first frame: {auth_ok}");
-    assert_eq!(auth_ok["requestId"], "auth-1");
+    assert_server_trace_contract(&auth_ok, "auth.ok");
     assert_eq!(auth_ok["tenantId"], "100001");
     assert_eq!(auth_ok["principalId"], "30");
     assert_eq!(auth_ok["sessionId"], "session_real");
@@ -369,7 +381,6 @@ async fn gateway_accepts_realtime_websocket_ping_before_auth_init() {
         .send(TungsteniteMessage::Text(
             json!({
                 "type": "auth.init",
-                "requestId": "auth-after-ping",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
                 "deviceId": "device_real"
@@ -393,7 +404,7 @@ async fn gateway_accepts_realtime_websocket_ping_before_auth_init() {
     let auth_ok: serde_json::Value =
         serde_json::from_str(auth_ok_text.as_str()).expect("auth.ok frame should be json");
     assert_eq!(auth_ok["type"], "auth.ok");
-    assert_eq!(auth_ok["requestId"], "auth-after-ping");
+    assert_server_trace_contract(&auth_ok, "auth.ok");
 
     let _ = socket.close(None).await;
     gateway_handle.abort();
@@ -438,7 +449,6 @@ async fn gateway_strips_sensitive_realtime_websocket_query_before_upstream_conne
         .send(TungsteniteMessage::Text(
             json!({
                 "type": "auth.init",
-                "requestId": "auth-sensitive-query",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
                 "deviceId": "device_real"
@@ -518,7 +528,6 @@ async fn gateway_rejects_realtime_websocket_business_frame_before_auth_init() {
         .send(TungsteniteMessage::Text(
             json!({
                 "type": "subscriptions.sync",
-                "requestId": "sub-before-auth",
                 "items": []
             })
             .to_string()
@@ -539,7 +548,7 @@ async fn gateway_rejects_realtime_websocket_business_frame_before_auth_init() {
         serde_json::from_str(text.as_str()).expect("auth error frame should be json");
     assert_eq!(error["type"], "error");
     assert_eq!(error["code"], "websocket_auth_required");
-    assert_eq!(error["requestId"], "sub-before-auth");
+    assert_server_trace_contract(&error, "auth error");
 
     let close_frame = socket
         .next()
@@ -828,7 +837,6 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
         .send(TungsteniteMessage::Text(
             json!({
                 "type": "auth.init",
-                "requestId": "auth-custom-1",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
                 "deviceId": "device_real"
@@ -850,7 +858,7 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
     let auth_ok: serde_json::Value =
         serde_json::from_str(text.as_str()).expect("auth.ok frame should be json");
     assert_eq!(auth_ok["type"], "auth.ok", "first frame: {auth_ok}");
-    assert_eq!(auth_ok["requestId"], "auth-custom-1");
+    assert_server_trace_contract(&auth_ok, "auth.ok");
 
     socket
         .send(TungsteniteMessage::Text("hello custom route".into()))

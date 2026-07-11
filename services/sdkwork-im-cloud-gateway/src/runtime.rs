@@ -4,7 +4,9 @@ use axum::{Router, extract::Request, http::StatusCode, response::Response};
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
 use tower::ServiceExt;
 
-use crate::response::json_error_response;
+use crate::response::{
+    json_error_response_with_correlation, new_gateway_trace_id, problem_correlation_for_parts,
+};
 use crate::state::GatewayState;
 
 pub(crate) async fn delegate_to_runtime_router(
@@ -12,7 +14,20 @@ pub(crate) async fn delegate_to_runtime_router(
     mut request: Request,
 ) -> Response {
     let Some(router) = runtime_router else {
-        return json_error_response(StatusCode::NOT_FOUND, "gateway route owner not found");
+        let method_str = request.method().as_str().to_owned();
+        let path_str = request.uri().path().to_owned();
+        let trace_id = new_gateway_trace_id();
+        let correlation = problem_correlation_for_parts(
+            method_str.as_str(),
+            path_str.as_str(),
+            trace_id.as_str(),
+            None,
+        );
+        return json_error_response_with_correlation(
+            StatusCode::NOT_FOUND,
+            "gateway route owner not found",
+            correlation,
+        );
     };
 
     request.extensions_mut().clear();
@@ -39,12 +54,24 @@ pub(crate) async fn dispatch_embedded_session_gateway_if_configured(
     let Some(router) = state.embedded_session_gateway.as_ref() else {
         return Err(request);
     };
+    let method_str = request.method().as_str().to_owned();
+    let path_str = request.uri().path().to_owned();
+    let trace_id = new_gateway_trace_id();
     match router.clone().oneshot(request).await {
         Ok(response) => Ok(response),
-        Err(_) => Ok(json_error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "embedded session-gateway dispatch failed",
-        )),
+        Err(_) => {
+            let correlation = problem_correlation_for_parts(
+                method_str.as_str(),
+                path_str.as_str(),
+                trace_id.as_str(),
+                None,
+            );
+            Ok(json_error_response_with_correlation(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "embedded session-gateway dispatch failed",
+                correlation,
+            ))
+        }
     }
 }
 

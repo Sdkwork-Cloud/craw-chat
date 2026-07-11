@@ -34,6 +34,7 @@
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use im_app_context::is_production_like_im_environment;
 use im_domain_core::retention::retention_until_from_class;
 use im_domain_core::rtc::{RtcSession, RtcStateRecord, StateStore};
@@ -230,9 +231,10 @@ impl StateStore for PostgresRtcStateStore {
             })?;
             let payload_hash = sha256_hash(payload_json.as_bytes());
             let session_state = record.session.state.as_str();
-            let started_at = record.session.started_at.as_str();
-            let ended_at = record.session.ended_at.as_deref();
-            let updated_at = record.updated_at.as_str();
+            let started_at = parse_rtc_timestamp(record.session.started_at.as_str(), "started_at")?;
+            let ended_at =
+                parse_optional_rtc_timestamp(record.session.ended_at.as_deref(), "ended_at")?;
+            let updated_at = parse_rtc_timestamp(record.updated_at.as_str(), "updated_at")?;
             let initiator_kind = record.session.initiator_kind.as_str();
             let initiator_id = record.session.initiator_id.as_str();
             let rtc_mode = record.session.rtc_mode.as_str();
@@ -249,20 +251,42 @@ impl StateStore for PostgresRtcStateStore {
                 .map(|s| s.signal_seq as i64)
                 .max()
                 .unwrap_or(0);
-            let initiating_at = record.session.initiating_at.as_deref();
-            let ringing_at = record.session.ringing_at.as_deref();
-            let connecting_at = record.session.connecting_at.as_deref();
-            let connected_at = record.session.connected_at.as_deref();
-            let on_hold_since = record.session.on_hold_since.as_deref();
-            let reconnecting_since = record.session.reconnecting_since.as_deref();
-            let canceled_at = record.session.canceled_at.as_deref();
-            let failed_at = record.session.failed_at.as_deref();
-            let timeout_at = record.session.timeout_at.as_deref();
+            let initiating_at = parse_optional_rtc_timestamp(
+                record.session.initiating_at.as_deref(),
+                "initiating_at",
+            )?;
+            let ringing_at =
+                parse_optional_rtc_timestamp(record.session.ringing_at.as_deref(), "ringing_at")?;
+            let connecting_at = parse_optional_rtc_timestamp(
+                record.session.connecting_at.as_deref(),
+                "connecting_at",
+            )?;
+            let connected_at = parse_optional_rtc_timestamp(
+                record.session.connected_at.as_deref(),
+                "connected_at",
+            )?;
+            let on_hold_since = parse_optional_rtc_timestamp(
+                record.session.on_hold_since.as_deref(),
+                "on_hold_since",
+            )?;
+            let reconnecting_since = parse_optional_rtc_timestamp(
+                record.session.reconnecting_since.as_deref(),
+                "reconnecting_since",
+            )?;
+            let canceled_at =
+                parse_optional_rtc_timestamp(record.session.canceled_at.as_deref(), "canceled_at")?;
+            let failed_at =
+                parse_optional_rtc_timestamp(record.session.failed_at.as_deref(), "failed_at")?;
+            let timeout_at =
+                parse_optional_rtc_timestamp(record.session.timeout_at.as_deref(), "timeout_at")?;
             let ended_reason = record.session.ended_reason.as_deref();
             let failure_reason = record.session.failure_reason.as_deref();
             let tenant_id = record.tenant_id.as_str();
             let rtc_session_id = record.rtc_session_id.as_str();
-            let retention_until = resolve_rtc_session_retention_until(&record);
+            let retention_until = match resolve_rtc_session_retention_until(&record) {
+                Some(value) => Some(parse_rtc_timestamp(value.as_str(), "retention_until")?),
+                None => None,
+            };
 
             // UPSERT with full structured column update.
             let affected = tx
@@ -487,6 +511,29 @@ fn verify_production_sslmode(database_url: &str) {
     }
 }
 
+/// Parse an RFC3339 timestamp string into `DateTime<Utc>` so it serializes
+/// as `TIMESTAMPTZ` (matching the column type). Passing raw `String`s
+/// produces `VARCHAR`-typed parameters that fail serialization against
+/// `TIMESTAMPTZ` columns with "error serializing parameter N".
+fn parse_rtc_timestamp(
+    value: &str,
+    field: &'static str,
+) -> Result<DateTime<Utc>, RtcContractError> {
+    DateTime::parse_from_rfc3339(value.trim())
+        .map(|instant| instant.with_timezone(&Utc))
+        .or_else(|_| value.trim().parse::<DateTime<Utc>>())
+        .map_err(|error| {
+            RtcContractError::Unavailable(format!("rtc {field} must be RFC3339: {error}"))
+        })
+}
+
+fn parse_optional_rtc_timestamp(
+    value: Option<&str>,
+    field: &'static str,
+) -> Result<Option<DateTime<Utc>>, RtcContractError> {
+    value.map(|v| parse_rtc_timestamp(v, field)).transpose()
+}
+
 /// Terminal RTC sessions use the canonical `ephemeral` retention class (7 days).
 /// Active sessions keep `retention_until` unset so the shared purge job never
 /// deletes in-flight calls.
@@ -542,6 +589,7 @@ mod tests {
             rtc_session_id: "rtc_demo".into(),
             session: RtcSession {
                 tenant_id: "100001".into(),
+                organization_id: "default".into(),
                 rtc_session_id: "rtc_demo".into(),
                 conversation_id: None,
                 rtc_mode: "voice".into(),

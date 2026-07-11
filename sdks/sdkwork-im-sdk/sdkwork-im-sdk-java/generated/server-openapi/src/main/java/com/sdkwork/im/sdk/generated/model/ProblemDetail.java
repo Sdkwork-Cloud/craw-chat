@@ -10,6 +10,8 @@ public class ProblemDetail {
     private String instance;
     private Integer code;
     private String traceId;
+    private String i18nKey;
+    private String locale;
     private List<FieldError> errors;
 
     public String getType() {
@@ -66,6 +68,22 @@ public class ProblemDetail {
 
     public void setTraceId(String traceId) {
         this.traceId = traceId;
+    }
+
+    public String getI18nKey() {
+        return this.i18nKey;
+    }
+
+    public void setI18nKey(String i18nKey) {
+        this.i18nKey = i18nKey;
+    }
+
+    public String getLocale() {
+        return this.locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 
     public List<FieldError> getErrors() {

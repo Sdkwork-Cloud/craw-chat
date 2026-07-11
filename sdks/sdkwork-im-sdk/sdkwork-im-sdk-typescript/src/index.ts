@@ -1,4 +1,4 @@
-export type * from '@sdkwork/im-sdk-generated';
+export type * from '../generated/server-openapi/dist/index.js';
 export type {
   ContactTagsResponse,
   ContactsResponse,
@@ -6,15 +6,15 @@ export type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
   FriendRequest,
+  ConversationMessageListResponse,
   ConversationInboxPage,
   ListMembersResponse,
   PinnedMessagesResponse,
   SdkWorkListPageInfo,
   SocialFriendRequestListResponse,
   SocialUserSearchResponse,
-  TimelineResponse,
 } from './openapi-compat-types';
-export { SdkworkImClient as GeneratedSdkworkImClient } from '@sdkwork/im-sdk-generated';
+export { SdkworkImClient as GeneratedSdkworkImClient } from '../generated/server-openapi/dist/index.js';
 export * from './calls-module';
 export * from './conversations-module';
 export * from './messages-module';

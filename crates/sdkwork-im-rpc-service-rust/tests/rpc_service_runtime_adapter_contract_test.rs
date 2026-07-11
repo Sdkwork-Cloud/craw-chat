@@ -52,7 +52,7 @@ fn test_rpc_metadata_extracts_standard_sdkwork_keys() {
     let mut metadata = MetadataMap::new();
     metadata.insert("authorization", "Bearer app-token".parse().unwrap());
     metadata.insert("access-token", "access-token-value".parse().unwrap());
-    metadata.insert("x-request-id", "request-1".parse().unwrap());
+    metadata.insert("x-sdkwork-trace-id", "trace-1".parse().unwrap());
     metadata.insert("traceparent", "00-trace-span-01".parse().unwrap());
     metadata.insert("idempotency-key", "idem-1".parse().unwrap());
     metadata.insert("x-request-hash", "hash-1".parse().unwrap());
@@ -65,7 +65,7 @@ fn test_rpc_metadata_extracts_standard_sdkwork_keys() {
 
     assert_eq!(parsed.authorization.as_deref(), Some("Bearer app-token"));
     assert_eq!(parsed.access_token.as_deref(), Some("access-token-value"));
-    assert_eq!(parsed.request_id.as_deref(), Some("request-1"));
+    assert_eq!(parsed.trace_id.as_deref(), Some("trace-1"));
     assert_eq!(parsed.traceparent.as_deref(), Some("00-trace-span-01"));
     assert_eq!(parsed.idempotency_key.as_deref(), Some("idem-1"));
     assert_eq!(parsed.request_hash.as_deref(), Some("hash-1"));

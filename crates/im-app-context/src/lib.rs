@@ -18,7 +18,7 @@ use sdkwork_web_core::{
     EnvBootstrapTenantSigningKeyLookup, JwtProductionClaimPolicy, JwtVerifier, ServerRequestId,
     TenantBoundJwtVerifier, WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment,
     WebLoginScope, WebRequestContext, WebRequestContextProfile, WebRequestPrincipal,
-    WebSubjectType, WebTransportFacts, classify_api_surface, new_request_id,
+    WebSubjectType, WebTransportFacts, classify_api_surface,
 };
 use serde_json::{Value, json};
 
@@ -547,6 +547,41 @@ pub fn resolve_app_context_with_signature_config(
     resolve_app_context_for_request_inner(headers, "", "").map(|resolved| resolved.app_context)
 }
 
+pub fn resolve_orchestration_app_context_from_projection_headers(
+    headers: &HeaderMap,
+) -> Result<AppContext, AppContextError> {
+    require_app_context_signature(headers, &AppContextSignatureConfig::from_env())?;
+    app_context_from_projection_headers(headers)
+}
+
+pub fn build_signed_orchestration_projection_headers(
+    tenant_id: &str,
+    organization_id: &str,
+    actor_id: &str,
+    actor_kind: &str,
+) -> Result<HeaderMap, AppContextError> {
+    let mut headers = HeaderMap::new();
+    insert_header_if_present(&mut headers, "x-sdkwork-app-id", "sdkwork-im")?;
+    insert_header_if_present(&mut headers, "x-sdkwork-tenant-id", tenant_id)?;
+    insert_header_if_present(&mut headers, "x-sdkwork-organization-id", organization_id)?;
+    insert_header_if_present(&mut headers, "x-sdkwork-user-id", actor_id)?;
+    insert_header_if_present(&mut headers, "x-sdkwork-actor-id", actor_id)?;
+    insert_header_if_present(&mut headers, "x-sdkwork-actor-kind", actor_kind)?;
+
+    let signature_config = AppContextSignatureConfig::from_env();
+    if signature_config.require_signature && signature_config.shared_secret.is_none() {
+        return Err(AppContextError::invalid(format!(
+            "{APP_CONTEXT_SIGNATURE_SECRET_ENV} is required when {APP_CONTEXT_REQUIRE_SIGNATURE_ENV}=true"
+        )));
+    }
+    if let Some(secret) = signature_config.shared_secret {
+        let signature = sign_app_context_headers(&headers, secret.as_str())?;
+        insert_header_if_present(&mut headers, SDKWORK_CONTEXT_SIGNATURE_HEADER, &signature)?;
+    }
+
+    Ok(headers)
+}
+
 pub fn sign_app_context_headers(
     headers: &HeaderMap,
     shared_secret: &str,
@@ -600,6 +635,87 @@ pub fn require_app_context_signature(
         )));
     }
 
+    Ok(())
+}
+
+pub fn signed_app_context_projection_header_names() -> &'static [&'static str] {
+    SIGNED_APP_CONTEXT_HEADER_NAMES
+}
+
+pub fn app_context_signature_header_name() -> &'static str {
+    SDKWORK_CONTEXT_SIGNATURE_HEADER
+}
+
+fn app_context_from_projection_headers(headers: &HeaderMap) -> Result<AppContext, AppContextError> {
+    let tenant_id = required_projection_header(headers, "x-sdkwork-tenant-id")?;
+    let organization_id = projection_header_value(headers, "x-sdkwork-organization-id")
+        .unwrap_or_else(|| "0".to_owned());
+    let actor_id = required_projection_header(headers, "x-sdkwork-actor-id")
+        .or_else(|_| required_projection_header(headers, "x-sdkwork-user-id"))?;
+    let user_id =
+        projection_header_value(headers, "x-sdkwork-user-id").unwrap_or_else(|| actor_id.clone());
+    let actor_kind = projection_header_value(headers, "x-sdkwork-actor-kind")
+        .unwrap_or_else(|| "user".to_owned());
+    Ok(AppContext {
+        tenant_id,
+        organization_id,
+        user_id,
+        session_id: projection_header_value(headers, "x-sdkwork-session-id"),
+        app_id: projection_header_value(headers, "x-sdkwork-app-id"),
+        environment: projection_header_value(headers, "x-sdkwork-environment"),
+        deployment_mode: projection_header_value(headers, "x-sdkwork-deployment-mode"),
+        auth_level: projection_header_value(headers, "x-sdkwork-auth-level"),
+        data_scope: projection_scope_header(headers, "x-sdkwork-data-scope"),
+        permission_scope: projection_scope_header(headers, "x-sdkwork-permission-scope"),
+        actor_id,
+        actor_kind,
+        device_id: projection_header_value(headers, "x-sdkwork-device-id"),
+    })
+}
+
+fn projection_header_value(headers: &HeaderMap, name: &'static str) -> Option<String> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+}
+
+fn required_projection_header(
+    headers: &HeaderMap,
+    name: &'static str,
+) -> Result<String, AppContextError> {
+    projection_header_value(headers, name)
+        .ok_or_else(|| AppContextError::invalid(format!("{name} header is required")))
+}
+
+fn projection_scope_header(headers: &HeaderMap, name: &'static str) -> BTreeSet<String> {
+    projection_header_value(headers, name)
+        .map(|value| {
+            value
+                .split([',', ' ', '\n', '\t'])
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn insert_header_if_present(
+    headers: &mut HeaderMap,
+    name: &'static str,
+    value: &str,
+) -> Result<(), AppContextError> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(());
+    }
+    let value = HeaderValue::from_str(value).map_err(|error| {
+        AppContextError::invalid(format!("{name} header contains an invalid value: {error}"))
+    })?;
+    headers.insert(name, value);
     Ok(())
 }
 
@@ -711,8 +827,9 @@ fn resolve_app_context_for_request_inner(
     let access_claims = TokenClaims::parse(access_token.as_str())?;
     let principal = resolve_principal(&auth_claims, &access_claims)?;
     let app_context = app_context_from_claims(&principal, &auth_claims, &access_claims);
+    let server_trace_id = new_server_trace_id();
     let request_context = WebRequestContext {
-        request_id: ServerRequestId(new_request_id()),
+        request_id: ServerRequestId(server_trace_id.clone()),
         api_surface: classify_api_surface(path, &WebRequestContextProfile::default()),
         auth_mode: WebAuthMode::DualToken,
         principal: Some(principal),
@@ -728,13 +845,38 @@ fn resolve_app_context_for_request_inner(
         locale: None,
         client_kind: None,
         operation: None,
-        trace_id: None,
+        trace_id: Some(server_trace_id),
     };
 
     Ok(ResolvedAppContext {
         app_request_context: request_context,
         app_context,
     })
+}
+
+fn new_server_trace_id() -> String {
+    let mut bytes: [u8; 16] = rand::random();
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15],
+    )
 }
 
 pub async fn inject_app_request_context_middleware(

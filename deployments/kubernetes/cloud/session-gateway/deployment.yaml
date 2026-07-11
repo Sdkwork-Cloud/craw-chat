@@ -1,0 +1,121 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: session-gateway
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: session-gateway
+    app.kubernetes.io/component: realtime
+    app.kubernetes.io/part-of: sdkwork-im
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: session-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: session-gateway
+        app.kubernetes.io/component: realtime
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # The application owns a 45-second bounded drain. Kubernetes keeps an
+      # additional 30 seconds for hook startup, final task joins, and forced exit.
+      terminationGracePeriodSeconds: 75
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: session-gateway
+          image: ghcr.io/sdkwork/session-gateway:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 28080
+          envFrom:
+            - configMapRef:
+                name: session-gateway-runtime
+            - secretRef:
+                name: session-gateway-secrets
+                optional: true
+          env:
+            - name: SDKWORK_IM_ENVIRONMENT
+              value: production
+            - name: SDKWORK_IM_DEPLOYMENT_PROFILE
+              value: cloud
+            - name: OTEL_SERVICE_NAME
+              value: sdkwork-im-session-gateway
+            - name: TMPDIR
+              value: /tmp
+          # Start the same SIGTERM lifecycle used outside Kubernetes. The process
+          # first fails readiness, then fences/releases routes and joins workers.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "kill -TERM 1; while kill -0 1 2>/dev/null; do sleep 1; done"]
+          # startupProbe lets the runtime restore per-principal realtime route
+          # state from PostgreSQL before livenessProbe kicks in. Without it,
+          # a slow cold start (large tenant, many subscriptions) could be
+          # killed by livenessProbe before it finishes warming up.
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              # session-gateway holds DashMap-backed realtime route state,
+              # per-principal mutation shards, and in-flight WebSocket
+              # buffers. 512Mi was too tight for tenants with many concurrent
+              # connections; 1Gi gives headroom for GC and burst traffic.
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: session-gateway
+  namespace: sdkwork-im
+  labels:
+    app.kubernetes.io/name: session-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: session-gateway
+  ports:
+    - name: http
+      port: 28080
+      targetPort: http

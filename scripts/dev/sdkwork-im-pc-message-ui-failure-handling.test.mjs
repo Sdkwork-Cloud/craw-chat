@@ -14,11 +14,12 @@ const messageListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/s
 const forwardModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ForwardModal.tsx');
 const chatHistoryModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatHistoryModal.tsx');
 const chatListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatList.tsx');
+const chatLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/ChatLayout.tsx');
 
 assert.match(
   messageListSource,
-  /contactService\.getContacts\(\)[\s\S]*?\.catch\s*\(/u,
-  'MessageList contact hydration must handle backend failures instead of creating unhandled promises',
+  /contactService\.getUserById\(participantId\)[\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*undefined\s*\)/u,
+  'MessageList participant hydration must handle backend failures instead of creating unhandled promises',
 );
 assert.match(
   messageListSource,
@@ -32,7 +33,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /try\s*\{[\s\S]*?Promise\.all\(Array\.from\(idsToDelete\)[\s\S]*?chatService\.deleteMessage/u,
+  /Promise\.allSettled\(\s*Array\.from\(idsToDelete\)\.map\(\(messageId\)\s*=>\s*chatService\.deleteMessage\(chatId,\s*messageId\)\)/u,
   'MessageList delete must await the real SDK deletion before local state changes',
 );
 assert.match(
@@ -63,13 +64,18 @@ assert.match(
 
 assert.match(
   forwardModalSource,
-  /chatService\.getChats\(\)[\s\S]*?\.catch\s*\(/u,
+  /chatService\.listChatsPage\([^)]*\)[\s\S]*?\.catch\s*\(/u,
   'ForwardModal chat loading must handle backend failures instead of leaving loading stuck',
 );
 assert.match(
   forwardModalSource,
-  /chatService\.getChats\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
+  /chatService\.listChatsPage\([^)]*\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
   'ForwardModal chat loading must always clear loading after success or failure',
+);
+assert.doesNotMatch(
+  forwardModalSource,
+  /chatService\.getChats\(\)/u,
+  'ForwardModal must not aggregate every inbox page for interactive forwarding; use listChatsPage and explicit pagination.',
 );
 
 assert.match(
@@ -93,15 +99,23 @@ assert.match(
   /catch\s*\{[\s\S]*?toast\(t\(['"]chat\.list\.toast\.operationFailed['"]\),\s*['"]error['"]\)/u,
   'ChatList context menu actions must surface localized SDK failures',
 );
+const chatListItemClickImplementation = chatListSource.match(
+  /onClick=\{\(\)\s*=>\s*\{([\s\S]*?)\n\s+\}\}/u,
+)?.[1] ?? '';
 assert.match(
-  chatListSource,
-  /void\s+chatService\.markAsRead\(chat\.id\)\s*\.then/u,
-  'ChatList click read cursor update must be explicitly fire-and-forget',
+  chatListItemClickImplementation,
+  /onChatSelect\(chat\)/u,
+  'ChatList item click must delegate selection to ChatLayout.',
+);
+assert.doesNotMatch(
+  chatListItemClickImplementation,
+  /markAsRead/u,
+  'ChatList item click must not duplicate read cursor mutations.',
 );
 assert.match(
-  chatListSource,
-  /markAsRead\(chat\.id\)\s*\.then\([\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*toast\(t\(['"]chat\.list\.toast\.markReadFailed['"]\),\s*['"]error['"]\)/u,
-  'ChatList click read cursor update must surface localized failures instead of leaving unhandled promises',
+  chatLayoutSource,
+  /const\s+markSelectedChatAsRead\s*=\s*\(chat:\s*Chat\):\s*void\s*=>\s*\{[\s\S]*?pendingReadCursorChatIdsRef\.current\.has\(chat\.id\)[\s\S]*?chatService\.markAsRead\(chat\.id\)[\s\S]*?toast\(t\(["']chat\.list\.toast\.markReadFailed["']\),\s*["']error["']\)/u,
+  'ChatLayout must own click/focus read cursor updates, deduplicate in-flight updates, and surface localized failures.',
 );
 
 console.log('sdkwork-im-pc message UI failure handling contract passed');

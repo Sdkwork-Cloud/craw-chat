@@ -401,16 +401,13 @@ async function main(): Promise<void> {
   assert.equal(groupChats.length, 1);
   assert.equal(
     groupChats[0]?.name,
-    'Project Room',
-    'group-chat title must not treat an avatar-only inbox projection as a complete group display projection',
+    'Group chat',
+    'avatar-only group inbox projection must keep a safe fallback title without per-conversation profile hydration',
   );
   assert.deepEqual(
     sdkCalls,
-    [
-      'chat.inbox.list',
-      'conversations.getProfile:c_group_avatar_only',
-    ],
-    'avatar-only group inbox projection should still hydrate the group profile without per-conversation preference reads',
+    ['chat.inbox.list'],
+    'avatar-only group inbox projection must not trigger per-conversation profile, preference, member, social user, or contact preference hydration',
   );
 
   inboxScenario = 'projected-group';
@@ -443,6 +440,11 @@ async function main(): Promise<void> {
     missingGroupChats[0]?.name ?? '',
     /c_group_missing_profile|Group c_/u,
     'group fallback title must not expose internal conversation ids',
+  );
+  assert.deepEqual(
+    sdkCalls,
+    ['chat.inbox.list'],
+    'missing group projection must not trigger per-conversation profile or preference hydration during chat-list loading',
   );
 
   inboxScenario = 'agent-handoff';
@@ -486,18 +488,19 @@ async function main(): Promise<void> {
   assert.equal(chats.length, 1);
   assert.equal(
     chats[0]?.name,
-    'Alice Project Lead',
-    'single-chat title must use the peer contact remark/profile instead of exposing Chat c_direct_*',
+    'Direct chat',
+    'legacy direct-chat list fallback must stay user-safe without resolving every peer member',
   );
-  assert.equal(chats[0]?.avatar, 'https://cdn.example.test/alice.png');
   assert.equal(chats[0]?.type, 'single');
-  assert.ok(
-    sdkCalls.includes('conversations.listMembers:c_direct_e46da962d83a0fc8c4069f96'),
-    'direct-chat hydration must resolve the peer through the standard IM members SDK surface',
+  assert.doesNotMatch(
+    chats[0]?.name ?? '',
+    /c_direct_|Chat c_direct/u,
+    'legacy direct-chat list fallback must not expose internal conversation ids',
   );
-  assert.ok(
-    sdkCalls.includes('social.users.list:u_alice'),
-    'direct-chat hydration must resolve the peer profile through the standard IM social user SDK surface',
+  assert.deepEqual(
+    sdkCalls,
+    ['chat.inbox.list'],
+    'legacy direct-chat list loading must not trigger per-conversation member, social user, contact preference, profile, or preference hydration',
   );
 
   inboxScenario = 'many-legacy-direct';
@@ -506,9 +509,15 @@ async function main(): Promise<void> {
   maxActiveMemberLookups = 0;
   const manyLegacyChats = await service.getChats();
   assert.equal(manyLegacyChats.length, 9);
-  assert.ok(
-    maxActiveMemberLookups <= 4,
-    `legacy direct-chat title hydration must be bounded to 4 concurrent member lookups, saw ${maxActiveMemberLookups}`,
+  assert.equal(
+    maxActiveMemberLookups,
+    0,
+    `legacy direct-chat list loading must not perform member lookups, saw ${maxActiveMemberLookups}`,
+  );
+  assert.deepEqual(
+    sdkCalls,
+    ['chat.inbox.list'],
+    'many legacy direct chats must still load as a single inbox page without per-conversation hydration',
   );
 
   console.log('sdkwork-im-pc direct chat title contract passed');

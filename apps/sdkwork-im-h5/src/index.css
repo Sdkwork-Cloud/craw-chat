@@ -107,7 +107,7 @@ body {
   text-decoration: none;
 }
 
-.im-h5-chat-timeline {
+.im-h5-chat-message-history {
   list-style: none;
   margin: 0 0 16px;
   padding: 0;
@@ -116,14 +116,14 @@ body {
   gap: 10px;
 }
 
-.im-h5-chat-timeline-item {
+.im-h5-chat-message-history-item {
   padding: 10px 12px;
   border-radius: 10px;
   background: #fff;
   border: 1px solid #e5e7eb;
 }
 
-.im-h5-chat-timeline-meta {
+.im-h5-chat-message-history-meta {
   display: flex;
   justify-content: space-between;
   gap: 8px;

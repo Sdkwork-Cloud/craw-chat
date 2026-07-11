@@ -4,7 +4,7 @@
   "applicationCode": "im",
   "packageName": "sdkwork-im-gateway-assembly",
   "crateDir": "crates/sdkwork-im-gateway-assembly",
-  "generatedAt": "2026-06-27T07:06:56.177Z",
+  "generatedAt": "2026-07-08T01:33:38.754Z",
   "routeCrates": [
     {
       "packageName": "sdkwork-routes-im-audit-backend-api",
@@ -87,12 +87,22 @@
       "hasGatewayRouteManifest": true
     },
     {
+      "packageName": "sdkwork-routes-im-portal-app-api",
+      "memberDir": "crates/sdkwork-routes-im-portal-app-api",
+      "libName": "sdkwork_routes_im_portal_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 8,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
       "packageName": "sdkwork-routes-im-projection-open-api",
       "memberDir": "crates/sdkwork-routes-im-projection-open-api",
       "libName": "sdkwork_routes_im_projection_open_api",
       "surface": "open-api",
       "pathPrefix": null,
-      "mountOrder": 8,
+      "mountOrder": 9,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -102,7 +112,7 @@
       "libName": "sdkwork_routes_im_realtime_open_api",
       "surface": "open-api",
       "pathPrefix": null,
-      "mountOrder": 9,
+      "mountOrder": 10,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -112,7 +122,7 @@
       "libName": "sdkwork_routes_im_social_backend_api",
       "surface": "backend-api",
       "pathPrefix": null,
-      "mountOrder": 10,
+      "mountOrder": 11,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -121,8 +131,8 @@
       "memberDir": "crates/sdkwork-routes-im-social-open-api",
       "libName": "sdkwork_routes_im_social_open_api",
       "surface": "open-api",
-      "pathPrefix": "/im/v3/api/social",
-      "mountOrder": 11,
+      "pathPrefix": null,
+      "mountOrder": 12,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -132,7 +142,7 @@
       "libName": "sdkwork_routes_im_space_open_api",
       "surface": "open-api",
       "pathPrefix": null,
-      "mountOrder": 12,
+      "mountOrder": 13,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -142,7 +152,7 @@
       "libName": "sdkwork_routes_im_stream_app_api",
       "surface": "app-api",
       "pathPrefix": null,
-      "mountOrder": 13,
+      "mountOrder": 14,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     }

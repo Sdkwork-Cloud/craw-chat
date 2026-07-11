@@ -1,4 +1,4 @@
-# Production Domain Binding
+﻿# Production Domain Binding
 
 Use topology v2 surface keys for every production deployment. Do not use legacy `SDKWORK_IM_SERVER_*`
 URL keys or mixed `/sdkwork/chat` mount roots.
@@ -15,7 +15,7 @@ URL keys or mixed `/sdkwork/chat` mount roots.
 ## Single-host production example
 
 ```env
-SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080
+SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079
 SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com
 SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com
 SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com

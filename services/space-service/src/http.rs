@@ -72,7 +72,7 @@ pub fn build_app(state: AppState) -> Router {
     mount_im_infra_routes(build_business_router(state), im_service_router_config())
 }
 
-/// Domain routes only — for unified-process gateway embedding (`APPLICATION_GATEWAY_SPEC.md` §5.7.1).
+/// Domain routes only — for standalone gateway embedding (`APPLICATION_GATEWAY_SPEC.md` §5.7.1).
 pub fn build_domain_api_router(state: AppState) -> Router {
     Router::new()
         // Spaces

@@ -3,6 +3,7 @@ use im_domain_core::conversation::MembershipRole;
 use projection_service::{
     ClientRouteSyncFeedWindowQuery, MessageReactionCountView, NotificationRecipientView,
     RealtimeFanoutTarget, TimelineProjectionService, TimelineViewEntry,
+    UpdateConversationPreferencesRequest,
 };
 use std::thread::sleep;
 use std::time::Duration;
@@ -116,6 +117,8 @@ fn test_message_posted_event_projects_into_timeline_view() {
             occurred_at: "2026-04-05T10:00:01Z".into(),
             committed_at: Some("2026-04-05T10:00:01Z".into()),
             retention_until: Some("2027-04-05T10:00:01.000Z".into()),
+            reaction_counts: Vec::new(),
+            pin: None,
         }]
     );
 }
@@ -823,6 +826,39 @@ fn test_inbox_view_projects_member_summary_and_unread_count() {
     assert_eq!(inbox[0].last_message_id.as_deref(), Some("m_inbox_2"));
     assert_eq!(inbox[0].last_sender_id.as_deref(), Some("1013"));
     assert_eq!(inbox[0].unread_count, 1);
+    let default_preferences = inbox[0]
+        .preferences
+        .as_ref()
+        .expect("inbox entry should inline default conversation preferences");
+    assert!(!default_preferences.is_pinned);
+    assert!(!default_preferences.is_muted);
+    assert!(!default_preferences.is_marked_unread);
+    assert!(!default_preferences.is_hidden);
+
+    service.update_conversation_preferences(
+        "100001",
+        "0",
+        "c_inbox",
+        "user",
+        "1",
+        UpdateConversationPreferencesRequest {
+            is_pinned: Some(true),
+            is_muted: Some(true),
+            is_marked_unread: Some(true),
+            is_hidden: Some(false),
+        },
+    );
+    let updated_inbox = service
+        .inbox_for_principal_kind("100001", "0", "1", "user")
+        .expect("updated inbox");
+    let updated_preferences = updated_inbox[0]
+        .preferences
+        .as_ref()
+        .expect("inbox entry should inline updated conversation preferences");
+    assert!(updated_preferences.is_pinned);
+    assert!(updated_preferences.is_muted);
+    assert!(updated_preferences.is_marked_unread);
+    assert!(!updated_preferences.is_hidden);
 }
 
 #[test]

@@ -34,9 +34,9 @@ pnpm dev
 
 This starts the PostgreSQL standalone development profile. The current topology
 adapter maps that standard public profile to the checked-in
-`configs/topology/standalone.unified-process.development.env` file.
+`configs/topology/standalone.development.env` file.
 
-Default listeners (standalone unified profile — IAM and platform APIs collapse onto application ingress):
+Default listeners (standalone development profile — IAM and platform APIs collapse onto application ingress):
 
 | Surface | URL |
 | --- | --- |
@@ -47,7 +47,7 @@ Default listeners (standalone unified profile — IAM and platform APIs collapse
 Explicit full browser profile:
 
 ```bash
-pnpm dev:browser:postgres:unified-process:standalone
+pnpm dev:browser:postgres:standalone
 ```
 
 Server only (no PC renderer):

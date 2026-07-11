@@ -185,7 +185,7 @@ fn load_state(
         .iter()
         .map(|row| frame_from_row(row, tenant_id, stream_id))
         .collect::<Result<Vec<_>, _>>()?;
-    let updated_at: String = session_row.get(21);
+    let updated_at = format_timestamptz(session_row.get::<_, chrono::DateTime<chrono::Utc>>(21))?;
 
     Ok(Some(StreamStateRecord {
         tenant_id: tenant_id.into(),

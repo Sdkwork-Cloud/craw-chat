@@ -22,7 +22,7 @@ interface ImCcpEnvelope {
   trace_id?: string;
 }
 
-function encodeCcpEnvelope(schema: string, kind: string, payload: Record<string, unknown>, traceId?: string): string {
+function encodeCcpEnvelope(schema: string, kind: string, payload: Record<string, unknown>): string {
   const envelope: ImCcpEnvelope = {
     protocol: { ...CCP_PROTOCOL },
     binding: CCP_WS_BINDING,
@@ -31,7 +31,6 @@ function encodeCcpEnvelope(schema: string, kind: string, payload: Record<string,
     scope: null,
     route: null,
     flags: [],
-    ...(traceId ? { trace_id: traceId } : {}),
     payload: JSON.stringify(payload),
   };
   return JSON.stringify(envelope);
@@ -41,9 +40,8 @@ export function encodeCcpControlFrame(
   schema: string,
   controlType: string,
   data: Record<string, unknown>,
-  traceId?: string,
 ): string {
-  return encodeCcpEnvelope(schema, 'control', { type: controlType, data }, traceId);
+  return encodeCcpEnvelope(schema, 'control', { type: controlType, data });
 }
 
 export function encodeCcpBusinessFrame(schema: string, kind: string, payload: Record<string, unknown>): string {
@@ -79,7 +77,7 @@ export function unwrapInboundRealtimeFrame(raw: string): string {
   return envelope.payload;
 }
 
-export function encodeCcpHelloFrame(requestId: string): string {
+export function encodeCcpHelloFrame(): string {
   return encodeCcpControlFrame(
     'cc.control.hello.v1',
     'hello',
@@ -87,9 +85,7 @@ export function encodeCcpHelloFrame(requestId: string): string {
       protocol: { ...CCP_PROTOCOL },
       binding: CCP_WS_BINDING,
       capabilities: { items: ['payload.json', 'session.resume'] },
-      trace_id: requestId,
     },
-    requestId,
   );
 }
 
@@ -207,10 +203,19 @@ export function resolveCcpAuthBindContext(params: {
 }
 
 function decodeBase64Utf8(value: string): string {
-  if (typeof globalThis.atob === 'function') {
-    return globalThis.atob(value);
+  type RuntimeBuffer = {
+    from: (value: string, encoding: 'base64') => { toString: (encoding: 'utf8') => string };
+  };
+  const runtimeBuffer = (globalThis as { Buffer?: RuntimeBuffer }).Buffer;
+  if (runtimeBuffer) {
+    return runtimeBuffer.from(value, 'base64').toString('utf8');
   }
-  return Buffer.from(value, 'base64').toString('utf8');
+  if (typeof globalThis.atob !== 'function') {
+    throw new Error('Base64 decoding is not available in this runtime.');
+  }
+  const binary = globalThis.atob(value);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

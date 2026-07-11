@@ -68,7 +68,8 @@ pool:
 生产 server 环境变量前缀为 `SDKWORK_IM_*`：
 
 ```env
-SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
 SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
 SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
@@ -88,4 +89,3 @@ SDKWORK_IM_DATABASE_SSL_MODE=require
 ## 数据库迁移
 
 Server 发布环境通过 `database/` 生命周期模块与 `sdkwork-database-cli` 执行 schema bootstrap，不再直接引用 `deployments/database/` 遗留目录。规范 DDL 基线为 `database/ddl/baseline/postgres/0001_im_baseline.sql`。
-

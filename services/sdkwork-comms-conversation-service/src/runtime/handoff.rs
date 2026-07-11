@@ -62,6 +62,7 @@ where
         conversation_id: &str,
         principal_id: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state
@@ -87,6 +88,7 @@ where
         principal_id: &str,
         principal_kind: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.handoff");
         let conversation = state

@@ -1,4 +1,4 @@
-# Deployments
+﻿# Deployments
 
 ## Purpose
 
@@ -10,9 +10,9 @@ deployment runbooks for Sdkwork IM.
 - Machine contract: [../specs/topology.spec.json](../specs/topology.spec.json)
 - Profile env files: [../configs/topology/](../configs/topology/)
 - Greenfield plan: [../docs/topology-greenfield.md](../docs/topology-greenfield.md)
-- Deployment docs: [../docs/部署/README.md](../docs/部署/README.md)
+- Deployment docs: [../docs/閮ㄧ讲/README.md](../docs/閮ㄧ讲/README.md)
 
-Default development profile: `standalone.split-services.development` via `pnpm dev`.
+Default development profile: `standalone.development` via `pnpm dev`.
 Application ingress bind: `127.0.0.1:18079` (from profile env, not hardcoded in services).
 
 Retired compose files and `bin/*-local.*` lifecycle scripts are removed; see topology-greenfield
@@ -26,7 +26,7 @@ SDKWork Chat maintainers.
 
 - Docker, Kubernetes, systemd, nginx, release handoff, and topology documentation.
 - Docker server image: [docker/sdkwork-im-server.Dockerfile](docker/sdkwork-im-server.Dockerfile)
-- Kubernetes reference manifests under `kubernetes/` for cloud split-service profiles.
+- Kubernetes reference manifests under `kubernetes/` for cloud cloud-service profiles.
 - Deployment examples and non-secret environment templates.
 - Runbooks for SaaS, private, local, and packaged deployment modes.
 

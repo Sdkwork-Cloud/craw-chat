@@ -3,9 +3,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
+use im_adapters_postgres_journal::{
+    PostgresAggregateStore, PostgresJournalConfig, PostgresOutboxStore,
+};
 use im_platform_contracts::{
-    OutboxEventRecord, OutboxStore, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ContractError, ConversationAggregateStore,
+    ConversationMemberPageCursor, OutboxEventClaim, OutboxEventRecord, OutboxStore,
+    RealtimeEventPublisher, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
 };
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use session_gateway::RealtimeDeliveryRuntime;
@@ -13,7 +17,7 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::outbox_relay_common::{mark_missing_recipients, mark_unexpected_aggregate_type};
+use crate::outbox_relay_common::{DEFAULT_OUTBOX_CLAIM_LEASE, log_unexpected_aggregate_type};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const CONVERSATION_OUTBOX_RELAY_POLL_MS_ENV: &str = "SDKWORK_IM_CONVERSATION_OUTBOX_RELAY_POLL_MS";
@@ -33,6 +37,11 @@ pub struct ConversationOutboxRelayHandle {
     task: JoinHandle<()>,
 }
 
+struct ConversationOutboxRelayDependencies {
+    outbox: Arc<dyn OutboxStore>,
+    aggregate_store: Arc<dyn ConversationAggregateStore>,
+}
+
 impl ConversationOutboxRelayHandle {
     pub fn shutdown(self) {
         let _ = self.shutdown.send(());
@@ -43,11 +52,18 @@ impl ConversationOutboxRelayHandle {
 pub fn spawn_conversation_outbox_relay_from_env(
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
 ) -> Option<ConversationOutboxRelayHandle> {
-    let outbox = resolve_conversation_outbox_store_from_env()?;
+    let dependencies = resolve_conversation_outbox_dependencies_from_env()?;
     let poll_interval = resolve_conversation_outbox_relay_poll_interval();
     let (shutdown_tx, shutdown_rx) = watch::channel(());
     let task = tokio::spawn(async move {
-        run_conversation_outbox_relay(outbox, realtime_runtime, poll_interval, shutdown_rx).await;
+        run_conversation_outbox_relay(
+            dependencies.outbox,
+            dependencies.aggregate_store,
+            realtime_runtime,
+            poll_interval,
+            shutdown_rx,
+        )
+        .await;
     });
     info!("conversation outbox relay started");
     Some(ConversationOutboxRelayHandle {
@@ -56,15 +72,14 @@ pub fn spawn_conversation_outbox_relay_from_env(
     })
 }
 
-fn resolve_conversation_outbox_store_from_env() -> Option<Arc<dyn OutboxStore>> {
+fn resolve_conversation_outbox_dependencies_from_env() -> Option<ConversationOutboxRelayDependencies>
+{
     if let Ok(config) = DatabaseConfig::from_env("IM") {
         if config.engine == DatabaseEngine::Postgres {
             return PostgresJournalConfig::from_database_config(&config)
                 .connect_pool()
                 .ok()
-                .map(|pool| {
-                    Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>
-                });
+                .map(conversation_outbox_dependencies_from_pool);
         }
     }
 
@@ -75,7 +90,16 @@ fn resolve_conversation_outbox_store_from_env() -> Option<Arc<dyn OutboxStore>> 
     PostgresJournalConfig::new(database_url)
         .connect_pool()
         .ok()
-        .map(|pool| Arc::new(PostgresOutboxStore::from_pool(pool)) as Arc<dyn OutboxStore>)
+        .map(conversation_outbox_dependencies_from_pool)
+}
+
+fn conversation_outbox_dependencies_from_pool(
+    pool: im_adapters_postgres_journal::PostgresJournalPool,
+) -> ConversationOutboxRelayDependencies {
+    ConversationOutboxRelayDependencies {
+        outbox: Arc::new(PostgresOutboxStore::from_pool(pool.clone())),
+        aggregate_store: Arc::new(PostgresAggregateStore::from_pool(pool)),
+    }
 }
 
 fn resolve_conversation_outbox_relay_poll_interval() -> Duration {
@@ -118,7 +142,10 @@ fn resolve_conversation_outbox_relay_scopes(
         )];
     }
 
-    match outbox.list_pending_scopes(DEFAULT_CONVERSATION_OUTBOX_RELAY_SCOPE_LIMIT) {
+    match outbox.list_pending_scopes(
+        CONVERSATION_OUTBOX_AGGREGATE_TYPE,
+        DEFAULT_CONVERSATION_OUTBOX_RELAY_SCOPE_LIMIT,
+    ) {
         Ok(scopes) => scopes,
         Err(error) => {
             warn!(error = ?error, "conversation outbox relay scope discovery failed");
@@ -129,6 +156,7 @@ fn resolve_conversation_outbox_relay_scopes(
 
 async fn run_conversation_outbox_relay(
     outbox: Arc<dyn OutboxStore>,
+    aggregate_store: Arc<dyn ConversationAggregateStore>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     poll_interval: Duration,
     mut shutdown: watch::Receiver<()>,
@@ -139,23 +167,30 @@ async fn run_conversation_outbox_relay(
         }
 
         for (tenant_id, organization_id) in resolve_conversation_outbox_relay_scopes(&outbox) {
-            match outbox.drain_pending(
+            match outbox.claim_pending(
                 tenant_id.as_str(),
                 organization_id.as_str(),
+                CONVERSATION_OUTBOX_AGGREGATE_TYPE,
                 DEFAULT_CONVERSATION_OUTBOX_RELAY_BATCH_SIZE,
+                DEFAULT_OUTBOX_CLAIM_LEASE,
             ) {
-                Ok(events) => {
-                    for event in events {
+                Ok(claims) => {
+                    for claim in claims {
+                        let event = &claim.event;
                         if event.aggregate_type != CONVERSATION_OUTBOX_AGGREGATE_TYPE {
-                            mark_unexpected_aggregate_type(
-                                &outbox,
+                            log_unexpected_aggregate_type(
                                 &event,
                                 CONVERSATION_OUTBOX_AGGREGATE_TYPE,
                                 "conversation",
                             );
                             continue;
                         }
-                        relay_conversation_outbox_event(&realtime_runtime, &outbox, &event);
+                        relay_conversation_outbox_event(
+                            realtime_runtime.as_ref(),
+                            &outbox,
+                            aggregate_store.as_ref(),
+                            &claim,
+                        );
                     }
                 }
                 Err(error) => {
@@ -177,37 +212,19 @@ async fn run_conversation_outbox_relay(
 }
 
 fn relay_conversation_outbox_event(
-    realtime_runtime: &RealtimeDeliveryRuntime,
+    realtime_publisher: &dyn RealtimeEventPublisher,
     outbox: &Arc<dyn OutboxStore>,
-    event: &OutboxEventRecord,
+    aggregate_store: &dyn ConversationAggregateStore,
+    claim: &OutboxEventClaim,
 ) {
+    let event = &claim.event;
     let payload = build_realtime_payload(event);
-    let recipients =
-        conversation_realtime_recipients(event.event_type.as_str(), event.payload_json.as_str());
-    if recipients.is_empty() {
-        mark_missing_recipients(outbox, event, "conversation", "recipientPrincipalIds");
-        return;
-    }
-
-    let recipient_views = recipients
-        .into_iter()
-        .map(|(principal_id, principal_kind)| {
-            RealtimeEventRecipient::new(principal_id, principal_kind)
-        })
-        .collect::<Vec<_>>();
-    let publish_result =
-        im_platform_contracts::RealtimeEventPublisher::publish_durable_scope_event_to_recipients(
-            realtime_runtime,
-            RealtimeScopeEventPublishCommand {
-                tenant_id: event.tenant_id.as_str(),
-                organization_id: event.organization_id.as_str(),
-                scope_type: "conversation",
-                scope_id: event.aggregate_id.as_str(),
-                event_type: event.event_type.as_str(),
-                payload,
-                recipients: recipient_views,
-            },
-        );
+    let publish_result = publish_conversation_event_to_member_pages(
+        realtime_publisher,
+        aggregate_store,
+        event,
+        payload,
+    );
 
     if let Err(error) = publish_result {
         warn!(
@@ -216,20 +233,11 @@ fn relay_conversation_outbox_event(
             error = ?error,
             "conversation outbox relay publish failed"
         );
-        let _ = outbox.mark_failed(
-            event.tenant_id.as_str(),
-            event.organization_id.as_str(),
-            event.outbox_id.as_str(),
-            "conversation outbox relay publish failed",
-        );
+        let _ = outbox.mark_failed(claim, "conversation outbox relay publish failed");
         return;
     }
 
-    if let Err(error) = outbox.mark_published(
-        event.tenant_id.as_str(),
-        event.organization_id.as_str(),
-        event.outbox_id.as_str(),
-    ) {
+    if let Err(error) = outbox.mark_published(claim) {
         warn!(
             outbox_id = event.outbox_id.as_str(),
             error = ?error,
@@ -252,63 +260,314 @@ fn build_realtime_payload(event: &OutboxEventRecord) -> String {
     .to_string()
 }
 
-fn conversation_realtime_recipients(event_type: &str, payload_json: &str) -> Vec<(String, String)> {
-    let payload = serde_json::from_str::<serde_json::Value>(payload_json).unwrap_or_default();
-    if let Some(ids) = payload
-        .get("recipientPrincipalIds")
-        .and_then(|value| value.as_array())
-    {
-        let kinds = payload
-            .get("recipientPrincipalKinds")
-            .and_then(|value| value.as_array());
-        return ids
-            .iter()
-            .enumerate()
-            .filter_map(|(index, value)| {
-                let id = value.as_str()?;
-                let kind = kinds
-                    .and_then(|items| items.get(index))
-                    .and_then(|item| item.as_str())
-                    .unwrap_or("user");
-                Some((id.to_owned(), kind.to_owned()))
-            })
-            .collect();
+fn publish_conversation_event_to_member_pages(
+    realtime_publisher: &dyn RealtimeEventPublisher,
+    aggregate_store: &dyn ConversationAggregateStore,
+    event: &OutboxEventRecord,
+    payload: String,
+) -> Result<usize, ContractError> {
+    let mut cursor: Option<ConversationMemberPageCursor> = None;
+    let mut delivered = 0usize;
+    loop {
+        let page = aggregate_store.load_event_recipients_page(
+            event.tenant_id.as_str(),
+            event.organization_id.as_str(),
+            event.aggregate_id.as_str(),
+            event.created_at.as_str(),
+            cursor.as_ref(),
+            CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+        )?;
+        let recipients = page
+            .items
+            .into_iter()
+            .map(|member| RealtimeEventRecipient::new(member.principal_id, member.principal_kind))
+            .collect::<Vec<_>>();
+        if !recipients.is_empty() {
+            delivered = delivered.saturating_add(
+                realtime_publisher.publish_durable_scope_event_to_recipients(
+                    RealtimeScopeEventPublishCommand {
+                        tenant_id: event.tenant_id.as_str(),
+                        organization_id: event.organization_id.as_str(),
+                        scope_type: "conversation",
+                        scope_id: event.aggregate_id.as_str(),
+                        event_type: event.event_type.as_str(),
+                        payload: payload.clone(),
+                        recipients,
+                    },
+                )?,
+            );
+        }
+        if !page.has_more {
+            break;
+        }
+        cursor = Some(page.next_cursor.ok_or_else(|| {
+            ContractError::Invalid(
+                "conversation event recipient page returned has_more without next_cursor".into(),
+            )
+        })?);
     }
-
-    match event_type {
-        "message.posted" | "message.edited" | "message.recalled" => Vec::new(),
-        _ => Vec::new(),
-    }
+    Ok(delivered)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
+    use im_platform_contracts::{
+        ConversationAggregateStore, ConversationMemberPage, ConversationMemberPageCursor,
+        ConversationMemberRecord, ReadCursorPage, ReadCursorPageCursor, ReadCursorRecord,
+        RealtimeEventPublisher,
+    };
+
     use super::*;
 
-    #[test]
-    fn conversation_realtime_recipients_returns_empty_when_recipient_ids_missing() {
-        let payload = serde_json::json!({
-            "conversationId": "c_1",
-            "messageId": "m_1",
-        });
-        let recipients = conversation_realtime_recipients("message.posted", &payload.to_string());
-        assert!(recipients.is_empty());
+    struct PagedConversationMembers {
+        members: Vec<ConversationMemberRecord>,
+    }
+
+    impl ConversationAggregateStore for PagedConversationMembers {
+        fn load_members_page(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+            cursor: Option<&ConversationMemberPageCursor>,
+            page_size: usize,
+        ) -> Result<ConversationMemberPage, im_platform_contracts::ContractError> {
+            let mut members = self
+                .members
+                .iter()
+                .filter(|member| {
+                    member.tenant_id == tenant_id
+                        && member.organization_id == organization_id
+                        && member.conversation_id == conversation_id
+                        && cursor.is_none_or(|cursor| {
+                            (member.principal_kind.as_str(), member.principal_id.as_str())
+                                > (cursor.principal_kind.as_str(), cursor.principal_id.as_str())
+                        })
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            members.sort_by(|left, right| {
+                (&left.principal_kind, &left.principal_id)
+                    .cmp(&(&right.principal_kind, &right.principal_id))
+            });
+            let has_more = members.len() > page_size;
+            members.truncate(page_size);
+            let next_cursor = has_more.then(|| {
+                let last = members
+                    .last()
+                    .expect("paged member result should not be empty");
+                ConversationMemberPageCursor {
+                    principal_kind: last.principal_kind.clone(),
+                    principal_id: last.principal_id.clone(),
+                }
+            });
+            Ok(ConversationMemberPage {
+                items: members,
+                next_cursor,
+                has_more,
+            })
+        }
+
+        fn load_member(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _principal_kind: &str,
+            _principal_id: &str,
+        ) -> Result<Option<ConversationMemberRecord>, im_platform_contracts::ContractError>
+        {
+            Ok(None)
+        }
+
+        fn load_member_by_id(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _member_id: i64,
+        ) -> Result<Option<ConversationMemberRecord>, im_platform_contracts::ContractError>
+        {
+            Ok(None)
+        }
+
+        fn load_event_recipients_page(
+            &self,
+            tenant_id: &str,
+            organization_id: &str,
+            conversation_id: &str,
+            _joined_before_or_at: &str,
+            cursor: Option<&ConversationMemberPageCursor>,
+            page_size: usize,
+        ) -> Result<ConversationMemberPage, im_platform_contracts::ContractError> {
+            self.load_members_page(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                cursor,
+                page_size,
+            )
+        }
+
+        fn upsert_member(
+            &self,
+            _member: ConversationMemberRecord,
+        ) -> Result<(), im_platform_contracts::ContractError> {
+            Ok(())
+        }
+
+        fn remove_member(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _principal_kind: &str,
+            _principal_id: &str,
+            _removed_at: &str,
+        ) -> Result<(), im_platform_contracts::ContractError> {
+            Ok(())
+        }
+
+        fn load_read_cursors_page(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _cursor: Option<&ReadCursorPageCursor>,
+            _page_size: usize,
+        ) -> Result<ReadCursorPage, im_platform_contracts::ContractError> {
+            Ok(ReadCursorPage {
+                items: Vec::new(),
+                next_cursor: None,
+                has_more: false,
+            })
+        }
+
+        fn load_read_cursor(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+            _member_id: i64,
+        ) -> Result<Option<ReadCursorRecord>, im_platform_contracts::ContractError> {
+            Ok(None)
+        }
+
+        fn upsert_read_cursor(
+            &self,
+            _cursor: ReadCursorRecord,
+        ) -> Result<(), im_platform_contracts::ContractError> {
+            Ok(())
+        }
+
+        fn load_high_watermark(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<u64, im_platform_contracts::ContractError> {
+            Ok(0)
+        }
+
+        fn allocate_member_id(&self) -> Result<i64, im_platform_contracts::ContractError> {
+            Ok(1)
+        }
+
+        fn conversation_exists(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _conversation_id: &str,
+        ) -> Result<bool, im_platform_contracts::ContractError> {
+            Ok(true)
+        }
+    }
+
+    #[derive(Default)]
+    struct RecordingPublisher {
+        durable_batch_sizes: Mutex<Vec<usize>>,
+    }
+
+    impl RealtimeEventPublisher for RecordingPublisher {
+        fn publish_ephemeral_scope_event_to_recipients(
+            &self,
+            _command: RealtimeScopeEventPublishCommand<'_>,
+        ) -> Result<usize, im_platform_contracts::ContractError> {
+            Ok(0)
+        }
+
+        fn publish_durable_scope_event_to_recipients(
+            &self,
+            command: RealtimeScopeEventPublishCommand<'_>,
+        ) -> Result<usize, im_platform_contracts::ContractError> {
+            let batch_size = command.recipients.len();
+            self.durable_batch_sizes
+                .lock()
+                .expect("durable batch sizes should lock")
+                .push(batch_size);
+            Ok(batch_size)
+        }
     }
 
     #[test]
-    fn conversation_realtime_recipients_reads_recipient_principal_ids() {
-        let payload = serde_json::json!({
-            "recipientPrincipalIds": ["u_alice", "u_bob"],
-            "recipientPrincipalKinds": ["user", "device"],
-            "conversationId": "c_1",
-        });
-        let recipients = conversation_realtime_recipients("message.posted", &payload.to_string());
+    fn conversation_scope_outbox_relay_pages_recipients_from_durable_membership() {
+        let members = (0..401_i64)
+            .map(|index| ConversationMemberRecord {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_relay_paged_members".into(),
+                principal_kind: "user".into(),
+                principal_id: format!("user_{index:03}"),
+                member_id: 10_000 + index,
+                membership_role: "member".into(),
+                membership_state: "joined".into(),
+                invited_by: None,
+                joined_at: "2026-07-10T00:00:00.000Z".into(),
+                removed_at: None,
+                attributes_json: "{}".into(),
+            })
+            .collect();
+        let member_store = PagedConversationMembers { members };
+        let publisher = RecordingPublisher::default();
+        let event = OutboxEventRecord {
+            tenant_id: "100001".into(),
+            organization_id: "0".into(),
+            outbox_id: "1".into(),
+            aggregate_type: "conversation".into(),
+            aggregate_id: "c_relay_paged_members".into(),
+            event_id: "conversation:message.posted:1".into(),
+            event_type: "message.posted".into(),
+            payload_json: serde_json::json!({
+                "conversationId": "c_relay_paged_members",
+                "messageId": "42",
+            })
+            .to_string(),
+            payload_hash: "hash".into(),
+            publish_status: im_platform_contracts::OutboxPublishStatus::Pending,
+            attempt_count: 0,
+            available_at: "2026-07-10T00:00:00.000Z".into(),
+            published_at: None,
+            created_at: "2026-07-10T00:00:00.000Z".into(),
+            updated_at: "2026-07-10T00:00:00.000Z".into(),
+        };
+
+        let delivered = publish_conversation_event_to_member_pages(
+            &publisher,
+            &member_store,
+            &event,
+            build_realtime_payload(&event),
+        )
+        .expect("conversation relay should publish every durable member page");
+
+        assert_eq!(delivered, 401);
         assert_eq!(
-            recipients,
-            vec![
-                ("u_alice".to_owned(), "user".to_owned()),
-                ("u_bob".to_owned(), "device".to_owned()),
-            ]
+            *publisher
+                .durable_batch_sizes
+                .lock()
+                .expect("durable batch sizes should lock"),
+            vec![200, 200, 1]
         );
     }
 }

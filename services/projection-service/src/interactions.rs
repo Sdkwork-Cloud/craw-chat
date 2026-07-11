@@ -57,6 +57,79 @@ struct MessageInteractionFanoutContext {
 }
 
 impl TimelineProjectionService {
+    /// Batch-enrich timeline entries with inline interaction data (reactions, pin).
+    ///
+    /// This method looks up the in-memory interaction store for the given conversation
+    /// scope and populates `reaction_counts` and `pin` on each entry. When the in-memory
+    /// store is empty, it triggers a durable-store read-through to hydrate the cache
+    /// before enrichment, ensuring reactions/pins recorded before a replica restart
+    /// are still served inline.
+    ///
+    /// Unlike [`message_interaction_summary`], this method does **not** enrich
+    /// per-principal read/delivery receipts — those remain available through the
+    /// single-message `interaction_summary` endpoint for on-demand detail views.
+    pub fn enrich_timeline_entries_with_interactions(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        entries: &mut [crate::model::TimelineViewEntry],
+    ) {
+        if entries.is_empty() {
+            return;
+        }
+        let scope = scope_key(tenant_id, organization_id, conversation_id);
+
+        // Check whether the in-memory interaction store already has data for this scope.
+        let need_durable_fallback = {
+            let store = super::lock_projection_mutex(
+                &self.message_interactions,
+                "message interaction store",
+            );
+            store.get(scope.as_str()).is_none()
+        };
+
+        // If the in-memory store is empty, trigger a durable-store read-through.
+        // `load_message_interaction_from_durable_store` loads the full conversation
+        // interaction snapshot and hydrates the in-memory cache as a side effect.
+        if need_durable_fallback {
+            let first_message_id = entries[0].message_id.as_str();
+            let _ = self.load_message_interaction_from_durable_store(&scope, first_message_id);
+        }
+
+        // Read the (possibly hydrated) in-memory interaction store.
+        let scope_items = {
+            let store = super::lock_projection_mutex(
+                &self.message_interactions,
+                "message interaction store",
+            );
+            store.get(scope.as_str()).cloned()
+        };
+
+        let Some(scope_items) = scope_items else {
+            return;
+        };
+
+        for entry in entries.iter_mut() {
+            if let Some(stored) = scope_items.get(entry.message_id.as_str()) {
+                entry.reaction_counts = stored
+                    .reactions
+                    .iter()
+                    .map(
+                        |(reaction_key, actor_ids)| crate::MessageReactionCountView {
+                            reaction_key: reaction_key.clone(),
+                            count: actor_ids.len() as u64,
+                        },
+                    )
+                    .collect::<Vec<_>>();
+                entry.pin = stored.pin.as_ref().map(|pin| crate::model::MessagePinView {
+                    pinned_by: pin.pinned_by.clone(),
+                    pinned_at: pin.pinned_at.clone(),
+                });
+            }
+        }
+    }
+
     pub fn message_interaction_summary(
         &self,
         tenant_id: &str,
@@ -70,6 +143,10 @@ impl TimelineProjectionService {
                 .get(scope.as_str())
                 .and_then(|scope_items| scope_items.get(message_id))
                 .map(stored_interaction_to_view)
+        {
+            view
+        } else if let Some(view) =
+            self.load_message_interaction_from_durable_store(scope.as_str(), message_id)
         {
             view
         } else {
@@ -94,6 +171,47 @@ impl TimelineProjectionService {
             conversation_id,
             message_id,
         ))
+    }
+
+    /// Read-through fallback: load the full conversation message-interactions
+    /// snapshot from the durable metadata store, hydrate the in-memory
+    /// interaction store, then return the matching interaction view. This
+    /// ensures reactions/pins recorded before an in-memory prune or replica
+    /// restart are still served without a 404. Returns `None` when the durable
+    /// store is not configured, the snapshot is absent, the load fails
+    /// (warn-logged), or the snapshot does not contain `message_id`.
+    fn load_message_interaction_from_durable_store(
+        &self,
+        scope: &str,
+        message_id: &str,
+    ) -> Option<MessageInteractionSummaryView> {
+        let store = self.durable_metadata_store()?;
+        let interactions =
+            match crate::snapshot::load_metadata_snapshot::<Vec<StoredMessageInteractionSummary>>(
+                store.as_ref(),
+                scope,
+                crate::snapshot::MESSAGE_INTERACTIONS_KEY,
+            ) {
+                Ok(Some(interactions)) => interactions,
+                Ok(None) => return None,
+                Err(error) => {
+                    tracing::warn!(
+                        target: "sdkwork.im.projection.read_through",
+                        event = "im.projection.interactions_durable_read_failed",
+                        scope = %scope,
+                        error = %error,
+                        "durable metadata read-through failed for message interactions",
+                    );
+                    return None;
+                }
+            };
+        let hydrated_map = interaction_map_from_items(interactions);
+        let view = hydrated_map.get(message_id).map(stored_interaction_to_view);
+        if !hydrated_map.is_empty() {
+            super::lock_projection_mutex(&self.message_interactions, "message interaction store")
+                .insert(scope.to_owned(), hydrated_map);
+        }
+        view
     }
 
     pub(crate) fn enrich_interaction_summary_with_receipts(

@@ -1,0 +1,15 @@
+{
+  "chat.inbox.title": "Inbox",
+  "chat.inbox.empty": "No conversations yet.",
+  "chat.inbox.loading": "Loading inbox…",
+  "chat.inbox.loadError": "Failed to load inbox",
+  "chat.inbox.retry": "Retry",
+  "chat.inbox.loadMoreError": "Failed to load more conversations",
+  "chat.inbox.loadingMore": "Loading…",
+  "chat.inbox.loadMore": "Load more",
+  "chat.inbox.live": "Live",
+  "chat.inbox.liveAria": "Live updates connected",
+  "chat.inbox.aria": "Chat inbox",
+  "chat.inbox.conversationFallback": "Conversation {{id}}",
+  "chat.inbox.unreadCount": "{{count}} unread messages"
+}

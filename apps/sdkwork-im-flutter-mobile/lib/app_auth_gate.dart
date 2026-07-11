@@ -73,20 +73,12 @@ class _AppAuthGateState extends State<AppAuthGate> {
   Future<void> _handleSubmit() async {
     final nextSession = ImAppSession(
       accessToken: _accessTokenController.text.trim(),
-      authToken: _authTokenController.text.trim().isEmpty
-          ? _accessTokenController.text.trim()
-          : _authTokenController.text.trim(),
-      tenantId: _tenantIdController.text.trim().isEmpty
-          ? defaultAppSession.tenantId
-          : _tenantIdController.text.trim(),
-      organizationId: _organizationIdController.text.trim().isEmpty
-          ? defaultAppSession.organizationId
-          : _organizationIdController.text.trim(),
-      userId: _userIdController.text.trim().isEmpty
-          ? defaultAppSession.userId
-          : _userIdController.text.trim(),
+      authToken: _authTokenController.text.trim(),
+      tenantId: _tenantIdController.text.trim(),
+      organizationId: _organizationIdController.text.trim(),
+      userId: _userIdController.text.trim(),
     );
-    if (nextSession.accessToken.isEmpty) {
+    if (!nextSession.isComplete) {
       return;
     }
     await saveAppSession(nextSession);
@@ -103,7 +95,8 @@ class _AppAuthGateState extends State<AppAuthGate> {
       loginUrl: _environment.appbaseLoginUrl,
       returnUrl: appbaseCallbackReturnUrl,
     );
-    final launched = await launchUrl(loginUri, mode: LaunchMode.externalApplication);
+    final launched =
+        await launchUrl(loginUri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to open Appbase login URL')),
@@ -132,11 +125,14 @@ class _AppAuthGateState extends State<AppAuthGate> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
                     Expanded(child: Text('Signed in as ${session.userId}')),
-                    TextButton(onPressed: _handleSignOut, child: const Text('Sign out')),
+                    TextButton(
+                        onPressed: _handleSignOut,
+                        child: const Text('Sign out')),
                   ],
                 ),
               ),
@@ -184,22 +180,26 @@ class _AppAuthGateState extends State<AppAuthGate> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: _accessTokenController,
-                        decoration: const InputDecoration(labelText: 'Access Token'),
+                        decoration:
+                            const InputDecoration(labelText: 'Access Token'),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _authTokenController,
-                        decoration: const InputDecoration(labelText: 'Auth Token'),
+                        decoration:
+                            const InputDecoration(labelText: 'Auth Token'),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _tenantIdController,
-                        decoration: const InputDecoration(labelText: 'Tenant ID'),
+                        decoration:
+                            const InputDecoration(labelText: 'Tenant ID'),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _organizationIdController,
-                        decoration: const InputDecoration(labelText: 'Organization ID'),
+                        decoration:
+                            const InputDecoration(labelText: 'Organization ID'),
                       ),
                       const SizedBox(height: 12),
                       TextField(

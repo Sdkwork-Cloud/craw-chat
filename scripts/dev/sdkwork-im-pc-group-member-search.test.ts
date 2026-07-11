@@ -92,20 +92,7 @@ function createGroupProjectionClient(options: {
       },
       async list() {
         calls.push({ method: 'conversations.list' });
-        return {
-          hasMore: false,
-          items: [
-            {
-              conversationId: 'group-1',
-              conversationType: 'group',
-              lastActivityAt: '2026-06-04T00:00:00.000Z',
-              lastMessageSeq: 1,
-              messageCount: 1,
-              tenantId: '100001',
-              unreadCount: 0,
-            },
-          ],
-        };
+        throw new Error('group list paths must not fall back to conversations.list');
       },
       async listMembers(conversationId: string, params?: Record<string, unknown>) {
         calls.push({ method: 'conversations.listMembers', conversationId, params });
@@ -195,11 +182,11 @@ async function main(): Promise<void> {
     /profile update failed/u,
     'group profile updates must surface SDK failures',
   );
-  const groupsAfterFailedUpdate = await updateService.getGroups();
+  const groupsAfterFailedUpdate = await updateService.getGroupById('group-1');
   assert.equal(
-    groupsAfterFailedUpdate[0]?.name,
+    groupsAfterFailedUpdate?.name,
     'Original Group',
-    'failed group profile updates must not pollute the GroupService group projection cache',
+    'failed group profile updates must not pollute the explicit group detail projection cache',
   );
 
   backendGroupName = 'Cached Group Name';
@@ -219,19 +206,19 @@ async function main(): Promise<void> {
   const profileRefreshService = createSdkworkGroupService(() => profileRefreshClient);
   await profileRefreshService.updateGroupInfo('group-1', { name: 'Cached Group Name' });
   backendGroupName = 'Backend Renamed Group';
-  const groupsAfterBackendProfileRefresh = await profileRefreshService.getGroups();
+  const groupsAfterBackendProfileRefresh = await profileRefreshService.getGroupById('group-1');
   assert.equal(
-    groupsAfterBackendProfileRefresh[0]?.name,
+    groupsAfterBackendProfileRefresh?.name,
     'Backend Renamed Group',
-    'group member projection refresh must not let stale cached group profile fields override the latest SDK conversation profile',
+    'explicit group detail refresh must not let stale cached group profile fields override the latest SDK conversation profile',
   );
 
   backendGroupName = 'Group group-1';
-  const groupsAfterFallbackProfileRefresh = await profileRefreshService.getGroups();
+  const groupsAfterFallbackProfileRefresh = await profileRefreshService.getGroupById('group-1');
   assert.equal(
-    groupsAfterFallbackProfileRefresh[0]?.name,
+    groupsAfterFallbackProfileRefresh?.name,
     'Cached Group Name',
-    'group member projection refresh should keep the last successful group profile when the SDK chat profile falls back to a generated name',
+    'explicit group detail refresh should keep the last successful group profile when the SDK chat profile falls back to a generated name',
   );
 
   calls.length = 0;

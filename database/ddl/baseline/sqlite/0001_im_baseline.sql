@@ -827,8 +827,10 @@ CREATE TABLE im_projection_conversation_members (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retention_until TEXT,
+    -- member_id is the principal's Snowflake i64 (parsed from principal_id); principal already
+    -- identifies a member uniquely within a conversation, so no separate UK on member_id is needed.
+    -- See specs/database-table-registry.json writeOwner for ownership of this table.
     CONSTRAINT pk_im_projection_conversation_members PRIMARY KEY (tenant_id, organization_id, conversation_id, principal_kind, principal_id),
-    CONSTRAINT uk_im_projection_conversation_members_member UNIQUE (tenant_id, organization_id, conversation_id, member_id),
     CONSTRAINT chk_im_projection_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
 );
 
@@ -853,6 +855,7 @@ CREATE TABLE im_projection_read_cursors (
     organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     member_id INTEGER NOT NULL,
+    device_id TEXT NOT NULL DEFAULT '',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     read_seq INTEGER NOT NULL DEFAULT 0 CHECK (read_seq >= 0),
@@ -862,7 +865,7 @@ CREATE TABLE im_projection_read_cursors (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retention_until TEXT,
-    CONSTRAINT pk_im_projection_read_cursors PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id)
+    CONSTRAINT pk_im_projection_read_cursors PRIMARY KEY (tenant_id, organization_id, conversation_id, member_id, device_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_principal

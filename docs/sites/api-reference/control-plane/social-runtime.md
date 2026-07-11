@@ -45,12 +45,12 @@ inventory payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested inventory source does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the read. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-delivery_state_shared_channel_sync-inventory"></a>
@@ -82,12 +82,12 @@ runtime inventory payload in the checked-in control-plane authority. Treat it as
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested inventory source does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the read. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-delivered_shared_channel_sync-inventory"></a>
@@ -119,12 +119,12 @@ inventory payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested inventory source does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the read. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-dead_letter_shared_channel_sync-inventory"></a>
@@ -156,12 +156,12 @@ inventory payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested inventory source does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the read. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="requeue-dead_letter_shared_channel_sync"></a>
@@ -197,12 +197,12 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The requeue request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | The requested dead-letter queue does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the requeue. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="requeue-dead_letter_shared_channel_sync-targeted"></a>
@@ -238,12 +238,12 @@ runtime operation payload in the checked-in control-plane authority. Treat it as
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The targeted requeue payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | One or more targeted request keys do not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the requeue. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="repair-social-runtime-snapshot"></a>
@@ -279,12 +279,12 @@ checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The repair request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced runtime snapshot or queue does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the repair. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="repair_shared_channel_sync"></a>
@@ -320,12 +320,12 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The repair request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced shared-channel sync backlog or queue does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the repair. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="claim-pending_shared_channel_sync-targeted"></a>
@@ -361,12 +361,12 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The targeted claim payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | One or more targeted request keys do not exist. |
-| `409` | `*_conflict` | Current runtime ownership blocks the claim. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="release-pending_shared_channel_sync-targeted"></a>
@@ -402,12 +402,12 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The targeted release payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | One or more targeted request keys do not exist. |
-| `409` | `*_conflict` | Current runtime ownership blocks the release. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="reclaim-stale-pending_shared_channel_sync"></a>
@@ -443,12 +443,12 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The reclaim request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | The requested queue or ownership records do not exist. |
-| `409` | `*_conflict` | Current runtime ownership blocks the reclaim. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="republish-pending_shared_channel_sync-targeted"></a>
@@ -484,12 +484,12 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The targeted republish payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | One or more targeted request keys do not exist. |
-| `409` | `*_conflict` | Current runtime ownership blocks the republish. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="takeover-pending_shared_channel_sync-targeted"></a>
@@ -525,11 +525,11 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The targeted takeover payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | One or more targeted request keys do not exist. |
-| `409` | `*_conflict` | Current runtime ownership blocks the takeover. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

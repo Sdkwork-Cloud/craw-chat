@@ -95,7 +95,7 @@ export const sdkFamilyConfig = {
     },
   ],
   packages: {
-    typescript: '@sdkwork-internal/im-app-api-generated',
+    typescript: 'sdkwork-im-app-sdk-generated-typescript',
     flutter: 'im_app_api_generated',
     rust: 'sdkwork-im-app-api-generated',
     java: 'com.sdkwork:im-app-api-generated',
@@ -104,6 +104,9 @@ export const sdkFamilyConfig = {
     kotlin: 'com.sdkwork:im-app-api-generated',
     go: 'github.com/sdkwork/im-app-api-generated',
     python: 'sdkwork-im-app-api-generated',
+  },
+  consumerPackages: {
+    typescript: '@sdkwork/im-app-sdk',
   },
   namespaces: {
     csharp: 'Sdkwork.Im.AppApi.Generated',

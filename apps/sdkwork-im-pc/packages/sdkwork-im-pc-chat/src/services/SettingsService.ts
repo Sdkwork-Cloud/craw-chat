@@ -4,6 +4,7 @@ import {
 } from "@sdkwork/im-pc-core/sdk/aiotPcIntegration";
 import {
   getAppSdkClientWithSession,
+  retrievePortalHome,
   type SdkworkImAppClient,
 } from "@sdkwork/im-pc-core/sdk/appSdkClient";
 import { resolveSdkworkChatPcClientId } from "./ClientIdentityService";
@@ -17,6 +18,7 @@ import {
 import {
   applyHostAppearanceTheme,
   readPersistedSettingsRecord,
+  SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT,
   SDKWORK_IM_PC_SETTINGS_CHANGED_EVENT,
   SDKWORK_IM_PC_SETTINGS_STORAGE_KEY,
 } from "@sdkwork/im-pc-commons";
@@ -74,6 +76,13 @@ function notifySettingsChanged(settings: AppSettings) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT, {
     detail: { settings },
+  }));
+}
+
+function notifyLanguageChanged(lang: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT, {
+    detail: { lang },
   }));
 }
 
@@ -318,6 +327,7 @@ class SdkworkSettingsService implements SettingsService {
   }
 
   async updateSettings(updates: Partial<AppSettings>): Promise<AppSettings> {
+    const previousLang = this.settings.lang;
     const sidebarModules = updates.sidebarModules === undefined
       ? this.settings.sidebarModules
       : normalizeSidebarModules(updates.sidebarModules);
@@ -338,6 +348,9 @@ class SdkworkSettingsService implements SettingsService {
     } catch {}
     this.applyTheme(this.settings.theme);
     notifySettingsChanged(this.settings);
+    if (this.settings.lang !== previousLang) {
+      notifyLanguageChanged(this.settings.lang);
+    }
     return { ...this.settings };
   }
 
@@ -381,7 +394,7 @@ class SdkworkSettingsService implements SettingsService {
   async getServerModules(): Promise<string[]> {
     try {
       const modules = uniqueKnownModules(
-        collectModules(await this.getClient().portal.home.retrieve()),
+        collectModules(await retrievePortalHome(this.getClient())),
       );
       if (modules.length > 0) {
         return modules;

@@ -343,6 +343,39 @@ fn test_runtime_exposes_read_query_auth_context_entrypoints() {
 }
 
 #[test]
+fn test_production_message_history_runtime_requires_postgres_message_store() {
+    let journal_bootstrap_source =
+        include_str!("../src/runtime/journal_bootstrap.rs").replace("\r\n", "\n");
+    let membership_source = include_str!("../src/runtime/membership.rs").replace("\r\n", "\n");
+
+    assert!(
+        journal_bootstrap_source
+            .contains("if let ConversationCommitJournal::Postgres(postgres_journal) = journal")
+            && journal_bootstrap_source.contains(".with_message_store(")
+            && journal_bootstrap_source.contains("PostgresMessageStore::from_pool(pool.clone())"),
+        "production-capable conversation runtime must wire PostgresMessageStore for durable message history reads"
+    );
+    assert!(
+        journal_bootstrap_source
+            .contains("if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test)")
+            && journal_bootstrap_source
+                .contains("postgres commit journal is required in production"),
+        "in-memory conversation runtime may be used only in dev/test; production must fail closed without Postgres"
+    );
+    assert!(
+        membership_source.contains(".read_history_window(")
+            && membership_source.contains("message_history_window_from_store(window, limit)"),
+        "message history reads must use the configured MessageStore backward history path when the store is present"
+    );
+    assert!(
+        membership_source.contains(".message_window_before(before_seq, limit)")
+            && journal_bootstrap_source
+                .contains("conversation-runtime using in-memory commit journal (development only)"),
+        "the in-memory message-log fallback must remain limited to the explicit dev/test in-memory runtime"
+    );
+}
+
+#[test]
 fn test_runtime_exposes_conversation_bound_write_access_auth_context_entrypoint() {
     let runtime_source = include_str!("../src/runtime.rs");
 

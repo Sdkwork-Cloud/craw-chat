@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +22,7 @@ const artifacts = [
       artifactKind: 'capacity_json',
       runId: 'step11-capacity-local-connection-2026-06-17-doc-capture',
       collectedAt,
-      sourceProfile: 'standalone.split-services.development',
+      sourceProfile: 'standalone.development',
       sourceTier: 'CI Smoke Tier',
       sourceBaselinePath: 'tools/perf/step-11-cp11-2-local-baseline.json',
       sourceTestPath: 'services/session-gateway/tests/postgres_realtime_live_runtime_test.rs',
@@ -36,7 +36,7 @@ const artifacts = [
       connectP95Ms: 15.108,
       connectP99Ms: 16.892,
       boundary:
-        'This artifact backfills published local CP11-2 connection evidence into the Capacity Tier artifact root using capacity_json field names. It is doc-captured from CI Smoke Tier / standalone.split-services.development output rather than a dedicated capacity-dedicated topology run.',
+        'This artifact backfills published local CP11-2 connection evidence into the Capacity Tier artifact root using capacity_json field names. It is doc-captured from CI Smoke Tier / standalone.development output rather than a dedicated capacity-dedicated topology run.',
     },
   },
   {
@@ -50,7 +50,7 @@ const artifacts = [
       artifactKind: 'capacity_json',
       runId: 'step11-capacity-local-message-2026-06-17-doc-capture',
       collectedAt,
-      sourceProfile: 'standalone.split-services.development',
+      sourceProfile: 'standalone.development',
       sourceTier: 'CI Smoke Tier',
       sourceBaselinePath: 'tools/perf/step-11-cp11-2-local-baseline.json',
       sourceTestPath: 'services/session-gateway/tests/postgres_realtime_live_runtime_test.rs',
@@ -78,7 +78,7 @@ const artifacts = [
       artifactKind: 'capacity_json',
       runId: 'step11-capacity-local-stream-2026-06-17-doc-capture',
       collectedAt,
-      sourceProfile: 'standalone.split-services.development',
+      sourceProfile: 'standalone.development',
       sourceTier: 'CI Smoke Tier',
       sourceBaselinePath: 'tools/perf/step-11-cp11-2-local-baseline.json',
       sourceTestPath: 'services/session-gateway/tests/postgres_realtime_live_runtime_test.rs',
@@ -106,7 +106,7 @@ const artifacts = [
       artifactKind: 'recovery_json',
       runId: 'step11-capacity-local-restore-recovery-2026-06-17-doc-capture',
       collectedAt,
-      sourceProfile: 'standalone.split-services.development',
+      sourceProfile: 'standalone.development',
       sourceTier: 'CI Smoke Tier',
       sourceBaselinePath: 'tools/perf/step-11-cp11-3-local-drill-baseline.json',
       sourceTestPath: 'services/session-gateway/tests/postgres_realtime_websocket_live_drill_test.rs',
@@ -129,7 +129,7 @@ const artifacts = [
       artifactKind: 'recovery_json',
       runId: 'step11-capacity-local-failover-2026-06-17-doc-capture',
       collectedAt,
-      sourceProfile: 'standalone.split-services.development',
+      sourceProfile: 'standalone.development',
       sourceTier: 'CI Smoke Tier',
       sourceBaselinePath: 'tools/perf/step-11-cp11-3-local-drill-baseline.json',
       sourceTestPath: 'services/session-gateway/tests/postgres_realtime_websocket_live_drill_test.rs',
@@ -160,7 +160,7 @@ for (const artifact of artifacts) {
   }
 
   const content = artifact.markdownSections
-    .map((section) => `## ${section}\n\nDoc-captured Capacity Tier ${section} for standalone.split-services.development evidence backfill on ${collectedAt}.`)
+    .map((section) => `## ${section}\n\nDoc-captured Capacity Tier ${section} for standalone.development evidence backfill on ${collectedAt}.`)
     .join('\n\n');
   await writeFile(filePath, `${content}\n`, 'utf8');
 }
@@ -200,7 +200,7 @@ const readme = `# Step 11 Capacity Tier artifact root
 - collected artifacts: \`${indexJson.evidenceSlots.map((slot) => slot.suggestedRelativePath).join('`, `')}\`
 - required fields: ${requiredFields}
 - required sections: ${requiredSections}
-- boundary: this root now carries all seven truthful local Capacity Tier artifacts. \`Capacity Tier\` is \`${indexJson.state}\` after doc-captured backfill from published CI Smoke Tier / standalone.split-services.development evidence.
+- boundary: this root now carries all seven truthful local Capacity Tier artifacts. \`Capacity Tier\` is \`${indexJson.state}\` after doc-captured backfill from published CI Smoke Tier / standalone.development evidence.
 - refresh command: \`pnpm run perf:refresh-step-11-capacity-evidence-index\`
 - exit 0: all required capacity evidence slots are collected and valid.
 - exit 1: the refresh command failed to load, parse, or write the evidence index.

@@ -1,7 +1,7 @@
 import type { ConversationInboxPage } from "@sdkwork/im-sdk";
 import { getImSdkClient } from "@sdkwork/im-h5-core";
 
-import { readCursorPageInfo } from "./chatTimelineUtils";
+import { readCursorPageInfo } from "./chatMessageHistoryUtils";
 
 const INBOX_PAGE_SIZE = 20;
 

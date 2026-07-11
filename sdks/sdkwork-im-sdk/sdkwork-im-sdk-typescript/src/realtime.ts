@@ -4,7 +4,7 @@ import type {
   MessageReplyReference,
   MessageType,
   Sender,
-} from '@sdkwork/im-sdk-generated';
+} from '../generated/server-openapi/dist/index.js';
 
 import {
   IM_CCP_WEBSOCKET_SUBPROTOCOL,
@@ -232,7 +232,7 @@ const MIN_WEBSOCKET_HEARTBEAT_TIMEOUT_MS = 1;
 interface ImRealtimeControlError {
   code: string;
   message: string;
-  requestId?: string;
+  traceId?: string;
   type: 'error';
 }
 
@@ -387,6 +387,17 @@ function addHeader(headers: Record<string, string>, key: string, value: unknown)
   headers[key] = value.trim();
 }
 
+function isClientCorrelationHeader(key: string): boolean {
+  return /^(?:x-request-id|x-trace-id|x-sdkwork-trace-id)$/iu.test(key.trim());
+}
+
+function addCallerHeader(headers: Record<string, string>, key: string, value: unknown): void {
+  if (isClientCorrelationHeader(key)) {
+    return;
+  }
+  addHeader(headers, key, value);
+}
+
 function buildWebSocketHeaders({
   accessToken,
   authToken,
@@ -401,10 +412,10 @@ function buildWebSocketHeaders({
   addHeader(resolvedHeaders, 'Access-Token', accessToken);
 
   for (const [key, value] of Object.entries(headers ?? {})) {
-    addHeader(resolvedHeaders, key, value);
+    addCallerHeader(resolvedHeaders, key, value);
   }
   for (const [key, value] of Object.entries(headerProvider?.() ?? {})) {
-    addHeader(resolvedHeaders, key, value);
+    addCallerHeader(resolvedHeaders, key, value);
   }
 
   return resolvedHeaders;
@@ -476,6 +487,10 @@ function resolveWebSocketFactory(factory?: ImWebSocketFactory): ImWebSocketFacto
 function unwrapWirePayload(parsed: Record<string, unknown>): Record<string, unknown> {
   const payload = parseRecordPayload(parsed.payload);
   if (pickString(parsed.schema) && payload && pickString(payload.type)) {
+    const envelopeTraceId = pickString(parsed.trace_id);
+    if (envelopeTraceId && !pickString(payload.traceId)) {
+      return { ...payload, traceId: envelopeTraceId };
+    }
     return payload;
   }
   return parsed;
@@ -687,7 +702,6 @@ function parseRealtimePayloads(raw: string): ParsedRealtimeMessage[] {
 function sendSubscriptionSync(
   socket: ImWebSocketLike,
   scopes: ImRealtimeScopeSubscription[],
-  requestId: string,
 ): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
@@ -697,7 +711,6 @@ function sendSubscriptionSync(
     'cmd',
     {
       type: 'subscriptions.sync',
-      requestId,
       items: scopes.map((scope) => ({
         scopeType: scope.scopeType,
         scopeId: scope.scopeId,
@@ -709,7 +722,7 @@ function sendSubscriptionSync(
 
 const DEFAULT_EVENTS_NACK_REPLAY_LIMIT = 100;
 
-function sendEventsAck(socket: ImWebSocketLike, requestId: string, ackedSeq: number): void {
+function sendEventsAck(socket: ImWebSocketLike, ackedSeq: number): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
   }
@@ -718,7 +731,6 @@ function sendEventsAck(socket: ImWebSocketLike, requestId: string, ackedSeq: num
     'ack',
     {
       type: 'events.ack',
-      requestId,
       ackedSeq,
     },
   ));
@@ -726,7 +738,6 @@ function sendEventsAck(socket: ImWebSocketLike, requestId: string, ackedSeq: num
 
 function sendEventsNack(
   socket: ImWebSocketLike,
-  requestId: string,
   nackThroughSeq: number,
   limit: number,
 ): void {
@@ -738,7 +749,6 @@ function sendEventsNack(
     'nack',
     {
       type: 'events.nack',
-      requestId,
       nackThroughSeq,
       limit,
     },
@@ -750,7 +760,6 @@ function createRealtimeSeqTracker(socket: ImWebSocketLike): {
   track: (sequence: number) => void;
 } {
   let lastContiguousRealtimeSeq = 0;
-  let nackCounter = 0;
 
   const track = (sequence: number): void => {
     if (!Number.isFinite(sequence) || sequence <= 0) {
@@ -767,10 +776,8 @@ function createRealtimeSeqTracker(socket: ImWebSocketLike): {
     if (sequence <= lastContiguousRealtimeSeq) {
       return;
     }
-    nackCounter += 1;
     sendEventsNack(
       socket,
-      `sdkwork-im-events-nack-${nackCounter}`,
       lastContiguousRealtimeSeq,
       DEFAULT_EVENTS_NACK_REPLAY_LIMIT,
     );
@@ -779,7 +786,6 @@ function createRealtimeSeqTracker(socket: ImWebSocketLike): {
   return {
     reset: () => {
       lastContiguousRealtimeSeq = 0;
-      nackCounter = 0;
     },
     track,
   };
@@ -789,14 +795,12 @@ function sendAuthInit(
   socket: ImWebSocketLike,
   credentials: Required<ResolvedWebSocketCredentials>,
   deviceId: string | undefined,
-  requestId: string,
 ): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
   }
   socket.send(JSON.stringify({
     type: 'auth.init',
-    requestId,
     authToken: credentials.authToken,
     accessToken: credentials.accessToken,
     ...(deviceId ? { deviceId } : {}),
@@ -812,30 +816,42 @@ function parseRealtimeControlFrame(raw: string): Record<string, unknown> | undef
   }
 }
 
-function isAuthOkFrame(raw: string, requestId: string): boolean {
+function isAuthOkFrame(raw: string): boolean {
   const frame = parseRealtimeControlFrame(raw);
-  return pickString(frame?.type) === 'auth.ok'
-    && (!pickString(frame?.requestId) || pickString(frame?.requestId) === requestId);
+  return pickString(frame?.type) === 'auth.ok';
 }
 
-function parseRealtimeControlError(raw: string, requestId?: string): ImRealtimeControlError | undefined {
+function extractAuthOkTraceId(raw: string): string | undefined {
+  const frame = parseRealtimeControlFrame(raw);
+  if (pickString(frame?.type) !== 'auth.ok') {
+    return undefined;
+  }
+  return pickString(frame?.traceId);
+}
+
+function parseRealtimeControlError(raw: string): ImRealtimeControlError | undefined {
   const frame = parseRealtimeControlFrame(raw);
   if (pickString(frame?.type) !== 'error') {
     return undefined;
   }
-  const frameRequestId = pickString(frame?.requestId);
-  if (requestId && frameRequestId && frameRequestId !== requestId) {
-    return undefined;
-  }
+  const frameTraceId = pickString(frame?.traceId);
   return {
     code: pickString(frame?.code) ?? 'websocket_error',
     message: pickString(frame?.message, frame?.detail) ?? 'websocket error',
-    ...(frameRequestId ? { requestId: frameRequestId } : {}),
+    ...(frameTraceId ? { traceId: frameTraceId } : {}),
     type: 'error',
   };
 }
 
+function isRealtimeHeartbeatControlFrame(raw: string): boolean {
+  const frame = parseRealtimeControlFrame(raw);
+  return pickString(frame?.type) === 'heartbeat';
+}
+
 function isFatalRealtimeControlError(error: ImRealtimeControlError): boolean {
+  if (error.code === 'reconnect_required') {
+    return true;
+  }
   return /^websocket_(?:auth|upstream|connect)/u.test(error.code)
     || /(?:auth|session|token).*(?:failed|expired|invalid|required)/iu.test(error.code);
 }
@@ -921,8 +937,6 @@ export function createImLiveConnection({
     headers: resolvedHeaders,
     protocols: [IM_CCP_WEBSOCKET_SUBPROTOCOL],
   });
-  const authInitRequestId = 'sdkwork-im-auth-init-1';
-  const ccpHelloRequestId = 'sdkwork-im-ccp-hello-1';
   const frameAuthRequired = (usesBrowserWebSocket || !hasUpgradeAuthHeaders(resolvedHeaders)) && auth?.mode !== 'none';
   const frameAuthCredentials = credentials.accessToken && credentials.authToken
     ? { accessToken: credentials.accessToken, authToken: credentials.authToken }
@@ -931,15 +945,13 @@ export function createImLiveConnection({
   let authTimeout: ReturnType<typeof setTimeout> | undefined;
   let connectionTimeout: ReturnType<typeof setTimeout> | undefined;
   let currentState: ImLiveConnectionState = { status: 'connecting' };
-  let pendingClose: { code: number; reason: string } | undefined;
   let suppressNextClosedState = false;
   let subscriptionSnapshotDirty = subscriptionConversations.length > 0 || subscriptionScopes.length > 0;
-  let subscriptionSyncCounter = 0;
   const heartbeatOptions = resolveHeartbeatOptions(options);
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   let heartbeatCounter = 0;
-  let lastHeartbeatRequestId: string | undefined;
   let lastInboundAt = Date.now();
+  let connectionTraceId: string | undefined;
   const realtimeSeqTracker = createRealtimeSeqTracker(socket);
 
   const emitState = (state: ImLiveConnectionState): void => {
@@ -983,10 +995,6 @@ export function createImLiveConnection({
     if (socket.readyState === SOCKET_CLOSING_STATE || socket.readyState === SOCKET_CLOSED_STATE) {
       return;
     }
-    if (socket.readyState === SOCKET_CONNECTING_STATE) {
-      pendingClose = { code, reason };
-      return;
-    }
     socket.close(code, reason);
   };
 
@@ -1000,7 +1008,7 @@ export function createImLiveConnection({
     closeSocket(4401, error.code);
   };
 
-  const failCcpHandshake = (code: string, message: string): void => {
+  const failCcpHandshake = (code: string, message: string, traceId?: string): void => {
     connectionPhase = 'gateway_auth';
     clearConnectionTimeout();
     clearAuthTimeout();
@@ -1008,6 +1016,7 @@ export function createImLiveConnection({
     const error: ImRealtimeControlError = {
       code,
       message,
+      ...(traceId ?? connectionTraceId ? { traceId: traceId ?? connectionTraceId } : {}),
       type: 'error',
     };
     emitState({ status: 'error', reason: message });
@@ -1045,7 +1054,7 @@ export function createImLiveConnection({
     }
     pendingCcpAuthBindContext = bindContext;
     connectionPhase = 'ccp_hello_ack';
-    socket.send(encodeCcpHelloFrame(ccpHelloRequestId));
+    socket.send(encodeCcpHelloFrame());
     startAuthTimeout();
   };
 
@@ -1069,7 +1078,7 @@ export function createImLiveConnection({
     const error: ImRealtimeControlError = {
       code: 'websocket_heartbeat_timeout',
       message: 'websocket heartbeat response was not received before timeout',
-      ...(lastHeartbeatRequestId ? { requestId: lastHeartbeatRequestId } : {}),
+      ...(connectionTraceId ? { traceId: connectionTraceId } : {}),
       type: 'error',
     };
     emitState({ status: 'error', reason: error.message });
@@ -1081,12 +1090,11 @@ export function createImLiveConnection({
     if (!heartbeatOptions || socket.readyState !== SOCKET_OPEN_STATE) {
       return;
     }
-    if (lastHeartbeatRequestId && Date.now() - lastInboundAt > heartbeatOptions.timeoutMs) {
+    if (heartbeatCounter > 0 && Date.now() - lastInboundAt > heartbeatOptions.timeoutMs) {
       failHeartbeat();
       return;
     }
     heartbeatCounter += 1;
-    lastHeartbeatRequestId = `sdkwork-im-heartbeat-${heartbeatCounter}`;
     socket.send(encodeCcpHeartbeatFrame(heartbeatCounter));
   };
 
@@ -1109,7 +1117,6 @@ export function createImLiveConnection({
         failAuth({
           code: 'websocket_auth_timeout',
           message: 'websocket auth.ok was not received before timeout',
-          requestId: authInitRequestId,
           type: 'error',
         });
         return;
@@ -1140,11 +1147,9 @@ export function createImLiveConnection({
       return;
     }
     subscriptionSnapshotDirty = false;
-    subscriptionSyncCounter += 1;
     sendSubscriptionSync(
       socket,
       mergeRealtimeScopeSubscriptions(subscriptionConversations, subscriptionScopes),
-      `sdkwork-im-subscriptions-sync-${subscriptionSyncCounter}`,
     );
   };
 
@@ -1168,24 +1173,16 @@ export function createImLiveConnection({
 
   socket.addEventListener('open', () => {
     clearConnectionTimeout();
-    if (pendingClose) {
-      const { code, reason } = pendingClose;
-      pendingClose = undefined;
-      socket.close(code, reason);
-      return;
-    }
-
     if (frameAuthRequired) {
       if (!frameAuthCredentials) {
         failAuth({
           code: 'websocket_auth_tokens_not_ready',
           message: 'websocket auth tokens are not ready',
-          requestId: authInitRequestId,
           type: 'error',
         });
         return;
       }
-      sendAuthInit(socket, frameAuthCredentials, options.deviceId, authInitRequestId);
+      sendAuthInit(socket, frameAuthCredentials, options.deviceId);
       startAuthTimeout();
       return;
     }
@@ -1216,12 +1213,16 @@ export function createImLiveConnection({
     }
     lastInboundAt = Date.now();
     if (connectionPhase === 'gateway_auth') {
-      if (isAuthOkFrame(raw, authInitRequestId)) {
+      if (isAuthOkFrame(raw)) {
         const authOkFrame = parseRealtimeControlFrame(raw);
+        const authOkTraceId = extractAuthOkTraceId(raw);
+        if (authOkTraceId) {
+          connectionTraceId = authOkTraceId;
+        }
         beginCcpHandshake(authOkFrame);
         return;
       }
-      const authError = parseRealtimeControlError(raw, authInitRequestId);
+      const authError = parseRealtimeControlError(raw);
       if (authError) {
         failAuth(authError);
       }
@@ -1244,7 +1245,7 @@ export function createImLiveConnection({
       }
       const authError = parseRealtimeControlError(raw);
       if (authError) {
-        failCcpHandshake(authError.code, authError.message);
+        failCcpHandshake(authError.code, authError.message, authError.traceId);
       }
       return;
     }
@@ -1255,7 +1256,7 @@ export function createImLiveConnection({
       }
       const authError = parseRealtimeControlError(raw);
       if (authError) {
-        failCcpHandshake(authError.code, authError.message);
+        failCcpHandshake(authError.code, authError.message, authError.traceId);
       }
       return;
     }
@@ -1267,11 +1268,14 @@ export function createImLiveConnection({
       }
       const authError = parseRealtimeControlError(raw);
       if (authError) {
-        failCcpHandshake(authError.code, authError.message);
+        failCcpHandshake(authError.code, authError.message, authError.traceId);
       }
       return;
     }
     const inboundFrame = unwrapInboundRealtimeFrame(raw);
+    if (isRealtimeHeartbeatControlFrame(inboundFrame)) {
+      return;
+    }
     const controlError = parseRealtimeControlError(inboundFrame);
     if (controlError) {
       if (isFatalRealtimeControlError(controlError)) {
@@ -1293,7 +1297,7 @@ export function createImLiveConnection({
       decoded.context.ack = () => {
         if (socket.readyState === SOCKET_OPEN_STATE) {
           const ackedSeq = decoded.context.sequence;
-          sendEventsAck(socket, `sdkwork-im-events-ack-${ackedSeq}`, ackedSeq);
+          sendEventsAck(socket, ackedSeq);
         }
         return Promise.resolve();
       };
@@ -1316,7 +1320,7 @@ export function createImLiveConnection({
       decoded.context.ack = () => {
         if (socket.readyState === SOCKET_OPEN_STATE) {
           const ackedSeq = decoded.context.sequence;
-          sendEventsAck(socket, `sdkwork-im-events-ack-${ackedSeq}`, ackedSeq);
+          sendEventsAck(socket, ackedSeq);
         }
         return Promise.resolve();
       };

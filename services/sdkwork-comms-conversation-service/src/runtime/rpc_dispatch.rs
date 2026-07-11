@@ -41,9 +41,13 @@ use sdkwork_im_rpc_service_rust::{
     ImRpcStreamResponse, ImRpcUnaryRequest, ImRpcUnaryResponse, RpcMetadata,
     admit_app_unary_request, require_app_session_auth,
 };
-use sdkwork_utils_rust::sha256_hash;
+use sdkwork_utils_rust::{DEFAULT_LIST_PAGE_SIZE, MAX_LIST_PAGE_SIZE, sha256_hash};
 use std::collections::BTreeMap;
 
+use super::message_history_cursor::{
+    MessageHistoryCursorError, MessageHistoryCursorScope, decode_message_history_cursor,
+    encode_message_history_cursor,
+};
 use crate::http::{self, AppState};
 use crate::{
     AddMessageReactionCommand, EditMessageCommand, PinMessageCommand, PostMessageCommand,
@@ -56,9 +60,6 @@ pub const CONVERSATION_RPC_SERVICE_KEYS: &[&str] = &[
     "sdkwork.communication.app.v3.MessageService",
     "sdkwork.communication.app.v3.RoomService",
 ];
-
-const DEFAULT_PAGE_SIZE: usize = 50;
-const MAX_PAGE_SIZE: usize = 200;
 
 #[derive(Clone)]
 pub struct ConversationRpcDispatcher {
@@ -710,7 +711,7 @@ async fn dispatch_list_inbox(
     auth: &AppContext,
     request: ListInboxRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
-    let (limit, cursor) = page_request(request.page);
+    let (limit, cursor) = page_request(request.page)?;
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let (conversations, next_cursor, has_more) = tokio::task::spawn_blocking(move || {
@@ -761,7 +762,7 @@ async fn dispatch_list_members(
     request: ListConversationMembersRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
-    let (limit, cursor) = page_request(request.page);
+    let (limit, cursor) = page_request(request.page)?;
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let members = tokio::task::spawn_blocking(move || {
@@ -1049,7 +1050,7 @@ async fn dispatch_list_member_directory(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let query = request.query.to_ascii_lowercase();
-    let (limit, cursor) = page_request(request.page);
+    let (limit, cursor) = page_request(request.page)?;
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let members = tokio::task::spawn_blocking(move || {
@@ -1088,7 +1089,7 @@ async fn dispatch_list_pinned_messages(
     request: ListPinnedMessagesRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
-    let (limit, cursor) = page_request(request.page);
+    let (limit, cursor) = page_request(request.page)?;
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let pinned = tokio::task::spawn_blocking(move || {
@@ -1128,8 +1129,21 @@ async fn dispatch_list_messages(
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
     let conversation_id = required_field(request.conversation_id, "conversation_id")?;
     let page = request.page;
-    let (limit, cursor) = page_request(page);
-    let after_seq = cursor.as_deref().map(parse_cursor_u64).transpose()?;
+    let (limit, cursor) = page_request(page)?;
+    let organization_id = super::organization_id_from_auth_context(auth);
+    let cursor_scope = MessageHistoryCursorScope {
+        tenant_id: auth.tenant_id.as_str(),
+        organization_id: organization_id.as_str(),
+        conversation_id: conversation_id.as_str(),
+    };
+    let before_seq = cursor
+        .as_deref()
+        .map(|cursor| decode_message_history_cursor(cursor, cursor_scope))
+        .transpose()
+        .map_err(map_message_history_cursor_rpc_error)?;
+    let cursor_tenant_id = auth.tenant_id.clone();
+    let cursor_organization_id = organization_id;
+    let cursor_conversation_id = conversation_id.clone();
     let blocking_state = state.clone();
     let blocking_auth = auth.clone();
     let history = tokio::task::spawn_blocking(move || {
@@ -1138,7 +1152,7 @@ async fn dispatch_list_messages(
             .list_messages_window_from_auth_context(
                 &blocking_auth,
                 conversation_id.as_str(),
-                after_seq,
+                before_seq,
                 limit,
             )
     })
@@ -1149,6 +1163,27 @@ async fn dispatch_list_messages(
         ))
     })?
     .map_err(map_runtime_error)?;
+    let next_cursor = if history.page.page_info.has_more == Some(true) {
+        let next_before_seq = history.next_before_seq.ok_or_else(|| {
+            ImRpcError::internal(
+                "message history page reported has_more without a continuation position",
+            )
+        })?;
+        Some(
+            encode_message_history_cursor(
+                MessageHistoryCursorScope {
+                    tenant_id: cursor_tenant_id.as_str(),
+                    organization_id: cursor_organization_id.as_str(),
+                    conversation_id: cursor_conversation_id.as_str(),
+                },
+                next_before_seq,
+            )
+            .map_err(map_message_history_cursor_rpc_error)?,
+        )
+    } else {
+        None
+    };
+    let message_count = history.page.items.len();
     let response = ListConversationMessagesResponse {
         messages: history
             .page
@@ -1157,13 +1192,22 @@ async fn dispatch_list_messages(
             .map(message_view_from_stored)
             .collect(),
         page: Some(page_response(
-            history.page.page_info.next_cursor.clone(),
+            next_cursor,
             history.page.page_info.has_more == Some(true),
-            history.page.items.len(),
+            message_count,
         )),
         metadata: None,
     };
     ImRpcUnaryResponse::from_message(response)
+}
+
+fn map_message_history_cursor_rpc_error(error: MessageHistoryCursorError) -> ImRpcError {
+    match error {
+        MessageHistoryCursorError::Invalid => {
+            ImRpcError::invalid_argument("message history cursor is invalid")
+        }
+        MessageHistoryCursorError::Configuration(message) => ImRpcError::unavailable(message),
+    }
 }
 
 async fn dispatch_create_message(
@@ -1497,11 +1541,7 @@ async fn dispatch_create_room(
     metadata: &RpcMetadata,
     request: CreateRoomRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
-    let conversation_id = if request.conversation_id.trim().is_empty() {
-        derive_idempotent_resource_id(metadata, "room-conversation")?
-    } else {
-        request.conversation_id
-    };
+    let conversation_id = request.conversation_id;
     let room_id = if request.room_id.trim().is_empty() {
         derive_idempotent_resource_id(metadata, "room")?
     } else {
@@ -1670,14 +1710,6 @@ fn derive_idempotent_resource_id(
             ImRpcError::invalid_argument("idempotency-key metadata is required for this RPC write")
         })?;
     Ok(format!("rpc-{namespace}-{}", sha256_hash(key.as_bytes())))
-}
-
-fn canonical_direct_chat_id(left_user_id: &str, right_user_id: &str) -> String {
-    if left_user_id <= right_user_id {
-        format!("{left_user_id}:{right_user_id}")
-    } else {
-        format!("{right_user_id}:{left_user_id}")
-    }
 }
 
 fn conversation_view_from_binding(
@@ -1934,17 +1966,23 @@ fn proto_parts_to_message_body(
     http::build_rpc_message_body(content_parts, reply_to)
 }
 
-pub(crate) fn page_request(page: Option<PageRequest>) -> (usize, Option<String>) {
-    let limit = page
-        .as_ref()
-        .map(|value| value.page_size.max(0) as usize)
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_PAGE_SIZE)
-        .min(MAX_PAGE_SIZE);
+pub(crate) fn page_request(
+    page: Option<PageRequest>,
+) -> Result<(usize, Option<String>), ImRpcError> {
+    let page_size = page.as_ref().map(|value| value.page_size).unwrap_or(0);
+    let limit = match page_size {
+        0 => DEFAULT_LIST_PAGE_SIZE as usize,
+        value if value < 0 || value > MAX_LIST_PAGE_SIZE => {
+            return Err(ImRpcError::invalid_argument(format!(
+                "page_size must be between 1 and {MAX_LIST_PAGE_SIZE}: {value}"
+            )));
+        }
+        value => value as usize,
+    };
     let cursor = page
         .and_then(|value| optional_string(value.cursor))
         .filter(|value| !value.is_empty());
-    (limit, cursor)
+    Ok((limit, cursor))
 }
 
 pub(crate) fn page_response(
@@ -1964,7 +2002,7 @@ pub(crate) fn page_response(
 pub fn rpc_metadata_from_app_context(
     context: &AppContext,
     idempotency_key: Option<String>,
-    request_id: Option<String>,
+    trace_id: Option<String>,
 ) -> RpcMetadata {
     use im_app_context::build_dual_token_headers_for_context;
 
@@ -1982,7 +2020,7 @@ pub fn rpc_metadata_from_app_context(
         authorization,
         access_token,
         idempotency_key,
-        request_id,
+        trace_id,
         ..RpcMetadata::default()
     }
 }
@@ -1999,9 +2037,14 @@ fn metadata_to_axum_headers(metadata: &RpcMetadata) -> HeaderMap {
             headers.insert("access-token", parsed);
         }
     }
-    if let Some(value) = &metadata.request_id {
+    if let Some(value) = &metadata.trace_id {
         if let Ok(parsed) = HeaderValue::from_str(value) {
-            headers.insert("x-request-id", parsed);
+            headers.insert("x-sdkwork-trace-id", parsed);
+        }
+    }
+    if let Some(value) = &metadata.traceparent {
+        if let Ok(parsed) = HeaderValue::from_str(value) {
+            headers.insert("traceparent", parsed);
         }
     }
     if let Some(value) = &metadata.idempotency_key {
@@ -2077,6 +2120,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rpc_page_request_uses_sdkwork_default_and_rejects_oversized_pages() {
+        let (default_page_size, default_cursor) =
+            page_request(None).expect("missing RPC page should use defaults");
+        assert_eq!(default_page_size, 20);
+        assert_eq!(default_cursor, None);
+
+        let error = page_request(Some(PageRequest {
+            page_size: 201,
+            cursor: String::new(),
+            ..PageRequest::default()
+        }))
+        .expect_err("RPC page_size above the SDKWork maximum must be rejected");
+        assert!(error.message().contains("page_size"));
+    }
+
+    #[test]
     fn conversation_rpc_service_keys_cover_write_message_and_room_surfaces() {
         assert_eq!(CONVERSATION_RPC_SERVICE_KEYS.len(), 3);
         assert!(
@@ -2097,11 +2156,6 @@ mod tests {
     }
 
     #[test]
-    fn canonical_direct_chat_id_orders_participants() {
-        assert_eq!(canonical_direct_chat_id("1068", "1067"), "1067:1068");
-    }
-
-    #[test]
     fn derive_idempotent_resource_id_requires_metadata_key() {
         let error = derive_idempotent_resource_id(&RpcMetadata::default(), "conversation")
             .expect_err("missing idempotency key");
@@ -2113,7 +2167,7 @@ mod tests {
         let context =
             im_app_context::local_service_app_context("100001", "1", "user", Some("d_test"), ["*"]);
         let metadata =
-            rpc_metadata_from_app_context(&context, Some("idem-1".into()), Some("req-1".into()));
+            rpc_metadata_from_app_context(&context, Some("idem-1".into()), Some("trace-1".into()));
         assert!(
             metadata
                 .authorization
@@ -2127,6 +2181,6 @@ mod tests {
                 .is_some_and(|v| !v.is_empty())
         );
         assert_eq!(metadata.idempotency_key.as_deref(), Some("idem-1"));
-        assert_eq!(metadata.request_id.as_deref(), Some("req-1"));
+        assert_eq!(metadata.trace_id.as_deref(), Some("trace-1"));
     }
 }

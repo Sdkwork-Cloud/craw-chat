@@ -171,10 +171,28 @@ function dispatchAppSdkSessionChanged(session: SdkworkChatSession | null): void 
   if (typeof window === 'undefined') {
     return;
   }
+  // Notify registered listeners (e.g. appAuthService TTL cache) before the
+  // window event so caches are invalidated atomically with the storage write.
+  for (const listener of sessionChangeListeners) {
+    try {
+      listener(session);
+    } catch {
+      // Listener errors must not block session persistence.
+    }
+  }
   window.dispatchEvent(new CustomEvent(
     SDKWORK_IM_SESSION_CHANGED_EVENT,
     { detail: { session } },
   ));
+}
+
+const sessionChangeListeners = new Set<(session: SdkworkChatSession | null) => void>();
+
+export function onAppSdkSessionPersisted(listener: (session: SdkworkChatSession | null) => void): () => void {
+  sessionChangeListeners.add(listener);
+  return () => {
+    sessionChangeListeners.delete(listener);
+  };
 }
 
 function normalizeToken(value: unknown): string | undefined {
@@ -461,11 +479,11 @@ function resolveAppSdkAuthLevel(session?: SdkworkChatSession | null): string | u
   return pickClaimString(session, ['authLevel', 'auth_level', 'acr'], session?.context?.authLevel);
 }
 
-function resolveAppSdkActorId(session?: SdkworkChatSession | null): string | undefined {
+export function resolveAppSdkActorId(session?: SdkworkChatSession | null): string | undefined {
   return pickClaimString(session, ['actorId', 'actor_id'], session?.context?.actorId);
 }
 
-function resolveAppSdkActorKind(session?: SdkworkChatSession | null): string | undefined {
+export function resolveAppSdkActorKind(session?: SdkworkChatSession | null): string | undefined {
   return pickClaimString(session, ['actorKind', 'actor_kind'], session?.context?.actorKind);
 }
 

@@ -51,7 +51,7 @@ export const COMMERCE_T1_DATABASE_URL_ENV_KEYS = Object.freeze(
   }),
 );
 
-export const COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS = Object.freeze(
+export const COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS = Object.freeze(
   COMMERCE_T1_APP_API_AUTHORITIES.map((authority) => {
     const capability = authority
       .replace(/^sdkwork-/, '')

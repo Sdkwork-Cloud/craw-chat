@@ -1,0 +1,21 @@
+{
+  "profile": {
+    "chatIdLabel": "Chat ID",
+    "copyChatId": "复制 Chat ID",
+    "actions": {
+      "favorites": "收藏",
+      "logout": "退出登录",
+      "settings": "设置"
+    },
+    "status": {
+      "away": "离开",
+      "busy": "忙碌",
+      "online": "在线"
+    },
+    "toast": {
+      "chatIdCopied": "Chat ID 已复制",
+      "chatIdNotReady": "Chat ID 尚未准备好，请稍后重试。",
+      "copyChatIdFailed": "复制 Chat ID 失败"
+    }
+  }
+}

@@ -3,6 +3,44 @@
 
 # CHANGELOG
 
+## v0.2.0 - 2026-07-09
+
+- Loop `90`
+- step `projection-consistency-remediation`
+- `projection-service` eliminated `40401` read-model miss errors and durable snapshot drift
+  - root cause: in-memory projection returned `40401` when a read hit a replica that had not yet consumed the journal event; read paths had no durable-store fallback and the journal consumer swallowed persist failures with a single best-effort `warn!`
+  - P0-A: `conversation_summary`, `member_snapshot_for_principal_kind`, `read_cursor_for_principal_kind_and_device` now read-through to durable metadata snapshots on memory miss
+  - P0-B: `message_interaction_summary` no longer depends on message-history seq fallback; directly queries durable metadata store
+  - P1-A: durable persist now retries up to 3 times with 50/100 ms backoff (`persist_durable_state_with_retry`); worst-case sleep stays below the 250 ms poll interval
+  - P1-B: `restore_conversation_snapshot` treats `conversation-summary` as optional; the 2026-07-10 memory-bound follow-up removed startup scope enumeration and now hydrates conversation snapshots through durable read-through on demand
+  - P2-A: embedded apply refined for separated cloud deployments — production uses only already-initialized shared runtime (`try_shared_projection_runtime`), separated services silently no-op instead of logging misleading ERROR
+  - P2-B: read-through added for `message_visibility_for_principal`, `history_visibility_for_conversation`, `conversation_profile`
+- fresh verification:
+  - `cargo check -p projection-service` = `passed`
+  - `cargo test -p projection-service --lib` = `passed`
+- closure:
+  - projection read-model consistency remediation is `closed`
+  - remaining bounded gap: `message_favorites` and `conversation_preferences` have no durable snapshot yet (require new persistence infrastructure); `contacts`, `client_route_sync`, `inbox`, `member_directory`, receipt summaries have durable snapshots but no read-through (return empty/default on memory miss)
+
+## v0.2.1 - 2026-07-09
+
+- Loop `91`
+- step `conversation-creation-persist`
+- `comms-conversation-service` fixed `40301 conversation_permission_denied` on RTC session creation for direct chats
+  - root cause 1 (missing persist): conversation creation paths (`create_conversation`, `bind_direct_chat`, `create_thread`, `create_agent_dialog`, `create_system_channel`, `create_agent_handoff`) did not call `best_effort_persist_aggregate_state`, so `im_projection_conversation_members` had no member rows after creation. `persist_aggregate_state` reads the in-memory roster, but after LRU eviction `ensure_conversation_loaded` rehydrates from the (empty/partial) relational table instead of journal replay when `db_state.members` is non-empty — a self-reinforcing gap that permanently lost the peer member for direct chats (verified via WSL Ubuntu 22 + PostgreSQL 18: journal had 2 `member_joined` events, relational table had only the anchor row). Role/owner changes (`change_conversation_member_role`, `transfer_conversation_owner`) also missed persist, leaving role/owner columns stale.
+  - fix 1: all creation paths now call `best_effort_persist_aggregate_state` before `maybe_evict_after_write` (persist must run while the conversation is still in memory, otherwise `persist_aggregate_state` returns `ConversationNotFound`); the five non-`create_conversation` creation paths also gained the missing `maybe_evict_after_write`. Role/owner change paths now persist after the mutation. Creation persist writes the full roster (anchor + peer for direct chats) so RTC/session-gateway authorization and message search see members immediately.
+  - root cause 2 (persist blocked by unique constraint + parse bug): `member_to_record` mapped `member.member_id` (string composite `cm_<conv_id>_<principal_kind>_<principal_id>`) via `parse::<i64>().unwrap_or(0)`, which always returned `0`. The table declared `CONSTRAINT uk_im_projection_conversation_members_member UNIQUE (tenant_id, organization_id, conversation_id, member_id)`, so inserting the second member collided on `member_id=0` and `upsert_member` returned a constraint violation. The first persist fix alone was insufficient — the second member still could not be stored.
+  - fix 2: removed the redundant UK constraint from `database/ddl/baseline/postgres/0001_im_baseline.sql` and `database/ddl/baseline/sqlite/0001_im_baseline.sql` (the composite PK on `(tenant_id, organization_id, conversation_id, principal_kind, principal_id)` is the sole uniqueness guarantee for conversation members, since principal already identifies a member uniquely). Updated `member_to_record` and `cursor_to_record` in `services/sdkwork-comms-conversation-service/src/runtime.rs` to parse `principal_id` (Snowflake i64 for user principals) instead of the string `member_id`, so the stored `member_id` is non-zero and unique per user within a conversation. For non-user principals (agents/system) the value falls back to `0`, which is acceptable because the composite PK remains the sole uniqueness guarantee.
+  - table registry: `im_projection_conversation_members` and `im_projection_read_cursors` `writeOwner` corrected from `projection-service` to `comms-conversation-service` in `specs/database-table-registry.json` to reflect the actual command-side materialization write path; `projection-service` never writes these tables (zero references confirmed by audit).
+  - dev DB backfill (one-time data cleanup): WSL Ubuntu 22 + PostgreSQL 18 was used to (a) `ALTER TABLE im_projection_conversation_members DROP CONSTRAINT uk_im_projection_conversation_members_member`, (b) insert missing peer rows for `c_direct_09a8255a1fd3632675c2d355` and `pc-group-24c6420e-fd13-4a85-9fa0-955e23d10e04` from journal `member_joined` events, (c) sync existing rows' `member_id` from `0` to `principal_id::bigint`. Verified final state: 4 rows (anchor + peer per conversation), `member_id` correctly equals `principal_id` for users, `invited_by` populated for peer rows.
+  - bounded gap: `persist` is best-effort (`warn!` on failure); a persist failure followed by LRU eviction can still leave a partial table — operational monitoring should alert on the warn log. The `member_id` column remains `bigint` while the in-memory `ConversationMember.member_id` is a string; the new `member_to_record` bridges this by parsing `principal_id`, which is sufficient for user principals (the only kind that RTC authorization and projections rely on). Non-user principals still store `member_id=0`, which is acceptable given the composite PK.
+- fresh verification:
+  - `cargo check -p sdkwork-comms-conversation-service --lib` = `passed`
+  - `cargo test -p sdkwork-comms-conversation-service --lib` = `30 passed`
+  - `cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test` = `110 passed` (4 new: direct chat persists both members, create conversation persists creator, change role persists, transfer owner persists)
+  - dev DB inspection: `im_projection_conversation_members` has 4 rows (2 per affected conversation), `member_id` equals `principal_id::bigint` for users, `invited_by` populated for peers
+- closure: conversation creation persist gap is `closed` for new conversations. Existing dev DB conversations with missing peer rows were backfilled via journal replay. The fix requires a `cargo build` + gateway restart to take effect for new conversations created at runtime; existing conversations already received the one-time backfill.
+
 ## v0.0.86 - 2026-04-12
 
 - Loop `86`

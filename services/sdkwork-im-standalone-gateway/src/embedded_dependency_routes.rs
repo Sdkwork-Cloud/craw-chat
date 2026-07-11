@@ -1,8 +1,8 @@
-//! Standalone unified-process dependency API surfaces (Drive, Knowledgebase, Commerce, Mail, Notary, Course).
+//! Standalone single-ingress dependency API surfaces (Drive, Knowledgebase, Commerce, Mail, Notary, Course).
 //!
 //! Sibling domain route crates are mounted in-process per `APPLICATION_GATEWAY_SPEC.md`
 //! platform consumer linking and `DEPENDENCY_MANAGEMENT_SPEC.md` §5 — not HTTP-proxied
-//! to split-service ports when IM standalone gateway collapses platform ingress.
+//! to internal HTTP service ports when IM standalone gateway collapses platform ingress.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -287,7 +287,7 @@ pub fn apply_embedded_dependency_env() {
 /// Run sdkwork-database lifecycle init/migrate for every embedded dependency that owns a database module.
 ///
 /// This mirrors IM/IAM startup in `main.rs` and satisfies `DATABASE_FRAMEWORK_SPEC.md` §4.3 for
-/// unified-process standalone gateways that mount sibling platform APIs in-process.
+/// standalone gateways that mount sibling platform APIs in-process.
 pub async fn bootstrap_embedded_dependency_databases() -> Result<(), String> {
     sync_embedded_dependency_database("drive", sync_drive_embedded_database).await?;
     sync_embedded_dependency_database("knowledgebase", sync_knowledgebase_embedded_database)
@@ -1221,11 +1221,11 @@ fn bridge_course_integration_upstream_env(
         return;
     }
 
-    if let Ok(upstream) = std::env::var(fallback_env) {
-        if !upstream.trim().is_empty() {
-            set_env_var(target_env, upstream.trim());
-            return;
-        }
+    if let Ok(upstream) = std::env::var(fallback_env)
+        && !upstream.trim().is_empty()
+    {
+        set_env_var(target_env, upstream.trim());
+        return;
     }
 
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
@@ -1240,13 +1240,6 @@ fn bridge_course_integration_upstream_env(
 }
 
 fn apply_knowledgebase_runtime_env_from_im_shared_profile() {
-    if std::env::var("SDKWORK_KNOWLEDGEBASE_SERVICE_LAYOUT")
-        .ok()
-        .map(|value| value.trim().is_empty())
-        .unwrap_or(true)
-    {
-        set_env_var("SDKWORK_KNOWLEDGEBASE_SERVICE_LAYOUT", "unified-process");
-    }
     if std::env::var("SDKWORK_KNOWLEDGEBASE_ENVIRONMENT")
         .ok()
         .map(|value| value.trim().is_empty())

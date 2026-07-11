@@ -24,6 +24,7 @@ import { resolveSdkworkImServerBindEnv } from './dev/sdkwork-im-server-dev-runti
 const repoRoot = REPO_ROOT;
 const DEFAULT_ENVIRONMENT = 'development';
 
+function normalizeText(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
 }
@@ -87,7 +88,7 @@ function printHelp() {
   console.log(`Usage: node scripts/gateway-standalone-run.mjs [options]
 
 Sdkwork IM standalone gateway embeds appbase IAM and IM application ingress on one bind.
-Use this for standalone deployment profiles. Cloud split profiles use sdkwork-api-cloud-gateway.
+Use this for standalone deployment profiles. Cloud profiles use sdkwork-im-cloud-gateway and sdkwork-api-cloud-gateway.
 
 Options:
   --environment <development|production>  Config profile (default: development)
@@ -136,13 +137,12 @@ async function main() {
   }
 
   const fileEnv = loadEnvFile(resolveDevEnvFilePath(settings.devEnvFile), repoRoot);
-  const profileId = resolveDevProfileId('standalone', 'unified-process');
+  const profileId = resolveDevProfileId('standalone', settings.environment);
   const profileEnv = loadProfile(profileId);
   const iamDevEnv = profileEnv;
   const baseEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
-    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
     ...resolveSdkworkImSharedDatabaseConfig({ env: { ...process.env, ...profileEnv, ...fileEnv }, repoRoot }).env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
     SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: configPath,

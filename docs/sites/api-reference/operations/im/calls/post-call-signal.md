@@ -25,7 +25,7 @@ call watchers can parse invite, accept, reject, end, SDP, ICE, and provider-spec
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.calls`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `call.signal` capability.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSignalEvent`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 RtcSignalEvent in data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -38,7 +38,7 @@ call watchers can parse invite, accept, reject, end, SDP, ICE, and provider-spec
 
 <ApiSchemaTable schema="PostRtcSignalRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="RtcSignalEvent" />
 
@@ -47,8 +47,8 @@ call watchers can parse invite, accept, reject, end, SDP, ICE, and provider-spec
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101`, `40102` | AppContext projection is missing or invalid. |
-| `403` | `40301`, `40302` | The caller is not allowed to mutate the target resource. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
 | `503` | `50301` | A required subsystem or provider is unavailable. |

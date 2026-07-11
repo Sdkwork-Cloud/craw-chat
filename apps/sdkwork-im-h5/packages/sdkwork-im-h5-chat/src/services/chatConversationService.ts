@@ -1,9 +1,9 @@
-import type { ContentPart, PostedMessageResponse, TimelineResponse } from "@sdkwork/im-sdk";
+import type { ContentPart, ConversationMessageListResponse, ConversationProfileView, PostMessageResult } from "@sdkwork/im-sdk";
 import { getImSdkClient } from "@sdkwork/im-h5-core";
 
 import { uploadChatMediaFile } from "./chatMediaUploadService";
 
-export interface FetchTimelineOptions {
+export interface FetchConversationMessagesOptions {
   pageSize?: number;
   afterSeq?: number;
 }
@@ -35,32 +35,36 @@ function buildMediaMessageParts(
   ];
 }
 
-export async function fetchConversationTimeline(
+export async function fetchConversationMessages(
   conversationId: string,
-  options?: FetchTimelineOptions,
-): Promise<TimelineResponse> {
+  options?: FetchConversationMessagesOptions,
+): Promise<ConversationMessageListResponse> {
   return getImSdkClient().conversations.listMessages(conversationId, {
     pageSize: options?.pageSize ?? 20,
     afterSeq: options?.afterSeq ?? 0,
   });
 }
 
-export async function fetchConversationTimelineDelta(
+export async function fetchConversationMessageDelta(
   conversationId: string,
   afterSeq: number,
   pageSize = 20,
-): Promise<TimelineResponse> {
+): Promise<ConversationMessageListResponse> {
   return getImSdkClient().conversations.listMessages(conversationId, {
     afterSeq,
     pageSize,
   });
 }
 
+export async function fetchConversationProfile(conversationId: string): Promise<ConversationProfileView> {
+  return getImSdkClient().conversations.getProfile(conversationId);
+}
+
 export async function sendConversationText(
   conversationId: string,
   text: string,
   options?: { clientMsgId?: string },
-): Promise<PostedMessageResponse> {
+): Promise<PostMessageResult> {
   return getImSdkClient().conversations.postText(conversationId, text.trim(), {
     clientMsgId: options?.clientMsgId,
   });
@@ -69,7 +73,7 @@ export async function sendConversationText(
 export async function sendConversationImage(
   conversationId: string,
   file: File,
-): Promise<PostedMessageResponse> {
+): Promise<PostMessageResult> {
   const { drive, uploadResult } = await uploadChatMediaFile({
     conversationId,
     file,

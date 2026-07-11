@@ -40,6 +40,15 @@ pub(super) struct ContactOwnerScopeKey {
     pub(super) owner_user_id: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(super) struct GroupScopeKey {
+    pub(super) tenant_id: String,
+
+    pub(super) organization_id: String,
+
+    pub(super) group_id: String,
+}
+
 pub(super) fn projection_organization_id_for_event(event: &CommitEnvelope) -> String {
     im_domain_events::normalize_commit_organization_id(event.organization_id.as_str())
 }
@@ -142,6 +151,22 @@ pub(super) fn contact_owner_scope_key(
         organization_id: normalize_realtime_organization_id(organization_id),
 
         owner_user_id: owner_user_id.into(),
+    }
+}
+
+pub(super) fn group_scope_key(
+    tenant_id: &str,
+
+    organization_id: &str,
+
+    group_id: &str,
+) -> GroupScopeKey {
+    GroupScopeKey {
+        tenant_id: tenant_id.into(),
+
+        organization_id: normalize_realtime_organization_id(organization_id),
+
+        group_id: group_id.into(),
     }
 }
 

@@ -12,6 +12,7 @@ serde_json.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_utils_rust.workspace = true
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+rand.workspace = true
 sha2 = "0.10"
 tracing.workspace = true
 

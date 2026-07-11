@@ -4,7 +4,8 @@ use im_platform_contracts::ContractError;
 use im_platform_contracts::ConversationSeqAllocator;
 
 use crate::{
-    PostgresJournalPool, now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io,
+    PostgresJournalPool, now_rfc3339, postgres_pool_client, postgres_timestamptz,
+    postgres_unavailable, run_postgres_io,
 };
 
 const ALLOCATE_SEQ_SQL: &str = r#"
@@ -40,7 +41,7 @@ impl ConversationSeqAllocator for PostgresConversationSeqAllocator {
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "allocate_conversation_seq")?;
-            let now = now_rfc3339();
+            let now = postgres_timestamptz(&now_rfc3339(), "now")?;
             let row = client
                 .query_one(
                     ALLOCATE_SEQ_SQL,

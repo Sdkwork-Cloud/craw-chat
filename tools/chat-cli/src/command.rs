@@ -637,7 +637,7 @@ fn env_file_candidates() -> Vec<PathBuf> {
                 ancestor
                     .join("configs")
                     .join("topology")
-                    .join("self-hosted.split-services.development.env"),
+                    .join("standalone.development.env"),
             );
         }
     }
@@ -648,7 +648,7 @@ fn env_file_candidates() -> Vec<PathBuf> {
             repo_root
                 .join("configs")
                 .join("topology")
-                .join("self-hosted.split-services.development.env"),
+                .join("standalone.development.env"),
         );
     }
 

@@ -136,7 +136,7 @@ assert.doesNotMatch(
 );
 
 for (const relativePath of [
-  '.sdkwork-assembly.json',
+  'sdk-manifest.json',
   'bin/rtc-standard-contract-constants.mjs',
   'bin/rtc-standard-assembly-baseline.mjs',
   'bin/materialize-sdk.mjs',

@@ -30,8 +30,8 @@
 //! ## Threading bridge
 //!
 //! [`StateStore`] is a synchronous trait. Redis I/O uses the async
-//! `redis::aio::ConnectionManager` (the same `RedisCachePool` used by the
-//! rest of this crate) and is bridged onto a blocking scope via
+//! `redis::aio::ConnectionManager` (the same bounded manager policy used by
+//! the rest of this crate) and is bridged onto a blocking scope via
 //! `tokio::task::block_in_place` + `Handle::block_on`, matching the
 //! pattern in `adapters/postgres-rtc-state` and `adapters/postgres-journal`.
 //!
@@ -44,6 +44,7 @@
 
 use std::sync::Arc;
 
+use crate::redis_blocking::{RedisBlockingTimeouts, bounded_connection_manager};
 use im_domain_core::rtc::{RtcStateRecord, StateStore};
 use redis::aio::ConnectionManager;
 use sdkwork_communication_rtc_service::RtcContractError;
@@ -139,7 +140,8 @@ impl RedisRtcStateStore {
 
     /// Connect to Redis and build the store.
     ///
-    /// The `ConnectionManager` is created asynchronously. This helper
+    /// The `ConnectionManager` is created asynchronously with bounded Redis
+    /// connection and response timeouts. This helper
     /// handles both contexts:
     /// - Inside a tokio runtime: uses `block_in_place` + `Handle::block_on`
     /// - Outside a runtime: creates a temporary runtime via
@@ -147,10 +149,13 @@ impl RedisRtcStateStore {
     pub fn from_config(config: &RedisRtcStateConfig) -> Result<Self, RtcContractError> {
         let client = redis::Client::open(config.redis_url.as_str())
             .map_err(|err| RtcContractError::Unavailable(format!("invalid redis_url: {err}")))?;
+        let timeouts = RedisBlockingTimeouts::from_env();
         let manager = match Handle::try_current() {
             Ok(handle) => {
                 // Inside a runtime: use block_in_place to avoid deadlock.
-                tokio::task::block_in_place(|| handle.block_on(ConnectionManager::new(client)))
+                tokio::task::block_in_place(|| {
+                    handle.block_on(bounded_connection_manager(client, timeouts))
+                })
             }
             Err(_) => {
                 // Outside a runtime: create a temporary one-shot runtime.
@@ -160,7 +165,7 @@ impl RedisRtcStateStore {
                     .map_err(|err| {
                         RtcContractError::Unavailable(format!("redis runtime build failed: {err}"))
                     })?;
-                rt.block_on(ConnectionManager::new(client))
+                rt.block_on(bounded_connection_manager(client, timeouts))
             }
         }
         .map_err(|err| {

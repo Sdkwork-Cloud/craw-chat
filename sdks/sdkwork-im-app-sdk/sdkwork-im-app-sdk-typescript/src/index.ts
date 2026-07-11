@@ -1,10 +1,11 @@
 import {
   createClient as createGeneratedAppClient,
+  SdkworkImAppClient,
   SdkworkAppClient,
 } from '../generated/server-openapi/src/index';
 import type { SdkworkAppConfig } from '../generated/server-openapi/src/types/common';
 
-export { SdkworkAppClient, createGeneratedAppClient };
+export { SdkworkImAppClient, SdkworkAppClient, createGeneratedAppClient };
 export type { SdkworkAppConfig };
 export * from '../generated/server-openapi/src/types';
 export * from '../generated/server-openapi/src/api';

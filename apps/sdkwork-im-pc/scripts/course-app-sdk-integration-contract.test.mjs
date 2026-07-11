@@ -197,7 +197,7 @@ assert.match(
 assert.match(
   devRunnerSource,
   /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitCourseAppApiUpstream[\s\S]*SDKWORK_IM_COURSE_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-course traffic through the shared gateway root while preserving explicit Course split upstream overrides.',
+  'PC dev runner must default sdkwork-course traffic through the shared gateway root while preserving explicit Course external upstream overrides.',
 );
 
 assert.match(
@@ -246,27 +246,27 @@ assert.equal(
   'sdkwork-course app API must route through the shared sdkwork-api-cloud-gateway root.',
 );
 
-const splitOverrideEnvKeys =
-  componentSpec.integration?.foundationApiGateway?.splitOverrideEnvKeys?.['sdkwork-course-app-api'];
+const explicitExternalUpstreamEnvKeys =
+  componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.['sdkwork-course-app-api'];
 assert.deepEqual(
-  splitOverrideEnvKeys,
+  explicitExternalUpstreamEnvKeys,
   [
     'SDKWORK_IM_COURSE_APP_API_UPSTREAM',
     'SDKWORK_COURSE_APP_API_UPSTREAM',
     'SDKWORK_COURSE_APP_API_BASE_URL',
   ],
-  'component.spec.json must document course split upstream override env keys.',
+  'component.spec.json must document course explicit external upstream env keys.',
 );
 
 assert.ok(
-  componentSpec.integration?.foundationApiGateway?.standaloneUnifiedEmbeddedAuthorities?.includes(
+  componentSpec.integration?.foundationApiGateway?.standaloneEmbeddedAuthorities?.includes(
     'sdkwork-course-app-api',
   ),
-  'component.spec.json must embed sdkwork-course-app-api in standalone unified-process mode.',
+  'component.spec.json must embed sdkwork-course-app-api in standalone single-ingress mode.',
 );
 
 assert.equal(
-  componentSpec.integration?.foundationApiGateway?.standaloneUnifiedDeferredAuthorities?.includes(
+  componentSpec.integration?.foundationApiGateway?.standaloneDeferredAuthorities?.includes(
     'sdkwork-course-app-api',
   ),
   false,
@@ -282,7 +282,7 @@ const embeddedRoutesSource = readRepoText(
 assert.match(
   embeddedRoutesSource,
   /bootstrap_embedded_course_routes[\s\S]*sdkwork_course_gateway_assembly::assemble_application_business_router/u,
-  'IM standalone gateway must embed sdkwork-course routes in unified-process mode.',
+  'IM standalone gateway must embed sdkwork-course routes in standalone single-ingress mode.',
 );
 
 const commercialRuntimeModuleIds = extractCommercialRuntimeModuleIds(moduleRegistrySource);

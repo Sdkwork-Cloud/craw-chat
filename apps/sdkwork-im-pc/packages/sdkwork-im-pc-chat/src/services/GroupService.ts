@@ -5,6 +5,11 @@ import type {
 } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
 import { forEachCursorPage, SDKWORK_DEFAULT_PAGE_SIZE, SDKWORK_MAX_PAGE_SIZE } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
+import {
+  readAppSdkSessionTokens,
+  resolveAppSdkUserId,
+  type SdkworkChatSession,
+} from '@sdkwork/im-pc-core/sdk/session';
 import type { Chat, Message, User } from '@sdkwork/im-pc-types';
 import { chatService, createSdkworkChatService, type ChatService } from './ChatService';
 import { contactService } from './ContactService';
@@ -46,9 +51,6 @@ export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' 
 type ConversationListEntry = ConversationInboxEntry;
 const GROUP_INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const GROUP_MEMBERS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
-const GROUPS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
-const MAX_GROUP_INBOX_ENTRIES = SDKWORK_MAX_PAGE_SIZE;
-const MAX_GROUP_CONVERSATION_ENTRIES = SDKWORK_MAX_PAGE_SIZE;
 const MAX_GROUP_MEMBERS_PER_CONVERSATION = SDKWORK_MAX_PAGE_SIZE;
 const GROUP_LIST_HYDRATION_CONCURRENCY = 4;
 export const GROUP_INVITE_DESCRIPTOR_PREFIX = 'group-invite:';
@@ -176,12 +178,12 @@ export function parseGroupInviteDescriptor(message: Message): GroupInviteDescrip
     : undefined;
 }
 
-function createGroupId(): string {
-  const requestId =
+function createClientRequestKey(): string {
+  const clientGeneratedId =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-group-${requestId}`;
+  return `pc-group-${clientGeneratedId}`;
 }
 
 function createGroupAvatar(): string {
@@ -247,9 +249,18 @@ function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
   };
 }
 
-function hasGroupDisplayProjection(entry: ConversationListEntry): boolean {
-  const entryRecord = toRecord(entry);
-  return Boolean(pickString(entryRecord.displayName, entryRecord.display_name));
+function readGroupPreferencesProjection(entry: ConversationListEntry): Record<string, unknown> {
+  return toRecord(toRecord(entry).preferences);
+}
+
+function hasGroupPreferencesProjection(entry: ConversationListEntry): boolean {
+  const preferences = readGroupPreferencesProjection(entry);
+  return ['isPinned', 'isMuted', 'isMarkedUnread', 'isHidden']
+    .every((field) => typeof preferences[field] === 'boolean');
+}
+
+function isGroupHiddenByProjection(entry: ConversationListEntry): boolean {
+  return readGroupPreferencesProjection(entry).isHidden === true;
 }
 
 function normalizeGroupPageSize(pageSize: number | undefined): number {
@@ -270,16 +281,22 @@ class SdkworkGroupService implements GroupService {
   constructor(
     private readonly getClient: () => ImSdkClient = getImSdkClientWithSession,
     chatClient?: ChatService,
+    private readonly getSession: () => SdkworkChatSession | null = readAppSdkSessionTokens,
   ) {
     this.chatClient = chatClient ?? (
-      getClient === getImSdkClientWithSession
+      getClient === getImSdkClientWithSession && getSession === readAppSdkSessionTokens
         ? chatService
-        : createSdkworkChatService(getClient)
+        : createSdkworkChatService({ getClient, getSession })
     );
   }
 
   private client(): ImSdkClient {
     return this.getClient();
+  }
+
+  private resolveCurrentUserId(): string {
+    return resolveAppSdkUserId(this.getSession())
+      ?? contactService.getCurrentUser().id;
   }
 
   private async listConversationMembersPage(
@@ -310,93 +327,40 @@ class SdkworkGroupService implements GroupService {
     return mapActiveMemberIds(members);
   }
 
-  private async listConversationGroupEntriesPage(
-    cursor?: string,
-  ): Promise<{ items: ConversationListEntry[]; hasMore: boolean; nextCursor?: string }> {
-    const response = await this.client().conversations.list({
-      pageSize: GROUPS_PAGE_LIMIT,
-      ...(cursor ? { cursor } : {}),
-    });
-    const page = readSdkCursorPageInfo(response.pageInfo);
-    return {
-      items: response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'),
-      hasMore: page.hasMore,
-      nextCursor: page.nextCursor,
-    };
-  }
-
-  private async listMissingConversationGroupEntries(
-    knownGroupIds: Set<string>,
-  ): Promise<ConversationListEntry[]> {
-    const missingEntries: ConversationListEntry[] = [];
-    try {
-      await forEachCursorPage(
-        (cursor) => this.listConversationGroupEntriesPage(cursor),
-        (entries) => {
-          for (const entry of entries) {
-            if (knownGroupIds.has(entry.conversationId)) {
-              continue;
-            }
-            knownGroupIds.add(entry.conversationId);
-            missingEntries.push(entry);
-          }
-        },
-        { maxItems: MAX_GROUP_CONVERSATION_ENTRIES },
-      );
-    } catch {
-      return [];
-    }
-    return missingEntries;
-  }
-
-  private async hydrateConversationEntryGroups(entries: ConversationListEntry[]): Promise<Chat[]> {
-    const groups = await mapWithConcurrencyLimit(
-      entries,
-      GROUP_LIST_HYDRATION_CONCURRENCY,
-      async (entry) => (hasGroupDisplayProjection(entry)
-        ? mapConversationEntryToGroup(entry)
-        : await this.hydrateConversationEntryGroup(entry)),
-    );
-    return groups.filter((group): group is Chat => group != null);
-  }
-
   private async hydrateConversationEntryGroup(entry: ConversationListEntry): Promise<Chat | null> {
-    const group = mapConversationEntryToGroup(entry);
-    try {
-      const preferences = await this.client().conversations.getPreferences(entry.conversationId);
-      if (preferences.isHidden) {
+    const group = mergeCachedGroupViewState(
+      mapConversationEntryToGroup(entry),
+      this.groupViewState.get(entry.conversationId),
+    );
+    if (hasGroupPreferencesProjection(entry)) {
+      if (isGroupHiddenByProjection(entry)) {
         return null;
       }
-    } catch {
-      // Keep newly available groups visible when preference hydration is temporarily unavailable.
     }
 
-    try {
-      const profile = await this.client().conversations.getProfile(entry.conversationId);
-      return {
-        ...group,
-        ...(profile.displayName ? { name: profile.displayName } : {}),
-        ...(profile.avatarUrl ? { avatar: profile.avatarUrl } : {}),
-        notice: profile.notice,
-      };
-    } catch {
-      return group;
-    }
+    return group;
   }
 
   async createGroup(name: string, memberIds: string[]): Promise<Chat> {
-    const currentUserId = contactService.getCurrentUser().id;
+    const currentUserId = this.resolveCurrentUserId().trim();
+    if (!currentUserId) {
+      throw new Error('Current user id is required');
+    }
     const invitedMemberIds = uniqueMemberIds(memberIds).filter((memberId) => memberId !== currentUserId);
     const members = [currentUserId, ...invitedMemberIds];
-    const groupId = createGroupId();
+    const groupName = normalizeGroupName(name, members.length);
+    const clientRequestKey = createClientRequestKey();
 
+    // Group conversations use a server-derived canonical `g_` id seeded from
+    // creator + group name + client request key. We send groupName +
+    // clientRequestKey; the server returns the canonical conversationId.
     const result = await this.client().conversations.create({
-      conversationId: groupId,
       conversationType: 'group',
+      groupName,
+      clientRequestKey,
     });
     const boundGroupId = result.conversationId;
 
-    const groupName = normalizeGroupName(name, members.length);
     const groupAvatar = createGroupAvatar();
     await this.client().conversations.updateProfile(boundGroupId, {
       ...(groupAvatar ? { avatarUrl: groupAvatar } : {}),
@@ -439,6 +403,7 @@ class SdkworkGroupService implements GroupService {
     const pageSize = normalizeGroupPageSize(params?.pageSize);
     const inboxPage = await this.client().chat?.inbox?.list({
       pageSize,
+      conversationType: 'group',
       ...(params?.cursor ? { cursor: params.cursor } : {}),
     });
     if (!inboxPage) {
@@ -451,15 +416,11 @@ class SdkworkGroupService implements GroupService {
     const hydratedGroups = await mapWithConcurrencyLimit(
       groupEntries,
       GROUP_LIST_HYDRATION_CONCURRENCY,
-      async (entry) => (hasGroupDisplayProjection(entry)
-        ? mapConversationEntryToGroup(entry)
-        : await this.hydrateConversationEntryGroup(entry)),
+      async (entry) => this.hydrateConversationEntryGroup(entry),
     );
-    const items = (await mapWithConcurrencyLimit(
-      hydratedGroups.filter((group): group is Chat => group != null),
-      GROUP_LIST_HYDRATION_CONCURRENCY,
-      async (group) => this.withMemberState(group),
-    )).sort((left, right) => right.updatedAt - left.updatedAt);
+    const items = hydratedGroups
+      .filter((group): group is Chat => group != null)
+      .sort((left, right) => right.updatedAt - left.updatedAt);
     const page = readSdkCursorPageInfo(inboxPage.pageInfo);
 
     return {
@@ -510,62 +471,12 @@ class SdkworkGroupService implements GroupService {
   }
 
   async getGroups(): Promise<Chat[]> {
-    const inboxGroups: Chat[] = [];
-    let cursor: string | undefined;
-    let scannedPages = 0;
-    const maxInboxPages = Math.ceil(MAX_GROUP_INBOX_ENTRIES / GROUP_INBOX_PAGE_LIMIT);
-
-    while (scannedPages < maxInboxPages && inboxGroups.length < MAX_GROUP_INBOX_ENTRIES) {
-      const inboxPage = await this.listGroupsPage({
-        pageSize: GROUP_INBOX_PAGE_LIMIT,
-        ...(cursor ? { cursor } : {}),
-      });
-      const remainingGroups = MAX_GROUP_INBOX_ENTRIES - inboxGroups.length;
-      inboxGroups.push(...inboxPage.items.slice(0, remainingGroups));
-      scannedPages += 1;
-
-      if (!inboxPage.hasMore || !inboxPage.nextCursor || inboxPage.nextCursor === cursor) {
-        break;
-      }
-      cursor = inboxPage.nextCursor;
-    }
-
-    const knownGroupIds = new Set(inboxGroups.map((group) => group.id));
-    const missingConversationEntries = await this.listMissingConversationGroupEntries(knownGroupIds);
-    const missingConversationGroups = await this.hydrateConversationEntryGroups(missingConversationEntries);
-    const missingGroupsWithMemberState = await mapWithConcurrencyLimit(
-      missingConversationGroups,
-      GROUP_LIST_HYDRATION_CONCURRENCY,
-      async (group) => this.withMemberState(group),
-    );
-    return [...inboxGroups, ...missingGroupsWithMemberState]
-      .sort((left, right) => right.updatedAt - left.updatedAt);
+    const page = await this.listGroupsPage({ pageSize: GROUP_INBOX_PAGE_LIMIT });
+    return page.items;
   }
 
   async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {
-    const groupIds: string[] = [];
-    await forEachCursorPage(
-      (cursor) => this.listConversationGroupEntriesPage(cursor),
-      (entries) => {
-        for (const entry of entries) {
-          groupIds.push(entry.conversationId);
-        }
-      },
-      { maxItems: MAX_GROUP_CONVERSATION_ENTRIES },
-    );
-    const changes = await mapWithConcurrencyLimit(
-      groupIds,
-      GROUP_LIST_HYDRATION_CONCURRENCY,
-      async (groupId): Promise<GroupMemberSyncChange> => {
-        const state = await this.syncMemberViewState(groupId, false);
-        return {
-          ...state,
-          groupId,
-        };
-      },
-    );
-
-    return changes.sort((left, right) => left.groupId.localeCompare(right.groupId));
+    return [];
   }
 
   private async withMemberState(group: Chat): Promise<Chat> {
@@ -667,7 +578,7 @@ class SdkworkGroupService implements GroupService {
       id: targetUserId,
       name: targetUser.name,
     });
-    const currentUserId = contactService.getCurrentUser().id;
+    const currentUserId = this.resolveCurrentUserId().trim();
     return this.chatClient.sendMessage(
       directChat.id,
       buildGroupInviteUrl(group.id),
@@ -732,8 +643,12 @@ class SdkworkGroupService implements GroupService {
 
 }
 
-export function createSdkworkGroupService(getClient?: () => ImSdkClient, chatClient?: ChatService): GroupService {
-  return new SdkworkGroupService(getClient, chatClient);
+export function createSdkworkGroupService(
+  getClient?: () => ImSdkClient,
+  chatClient?: ChatService,
+  getSession?: () => SdkworkChatSession | null,
+): GroupService {
+  return new SdkworkGroupService(getClient, chatClient, getSession);
 }
 
 export const groupService = createSdkworkGroupService();

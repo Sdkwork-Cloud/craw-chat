@@ -240,6 +240,20 @@ fn envelope_payload_json(envelope: CcpEnvelope) -> Value {
     serde_json::from_str(envelope.payload.as_str()).expect("ccp payload should be valid json")
 }
 
+fn assert_server_trace_contract(payload: &Value, label: &str) {
+    assert!(
+        payload.get("requestId").is_none(),
+        "{label} must not expose the legacy correlation field: {payload:?}"
+    );
+    assert!(
+        payload
+            .get("traceId")
+            .and_then(Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty()),
+        "{label} must expose server traceId: {payload:?}"
+    );
+}
+
 async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64) {
     let request = ClientRequestBuilder::new(url.parse().expect("websocket url should parse"))
         .with_sub_protocol(CCP_WS_SUBPROTOCOL)
@@ -341,7 +355,7 @@ async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64
     )
 }
 
-async fn sync_subscription(device: &mut ConnectedDevice, request_id: &str) -> f64 {
+async fn sync_subscription(device: &mut ConnectedDevice) -> f64 {
     let started = Instant::now();
     device
         .socket
@@ -350,7 +364,6 @@ async fn sync_subscription(device: &mut ConnectedDevice, request_id: &str) -> f6
             "cmd",
             json!({
                 "type": "subscriptions.sync",
-                "requestId": request_id,
                 "items": [
                     {
                         "scopeType": "conversation",
@@ -364,11 +377,11 @@ async fn sync_subscription(device: &mut ConnectedDevice, request_id: &str) -> f6
         .expect("subscription sync frame should send");
     let synced = envelope_payload_json(decode_ccp_envelope(next_message(&mut device.socket).await));
     assert_eq!(synced["type"], "subscriptions.synced");
-    assert_eq!(synced["requestId"], request_id);
+    assert_server_trace_contract(&synced, "subscriptions.synced");
     started.elapsed().as_secs_f64() * 1000.0
 }
 
-async fn ack_device(device: &mut ConnectedDevice, request_id: &str, acked_seq: u64) -> f64 {
+async fn ack_device(device: &mut ConnectedDevice, acked_seq: u64) -> f64 {
     let started = Instant::now();
     device
         .socket
@@ -377,7 +390,6 @@ async fn ack_device(device: &mut ConnectedDevice, request_id: &str, acked_seq: u
             "ack",
             json!({
                 "type": "events.ack",
-                "requestId": request_id,
                 "ackedSeq": acked_seq
             }),
         ))
@@ -385,14 +397,13 @@ async fn ack_device(device: &mut ConnectedDevice, request_id: &str, acked_seq: u
         .expect("ack frame should send");
     let acked = envelope_payload_json(decode_ccp_envelope(next_message(&mut device.socket).await));
     assert_eq!(acked["type"], "events.acked");
-    assert_eq!(acked["requestId"], request_id);
+    assert_server_trace_contract(&acked, "events.acked");
     assert_eq!(acked["ack"]["ackedThroughSeq"], acked_seq);
     started.elapsed().as_secs_f64() * 1000.0
 }
 
 async fn pull_client_route_window(
     device: &mut ConnectedDevice,
-    request_id: &str,
     after_seq: u64,
     limit: usize,
 ) -> (Value, f64) {
@@ -404,7 +415,6 @@ async fn pull_client_route_window(
             "cmd",
             json!({
                 "type": "events.pull",
-                "requestId": request_id,
                 "afterSeq": after_seq,
                 "limit": limit
             }),
@@ -413,7 +423,7 @@ async fn pull_client_route_window(
         .expect("pull frame should send");
     let window = envelope_payload_json(decode_ccp_envelope(next_message(&mut device.socket).await));
     assert_eq!(window["type"], "event.window");
-    assert_eq!(window["requestId"], request_id);
+    assert_server_trace_contract(&window, "event.window");
     assert_eq!(window["reason"], "pull");
     (window, started.elapsed().as_secs_f64() * 1000.0)
 }
@@ -462,6 +472,7 @@ async fn next_push_window(device: &mut ConnectedDevice) -> (Value, f64) {
     let started = Instant::now();
     let pushed = envelope_payload_json(decode_ccp_envelope(next_message(&mut device.socket).await));
     assert_eq!(pushed["type"], "event.window");
+    assert_server_trace_contract(&pushed, "event.window");
     assert_eq!(pushed["reason"], "push");
     (pushed, started.elapsed().as_secs_f64() * 1000.0)
 }
@@ -483,6 +494,7 @@ async fn next_catchup_window(device: &mut ConnectedDevice) -> Value {
     let catchup =
         envelope_payload_json(decode_ccp_envelope(next_message(&mut device.socket).await));
     assert_eq!(catchup["type"], "event.window");
+    assert_server_trace_contract(&catchup, "event.window");
     assert_eq!(catchup["reason"], "catchup");
     catchup
 }
@@ -603,9 +615,7 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
 
     let mut subscribe_latencies_ms = Vec::with_capacity(devices.len());
     for device in &mut devices {
-        subscribe_latencies_ms.push(
-            sync_subscription(device, format!("req_sync_{}", device.device_id).as_str()).await,
-        );
+        subscribe_latencies_ms.push(sync_subscription(device).await);
     }
 
     let candidate_device_ids = devices
@@ -646,14 +656,7 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
     let mut ack_latencies_ms = Vec::new();
     let ack_seq = baseline.websocket_e2e.ack_checkpoint_seq;
     for device in &mut devices {
-        ack_latencies_ms.push(
-            ack_device(
-                device,
-                format!("req_ack_{}", device.device_id).as_str(),
-                ack_seq,
-            )
-            .await,
-        );
+        ack_latencies_ms.push(ack_device(device, ack_seq).await);
     }
 
     let disconnect_started = Instant::now();
@@ -701,7 +704,7 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
     append_window_realtime_seqs(&catchup_window, &mut restored_seqs);
 
     let (backlog_tail_window, backlog_pull_ms) =
-        pull_client_route_window(&mut reconnected, "req_pull_backlog_primary", 0, 1_000).await;
+        pull_client_route_window(&mut reconnected, 0, 1_000).await;
     let backlog_restore_ms = backlog_restore_started.elapsed().as_secs_f64() * 1000.0;
     append_window_realtime_seqs(&backlog_tail_window, &mut restored_seqs);
     while restored_seqs.last().copied().unwrap_or_default()
@@ -711,6 +714,7 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
             next_message(&mut reconnected.socket).await,
         ));
         assert_eq!(buffered_window["type"], "event.window");
+        assert_server_trace_contract(&buffered_window, "event.window");
         assert_eq!(buffered_window["reason"], "push");
         append_window_realtime_seqs(&buffered_window, &mut restored_seqs);
     }

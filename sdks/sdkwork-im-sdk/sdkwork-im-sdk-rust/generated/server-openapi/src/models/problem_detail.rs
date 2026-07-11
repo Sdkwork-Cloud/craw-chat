@@ -23,6 +23,15 @@ pub struct ProblemDetail {
     #[serde(rename = "traceId")]
     pub trace_id: String,
 
+    /// Optional stable localization key such as errors.result.40001.
+    #[serde(rename = "i18nKey")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub i18n_key: Option<String>,
+
+    /// Optional effective BCP 47 locale used by framework message mapping.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<FieldError>>,
 }

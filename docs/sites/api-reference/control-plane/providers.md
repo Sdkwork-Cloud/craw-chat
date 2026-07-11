@@ -42,10 +42,12 @@ bindings resolved by the registry.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-provider-bindings"></a>
@@ -84,10 +86,12 @@ Reads effective provider bindings for the deployment scope or a tenant override 
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="upsert-provider-binding-policy"></a>
@@ -122,8 +126,12 @@ Writes a deployment-level or tenant-level provider binding policy entry.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `409` | `provider_policy_version_conflict` | `expectedBaseVersion` does not match the latest policy version. |
-| `404` | `provider_plugin_not_found` | The referenced plugin is not present in the registry. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 
@@ -157,10 +165,12 @@ Returns provider policy history.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-provider-policy-diff"></a>
@@ -200,10 +210,12 @@ Compares two provider policy versions.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="preview-provider-policy"></a>
@@ -242,12 +254,12 @@ Uses the same request schema as `POST /backend/v3/api/control/provider_bindings`
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `invalid_provider_policy` | The mutation payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found`, `provider_plugin_not_found` | The requested node, plugin, or target resource does not exist. |
-| `409` | `*_conflict`, `provider_policy_conflict` | Current control-plane state blocks the mutation. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="rollback-provider-policy"></a>
@@ -288,11 +300,11 @@ Rolls back the provider policy history to a specific version.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `invalid_provider_policy` | The mutation payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found`, `provider_plugin_not_found` | The requested node, plugin, or target resource does not exist. |
-| `409` | `*_conflict`, `provider_policy_conflict` | Current control-plane state blocks the mutation. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

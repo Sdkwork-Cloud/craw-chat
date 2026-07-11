@@ -27,7 +27,7 @@ message CallerContext {
 }
 
 message RequestMetadata {
-  string request_id = 1;
+  string trace_id = 1;
   string traceparent = 2;
   string idempotency_key = 3;
   string request_hash = 4;
@@ -37,7 +37,7 @@ message RequestMetadata {
 }
 
 message ResponseMetadata {
-  string request_id = 1;
+  string trace_id = 1;
   string traceparent = 2;
   string server_time = 3;
   repeated string warnings = 4;

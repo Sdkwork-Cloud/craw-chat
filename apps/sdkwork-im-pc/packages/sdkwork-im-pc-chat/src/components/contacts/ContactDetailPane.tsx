@@ -40,19 +40,25 @@ export const ContactDetailPane: React.FC<{
   }, [user.id, user.name]);
 
   useEffect(() => {
-    contactService.getStarredContacts()
-      .then((starred) => {
-        setIsStarred(starred.some((starredUser) => starredUser.id === user.id));
-      })
-      .catch(() => setIsStarred(false));
-  }, [user.id]);
-
-  useEffect(() => {
+    let isStale = false;
     contactService.getContactPreferences(user.id)
       .then((preferences) => {
+        if (isStale) {
+          return;
+        }
+        setIsStarred(Boolean(preferences.isStarred));
         setIsBlocked(Boolean(preferences.isBlocked));
       })
-      .catch(() => setIsBlocked(false));
+      .catch(() => {
+        if (isStale) {
+          return;
+        }
+        setIsStarred(false);
+        setIsBlocked(false);
+      });
+    return () => {
+      isStale = true;
+    };
   }, [user.id]);
 
   const handleToggleStar = async () => {

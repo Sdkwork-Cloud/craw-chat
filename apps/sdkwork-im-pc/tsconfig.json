@@ -33,11 +33,11 @@
       "react-router-dom": [
         "./node_modules/react-router-dom/dist/index.d.ts"
       ],
-      "@sdkwork-internal/im-app-api-generated": [
-        "../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      "@sdkwork/im-app-sdk": [
+        "../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/src/index.ts"
       ],
-      "@sdkwork-internal/im-backend-api-generated": [
-        "../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+      "@sdkwork/im-backend-sdk": [
+        "../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/agents-app-sdk": [
         "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts"
@@ -73,7 +73,7 @@
         "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/voice-app-sdk": [
-        "../../../sdkwork-voice/sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-voice/sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/knowledgebase-app-sdk": [
         "../../../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/src/index.ts"
@@ -159,11 +159,8 @@
       "@sdkwork/membership-app-sdk": [
         "../../../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts"
       ],
-      "sdkwork-mail-app-sdk-generated-typescript": [
-        "../../../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/generated/server-openapi/src/index.ts"
-      ],
-      "sdkwork-community-app-sdk-generated-typescript": [
-        "../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      "@sdkwork/mail-app-sdk": [
+        "../../../sdkwork-mail/sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/community-app-sdk": [
         "../../../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts"
@@ -184,16 +181,13 @@
         "../../../sdkwork-community/apps/sdkwork-community-common/packages/sdkwork-community-contracts/src/index.ts"
       ],
       "@sdkwork/course-app-sdk": [
-        "../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/course-backend-sdk": [
-        "../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/im-sdk": [
         "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/im-sdk-generated": [
-        "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/rtc-sdk": [
         "../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"

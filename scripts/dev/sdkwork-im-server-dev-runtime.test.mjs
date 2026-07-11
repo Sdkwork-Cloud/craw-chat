@@ -85,19 +85,21 @@ assert.equal(
 );
 
 const reservedDrivePortBindEnv = await resolveSdkworkImServerBindEnv({
-  env: {},
-  isPortAvailable: async (port) => port >= 18080,
+  env: {
+    SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
+  },
+  isPortAvailable: async (port) => port >= 28080,
   maxAttempts: 3,
 });
 assert.equal(
   reservedDrivePortBindEnv.bindAddr,
-  '127.0.0.1:18081',
-  'pnpm dev:server must skip 18080 because the default Drive app-api dependency binds there',
+  '127.0.0.1:28081',
+  'pnpm dev:server must skip reserved internal runtime ports',
 );
 assert.equal(
   reservedDrivePortBindEnv.portChanged,
   true,
-  'pnpm dev:server must report the reserved Drive port skip as an automatic port fallback',
+  'pnpm dev:server must report reserved internal runtime port skips as automatic port fallback',
 );
 
 const explicitBindEnv = await resolveSdkworkImServerBindEnv({

@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "im-adapters-redis-cache",
+    "displayName": "IM Redis Cache Adapter",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/adapters/redis-cache",
+    "domain": "communication",
+    "capability": "realtime-cache",
+    "status": "standardizing",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable adapter contract and dependency direction."
+    },
+    {
+      "file": "CACHE_SPEC.md",
+      "path": "../../../sdkwork-specs/CACHE_SPEC.md",
+      "purpose": "Redis cache, namespace, timeout, and failure-mode rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration and secret-safe environment rules."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "Standalone and cloud Redis runtime requirements."
+    },
+    {
+      "file": "OBSERVABILITY_SPEC.md",
+      "path": "../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "purpose": "Bounded Redis diagnostics, metrics, and secret redaction rules."
+    },
+    {
+      "file": "PERFORMANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "purpose": "Timeout, concurrency, latency, and capacity rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Redis credential and cluster event integrity rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and public adapter boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork component and Rust naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust async, error, and module rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Adapter unit, contract, timeout, and failure-path verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-repository",
+    "publicExports": [
+      "im_adapters_redis_cache::RedisClusterBus",
+      "im_adapters_redis_cache::RedisBackedRouteStore",
+      "im_adapters_redis_cache::RedisCacheConfig",
+      "im_adapters_redis_cache::RedisCachePool",
+      "im_adapters_redis_cache::RedisFixedWindowRateLimiter",
+      "im_adapters_redis_cache::RedisIpBlockStore",
+      "im_adapters_redis_cache::RedisJwtReplayStore",
+      "im_adapters_redis_cache::RedisRealtimeCheckpointStore",
+      "im_adapters_redis_cache::RedisRealtimeEventWindowStore",
+      "im_adapters_redis_cache::RedisRtcStateConfig",
+      "im_adapters_redis_cache::RedisRtcStateStore",
+      "im_adapters_redis_cache::RedisSeqAllocator",
+      "im_adapters_redis_cache::RedisSignalRateLimiter"
+    ],
+    "providedPorts": [
+      {
+        "name": "realtimeClusterEventBus",
+        "export": "im_adapters_redis_cache::RedisClusterBus"
+      },
+      {
+        "name": "realtimeRouteStore",
+        "export": "im_adapters_redis_cache::RedisBackedRouteStore"
+      },
+      {
+        "name": "redisCachePool",
+        "export": "im_adapters_redis_cache::RedisCachePool"
+      },
+      {
+        "name": "gatewayFixedWindowRateLimiter",
+        "export": "im_adapters_redis_cache::RedisFixedWindowRateLimiter"
+      },
+      {
+        "name": "rtcStateStore",
+        "export": "im_adapters_redis_cache::RedisRtcStateStore"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [
+      "SDKWORK_IM_ENVIRONMENT",
+      "SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_URL",
+      "SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_CONNECT_TIMEOUT_MS",
+      "SDKWORK_IM_GATEWAY_RATE_LIMIT_REDIS_COMMAND_TIMEOUT_MS",
+      "SDKWORK_IM_JWT_REPLAY_REDIS_URL",
+      "SDKWORK_IM_REDIS_ENABLED",
+      "SDKWORK_IM_REDIS_URL",
+      "SDKWORK_IM_REDIS_CONNECT_TIMEOUT_MS",
+      "SDKWORK_IM_REDIS_COMMAND_TIMEOUT_MS"
+    ]
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. This component adapts Redis to communication runtime ports and does not own durable business facts.",
+    "dependencyPolicy": "Runtime bootstrap injects Redis URLs and consumes only the crate-root adapter exports declared above.",
+    "sdkPolicy": "This adapter neither owns nor consumes generated HTTP SDKs.",
+    "languagePolicy": "Rust source follows Cargo workspace dependencies and bounded asynchronous Redis I/O."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p im-adapters-redis-cache"
+    ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im",
+    "standardVersion": "2026-07-10"
+  }
+}

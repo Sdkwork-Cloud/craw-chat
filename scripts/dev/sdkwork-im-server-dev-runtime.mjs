@@ -5,8 +5,8 @@ const DEFAULT_SERVER_HOST = '127.0.0.1';
 const DEFAULT_SERVER_PORT = 18079;
 const DEFAULT_MAX_SERVER_PORT_ATTEMPTS = 50;
 const DEFAULT_RESERVED_SERVER_PORTS = new Set([
-  18080, // session-gateway when started as a separate internal upstream
-  18081, // governance-service default bind (see governance-service-bin)
+  28080, // session-gateway internal runtime when launched independently
+  28081, // governance-service internal runtime when launched independently
 ]);
 const APPLICATION_PUBLIC_INGRESS_BIND_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND';
 const APPLICATION_PUBLIC_HTTP_URL_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL';

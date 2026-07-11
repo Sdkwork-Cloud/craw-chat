@@ -4,8 +4,8 @@ import {
   SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT,
   resolvePersistedLanguage,
 } from '@sdkwork/im-pc-commons';
-import zhCN from './locales/zh-CN/settings.json';
-import enUS from './locales/en-US/settings.json';
+import zhCN from './zh-CN/communication/im-console-settings/settings.json';
+import enUS from './en-US/communication/im-console-settings/settings.json';
 
 const SUPPORTED_LANGUAGES = ['zh-CN', 'en-US'] as const;
 type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];

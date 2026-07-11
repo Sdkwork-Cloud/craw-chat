@@ -43,8 +43,8 @@ export function ensureImSdkGeneratedTransportBuilt({ quiet = false } = {}) {
     const details = [result.stdout, result.stderr].filter(Boolean).join('\n').trim();
     throw new Error(
       details
-        ? `failed to build @sdkwork/im-sdk-generated transport:\n${details}`
-        : 'failed to build @sdkwork/im-sdk-generated transport',
+        ? `failed to build sdkwork-im-sdk-generated-typescript transport:\n${details}`
+        : 'failed to build sdkwork-im-sdk-generated-typescript transport',
     );
   }
 

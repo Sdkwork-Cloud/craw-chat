@@ -21,7 +21,7 @@ Sdkwork IM already ships:
 
 All three RPC hosts use `sdkwork-rpc-framework` (`sdkwork-rpc-server`, `sdkwork-rpc-discovery`, `sdkwork-rpc-client`, `sdkwork-rpc-core`) and support optional discovery registration via `SDKWORK_IM_DISCOVERY_ENDPOINT`. When the env var is unset, registration returns `Ok(None)` and the host runs in standalone mode.
 
-Split-deploy routing still uses static topology env vars (`configs/topology/`) as the primary fallback until Phase 2 discovery ships. Gateway upstream URLs currently cover HTTP only; RPC upstream configuration is deferred until business services consume RPC clients.
+Cloud internal routing still uses static topology env vars (`configs/topology/`) as the primary fallback until Phase 2 discovery ships. Gateway upstream URLs currently cover HTTP only; RPC upstream configuration is deferred until business services consume RPC clients.
 
 The sibling `sdkwork-discovery` product control plane remains available for Phase 2 integration.
 
@@ -66,13 +66,13 @@ Gate: `cargo test -p sdkwork-im-rpc-service-rust`, `pnpm test:rpc-contract`.
 
 ### Phase 2 — Discovery registration
 
-After Phase 1 host runs in split-services topology:
+After Phase 1 RPC hosts run in the cloud profile:
 
 1. Add `sdkwork-discovery` sibling checkout to `sdkwork.workflow.json` (same pattern as `sdkwork-web-framework`).
 2. Add workspace dependency on `sdkwork-discovery-rpc-sdk` (or generated Rust client crate) for registration client only.
 3. On RPC host bootstrap:
    - Register instance with namespace `communication`, service name = canonical `service_id` (e.g. `comms-conversation-service`).
-   - Publish labels: `grpc_url`, `profile_id`, `deployment_mode`, `schema_version`.
+   - Publish labels: `grpc_url`, `profile_id`, `deployment_profile`, `runtime_target`, `schema_version`.
    - Renew lease on interval; deregister on graceful shutdown.
 4. Use `SDKWORK_DISCOVERY_*` env overlay per sibling README; production requires PostgreSQL storage and signed service tokens.
 5. IM database tables remain prefixed `im_`; discovery uses `discovery_` prefix in its own database (`DATABASE_SPEC.md` §33.3).
@@ -102,7 +102,7 @@ Legacy folder names (`social-service`, `space-service`) may appear as registrati
 ## Alternatives
 
 1. **Integrate discovery now with HTTP-only services** — rejected: no registrable gRPC endpoints; adds moving parts without callers.
-2. **Skip discovery; permanent static gRPC URLs** — rejected for cloud split-services; acceptable only for unified-process dev smoke.
+2. **Skip discovery; permanent static gRPC URLs** — rejected for cloud scale-out; acceptable only for standalone dev smoke.
 3. **Embed registry in IM gateway** — rejected: violates platform boundary; discovery is a sibling product.
 
 ## Consequences

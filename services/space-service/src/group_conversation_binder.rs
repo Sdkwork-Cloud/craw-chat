@@ -5,6 +5,7 @@ pub struct CreateSpaceGroupConversationInput {
     pub tenant_id: String,
     pub organization_id: String,
     pub conversation_id: String,
+    pub group_name: String,
     pub creator_user_id: String,
     pub max_members: i32,
 }

@@ -31,7 +31,7 @@ pub struct StoredMessageRecord {
 pub struct MessageWindow {
     pub items: Vec<StoredMessageRecord>,
     pub high_watermark: u64,
-    pub next_after_seq: Option<u64>,
+    pub next_before_seq: Option<u64>,
     pub has_more: bool,
 }
 
@@ -69,15 +69,15 @@ pub trait MessageStore: Send + Sync {
     /// 读取消息窗口（分页查询）
     ///
     /// SELECT ... FROM im_conversation_messages
-    /// WHERE tenant_id=$1 AND organization_id=$2 AND conversation_id=$3 AND message_seq > $4
+    /// WHERE tenant_id=$1 AND organization_id=$2 AND conversation_id=$3 AND message_seq < $4
     /// AND (retention_until IS NULL OR retention_until > NOW())
-    /// ORDER BY message_seq ASC LIMIT $5
-    fn read_window(
+    /// ORDER BY message_seq DESC LIMIT $5
+    fn read_history_window(
         &self,
         tenant_id: &str,
         organization_id: &str,
         conversation_id: &str,
-        after_seq: u64,
+        before_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageWindow, ContractError>;
 

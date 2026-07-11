@@ -37,8 +37,8 @@ Returns projection replay state and replay lag metrics.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>

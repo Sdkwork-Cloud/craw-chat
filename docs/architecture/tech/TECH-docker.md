@@ -4,7 +4,7 @@
 # Docker
 
 Docker deployment is optional for container validation. The authoritative development entry is
-`pnpm dev` with topology profile `standalone.unified-process.development`.
+`pnpm dev` with topology profile `standalone.development`.
 
 The formal packaged install contract is [Server Lifecycle](/deployment/server-lifecycle) using
 `deployments/templates/server.env.example` and `sdkwork-im-server`.
@@ -38,7 +38,7 @@ curl http://127.0.0.1:18079/healthz
 
 ## Production Container Notes
 
-Production container images should bind application ingress using topology v2 keys:
+Production container images should bind application ingress using topology v4 keys:
 
 - `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL`
 - `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL`
@@ -54,4 +54,3 @@ See [Profiles and Environment](/deployment/profiles-and-env) and
 - [Profiles and Environment](/deployment/profiles-and-env)
 - [Quick Start](/getting-started/quick-start)
 - [Server Lifecycle](/deployment/server-lifecycle)
-

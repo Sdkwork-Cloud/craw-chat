@@ -6,10 +6,24 @@ import {
   type ReactNode,
 } from "react";
 
-import enUS from "./locales/en-US.json";
-import zhCN from "./locales/zh-CN.json";
+import enUSAppNotFound from "./en-US/communication/im-h5-commons/app-not-found.json";
+import enUSChatConversation from "./en-US/communication/im-h5-commons/chat-conversation.json";
+import enUSChatInbox from "./en-US/communication/im-h5-commons/chat-inbox.json";
+import zhCNAppNotFound from "./zh-CN/communication/im-h5-commons/app-not-found.json";
+import zhCNChatConversation from "./zh-CN/communication/im-h5-commons/chat-conversation.json";
+import zhCNChatInbox from "./zh-CN/communication/im-h5-commons/chat-inbox.json";
 
 type LocaleId = "en-US" | "zh-CN";
+const enUS = {
+  ...enUSChatInbox,
+  ...enUSChatConversation,
+  ...enUSAppNotFound,
+};
+const zhCN = {
+  ...zhCNChatInbox,
+  ...zhCNChatConversation,
+  ...zhCNAppNotFound,
+};
 type MessageKey = keyof typeof enUS;
 type MessageValues = Record<string, string | number>;
 

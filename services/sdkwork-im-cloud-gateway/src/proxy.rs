@@ -7,12 +7,13 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use sdkwork_im_api_registry::{HttpMethod, RouteProtocol};
-use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, is_assembly_embedded_im_service};
+use sdkwork_im_cloud_gateway_config::is_assembly_embedded_im_service;
 
 use crate::client::resolve_max_http_request_body_bytes;
 use crate::response::{
-    build_proxy_response, is_sdkwork_context_projection_header, json_error_response,
-    map_http_method,
+    build_proxy_response, is_sdkwork_context_projection_header,
+    json_error_response_with_correlation, map_http_method, new_gateway_trace_id,
+    problem_correlation_for_parts,
 };
 use crate::runtime::{
     delegate_to_runtime_router, dispatch_embedded_session_gateway_if_configured,
@@ -42,14 +43,7 @@ pub(crate) async fn proxy_get_request(
     {
         return match websocket_upgrade {
             Ok(websocket_upgrade) => {
-                proxy_websocket_request(
-                    websocket_upgrade,
-                    request,
-                    &state,
-                    route.service_id.as_str(),
-                    route.websocket_subprotocols.as_slice(),
-                )
-                .await
+                proxy_websocket_request(websocket_upgrade, request, &state, route).await
             }
             Err(rejection) => rejection.into_response(),
         };
@@ -73,9 +67,19 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
     };
 
     let Some(registry_method) = map_http_method(request.method()) else {
-        return json_error_response(
+        let method_str = request.method().as_str().to_owned();
+        let path_str = request.uri().path().to_owned();
+        let trace_id = new_gateway_trace_id();
+        let correlation = problem_correlation_for_parts(
+            method_str.as_str(),
+            path_str.as_str(),
+            trace_id.as_str(),
+            None,
+        );
+        return json_error_response_with_correlation(
             StatusCode::METHOD_NOT_ALLOWED,
             "gateway does not support proxying this method",
+            correlation,
         );
     };
     let Some(route) = state
@@ -98,20 +102,29 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
             path = %request.uri().path(),
             "request rejected by circuit breaker for {service_id}"
         );
-        return json_error_response(
+        let method_str = request.method().as_str().to_owned();
+        let path_str = request.uri().path().to_owned();
+        let trace_id = new_gateway_trace_id();
+        let correlation = problem_correlation_for_parts(
+            method_str.as_str(),
+            path_str.as_str(),
+            trace_id.as_str(),
+            Some(route),
+        );
+        return json_error_response_with_correlation(
             StatusCode::SERVICE_UNAVAILABLE,
             format!(
                 "upstream service {service_id} is temporarily unavailable. Please retry later."
             )
             .as_str(),
+            correlation,
         );
     }
     let Some(upstream_base_url) = state.config.upstream_base_url(service_id.as_str()) else {
-        if state.config.runtime_mode == GatewayRuntimeMode::Unified
-            && (is_assembly_embedded_im_service(service_id.as_str())
-                || sdkwork_im_cloud_gateway_config::is_standalone_embedded_dependency_service(
-                    service_id.as_str(),
-                ))
+        if is_assembly_embedded_im_service(service_id.as_str())
+            || sdkwork_im_cloud_gateway_config::is_standalone_embedded_dependency_service(
+                service_id.as_str(),
+            )
         {
             let (parts, body) = request.into_parts();
             return delegate_to_runtime_router(
@@ -120,12 +133,31 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
             )
             .await;
         }
-        return json_error_response(
+        let method_str = request.method().as_str().to_owned();
+        let path_str = request.uri().path().to_owned();
+        let trace_id = new_gateway_trace_id();
+        let correlation = problem_correlation_for_parts(
+            method_str.as_str(),
+            path_str.as_str(),
+            trace_id.as_str(),
+            Some(route),
+        );
+        return json_error_response_with_correlation(
             StatusCode::BAD_GATEWAY,
             format!("upstream target is not configured for {service_id}").as_str(),
+            correlation,
         );
     };
+    let method_str = request.method().as_str().to_owned();
+    let path_str = request.uri().path().to_owned();
+    let trace_id = new_gateway_trace_id();
     let (parts, body) = request.into_parts();
+    let correlation = problem_correlation_for_parts(
+        method_str.as_str(),
+        path_str.as_str(),
+        trace_id.as_str(),
+        Some(route),
+    );
     let method = parts.method;
     let headers = parts.headers;
     let uri = parts.uri;
@@ -156,9 +188,10 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
             } else {
                 StatusCode::BAD_REQUEST
             };
-            return json_error_response(
+            return json_error_response_with_correlation(
                 status,
                 format!("gateway failed to read request body: {error}").as_str(),
+                correlation,
             );
         }
     };
@@ -171,13 +204,14 @@ pub(crate) async fn proxy_request(State(state): State<GatewayState>, request: Re
             } else {
                 state.circuit_breakers.record_success(service_id.as_str());
             }
-            build_proxy_response(service_id.as_str(), upstream_response).await
+            build_proxy_response(service_id.as_str(), upstream_response, correlation).await
         }
         Err(error) => {
             state.circuit_breakers.record_failure(service_id.as_str());
-            json_error_response(
+            json_error_response_with_correlation(
                 StatusCode::BAD_GATEWAY,
                 format!("gateway upstream request to {service_id} failed: {error}").as_str(),
+                correlation,
             )
         }
     }

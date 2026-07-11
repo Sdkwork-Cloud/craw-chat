@@ -42,15 +42,15 @@ export const InboxSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => (
 );
 
 /**
- * P2-22: Skeleton placeholder for the message timeline. Mimics
- * `im-h5-chat-timeline-item` — a card with a meta row (sender + time)
+ * P2-22: Skeleton placeholder for the message history. Mimics
+ * `im-h5-chat-message-history-item` — a card with a meta row (sender + time)
  * and a body text line.
  */
-export const TimelineSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) => (
+export const MessageHistorySkeleton: React.FC<{ count?: number }> = ({ count = 5 }) => (
   <div className="im-h5-skeleton-list" role="status" aria-label="Loading messages">
     {Array.from({ length: count }, (_, index) => (
-      <div key={index} className="im-h5-chat-timeline-item">
-        <div className="im-h5-chat-timeline-meta">
+      <div key={index} className="im-h5-chat-message-history-item">
+        <div className="im-h5-chat-message-history-meta">
           <Skeleton width="30%" height={12} />
           <Skeleton width={48} height={12} />
         </div>
@@ -63,11 +63,11 @@ export const TimelineSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) =>
 );
 
 /**
- * P2-22: Slim loading bar shown at the top of the timeline when fetching
+ * P2-22: Slim loading bar shown at the top of the message history when fetching
  * older messages. Replaces the text "Loading earlier messages…" to avoid
  * layout shift.
  */
-export const TimelineLoadingMoreBar: React.FC = () => (
+export const MessageHistoryLoadingMoreBar: React.FC = () => (
   <div
     role="status"
     aria-label="Loading earlier messages"

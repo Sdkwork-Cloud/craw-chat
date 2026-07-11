@@ -25,7 +25,7 @@
     "generated": true,
     "private": false,
     "manifests": [
-      ".sdkwork-assembly.json"
+      "sdk-manifest.json"
     ]
   },
   "canonicalSpecs": [
@@ -148,7 +148,7 @@
     },
     "publicExports": [],
     "runtimeEntrypoints": [
-      ".sdkwork-assembly.json"
+      "sdk-manifest.json"
     ],
     "sdkDependencies": [
       {
@@ -234,7 +234,7 @@
     ],
     "events": [],
     "configKeys": [
-      ".sdkwork-assembly.json"
+      "sdk-manifest.json"
     ],
     "routeManifest": null
   },

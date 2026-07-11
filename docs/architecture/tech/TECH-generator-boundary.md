@@ -79,7 +79,7 @@ live runtime remains a manual semantic concern.
 
 The generator boundary is also reflected in how verification is split:
 
-- root automation verification checks wrapper wiring, workspace assembly metadata, and required
+- root automation verification checks wrapper wiring, SDK manifest metadata, and required
   normalization steps
 - language workspace verification checks language-specific README contracts, package structure, and
   public boundary promises
@@ -116,4 +116,3 @@ When a new language grows beyond transport-standardized delivery, keep the rule 
   matrix and current delivery status.
 - Read [Backend SDK](/sdk/backend-sdk) when your consumer boundary is governance, control-plane, operator, or admin
   rather than the public app runtime.
-

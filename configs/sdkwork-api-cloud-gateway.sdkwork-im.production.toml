@@ -1,4 +1,4 @@
-mode = "split"
+﻿mode = "embedded"
 
 [service]
 name = "sdkwork-api-cloud-gateway"
@@ -14,7 +14,6 @@ sdkFamily = "sdkwork-iam-app-sdk"
 apiAuthority = "sdkwork-iam-app-api"
 surface = "app"
 apiPrefix = "/app/v3/api"
-runtimeMode = "split-or-embedded"
 sameOriginAllowed = true
 executableExport = "sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router"
 cargoFeature = "foundation-appbase"
@@ -23,7 +22,7 @@ coverage = "appbase-iam-routes"
 requiredBaseUrlKey = "SDKWORK_APPBASE_APP_API_BASE_URL"
 
 
-# CORS: explicit, environment-specific allowlist per SECURITY_SPEC §4.
+# CORS: explicit, environment-specific allowlist per SECURITY_SPEC 搂4.
 # Production MUST NOT use allowAnyOrigin. Browser origins serving the IM PC/H5
 # clients are enumerated; SDK/server-to-server callers are not browser-scoped.
 [cors]
@@ -68,7 +67,7 @@ maxHeaderBytes = 65536
 maxHeaderCount = 128
 rejectCredentialHeadersOnAnonymousAuthRoutes = true
 # CSRF protection is required for cookie-authenticated browser flows
-# (SECURITY_SPEC §4). The IM PC/H5 clients are browser-facing and use cookie
+# (SECURITY_SPEC 搂4). The IM PC/H5 clients are browser-facing and use cookie
 # sessions alongside bearer tokens, so the guard MUST be enabled in production.
 csrfGuardEnabled = true
 
@@ -83,7 +82,7 @@ inspectJsonBody = true
 rateLimitEnabled = true
 compatXRateLimitHeaders = true
 globalMaxInFlight = 1024
-# Per-IP token bucket for auth/mutation hot paths (SECURITY_SPEC §5).
+# Per-IP token bucket for auth/mutation hot paths (SECURITY_SPEC 搂5).
 # Login, token refresh, verification, and mutation endpoints are throttled.
 rateLimits = [
     { path = "/app/v3/api/auth/login", methods = ["POST"], requestsPerWindow = 20, windowSeconds = 60 },

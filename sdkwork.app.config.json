@@ -175,12 +175,15 @@
         {
           "id": "web-universal-cloud-browser-zip",
           "name": "Sdkwork IM Web Bundle",
-          "sourceType": "WEB_URL",
+          "sourceType": "BINARY_URL",
           "packageFormat": "ZIP",
           "platform": "WEB",
-          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/web.zip",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-web-universal-cloud-browser-zip-0.1.0.zip",
           "enabled": true,
-          "metadata": {},
+          "metadata": {
+            "workflowPlatform": "web",
+            "packageProfile": "browser"
+          },
           "checksumAlgorithm": "SHA-256",
           "checksum": null,
           "architecture": "universal",
@@ -188,49 +191,216 @@
           "runtimeTarget": "browser"
         },
         {
+          "id": "linux-x64-standalone-server-tar-gz",
+          "name": "Sdkwork IM Linux x64 Server Archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "TAR_GZ",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-x64-standalone-server-tar-gz-0.1.0.tar.gz",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "linux",
+            "packageProfile": "server"
+          },
+          "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "server"
+        },
+        {
+          "id": "linux-arm64-standalone-server-tar-gz",
+          "name": "Sdkwork IM Linux arm64 Server Archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "TAR_GZ",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-arm64-standalone-server-tar-gz-0.1.0.tar.gz",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "linux",
+            "packageProfile": "server"
+          },
+          "architecture": "arm64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "server"
+        },
+        {
+          "id": "macos-x64-standalone-server-tar-gz",
+          "name": "Sdkwork IM macOS x64 Server Archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "TAR_GZ",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-macos-x64-standalone-server-tar-gz-0.1.0.tar.gz",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "macos",
+            "packageProfile": "server"
+          },
+          "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "server"
+        },
+        {
+          "id": "macos-arm64-standalone-server-tar-gz",
+          "name": "Sdkwork IM macOS arm64 Server Archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "TAR_GZ",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-macos-arm64-standalone-server-tar-gz-0.1.0.tar.gz",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "macos",
+            "packageProfile": "server"
+          },
+          "architecture": "arm64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "server"
+        },
+        {
+          "id": "windows-x64-standalone-server-zip",
+          "name": "Sdkwork IM Windows x64 Server Archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-windows-x64-standalone-server-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "windows",
+            "packageProfile": "server"
+          },
+          "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "server"
+        },
+        {
+          "id": "windows-arm64-standalone-server-zip",
+          "name": "Sdkwork IM Windows arm64 Server Archive",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "API",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-windows-arm64-standalone-server-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "windows",
+            "packageProfile": "server"
+          },
+          "architecture": "arm64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "server"
+        },
+        {
+          "id": "linux-x64-standalone-desktop-zip",
+          "name": "Sdkwork IM Linux x64 Desktop Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "DESKTOP_LINUX",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-x64-standalone-desktop-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "linux",
+            "packageProfile": "desktop"
+          },
+          "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
+          "id": "linux-arm64-standalone-desktop-zip",
+          "name": "Sdkwork IM Linux arm64 Desktop Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "DESKTOP_LINUX",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-linux-arm64-standalone-desktop-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "linux",
+            "packageProfile": "desktop"
+          },
+          "architecture": "arm64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
+          "id": "macos-x64-standalone-desktop-zip",
+          "name": "Sdkwork IM macOS x64 Desktop Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "DESKTOP_MACOS",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-macos-x64-standalone-desktop-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "macos",
+            "packageProfile": "desktop"
+          },
+          "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
+          "id": "macos-arm64-standalone-desktop-zip",
+          "name": "Sdkwork IM macOS arm64 Desktop Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "DESKTOP_MACOS",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-macos-arm64-standalone-desktop-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "macos",
+            "packageProfile": "desktop"
+          },
+          "architecture": "arm64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
           "id": "windows-x64-standalone-desktop-zip",
-          "name": "Sdkwork IM Windows Bundle",
+          "name": "Sdkwork IM Windows x64 Desktop Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "ZIP",
           "platform": "DESKTOP_WINDOWS",
-          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/windows/x64/app.zip",
-          "enabled": true,
-          "metadata": {},
-          "architecture": "x64",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": null,
-          "deploymentProfile": "standalone",
-          "runtimeTarget": "desktop"
-        },
-        {
-          "id": "macos-universal-standalone-desktop-dmg",
-          "name": "Sdkwork IM macOS Bundle",
-          "sourceType": "BINARY_URL",
-          "packageFormat": "DMG",
-          "platform": "DESKTOP_MACOS",
-          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/macos/universal/app.dmg",
-          "enabled": true,
-          "metadata": {},
-          "architecture": "universal",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": null,
-          "deploymentProfile": "standalone",
-          "runtimeTarget": "desktop"
-        },
-        {
-          "id": "linux-x64-standalone-desktop-appimage",
-          "name": "Sdkwork IM Linux Bundle",
-          "sourceType": "BINARY_URL",
-          "packageFormat": "APPIMAGE",
-          "platform": "DESKTOP_LINUX",
-          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/linux/generic/x64/app.AppImage",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-windows-x64-standalone-desktop-zip-0.1.0.zip",
           "enabled": true,
           "metadata": {
-            "linux": {
-              "distro": "generic"
-            }
+            "workflowPlatform": "windows",
+            "packageProfile": "desktop"
           },
           "architecture": "x64",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": null,
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
+          "id": "windows-arm64-standalone-desktop-zip",
+          "name": "Sdkwork IM Windows arm64 Desktop Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "DESKTOP_WINDOWS",
+          "url": "https://cdn.sdkwork.com/apps/chat/STABLE/0.1.0/sdkwork-im-windows-arm64-standalone-desktop-zip-0.1.0.zip",
+          "enabled": true,
+          "metadata": {
+            "workflowPlatform": "windows",
+            "packageProfile": "desktop"
+          },
+          "architecture": "arm64",
           "checksumAlgorithm": "SHA-256",
           "checksum": null,
           "deploymentProfile": "standalone",
@@ -240,8 +410,7 @@
       "metadata": {
         "workspaceRoot": "apps/sdkwork-im-pc",
         "framework": "web",
-        "packageManager": "pnpm@10.0.0",
-        "migratedFromLegacyConfig": true
+        "packageManager": "pnpm@10.0.0"
       }
     }
   },
@@ -265,9 +434,18 @@
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
+          "linux-x64-standalone-server-tar-gz",
+          "linux-arm64-standalone-server-tar-gz",
+          "macos-x64-standalone-server-tar-gz",
+          "macos-arm64-standalone-server-tar-gz",
+          "windows-x64-standalone-server-zip",
+          "windows-arm64-standalone-server-zip",
+          "linux-x64-standalone-desktop-zip",
+          "linux-arm64-standalone-desktop-zip",
+          "macos-x64-standalone-desktop-zip",
+          "macos-arm64-standalone-desktop-zip",
           "windows-x64-standalone-desktop-zip",
-          "macos-universal-standalone-desktop-dmg",
-          "linux-x64-standalone-desktop-appimage"
+          "windows-arm64-standalone-desktop-zip"
         ],
         "publishedAt": "2026-05-07T00:00:00Z",
         "current": true,

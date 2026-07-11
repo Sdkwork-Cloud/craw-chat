@@ -1,4 +1,4 @@
-import type { AckResponse } from './ack-response';
+import type { CreateConversationResult } from './create-conversation-result';
 
 export interface ConversationsAgentHandoffsCreateResponse201 {
   code: 0;

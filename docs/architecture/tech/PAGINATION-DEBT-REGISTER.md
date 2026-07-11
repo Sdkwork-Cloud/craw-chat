@@ -46,7 +46,7 @@ Authority: `sdkwork-specs/PAGINATION_SPEC.md` v1.3 (§12 Pre-Launch Zero-Debt Ru
 | PAG-039 | `social-service/block.rs` — OFFSET → keyset `(created_at DESC, block_id DESC)` + `keyset_list_page` |
 | PAG-040 | `social-service/direct_chat.rs` — OFFSET → keyset `(updated_at DESC, direct_chat_id DESC)` + `keyset_list_page` |
 | SEC-001 | `projection-service/cursor_auth.rs` — added `_FILE` secret variant, removed hardcoded dev secret fallback, fail-closed on ephemeral generation failure |
-| OOM-001 | `projection-service/timeline_tier.rs` — `load_full_timeline_for_restore` safety cap (10,000 entries) prevents OOM on long-lived conversations |
+| OOM-001 | `projection-service/timeline_tier.rs` — `load_full_timeline_for_restore` safety cap (10,000 entries) bounds message-history snapshot restore for long-lived conversations |
 | PERF-001 | `sdkwork-comms-conversation-service/runtime.rs` — eviction uses `select_nth_unstable_by_key` (O(n)) instead of full sort (O(n log n)) |
 
 ## Closed in 2026-07-07 remediation pass (concurrency + security + offline)
@@ -59,17 +59,34 @@ Authority: `sdkwork-specs/PAGINATION_SPEC.md` v1.3 (§12 Pre-Launch Zero-Debt Ru
 | CONC-004 | `conversation-service` `post_message` uses `run_blocking_conversation` |
 | CONC-005 | `session-gateway` production fail-closed without PG pool + membership gate |
 | CONC-006 | `projection-service` inbox entry build snapshots stores per lock (no nested hold) |
-| CONC-007 | `projection-service` embedded apply fail-closed in production-like env |
-| CONC-008 | Desktop `offline_store` WAL + `BEGIN IMMEDIATE` transactions + pending send claim |
+| CONC-007 | `projection-service` embedded apply refined: production uses only already-initialized shared runtime (`try_shared_projection_runtime`); separated cloud services (conversation-service without projection HTTP handlers) silently no-op instead of logging misleading ERROR — journal consumer on projection-service replicas drives consistency |
+| CONC-008 | Desktop `offline_store` schema v3: four-dimensional principal isolation, WAL + `BEGIN IMMEDIATE`, blocking-pool execution, bounded cache/pending/quarantine storage, 60-second reclaimable leases, claim-token fencing, multi-batch cancellation/account-switch release, and awaited logout purge that preserves unsent rows |
 | CONC-009 | H5 IndexedDB offline queue + claim/lease + legacy sessionStorage migration |
 | CONC-010 | Flutter `shared_preferences` v2 offline queue + claim/lease |
 | CONC-011 | `session-gateway` cluster route notifier cleanup releases lock before route lookup |
+
+## Closed in 2026-07-09 projection consistency remediation pass
+
+Root cause: `projection-service` in-memory projection returned `40401` errors when a read hit a replica that had not yet consumed the journal event, because read paths had no durable-store fallback. The journal consumer also swallowed persist failures with a single best-effort `warn!`, allowing memory and durable snapshots to drift indefinitely.
+
+| ID | Resolution |
+| --- | --- |
+| CONS-001 | `projection-service/journal_consumer.rs` — durable persist now retries up to 3 times with 50/100 ms backoff (`persist_durable_state_with_retry`); total worst-case sleep (150 ms) stays below the 250 ms poll interval so the consumer never falls behind |
+| CONS-002 | `projection-service/embedded_bridge.rs` — separated cloud deployments no longer lazily build a phantom projection runtime or log misleading ERROR; `resolve_embedded_projection_service` uses `try_shared_projection_runtime` (no lazy init) in production, `apply_embedded_projection_event` returns `Ok(())` when no service is available |
+| CONS-003 | `projection-service/lib.rs` — `conversation_summary`, `member_snapshot_for_principal_kind`, `read_cursor_for_principal_kind_and_device` now fall back to durable metadata snapshots on memory miss (read-through with memory hydration) |
+| CONS-004 | `projection-service/interactions.rs` — `message_interaction_summary` no longer depends on message-history seq fallback; directly queries durable metadata store via `load_message_interaction_from_durable_store` |
+| CONS-005 | `projection-service/message_visibilities.rs` — `message_visibility_for_principal` now read-through to durable `MESSAGE_VISIBILITY_STATE_KEY` snapshot; prevents soft-deleted messages from reappearing in message history after replica restart |
+| CONS-006 | `projection-service/lib.rs` — `history_visibility_for_conversation` now read-through to durable `CONVERSATION_CATALOG_KEY` snapshot; prevents access-control policy drift after replica restart |
+| CONS-007 | `projection-service/conversation_personalization.rs` — `conversation_profile` now read-through to durable `CONVERSATION_PROFILE_KEY` snapshot; prevents empty profile after replica restart |
+| CONS-008 | `projection-service/snapshot.rs` — `restore_conversation_snapshot` treats `conversation-summary` as optional; a missing summary sub-snapshot no longer causes the entire conversation restore to be skipped |
+| CONS-009 | `projection-service/snapshot.rs` + `bootstrap.rs` - startup restores only bounded global catalogs; historical conversation scopes stay cold and hydrate through durable read-through on demand |
+| CONS-010 | `adapters/postgres-projection/metadata_store.rs` + `adapters/local-memory/lib.rs` - removed unbounded scope-enumeration APIs and the PostgreSQL `SELECT DISTINCT snapshot_scope` startup scan |
 
 ## Closed in 2026-07-06 remediation pass (pageInfo envelope)
 
 | ID | Resolution |
 | --- | --- |
-| PAG-025 | `projection-service` inbox/contacts/timeline/favorites/search — `SdkWorkPageData` + nested `pageInfo` |
+| PAG-025 | `projection-service` inbox/contacts/favorites/search/projection-tier views — `SdkWorkPageData` + nested `pageInfo` |
 | PAG-026 | `sdkwork-comms-conversation-service` members/history/inbox/pinned — `SdkWorkPageData` + `pageInfo` |
 | PAG-027 | PC `ChatService.getChats()` — bounded `forEachCursorPage` sync (max 2000) |
 | PAG-028 | PC `appSdkResponseHelpers.readCursorPageInfo` — `pageInfo` only (no root `hasMore` fallback) |
@@ -80,7 +97,7 @@ Authority: `sdkwork-specs/PAGINATION_SPEC.md` v1.3 (§12 Pre-Launch Zero-Debt Ru
 | PAG-033 | `session-gateway` HTTP realtime poll — `RealtimeEventsListData` with `pageInfo` |
 | PAG-034 | `automation_execution_store` — transactional load-merge-upsert |
 | PAG-035 | `aggregate_store` read cursors — batched SQL restore (`LIMIT 500`) |
-| PAG-036 | PC `ChatService` timeline/members — `pageInfo` only (no root `hasMore`) |
+| PAG-036 | PC `ChatService` message history/members — `pageInfo` only (no root `hasMore`) |
 | PAG-037 | `social-service` contact tags — SQL keyset `(updated_at DESC, tag_id DESC)` + signed HS256 cursor (no OFFSET) |
 | PAG-038 | PC `ContactService.getTags()` — bounded `forEachCursorPage` sync (max 200 tags) |
 

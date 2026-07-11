@@ -5,6 +5,7 @@ use sdkwork_im_websocket_auth_gate::{
 };
 
 use crate::AppState;
+use crate::trace_identity::new_server_trace_id;
 use crate::websocket_upgrade::{
     acquire_websocket_connection_permit, prepare_realtime_websocket_upgrade,
     serve_realtime_websocket_upgrade,
@@ -17,10 +18,12 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
     query_device_id: Option<String>,
     _preauth_permit: tokio::sync::OwnedSemaphorePermit,
 ) {
+    let trace_id = new_server_trace_id();
+
     let Some(auth_init) = read_websocket_auth_init_frame(&mut socket).await else {
         close_websocket_with_auth_error(
             &mut socket,
-            None,
+            &trace_id,
             "websocket_auth_required",
             "auth.init frame is required before realtime websocket frames",
         )
@@ -33,7 +36,7 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         Err(error) => {
             close_websocket_with_auth_error(
                 &mut socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 error.error_code(),
                 error.message(),
             )
@@ -51,7 +54,7 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         Err(_) => {
             close_websocket_with_auth_error(
                 &mut socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 "websocket_auth_failed",
                 "websocket auth.init token context validation failed",
             )
@@ -67,7 +70,7 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         Err(error) => {
             close_websocket_with_auth_error(
                 &mut socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 error.code,
                 error.message.as_str(),
             )
@@ -79,13 +82,8 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
     if let Err(error) =
         state.prepare_active_client_route(&auth, device_id.as_str(), "websocket", false)
     {
-        close_websocket_with_auth_error(
-            &mut socket,
-            auth_init.request_id.as_deref(),
-            error.code,
-            error.message.as_str(),
-        )
-        .await;
+        close_websocket_with_auth_error(&mut socket, &trace_id, error.code, error.message.as_str())
+            .await;
         return;
     }
 
@@ -94,7 +92,7 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         Err(error) => {
             close_websocket_with_auth_error(
                 &mut socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 error.code,
                 error.message.as_str(),
             )
@@ -103,13 +101,7 @@ pub(crate) async fn realtime_websocket_after_auth_init_frame(
         }
     };
 
-    let _ = send_websocket_auth_ok(
-        &mut socket,
-        auth_init.request_id.as_deref(),
-        &auth,
-        device_id.as_str(),
-    )
-    .await;
+    let _ = send_websocket_auth_ok(&mut socket, &trace_id, &auth, device_id.as_str()).await;
 
     let upgrade = prepare_realtime_websocket_upgrade(
         selected_protocol.as_deref(),

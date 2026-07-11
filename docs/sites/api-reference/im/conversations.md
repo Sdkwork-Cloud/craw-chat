@@ -1,13 +1,13 @@
 # Conversations and Handoff
 
 <p class="api-page-intro">
-  Conversation endpoints expose inbox reads, conversation creation, agent dialogs, system channels,
-  and the full agent-handoff state machine.
+  Conversation endpoints expose the unified inbox/list read, conversation creation, agent-dialog
+  creation, system channels, and the full agent-handoff state machine.
 </p>
 
 <div class="api-link-list">
   <a href="/api-reference/im/membership-and-read-state"><code>Membership</code> Roster mutations and read cursors are documented separately</a>
-  <a href="/api-reference/im/messages"><code>Messages</code> Timeline reads and message mutation flows live on their own page</a>
+  <a href="/api-reference/im/messages"><code>Messages</code> Message history reads and message mutation flows live on their own page</a>
   <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/im-sdk</code> and <code>im_sdk</code> map these routes into conversation helpers such as <code>sdk.conversations</code></a>
 </div>
 
@@ -43,7 +43,10 @@ module surface:
 - `sdk.conversations.publishSystemText(...)`
 
 Inbox is exposed through the TypeScript semantic module and generated transport boundary as
-`sdk.conversations.list()` and `sdk.transport.chat.inbox.list()`.
+`sdk.conversations.list()` and `sdk.transport.chat.inbox.list()`. This is the only unified
+conversation list for direct, group, system, handoff, and agent-dialog conversations.
+`POST /im/v3/api/chat/conversations/agent_dialogs` is a create/idempotency command only; clients
+must not use it as a list, retrieve, or reuse endpoint.
 
 <a id="inbox-list"></a>
 <section class="api-op">
@@ -56,7 +59,9 @@ Inbox is exposed through the TypeScript semantic module and generated transport 
   <span class="api-op-id">operationId: inbox.list</span>
 </div>
 
-Returns the cursor-paginated inbox window for the current principal.
+Returns the cursor-paginated unified conversation list for the current principal. The list is served
+by `projection-service` from the maintained inbox projection and includes ordinary human chats,
+groups, system conversations, handoffs, and agent dialogs visible to the caller.
 
 
 <div class="api-meta-grid">
@@ -104,14 +109,14 @@ Creates a regular conversation.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="CreateConversationRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="CreateConversationResult" />
 
@@ -120,12 +125,12 @@ Creates a regular conversation.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="create-agent-dialog"></a>
@@ -139,21 +144,24 @@ Creates a regular conversation.
   <span class="api-op-id">operationId: createAgentDialog</span>
 </div>
 
-Creates a one-to-one conversation with a specific agent.
+Creates a one-to-one conversation with a specific agent. Before calling this command, app clients
+should use `sdk.conversations.list()` / `GET /im/v3/api/chat/inbox` to find and reuse an existing
+agent-dialog conversation. Duplicate creates with the same idempotency key replay the original
+result; conflicting reuse of an idempotency key returns `40901`.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="CreateAgentDialogRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="CreateConversationResult" />
 
@@ -162,12 +170,12 @@ Creates a one-to-one conversation with a specific agent.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="create-agent-handoff"></a>
@@ -188,14 +196,14 @@ Creates a handoff conversation and initializes handoff state.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="CreateAgentHandoffRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="CreateConversationResult" />
 
@@ -204,12 +212,12 @@ Creates a handoff conversation and initializes handoff state.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="create-system-channel"></a>
@@ -230,14 +238,14 @@ Creates a system channel for the specified subscriber principal.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 CreateConversationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 CreateConversationResult in data.item`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="CreateSystemChannelRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="CreateConversationResult" />
 
@@ -246,12 +254,12 @@ Creates a system channel for the specified subscriber principal.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="get-conversation-summary"></a>
@@ -289,7 +297,11 @@ Reads the conversation summary projection.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `404` | `conversation_summary_not_found` | The conversation summary is not available. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -329,11 +341,11 @@ Reads the current handoff state for the conversation.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="accept-agent-handoff"></a>
@@ -376,12 +388,12 @@ None. This operation does not accept a JSON request body.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="resolve-agent-handoff"></a>
@@ -424,12 +436,12 @@ None. This operation does not accept a JSON request body.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="close-agent-handoff"></a>
@@ -472,11 +484,11 @@ None. This operation does not accept a JSON request body.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

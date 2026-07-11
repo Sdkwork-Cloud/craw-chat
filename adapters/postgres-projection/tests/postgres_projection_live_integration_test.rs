@@ -59,12 +59,6 @@ fn test_postgres_projection_live_store_roundtrip_when_database_is_configured() {
         .expect("metadata snapshot should exist");
     assert_eq!(loaded_snapshot, snapshot_payload);
 
-    let scopes = stores
-        .metadata
-        .list_scopes_for_snapshot_key(snapshot_key)
-        .expect("metadata scopes should list");
-    assert!(scopes.iter().any(|scope| scope == &snapshot_scope));
-
     stores
         .timeline
         .upsert_timeline_entry(

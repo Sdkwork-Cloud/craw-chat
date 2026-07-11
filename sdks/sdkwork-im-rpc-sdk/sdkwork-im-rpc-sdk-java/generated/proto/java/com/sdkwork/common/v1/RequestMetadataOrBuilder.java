@@ -11,16 +11,16 @@ public interface RequestMetadataOrBuilder extends
     com.google.protobuf.MessageOrBuilder {
 
   /**
-   * <code>string request_id = 1 [json_name = "requestId"];</code>
-   * @return The requestId.
+   * <code>string trace_id = 1 [json_name = "traceId"];</code>
+   * @return The traceId.
    */
-  java.lang.String getRequestId();
+  java.lang.String getTraceId();
   /**
-   * <code>string request_id = 1 [json_name = "requestId"];</code>
-   * @return The bytes for requestId.
+   * <code>string trace_id = 1 [json_name = "traceId"];</code>
+   * @return The bytes for traceId.
    */
   com.google.protobuf.ByteString
-      getRequestIdBytes();
+      getTraceIdBytes();
 
   /**
    * <code>string traceparent = 2 [json_name = "traceparent"];</code>

@@ -3,10 +3,12 @@ import 'app_session.dart';
 const _callbackKeys = <String, List<String>>{
   'accessToken': ['accessToken', 'access_token'],
   'authToken': ['authToken', 'auth_token', 'token'],
-  'tenantId': ['tenantId', 'tenant_id', 'x-sdkwork-tenant-id'],
-  'organizationId': ['organizationId', 'organization_id', 'x-sdkwork-organization-id'],
-  'userId': ['userId', 'user_id', 'x-sdkwork-user-id', 'actorId', 'actor_id'],
+  'tenantId': ['tenantId', 'tenant_id'],
+  'organizationId': ['organizationId', 'organization_id'],
+  'userId': ['userId', 'user_id'],
 };
+
+final Uri _expectedCallbackUri = Uri.parse(appbaseCallbackReturnUrl);
 
 String _readParam(Map<String, String> params, List<String> keys) {
   for (final key in keys) {
@@ -35,27 +37,35 @@ ImAppSession? parseAppbaseCallbackSession(Uri? uri) {
   if (uri == null) {
     return null;
   }
-
-  final params = uri.queryParameters;
-  final accessToken = _readParam(params, _callbackKeys['accessToken']!);
-  if (accessToken.isEmpty) {
+  if (!_isExpectedCallbackUri(uri)) {
     return null;
   }
 
+  final params = uri.queryParameters;
+  final accessToken = _readParam(params, _callbackKeys['accessToken']!);
   final authToken = _readParam(params, _callbackKeys['authToken']!);
+  final tenantId = _readParam(params, _callbackKeys['tenantId']!);
+  final organizationId = _readParam(params, _callbackKeys['organizationId']!);
+  final userId = _readParam(params, _callbackKeys['userId']!);
+  if (accessToken.isEmpty || authToken.isEmpty) {
+    return null;
+  }
+  if (tenantId.isEmpty || organizationId.isEmpty || userId.isEmpty) {
+    return null;
+  }
+
   return ImAppSession(
     accessToken: accessToken,
-    authToken: authToken.isEmpty ? accessToken : authToken,
-    tenantId: _readParam(params, _callbackKeys['tenantId']!).isEmpty
-        ? defaultAppSession.tenantId
-        : _readParam(params, _callbackKeys['tenantId']!),
-    organizationId: _readParam(params, _callbackKeys['organizationId']!).isEmpty
-        ? defaultAppSession.organizationId
-        : _readParam(params, _callbackKeys['organizationId']!),
-    userId: _readParam(params, _callbackKeys['userId']!).isEmpty
-        ? defaultAppSession.userId
-        : _readParam(params, _callbackKeys['userId']!),
+    authToken: authToken,
+    tenantId: tenantId,
+    organizationId: organizationId,
+    userId: userId,
   );
 }
+
+bool _isExpectedCallbackUri(Uri uri) =>
+    uri.scheme == _expectedCallbackUri.scheme &&
+    uri.host == _expectedCallbackUri.host &&
+    uri.path == _expectedCallbackUri.path;
 
 String get appbaseCallbackReturnUrl => 'sdkworkim://auth/callback';

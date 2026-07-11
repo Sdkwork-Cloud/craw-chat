@@ -1,4 +1,4 @@
-# Sdkwork IM — Data Protection & Privacy
+﻿# Sdkwork IM 鈥?Data Protection & Privacy
 
 Status: active  
 Owner: SDKWork maintainers  
@@ -35,8 +35,8 @@ Implementation path:
 
 ## 4. Regional Deployment
 
-- Staging profile: `cloud.split-services.staging`
-- Production profile: `cloud.split-services.production`
+- Staging profile: `cloud.staging`
+- Production profile: `cloud.production`
 
 Database and object storage residency are customer-controlled through deployment templates under `deployments/templates/`.
 

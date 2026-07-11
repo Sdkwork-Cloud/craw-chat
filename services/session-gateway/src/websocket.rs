@@ -32,6 +32,7 @@ use crate::{
     client_route_registration::ClientRouteRegistration,
     link_business_contract::{LinkClientBusinessFrame, validate_link_client_business_envelope},
     realtime::RealtimeWindowCheckpoint,
+    trace_identity::new_server_trace_id,
 };
 
 pub const CCP_WEBSOCKET_SUBPROTOCOL: &str = LINK_WEBSOCKET_SUBPROTOCOL;
@@ -41,7 +42,6 @@ pub const REALTIME_OVERLOAD_CLOSE_CODE: u16 = RUNTIME_LINK_REALTIME_OVERLOAD_CLO
 pub const REALTIME_OVERLOAD_CLOSE_REASON: &str = RUNTIME_LINK_REALTIME_OVERLOAD_CLOSE_REASON;
 const CCP_PROTOCOL_ERROR_CLOSE_REASON: &str = "ccp.protocol_error";
 const REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES: usize = 64;
-const REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES: usize = 256;
 const ROUTE_CHANGE_CLOSE_GRACE_MS: u64 = 250; // Increased from 25ms to give clients more time (P2-3 fix)
 
 // Heartbeat configuration constants for WebSocket connections
@@ -80,7 +80,6 @@ pub enum RealtimeWebsocketMode {
 struct ClientFrameEnvelope {
     #[serde(rename = "type")]
     frame_type: String,
-    request_id: Option<String>,
     #[serde(default)]
     items: Vec<RealtimeSubscriptionItemInput>,
     after_seq: Option<u64>,
@@ -92,21 +91,12 @@ struct ClientFrameEnvelope {
 
 #[derive(Debug)]
 struct ClientFrameDecodeError {
-    request_id: Option<String>,
     message: String,
 }
 
 impl ClientFrameDecodeError {
-    fn without_request_id(message: impl Into<String>) -> Self {
+    fn new(message: impl Into<String>) -> Self {
         Self {
-            request_id: None,
-            message: message.into(),
-        }
-    }
-
-    fn with_request_id(request_id: Option<String>, message: impl Into<String>) -> Self {
-        Self {
-            request_id,
             message: message.into(),
         }
     }
@@ -177,19 +167,6 @@ fn websocket_payload_too_large(
     }
 }
 
-fn validate_client_request_id(frame: &ClientFrameEnvelope) -> Result<(), RealtimeRuntimeError> {
-    if let Some(request_id) = frame.request_id.as_deref()
-        && request_id.len() > REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES
-    {
-        return Err(websocket_payload_too_large(
-            "requestId",
-            REALTIME_MAX_WEBSOCKET_REQUEST_ID_BYTES,
-            request_id.len(),
-        ));
-    }
-    Ok(())
-}
-
 fn validate_client_frame_type(frame: &ClientFrameEnvelope) -> Result<(), RealtimeRuntimeError> {
     if frame.frame_type.len() > REALTIME_MAX_WEBSOCKET_FRAME_TYPE_BYTES {
         return Err(websocket_payload_too_large(
@@ -209,10 +186,9 @@ fn validate_ccp_client_business_envelope(
         envelope,
         &LinkClientBusinessFrame {
             frame_type: frame.frame_type.clone(),
-            request_id: frame.request_id.clone(),
         },
     )
-    .map_err(|message| ClientFrameDecodeError::with_request_id(frame.request_id.clone(), message))
+    .map_err(ClientFrameDecodeError::new)
 }
 
 fn validate_ccp_control_envelope(
@@ -326,6 +302,7 @@ impl CcpWebsocketRuntime {
         route: &CcpRoute,
         frame: &ControlFrame,
     ) -> Result<(), axum::Error> {
+        let trace_id = new_server_trace_id();
         let envelope = CcpEnvelope::new(
             ccp_protocol_version(),
             TransportBinding::Ws1,
@@ -334,7 +311,7 @@ impl CcpWebsocketRuntime {
             None,
             Some(route.clone()),
             std::iter::empty::<String>(),
-            None,
+            Some(trace_id),
             serde_json::to_string(frame).expect("control frame should serialize"),
         );
         self.send_envelope(socket, &envelope).await
@@ -346,6 +323,7 @@ impl CcpWebsocketRuntime {
         route: &CcpRoute,
         kind: &str,
         schema: &str,
+        trace_id: String,
         payload: Value,
     ) -> Result<(), axum::Error> {
         let envelope = CcpEnvelope::new(
@@ -356,7 +334,7 @@ impl CcpWebsocketRuntime {
             None,
             Some(route.clone()),
             std::iter::empty::<String>(),
-            None,
+            Some(trace_id),
             payload.to_string(),
         );
         self.send_envelope(socket, &envelope).await
@@ -659,8 +637,7 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
             Ok(Ok(catchup)) => catchup,
             Ok(Err(error)) => {
                 let _ =
-                    send_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, None, &error)
-                        .await;
+                    send_runtime_error(&mut socket, wire_mode, &ccp_runtime, &route, &error).await;
                 return;
             }
             Err(join_error) => {
@@ -677,7 +654,6 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                     wire_mode,
                     &ccp_runtime,
                     &route,
-                    None,
                     &RealtimeRuntimeError {
                         code: "session_catchup_failed",
                         message: format!("session catchup blocking task failed: {join_error}"),
@@ -708,7 +684,6 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                 "cc.realtime.event.window.v1",
                 json!({
                     "type": "event.window",
-                    "requestId": serde_json::Value::Null,
                     "reason": "catchup",
                     "window": catchup
                 }),
@@ -876,7 +851,6 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                             wire_mode,
                             &ccp_runtime,
                             &route,
-                            None,
                             &error,
                         )
                         .await;
@@ -896,7 +870,6 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                             wire_mode,
                             &ccp_runtime,
                             &route,
-                            None,
                             &RealtimeRuntimeError {
                                 code: "disconnect_generation_failed",
                                 message: format!(
@@ -967,7 +940,6 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                             wire_mode,
                             &ccp_runtime,
                             &route,
-                            None,
                             &error,
                         )
                         .await;
@@ -987,7 +959,6 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
                             wire_mode,
                             &ccp_runtime,
                             &route,
-                            None,
                             &RealtimeRuntimeError {
                                 code: "disconnect_generation_failed",
                                 message: format!(
@@ -1586,7 +1557,6 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
             "cc.realtime.event.window.v1",
             json!({
                 "type": "event.window",
-                "requestId": serde_json::Value::Null,
                 "reason": "push",
                 "window": window
             }),
@@ -1676,8 +1646,7 @@ async fn handle_client_message(
                     message: error.message,
                 };
                 let _ =
-                    send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &runtime_error)
-                        .await;
+                    send_runtime_error(socket, wire_mode, ccp_runtime, route, &runtime_error).await;
                 return false;
             }
             let decoded = match decode_client_frame(message, wire_mode, ccp_runtime) {
@@ -1688,7 +1657,6 @@ async fn handle_client_message(
                         wire_mode,
                         ccp_runtime,
                         route,
-                        error.request_id,
                         "invalid_frame",
                         error.message,
                     )
@@ -1699,21 +1667,8 @@ async fn handle_client_message(
             let DecodedClientFrame::Business(frame) = decoded else {
                 return true;
             };
-            if let Err(error) = validate_client_request_id(&frame) {
-                let _ =
-                    send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &error).await;
-                return true;
-            }
             if let Err(error) = validate_client_frame_type(&frame) {
-                let _ = send_runtime_error(
-                    socket,
-                    wire_mode,
-                    ccp_runtime,
-                    route,
-                    frame.request_id,
-                    &error,
-                )
-                .await;
+                let _ = send_runtime_error(socket, wire_mode, ccp_runtime, route, &error).await;
                 return true;
             }
             if !ensure_current_route_session_for_request_or_close(
@@ -1724,7 +1679,6 @@ async fn handle_client_message(
                 wire_mode,
                 ccp_runtime,
                 route,
-                frame.request_id.clone(),
             )
             .await
             {
@@ -1757,15 +1711,9 @@ async fn handle_client_message(
                     {
                         Ok(Ok(snapshot)) => snapshot,
                         Ok(Err(error)) => {
-                            let _ = send_runtime_error(
-                                socket,
-                                wire_mode,
-                                ccp_runtime,
-                                route,
-                                frame.request_id,
-                                &error,
-                            )
-                            .await;
+                            let _ =
+                                send_runtime_error(socket, wire_mode, ccp_runtime, route, &error)
+                                    .await;
                             return true;
                         }
                         Err(join_error) => {
@@ -1782,7 +1730,6 @@ async fn handle_client_message(
                                 wire_mode,
                                 ccp_runtime,
                                 route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "sync_subscriptions_failed",
                                     message: format!(
@@ -1803,7 +1750,6 @@ async fn handle_client_message(
                         "cc.realtime.subscriptions.synced.v1",
                         json!({
                             "type": "subscriptions.synced",
-                            "requestId": frame.request_id,
                             "snapshot": snapshot
                         }),
                     )
@@ -1818,7 +1764,6 @@ async fn handle_client_message(
                             wire_mode,
                             ccp_runtime,
                             route,
-                            frame.request_id,
                             "limit_invalid",
                             "limit must be greater than 0",
                         )
@@ -1848,15 +1793,9 @@ async fn handle_client_message(
                     {
                         Ok(Ok(checkpoint)) => checkpoint.latest_realtime_seq,
                         Ok(Err(error)) => {
-                            let _ = send_runtime_error(
-                                socket,
-                                wire_mode,
-                                ccp_runtime,
-                                route,
-                                frame.request_id,
-                                &error,
-                            )
-                            .await;
+                            let _ =
+                                send_runtime_error(socket, wire_mode, ccp_runtime, route, &error)
+                                    .await;
                             return true;
                         }
                         Err(join_error) => {
@@ -1873,7 +1812,6 @@ async fn handle_client_message(
                                 wire_mode,
                                 ccp_runtime,
                                 route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "window_checkpoint_failed",
                                     message: format!(
@@ -1913,15 +1851,9 @@ async fn handle_client_message(
                     {
                         Ok(Ok(window)) => window,
                         Ok(Err(error)) => {
-                            let _ = send_runtime_error(
-                                socket,
-                                wire_mode,
-                                ccp_runtime,
-                                route,
-                                frame.request_id,
-                                &error,
-                            )
-                            .await;
+                            let _ =
+                                send_runtime_error(socket, wire_mode, ccp_runtime, route, &error)
+                                    .await;
                             return true;
                         }
                         Err(join_error) => {
@@ -1938,7 +1870,6 @@ async fn handle_client_message(
                                 wire_mode,
                                 ccp_runtime,
                                 route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "list_events_failed",
                                     message: format!(
@@ -1960,7 +1891,6 @@ async fn handle_client_message(
                         "cc.realtime.event.window.v1",
                         json!({
                             "type": "event.window",
-                            "requestId": frame.request_id,
                             "reason": "pull",
                             "window": window
                         }),
@@ -2001,7 +1931,6 @@ async fn handle_client_message(
                             wire_mode,
                             ccp_runtime,
                             route,
-                            frame.request_id,
                             "nack_through_seq_missing",
                             "nackThroughSeq or afterSeq is required",
                         )
@@ -2015,7 +1944,6 @@ async fn handle_client_message(
                             wire_mode,
                             ccp_runtime,
                             route,
-                            frame.request_id,
                             "limit_invalid",
                             "limit must be greater than 0",
                         )
@@ -2045,15 +1973,9 @@ async fn handle_client_message(
                     {
                         Ok(Ok(checkpoint)) => checkpoint.latest_realtime_seq,
                         Ok(Err(error)) => {
-                            let _ = send_runtime_error(
-                                socket,
-                                wire_mode,
-                                ccp_runtime,
-                                route,
-                                frame.request_id,
-                                &error,
-                            )
-                            .await;
+                            let _ =
+                                send_runtime_error(socket, wire_mode, ccp_runtime, route, &error)
+                                    .await;
                             return true;
                         }
                         Err(join_error) => {
@@ -2070,7 +1992,6 @@ async fn handle_client_message(
                                 wire_mode,
                                 ccp_runtime,
                                 route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "window_checkpoint_failed",
                                     message: format!(
@@ -2113,15 +2034,9 @@ async fn handle_client_message(
                     {
                         Ok(Ok(window)) => window,
                         Ok(Err(error)) => {
-                            let _ = send_runtime_error(
-                                socket,
-                                wire_mode,
-                                ccp_runtime,
-                                route,
-                                frame.request_id,
-                                &error,
-                            )
-                            .await;
+                            let _ =
+                                send_runtime_error(socket, wire_mode, ccp_runtime, route, &error)
+                                    .await;
                             return true;
                         }
                         Err(join_error) => {
@@ -2138,7 +2053,6 @@ async fn handle_client_message(
                                 wire_mode,
                                 ccp_runtime,
                                 route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "list_events_failed",
                                     message: format!(
@@ -2160,7 +2074,6 @@ async fn handle_client_message(
                         "cc.realtime.event.window.v1",
                         json!({
                             "type": "event.window",
-                            "requestId": frame.request_id,
                             "reason": "nack",
                             "window": window
                         }),
@@ -2201,7 +2114,6 @@ async fn handle_client_message(
                             wire_mode,
                             ccp_runtime,
                             route,
-                            frame.request_id,
                             "acked_seq_missing",
                             "ackedSeq is required",
                         )
@@ -2233,15 +2145,9 @@ async fn handle_client_message(
                     {
                         Ok(Ok(ack)) => ack,
                         Ok(Err(error)) => {
-                            let _ = send_runtime_error(
-                                socket,
-                                wire_mode,
-                                ccp_runtime,
-                                route,
-                                frame.request_id,
-                                &error,
-                            )
-                            .await;
+                            let _ =
+                                send_runtime_error(socket, wire_mode, ccp_runtime, route, &error)
+                                    .await;
                             return true;
                         }
                         Err(join_error) => {
@@ -2258,7 +2164,6 @@ async fn handle_client_message(
                                 wire_mode,
                                 ccp_runtime,
                                 route,
-                                frame.request_id,
                                 &RealtimeRuntimeError {
                                     code: "ack_events_failed",
                                     message: format!(
@@ -2280,7 +2185,6 @@ async fn handle_client_message(
                         "cc.realtime.events.acked.v1",
                         json!({
                             "type": "events.acked",
-                            "requestId": frame.request_id,
                             "ack": ack
                         }),
                     )
@@ -2293,7 +2197,6 @@ async fn handle_client_message(
                         wire_mode,
                         ccp_runtime,
                         route,
-                        frame.request_id,
                         "frame_type_unsupported",
                         format!("unsupported frame type: {}", frame.frame_type),
                     )
@@ -2380,7 +2283,7 @@ async fn drain_runtime_owned_buffered_push(
             false
         }
         Err(BufferedPushDrainError::Runtime(error)) => {
-            let _ = send_runtime_error(socket, wire_mode, ccp_runtime, route, None, &error).await;
+            let _ = send_runtime_error(socket, wire_mode, ccp_runtime, route, &error).await;
             false
         }
         Err(BufferedPushDrainError::Fence(code)) => {
@@ -2400,33 +2303,31 @@ fn decode_client_frame(
         RealtimeWebsocketMode::LegacyJson => match message {
             Message::Text(text) => serde_json::from_str(text.as_str())
                 .map(DecodedClientFrame::Business)
-                .map_err(|_| {
-                    ClientFrameDecodeError::without_request_id("frame must be valid json")
-                }),
-            Message::Binary(_) => Err(ClientFrameDecodeError::without_request_id(
+                .map_err(|_| ClientFrameDecodeError::new("frame must be valid json")),
+            Message::Binary(_) => Err(ClientFrameDecodeError::new(
                 "binary websocket frames are not supported",
             )),
             Message::Ping(_) | Message::Pong(_) | Message::Close(_) => Err(
-                ClientFrameDecodeError::without_request_id("unexpected websocket control message"),
+                ClientFrameDecodeError::new("unexpected websocket control message"),
             ),
         },
         RealtimeWebsocketMode::CcpJson => {
             let envelope = ccp_runtime
                 .decode_message(message)
-                .map_err(ClientFrameDecodeError::without_request_id)?;
+                .map_err(ClientFrameDecodeError::new)?;
             if envelope.kind == "control"
                 && let Ok(control) = serde_json::from_str::<ControlFrame>(envelope.payload.as_str())
             {
                 if envelope.route.is_some() {
-                    return Err(ClientFrameDecodeError::without_request_id(
+                    return Err(ClientFrameDecodeError::new(
                         ccp_client_route_metadata_error(),
                     ));
                 }
                 validate_ccp_control_envelope(&envelope, &control)
-                    .map_err(ClientFrameDecodeError::without_request_id)?;
+                    .map_err(ClientFrameDecodeError::new)?;
                 return match control {
                     ControlFrame::Heartbeat(_) => Ok(DecodedClientFrame::Heartbeat),
-                    other => Err(ClientFrameDecodeError::without_request_id(format!(
+                    other => Err(ClientFrameDecodeError::new(format!(
                         "unexpected ccp control frame after handshake: {}",
                         other.frame_type()
                     ))),
@@ -2434,13 +2335,10 @@ fn decode_client_frame(
             }
             let frame: ClientFrameEnvelope = serde_json::from_str(envelope.payload.as_str())
                 .map_err(|error| {
-                    ClientFrameDecodeError::without_request_id(format!(
-                        "ccp payload must be valid json: {error}"
-                    ))
+                    ClientFrameDecodeError::new(format!("ccp payload must be valid json: {error}"))
                 })?;
             if envelope.route.is_some() {
-                return Err(ClientFrameDecodeError::with_request_id(
-                    frame.request_id.clone(),
+                return Err(ClientFrameDecodeError::new(
                     ccp_client_route_metadata_error(),
                 ));
             }
@@ -2463,7 +2361,7 @@ async fn send_initial_runtime_error(
                 socket,
                 json!({
                     "type": "error",
-                    "requestId": serde_json::Value::Null,
+                    "traceId": new_server_trace_id(),
                     "code": error.code,
                     "message": error.message
                 }),
@@ -2560,7 +2458,6 @@ async fn ensure_current_route_session_for_request_or_close(
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
-    request_id: Option<String>,
 ) -> bool {
     // `ensure_active_client_route_current_session` may perform blocking
     // Redis/Postgres IO via `route_store.lookup`; run it on the blocking
@@ -2581,7 +2478,6 @@ async fn ensure_current_route_session_for_request_or_close(
                 wire_mode,
                 ccp_runtime,
                 route,
-                request_id,
                 error.code,
                 error.message.clone(),
             )
@@ -2600,7 +2496,6 @@ async fn ensure_current_route_session_for_request_or_close(
                 wire_mode,
                 ccp_runtime,
                 route,
-                request_id,
                 "route_session_check_failed",
                 format!("route session blocking task failed: {join_error}"),
             )
@@ -2625,7 +2520,6 @@ async fn send_business_error(
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
-    request_id: Option<String>,
     code: impl Into<String>,
     message: impl Into<String>,
 ) -> Result<(), axum::Error> {
@@ -2640,7 +2534,6 @@ async fn send_business_error(
         "cc.realtime.error.v1",
         json!({
             "type": "error",
-            "requestId": request_id,
             "code": code,
             "message": message
         }),
@@ -2653,7 +2546,6 @@ async fn send_runtime_error(
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
     route: &CcpRoute,
-    request_id: Option<String>,
     error: &RealtimeRuntimeError,
 ) -> Result<(), axum::Error> {
     send_business_error(
@@ -2661,7 +2553,6 @@ async fn send_runtime_error(
         wire_mode,
         ccp_runtime,
         route,
-        request_id,
         error.code,
         error.message.as_str(),
     )
@@ -2677,14 +2568,23 @@ async fn send_business_payload(
     schema: &str,
     payload: Value,
 ) -> Result<(), axum::Error> {
+    let trace_id = new_server_trace_id();
+    let payload = payload_with_trace_id(payload, trace_id.as_str());
     match wire_mode {
         RealtimeWebsocketMode::LegacyJson => send_json(socket, payload).await,
         RealtimeWebsocketMode::CcpJson => {
             ccp_runtime
-                .send_business_payload(socket, route, kind, schema, payload)
+                .send_business_payload(socket, route, kind, schema, trace_id, payload)
                 .await
         }
     }
+}
+
+fn payload_with_trace_id(mut payload: Value, trace_id: &str) -> Value {
+    if let Value::Object(fields) = &mut payload {
+        fields.insert("traceId".to_owned(), Value::String(trace_id.to_owned()));
+    }
+    payload
 }
 
 fn ccp_protocol_version() -> ProtocolVersion {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::im_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsMessagesListResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateConversationRequest, CreateRoomRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest};
+use crate::models::{AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest};
 
 #[derive(Clone)]
 pub struct ChatApi {
@@ -48,19 +48,19 @@ impl ChatApi {
     }
 
     /// Create an agent handoff
-    pub async fn conversations_agent_handoffs_create(&self, body: &CreateAgentDialogRequest) -> Result<ConversationsAgentHandoffsCreateResponse201, SdkworkError> {
+    pub async fn conversations_agent_handoffs_create(&self, body: &CreateAgentHandoffRequest) -> Result<ConversationsAgentHandoffsCreateResponse201, SdkworkError> {
         let path = im_path(&"/chat/conversations/agent_handoffs".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create a system channel
-    pub async fn conversations_system_channels_create(&self, body: &CreateConversationRequest) -> Result<ConversationsSystemChannelsCreateResponse201, SdkworkError> {
+    pub async fn conversations_system_channels_create(&self, body: &CreateSystemChannelRequest) -> Result<ConversationsSystemChannelsCreateResponse201, SdkworkError> {
         let path = im_path(&"/chat/conversations/system_channels".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create a thread conversation
-    pub async fn conversations_threads_create(&self, body: &CreateConversationRequest) -> Result<ConversationsThreadsCreateResponse201, SdkworkError> {
+    pub async fn conversations_threads_create(&self, body: &CreateThreadConversationRequest) -> Result<ConversationsThreadsCreateResponse201, SdkworkError> {
         let path = im_path(&"/chat/conversations/threads".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -189,8 +189,8 @@ impl ChatApi {
         self.client.get(&path, None, None).await
     }
 
-    /// List conversation message timeline
-    pub async fn conversations_messages_list(&self, conversation_id: &str, after_seq: Option<i64>, page_size: Option<i64>) -> Result<ConversationsMessagesListResponse, SdkworkError> {
+    /// List conversation message history
+    pub async fn conversations_messages_list(&self, conversation_id: &str, after_seq: Option<i64>, page_size: Option<i64>) -> Result<ConversationMessageListResponse, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("afterSeq", after_seq, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -230,9 +230,9 @@ impl ChatApi {
     }
 
     /// Recall a message
-    pub async fn messages_recall(&self, message_id: &str) -> Result<MessagesRecallResponse, SdkworkError> {
+    pub async fn messages_recall(&self, message_id: &str, body: &RecallMessageRequest) -> Result<MessagesRecallResponse, SdkworkError> {
         let path = im_path(&format!("/chat/messages/{}/recall", serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
-        self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List message favorites

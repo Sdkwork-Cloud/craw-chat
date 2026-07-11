@@ -1,0 +1,72 @@
+﻿apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: im-gateway-pdb
+  namespace: sdkwork-im
+spec:
+  # im-gateway is the public API ingress; allow at most 1 Pod to be
+  # unavailable during voluntary disruptions (node drain, rolling update) so a
+  # single Pod failure cannot take the API offline. `maxUnavailable: 1` scales
+  # correctly whether the Deployment runs at 2 or N replicas.
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: im-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: session-gateway-pdb
+  namespace: sdkwork-im
+spec:
+  # session-gateway holds long-lived WebSocket connections; require at least 2
+  # replicas available so a voluntary disruption cannot drop the realtime tier
+  # to a single Pod (which would concentrate all WS connections on one node).
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: session-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: conversation-service-pdb
+  namespace: sdkwork-im
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: conversation-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: projection-service-pdb
+  namespace: sdkwork-im
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: projection-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: media-service-pdb
+  namespace: sdkwork-im
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: media-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: streaming-service-pdb
+  namespace: sdkwork-im
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: streaming-service

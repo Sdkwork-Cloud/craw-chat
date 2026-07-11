@@ -1,0 +1,26 @@
+{
+  "favorites": {
+    "filters": {
+      "all": "全部收藏",
+      "links": "链接",
+      "images": "图片与视频",
+      "files": "文件",
+      "chat": "聊天记录"
+    },
+    "title": "全部收藏",
+    "description": "跨端同步你的关键链接、重要图片和工作文件",
+    "searchPlaceholder": "在收藏中搜索...",
+    "loading": "加载中...",
+    "empty": "暂无收藏内容",
+    "viewList": "列表视图",
+    "viewGrid": "网格视图",
+    "fromSource": "来自 {{source}}",
+    "remove": "取消收藏",
+    "toast": {
+      "loadFailed": "加载收藏失败",
+      "opening": "正在打开: {{title}}",
+      "removeSucceeded": "已取消收藏",
+      "removeFailed": "取消收藏失败"
+    }
+  }
+}

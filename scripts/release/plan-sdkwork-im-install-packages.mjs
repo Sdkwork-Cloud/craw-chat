@@ -4,9 +4,11 @@ import process from 'node:process';
 import { DEFAULT_RELEASE_VERSION, normalizeSdkworkImReleaseVersion } from './sdkwork-im-release-version.mjs';
 
 const INSTALL_PACKAGE_SCHEMA_VERSION = '2026-06-04.sdkwork-im.install-packages.v1';
-const SUPPORTED_PLATFORMS = Object.freeze(['linux', 'macos', 'windows']);
-const SUPPORTED_ARCHITECTURES = Object.freeze(['x64', 'arm64']);
-const SUPPORTED_DEPLOYMENT_MODES = Object.freeze(['server-archive', 'desktop']);
+const SUPPORTED_PLATFORMS = Object.freeze(['web', 'linux', 'macos', 'windows']);
+const SUPPORTED_ARCHITECTURES = Object.freeze(['universal', 'x64', 'arm64']);
+const SUPPORTED_PACKAGE_PROFILES = Object.freeze(['browser', 'server', 'desktop']);
+const SERVER_AND_DESKTOP_PLATFORMS = Object.freeze(['linux', 'macos', 'windows']);
+const SERVER_AND_DESKTOP_ARCHITECTURES = Object.freeze(['x64', 'arm64']);
 const APP_CODE = 'chat';
 const PRODUCT_NAME = 'chat';
 const PACKAGE_NAME = 'sdkwork-chat';
@@ -50,10 +52,9 @@ Options:
   --check             Validate the generated plan and exit nonzero on issues.
   --json              Print machine-readable JSON.
   --version <value>   Package version (default ${DEFAULT_RELEASE_VERSION}).
-  --platform <value>  Platform subset: all, linux, macos, windows.
-  --architecture <v>  Architecture subset: all, x64, arm64.
-  --deployment-mode <value>
-                      Deployment mode subset: all, server-archive, desktop.
+  --platform <value>  Platform subset: all, web, linux, macos, windows.
+  --architecture <v>  Architecture subset: all, universal, x64, arm64.
+  --profile <value>   Package profile subset: all, browser, server, desktop.
   -h, --help          Show this help.
 `);
 }
@@ -70,10 +71,10 @@ function parseArgs(argv = process.argv.slice(2)) {
   const settings = {
     architectures: SUPPORTED_ARCHITECTURES,
     check: false,
-    deploymentModes: SUPPORTED_DEPLOYMENT_MODES,
     help: false,
     json: false,
     platforms: SUPPORTED_PLATFORMS,
+    profiles: SUPPORTED_PACKAGE_PROFILES,
     version: DEFAULT_RELEASE_VERSION,
   };
 
@@ -102,9 +103,8 @@ function parseArgs(argv = process.argv.slice(2)) {
         settings.architectures = parseSelectionFlag(requireValue(argv, index, arg), SUPPORTED_ARCHITECTURES);
         index += 1;
         break;
-      case '--deployment-mode':
-      case '--deployment':
-        settings.deploymentModes = parseSelectionFlag(requireValue(argv, index, arg), SUPPORTED_DEPLOYMENT_MODES);
+      case '--profile':
+        settings.profiles = parseSelectionFlag(requireValue(argv, index, arg), SUPPORTED_PACKAGE_PROFILES);
         index += 1;
         break;
       case '--help':
@@ -123,30 +123,21 @@ function createSdkworkImInstallPackagePlan({
   version = DEFAULT_RELEASE_VERSION,
   platforms = SUPPORTED_PLATFORMS,
   architectures = SUPPORTED_ARCHITECTURES,
-  deploymentModes = SUPPORTED_DEPLOYMENT_MODES,
+  profiles = SUPPORTED_PACKAGE_PROFILES,
 } = {}) {
   const normalizedVersion = normalizeSdkworkImReleaseVersion(version);
   const selectedPlatforms = validateSelection('platforms', platforms, SUPPORTED_PLATFORMS);
   const selectedArchitectures = validateSelection('architectures', architectures, SUPPORTED_ARCHITECTURES);
-  const selectedDeploymentModes = validateSelection(
-    'deploymentModes',
-    deploymentModes,
-    SUPPORTED_DEPLOYMENT_MODES,
-  );
+  const selectedProfiles = validateSelection('profiles', profiles, SUPPORTED_PACKAGE_PROFILES);
 
-  const packages = [];
-  for (const deploymentMode of selectedDeploymentModes) {
-    for (const platform of selectedPlatforms) {
-      for (const architecture of selectedArchitectures) {
-        packages.push(createSdkworkImInstallPackageItem({
-          architecture,
-          deploymentMode,
-          platform,
-          version: normalizedVersion,
-        }));
-      }
-    }
-  }
+  const packages = expectedPackageDefinitions({
+    architectures: selectedArchitectures,
+    platforms: selectedPlatforms,
+    profiles: selectedProfiles,
+  }).map((packageDefinition) => createSdkworkImInstallPackageItem({
+    ...packageDefinition,
+    version: normalizedVersion,
+  }));
 
   return {
     schemaVersion: INSTALL_PACKAGE_SCHEMA_VERSION,
@@ -158,7 +149,8 @@ function createSdkworkImInstallPackagePlan({
     version: normalizedVersion,
     platforms: selectedPlatforms,
     architectures: selectedArchitectures,
-    deploymentModes: selectedDeploymentModes,
+    deploymentProfiles: uniqueInOrder(packages.map((packageItem) => packageItem.deploymentProfile)),
+    profiles: selectedProfiles,
     fastInitializationContract: [
       'host-env-prepare',
       'runtime-config-copy',
@@ -179,40 +171,42 @@ function createSdkworkImInstallPackagePlan({
 
 function createSdkworkImInstallPackageItem({
   architecture,
-  deploymentMode,
+  deploymentProfile,
   platform,
+  profile,
+  runtimeTarget,
   version,
 }) {
-  const archiveExtension = platform === 'windows' || deploymentMode === 'desktop' ? 'zip' : 'tar.gz';
-  const artifactId = `${platform}-${architecture}-${deploymentMode === 'server-archive' ? 'server' : 'desktop'}`;
+  const format = packageFormatFor({ platform, profile });
+  const formatToken = format.replaceAll('.', '-');
+  const id = `${platform}-${architecture}-${deploymentProfile}-${profile}-${formatToken}`;
+  const artifactId = `${platform}-${architecture}-${deploymentProfile}-${profile}`;
   const exeSuffix = platform === 'windows' ? '.exe' : '';
   const binaryName = `${SERVER_BINARY_BASENAME}${exeSuffix}`;
-  const runtimeProfile = deploymentMode === 'desktop' ? 'desktop' : 'server';
-  const packagePrefix = deploymentMode === 'desktop' ? 'sdkwork-im-desktop' : 'sdkwork-im-server';
-  const runtimePaths = deploymentMode === 'server-archive' ? serverRuntimePathsFor(platform) : null;
+  const runtimePaths = profile === 'server' ? serverRuntimePathsFor(platform) : null;
   return {
-    id: `${platform}-${architecture}-${deploymentMode}`,
+    id,
     artifactId,
     version,
     platform,
     architecture,
-    deploymentMode,
-    runtimeProfile,
-    archiveName: `${packagePrefix}-${artifactId}-${version}.${archiveExtension}`,
-    packageKind: deploymentMode === 'desktop' ? 'desktop-installer-bundle' : 'server-runtime-archive',
-    binaryName: deploymentMode === 'desktop' ? null : binaryName,
-    startCommand: deploymentMode === 'desktop'
+    deploymentProfile,
+    profile,
+    runtimeTarget,
+    format,
+    archiveName: `sdkwork-im-${id}-${version}.${format}`,
+    packageKind: packageKindFor(profile),
+    binaryName: profile === 'server' ? binaryName : null,
+    startCommand: profile !== 'server'
       ? null
       : platform === 'windows'
         ? '.\\bin\\start-server.ps1 -Release'
         : './bin/start-server.sh --release',
-    healthChecks: [...HEALTH_CHECKS],
-    artifacts: deploymentMode === 'desktop'
-      ? buildDesktopArtifacts()
-      : buildServerArchiveArtifacts(binaryName),
-    databasePolicy: databasePolicyFor({ platform, runtimeProfile }),
+    healthChecks: profile === 'browser' ? [] : [...HEALTH_CHECKS],
+    artifacts: artifactsFor({ binaryName, profile }),
+    databasePolicy: profile === 'browser' ? null : databasePolicyFor({ platform, runtimeTarget }),
     runtimePaths,
-    serviceIntegration: deploymentMode === 'server-archive' ? serviceIntegrationFor(platform) : null,
+    serviceIntegration: profile === 'server' ? serviceIntegrationFor(platform) : null,
     security: {
       noSecretsInPackage: true,
       envLocalGeneratedOnHost: true,
@@ -221,6 +215,44 @@ function createSdkworkImInstallPackageItem({
       sameOriginBrowserApiDefaults: true,
     },
   };
+}
+
+function packageFormatFor({ platform, profile }) {
+  if (profile === 'browser' || profile === 'desktop') {
+    return 'zip';
+  }
+  return platform === 'windows' ? 'zip' : 'tar.gz';
+}
+
+function packageKindFor(profile) {
+  if (profile === 'browser') {
+    return 'browser-web-bundle';
+  }
+  return profile === 'desktop' ? 'desktop-installer-bundle' : 'server-runtime-archive';
+}
+
+function artifactsFor({ binaryName, profile }) {
+  if (profile === 'browser') {
+    return buildBrowserArtifacts();
+  }
+  return profile === 'desktop' ? buildDesktopArtifacts() : buildServerArchiveArtifacts(binaryName);
+}
+
+function buildBrowserArtifacts() {
+  return [
+    {
+      kind: 'pc-web-dist',
+      path: 'web/sdkwork-im-pc/dist',
+      source: 'apps/sdkwork-im-pc/dist',
+      required: true,
+    },
+    {
+      kind: 'web-manifest',
+      path: 'web-manifest.json',
+      source: 'generated by release staging',
+      required: true,
+    },
+  ];
 }
 
 function buildServerArchiveArtifacts(binaryName) {
@@ -299,31 +331,8 @@ function buildDesktopArtifacts() {
   ];
 }
 
-function databasePolicyFor({ platform, runtimeProfile }) {
-  const locations = runtimeConfigLocationsFor(platform, runtimeProfile);
-  if (runtimeProfile === 'desktop') {
-    return {
-      defaultEngine: 'sqlite',
-      defaultSqlitePath: locations.sqlitePath,
-      requiresExternalDatabase: false,
-      configFile: {
-        path: locations.configFile,
-      },
-      dataDirectory: {
-        path: locations.dataDirectory,
-      },
-      envOverrides: [
-        'SDKWORK_IM_CONFIG_FILE',
-        'SDKWORK_IM_DATA_DIR',
-        'SDKWORK_IM_LOG_DIR',
-        'SDKWORK_IM_CACHE_DIR',
-        'SDKWORK_IM_DATABASE_ENGINE',
-        'SDKWORK_IM_DATABASE_FILE',
-        'SDKWORK_IM_DATABASE_URL',
-      ],
-    };
-  }
-
+function databasePolicyFor({ platform, runtimeTarget }) {
+  const locations = runtimeConfigLocationsFor(platform, runtimeTarget);
   return {
     defaultEngine: 'postgresql',
     defaultHost: 'db.example.com',
@@ -331,7 +340,7 @@ function databasePolicyFor({ platform, runtimeProfile }) {
     defaultDatabase: 'sdkwork',
     defaultUsername: 'sdkwork',
     passwordFile: {
-      path: postgresPasswordFileFor(platform),
+      path: postgresPasswordFileFor(platform, runtimeTarget),
       required: true,
     },
     requiresExternalDatabase: true,
@@ -343,10 +352,11 @@ function databasePolicyFor({ platform, runtimeProfile }) {
     },
     envOverrides: [
       'SDKWORK_IM_CONFIG_FILE',
-      'SDKWORK_IM_DATA_DIR',
-      'SDKWORK_IM_LOG_DIR',
-      'SDKWORK_IM_RUN_DIR',
-      'SDKWORK_IM_ID_NODE_ID',
+        'SDKWORK_IM_DATA_DIR',
+        'SDKWORK_IM_LOG_DIR',
+        'SDKWORK_IM_CACHE_DIR',
+        'SDKWORK_IM_RUN_DIR',
+        'SDKWORK_IM_ID_NODE_ID',
       'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
       'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL',
       'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL',
@@ -372,26 +382,23 @@ function databasePolicyFor({ platform, runtimeProfile }) {
   };
 }
 
-function runtimeConfigLocationsFor(platform, runtimeProfile) {
-  if (runtimeProfile === 'desktop') {
+function runtimeConfigLocationsFor(platform, runtimeTarget) {
+  if (runtimeTarget === 'desktop') {
     if (platform === 'windows') {
       return {
         configFile: '%USERPROFILE%/.sdkwork/chat/config/chat.toml',
         dataDirectory: '%USERPROFILE%/.sdkwork/chat/data',
-        sqlitePath: '%USERPROFILE%/.sdkwork/chat/data/chat.sqlite',
       };
     }
     if (platform === 'macos') {
       return {
         configFile: '~/.sdkwork/chat/config/chat.toml',
         dataDirectory: '~/.sdkwork/chat/data',
-        sqlitePath: '~/.sdkwork/chat/data/chat.sqlite',
       };
     }
     return {
       configFile: '~/.sdkwork/chat/config/chat.toml',
       dataDirectory: '~/.sdkwork/chat/data',
-      sqlitePath: '~/.sdkwork/chat/data/chat.sqlite',
     };
   }
 
@@ -402,8 +409,18 @@ function runtimeConfigLocationsFor(platform, runtimeProfile) {
   };
 }
 
-function postgresPasswordFileFor(platform) {
-  return `${serverRuntimePathsFor(platform).configDir}/database.secret`;
+function postgresPasswordFileFor(platform, runtimeTarget = 'server') {
+  const locations = runtimeConfigLocationsFor(platform, runtimeTarget);
+  return `${configDirectoryFromConfigFile(locations.configFile)}/database.secret`;
+}
+
+function configDirectoryFromConfigFile(configFile) {
+  const normalized = String(configFile ?? '').replaceAll('\\', '/');
+  const separatorIndex = normalized.lastIndexOf('/');
+  if (separatorIndex <= 0) {
+    throw new Error(`config file must include a directory: ${configFile}`);
+  }
+  return normalized.slice(0, separatorIndex);
 }
 
 function serverRuntimePathsFor(platform) {
@@ -452,7 +469,9 @@ function validateSdkworkImInstallPackagePlan(plan) {
   }
   validateSubset('platforms', plan.platforms, SUPPORTED_PLATFORMS, issues);
   validateSubset('architectures', plan.architectures, SUPPORTED_ARCHITECTURES, issues);
-  validateSubset('deploymentModes', plan.deploymentModes, SUPPORTED_DEPLOYMENT_MODES, issues);
+  validateSubset('profiles', plan.profiles, SUPPORTED_PACKAGE_PROFILES, issues);
+  const expectedDeploymentProfiles = uniqueInOrder((plan.packages ?? []).map((item) => item.deploymentProfile));
+  validateArrayMatches('deployment profiles', plan.deploymentProfiles, expectedDeploymentProfiles, issues);
   for (const [field, expected] of Object.entries({
     noSecretsInPackage: true,
     envLocalGeneratedOnHost: true,
@@ -465,17 +484,20 @@ function validateSdkworkImInstallPackagePlan(plan) {
     }
   }
 
-  const expectedIds = [];
-  for (const deploymentMode of plan.deploymentModes ?? []) {
-    for (const platform of plan.platforms ?? []) {
-      for (const architecture of plan.architectures ?? []) {
-        expectedIds.push(`${platform}-${architecture}-${deploymentMode}`);
-      }
-    }
-  }
+  const expectedIds = expectedPackageDefinitions({
+    architectures: plan.architectures ?? [],
+    platforms: plan.platforms ?? [],
+    profiles: plan.profiles ?? [],
+  }).map((packageDefinition) => {
+    const formatToken = packageFormatFor(packageDefinition).replaceAll('.', '-');
+    return `${packageDefinition.platform}-${packageDefinition.architecture}-${packageDefinition.deploymentProfile}-${packageDefinition.profile}-${formatToken}`;
+  });
   if (!Array.isArray(plan.packages)) {
     issues.push('packages must be an array');
     return issues;
+  }
+  if (plan.packages.length === 0) {
+    issues.push('packages must contain at least one package target');
   }
   validateArrayMatches('package ids', plan.packages.map((item) => item.id), expectedIds, issues);
 
@@ -487,7 +509,13 @@ function validateSdkworkImInstallPackagePlan(plan) {
 }
 
 function validatePackageItem(packageItem, seenIds, issues) {
-  const expectedId = `${packageItem.platform}-${packageItem.architecture}-${packageItem.deploymentMode}`;
+  const expectedFormat = packageFormatFor({
+    platform: packageItem.platform,
+    profile: packageItem.profile,
+  });
+  const expectedDeploymentProfile = deploymentProfileFor(packageItem.profile);
+  const expectedRuntimeTarget = runtimeTargetFor(packageItem.profile);
+  const expectedId = `${packageItem.platform}-${packageItem.architecture}-${expectedDeploymentProfile}-${packageItem.profile}-${expectedFormat.replaceAll('.', '-')}`;
   if (packageItem.id !== expectedId) {
     issues.push(`${packageItem.id ?? '(missing id)'} id must be ${expectedId}`);
   }
@@ -501,37 +529,56 @@ function validatePackageItem(packageItem, seenIds, issues) {
   if (!SUPPORTED_ARCHITECTURES.includes(packageItem.architecture)) {
     issues.push(`${packageItem.id} has unsupported architecture`);
   }
-  if (!SUPPORTED_DEPLOYMENT_MODES.includes(packageItem.deploymentMode)) {
-    issues.push(`${packageItem.id} has unsupported deployment mode`);
+  if (packageItem.deploymentProfile !== expectedDeploymentProfile) {
+    issues.push(`${packageItem.id} deploymentProfile must be ${expectedDeploymentProfile}`);
   }
-  const expectedArchiveExtension = packageItem.platform === 'windows' || packageItem.deploymentMode === 'desktop'
-    ? 'zip'
-    : 'tar.gz';
-  if (!String(packageItem.archiveName ?? '').endsWith(`.${expectedArchiveExtension}`)) {
-    issues.push(`${packageItem.id} archiveName must end with .${expectedArchiveExtension}`);
+  if (!SUPPORTED_PACKAGE_PROFILES.includes(packageItem.profile)) {
+    issues.push(`${packageItem.id} has unsupported package profile`);
+  }
+  if (!isSupportedPackageCombination(packageItem)) {
+    issues.push(`${packageItem.id} has an unsupported platform, architecture, and profile combination`);
+  }
+  if (packageItem.runtimeTarget !== expectedRuntimeTarget) {
+    issues.push(`${packageItem.id} runtimeTarget must be ${expectedRuntimeTarget}`);
+  }
+  if (packageItem.format !== expectedFormat) {
+    issues.push(`${packageItem.id} format must be ${expectedFormat}`);
+  }
+  if (!String(packageItem.archiveName ?? '').endsWith(`.${expectedFormat}`)) {
+    issues.push(`${packageItem.id} archiveName must end with .${expectedFormat}`);
   }
   if (packageItem.security?.noSecretsInPackage !== true) {
     issues.push(`${packageItem.id} security.noSecretsInPackage must be true`);
   }
-  if (!Array.isArray(packageItem.healthChecks) || !arraysEqual(packageItem.healthChecks, HEALTH_CHECKS)) {
+  const expectedHealthChecks = packageItem.profile === 'browser' ? [] : HEALTH_CHECKS;
+  if (!Array.isArray(packageItem.healthChecks) || !arraysEqual(packageItem.healthChecks, expectedHealthChecks)) {
     issues.push(`${packageItem.id} healthChecks must be ${HEALTH_CHECKS.join(', ')}`);
   }
-  if (!packageItem.databasePolicy?.configFile?.path) {
+  if (packageItem.profile !== 'browser' && !packageItem.databasePolicy?.configFile?.path) {
     issues.push(`${packageItem.id} databasePolicy must declare configFile.path`);
   }
-  if (!packageItem.databasePolicy?.dataDirectory?.path) {
+  if (packageItem.profile !== 'browser' && !packageItem.databasePolicy?.dataDirectory?.path) {
     issues.push(`${packageItem.id} databasePolicy must declare dataDirectory.path`);
   }
 
-  if (packageItem.deploymentMode === 'desktop') {
-    if (packageItem.runtimeProfile !== 'desktop') {
-      issues.push(`${packageItem.id} desktop packages must use desktop runtime profile`);
+  if (packageItem.profile === 'browser') {
+    if (packageItem.databasePolicy !== null) {
+      issues.push(`${packageItem.id} browser packages must not declare a databasePolicy`);
     }
-    if (packageItem.databasePolicy?.defaultEngine !== 'sqlite') {
-      issues.push(`${packageItem.id} desktop packages must default to SQLite`);
+    for (const artifactKind of ['pc-web-dist', 'web-manifest']) {
+      if (!packageItem.artifacts?.some((artifact) => artifact.kind === artifactKind && artifact.required === true)) {
+        issues.push(`${packageItem.id} must include ${artifactKind}`);
+      }
     }
-    if (packageItem.databasePolicy?.requiresExternalDatabase !== false) {
-      issues.push(`${packageItem.id} desktop packages must not require an external database`);
+  } else if (packageItem.profile === 'desktop') {
+    if (packageItem.databasePolicy?.defaultEngine !== 'postgresql') {
+      issues.push(`${packageItem.id} desktop packages must default to PostgreSQL until IM durable SQLite is implemented`);
+    }
+    if (packageItem.databasePolicy?.requiresExternalDatabase !== true) {
+      issues.push(`${packageItem.id} desktop packages must require PostgreSQL until IM durable SQLite is implemented`);
+    }
+    if (packageItem.databasePolicy?.passwordFile?.required !== true) {
+      issues.push(`${packageItem.id} desktop packages must declare required database password file`);
     }
     for (const artifactKind of ['desktop-installers', 'desktop-manifest']) {
       if (!packageItem.artifacts?.some((artifact) => artifact.kind === artifactKind && artifact.required === true)) {
@@ -539,9 +586,6 @@ function validatePackageItem(packageItem, seenIds, issues) {
       }
     }
   } else {
-    if (packageItem.runtimeProfile !== 'server') {
-      issues.push(`${packageItem.id} server packages must use server runtime profile`);
-    }
     if (packageItem.databasePolicy?.defaultEngine !== 'postgresql') {
       issues.push(`${packageItem.id} server packages must default to PostgreSQL`);
     }
@@ -584,17 +628,74 @@ function renderSdkworkImInstallPackagePlan(plan) {
     `[sdkwork-im-install-packages] version: ${plan.version}`,
     `[sdkwork-im-install-packages] supported platforms: ${plan.platforms.join(', ')}`,
     `[sdkwork-im-install-packages] supported architectures: ${plan.architectures.join(', ')}`,
-    `[sdkwork-im-install-packages] deployment modes: ${plan.deploymentModes.join(', ')}`,
+    `[sdkwork-im-install-packages] deployment profiles: ${plan.deploymentProfiles.join(', ')}`,
+    `[sdkwork-im-install-packages] package profiles: ${plan.profiles.join(', ')}`,
     `[sdkwork-im-install-packages] packages: ${plan.packages.length}`,
     ...plan.packages.map((packageItem) => [
       `[sdkwork-im-install-packages]   ${packageItem.id}`,
       `archive=${packageItem.archiveName}`,
       `kind=${packageItem.packageKind}`,
-      `profile=${packageItem.runtimeProfile}`,
-      `database=${packageItem.databasePolicy.defaultEngine}`,
+      `profile=${packageItem.profile}`,
+      `runtimeTarget=${packageItem.runtimeTarget}`,
+      `database=${packageItem.databasePolicy?.defaultEngine ?? 'none'}`,
       renderRuntimePathsSummary(packageItem.runtimePaths),
     ].join(' ')),
   ];
+}
+
+function expectedPackageDefinitions({ architectures, platforms, profiles }) {
+  const definitions = [];
+  if (profiles.includes('browser') && platforms.includes('web') && architectures.includes('universal')) {
+    definitions.push({
+      architecture: 'universal',
+      deploymentProfile: 'cloud',
+      platform: 'web',
+      profile: 'browser',
+      runtimeTarget: 'browser',
+    });
+  }
+
+  for (const profile of profiles.filter((value) => value === 'server' || value === 'desktop')) {
+    for (const platform of SERVER_AND_DESKTOP_PLATFORMS.filter((value) => platforms.includes(value))) {
+      for (const architecture of SERVER_AND_DESKTOP_ARCHITECTURES.filter((value) => architectures.includes(value))) {
+        definitions.push({
+          architecture,
+          deploymentProfile: deploymentProfileFor(profile),
+          platform,
+          profile,
+          runtimeTarget: runtimeTargetFor(profile),
+        });
+      }
+    }
+  }
+
+  return definitions;
+}
+
+function deploymentProfileFor(profile) {
+  return profile === 'browser' ? 'cloud' : 'standalone';
+}
+
+function runtimeTargetFor(profile) {
+  if (!SUPPORTED_PACKAGE_PROFILES.includes(profile)) {
+    return null;
+  }
+  return profile;
+}
+
+function isSupportedPackageCombination(packageItem) {
+  if (packageItem.profile === 'browser') {
+    return packageItem.platform === 'web' && packageItem.architecture === 'universal';
+  }
+  if (packageItem.profile === 'server' || packageItem.profile === 'desktop') {
+    return SERVER_AND_DESKTOP_PLATFORMS.includes(packageItem.platform)
+      && SERVER_AND_DESKTOP_ARCHITECTURES.includes(packageItem.architecture);
+  }
+  return false;
+}
+
+function uniqueInOrder(values) {
+  return [...new Set(values.filter((value) => typeof value === 'string' && value.length > 0))];
 }
 
 function renderRuntimePathsSummary(runtimePaths) {
@@ -619,8 +720,8 @@ async function main(argv = process.argv.slice(2)) {
 
   const plan = createSdkworkImInstallPackagePlan({
     architectures: settings.architectures,
-    deploymentModes: settings.deploymentModes,
     platforms: settings.platforms,
+    profiles: settings.profiles,
     version: settings.version,
   });
   const issues = validateSdkworkImInstallPackagePlan(plan);
@@ -720,7 +821,7 @@ export {
   SERVER_BINARY_BASENAME,
   SERVER_RUNTIME_PATHS,
   SUPPORTED_ARCHITECTURES,
-  SUPPORTED_DEPLOYMENT_MODES,
+  SUPPORTED_PACKAGE_PROFILES,
   SUPPORTED_PLATFORMS,
   WINDOWS_INSTALL_ROOT,
   createSdkworkImInstallPackagePlan,

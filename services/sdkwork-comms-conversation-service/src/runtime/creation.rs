@@ -3,7 +3,7 @@ use im_domain_core::social::normalize_actor_pair;
 
 use super::support::{
     canonical_agent_dialog_business_id, resolve_agent_dialog_conversation_id,
-    resolve_direct_chat_binding_ids,
+    resolve_direct_chat_binding_ids, resolve_group_conversation_id,
 };
 
 use super::*;
@@ -64,6 +64,36 @@ where
         command: CreateConversationCommand,
         creator_kind: &str,
         creator_attributes: BTreeMap<String, String>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_conversation_with_creator_kind_attributes_and_title(
+            command,
+            creator_kind,
+            creator_attributes,
+            None,
+        )
+    }
+
+    pub fn create_conversation_with_creator_kind_attributes_and_display_title(
+        &self,
+        command: CreateConversationCommand,
+        creator_kind: &str,
+        creator_attributes: BTreeMap<String, String>,
+        conversation_title: String,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_conversation_with_creator_kind_attributes_and_title(
+            command,
+            creator_kind,
+            creator_attributes,
+            Some(conversation_title),
+        )
+    }
+
+    fn create_conversation_with_creator_kind_attributes_and_title(
+        &self,
+        command: CreateConversationCommand,
+        creator_kind: &str,
+        creator_attributes: BTreeMap<String, String>,
+        conversation_title: Option<String>,
     ) -> Result<CreateConversationResult, RuntimeError> {
         validate_payload_size(
             "conversationId",
@@ -153,6 +183,20 @@ where
             build_default_read_cursor(&creator_member),
         );
         let creation_members = vec![(creator_member.clone(), creator_ordering_seq)];
+        let mut created_payload = json!({
+            "conversationId": command.conversation_id.as_str(),
+            "conversationType": command.conversation_type.as_str()
+        });
+        if let Some(title) = conversation_title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            created_payload["title"] = json!(title);
+            if command.conversation_type == "group" {
+                created_payload["groupName"] = json!(title);
+            }
+        }
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
@@ -179,11 +223,7 @@ where
             occurred_at: created_at.clone(),
             committed_at: created_at.clone(),
             payload_schema: Some("conversation.created.v1".into()),
-            payload: json!({
-                "conversationId": command.conversation_id,
-                "conversationType": command.conversation_type
-            })
-            .to_string(),
+            payload: created_payload.to_string(),
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
@@ -196,15 +236,133 @@ where
             creator_id.as_str(),
             creator_kind,
         )?;
-        state.conversations.insert(scope_key, conversation);
+        state.insert_conversation(scope_key, conversation);
         drop(state);
 
+        // 创建后立即持久化聚合状态（成员 + 已读游标）到 AggregateStore，
+        // 使 RTC 鉴权、session-gateway 订阅校验、消息搜索等只读该关系表的读取方
+        // 在会话创建后即可见全部成员，避免首次 mutation 前 peer 不在投影表导致 40301。
+        // 必须在 maybe_evict_after_write 之前执行：驱逐后该会话可能不在内存，
+        // persist_aggregate_state 会因 ConversationNotFound 失败。
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
             event_id,
             request_key,
         ))
+    }
+
+    /// Create a group conversation with a server-derived canonical `g_` id.
+    ///
+    /// The canonical id is derived from the creator identity, the group display
+    /// name at creation, and a client-supplied request key. Retries that reuse
+    /// the same request key produce the same canonical id and are deduplicated
+    /// by the generic create idempotency replay.
+    pub fn create_group_conversation_from_auth_context(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_from_auth_context_with_creator_attributes(
+            auth,
+            group_name,
+            client_request_key,
+            BTreeMap::new(),
+        )
+    }
+
+    pub fn create_group_conversation_from_auth_context_with_creator_attributes(
+        &self,
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+        creator_attributes: BTreeMap<String, String>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_and_attributes(
+            CreateGroupConversationCommand::from_auth_context(auth, group_name, client_request_key),
+            auth.actor_kind.as_str(),
+            creator_attributes,
+        )
+    }
+
+    pub fn create_group_conversation_with_creator_kind(
+        &self,
+        command: CreateGroupConversationCommand,
+        creator_kind: &str,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        self.create_group_conversation_with_creator_kind_and_attributes(
+            command,
+            creator_kind,
+            BTreeMap::new(),
+        )
+    }
+
+    pub fn create_group_conversation_with_creator_kind_and_attributes(
+        &self,
+        command: CreateGroupConversationCommand,
+        creator_kind: &str,
+        creator_attributes: BTreeMap<String, String>,
+    ) -> Result<CreateConversationResult, RuntimeError> {
+        validate_payload_size(
+            "creatorId",
+            command.creator_id.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "groupName",
+            command.group_name.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size(
+            "clientRequestKey",
+            command.client_request_key.as_str(),
+            CONVERSATION_MAX_ID_BYTES,
+        )?;
+        validate_payload_size("creatorKind", creator_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        if command.group_name.trim().is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "group conversation requires a non-empty group name".into(),
+            ));
+        }
+        if command.client_request_key.trim().is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "group conversation requires a non-empty client request key".into(),
+            ));
+        }
+        if command.creator_id.trim().is_empty() {
+            return Err(RuntimeError::InvalidInput(
+                "group conversation requires a creator identity".into(),
+            ));
+        }
+        let group_name = command.group_name.trim().to_owned();
+        let conversation_id = resolve_group_conversation_id(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            creator_kind,
+            command.creator_id.as_str(),
+            group_name.as_str(),
+            command.client_request_key.as_str(),
+            "",
+        )?;
+        let generic_command = CreateConversationCommand {
+            tenant_id: command.tenant_id,
+            organization_id: command.organization_id,
+            conversation_id,
+            creator_id: command.creator_id,
+            conversation_type: "group".into(),
+        };
+        self.create_conversation_with_creator_kind_attributes_and_title(
+            generic_command,
+            creator_kind,
+            creator_attributes,
+            Some(group_name),
+        )
     }
 
     pub fn create_agent_dialog(
@@ -535,6 +693,12 @@ where
             .insert(business_scope_key, command.conversation_id.clone());
         drop(state);
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
+        self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
             event_id,
@@ -615,7 +779,14 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("binderKind", binder_kind, CONVERSATION_MAX_KIND_BYTES)?;
-        policy::ensure_direct_chat_binding_requester_kind(binder_kind)?;
+        policy::ensure_direct_chat_binding_requester_allowed(
+            command.bound_by.as_str(),
+            binder_kind,
+            command.left_actor_id.as_str(),
+            command.left_actor_kind.as_str(),
+            command.right_actor_id.as_str(),
+            command.right_actor_kind.as_str(),
+        )?;
         if command.bound_by.trim().is_empty() {
             return Err(RuntimeError::InvalidInput(
                 "direct chat binding requires binder identity".into(),
@@ -732,9 +903,16 @@ where
                     &pair,
                     direct_chat_id.as_str(),
                 ) {
+                    let replay_event_id = existing.event_id.clone();
+                    drop(state);
+                    self.persist_aggregate_state_if_configured(
+                        command.tenant_id.as_str(),
+                        command.organization_id.as_str(),
+                        conversation_id.as_str(),
+                    )?;
                     return Ok(CreateConversationResult::replayed_with_request_key(
                         conversation_id,
-                        existing.event_id.clone(),
+                        replay_event_id,
                         request_key,
                     ));
                 }
@@ -849,12 +1027,18 @@ where
             command.bound_by.as_str(),
             binder_kind,
         )?;
-        state.conversations.insert(scope_key, conversation);
+        state.insert_conversation(scope_key, conversation);
         state
             .business_index
             .insert(business_scope_key, conversation_id.clone());
         drop(state);
 
+        self.persist_aggregate_state_if_configured(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        )?;
+        self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             conversation_id,
             event_id,
@@ -1123,12 +1307,18 @@ where
             command.requester_id.as_str(),
             requester_kind,
         )?;
-        state.conversations.insert(scope_key, conversation);
+        state.insert_conversation(scope_key, conversation);
         state
             .business_index
             .insert(business_scope_key, conversation_id.clone());
         drop(state);
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        );
+        self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             conversation_id,
             event_id,
@@ -1377,9 +1567,15 @@ where
             command.requester_id.as_str(),
             requester_kind,
         )?;
-        state.conversations.insert(scope_key, conversation);
+        state.insert_conversation(scope_key, conversation);
         drop(state);
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
+        self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
             event_id,
@@ -1703,9 +1899,15 @@ where
             command.source_id.as_str(),
             source_kind,
         )?;
-        state.conversations.insert(scope_key, conversation);
+        state.insert_conversation(scope_key, conversation);
         drop(state);
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
+        self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
             event_id,

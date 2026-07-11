@@ -13,7 +13,7 @@ SDKWork Chat maintainers.
 
 - SDK family directories, OpenAPI authorities, derived generator inputs, generated transports,
   composed facades, RPC manifests, and workspace verification scripts.
-- Checked-in assembly metadata and family-local `specs/` contracts.
+- Checked-in family-root `sdk-manifest.json` metadata and family-local `specs/` contracts.
 
 ## Forbidden Content
 
@@ -67,8 +67,10 @@ lives only in the sibling `../sdkwork-rtc` repository:
 
 ## Current Repository Truth
 
-For day-to-day engineering, the checked-in SDK workspaces and their `.sdkwork-assembly.json`
-snapshots are the source of truth.
+For day-to-day engineering, the checked-in SDK workspaces and their family-root
+`sdk-manifest.json` files are the source of truth. Per-family `.sdkwork-assembly.json` is retired
+and must not be restored. A repo-level `sdks/.sdkwork-assembly.json` may exist only as a
+multi-surface generation registry and must not duplicate per-family manifest fields.
 
 The three Sdkwork IM HTTP-contract SDK families are separated by target surface:
 
@@ -155,17 +157,17 @@ Current Flutter semantic package mapping:
 - `sdkwork-im-backend-sdk-flutter/composed` -> `im_backend_sdk`
 
 The IM TypeScript line publishes the consumer package `@sdkwork/im-sdk`; its generated TypeScript
-transport package uses `@sdkwork-internal/im-sdk-generated` as a workspace-internal identity only.
-The IM Flutter line publishes `im_sdk` for consumers and keeps `im_sdk_generated` as the generated
-transport package.
+transport id is `sdkwork-im-sdk-generated-typescript`. Generated transport ids must not be exposed
+as workspace dependencies, package overrides, or application imports. The IM Flutter line publishes
+`im_sdk` for consumers and keeps `im_sdk_generated` as the generated transport package.
 
 ## Workspace Matrix
 
 | Workspace | Audience | Languages | Primary package boundary |
 | --- | --- | --- | --- |
-| `sdkwork-im-sdk` | IM standardized development integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Semantic IM SDK package `@sdkwork/im-sdk` plus internal generated transports `@sdkwork-internal/im-sdk-generated` and `im_sdk_generated` |
-| `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated app transport plus Flutter composed `im_app_sdk` with semantic `ImAppSdkClient`; family-level dependencies on `sdkwork-im-sdk` and `sdkwork-rtc-sdk` |
-| `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated backend transport plus Flutter composed `im_backend_sdk` with semantic `ImBackendSdkClient` |
+| `sdkwork-im-sdk` | IM standardized development integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Semantic IM SDK package `@sdkwork/im-sdk` plus generated transport ids `sdkwork-im-sdk-generated-typescript` and `im_sdk_generated` |
+| `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Consumer package `@sdkwork/im-app-sdk`, TypeScript transport id `sdkwork-im-app-sdk-generated-typescript`, and Flutter composed `im_app_sdk`; family-level dependencies on `sdkwork-im-sdk` and `sdkwork-rtc-sdk` |
+| `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Consumer package `@sdkwork/im-backend-sdk`, TypeScript transport id `sdkwork-im-backend-sdk-generated-typescript`, and Flutter composed `im_backend_sdk` |
 | `sdkwork-im-rpc-sdk` | Distributed backend, private, local, native-host, and service-to-service communication integrations | TypeScript, Go, Java, Python, Rust | gRPC/protobuf SDK family generated from `proto/` and `rpc/sdkwork-im-rpc.manifest.json` |
 | `sdkwork-rtc-sdk` (sibling) | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | `../sdkwork-rtc/sdks/sdkwork-rtc-sdk`; provider-standard packages and adapters, not OpenAPI-generated transport |
 
@@ -192,6 +194,8 @@ Every OpenAPI-generated SDK family follows the same boundary rules:
 - The OpenAPI 3.x authority contract is checked into the workspace under `openapi/`.
 - Generator-compatible derived contracts stay in the same workspace and remain traceable to the
   authority contract.
+- Family-root `sdk-manifest.json` records ownership, dependency, discovery, language workspace,
+  consumer package, and generated transport metadata.
 - Generated code is owned only under `generated/server-openapi`.
 - Consumer-facing orchestration, ergonomic client facades, and manual integration helpers live only
   under `composed` when that SDK family has a semantic manual layer.

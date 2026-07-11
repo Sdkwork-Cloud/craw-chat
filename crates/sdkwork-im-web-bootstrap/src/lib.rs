@@ -14,7 +14,7 @@ pub fn mount_im_infra_routes(router: Router, config: ServiceRouterConfig) -> Rou
     service_router(router, config)
 }
 
-/// Standard infra router config for split IM HTTP service processes.
+/// Standard infra router config for IM cloud HTTP service processes.
 pub fn im_service_router_config() -> ServiceRouterConfig {
     ServiceRouterConfig::default()
         .with_readiness_check(sdkwork_im_service_readiness::im_env_readiness_check())
@@ -191,7 +191,7 @@ pub fn wrap_im_service_router(router: Router) -> Router {
 /// `API_SPEC.md` §4.5, §14, and §15.
 ///
 /// Uses the cached IAM resolver when [`shared_iam_web_request_context_resolver_from_env`]
-/// has been invoked (typical for unified-process gateways and bin services
+/// has been invoked (typical for co-located gateways and bin services
 /// bootstrapped through `sdkwork_im_web_bootstrap`). Falls back to a default
 /// resolver with no IAM database when the cache has not been populated, which
 /// is the same behaviour as [`wrap_im_service_router`].
@@ -213,7 +213,7 @@ pub fn wrap_im_open_api_service_router_with_resolver(
     wrap_im_open_api_service_router_inner(resolver, route_manifest, router)
 }
 
-/// Bootstrap from environment (split-deploy service processes with IAM database lookup).
+/// Bootstrap from environment (cloud service processes with IAM database lookup).
 pub async fn wrap_im_open_api_service_router_from_env(
     route_manifest: HttpRouteManifest,
     router: Router,

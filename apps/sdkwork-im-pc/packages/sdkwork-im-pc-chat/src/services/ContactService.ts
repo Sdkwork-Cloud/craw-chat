@@ -118,13 +118,10 @@ export interface ContactService {
 }
 
 const CONTACTS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
-const MAX_CONTACTS_SYNC = SDKWORK_MAX_PAGE_SIZE;
-const MAX_FRIEND_REQUESTS_SYNC = SDKWORK_MAX_PAGE_SIZE;
-const CONTACT_PREFERENCES_BATCH_SIZE = SDKWORK_DEFAULT_PAGE_SIZE;
-const CONTACT_PROFILE_BATCH_SIZE = SDKWORK_DEFAULT_PAGE_SIZE;
 const CONTACT_TAGS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const MAX_CONTACT_TAGS_SYNC = SDKWORK_MAX_PAGE_SIZE;
 const FRIEND_REQUESTS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
+const FRIEND_REQUEST_COUNT_TTL_MS = 5_000;
 const SOCIAL_USER_SEARCH_LIMIT = 20;
 const FRIEND_REQUEST_COUNT_REFRESH_MS = 12000;
 const FRIEND_REQUEST_REALTIME_EVENT_TYPES = [
@@ -158,6 +155,24 @@ function pickNumber(...values: unknown[]): number | undefined {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) {
         return parsed;
+      }
+    }
+  }
+  return undefined;
+}
+
+function pickBoolean(...values: unknown[]): boolean | undefined {
+  for (const value of values) {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') {
+        return true;
+      }
+      if (normalized === 'false') {
+        return false;
       }
     }
   }
@@ -282,13 +297,37 @@ class SdkworkContactService implements ContactService {
   private currentUserOverrides: Partial<User> = {};
   private pendingFriendRequestCount: number | undefined;
   private pendingFriendRequestCountRefresh?: Promise<number>;
+  private pendingFriendRequestCountCacheAt = 0;
   private pendingFriendRequestRefreshTimer?: ReturnType<typeof setInterval>;
   private pendingFriendRequestRefreshListener?: () => void;
   private pendingFriendRequestRealtimeUnsub?: () => void;
   private pendingFriendRequestRealtimeUserId?: string;
+  private lastKnownSessionUserId?: string;
   private friendRequestsListSync?: Promise<FriendRequest[]>;
-  private readonly friendRequestSyncByKey = new Map<string, Promise<ImFriendRequest[]>>();
-  private readonly handleAuthSessionChanged = (): void => {
+  // In-flight dedup for getUserById: collapses concurrent calls for the same
+  // id (e.g. Sidebar mount + session-changed event) onto one promise so only
+  // one /social/users request is issued.
+  private readonly getUserByIdInFlight = new Map<string, Promise<User | null>>();
+  private readonly handleAuthSessionChanged = (event?: Event): void => {
+    // Determine whether the session change is a real user switch (or logout)
+    // vs an incremental profile refresh (e.g. chatId hydration). Only clear
+    // user-scoped caches on a real switch; profile refreshes must not evict
+    // the very cache that was just populated (which caused a feedback loop).
+    type SessionDetail = { session: { user?: { id?: string | number } } | null } | undefined;
+    const detail = (event as CustomEvent<SessionDetail> | undefined)?.detail;
+    const nextUserId = detail?.session?.user?.id ?? readAppSdkSessionTokens()?.user?.id;
+    const isUserSwitch = !nextUserId || !this.lastKnownSessionUserId || String(nextUserId) !== String(this.lastKnownSessionUserId);
+    this.lastKnownSessionUserId = nextUserId ? String(nextUserId) : undefined;
+
+    if (!isUserSwitch) {
+      // Same user, profile-only update: keep caches, only stop the friend
+      // request loop if the session is no longer authenticated.
+      if (!nextUserId) {
+        this.stopPendingFriendRequestRefreshLoop();
+      }
+      return;
+    }
+
     this.contactByUserId.clear();
     this.preferenceByUserId.clear();
     this.processingFriendRequestIds.clear();
@@ -297,10 +336,11 @@ class SdkworkContactService implements ContactService {
     this.blacklistingUserIds.clear();
     this.userCache.clear();
     this.userIdByChatId.clear();
+    this.getUserByIdInFlight.clear();
     this.pendingFriendRequestCount = undefined;
     this.pendingFriendRequestCountRefresh = undefined;
+    this.pendingFriendRequestCountCacheAt = 0;
     this.friendRequestsListSync = undefined;
-    this.friendRequestSyncByKey.clear();
     this.stopPendingFriendRequestRefreshLoop();
   };
 
@@ -331,68 +371,35 @@ class SdkworkContactService implements ContactService {
   }
 
   private async syncContactsFromServer(): Promise<number> {
-    return forEachCursorPage(
-      async (cursor) => {
-        const response = await this.client().chat.contacts.list({
-          pageSize: CONTACTS_PAGE_LIMIT,
-          ...(cursor ? { cursor } : {}),
-        });
-        return {
-          items: response.items,
-          hasMore: response.hasMore,
-          nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
-        };
-      },
-      async (contacts) => {
-        await this.hydrateContactUsers(contacts);
-      },
-      { maxItems: MAX_CONTACTS_SYNC },
-    );
+    const page = await this.listContactsPage({ pageSize: CONTACTS_PAGE_LIMIT });
+    return page.items.length;
   }
 
   private async syncFriendRequestsFromServer(
     direction: 'incoming' | 'outgoing' | 'all',
     status: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all' = 'all',
   ): Promise<ImFriendRequest[]> {
-    const syncKey = `${direction}:${status}`;
-    const inFlight = this.friendRequestSyncByKey.get(syncKey);
-    if (inFlight) {
-      return inFlight;
-    }
-
-    const syncPromise = (async () => {
-      const requests: ImFriendRequest[] = [];
-      await forEachCursorPage(
-        async (cursor) => {
-          const response = await this.client().social.friendRequests.list({
-            direction,
-            status,
-            pageSize: FRIEND_REQUESTS_PAGE_LIMIT,
-            ...(cursor ? { cursor } : {}),
-          });
-          return readFriendRequestListPage(response, cursor);
-        },
-        async (items) => {
-          requests.push(...items);
-        },
-        { maxItems: MAX_FRIEND_REQUESTS_SYNC },
-      );
-      return requests;
-    })().finally(() => {
-      this.friendRequestSyncByKey.delete(syncKey);
+    const response = await this.client().social.friendRequests.list({
+      direction,
+      status,
+      pageSize: FRIEND_REQUESTS_PAGE_LIMIT,
     });
-
-    this.friendRequestSyncByKey.set(syncKey, syncPromise);
-    return syncPromise;
+    return readFriendRequestListPage(response).items;
   }
 
-  private async refreshPendingFriendRequestCount(): Promise<number> {
+  private async refreshPendingFriendRequestCount(force = false): Promise<number> {
     if (!this.hasAuthenticatedSession()) {
       this.pendingFriendRequestCount = 0;
       return 0;
     }
-    if (this.pendingFriendRequestCountRefresh) {
+    // TTL cache: serve fresh results without re-hitting the network. This
+    // coalesces bursts from setInterval, focus, visibilitychange, realtime
+    // events, and multiple subscribers into one request per TTL window.
+    if (!force && this.pendingFriendRequestCountRefresh) {
       return this.pendingFriendRequestCountRefresh;
+    }
+    if (!force && Date.now() - this.pendingFriendRequestCountCacheAt < FRIEND_REQUEST_COUNT_TTL_MS) {
+      return this.pendingFriendRequestCount ?? 0;
     }
 
     this.pendingFriendRequestCountRefresh = (async () => {
@@ -405,9 +412,9 @@ class SdkworkContactService implements ContactService {
           this.handleAuthenticationFailure();
           return 0;
         }
-        // Fallback for older gateways until contract is fully deployed everywhere.
-        const incoming = await this.syncFriendRequestsFromServer('incoming', 'pending');
-        count = incoming.length;
+        // Fallback for older gateways: keep the work bounded to one visible page.
+        const incoming = await this.listFriendRequestsPage({ direction: 'incoming' });
+        count = incoming.items.length;
       }
       const previousCount = this.pendingFriendRequestCount;
       this.pendingFriendRequestCount = count;
@@ -417,6 +424,7 @@ class SdkworkContactService implements ContactService {
       return count;
     })().finally(() => {
       this.pendingFriendRequestCountRefresh = undefined;
+      this.pendingFriendRequestCountCacheAt = Date.now();
     });
 
     return this.pendingFriendRequestCountRefresh;
@@ -430,7 +438,6 @@ class SdkworkContactService implements ContactService {
 
   private dispatchFriendRequestChange(): void {
     this.friendRequestsListSync = undefined;
-    this.friendRequestSyncByKey.clear();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT));
     }
@@ -509,22 +516,8 @@ class SdkworkContactService implements ContactService {
   }
 
   async getContacts(): Promise<User[]> {
-    const users: User[] = [];
-    await forEachCursorPage(
-      async (cursor) => {
-        const page = await this.listContactsPage({ cursor });
-        return {
-          items: page.items,
-          hasMore: page.hasMore,
-          nextCursor: page.nextCursor,
-        };
-      },
-      (contacts) => {
-        users.push(...contacts);
-      },
-      { maxItems: MAX_CONTACTS_SYNC },
-    );
-    return users;
+    const page = await this.listContactsPage();
+    return page.items;
   }
 
   async listContactsPage(params?: { cursor?: string; pageSize?: number }): Promise<ContactListPage> {
@@ -532,7 +525,7 @@ class SdkworkContactService implements ContactService {
       pageSize: params?.pageSize ?? CONTACTS_PAGE_LIMIT,
       ...(params?.cursor ? { cursor: params.cursor } : {}),
     });
-    const contacts = await this.hydrateContactUsers(response.items);
+    const contacts = this.hydrateContactUsers(response.items);
     return {
       items: contacts,
       nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
@@ -542,37 +535,25 @@ class SdkworkContactService implements ContactService {
 
   async listContactConversationIds(): Promise<string[]> {
     const conversationIds = new Set<string>();
-    let cursor: string | undefined;
-    let fetched = 0;
-
-    do {
-      if (fetched >= MAX_CONTACTS_SYNC) {
-        break;
+    for (const contact of this.contactByUserId.values()) {
+      const conversationId = normalizeString(contact.conversationId);
+      if (conversationId) {
+        conversationIds.add(conversationId);
       }
-      const response = await this.client().chat.contacts.list({
-        pageSize: CONTACTS_PAGE_LIMIT,
-        ...(cursor ? { cursor } : {}),
-      });
-      for (const contact of response.items) {
-        const conversationId = normalizeString(contact.conversationId);
-        if (conversationId) {
-          conversationIds.add(conversationId);
-        }
-      }
-      fetched += response.items.length;
-      cursor = response.hasMore ? (response.nextCursor ?? undefined) : undefined;
-    } while (cursor);
-
+    }
     return [...conversationIds];
   }
 
-  private async hydrateContactUsers(contacts: ContactView[]): Promise<User[]> {
-    const preferences = await this.loadContactPreferences(contacts);
-    await this.loadContactPeerProfiles(contacts);
-    const users = contacts
-      .map((contact) => this.mapContactViewToUser(contact, preferences.get(contact.targetUserId)))
-      .filter((user) => !(preferences.get(user.id)?.isBlocked ?? false));
-    return users.sort((left, right) => left.name.localeCompare(right.name));
+  private hydrateContactUsers(contacts: ContactView[]): User[] {
+    const users: User[] = [];
+    for (const contact of contacts) {
+      const preferences = this.readProjectedContactPreferences(contact);
+      if (preferences?.isBlocked) {
+        continue;
+      }
+      users.push(this.mapContactViewToUser(contact, preferences));
+    }
+    return users;
   }
 
   async searchContacts(query: string): Promise<User[]> {
@@ -595,7 +576,7 @@ class SdkworkContactService implements ContactService {
       await this.assertCanSendFriendRequest(targetUserId);
       await this.client().social.friendRequests.create({ targetUserId });
       this.dispatchFriendRequestChange();
-      void this.refreshPendingFriendRequestCount().catch(() => undefined);
+      void this.refreshPendingFriendRequestCount(true).catch(() => undefined);
     } catch (error) {
       const conflict = classifyFriendRequestSubmitError(error);
       if (conflict === 'already_friend') {
@@ -632,7 +613,7 @@ class SdkworkContactService implements ContactService {
       this.assertRelationshipAllowsFriendRequest(target.relationshipState);
       await this.client().social.friendRequests.create({ targetUserId: target.user.id });
       this.dispatchFriendRequestChange();
-      void this.refreshPendingFriendRequestCount().catch(() => undefined);
+      void this.refreshPendingFriendRequestCount(true).catch(() => undefined);
       return target.user;
     } catch (error) {
       const conflict = classifyFriendRequestSubmitError(error);
@@ -653,24 +634,18 @@ class SdkworkContactService implements ContactService {
 
   async getStarredContacts(): Promise<User[]> {
     const starred: User[] = [];
-    await forEachCursorPage(
-      async (cursor) => {
-        const page = await this.listContactsPage({ cursor });
-        return {
-          items: page.items,
-          hasMore: page.hasMore,
-          nextCursor: page.nextCursor,
-        };
-      },
-      (contacts) => {
-        for (const user of contacts) {
-          if (this.preferenceByUserId.get(user.id)?.isStarred) {
-            starred.push(user);
-          }
-        }
-      },
-      { maxItems: MAX_CONTACTS_SYNC },
-    );
+    for (const [userId, preferences] of this.preferenceByUserId) {
+      if (!preferences.isStarred || preferences.isBlocked) {
+        continue;
+      }
+      const cached = this.userCache.get(userId);
+      const contact = this.contactByUserId.get(userId);
+      if (cached) {
+        starred.push({ ...cached });
+      } else if (contact) {
+        starred.push(this.mapContactViewToUser(contact, preferences));
+      }
+    }
     return starred;
   }
 
@@ -730,6 +705,22 @@ class SdkworkContactService implements ContactService {
     if (!normalizedId) {
       return null;
     }
+    // In-flight dedup: if a lookup for this id is already running, share the
+    // same promise. This prevents the login feedback loop (Sidebar mount +
+    // session-changed event from appAuthService.getCurrentSession) from
+    // issuing two concurrent /social/users requests for the same user.
+    const inFlight = this.getUserByIdInFlight.get(normalizedId);
+    if (inFlight) {
+      return inFlight;
+    }
+    const promise = this.resolveUserById(normalizedId).finally(() => {
+      this.getUserByIdInFlight.delete(normalizedId);
+    });
+    this.getUserByIdInFlight.set(normalizedId, promise);
+    return promise;
+  }
+
+  private async resolveUserById(normalizedId: string): Promise<User | null> {
     const currentUser = this.getCurrentUser();
     if (currentUser.chatId === normalizedId) {
       return currentUser;
@@ -742,35 +733,12 @@ class SdkworkContactService implements ContactService {
     if (cached) {
       return { ...cached };
     }
+    const cachedContact = this.contactByUserId.get(normalizedId);
+    if (cachedContact) {
+      return this.mapContactViewToUser(cachedContact, this.preferenceByUserId.get(normalizedId));
+    }
     if (shouldReturnCurrentUserIfLookupFails) {
       return await this.findSocialUserByLookup(normalizedId) ?? currentUser;
-    }
-    const lookup = await this.findSocialUserByLookup(normalizedId);
-    if (lookup) {
-      return lookup;
-    }
-    let found: User | undefined;
-    await forEachCursorPage(
-      async (cursor) => {
-        const page = await this.listContactsPage({ cursor });
-        return {
-          items: page.items,
-          hasMore: page.hasMore,
-          nextCursor: page.nextCursor,
-        };
-      },
-      (contacts) => {
-        if (found) {
-          return;
-        }
-        found = contacts.find(
-          (user) => user.id === normalizedId || user.chatId === normalizedId,
-        );
-      },
-      { maxItems: MAX_CONTACTS_SYNC },
-    );
-    if (found) {
-      return found;
     }
     return await this.findSocialUserByLookup(normalizedId);
   }
@@ -781,12 +749,7 @@ class SdkworkContactService implements ContactService {
     }
 
     this.friendRequestsListSync = (async () => {
-      const [incomingRequests, outgoingRequests] = await Promise.all([
-        this.syncFriendRequestsFromServer('incoming', 'pending'),
-        this.syncFriendRequestsFromServer('outgoing', 'pending'),
-      ]);
-      const requests = [...incomingRequests, ...outgoingRequests];
-      await this.loadFriendRequestPeerProfiles(requests);
+      const requests = await this.syncFriendRequestsFromServer('all', 'pending');
       return requests.map((request) => this.mapFriendRequest(request));
     })().finally(() => {
       this.friendRequestsListSync = undefined;
@@ -809,7 +772,6 @@ class SdkworkContactService implements ContactService {
       ...(params.cursor ? { cursor: params.cursor } : {}),
     });
     const page = readFriendRequestListPage(response, params.cursor);
-    await this.loadFriendRequestPeerProfiles(page.items);
     return {
       items: page.items.map((request) => this.mapFriendRequest(request)),
       hasMore: page.hasMore,
@@ -827,6 +789,9 @@ class SdkworkContactService implements ContactService {
       handler(this.pendingFriendRequestCount);
     }
     if (this.hasAuthenticatedSession()) {
+      // Only trigger a network refresh if we don't have a fresh cached value.
+      // Multiple subscribers (ChatLayout + NewFriendsContainer) should not each
+      // trigger a separate count request on subscribe.
       void this.refreshPendingFriendRequestCount().catch(() => undefined);
       void this.startPendingFriendRequestRealtime();
       this.startPendingFriendRequestRefreshLoop();
@@ -915,11 +880,7 @@ class SdkworkContactService implements ContactService {
     }
     this.deletingContactUserIds.add(normalizedUserId);
     try {
-      let contact = this.contactByUserId.get(normalizedUserId);
-      if (!contact) {
-        await this.syncContactsFromServer();
-        contact = this.contactByUserId.get(normalizedUserId);
-      }
+      const contact = this.contactByUserId.get(normalizedUserId);
       if (!contact?.friendshipId) {
         throw new Error('Contact friendship is not available');
       }
@@ -961,13 +922,13 @@ class SdkworkContactService implements ContactService {
         if (userId) {
           await this.loadUserProfile(userId);
         }
-        await this.refreshPendingFriendRequestCount();
+        await this.refreshPendingFriendRequestCount(true);
         this.dispatchFriendRequestChange();
         return;
       }
 
       await this.client().social.friendRequests.decline(normalizedRequestId);
-      await this.refreshPendingFriendRequestCount();
+      await this.refreshPendingFriendRequestCount(true);
       this.dispatchFriendRequestChange();
     } finally {
       this.processingFriendRequestIds.delete(normalizedRequestId);
@@ -982,7 +943,7 @@ class SdkworkContactService implements ContactService {
     this.processingFriendRequestIds.add(normalizedRequestId);
     try {
       await this.client().social.friendRequests.cancel(normalizedRequestId);
-      await this.refreshPendingFriendRequestCount();
+      await this.refreshPendingFriendRequestCount(true);
       this.dispatchFriendRequestChange();
     } finally {
       this.processingFriendRequestIds.delete(normalizedRequestId);
@@ -1075,32 +1036,6 @@ class SdkworkContactService implements ContactService {
     return { refreshedContacts };
   }
 
-  private async loadContactPreferences(contacts: ContactView[]): Promise<Map<string, ContactPreferencesView>> {
-    const entries: Array<readonly [string, ContactPreferencesView]> = [];
-    for (let batchStart = 0; batchStart < contacts.length; batchStart += CONTACT_PREFERENCES_BATCH_SIZE) {
-      const batch = contacts.slice(batchStart, batchStart + CONTACT_PREFERENCES_BATCH_SIZE);
-      entries.push(...await Promise.all(batch.map(async (contact) => {
-        const preferences = await this.client().social.contacts.preferences.retrieve(contact.targetUserId);
-        return [contact.targetUserId, preferences] as const;
-      })));
-    }
-    const preferencesByUserId = new Map(entries);
-    for (const [userId, preferences] of preferencesByUserId) {
-      this.preferenceByUserId.set(userId, preferences);
-    }
-    return preferencesByUserId;
-  }
-
-  private async loadContactPeerProfiles(contacts: ContactView[]): Promise<void> {
-    const userIds = [...new Set(contacts.map((contact) => contact.targetUserId))]
-      .filter((userId) => !this.userCache.has(userId));
-
-    for (let batchStart = 0; batchStart < userIds.length; batchStart += CONTACT_PROFILE_BATCH_SIZE) {
-      const batch = userIds.slice(batchStart, batchStart + CONTACT_PROFILE_BATCH_SIZE);
-      await Promise.all(batch.map((userId) => this.loadUserProfile(userId)));
-    }
-  }
-
   private async loadUserProfile(userId: string): Promise<User | null> {
     const [profile] = await this.searchSocialUsers(userId, { includeCurrentUser: true });
     return profile?.id === userId ? profile : null;
@@ -1184,6 +1119,41 @@ class SdkworkContactService implements ContactService {
       request.border = updates.border;
     }
     return request;
+  }
+
+  private readProjectedContactPreferences(contact: ContactView): ContactPreferencesView | undefined {
+    const cached = this.preferenceByUserId.get(contact.targetUserId);
+    const contactRecord = toRecord(contact);
+    const preferencesRecord = toRecord(contactRecord.preferences ?? contactRecord.preference);
+    const isBlocked = pickBoolean(
+      contactRecord.isBlocked,
+      contactRecord.is_blocked,
+      preferencesRecord.isBlocked,
+      preferencesRecord.is_blocked,
+    );
+    const isStarred = pickBoolean(
+      contactRecord.isStarred,
+      contactRecord.is_starred,
+      preferencesRecord.isStarred,
+      preferencesRecord.is_starred,
+    );
+    const remark = pickString(contactRecord.remark, preferencesRecord.remark);
+    if (isBlocked === undefined && isStarred === undefined && remark === undefined) {
+      return cached;
+    }
+    const projected: ContactPreferencesView = {
+      isBlocked: isBlocked ?? cached?.isBlocked ?? false,
+      isStarred: isStarred ?? cached?.isStarred ?? false,
+      ownerUserId: contact.ownerUserId,
+      remark: remark ?? cached?.remark ?? '',
+      targetUserId: contact.targetUserId,
+      tenantId: contact.tenantId,
+      updatedAt: pickString(contactRecord.updatedAt, contactRecord.updated_at, preferencesRecord.updatedAt, preferencesRecord.updated_at)
+        ?? cached?.updatedAt
+        ?? contact.lastInteractionAt,
+    };
+    this.preferenceByUserId.set(contact.targetUserId, projected);
+    return projected;
   }
 
   private mapContactViewToUser(contact: ContactView, preferences?: ContactPreferencesView): User {
@@ -1270,29 +1240,6 @@ class SdkworkContactService implements ContactService {
     };
   }
 
-  private async loadFriendRequestPeerProfiles(requests: ImFriendRequest[]): Promise<void> {
-    const currentUserId = this.getCurrentUser().id;
-    const peerUserIds = [...new Set(requests.map((request) => (
-      request.requesterUserId === currentUserId
-        ? request.targetUserId
-        : request.requesterUserId
-    )))];
-
-    await Promise.all(peerUserIds.map(async (peerUserId) => {
-      if (this.userCache.has(peerUserId)) {
-        return;
-      }
-      try {
-        const [profile] = await this.searchContacts(peerUserId);
-        if (profile?.id === peerUserId) {
-          this.cacheUser(profile);
-        }
-      } catch {
-        // Keep the friend-request list usable when profile lookup is temporarily unavailable.
-      }
-    }));
-  }
-
   private mapFriendRequest(request: ImFriendRequest): FriendRequest {
     const requestId = wireFriendRequestId(request);
     const currentUserId = this.getCurrentUser().id;
@@ -1301,7 +1248,7 @@ class SdkworkContactService implements ContactService {
     const peerUser = this.userCache.get(peerUserId);
     const name = this.preferenceByUserId.get(peerUserId)?.remark || peerUser?.name || peerUserId;
     return {
-      avatar: peerUser?.avatar,
+      avatar: peerUser?.avatar ?? createAvatar(peerUserId),
       direction: isOutgoing ? 'outgoing' : 'incoming',
       id: requestId,
       name,

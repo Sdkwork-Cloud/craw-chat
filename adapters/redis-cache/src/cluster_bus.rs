@@ -7,13 +7,10 @@
 //! - Publish: `cluster:route:{target_node_id}` → JSON payload
 //! - Subscribe: `cluster:route:{own_node_id}` → receive JSON payload
 
-use redis::PubSubCommands;
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
-use crate::redis_blocking::{
-    RedisBlockingTimeouts, blocking_subscription_connection, run_bounded_redis_command,
-};
+use crate::redis_blocking::{RedisBlockingTimeouts, run_bounded_redis_command};
 use crate::redis_unavailable;
 
 /// A route event published across the cluster bus.
@@ -81,18 +78,22 @@ impl RedisClusterBus {
         route_channel(&self.own_node_id)
     }
 
-    /// Get a pubsub connection for subscribing to the local node's channel.
-    /// The caller must provide a message handler callback that returns
-    /// `redis::ControlFlow` to control the subscription loop.
-    pub fn subscribe_connection<F, U>(&self, handler: F) -> Result<U, ContractError>
-    where
-        F: FnMut(redis::Msg) -> redis::ControlFlow<U> + Send,
-        U: Send,
-    {
-        let mut conn =
-            blocking_subscription_connection(&self.client, self.timeouts, "cluster_bus_subscribe")?;
-        conn.subscribe(&[self.own_channel().as_str()], handler)
-            .map_err(|e| redis_unavailable("subscribe_route_events", e))
+    pub async fn subscribe_async(&self) -> Result<redis::aio::PubSub, ContractError> {
+        let mut pubsub = tokio::time::timeout(
+            self.timeouts.connect_timeout(),
+            self.client.get_async_pubsub(),
+        )
+        .await
+        .map_err(|_| ContractError::Unavailable("subscribe_route_events connect timed out".into()))?
+        .map_err(|error| redis_unavailable("subscribe_route_events_connect", error))?;
+        tokio::time::timeout(
+            self.timeouts.command_timeout(),
+            pubsub.subscribe(self.own_channel()),
+        )
+        .await
+        .map_err(|_| ContractError::Unavailable("subscribe_route_events timed out".into()))?
+        .map_err(|error| redis_unavailable("subscribe_route_events", error))?;
+        Ok(pubsub)
     }
 
     /// Get the own node ID.

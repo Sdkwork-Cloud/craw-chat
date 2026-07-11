@@ -1,8 +1,8 @@
 import {
   createClient,
   type SdkworkBackendConfig,
-  type SdkworkImBackendClient as GeneratedSdkworkImBackendClient,
-} from '@sdkwork-internal/im-backend-api-generated';
+  type SdkworkImBackendClient,
+} from '@sdkwork/im-backend-sdk';
 import type { Interceptors } from '@sdkwork/sdk-common';
 import {
   createSdkworkChatRequestContextInterceptors,
@@ -14,7 +14,7 @@ import {
 } from '@sdkwork/im-pc-core';
 import { stripSdkOwnedPathSuffix } from '@sdkwork/im-pc-core/sdk/sdkBaseUrls';
 
-export type SdkworkImBackendClient = GeneratedSdkworkImBackendClient;
+export type { SdkworkImBackendClient };
 export type SdkworkImBackendClientConfig = SdkworkBackendConfig & {
   interceptors?: Interceptors;
 };

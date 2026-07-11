@@ -6,6 +6,10 @@ import { formatRelativeTime, useI18n } from "@sdkwork/im-h5-commons";
 
 import { fetchChatInboxPage, markConversationRead, readInboxPageState } from "../services/chatInboxService";
 import { mergeInboxEntries } from "../services/chatInboxUtils";
+import {
+  rememberConversationTitle,
+  resolveConversationInboxEntryDisplayTitle,
+} from "../services/chatConversationTitleStore";
 import { subscribeInboxLiveRefresh } from "../services/chatRealtimeService";
 
 export function ChatInboxPage() {
@@ -138,10 +142,8 @@ export function ChatInboxPage() {
       <ul className="im-h5-chat-list">
         {entries.map((entry) => {
           const conversationId = entry.conversationId;
-          const title =
-            entry.displayName
-            ?? entry.peer?.displayName
-            ?? t("chat.inbox.conversationFallback", { id: String(conversationId) });
+          const displayTitle = resolveConversationInboxEntryDisplayTitle(entry);
+          const title = displayTitle ?? t("chat.inbox.conversationFallback", { id: String(conversationId) });
           const preview = entry.lastSummary ?? "";
           const updatedAt = entry.lastMessageAt ?? entry.lastActivityAt;
           const unreadCount = entry.unreadCount ?? 0;
@@ -155,6 +157,7 @@ export function ChatInboxPage() {
                 className="im-h5-chat-item-link"
                 href={`#/chat/conversations/${encodeURIComponent(String(conversationId))}`}
                 onClick={() => {
+                  rememberConversationTitle(String(conversationId), displayTitle);
                   void markConversationRead(String(conversationId), {
                     readSeq: entry.lastMessageSeq ?? 0,
                   }).catch(() => undefined);

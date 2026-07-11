@@ -317,37 +317,83 @@ fn test_conversation_message_log_owns_high_watermark_and_posted_messages() {
 }
 
 #[test]
+fn test_conversation_message_log_observes_persisted_high_watermark_monotonically() {
+    let mut log = ConversationMessageLog::default();
+    log.observe_high_watermark(6);
+    assert_eq!(log.high_watermark(), 6);
+
+    log.observe_high_watermark(3);
+    assert_eq!(log.high_watermark(), 6);
+
+    log.store_posted(demo_message(8));
+    assert_eq!(log.high_watermark(), 8);
+}
+
+#[test]
 fn test_conversation_message_log_returns_bounded_sequence_windows_without_full_history_shape() {
     let mut log = ConversationMessageLog::default();
     log.store_posted(demo_message(2));
     log.store_posted(demo_message(1));
     log.store_posted(demo_message(3));
 
-    let first = log.message_window_after(0, 1);
+    let first = log.message_window_before(None, 1);
     assert_eq!(
         first
             .items
             .iter()
             .map(|stored| stored.message.message_seq)
             .collect::<Vec<_>>(),
-        vec![1]
+        vec![3]
     );
-    assert_eq!(first.next_after_seq, Some(1));
+    assert_eq!(first.next_before_seq, Some(3));
     assert!(first.has_more);
     assert_eq!(first.high_watermark, 3);
 
-    let second = log.message_window_after(1, 2);
+    let second = log.message_window_before(first.next_before_seq, 2);
     assert_eq!(
         second
             .items
             .iter()
             .map(|stored| stored.message.message_seq)
             .collect::<Vec<_>>(),
-        vec![2, 3]
+        vec![1, 2]
     );
-    assert_eq!(second.next_after_seq, Some(3));
+    assert_eq!(second.next_before_seq, None);
     assert!(!second.has_more);
     assert_eq!(second.high_watermark, 3);
+}
+
+#[test]
+fn test_conversation_message_log_pages_backward_from_latest_in_chronological_order() {
+    let mut log = ConversationMessageLog::default();
+    for message_seq in 1..=10 {
+        log.store_posted(demo_message(message_seq));
+    }
+
+    let latest = log.message_window_before(None, 3);
+    assert_eq!(
+        latest
+            .items
+            .iter()
+            .map(|stored| stored.message.message_seq)
+            .collect::<Vec<_>>(),
+        vec![8, 9, 10]
+    );
+    assert_eq!(latest.next_before_seq, Some(8));
+    assert!(latest.has_more);
+
+    let older = log.message_window_before(latest.next_before_seq, 3);
+    assert_eq!(
+        older
+            .items
+            .iter()
+            .map(|stored| stored.message.message_seq)
+            .collect::<Vec<_>>(),
+        vec![5, 6, 7]
+    );
+    assert_eq!(older.next_before_seq, Some(5));
+    assert!(older.has_more);
+    assert_eq!(older.high_watermark, 10);
 }
 
 #[test]
@@ -367,7 +413,12 @@ fn test_conversation_message_log_replaces_stale_sequence_index_when_message_id_i
         vec![2],
         "overwriting a message id must remove the stale sequence index"
     );
-    assert!(log.message_window_after(0, 10).items[0].message.message_id == "msg_c_demo_1");
+    assert!(
+        log.message_window_before(None, 10).items[0]
+            .message
+            .message_id
+            == "msg_c_demo_1"
+    );
 }
 
 #[test]
@@ -462,9 +513,14 @@ fn test_conversation_message_log_reactions_are_isolated_by_actor_kind() {
         ..user_added.clone()
     };
 
-    assert_eq!(log.apply_reaction_added(&user_added), Some(true));
     assert_eq!(
-        log.apply_reaction_added(&agent_added),
+        log.apply_reaction_added(&user_added)
+            .map(|outcome| outcome.value),
+        Some(true)
+    );
+    assert_eq!(
+        log.apply_reaction_added(&agent_added)
+            .map(|outcome| outcome.value),
         Some(true),
         "same actor id with a different actor kind must be a distinct reaction identity"
     );
@@ -483,7 +539,11 @@ fn test_conversation_message_log_reactions_are_isolated_by_actor_kind() {
         removed_by: user_added.reacted_by,
         removed_at: "2026-04-07T12:09:03.000Z".into(),
     };
-    assert_eq!(log.apply_reaction_removed(&user_removed), Some(true));
+    assert_eq!(
+        log.apply_reaction_removed(&user_removed)
+            .map(|outcome| outcome.value),
+        Some(true)
+    );
 
     let stored = log
         .message(message.message_id.as_str())

@@ -1,9 +1,10 @@
 import { isSdkworkChatDesktopRuntime } from '../runtime/desktopEnvironment';
+import type { DesktopOfflinePrincipalScope } from './desktopOfflineScope';
 
 type TauriInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
 
 export type DesktopOfflineMessageRecord = {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   conversationId: string;
   messageSeq: number;
   messageId: string;
@@ -12,14 +13,14 @@ export type DesktopOfflineMessageRecord = {
 };
 
 export type DesktopOfflineConversationRecord = {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   conversationId: string;
   payloadJson: string;
   updatedAt: string;
 };
 
 export type DesktopOfflinePendingSendRecord = {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   clientMsgId: string;
   conversationId: string;
   payloadJson: string;
@@ -64,21 +65,16 @@ export async function upsertDesktopOfflineMessages(
 }
 
 export async function listDesktopOfflineMessages(input: {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   conversationId: string;
-  afterSeq?: number;
+  beforeSeq?: number;
   limit?: number;
 }): Promise<DesktopOfflineMessageRecord[]> {
   const invoke = resolveTauriInvoke();
   if (!invoke) {
     return [];
   }
-  const rows = await invoke('sdkwork_im_pc_offline_list_messages', {
-    tenantId: input.tenantId,
-    conversationId: input.conversationId,
-    afterSeq: input.afterSeq ?? 0,
-    limit: input.limit,
-  });
+  const rows = await invoke('sdkwork_im_pc_offline_list_messages', input);
   return Array.isArray(rows) ? (rows as DesktopOfflineMessageRecord[]) : [];
 }
 
@@ -94,35 +90,32 @@ export async function upsertDesktopOfflineConversations(
 }
 
 export async function listDesktopOfflineConversations(input: {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   limit?: number;
 }): Promise<DesktopOfflineConversationRecord[]> {
   const invoke = resolveTauriInvoke();
   if (!invoke) {
     return [];
   }
-  const rows = await invoke('sdkwork_im_pc_offline_list_conversations', {
-    tenantId: input.tenantId,
-    limit: input.limit,
-  });
+  const rows = await invoke('sdkwork_im_pc_offline_list_conversations', input);
   return Array.isArray(rows) ? (rows as DesktopOfflineConversationRecord[]) : [];
 }
 
-export async function readDesktopOfflineSyncCursor(
-  tenantId: string,
-  scope: string,
-): Promise<string | null> {
+export async function readDesktopOfflineSyncCursor(input: {
+  scope: DesktopOfflinePrincipalScope;
+  cursorScope: string;
+}): Promise<string | null> {
   const invoke = resolveTauriInvoke();
   if (!invoke) {
     return null;
   }
-  const value = await invoke('sdkwork_im_pc_offline_get_sync_cursor', { tenantId, scope });
+  const value = await invoke('sdkwork_im_pc_offline_get_sync_cursor', input);
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 export async function writeDesktopOfflineSyncCursor(input: {
-  tenantId: string;
-  scope: string;
+  scope: DesktopOfflinePrincipalScope;
+  cursorScope: string;
   cursorJson: string;
   updatedAt: string;
 }): Promise<void> {
@@ -144,22 +137,19 @@ export async function enqueueDesktopOfflinePendingSend(
 }
 
 export async function listDesktopOfflinePendingSends(input: {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   limit?: number;
 }): Promise<DesktopOfflinePendingSendRecord[]> {
   const invoke = resolveTauriInvoke();
   if (!invoke) {
     return [];
   }
-  const rows = await invoke('sdkwork_im_pc_offline_list_pending_sends', {
-    tenantId: input.tenantId,
-    limit: input.limit,
-  });
+  const rows = await invoke('sdkwork_im_pc_offline_list_pending_sends', input);
   return Array.isArray(rows) ? (rows as DesktopOfflinePendingSendRecord[]) : [];
 }
 
 export async function claimDesktopOfflinePendingSends(input: {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   claimId: string;
   limit?: number;
 }): Promise<DesktopOfflinePendingSendRecord[]> {
@@ -167,16 +157,12 @@ export async function claimDesktopOfflinePendingSends(input: {
   if (!invoke) {
     return [];
   }
-  const rows = await invoke('sdkwork_im_pc_offline_claim_pending_sends', {
-    tenantId: input.tenantId,
-    claimId: input.claimId,
-    limit: input.limit,
-  });
+  const rows = await invoke('sdkwork_im_pc_offline_claim_pending_sends', input);
   return Array.isArray(rows) ? (rows as DesktopOfflinePendingSendRecord[]) : [];
 }
 
 export async function releaseDesktopOfflinePendingSendClaim(input: {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   clientMsgId: string;
   claimId: string;
 }): Promise<boolean> {
@@ -184,18 +170,41 @@ export async function releaseDesktopOfflinePendingSendClaim(input: {
   if (!invoke) {
     return false;
   }
-  const released = await invoke('sdkwork_im_pc_offline_release_pending_send_claim', input);
-  return released === true;
+  return await invoke('sdkwork_im_pc_offline_release_pending_send_claim', input) === true;
 }
 
 export async function deleteDesktopOfflinePendingSend(input: {
-  tenantId: string;
+  scope: DesktopOfflinePrincipalScope;
   clientMsgId: string;
+  claimId: string;
 }): Promise<boolean> {
   const invoke = resolveTauriInvoke();
   if (!invoke) {
     return false;
   }
-  const deleted = await invoke('sdkwork_im_pc_offline_delete_pending_send', input);
-  return deleted === true;
+  return await invoke('sdkwork_im_pc_offline_delete_pending_send', input) === true;
+}
+
+export async function quarantineDesktopOfflinePendingSend(input: {
+  scope: DesktopOfflinePrincipalScope;
+  clientMsgId: string;
+  claimId: string;
+  reason: string;
+}): Promise<boolean> {
+  const invoke = resolveTauriInvoke();
+  if (!invoke) {
+    return false;
+  }
+  return await invoke('sdkwork_im_pc_offline_quarantine_pending_send', input) === true;
+}
+
+export async function purgeDesktopOfflinePrincipalCache(
+  scope: DesktopOfflinePrincipalScope,
+): Promise<number> {
+  const invoke = resolveTauriInvoke();
+  if (!invoke) {
+    return 0;
+  }
+  const deleted = await invoke('sdkwork_im_pc_offline_purge_principal_cache', { scope });
+  return typeof deleted === 'number' ? deleted : 0;
 }

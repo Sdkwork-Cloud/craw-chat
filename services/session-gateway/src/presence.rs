@@ -14,6 +14,7 @@ use im_domain_core::presence::{
 use im_time::{rfc3339_gt, rfc3339_le, utc_now_rfc3339_millis};
 
 use crate::principal_scope::{typed_client_route_scope_key, typed_principal_scope_key};
+use crate::session_fence::{SessionFenceDecision, decide_session_fence};
 
 const PRESENCE_EXPIRATION_BATCH_LIMIT: usize = 1024;
 
@@ -244,10 +245,51 @@ impl PresenceRuntime {
         device_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
         let entry = self.ensure_client_route_entry(auth, device_id)?;
-        if entry.resume_required {
-            return Err(PresenceRuntimeError::reconnect_required(device_id));
+        match decide_session_fence(
+            entry.resume_required,
+            entry.view.session_id.as_deref(),
+            auth.session_id.as_deref(),
+        ) {
+            SessionFenceDecision::Allow => Ok(()),
+            SessionFenceDecision::ClearAndAllow => self.clear_resume_required(auth, device_id),
+            SessionFenceDecision::RequireReconnect => {
+                Err(PresenceRuntimeError::reconnect_required(device_id))
+            }
         }
-        Ok(())
+    }
+
+    /// Clears the `resume_required` flag for the given device entry and
+    /// persists the updated state. Used when a new session supersedes a stale
+    /// disconnect fence so the presence layer stops rejecting traffic.
+    fn clear_resume_required(
+        &self,
+        auth: &AppContext,
+        device_id: &str,
+    ) -> Result<(), PresenceRuntimeError> {
+        let scope = typed_principal_scope_key(
+            auth.tenant_id.as_str(),
+            auth.organization_id.as_str(),
+            auth.actor_id.as_str(),
+            auth.actor_kind.as_str(),
+        );
+        let mut entries = lock_presence_mutex(&self.entries, "presence store");
+        let Some(scope_entries) = entries.get_mut(scope.as_str()) else {
+            return Ok(());
+        };
+        let Some(entry) = scope_entries.get_mut(device_id) else {
+            return Ok(());
+        };
+        entry.resume_required = false;
+        entry.view.session_id = auth.session_id.clone();
+        let updated = entry.clone();
+        drop(entries);
+        self.persist_entry(
+            updated,
+            session_timestamp(),
+            auth.organization_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+        )
     }
 
     pub fn resume(

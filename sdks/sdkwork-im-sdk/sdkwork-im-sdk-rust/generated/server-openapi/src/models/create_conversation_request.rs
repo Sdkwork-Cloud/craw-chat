@@ -7,16 +7,29 @@ pub struct CreateConversationRequest {
     pub conversation_id: Option<String>,
 
     #[serde(rename = "conversationType")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub conversation_type: Option<String>,
+    pub conversation_type: String,
 
+    #[serde(rename = "groupName")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub kind: Option<String>,
+    pub group_name: Option<String>,
 
+    #[serde(rename = "clientRequestKey")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    pub client_request_key: Option<String>,
 
-    #[serde(rename = "memberIds")]
+    #[serde(rename = "policyVersion")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub member_ids: Option<Vec<String>>,
+    pub policy_version: Option<String>,
+
+    #[serde(rename = "capabilityFlags")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capability_flags: Option<Vec<String>>,
+
+    #[serde(rename = "historyVisibility")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_visibility: Option<String>,
+
+    #[serde(rename = "retentionPolicyRef")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retention_policy_ref: Option<String>,
 }

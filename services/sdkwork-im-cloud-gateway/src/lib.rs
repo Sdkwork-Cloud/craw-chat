@@ -20,8 +20,8 @@
 //! # Dependency App-API Assembly
 //!
 //! Sibling product app-api surfaces are registered in [`registry`] and proxied
-//! through the shared platform gateway root unless a split upstream override is
-//! configured in `sdkwork-im-cloud-gateway-config`.
+//! through the shared platform gateway root unless an explicit external
+//! upstream override is configured in `sdkwork-im-cloud-gateway-config`.
 //!
 //! - `"sdkwork-drive-app-api"` -> `/app/v3/api/drive/{*path}` -> `SdkworkDriveAppSdk`
 //! - `"sdkwork-notary-app-api"` -> `/app/v3/api/notary/{*path}` -> `SdkworkNotaryAppSdk`
@@ -53,6 +53,7 @@ mod registry;
 mod response;
 mod runtime;
 mod state;
+mod trace_identity;
 mod web_framework;
 mod websocket;
 mod websocket_auth;

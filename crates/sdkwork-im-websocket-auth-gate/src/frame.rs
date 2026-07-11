@@ -37,7 +37,6 @@ impl AuthInitValidationError {
 pub struct WebsocketAuthInitFrame {
     #[serde(rename = "type")]
     pub frame_type: String,
-    pub request_id: Option<String>,
     pub auth_token: Option<String>,
     pub access_token: Option<String>,
     pub device_id: Option<String>,
@@ -101,7 +100,7 @@ pub fn normalize_websocket_auth_token(token: &str) -> String {
 }
 
 pub fn auth_ok_payload(
-    request_id: Option<&str>,
+    trace_id: &str,
     tenant_id: &str,
     principal_id: &str,
     session_id: Option<&str>,
@@ -109,7 +108,7 @@ pub fn auth_ok_payload(
 ) -> String {
     json!({
         "type": "auth.ok",
-        "requestId": request_id,
+        "traceId": trace_id,
         "tenantId": tenant_id,
         "principalId": principal_id,
         "sessionId": session_id,
@@ -118,13 +117,9 @@ pub fn auth_ok_payload(
     .to_string()
 }
 
-pub fn auth_ok_payload_from_context(
-    request_id: Option<&str>,
-    auth: &AppContext,
-    device_id: &str,
-) -> String {
+pub fn auth_ok_payload_from_context(trace_id: &str, auth: &AppContext, device_id: &str) -> String {
     auth_ok_payload(
-        request_id,
+        trace_id,
         auth.tenant_id.as_str(),
         auth.user_id.as_str(),
         auth.session_id.as_deref(),
@@ -132,10 +127,10 @@ pub fn auth_ok_payload_from_context(
     )
 }
 
-pub fn auth_error_payload(request_id: Option<&str>, code: &str, message: &str) -> String {
+pub fn auth_error_payload(trace_id: &str, code: &str, message: &str) -> String {
     json!({
         "type": "error",
-        "requestId": request_id,
+        "traceId": trace_id,
         "code": code,
         "message": message,
     })
@@ -150,7 +145,6 @@ mod tests {
     fn validate_auth_init_frame_requires_dual_tokens() {
         let frame = WebsocketAuthInitFrame {
             frame_type: AUTH_INIT_FRAME_TYPE.to_owned(),
-            request_id: Some("req-1".to_owned()),
             auth_token: Some("auth-1".to_owned()),
             access_token: Some("access-1".to_owned()),
             device_id: Some("device-1".to_owned()),
@@ -169,7 +163,6 @@ mod tests {
     fn validate_auth_init_frame_rejects_missing_access_token() {
         let frame = WebsocketAuthInitFrame {
             frame_type: AUTH_INIT_FRAME_TYPE.to_owned(),
-            request_id: None,
             auth_token: Some("auth-1".to_owned()),
             access_token: None,
             device_id: None,

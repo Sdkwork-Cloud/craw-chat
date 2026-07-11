@@ -9,7 +9,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
-const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
+const gatewayRuntime = read('services/sdkwork-im-cloud-gateway/src/runtime.rs');
 const interceptors = read('../sdkwork-web-framework/crates/sdkwork-web-core/src/interceptors.rs');
 const iamAdapterLib = read('../sdkwork-iam/crates/sdkwork-iam-web-adapter/src/lib.rs');
 const iamDatabaseEnv = read('../sdkwork-iam/crates/sdkwork-iam-web-adapter/src/iam_database_env.rs');
@@ -17,7 +17,7 @@ const imWebBootstrap = read('crates/sdkwork-im-web-bootstrap/src/lib.rs');
 const embeddedGateway = read('services/sdkwork-im-cloud-gateway/src/embedded_session_gateway.rs');
 const realtimeBootstrap = read('crates/sdkwork-routes-im-realtime-open-api/src/web_bootstrap.rs');
 
-const embeddedDispatch = gatewayLib.match(
+const embeddedDispatch = gatewayRuntime.match(
   /fn should_dispatch_embedded_session_gateway\(path: &str\) -> bool \{[\s\S]*?\n\}/u,
 )?.[0] ?? '';
 assert.match(
@@ -120,13 +120,13 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_drive_gateway_assembly::assemble_application_router/,
-  'standalone dependency bootstrap must mount drive through sibling gateway assembly library',
+  /sdkwork_drive_gateway_assembly::assemble_application_business_router/,
+  'standalone dependency bootstrap must mount drive business routes through sibling gateway assembly library',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /build_served_unified_router/,
-  'standalone dependency bootstrap must mount knowledgebase through route crate bootstrap',
+  /sdkwork_knowledgebase_gateway_assembly::assemble_application_business_router/,
+  'standalone dependency bootstrap must mount knowledgebase business routes through sibling gateway assembly library',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
@@ -135,8 +135,8 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /build_sdkwork_mail_app_api_router/,
-  'standalone dependency bootstrap must mount mail through route crate bootstrap',
+  /sdkwork_mail_gateway_assembly::assemble_application_router/,
+  'standalone dependency bootstrap must mount mail through sibling gateway assembly library',
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
@@ -145,8 +145,8 @@ assert.match(
 );
 assert.match(
   read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
-  /sdkwork_notary_gateway_assembly::assemble_application_router/,
-  'standalone dependency bootstrap must mount notary through sibling gateway assembly library',
+  /sdkwork_notary_gateway_assembly::assemble_application_business_router/,
+  'standalone dependency bootstrap must mount notary business routes through sibling gateway assembly library',
 );
 assert.match(
   read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs'),
@@ -157,8 +157,8 @@ assert.match(
 const serverDevRuntime = read('scripts/dev/sdkwork-im-server-dev-runtime.mjs');
 assert.doesNotMatch(
   serverDevRuntime,
-  /18082[\s\S]*18093/u,
-  'server bind resolver must not reserve IM API sidecar port matrices',
+  /28082[\s\S]*28093/u,
+  'server bind resolver must not reserve IM API internal runtime port matrices',
 );
 
 console.log('sdkwork-im IAM auth integration contract passed');

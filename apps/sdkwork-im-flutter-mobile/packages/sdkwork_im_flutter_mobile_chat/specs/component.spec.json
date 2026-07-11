@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork_im_flutter_mobile_chat",
+    "displayName": "SDKWork IM Flutter Mobile Chat",
+    "version": "0.1.0",
+    "type": "flutter-package",
+    "root": "apps/sdkwork-im-flutter-mobile/packages/sdkwork_im_flutter_mobile_chat",
+    "domain": "chat",
+    "capability": "chat",
+    "surface": "app",
+    "languages": ["dart", "flutter"],
+    "generated": false,
+    "manifests": ["pubspec.yaml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored code organization, public exports, and SDK bypass rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Flutter mobile package naming and SDKWork identity vocabulary."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "UI-service-SDK flow, pagination, SDK injection, and frontend state rules."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "Flutter mobile app surface selection and frontend package role rules."
+    },
+    {
+      "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "purpose": "Flutter mobile package taxonomy and feature package ownership."
+    },
+    {
+      "file": "APP_FLUTTER_UI_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md",
+      "purpose": "Flutter app feature package UI, service, and SDK integration rules."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Generated SDK and dependency composition boundaries."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Generated SDK consumption, pagination helper, and no raw HTTP fallback rules."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "Interactive list/search pagination requirements for inbox and message history."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Frontend package, pagination, and SDK integration verification requirements."
+    }
+  ],
+  "contracts": {
+    "layerRole": "frontend-feature",
+    "publicExports": ["lib/sdkwork_im_flutter_mobile_chat.dart"],
+    "providedPorts": [
+      {
+        "name": "imFlutterMobileChatRoutes",
+        "export": "lib/sdkwork_im_flutter_mobile_chat.dart"
+      },
+      {
+        "name": "imFlutterMobileChatServices",
+        "export": "lib/sdkwork_im_flutter_mobile_chat.dart"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "imFlutterMobileCore",
+        "export": "lib/sdkwork_im_flutter_mobile_chat.dart",
+        "package": "sdkwork_im_flutter_mobile_core"
+      },
+      {
+        "name": "imSdkGeneratedFlutter",
+        "export": "lib/sdkwork_im_flutter_mobile_chat.dart",
+        "package": "im_sdk_generated"
+      }
+    ],
+    "runtimeEntrypoints": ["pubspec.yaml"],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-im-sdk",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      }
+    ],
+    "permissionComposition": {
+      "inheritanceMode": "module-catalog-with-overrides",
+      "moduleCatalogRefs": [
+        {
+          "moduleId": "im",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        }
+      ],
+      "bootstrapAccessTokenScope": {
+        "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
+        "supplement": [],
+        "overrideReplace": false
+      },
+      "routePermissionHints": {
+        "inheritFromOpenApi": true,
+        "inheritFromModuleManifests": true,
+        "overrides": []
+      },
+      "consumerPolicy": {
+        "forbidLocalPermissionCatalogForDependencyDomains": true,
+        "allowExplicitOverridesOnly": true,
+        "allowFrontendHintsWithoutServerDuplication": true
+      }
+    },
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": [
+      "flutter analyze",
+      "flutter test",
+      "node ../sdkwork-specs/tools/check-pagination.mjs --workspace ."
+    ]
+  }
+}

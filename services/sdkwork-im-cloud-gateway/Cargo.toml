@@ -23,6 +23,7 @@ sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
 futures-util.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+rand.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -46,6 +47,8 @@ sdkwork_iam_database_host = { workspace = true }
 sdkwork_im_iam_application_bootstrap = { workspace = true }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+sdkwork-im-gateway-assembly = { path = "../../crates/sdkwork-im-gateway-assembly" }
+conversation-runtime = { workspace = true }
 session-gateway = { path = "../session-gateway" }
 sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
 sdkwork_im_realtime_api_paths.workspace = true

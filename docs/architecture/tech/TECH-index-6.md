@@ -46,15 +46,17 @@ with `/backend/v3/api/control/*` or `/backend/v3/api/admin/*`, it belongs to
 
 ## Current Workspace Truth
 
-The checked-in workspaces and their `.sdkwork-assembly.json` snapshots are the source of truth for
-repo-local generation state:
+The checked-in workspaces and their family-root `sdk-manifest.json` files are the source of truth
+for repo-local generation state:
 
 | Workspace | Current authority | Verification entry |
 | --- | --- | --- |
 | `sdks/sdkwork-im-sdk` | `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml` | `node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs` |
 | `sdks/sdkwork-im-app-sdk` | `sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml` | `node ./sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs` |
 | `sdks/sdkwork-im-backend-sdk` | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
-| `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk` | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` | `node ../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
+| `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk` | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdk-manifest.json` | `node ../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
+
+Per-family `.sdkwork-assembly.json` is retired. Do not restore it under IM or RTC SDK family roots.
 
 The OpenAPI-generated families share the SDKWork dual-token standard and generate from OpenAPI 3.x.
 The RTC SDK is intentionally separate: it owns provider catalogs, provider package boundaries,
@@ -92,4 +94,3 @@ Generated symbols must be consumed through package root entrypoints only. Do not
 - [Language Support](/sdk/language-support)
 - [Generator Boundary](/sdk/generator-boundary)
 - [API Reference](/api-reference/index)
-

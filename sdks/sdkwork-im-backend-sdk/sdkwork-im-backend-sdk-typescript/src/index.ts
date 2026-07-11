@@ -1,10 +1,11 @@
 import {
   createClient as createGeneratedBackendClient,
+  SdkworkImBackendClient,
   SdkworkBackendClient,
 } from '../generated/server-openapi/src/index';
 import type { SdkworkBackendConfig } from '../generated/server-openapi/src/types/common';
 
-export { SdkworkBackendClient, createGeneratedBackendClient };
+export { SdkworkImBackendClient, SdkworkBackendClient, createGeneratedBackendClient };
 export type { SdkworkBackendConfig };
 export * from '../generated/server-openapi/src/types';
 export * from '../generated/server-openapi/src/api';

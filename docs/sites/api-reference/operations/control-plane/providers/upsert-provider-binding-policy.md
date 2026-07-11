@@ -39,7 +39,11 @@ Writes a deployment-level or tenant-level provider binding policy entry.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `409` | `provider_policy_version_conflict` | `expectedBaseVersion` does not match the latest policy version. |
-| `404` | `provider_plugin_not_found` | The referenced plugin is not present in the registry. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

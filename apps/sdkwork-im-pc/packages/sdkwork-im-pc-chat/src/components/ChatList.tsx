@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useTranslation } from 'react-i18next';
 import { Chat } from '@sdkwork/im-pc-types';
 import { Avatar } from '@sdkwork/im-pc-commons';
@@ -12,6 +12,8 @@ import { groupService } from '../services/GroupService';
 import { ConfirmModal } from './ConfirmModal';
 
 const RTC_CALL_DESCRIPTOR_PREFIX = 'rtc-call:';
+const CHAT_LIST_ROW_HEIGHT = 64;
+const CHAT_LIST_OVERSCAN = 8;
 
 interface ChatListProps {
   chats: Chat[];
@@ -302,32 +304,87 @@ export const ChatList: React.FC<ChatListProps> = ({
       });
   }, [chats, searchQuery, t]);
 
+  const chatVirtualizer = useVirtualizer({
+    count: sortedChats.length,
+    getScrollElement: () => listContainerRef.current,
+    estimateSize: () => CHAT_LIST_ROW_HEIGHT,
+    overscan: CHAT_LIST_OVERSCAN,
+    getItemKey: (index) => sortedChats[index]?.id ?? index,
+  });
+
+  const focusVirtualRow = (index: number) => {
+    const boundedIndex = Math.min(Math.max(index, 0), sortedChats.length - 1);
+    chatVirtualizer.scrollToIndex(boundedIndex, { align: 'auto' });
+    let remainingAttempts = 5;
+    const focusWhenMounted = () => {
+      const row = listContainerRef.current?.querySelector<HTMLButtonElement>(
+        `[data-conversation-index="${boundedIndex}"]`,
+      );
+      if (row) {
+        row.focus();
+        return;
+      }
+      remainingAttempts -= 1;
+      if (remainingAttempts > 0) {
+        requestAnimationFrame(focusWhenMounted);
+      }
+    };
+    requestAnimationFrame(focusWhenMounted);
+  };
+
+  const handleRowKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    const visiblePageSize = Math.max(
+      1,
+      Math.floor((listContainerRef.current?.clientHeight ?? CHAT_LIST_ROW_HEIGHT) / CHAT_LIST_ROW_HEIGHT),
+    );
+    const targetIndex = (() => {
+      switch (event.key) {
+        case 'ArrowDown': return index + 1;
+        case 'ArrowUp': return index - 1;
+        case 'Home': return 0;
+        case 'End': return sortedChats.length - 1;
+        case 'PageDown': return index + visiblePageSize;
+        case 'PageUp': return index - visiblePageSize;
+        default: return undefined;
+      }
+    })();
+    if (targetIndex === undefined) {
+      return;
+    }
+    event.preventDefault();
+    focusVirtualRow(targetIndex);
+  };
+
   return (
     <div className="flex w-[280px] shrink-0 flex-col bg-[#202020] border-r border-white/5 min-h-0">
       <div
         ref={listContainerRef}
+        data-testid="chat-conversation-list"
         className="flex-1 overflow-y-auto custom-scrollbar relative"
         onScroll={handleListScroll}
       >
-        <AnimatePresence>
-          {sortedChats.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="absolute inset-0 flex flex-col items-center justify-center text-center p-6"
-            >
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-3">
-                <MessageCircle size={28} className="text-gray-500" />
-              </div>
-              <p className="text-sm font-medium text-gray-400 mb-1">
-                {searchQuery ? t('chat.list.empty.noMatches') : t('chat.list.empty.noConversations')}
-              </p>
-              <p className="text-[12px] text-gray-500">
-                {searchQuery ? t('chat.list.empty.searchHint') : t('chat.list.empty.startHint')}
-              </p>
-            </motion.div>
-          ) : (
-            sortedChats.map((chat) => {
+        {sortedChats.length === 0 ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-3">
+              <MessageCircle size={28} className="text-gray-500" />
+            </div>
+            <p className="text-sm font-medium text-gray-400 mb-1">
+              {searchQuery ? t('chat.list.empty.noMatches') : t('chat.list.empty.noConversations')}
+            </p>
+            <p className="text-[12px] text-gray-500">
+              {searchQuery ? t('chat.list.empty.searchHint') : t('chat.list.empty.startHint')}
+            </p>
+          </div>
+        ) : (
+          <ul
+            className="relative m-0 w-full list-none p-0"
+            style={{ height: `${chatVirtualizer.getTotalSize()}px` }}
+          >
+            {chatVirtualizer.getVirtualItems().map((virtualRow) => {
+              const chat = sortedChats[virtualRow.index];
               const isPinned = !!chat.isPinned;
               const isUnread = chat.unreadCount > 0 || !!chat.isMarkedUnread;
               const isMuted = !!chat.isMuted;
@@ -338,67 +395,67 @@ export const ChatList: React.FC<ChatListProps> = ({
               const lastMessagePreview = formatChatListLastMessage(chat, t);
 
               return (
-                <motion.button
-                  type="button"
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
+                <li
                   key={chat.id}
-                  aria-label={openConversationLabel}
-                  aria-current={activeChatId === chat.id ? 'true' : undefined}
-                  title={openConversationLabel}
-                  onClick={() => {
-                    onChatSelect(chat);
-                    if (isUnread) {
-                      void chatService.markAsRead(chat.id)
-                        .then(() => {
-                          onChatsChange?.();
-                        })
-                        .catch(() => toast(t('chat.list.toast.markReadFailed'), 'error'));
-                    }
+                  aria-posinset={virtualRow.index + 1}
+                  aria-setsize={sortedChats.length}
+                  className="absolute left-0 top-0 w-full"
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  onContextMenu={(event) => handleContextMenu(event, chat)}
-                  className={cn(
-                    'flex w-full items-center border-0 bg-transparent px-3 py-3 text-left cursor-pointer transition-colors hover:bg-white/5 relative',
-                    activeChatId === chat.id && 'bg-white/10 hover:bg-white/10',
-                    isPinned && activeChatId !== chat.id && 'bg-[#2b2b2d] hover:bg-[#323234]',
-                  )}
                 >
-                  <div className="relative shrink-0 mr-3">
-                    <Avatar src={chat.avatar} alt={chat.name} className="w-[40px] h-[40px] rounded bg-[#2b2b2d] text-white font-bold" />
-                    {isUnread && (
-                      <div className={cn(
-                        'absolute -top-1 -right-1 rounded-full border-2 border-[#202020]',
-                        isMuted
-                          ? 'w-2.5 h-2.5 bg-red-500'
-                          : 'px-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold flex items-center justify-center',
-                      )}
-                        aria-label={unreadLabel}
-                        title={unreadLabel}
-                      >
-                        {!isMuted && unreadCount}
-                      </div>
+                  <button
+                    type="button"
+                    data-conversation-index={virtualRow.index}
+                    aria-label={openConversationLabel}
+                    aria-current={activeChatId === chat.id ? 'true' : undefined}
+                    title={openConversationLabel}
+                    onClick={() => {
+                      onChatSelect(chat);
+                    }}
+                    onContextMenu={(event) => handleContextMenu(event, chat)}
+                    onKeyDown={(event) => handleRowKeyDown(event, virtualRow.index)}
+                    className={cn(
+                      'flex h-full w-full items-center border-0 bg-transparent px-3 py-3 text-left cursor-pointer transition-colors hover:bg-white/5',
+                      activeChatId === chat.id && 'bg-white/10 hover:bg-white/10',
+                      isPinned && activeChatId !== chat.id && 'bg-[#2b2b2d] hover:bg-[#323234]',
                     )}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <span className="text-[14px] text-gray-200 truncate">{chat.name}</span>
-                        {isMuted && <BellOff size={12} className="text-gray-500 shrink-0" aria-label={mutedLabel} />}
+                  >
+                    <div className="relative shrink-0 mr-3">
+                      <Avatar src={chat.avatar} alt={chat.name} className="w-[40px] h-[40px] rounded bg-[#2b2b2d] text-white font-bold" />
+                      {isUnread && (
+                        <div className={cn(
+                          'absolute -top-1 -right-1 rounded-full border-2 border-[#202020]',
+                          isMuted
+                            ? 'w-2.5 h-2.5 bg-red-500'
+                            : 'px-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold flex items-center justify-center',
+                        )}
+                          aria-label={unreadLabel}
+                          title={unreadLabel}
+                        >
+                          {!isMuted && unreadCount}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="text-[14px] text-gray-200 truncate">{chat.name}</span>
+                          {isMuted && <BellOff size={12} className="text-gray-500 shrink-0" aria-label={mutedLabel} />}
+                        </div>
+                        <span className="text-[12px] text-gray-500 shrink-0 ml-2">{formatTime(chat.updatedAt)}</span>
                       </div>
-                      <span className="text-[12px] text-gray-500 shrink-0 ml-2">{formatTime(chat.updatedAt)}</span>
+                      <div className="text-[12px] text-gray-500 truncate">
+                        {lastMessagePreview}
+                      </div>
                     </div>
-                    <div className="text-[12px] text-gray-500 truncate">
-                      {lastMessagePreview}
-                    </div>
-                  </div>
-                </motion.button>
+                  </button>
+                </li>
               );
-            })
-          )}
-        </AnimatePresence>
+            })}
+          </ul>
+        )}
         {hasMoreChats && onLoadMoreChats ? (
           <div className="px-4 py-3 border-t border-white/5">
             <button

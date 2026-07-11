@@ -87,12 +87,11 @@ async function main(): Promise<void> {
   const chats = await service.getChats();
   assert.deepEqual(
     retrieveCalls,
-    [{ conversationId: 'chat-1' }],
-    'chat list sync must restore conversation profile fields through the IM SDK',
+    [],
+    'chat list sync must not restore missing conversation profile fields through per-conversation IM SDK calls',
   );
-  assert.equal(chats[0]?.name, 'Backend Group Name');
-  assert.equal(chats[0]?.avatar, 'https://cdn.example.test/group.png');
-  assert.equal(chats[0]?.notice, 'Backend group notice');
+  assert.equal(chats[0]?.name, 'Group chat');
+  assert.equal(chats[0]?.notice, undefined);
 
   const updated = await service.updateChat('chat-1', {
     avatar: 'https://cdn.example.test/new.png',

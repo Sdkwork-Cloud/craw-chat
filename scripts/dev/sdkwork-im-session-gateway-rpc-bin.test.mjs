@@ -67,7 +67,7 @@ assert.match(
 );
 
 assert.ok(
-  topologySpec.internalUpstreams?.['split-services']?.['session-gateway-rpc'],
+  topologySpec.internalRuntime?.rpcServices?.['session-gateway-rpc'],
   'topology spec must declare session-gateway-rpc internal upstream',
 );
 

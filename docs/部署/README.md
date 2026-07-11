@@ -1,16 +1,16 @@
 # 部署文档
 
-Topology v2 是唯一的部署标准。权威来源：
+Topology v4 是唯一的部署标准。权威来源：
 
 - `specs/topology.spec.json`
 - `configs/topology/*.env`
-- [docs/topology-greenfield.md](../topology-greenfield.md)
+- [TECH-topology-greenfield.md](../architecture/tech/TECH-topology-greenfield.md)
 
 ## 开发入口
 
 ```bash
 pnpm install
-pnpm dev              # standalone.unified-process.development
+pnpm dev              # standalone.development
 pnpm dev:browser      # PostgreSQL + standalone browser dev
 pnpm dev:desktop      # PostgreSQL + standalone desktop dev
 pnpm dev:server          # 仅服务端
@@ -48,7 +48,7 @@ pnpm dev:server          # 仅服务端
 
 ## 已退役
 
-旧版 profile、compose 与本地 lifecycle 脚本已删除，详见 [topology-greenfield.md](../topology-greenfield.md)。
+旧版 profile、compose 与本地 lifecycle 脚本已删除，详见 [TECH-topology-greenfield.md](../architecture/tech/TECH-topology-greenfield.md)。
 
 ## 验证命令
 

@@ -37,7 +37,7 @@ export const sdkFamilyConfig = {
     },
   ],
   packages: {
-    typescript: '@sdkwork-internal/im-backend-api-generated',
+    typescript: 'sdkwork-im-backend-sdk-generated-typescript',
     flutter: 'im_backend_api_generated',
     rust: 'sdkwork-im-backend-api-generated',
     java: 'com.sdkwork:im-backend-api-generated',
@@ -46,6 +46,9 @@ export const sdkFamilyConfig = {
     kotlin: 'com.sdkwork:im-backend-api-generated',
     go: 'github.com/sdkwork/im-backend-api-generated',
     python: 'sdkwork-im-backend-api-generated',
+  },
+  consumerPackages: {
+    typescript: '@sdkwork/im-backend-sdk',
   },
   namespaces: {
     csharp: 'Sdkwork.Im.BackendApi.Generated',

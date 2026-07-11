@@ -1,5 +1,5 @@
 //! Application-specific gateway bootstrap for sdkwork-im.
-//! Mounts route crates through `gateway_mount` in standalone unified-process mode.
+//! Mounts route crates through `gateway_mount` in standalone single-ingress mode.
 
 use std::sync::Arc;
 

@@ -6,6 +6,5 @@ data class BindDirectChatRequest(
     val leftActorId: String? = null,
     val leftActorKind: String? = null,
     val rightActorId: String? = null,
-    val rightActorKind: String? = null,
-    val targetUserId: String? = null
+    val rightActorKind: String? = null
 )

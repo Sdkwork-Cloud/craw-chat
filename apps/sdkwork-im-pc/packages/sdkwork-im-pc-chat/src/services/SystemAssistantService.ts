@@ -1,5 +1,4 @@
 import type { Chat } from '@sdkwork/im-pc-types';
-import { chatService, type ChatService } from './ChatService';
 import { createDefaultAvatar } from './DefaultAvatarService';
 
 export const SYSTEM_ASSISTANT_AGENT = {
@@ -21,15 +20,11 @@ export interface SystemAssistantService {
   selectInitialChat(chats: Chat[]): Chat | null;
 }
 
-type SystemAssistantChatClient = Pick<ChatService, 'startAgentChat'>;
-
 function hasUnread(chat: Chat): boolean {
   return (chat.unreadCount ?? 0) > 0 || chat.isMarkedUnread === true;
 }
 
 class SdkworkSystemAssistantService implements SystemAssistantService {
-  constructor(private readonly chatClient: SystemAssistantChatClient = chatService) {}
-
   async ensureSystemAssistantChat(chats: Chat[]): Promise<SystemAssistantStartupResult> {
     const existingAssistantChat = chats.find((chat) => this.isSystemAssistantChat(chat));
     if (existingAssistantChat) {
@@ -40,21 +35,11 @@ class SdkworkSystemAssistantService implements SystemAssistantService {
       };
     }
 
-    try {
-      const assistantChat = await this.chatClient.startAgentChat(SYSTEM_ASSISTANT_AGENT);
-      return {
-        available: true,
-        chat: assistantChat,
-        created: true,
-      };
-    } catch (error) {
-      return {
-        available: false,
-        chat: null,
-        created: false,
-        error,
-      };
-    }
+    return {
+      available: false,
+      chat: null,
+      created: false,
+    };
   }
 
   isSystemAssistantChat(chat: Chat): boolean {
@@ -63,7 +48,8 @@ class SdkworkSystemAssistantService implements SystemAssistantService {
       return true;
     }
 
-    const isBackendAgentDialog = /^c_agent_[a-f0-9]+$/u.test(normalizedId);
+    const isBackendAgentDialog = /^a_[a-f0-9]+$/u.test(normalizedId)
+      || /^c_agent_[a-f0-9]+$/u.test(normalizedId);
     return isBackendAgentDialog && chat.name === SYSTEM_ASSISTANT_AGENT.name;
   }
 
@@ -91,10 +77,8 @@ class SdkworkSystemAssistantService implements SystemAssistantService {
   }
 }
 
-export function createSdkworkSystemAssistantService(
-  chatClient?: SystemAssistantChatClient,
-): SystemAssistantService {
-  return new SdkworkSystemAssistantService(chatClient);
+export function createSdkworkSystemAssistantService(): SystemAssistantService {
+  return new SdkworkSystemAssistantService();
 }
 
 export const systemAssistantService = createSdkworkSystemAssistantService();

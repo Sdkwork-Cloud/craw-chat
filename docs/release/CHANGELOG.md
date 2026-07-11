@@ -1,8 +1,112 @@
 # CHANGELOG
 
+## v0.1.0 - 2026-07-08
+
+- Loop `89`
+- step `release-evidence-sync / commercial-readiness evidence ingestion`
+- Added a fail-closed package evidence synchronization workflow:
+  - `scripts/release/sync-sdkwork-im-release-evidence.mjs`;
+  - `pnpm release:validate:evidence` for read-only validation;
+  - `pnpm release:stage:evidence` for manifest write-back after evidence is complete.
+- The evidence sync workflow reads real package archives and adjacent manifests
+  from `dist/release-packages/`, reads package security evidence from
+  `dist/release-evidence/<package-id>/`, computes SHA-256 from archive bytes,
+  and writes only verified checksum, size, artifact refs, signing refs, SBOM
+  refs, and provenance refs into `sdkwork.app.config.json`.
+- The sync workflow fails closed when any selected direct distribution package
+  lacks:
+  - an aggregate package archive entry;
+  - a real archive file;
+  - an adjacent package manifest;
+  - signature evidence;
+  - SBOM evidence;
+  - provenance or attestation evidence.
+- Supported evidence file suffixes are now documented:
+  - signing: `.sig`, `.asc`, `.sigstore.json`, `.minisig`, `.p7s`;
+  - SBOM: `.cdx.json`, `.spdx.json`;
+  - provenance/attestation: `.intoto.jsonl`, `.attestation.jsonl`, `.provenance.json`.
+- The argument parser rejects ambiguous `--check --write` usage.
+- `docs/release/README.md` now documents package evidence synchronization and
+  explicitly states that the script does not generate signatures, SBOMs,
+  provenance, attestations, or media assets.
+- fresh verification:
+  - `node --check scripts/release/sync-sdkwork-im-release-evidence.mjs` = `passed`
+  - `node --test scripts/release/sync-sdkwork-im-release-evidence.test.mjs` = `5 passed`
+  - `node scripts/release/sdkwork-im-release-package.test.mjs` = `passed`
+  - `node --test scripts/release/commercial-readiness.test.mjs` = `16 passed`
+  - `node ../sdkwork-specs/tools/check-pnpm-script-standard.mjs --root . --product-prefix im,chat` = `passed`
+  - `pnpm.cmd release:validate:evidence -- --json` = failed closed with `exit code 1` because `dist/release-packages/release-packages-manifest.json` does not exist and no package archive evidence can be synchronized yet
+  - `pnpm.cmd check:commercial-readiness` = implementation checks passed through the configured frontend, Flutter, SDK, deployment, Rust service, gateway, and session-gateway checks, then blocked at `appReleaseAssessment` with `55` release-evidence blockers
+- remaining blockers:
+  - no real `dist/release-packages/release-packages-manifest.json` for the active 13-package matrix;
+  - no real package archives for the active 13-package matrix;
+  - package signatures, SBOMs, and provenance/attestations are still missing;
+  - `chat-primary-icon`, `chat-web-screenshot`, and `chat-catalog-preview` still have `metadata.generatedPlaceholder=true`;
+  - current app is still not commercially releasable.
+
+- Loop `88`
+- step `release-package-matrix / commercial-readiness evidence hardening`
+- Release packaging now treats `web-universal-cloud-browser-zip` as a first-class cloud browser release target.
+- The release package matrix is aligned across:
+  - `sdkwork.workflow.json` targets;
+  - `scripts/release/plan-sdkwork-im-install-packages.mjs` generated plan;
+  - `sdkwork.app.config.json` `artifacts.installConfig.packages`;
+  - current release note `packageIds`.
+- Current matrix contains 13 package targets:
+  - one cloud browser web ZIP package;
+  - six standalone server archive packages for Linux, macOS, and Windows on `x64` and `arm64`;
+  - six standalone desktop ZIP packages for Linux, macOS, and Windows on `x64` and `arm64`.
+- Retired package targets were removed from active manifest alignment:
+  - `macos-universal-standalone-desktop-dmg`
+  - `linux-x64-standalone-desktop-appimage`
+- Browser production build, staging, package build, and artifact validation now have dry-run coverage:
+  - browser production target builds `apps/sdkwork-im-pc` web assets;
+  - browser staging includes `web/sdkwork-im-pc/dist` and `web-manifest.json`;
+  - browser package archive requires web dist entries and `web-manifest.json`.
+- Commercial-readiness package evidence validation now fails closed for empty evidence values and unsafe local evidence refs:
+  - empty `{}` and `[]` are blockers;
+  - local refs must stay inside the repository root;
+  - local refs must exist;
+  - portable forward-slash refs or remote URLs/URIs are required.
+- Gateway OpenAPI index regression coverage now derives the projection-service
+  route count from the current gateway route index while still blocking retired
+  `devices` operation groups and paths.
+- `docs/release/README.md` now documents the current package matrix, browser package evidence requirements, and local evidence ref validation rules.
+- fresh verification:
+  - `node --check scripts/release/plan-sdkwork-im-install-packages.mjs` = `passed`
+  - `node --check scripts/release/build-sdkwork-im-production.mjs` = `passed`
+  - `node --check scripts/release/stage-sdkwork-im-release-package.mjs` = `passed`
+  - `node --check scripts/release/build-sdkwork-im-install-package.mjs` = `passed`
+  - `node --check scripts/release/validate-sdkwork-im-install-artifacts.mjs` = `passed`
+  - `node --check scripts/release/commercial-readiness.mjs` = `passed`
+  - `node scripts/release/sdkwork-im-release-package.test.mjs` = `passed`
+  - `node --test scripts/release/commercial-readiness.test.mjs` = `passed`
+  - `node scripts/release/plan-sdkwork-im-install-packages.mjs --json --check` = `passed`, `13` packages
+  - `node scripts/release/build-sdkwork-im-production.mjs --target browser --dry-run --json` = `passed`
+  - `node scripts/release/stage-sdkwork-im-release-package.mjs --package-id web-universal-cloud-browser-zip --dry-run --json` = `passed`
+  - `node scripts/release/build-sdkwork-im-install-package.mjs --package-id web-universal-cloud-browser-zip --dry-run --json` = `passed`
+  - `node scripts/dev/sdkwork-im-runtime-standard.test.mjs` = `passed`
+  - `node scripts/dev/sdkwork-im-component-spec-consistency.test.mjs` = `passed`
+  - `node ../sdkwork-specs/tools/check-agent-workflow-standard.mjs --root .` = `passed`
+  - `cargo test -p sdkwork-im-cloud-gateway --test openapi_index_test -- --nocapture` = `12 passed`
+  - `cargo fmt -p sdkwork-im-cloud-gateway` = `passed`
+  - `pnpm.cmd check:commercial-readiness` = implementation checks passed through gateway tests, then blocked by `appReleaseAssessment` with `55` release-evidence blockers
+- remaining blockers:
+  - all 13 enabled direct distribution packages in `sdkwork.app.config.json` still lack real SHA-256 checksums;
+  - the same 13 packages still lack real signature evidence while `security.signatureRequired=true`;
+  - the same 13 packages still lack real SBOM evidence while `security.sbomRequired=true`;
+  - the same 13 packages still lack real provenance or attestation evidence while `security.sbomRequired=true`;
+  - `chat-primary-icon`, `chat-web-screenshot`, and `chat-catalog-preview` still have `metadata.generatedPlaceholder=true`;
+  - `pnpm check:commercial-readiness` fails closed until the above evidence is real.
+- closure:
+  - current app is still not commercially releasable;
+  - do not replace missing checksums, signatures, SBOMs, provenance, attestations, or media assets with placeholders or documentation-only claims.
+
 ## v0.1.0 - 2026-07-07
 
 - Loop `87`
+- current package-matrix status is superseded by Loop `88`; the package blocker
+  count below was the point-in-time state before the 13-target matrix alignment.
 - step `commercial-readiness / SDKWork standards alignment`
 - PC chat startup now consumes the generated IM SDK `chat.inbox.list` method for inbox loading.
 - Playwright IM fixtures now use SDKWork v3 envelopes:

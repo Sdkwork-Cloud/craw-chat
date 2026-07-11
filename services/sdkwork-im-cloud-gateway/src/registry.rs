@@ -78,9 +78,36 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         "conversations",
     ));
     entries.extend(prefix_routes(
+        "comms-conversation-service",
+        vec![HttpMethod::Get],
+        &[
+            "/im/v3/api/chat/conversations/{conversationId}/agent_handoff",
+            "/im/v3/api/chat/conversations/{conversationId}/members",
+            "/im/v3/api/chat/conversations/{conversationId}/binding",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
+        ],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(prefix_routes(
+        "comms-conversation-service",
+        vec![HttpMethod::Get, HttpMethod::Patch],
+        &["/im/v3/api/chat/conversations/{conversationId}/read_cursor"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(prefix_routes(
         "projection-service",
         vec![HttpMethod::Get],
-        &["/im/v3/api/chat/conversations/{*path}"],
+        &[
+            "/im/v3/api/chat/conversations/{conversationId}",
+            "/im/v3/api/chat/conversations/{conversationId}/member_directory",
+            "/im/v3/api/chat/conversations/{conversationId}/pins",
+            "/im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary",
+            "/im/v3/api/chat/messages/search",
+        ],
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkImSdk],
         "conversations",
@@ -116,6 +143,14 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         "projection-service",
         vec![HttpMethod::Post],
         &["/im/v3/api/chat/messages/{messageId}/favorites"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImSdk],
+        "conversations",
+    ));
+    entries.extend(prefix_routes(
+        "projection-service",
+        vec![HttpMethod::Delete],
+        &["/im/v3/api/chat/messages/{messageId}/visibility"],
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkImSdk],
         "conversations",

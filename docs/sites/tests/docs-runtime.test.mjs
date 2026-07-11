@@ -272,12 +272,13 @@ test('language support doc links to the dedicated TypeScript and Flutter SDK ref
   assert.match(languageSupportDoc, /\[App API SDK\]\(\/sdk\/app-sdk\)/);
 });
 
-test('app sdk overview documents assembly metadata and verified workspace semantics', () => {
+test('app sdk overview documents SDK manifest metadata and verified workspace semantics', () => {
   const appSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'app-sdk.md'), 'utf8');
 
-  assert.match(appSdkDoc, /\.sdkwork-assembly\.json/);
+  assert.match(appSdkDoc, /sdk-manifest\.json/);
   assert.match(appSdkDoc, /manifestPath/);
-  assert.match(appSdkDoc, /generatedAt/);
+  assert.match(appSdkDoc, /transportPackageName/);
+  assert.match(appSdkDoc, /consumerPackageName/);
   assert.match(appSdkDoc, /generated[\s\S]*composed/i);
   assert.match(appSdkDoc, /verify-sdk\.mjs/);
 });
@@ -380,7 +381,7 @@ test('cli docs describe boundary materialization and current SDK verification co
   assert.match(cliDoc, /sdkwork-im-app-sdk/);
   assert.match(cliDoc, /sdkwork-im-backend-sdk/);
   assert.match(cliDoc, /sdkwork-rtc-sdk/);
-  assert.match(cliDoc, /\.sdkwork-assembly\.json/);
+  assert.match(cliDoc, /sdk-manifest\.json/);
   assert.doesNotMatch(cliDoc, retiredSdkPattern('sdkwork', '-control', '-plane', '-sdk'));
   assert.doesNotMatch(cliDoc, retiredSdkPattern('sdkwork', '-im', '-admin', '-sdk'));
 });
@@ -392,10 +393,10 @@ test('cli docs describe app sdk verification and assembly commands', () => {
   assert.match(cliDoc, /sdkwork-im-im\.sdkgen\.yaml/);
   assert.match(cliDoc, /sdkwork-im-im\.flutter\.sdkgen\.yaml/);
   assert.match(cliDoc, /node \.\\sdks\\sdkwork-im-sdk\\bin\\verify-sdk\.mjs/);
-  assert.match(cliDoc, /\.sdkwork-assembly\.json/);
+  assert.match(cliDoc, /sdk-manifest\.json/);
 });
 
-test('typescript sdk guide documents package contract, assembly metadata, and maintainer workflow', () => {
+test('typescript sdk guide documents package contract, SDK manifest metadata, and maintainer workflow', () => {
   const typescriptDoc = readFileSync(path.join(docsRoot, 'sdk', 'typescript-sdk.md'), 'utf8');
 
   assert.match(typescriptDoc, /Current Delivery Reality/);
@@ -408,9 +409,10 @@ test('typescript sdk guide documents package contract, assembly metadata, and ma
   assert.match(typescriptDoc, /ImSdkClient/);
   assert.match(typescriptDoc, /generated\/server-openapi/);
   assert.match(typescriptDoc, /composed/);
-  assert.match(typescriptDoc, /\.sdkwork-assembly\.json/);
+  assert.match(typescriptDoc, /sdk-manifest\.json/);
   assert.match(typescriptDoc, /manifestPath/);
-  assert.match(typescriptDoc, /generatedAt/);
+  assert.match(typescriptDoc, /transportPackageName/);
+  assert.match(typescriptDoc, /consumerPackageName/);
   assert.match(typescriptDoc, /verify-sdk\.mjs/);
   assert.match(typescriptDoc, /verify-typescript-workspace\.mjs/);
   assert.match(typescriptDoc, /\/sdk\/app-sdk/);
@@ -428,7 +430,7 @@ test('sdk docs verifier forbids internal and unsupported generated TypeScript pa
   assert.match(verifierSource, /@sdkwork\/im-sdk-generated/);
 });
 
-test('flutter sdk guide documents current parity, assembly metadata, and local workspace workflow', () => {
+test('flutter sdk guide documents current parity, SDK manifest metadata, and local workspace workflow', () => {
   const flutterDoc = readFileSync(path.join(docsRoot, 'sdk', 'flutter-sdk.md'), 'utf8');
 
   assert.match(flutterDoc, /Current Delivery Reality/);
@@ -444,9 +446,9 @@ test('flutter sdk guide documents current parity, assembly metadata, and local w
   assert.match(flutterDoc, /generated\/server-openapi/);
   assert.match(flutterDoc, /pubspec_overrides\.yaml/);
   assert.doesNotMatch(flutterDoc, /generatedConfig/);
-  assert.match(flutterDoc, /\.sdkwork-assembly\.json/);
+  assert.match(flutterDoc, /sdk-manifest\.json/);
   assert.match(flutterDoc, /manifestPath/);
-  assert.match(flutterDoc, /generatedAt/);
+  assert.match(flutterDoc, /language workspace/);
   assert.match(flutterDoc, /verify-sdk\.mjs --with-dart/);
   assert.match(flutterDoc, /\/sdk\/app-sdk/);
   assert.match(flutterDoc, /\/sdk\/language-support/);
@@ -488,4 +490,3 @@ test('backend sdk overview does not document generatedConfig as public create su
 
   assert.doesNotMatch(backendSdkDoc, /generatedConfig/);
 });
-

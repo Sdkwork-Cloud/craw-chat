@@ -1,5 +1,6 @@
 use im_domain_core::conversation::{
-    ConversationInboxEntry, ConversationInboxPeerView, ConversationMember, max_read_seq_for_member,
+    ConversationInboxEntry, ConversationInboxPeerView, ConversationInboxPreferencesView,
+    ConversationMember, max_read_seq_for_member,
 };
 use sdkwork_utils_rust::SdkWorkPageData;
 
@@ -100,86 +101,88 @@ impl TimelineProjectionService {
     {
         let limit = query.limit.max(1);
         let mut window = Vec::with_capacity(limit.saturating_add(1).min(512));
-        let mut last_scope: Option<String> = None;
-
-        let keyset_cursor = match &query.cursor {
+        let mut last_returned_cursor: Option<(String, String)> = None;
+        let mut scan_cursor = match &query.cursor {
             crate::model::InboxListCursor::Keyset { activity_at, scope } => {
                 Some((activity_at.clone(), scope.clone()))
             }
             _ => None,
         };
+        let mut offset_remaining = match &query.cursor {
+            crate::model::InboxListCursor::Offset(offset) => *offset,
+            _ => 0,
+        };
+        let scan_batch_size = limit
+            .saturating_mul(8)
+            .max(limit.saturating_add(1))
+            .min(512);
+        let mut exhausted = false;
 
-        let (scopes, for_each_exhausted) = {
-            let members = lock_projection_mutex(&self.members, "member store");
-            let mut scopes = Vec::with_capacity(limit.saturating_add(1).min(512));
-            let mut collect_scope = |scope: &str| -> bool {
-                scopes.push(scope.to_owned());
-                scopes.len() <= limit.saturating_add(1)
-            };
-            let for_each_exhausted = match &query.cursor {
-                crate::model::InboxListCursor::Offset(offset) => {
-                    let mut skipped = 0usize;
-                    members.for_each_inbox_scope_after_cursor(
-                        query.tenant_id,
-                        query.organization_id,
-                        query.principal_kind,
-                        query.principal_id,
-                        None,
-                        |scope| {
-                            if skipped < *offset {
-                                skipped += 1;
-                                return true;
-                            }
-                            collect_scope(scope)
-                        },
-                    )
-                }
-                _ => members.for_each_inbox_scope_after_cursor(
+        while window.len() <= limit && !exhausted {
+            let mut scanned_entries = Vec::with_capacity(scan_batch_size);
+            exhausted = {
+                let members = lock_projection_mutex(&self.members, "member store");
+                members.for_each_inbox_activity_after_cursor(
                     query.tenant_id,
                     query.organization_id,
                     query.principal_kind,
                     query.principal_id,
-                    keyset_cursor,
-                    |scope| collect_scope(scope),
-                ),
+                    scan_cursor.clone(),
+                    |activity_at, scope| {
+                        scanned_entries.push((activity_at.to_owned(), scope.to_owned()));
+                        scanned_entries.len() < scan_batch_size
+                    },
+                )
             };
-            (scopes, for_each_exhausted)
-        };
-        for scope in scopes {
-            let Some(entry) = self.build_inbox_entry_for_scope(
-                query.tenant_id,
-                query.principal_id,
-                query.principal_kind,
-                scope.as_str(),
-            ) else {
-                continue;
-            };
-            if !filter(&entry) {
-                continue;
-            }
-            window.push(entry);
-            if window.len() <= limit {
-                last_scope = Some(scope);
-            }
-            if window.len() > limit {
+
+            if scanned_entries.is_empty() {
+                exhausted = true;
                 break;
             }
+
+            scan_cursor = scanned_entries.last().cloned();
+            for (activity_at, scope) in scanned_entries {
+                if offset_remaining > 0 {
+                    offset_remaining -= 1;
+                    continue;
+                }
+                let Some(entry) = self.build_inbox_entry_for_scope(
+                    query.tenant_id,
+                    query.organization_id,
+                    query.principal_id,
+                    query.principal_kind,
+                    scope.as_str(),
+                ) else {
+                    continue;
+                };
+                if !filter(&entry) {
+                    continue;
+                }
+                window.push(entry);
+                if window.len() <= limit {
+                    last_returned_cursor = Some((activity_at, scope));
+                }
+                if window.len() > limit {
+                    break;
+                }
+            }
         }
-        let exhausted = window.len() <= limit && for_each_exhausted;
 
         let has_more = window.len() > limit || !exhausted;
         if window.len() > limit {
             window.truncate(limit);
         }
         let next_cursor = if has_more {
-            window.last().and_then(|entry| {
-                last_scope.as_ref().and_then(|scope| {
-                    let payload = serde_json::json!({
-                        "activityAt": entry.last_activity_at,
-                        "scope": scope,
-                    });
-                    crate::cursor_auth::encode_projection_list_cursor(&payload).ok()
-                })
+            window.last().and_then(|_| {
+                last_returned_cursor
+                    .as_ref()
+                    .and_then(|(activity_at, scope)| {
+                        let payload = serde_json::json!({
+                            "activityAt": activity_at,
+                            "scope": scope,
+                        });
+                        crate::cursor_auth::encode_projection_list_cursor(&payload).ok()
+                    })
             })
         } else {
             None
@@ -195,6 +198,7 @@ impl TimelineProjectionService {
     fn build_inbox_entry_for_scope(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         principal_id: &str,
         principal_kind: &str,
         scope: &str,
@@ -213,12 +217,13 @@ impl TimelineProjectionService {
                 scope_member_views: scope_members.values().cloned().collect(),
             })
         };
-        self.build_inbox_entry_from_member_context(scope, member_context?)
+        self.build_inbox_entry_from_member_context(scope, organization_id, member_context?)
     }
 
     fn build_inbox_entry_from_member_context(
         &self,
         scope: &str,
+        organization_id: &str,
         member_context: InboxMemberContext,
     ) -> Option<ConversationInboxEntry> {
         let InboxMemberContext {
@@ -270,6 +275,19 @@ impl TimelineProjectionService {
         let display_source = display_name
             .as_ref()
             .map(|_| "member_projection".to_owned());
+        let conversation_preferences = self.conversation_preferences(
+            member.tenant_id.as_str(),
+            organization_id,
+            member.conversation_id.as_str(),
+            member.principal_kind.as_str(),
+            member.principal_id.as_str(),
+        );
+        let preferences = Some(ConversationInboxPreferencesView {
+            is_pinned: conversation_preferences.is_pinned,
+            is_muted: conversation_preferences.is_muted,
+            is_marked_unread: conversation_preferences.is_marked_unread,
+            is_hidden: conversation_preferences.is_hidden,
+        });
 
         Some(ConversationInboxEntry {
             tenant_id: member.tenant_id.clone(),
@@ -305,7 +323,7 @@ impl TimelineProjectionService {
             avatar_url,
             display_source,
             peer,
-            preferences: None,
+            preferences,
             agent_handoff: summary.as_ref().and_then(|view| view.agent_handoff.clone()),
         })
     }
@@ -315,6 +333,7 @@ impl TimelineProjectionService {
         &self,
         members: &ProjectionMemberRuntimeStore,
         tenant_id: &str,
+        organization_id: &str,
         principal_id: &str,
         principal_kind: &str,
         scope: &str,
@@ -328,6 +347,7 @@ impl TimelineProjectionService {
         })?;
         self.build_inbox_entry_from_member_context(
             scope,
+            organization_id,
             InboxMemberContext {
                 member: member.clone(),
                 scope_member_views: scope_members.values().cloned().collect(),
@@ -451,6 +471,104 @@ mod deadlock_regression_tests {
                 ),
             )
             .expect("member joined");
+    }
+
+    fn seed_filtered_inbox_scope(
+        service: &TimelineProjectionService,
+        conversation_id: &str,
+        conversation_type: &str,
+        joined_at: &str,
+        ordering_seq: u64,
+    ) {
+        let created_payload = format!(
+            r#"{{
+                "conversationId":"{conversation_id}",
+                "conversationType":"{conversation_type}",
+                "scenario":"standard",
+                "title":"Filtered inbox regression",
+                "createdAt":"{joined_at}"
+            }}"#
+        );
+        service
+            .apply(
+                &CommitEnvelope::minimal(
+                    format!("evt_created_{conversation_id}").as_str(),
+                    "100001",
+                    "conversation.created",
+                    "conversation",
+                    conversation_id,
+                    ordering_seq,
+                )
+                .with_payload("conversation.created.v1", created_payload.as_str()),
+            )
+            .expect("conversation created");
+        let member_payload = format!(
+            r#"{{
+                "tenantId":"100001",
+                "conversationId":"{conversation_id}",
+                "memberId":"cm_{conversation_id}",
+                "principalId":"user_filtered_inbox",
+                "principalKind":"user",
+                "role":"member",
+                "state":"joined",
+                "invitedBy":null,
+                "joinedAt":"{joined_at}",
+                "removedAt":null,
+                "attributes":{{}}
+            }}"#
+        );
+        service
+            .apply(
+                &CommitEnvelope::minimal(
+                    format!("evt_member_{conversation_id}").as_str(),
+                    "100001",
+                    "conversation.member_joined",
+                    "conversation",
+                    conversation_id,
+                    ordering_seq + 1,
+                )
+                .with_payload("conversation.member.v1", member_payload.as_str()),
+            )
+            .expect("member joined");
+    }
+
+    #[test]
+    fn inbox_window_filter_scans_until_matching_page_is_full() {
+        let service = TimelineProjectionService::default();
+        for index in 0..10 {
+            seed_filtered_inbox_scope(
+                &service,
+                format!("c_direct_filter_{index}").as_str(),
+                "direct",
+                format!("2026-07-08T00:00:{index:02}Z").as_str(),
+                index * 2,
+            );
+        }
+        seed_filtered_inbox_scope(
+            &service,
+            "g_filtered_after_directs",
+            "group",
+            "2026-07-01T00:00:00Z",
+            100,
+        );
+
+        let window = service
+            .inbox_window_for_principal_kind_filtered(
+                InboxWindowQuery {
+                    tenant_id: "100001",
+                    organization_id: "0",
+                    principal_id: "user_filtered_inbox",
+                    principal_kind: "user",
+                    limit: 1,
+                    cursor: crate::model::InboxListCursor::Start,
+                },
+                |entry| entry.conversation_type == "group",
+            )
+            .expect("filtered inbox window");
+
+        assert_eq!(window.items.len(), 1);
+        assert_eq!(window.items[0].conversation_id, "g_filtered_after_directs");
+        assert_eq!(window.page_info.has_more, Some(false));
     }
 
     #[test]

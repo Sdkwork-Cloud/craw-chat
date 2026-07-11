@@ -6,7 +6,7 @@ use crate::runtime::SocialRuntime;
 
 /// Apply a committed social event to the embedded projection runtime.
 ///
-/// Unified-process hosts call this immediately after journal append so contact
+/// Co-located standalone hosts call this immediately after journal append so contact
 /// read models stay consistent without waiting for replay polling.
 pub fn try_apply_social_commit_to_projection(envelope: &CommitEnvelope) {
     projection_service::try_apply_commit_envelope(envelope);
@@ -20,7 +20,7 @@ pub fn try_apply_social_commits_to_projection(envelopes: &[CommitEnvelope]) {
 
 /// Replay persisted social commits into the embedded projection runtime.
 ///
-/// Used during unified-process bootstrap to heal contact projections when the
+/// Used during standalone embedded bootstrap to heal contact projections when the
 /// social authority already contains friendships that were never projected.
 pub fn replay_social_journal_to_projection(runtime: &SocialRuntime) {
     let commits = match runtime.recorded_commits() {

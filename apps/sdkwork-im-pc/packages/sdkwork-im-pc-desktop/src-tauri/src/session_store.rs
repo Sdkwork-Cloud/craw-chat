@@ -53,9 +53,11 @@ fn migrate_legacy_store_value(app: &AppHandle) -> Result<Option<String>, String>
         return Ok(None);
     };
 
-    session_keyring_entry()?.set_password(value.as_str()).map_err(|error| {
-        format!("migrate legacy secure session store into keyring failed: {error}")
-    })?;
+    session_keyring_entry()?
+        .set_password(value.as_str())
+        .map_err(|error| {
+            format!("migrate legacy secure session store into keyring failed: {error}")
+        })?;
     remove_legacy_store_file(app)?;
     Ok(Some(value))
 }

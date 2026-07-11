@@ -80,6 +80,14 @@
       "types": "./src/sdk/pcRealtimeConnectionManager.ts",
       "default": "./src/sdk/pcRealtimeConnectionManager.ts"
     },
+    "./sdk/desktopOfflineChatCache": {
+      "types": "./src/sdk/desktopOfflineChatCache.ts",
+      "default": "./src/sdk/desktopOfflineChatCache.ts"
+    },
+    "./sdk/desktopOfflineSendQueue": {
+      "types": "./src/sdk/desktopOfflineSendQueue.ts",
+      "default": "./src/sdk/desktopOfflineSendQueue.ts"
+    },
     "./sdk/session": {
       "types": "./src/sdk/session.ts",
       "default": "./src/sdk/session.ts"
@@ -111,7 +119,6 @@
     }
   },
   "dependencies": {
-    "@sdkwork-internal/im-app-api-generated": "workspace:*",
     "@sdkwork/agents-app-sdk": "workspace:*",
     "@sdkwork/agents-pc-agents": "workspace:*",
     "@sdkwork/aiot-app-sdk": "workspace:*",
@@ -146,7 +153,8 @@
     "@sdkwork/auth-pc-react": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
-    "@sdkwork/iam-contracts": "workspace:*"
+    "@sdkwork/iam-contracts": "workspace:*",
+    "@sdkwork/im-app-sdk": "workspace:*"
   },
   "publishConfig": {
     "access": "public",

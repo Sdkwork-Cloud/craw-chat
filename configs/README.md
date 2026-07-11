@@ -30,10 +30,11 @@ SDKWork IM maintainers.
 - `../sdkwork-specs/ENVIRONMENT_SPEC.md`
 - `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md`
 
-## Topology v2
+## Topology v4
 
 Runtime profile env files live under [topology/](./topology/README.md). Default development uses
-`standalone.split-services.development` (`pnpm dev`).
+`standalone.development` (`pnpm dev`). Process decomposition is selected by the topology profile and
+runtime manifests; it is not a public profile-id segment.
 
 ## Verification
 

@@ -13,12 +13,11 @@ import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
   type SdkworkChatSession,
 } from './session';
-import { getImSdkClientWithSession } from './imSdkClient';
 
 export type PcLiveConnectionStatus = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
 export interface PcRealtimeConnectionManagerConfig {
-  getClient?: () => ImSdkClient;
+  getClient?: () => Promise<ImSdkClient> | ImSdkClient;
   getDeviceId?: () => string | undefined;
   getSession?: () => SdkworkChatSession | null;
 }
@@ -52,12 +51,14 @@ const CIRCUIT_BREAKER_COOLDOWN_MS = 60_000;
 let managerConfig: PcRealtimeConnectionManagerConfig = {};
 let sharedConnection: ImLiveConnection | null = null;
 let sharedConnectionPromise: Promise<ImLiveConnection> | null = null;
+let connectionDrainPromise: Promise<void> | null = null;
 let connectionStatus: PcLiveConnectionStatus = 'idle';
 let connectionGeneration = 0;
 let reconnectAttempt = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let consecutiveFailures = 0;
 let circuitOpenUntil = 0;
+let totalConnectionsCreated = 0;
 let lifecycleUnsub: ImSubscription | undefined;
 let errorUnsub: ImSubscription | undefined;
 let browserHooksInstalled = false;
@@ -71,8 +72,15 @@ const scopeUnsubs = new Map<string, ImSubscription>();
 const openListeners = new Set<OpenListener>();
 const authenticationFailureListeners = new Set<AuthenticationFailureListener>();
 
-function resolveClient(): ImSdkClient {
-  return managerConfig.getClient?.() ?? getImSdkClientWithSession();
+function isPromiseLike<T>(value: Promise<T> | T): value is Promise<T> {
+  return typeof (value as Promise<T>).then === 'function';
+}
+
+function resolveClient(): Promise<ImSdkClient> | ImSdkClient {
+  if (managerConfig.getClient) {
+    return managerConfig.getClient();
+  }
+  return import('./imSdkClient').then(({ getImSdkClientWithSession }) => getImSdkClientWithSession());
 }
 
 function resolveSession(): SdkworkChatSession | null {
@@ -180,7 +188,34 @@ function detachConnectionListeners(): void {
   errorUnsub = undefined;
 }
 
-function resetConnectionState(): void {
+function queueInFlightConnectionDrain(reason: string): void {
+  const inFlightConnection = sharedConnectionPromise;
+  if (!inFlightConnection) {
+    return;
+  }
+
+  const previousDrain = connectionDrainPromise;
+  const drain = async (): Promise<void> => {
+    try {
+      const connection = await inFlightConnection;
+      connection.disconnect(1000, reason);
+    } catch {
+      // Superseded connection attempts already close themselves before rejecting.
+    }
+  };
+  const queuedDrain = (previousDrain ? previousDrain.catch(() => undefined) : Promise.resolve())
+    .then(drain);
+  let finalDrain: Promise<void>;
+  finalDrain = queuedDrain.finally(() => {
+    if (connectionDrainPromise === finalDrain) {
+      connectionDrainPromise = null;
+    }
+  });
+  connectionDrainPromise = finalDrain;
+}
+
+function resetConnectionState(reason = 'PC live connection state reset'): void {
+  queueInFlightConnectionDrain(reason);
   detachConnectionListeners();
   sharedConnection = null;
   sharedConnectionPromise = null;
@@ -219,8 +254,9 @@ function buildMergedScopeSubscriptions(): ImRealtimeScopeSubscription[] {
 
 function syncWireSubscriptions(connection: ImLiveConnection): void {
   const conversationIds = collectActiveConversationIds();
+  const activeConversationIds = new Set(conversationIds);
   for (const [conversationId, unsubscribe] of [...conversationUnsubs.entries()]) {
-    if (conversationRegistrations.has(conversationId)) {
+    if (activeConversationIds.has(conversationId)) {
       continue;
     }
     unsubscribe();
@@ -300,12 +336,16 @@ function teardownIfIdle(reason = 'no live subscriptions'): void {
   circuitOpenUntil = 0;
 }
 
-function handleConnectionLost(triggerReconnect: boolean): void {
+function handleConnectionLost(triggerReconnect: boolean, closeStaleConnection = false): void {
+  const staleConnection = sharedConnection;
   detachConnectionListeners();
   clearWireSubscriptions();
   sharedConnection = null;
   sharedConnectionPromise = null;
   connectionStatus = 'closed';
+  if (closeStaleConnection) {
+    staleConnection?.disconnect(1000, 'live connection lost');
+  }
 
   if (!triggerReconnect || !hasSubscriptionDemand()) {
     teardownIfIdle('live connection closed');
@@ -320,6 +360,9 @@ function handleConnectionLost(triggerReconnect: boolean): void {
 function scheduleReconnect(): void {
   if (
     reconnectTimer
+    || sharedConnectionPromise
+    || connectionDrainPromise
+    || connectionStatus === 'connecting'
     || !hasSubscriptionDemand()
     || !isAppSdkSessionAuthenticated(resolveSession())
   ) {
@@ -365,7 +408,7 @@ function bindConnection(connection: ImLiveConnection, generation: number): void 
         disposePcLiveConnection('websocket authentication failed');
         return;
       }
-      handleConnectionLost(true);
+      handleConnectionLost(true, true);
       return;
     }
     if (state.status === 'closed') {
@@ -387,7 +430,7 @@ function bindConnection(connection: ImLiveConnection, generation: number): void 
       if (consecutiveFailures >= CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
         circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
       }
-      handleConnectionLost(true);
+      handleConnectionLost(true, true);
     }
   });
 }
@@ -403,9 +446,12 @@ async function connectSharedLiveConnection(): Promise<ImLiveConnection> {
   const generation = connectionGeneration + 1;
   connectionGeneration = generation;
   connectionStatus = 'connecting';
+  totalConnectionsCreated += 1;
 
   const deviceId = resolveDeviceId();
-  const connection = await resolveClient().connect({
+  const resolvedClient = resolveClient();
+  const client = isPromiseLike(resolvedClient) ? await resolvedClient : resolvedClient;
+  const connection = await client.connect({
     ...(deviceId ? { deviceId } : {}),
     subscriptions: {
       conversations: [],
@@ -461,6 +507,28 @@ export function getPcLiveConnectionStatus(): PcLiveConnectionStatus {
   return connectionStatus;
 }
 
+export function getPcLiveConnectionDiagnostics(): {
+  status: PcLiveConnectionStatus;
+  totalConnectionsCreated: number;
+  hasSharedConnection: boolean;
+  isConnecting: boolean;
+  isDraining: boolean;
+  reconnectAttempt: number;
+  consecutiveFailures: number;
+  circuitOpen: boolean;
+} {
+  return {
+    status: connectionStatus,
+    totalConnectionsCreated,
+    hasSharedConnection: sharedConnection !== null,
+    isConnecting: sharedConnectionPromise !== null,
+    isDraining: connectionDrainPromise !== null,
+    reconnectAttempt,
+    consecutiveFailures,
+    circuitOpen: Date.now() < circuitOpenUntil,
+  };
+}
+
 export function getPcLiveConnectionIfReady(): ImLiveConnection | null {
   return sharedConnection;
 }
@@ -478,6 +546,10 @@ export async function ensurePcLiveConnection(): Promise<ImLiveConnection> {
   }
   if (sharedConnectionPromise) {
     return sharedConnectionPromise;
+  }
+  if (connectionDrainPromise) {
+    await connectionDrainPromise;
+    return ensurePcLiveConnection();
   }
 
   const attemptGeneration = connectionGeneration + 1;
@@ -522,18 +594,28 @@ export function recoverPcLiveConnection(
   if (!hasSubscriptionDemand() || !isAppSdkSessionAuthenticated(resolveSession())) {
     return;
   }
+  if (sharedConnectionPromise) {
+    return;
+  }
+  if (connectionDrainPromise) {
+    void ensurePcLiveConnection().catch(() => undefined);
+    return;
+  }
+  if (sharedConnection && (connectionStatus === 'open' || connectionStatus === 'connecting')) {
+    syncWireSubscriptionsWhenReady(sharedConnection);
+    return;
+  }
   if (!options.force && (connectionStatus === 'open' || connectionStatus === 'connecting')) {
     return;
   }
-
   clearReconnectTimer();
   connectionGeneration += 1;
   if (sharedConnection) {
     const staleConnection = sharedConnection;
-    resetConnectionState();
+    resetConnectionState(reason);
     staleConnection.disconnect(1000, reason);
   } else {
-    resetConnectionState();
+    resetConnectionState(reason);
   }
 
   void ensurePcLiveConnection().catch(() => undefined);
@@ -544,7 +626,7 @@ function invalidatePcLiveConnection(reason: string): void {
   connectionGeneration += 1;
   clearWireSubscriptions();
   sharedConnection?.disconnect(1000, reason);
-  resetConnectionState();
+  resetConnectionState(reason);
   reconnectAttempt = 0;
   consecutiveFailures = 0;
   circuitOpenUntil = 0;
@@ -692,4 +774,6 @@ export function resetPcRealtimeConnectionManagerForTests(): void {
   authenticationFailureListeners.clear();
   connectionLeases.clear();
   leasedConversationIds.clear();
+  connectionDrainPromise = null;
+  totalConnectionsCreated = 0;
 }

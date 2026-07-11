@@ -16,7 +16,7 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/system_channel/publish</code>
-  <span class="api-op-id">operationId: publishSystemChannelMessage</span>
+  <span class="api-op-id">operationId: conversations.systemChannel.publish</span>
 </div>
 
 Publishes a system message to the conversation's system channel.
@@ -26,7 +26,7 @@ Publishes a system message to the conversation's system channel.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -58,4 +58,3 @@ Uses the same request schema as regular message submission.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

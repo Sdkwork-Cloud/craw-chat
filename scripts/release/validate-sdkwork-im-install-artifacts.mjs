@@ -215,7 +215,7 @@ function validateArchiveEntries(packageItem, entries) {
     }
   }
 
-  if (packageItem.deploymentMode === 'server-archive') {
+  if (packageItem.profile === 'server') {
     for (const requiredEntry of [
       `bin/${packageItem.binaryName}`,
       'config/chat.toml.example',
@@ -228,7 +228,10 @@ function validateArchiveEntries(packageItem, entries) {
     }
     requireEntryPrefix(entries, 'web/sdkwork-im-pc/dist/', packageItem.id, issues);
     requireEntryPrefix(entries, `service/${packageItem.platform}/`, packageItem.id, issues);
-  } else if (packageItem.deploymentMode === 'desktop') {
+  } else if (packageItem.profile === 'browser') {
+    requireEntryPrefix(entries, 'web/sdkwork-im-pc/dist/', packageItem.id, issues);
+    requireArchiveEntry(entries, 'web-manifest.json', packageItem.id, issues);
+  } else if (packageItem.profile === 'desktop') {
     requireArchiveEntry(entries, 'desktop-manifest.json', packageItem.id, issues);
     const installerEntries = [...entries].filter((entry) =>
       entry.startsWith('desktop/') && isPlatformDesktopInstaller(entry, packageItem.platform)

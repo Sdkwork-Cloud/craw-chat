@@ -64,7 +64,7 @@
     "runtimeEntrypoints": [],
     "routeManifest": null,
     "sdkClients": [
-      "@sdkwork-internal/im-backend-api-generated",
+      "@sdkwork/im-backend-sdk",
       "@sdkwork/iam-backend-sdk"
     ],
     "events": [],

@@ -152,8 +152,8 @@ for (const dependencyName of Object.keys(appPackageJson.dependencies ?? {})) {
 }
 
 const requiredAppRootDeps = [
-  '@sdkwork-internal/im-app-api-generated',
-  '@sdkwork-internal/im-backend-api-generated',
+  '@sdkwork/im-app-sdk',
+  '@sdkwork/im-backend-sdk',
   '@sdkwork/appbase-pc-react',
   '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/drive-app-sdk',

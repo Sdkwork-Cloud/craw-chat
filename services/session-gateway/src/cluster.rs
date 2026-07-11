@@ -1813,13 +1813,19 @@ mod tests {
             })
             .expect("disconnect fence should persist");
 
-        let error = cluster
-            .ensure_client_route_resume_not_required_for_principal_kind(
-                "100001", "default", "1", "user", "d_pad",
+        let same_session_error = cluster
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_old"),
             )
-            .expect_err("disconnect fence should require an explicit resume");
-        assert_eq!(error.code, "reconnect_required");
-        assert_eq!(error.node_id, "node_a");
+            .expect_err("the disconnected session must complete an explicit reconnect");
+        assert_eq!(same_session_error.code, "reconnect_required");
+        assert_eq!(same_session_error.node_id, "node_a");
+
         assert!(
             cluster
                 .disconnect_fence_matches_client_route_session_for_principal_kind(
@@ -1830,33 +1836,57 @@ mod tests {
                     "d_pad",
                     Some("s_old")
                 )
-                .expect("session match should load")
-        );
-        assert!(
-            !cluster
-                .disconnect_fence_matches_client_route_session_for_principal_kind(
-                    "100001",
-                    "default",
-                    "1",
-                    "user",
-                    "d_pad",
-                    Some("s_other")
-                )
-                .expect("session mismatch should load")
+                .expect("same-session fence should remain persisted")
         );
 
-        assert!(
-            cluster
-                .clear_client_route_disconnect_fence_for_principal_kind(
-                    "100001", "default", "1", "user", "d_pad"
-                )
-                .expect("disconnect fence clear should succeed")
+        cluster
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_new"),
+            )
+            .expect("a different authenticated session should supersede the stale fence");
+        cluster
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_new"),
+            )
+            .expect("the superseding session should remain idempotently allowed");
+    }
+
+    #[test]
+    fn test_disconnect_fence_sessionless_request_clears_stale_sessioned_fence() {
+        // A request without a session id (current_session_id=None) should clear
+        // a fence written by a sessioned connection, since None != Some(s).
+        let cluster = RealtimeClusterBridge::default();
+        cluster.bind_node_runtime(
+            "node_a",
+            Arc::new(RealtimeDeliveryRuntime::permissive_for_tests()),
         );
+        cluster
+            .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+                tenant_id: "100001",
+                organization_id: "default",
+                principal_id: "1",
+                principal_kind: "user",
+                device_id: "d_pad",
+                session_id: Some("s_old"),
+                owner_node_id: "node_a",
+            })
+            .expect("disconnect fence should persist");
+
         cluster
             .ensure_client_route_resume_not_required_for_principal_kind(
                 "100001", "default", "1", "user", "d_pad",
             )
-            .expect("fresh resume should clear the disconnect fence");
+            .expect("sessionless request should clear sessioned stale fence");
     }
 
     #[test]
@@ -1881,12 +1911,19 @@ mod tests {
         let runtime_b = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());
         cluster_b.bind_node_runtime("node_b", runtime_b);
 
-        let error = cluster_b
-            .ensure_client_route_resume_not_required_for_principal_kind(
-                "100001", "default", "1", "user", "d_pad",
+        let same_session_error = cluster_b
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_old"),
             )
-            .expect_err("persisted disconnect fence should still require a fresh resume");
-        assert_eq!(error.code, "reconnect_required");
+            .expect_err("the restored fence must reject the disconnected session");
+        assert_eq!(same_session_error.code, "reconnect_required");
+        assert_eq!(same_session_error.node_id, "node_a");
+
         assert!(
             cluster_b
                 .disconnect_fence_matches_client_route_session_for_principal_kind(
@@ -1897,26 +1934,25 @@ mod tests {
                     "d_pad",
                     Some("s_old")
                 )
-                .expect("restored session match should load")
+                .expect("restored same-session fence should remain persisted")
         );
 
-        assert!(
-            cluster_b
-                .clear_client_route_disconnect_fence_for_principal_kind(
-                    "100001", "default", "1", "user", "d_pad"
-                )
-                .expect("restored fence clear should succeed")
-        );
         cluster_b
-            .ensure_client_route_resume_not_required_for_principal_kind(
-                "100001", "default", "1", "user", "d_pad",
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_new"),
             )
-            .expect("clearing the restored fence should allow traffic again");
+            .expect("a different session should clear the restored stale fence");
     }
 
     #[test]
     fn test_disconnect_fence_clear_for_current_session_does_not_delete_new_disconnect_fence() {
         let store = Arc::new(MemoryRealtimeDisconnectFenceStore::default());
+        let disconnected_at = utc_now_rfc3339_millis();
         store
             .save_fence(RealtimeDisconnectFenceRecord {
                 tenant_id: "100001".into(),
@@ -1926,9 +1962,8 @@ mod tests {
                 device_id: "d_pad".into(),
                 session_id: Some("s_new".into()),
                 owner_node_id: "node_b".into(),
-                disconnected_at: "2026-05-06T00:00:02.000Z".into(),
-                fence_token: "fence:100001:user:3:d_pad:s_new:node_b:2026-05-06T00:00:02.000Z"
-                    .into(),
+                disconnected_at: disconnected_at.clone(),
+                fence_token: format!("fence:100001:user:3:d_pad:s_new:node_b:{disconnected_at}"),
             })
             .expect("new disconnect fence should persist");
         let cluster = RealtimeClusterBridge::with_disconnect_fence_store(store.clone());
@@ -1945,12 +1980,29 @@ mod tests {
             .expect("protected fence clear should succeed");
 
         assert!(!cleared);
-        let error = cluster
-            .ensure_client_route_resume_not_required_for_principal_kind(
-                "100001", "default", "1", "user", "d_pad",
+        let same_session_error = cluster
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_new"),
             )
-            .expect_err("current session disconnect fence must still require a fresh resume");
-        assert_eq!(error.code, "reconnect_required");
+            .expect_err("a protected clear must not bypass the new disconnect fence");
+        assert_eq!(same_session_error.code, "reconnect_required");
+        assert!(
+            cluster
+                .disconnect_fence_matches_client_route_session_for_principal_kind(
+                    "100001",
+                    "default",
+                    "1",
+                    "user",
+                    "d_pad",
+                    Some("s_new")
+                )
+                .expect("the newer same-session fence should remain persisted")
+        );
     }
 
     #[derive(Clone, Default)]
@@ -2035,8 +2087,13 @@ mod tests {
         assert_eq!(save_error.code, "disconnect_fence_store_unavailable");
 
         let load_error = cluster
-            .ensure_client_route_resume_not_required_for_principal_kind(
-                "100001", "default", "1", "user", "d_pad",
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_old"),
             )
             .expect_err("load failure should surface as a controlled error");
         assert_eq!(load_error.code, "disconnect_fence_store_unavailable");

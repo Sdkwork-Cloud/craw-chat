@@ -645,7 +645,13 @@ impl CircuitBreaker {
                 event = "im.gateway.circuit_breaker.reopened",
                 "circuit breaker re-opened after half-open probe failure"
             );
-        } else if inner.consecutive_failures >= self.config.failure_threshold {
+        } else if inner.consecutive_failures >= self.config.failure_threshold
+            && inner.state != CircuitState::Open
+        {
+            // Only transition from Closed → Open. When the breaker is already
+            // Open, do NOT reset opened_at or re-log — otherwise concurrent
+            // in-flight failures repeatedly push the recovery timer forward
+            // and flood the log with duplicate "opened" entries.
             inner.state = CircuitState::Open;
             inner.opened_at = Some(Instant::now());
             tracing::error!(
@@ -835,25 +841,25 @@ pub async fn per_tenant_rate_limit_middleware(
         .get::<AppContext>()
         .map(|context| context.tenant_id.clone());
 
-    if let Some(tenant_id) = tenant_id {
-        if !limiter.check(tenant_id.as_str()) {
-            // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
-            let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
+    if let Some(tenant_id) = tenant_id
+        && !limiter.check(tenant_id.as_str())
+    {
+        // Calculate retry_after based on actual RPM: ceil(60 / max_rpm)
+        let retry_after_secs = (60.0 / limiter.config.max_rpm as f64).ceil() as u64;
 
-            tracing::warn!(
-                target: "sdkwork.im.gateway",
-                event = "im.gateway.tenant_rate_limited",
-                tenant_id = %tenant_id,
-                path = %req.uri().path(),
-                retry_after_secs = retry_after_secs,
-                max_rpm = limiter.config.max_rpm,
-                "tenant request rate limited"
-            );
-            return gateway_rate_limit_problem_response(
-                "Tenant request rate limit exceeded. Please slow down.",
-                retry_after_secs,
-            );
-        }
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.tenant_rate_limited",
+            tenant_id = %tenant_id,
+            path = %req.uri().path(),
+            retry_after_secs = retry_after_secs,
+            max_rpm = limiter.config.max_rpm,
+            "tenant request rate limited"
+        );
+        return gateway_rate_limit_problem_response(
+            "Tenant request rate limit exceeded. Please slow down.",
+            retry_after_secs,
+        );
     }
 
     next.run(req).await

@@ -13,5 +13,6 @@ export {
 export {
   parseAppbaseCallbackSession,
   stripAppbaseCallbackFromLocation,
+  type ImH5AppbaseCallbackSession,
 } from "./appbaseAuthBridge";
 export { DEFAULT_APP_SESSION, type ImH5AppSession } from "./appSession";

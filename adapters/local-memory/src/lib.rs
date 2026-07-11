@@ -147,23 +147,6 @@ impl MemoryMetadataStore {
             .get(snapshot_key(scope, key).as_str())
             .cloned()
     }
-
-    pub fn list_scopes_for_snapshot_key(&self, key: &str) -> Vec<String> {
-        let suffix = format!("|{}:{}", key.len(), key);
-        let mut scopes = lock_memory_mutex(&self.snapshots, "metadata store")
-            .keys()
-            .filter_map(|stored_key| {
-                let scope_part = stored_key.strip_suffix(suffix.as_str())?;
-                let colon = scope_part.find(':')?;
-                let len: usize = scope_part[..colon].parse().ok()?;
-                let scope = scope_part[colon + 1..].to_string();
-                (scope.len() == len).then_some(scope)
-            })
-            .collect::<Vec<_>>();
-        scopes.sort();
-        scopes.dedup();
-        scopes
-    }
 }
 
 impl MetadataStore for MemoryMetadataStore {

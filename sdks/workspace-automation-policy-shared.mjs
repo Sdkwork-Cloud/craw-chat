@@ -8,7 +8,7 @@ export function appendVerificationFlowDocumentationFailures({
   failures,
   label,
   requireAutomationMetaTest = false,
-  requireAssemblyRegression = false,
+  requireSdkManifestRegression = false,
   requireUsageSurface = false,
   requireDriveMediaSurface = false,
   requirePackageMetadata = false,
@@ -22,11 +22,11 @@ export function appendVerificationFlowDocumentationFailures({
     });
   }
 
-  if (requireAssemblyRegression) {
+  if (requireSdkManifestRegression) {
     requireMatch({
       source,
-      pattern: /assembly regression/i,
-      message: `${label} must document the assembly regression test in the verification flow.`,
+      pattern: /SDK manifest regression/i,
+      message: `${label} must document the SDK manifest regression test in the verification flow.`,
       failures,
     });
   }
@@ -59,34 +59,34 @@ export function appendVerificationFlowDocumentationFailures({
   }
 }
 
-export function appendAssemblyMetadataDocumentationFailures({
+export function appendSdkManifestMetadataDocumentationFailures({
   source,
   failures,
   label,
-  explainAssemblyMetadata = false,
+  explainSdkManifestMetadata = false,
   requireGeneratedComposed = false,
 }) {
-  const verb = explainAssemblyMetadata ? 'explain' : 'document';
-  const assemblyMetadataPhrase = explainAssemblyMetadata
-    ? 'in the assembly metadata'
-    : 'assembly metadata';
+  const verb = explainSdkManifestMetadata ? 'explain' : 'document';
+  const sdkManifestMetadataPhrase = explainSdkManifestMetadata
+    ? 'in the SDK manifest metadata'
+    : 'SDK manifest metadata';
 
   requireMatch({
     source,
-    pattern: /\.sdkwork-assembly\.json/,
-    message: `${label} must ${verb} .sdkwork-assembly.json.`,
+    pattern: /sdk-manifest\.json/,
+    message: `${label} must ${verb} sdk-manifest.json.`,
     failures,
   });
   requireMatch({
     source,
     pattern: /manifestPath/,
-    message: `${label} must ${verb} manifestPath ${assemblyMetadataPhrase}.`,
+    message: `${label} must ${verb} manifestPath ${sdkManifestMetadataPhrase}.`,
     failures,
   });
   requireMatch({
     source,
-    pattern: /generatedAt/,
-    message: `${label} must ${verb} generatedAt ${assemblyMetadataPhrase}.`,
+    pattern: /transportPackageName/,
+    message: `${label} must ${verb} transportPackageName ${sdkManifestMetadataPhrase}.`,
     failures,
   });
 
@@ -94,7 +94,7 @@ export function appendAssemblyMetadataDocumentationFailures({
     requireMatch({
       source,
       pattern: /generated[\s\S]*composed/i,
-      message: `${label} must ${verb} generated versus composed package layers ${assemblyMetadataPhrase}.`,
+      message: `${label} must ${verb} generated versus composed package layers ${sdkManifestMetadataPhrase}.`,
       failures,
     });
   }

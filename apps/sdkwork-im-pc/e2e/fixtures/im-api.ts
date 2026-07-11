@@ -71,7 +71,7 @@ function emptyPagedResponse() {
   return sdkworkPageResponse([]);
 }
 
-function emptyTimelineResponse() {
+function emptyConversationMessageListResponse() {
   return sdkworkPageResponse([]);
 }
 
@@ -199,7 +199,7 @@ export async function installPlaywrightImApiMocks(
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(
-          pathname.includes('/messages') ? emptyTimelineResponse() : emptyPagedResponse(),
+          pathname.includes('/messages') ? emptyConversationMessageListResponse() : emptyPagedResponse(),
         ),
       });
       return;

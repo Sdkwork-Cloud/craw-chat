@@ -207,7 +207,7 @@ func (x *CallerContext) GetAuthLevel() string {
 
 type RequestMetadata struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	RequestId      string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	TraceId        string                 `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
 	Traceparent    string                 `protobuf:"bytes,2,opt,name=traceparent,proto3" json:"traceparent,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	RequestHash    string                 `protobuf:"bytes,4,opt,name=request_hash,json=requestHash,proto3" json:"request_hash,omitempty"`
@@ -248,9 +248,9 @@ func (*RequestMetadata) Descriptor() ([]byte, []int) {
 	return file_sdkwork_common_v1_context_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RequestMetadata) GetRequestId() string {
+func (x *RequestMetadata) GetTraceId() string {
 	if x != nil {
-		return x.RequestId
+		return x.TraceId
 	}
 	return ""
 }
@@ -299,7 +299,7 @@ func (x *RequestMetadata) GetCallerContext() *CallerContext {
 
 type ResponseMetadata struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	RequestId          string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	TraceId            string                 `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
 	Traceparent        string                 `protobuf:"bytes,2,opt,name=traceparent,proto3" json:"traceparent,omitempty"`
 	ServerTime         string                 `protobuf:"bytes,3,opt,name=server_time,json=serverTime,proto3" json:"server_time,omitempty"`
 	Warnings           []string               `protobuf:"bytes,4,rep,name=warnings,proto3" json:"warnings,omitempty"`
@@ -338,9 +338,9 @@ func (*ResponseMetadata) Descriptor() ([]byte, []int) {
 	return file_sdkwork_common_v1_context_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ResponseMetadata) GetRequestId() string {
+func (x *ResponseMetadata) GetTraceId() string {
 	if x != nil {
-		return x.RequestId
+		return x.TraceId
 	}
 	return ""
 }
@@ -526,20 +526,18 @@ const file_sdkwork_common_v1_context_proto_rawDesc = "" +
 	"\ttenant_id\x18\x04 \x01(\tR\btenantId\x12'\n" +
 	"\x0forganization_id\x18\x05 \x01(\tR\x0eorganizationId\x12\x1d\n" +
 	"\n" +
-	"auth_level\x18\x06 \x01(\tR\tauthLevel\"\xce\x02\n" +
-	"\x0fRequestMetadata\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12 \n" +
+	"auth_level\x18\x06 \x01(\tR\tauthLevel\"\xca\x02\n" +
+	"\x0fRequestMetadata\x12\x19\n" +
+	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12 \n" +
 	"\vtraceparent\x18\x02 \x01(\tR\vtraceparent\x12'\n" +
 	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12!\n" +
 	"\frequest_hash\x18\x04 \x01(\tR\vrequestHash\x12%\n" +
 	"\x0eclient_version\x18\x05 \x01(\tR\rclientVersion\x12>\n" +
 	"\vapp_context\x18\x06 \x01(\v2\x1d.sdkwork.common.v1.AppContextR\n" +
 	"appContext\x12G\n" +
-	"\x0ecaller_context\x18\a \x01(\v2 .sdkwork.common.v1.CallerContextR\rcallerContext\"\xc1\x01\n" +
-	"\x10ResponseMetadata\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12 \n" +
+	"\x0ecaller_context\x18\a \x01(\v2 .sdkwork.common.v1.CallerContextR\rcallerContext\"\xbd\x01\n" +
+	"\x10ResponseMetadata\x12\x19\n" +
+	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12 \n" +
 	"\vtraceparent\x18\x02 \x01(\tR\vtraceparent\x12\x1f\n" +
 	"\vserver_time\x18\x03 \x01(\tR\n" +
 	"serverTime\x12\x1a\n" +

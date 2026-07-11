@@ -19,7 +19,7 @@ Most IM backends were designed for person-to-person chat and later patched for b
 | **Actor model, not `senderId` string** | Realtime subjects are typed `user`, `agent`, `device`, `bot`, `system` with an explicit `actor/sender` model. No more guessing whether a `senderId` is a human or a webhook. |
 | **IM owns signaling, RTC owns media** | Call lifecycle and signaling live here (`/im/v3/api/calls/*`); media/provider runtime comes from the sibling [`../sdkwork-rtc`](../sdkwork-rtc) workspace. The boundary is enforced by contract tests. |
 | **Durable truth vs query truth** | Writes hit durable storage before acknowledgement; timelines, inboxes, and summaries are rebuildable projections. Cache is never the source of truth. |
-| **Topology v2 as a contract** | Hosting, service layout, environment, and connectivity planes are versioned in [`specs/topology.spec.json`](./specs/topology.spec.json). Retired vocabulary is rejected by governance tests. |
+| **Topology v4 as a contract** | Deployment profile, environment, and connectivity planes are versioned in [`specs/topology.spec.json`](./specs/topology.spec.json). Retired vocabulary is rejected by governance tests. |
 | **9-language SDK matrix** | Four SDK families (IM / App / Backend / RTC) each ship across TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python — generated from OpenAPI authorities, not hand-written. |
 
 ## Capabilities
@@ -159,20 +159,20 @@ Platform framework integration:
 - PostgreSQL pools use [`../sdkwork-database`](../sdkwork-database) through `crates/sdkwork-im-database-pool` and postgres adapters.
 - `sdkwork-discovery` is **deferred (Phase 2)**: RPC contracts exist under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`. Phase 1 gRPC hosts (`*-rpc-bin`) ship through `sdkwork-rpc-framework` with optional `SDKWORK_IM_DISCOVERY_ENDPOINT` registration. The `sdkwork-discovery` product control plane ships in Phase 2 per [ADR-20260619](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md).
 
-## Topology v2
+## Topology v4
 
-Topology is a versioned contract, not a convention. Four official profiles are supported:
+Topology is a versioned contract, not a convention. Profile ids use exactly `<deploymentProfile>.<environment>`:
 
-| Profile | Hosting | Layout | Env | Command |
-| --- | --- | --- | --- | --- |
-| `standalone.split-services.development` | self-hosted | split-services | development | `pnpm dev` (default) |
-| `standalone.unified-process.development` | self-hosted | unified-process | development | `pnpm dev:browser` / `pnpm dev:browser:postgres:unified-process:standalone` |
-| `standalone.split-services.production` | self-hosted | split-services | production | — |
-| `cloud.split-services.production` | cloud-hosted | split-services | production | `pnpm build` |
+| Profile | Deployment profile | Environment | Command |
+| --- | --- | --- | --- |
+| `standalone.development` | standalone | development | `pnpm dev` / `pnpm dev:browser` / `pnpm dev:desktop` |
+| `standalone.staging` | standalone | staging | pre-production rehearsal |
+| `standalone.production` | standalone | production | standalone server/container/desktop release |
+| `cloud.production` | cloud | production | `pnpm build` |
 
-- `split-services`: ingress gateway proxies to internal upstream services (default for dev and all production).
-- `unified-process`: single-process in-memory assembly (CI smoke only).
-- Profile files: `configs/topology/{hosting}.{serviceLayout}.{environment}.env`.
+- `cloud.development` and `cloud.staging` are available for cloud integration and pre-production rehearsal.
+- Internal upstream fan-out and in-process route mounting are implementation details behind the selected profile.
+- Profile files: `configs/topology/{deploymentProfile}.{environment}.env`.
 - Retired vocabulary is rejected by `pnpm test:topology-baggage`; see [`specs/topology.spec.json`](./specs/topology.spec.json) for the full retired list.
 
 Authority: [docs/topology-greenfield.md](./docs/topology-greenfield.md), [specs/topology.spec.json](./specs/topology.spec.json), [configs/topology/](./configs/topology/).
@@ -239,7 +239,7 @@ Health check: `curl http://127.0.0.1:18079/healthz`
 Other dev commands:
 
 ```bash
-pnpm dev:browser   # PostgreSQL + standalone unified browser dev
+pnpm dev:browser   # PostgreSQL + standalone browser dev
 pnpm dev:server       # Rust server only, no PC renderer
 pnpm dev:desktop   # PostgreSQL + standalone Tauri desktop dev
 pnpm dev:browser:postgres  # browser + PostgreSQL
@@ -295,7 +295,7 @@ Maintenance: `pnpm migrate:topology-v2-baggage` re-applies archive vocabulary mi
 
 **Desktop release packages** (in [`sdkwork.app.config.json`](./sdkwork.app.config.json)): `web-production` (ZIP), `desktop-windows` (ZIP), `desktop-macos` (DMG), `desktop-linux` (APPIMAGE). Install: `sdkwork install chat`; launch: `sdkwork open chat`.
 
-**Docker:** optional container validation path. Production containers should use topology v2 env keys. See [docs/sites/deployment/docker.md](./docs/sites/deployment/docker.md).
+**Docker:** optional container validation path. Production containers should use topology v4 env keys. See [docs/sites/deployment/docker.md](./docs/sites/deployment/docker.md).
 
 **Service hosting:** `sdkwork-im-server` single-port contract, PostgreSQL-backed config root, service-manager wrapper (`bin/install-service-server.*`, `bin/uninstall-service-server.*`). Templates: `deployments/templates/server.env.example`, `deployments/templates/chat.toml.example`.
 
@@ -307,7 +307,7 @@ Three execution tiers, eight scenario families:
 
 | Tier | Purpose | Baseline |
 | --- | --- | --- |
-| CI Smoke | Fast regression of connection/message/stream/drain/recovery semantics | `standalone.split-services.development` + `cargo test` |
+| CI Smoke | Fast regression of connection/message/stream/drain/recovery semantics | `standalone.development` + `cargo test` |
 | Pre-Release | Medium-scale concurrency, throughput, fault drill | Pre-release topology |
 | Capacity | Dedicated environment for connection density, throughput ceiling, tail latency | Dedicated capacity cell/region |
 
@@ -375,7 +375,7 @@ Deep dive: [docs/架构/08-安全-多租户-SaaS-私有化-部署设计.md](./do
 ## Constraints
 
 - Tenant and caller identity come from auth context, not business request bodies.
-- Topology v2 profiles only; default dev is `pnpm dev`.
+- Topology v4 profiles only; default dev is `pnpm dev` (`standalone.development`).
 - RTC SDK authority is sibling [`../sdkwork-rtc`](../sdkwork-rtc) (`sdkwork-rtc-sdk` must not live under this repo's `sdks/`).
 - Do not hand-edit generated SDK output; do not replace generated SDK calls with raw HTTP.
 - Runtime directory (`SDKWORK_IM_RUNTIME_DIR`) is an architectural contract, not an auxiliary log directory.

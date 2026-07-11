@@ -9,7 +9,7 @@ use serde::Deserialize;
 
 use crate::{
     PostgresProjectionPool, default_projection_organization_id, now_rfc3339, postgres_pool_client,
-    postgres_unavailable, run_postgres_io,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
 const UPSERT_TIMELINE_ENTRY_SQL: &str = r#"
@@ -211,10 +211,12 @@ fn upsert_timeline_rows(
         let mut transaction = client
             .transaction()
             .map_err(|error| postgres_unavailable("timeline upsert begin", error))?;
-        let created_at = now_rfc3339();
+        let created_at = postgres_timestamptz(&now_rfc3339(), "created_at")?;
         for (tenant_id, conversation_id, message_seq, payload) in rows {
             let parsed = parse_timeline_payload(payload.as_str());
-            let retention_until = resolve_timeline_retention_until(&parsed);
+            let retention_until = resolve_timeline_retention_until(&parsed)
+                .map(|value| postgres_timestamptz(value.as_str(), "retention_until"))
+                .transpose()?;
             let message_id = parsed.message_id;
             let summary = parsed.summary;
             let payload_hash = sha256_hash(payload.as_bytes());

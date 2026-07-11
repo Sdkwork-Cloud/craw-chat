@@ -69,13 +69,13 @@ async fn test_postgres_realtime_websocket_recovers_and_trims_across_runtime_rest
 
     send_sync_subscription(
         &mut socket,
-        "req_sync_pg_ws_1",
         conversation_id.as_str(),
         vec!["message.posted"],
     )
     .await;
     let synced = next_text_json(&mut socket).await;
     assert_eq!(synced["type"], "subscriptions.synced");
+    assert_server_trace_contract(&synced, "subscriptions.synced");
     assert_eq!(synced["snapshot"]["deviceId"], device_id);
     assert_eq!(synced["snapshot"]["items"][0]["scopeId"], conversation_id);
 
@@ -160,9 +160,10 @@ async fn test_postgres_realtime_websocket_recovers_and_trims_across_runtime_rest
         ],
     );
 
-    send_ack(&mut resumed_socket, "req_ack_pg_ws_1", 2).await;
+    send_ack(&mut resumed_socket, 2).await;
     let acked = next_text_json(&mut resumed_socket).await;
     assert_eq!(acked["type"], "events.acked");
+    assert_server_trace_contract(&acked, "events.acked");
     assert_eq!(acked["ack"]["ackedThroughSeq"], 2);
     assert_eq!(acked["ack"]["trimmedThroughSeq"], 2);
     assert_eq!(acked["ack"]["retainedEventCount"], 0);
@@ -198,9 +199,10 @@ async fn test_postgres_realtime_websocket_recovers_and_trims_across_runtime_rest
         "reconnect after ack/trim must not replay already trimmed events"
     );
 
-    send_pull(&mut after_ack_socket, "req_pull_pg_ws_after_trim_1", 0, 10).await;
+    send_pull(&mut after_ack_socket, 0, 10).await;
     let post_trim_pull = next_text_json(&mut after_ack_socket).await;
     assert_eq!(post_trim_pull["type"], "event.window");
+    assert_server_trace_contract(&post_trim_pull, "event.window");
     assert_eq!(post_trim_pull["reason"], "pull");
     assert_eq!(post_trim_pull["window"]["ackedThroughSeq"], 2);
     assert_eq!(post_trim_pull["window"]["trimmedThroughSeq"], 2);
@@ -322,7 +324,6 @@ async fn send_sync_subscription(
     socket: &mut tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >,
-    request_id: &str,
     conversation_id: &str,
     event_types: Vec<&str>,
 ) {
@@ -330,7 +331,6 @@ async fn send_sync_subscription(
         .send(Message::Text(
             json!({
                 "type":"subscriptions.sync",
-                "requestId":request_id,
                 "items":[
                     {
                         "scopeType":"conversation",
@@ -350,14 +350,12 @@ async fn send_ack(
     socket: &mut tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >,
-    request_id: &str,
     acked_seq: u64,
 ) {
     socket
         .send(Message::Text(
             json!({
                 "type":"events.ack",
-                "requestId":request_id,
                 "ackedSeq":acked_seq
             })
             .to_string()
@@ -371,7 +369,6 @@ async fn send_pull(
     socket: &mut tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >,
-    request_id: &str,
     after_seq: u64,
     limit: usize,
 ) {
@@ -379,7 +376,6 @@ async fn send_pull(
         .send(Message::Text(
             json!({
                 "type":"events.pull",
-                "requestId":request_id,
                 "afterSeq":after_seq,
                 "limit":limit
             })
@@ -414,6 +410,7 @@ fn assert_event_window(
     expected_message_ids: &[&str],
 ) {
     assert_eq!(frame["type"], "event.window");
+    assert_server_trace_contract(frame, "event.window");
     assert_eq!(frame["reason"], reason);
     let items = frame["window"]["items"]
         .as_array()
@@ -434,6 +431,20 @@ fn assert_event_window(
         .expect("event payload should decode as JSON");
         assert_eq!(payload["messageId"], *expected_message_id);
     }
+}
+
+fn assert_server_trace_contract(frame: &serde_json::Value, label: &str) {
+    assert!(
+        frame.get("requestId").is_none(),
+        "{label} must not expose the legacy correlation field: {frame:?}"
+    );
+    assert!(
+        frame
+            .get("traceId")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|value| !value.trim().is_empty()),
+        "{label} must expose server traceId: {frame:?}"
+    );
 }
 
 fn apply_core_schema(pool: &PostgresRealtimePool) {

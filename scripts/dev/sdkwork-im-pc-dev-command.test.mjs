@@ -119,31 +119,31 @@ assert.equal(
 );
 assert.equal(
   packageJson.scripts['dev:browser'],
-  'pnpm dev:browser:postgres:unified-process:standalone',
+  'pnpm dev:browser:postgres:standalone',
   'root pnpm dev:browser must delegate to the PostgreSQL standalone profile',
 );
 assert.equal(
-  packageJson.scripts['dev:browser:postgres:unified-process:standalone'],
-  'node scripts/im-dev.mjs --target browser --deployment-profile standalone --service-layout unified-process --database postgres',
+  packageJson.scripts['dev:browser:postgres:standalone'],
+  'node scripts/im-dev.mjs --target browser --deployment-profile standalone --database postgres',
   'root pnpm dev:browser full profile must start PostgreSQL standalone browser dev',
 );
 assert.doesNotMatch(
-  packageJson.scripts['dev:browser:postgres:unified-process:standalone'],
+  packageJson.scripts['dev:browser:postgres:standalone'],
   / --env-file /u,
   'root pnpm dev:browser full profile must not use Node 22 reserved --env-file argument',
 );
 assert.equal(
   packageJson.scripts['dev:desktop'],
-  'pnpm dev:desktop:postgres:unified-process:standalone',
+  'pnpm dev:desktop:postgres:standalone',
   'root pnpm dev:desktop must delegate to the PostgreSQL standalone profile',
 );
 assert.equal(
-  packageJson.scripts['dev:desktop:postgres:unified-process:standalone'],
-  'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --service-layout unified-process --database postgres',
+  packageJson.scripts['dev:desktop:postgres:standalone'],
+  'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --database postgres',
   'root pnpm dev:desktop full profile must start PostgreSQL standalone desktop dev',
 );
 assert.doesNotMatch(
-  packageJson.scripts['dev:desktop:postgres:unified-process:standalone'],
+  packageJson.scripts['dev:desktop:postgres:standalone'],
   / --env-file /u,
   'root pnpm dev:desktop full profile must not use Node 22 reserved --env-file argument',
 );
@@ -172,7 +172,7 @@ assert.ok(
     && unifiedWebSource.includes('sdkwork-im-cloud-gateway')
     && unifiedWebSource.includes('sdkwork-im-server')
     && unifiedWebSource.includes('resolveSdkworkImSharedDatabaseConfig'),
-  'root pnpm dev:server must start the Rust sdkwork-im-cloud-gateway in shared-gateway split mode with the shared database config',
+  'root pnpm dev:server must start the Rust sdkwork-im-cloud-gateway with the shared database config',
 );
 assert.doesNotMatch(
   unifiedWebSource,
@@ -315,8 +315,8 @@ assert.equal(
 );
 
 const sharedDependencyNames = [
-  '@sdkwork-internal/im-app-api-generated',
-  '@sdkwork-internal/im-backend-api-generated',
+  '@sdkwork/im-app-sdk',
+  '@sdkwork/im-backend-sdk',
   '@sdkwork/iam-app-sdk',
   '@sdkwork/appbase-pc-react',
   '@sdkwork/auth-pc-react',
@@ -348,8 +348,8 @@ assert.equal(
 );
 const sharedSdkOverrides = readJson('package.json').pnpm?.overrides ?? {};
 for (const [dependencyName, expectedVersion] of Object.entries({
-  '@sdkwork-internal/im-app-api-generated': 'workspace:*',
-  '@sdkwork-internal/im-backend-api-generated': 'workspace:*',
+  '@sdkwork/im-app-sdk': 'workspace:*',
+  '@sdkwork/im-backend-sdk': 'workspace:*',
   '@sdkwork/iam-app-sdk': 'workspace:*',
   '@sdkwork/appbase-pc-react': 'workspace:*',
   '@sdkwork/im-sdk': 'workspace:*',
@@ -651,7 +651,6 @@ const browserPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
-    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
   },
   repoRoot,
 });
@@ -668,7 +667,7 @@ assert.deepEqual(
 assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-standalone-gateway', 'sdkwork-im-pc-browser'],
-  'standalone unified-process browser dev must start the embedded standalone gateway and browser renderer',
+  'standalone single-ingress browser dev must start the embedded standalone gateway and browser renderer',
 );
 const browserStandaloneGatewayProcess = browserPlan.processes.find(
   (entry) => entry.label === 'sdkwork-im-standalone-gateway',
@@ -688,12 +687,12 @@ assert.deepEqual(browserStandaloneGatewayProcess, {
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
   'http://127.0.0.1:18079',
-  'standalone unified-process must collapse platform SDK traffic onto application.public-ingress',
+  'standalone single-ingress must collapse platform SDK traffic onto application.public-ingress',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18079',
-  'standalone unified-process must keep application HTTP on application.public-ingress',
+  'standalone single-ingress must keep application HTTP on application.public-ingress',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
@@ -748,7 +747,6 @@ const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
-    SDKWORK_IM_SERVICE_LAYOUT: 'split-services',
     SDKWORK_DRIVE_APP_API_UPSTREAM: 'http://127.0.0.1:28080/',
   },
   repoRoot,
@@ -756,18 +754,17 @@ const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
 assert.equal(
   customDriveUpstreamPlan.processes[0].env.SDKWORK_IM_DRIVE_APP_API_UPSTREAM,
   'http://127.0.0.1:28080',
-  'PC dev must allow the Drive app-api dependency upstream to be overridden for split Drive deployments',
+  'PC dev must allow the Drive app-api dependency upstream to be overridden for external Drive deployments',
 );
 assert.deepEqual(
   customDriveUpstreamPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when Drive uses an explicit split upstream',
+  'cloud dev must keep the shared gateway available for remaining foundation surfaces when Drive uses an explicit external upstream',
 );
 const customNotaryUpstreamPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
-    SDKWORK_IM_SERVICE_LAYOUT: 'split-services',
     SDKWORK_NOTARY_APP_API_UPSTREAM: 'http://127.0.0.1:28092/',
   },
   repoRoot,
@@ -775,18 +772,17 @@ const customNotaryUpstreamPlan = createSdkworkChatPcDevPlan({
 assert.equal(
   customNotaryUpstreamPlan.processes[0].env.SDKWORK_IM_NOTARY_APP_API_UPSTREAM,
   'http://127.0.0.1:28092',
-  'PC dev must allow the Notary app-api dependency upstream to be overridden for split Notary deployments',
+  'PC dev must allow the Notary app-api dependency upstream to be overridden for external Notary deployments',
 );
 assert.deepEqual(
   customNotaryUpstreamPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit split upstream',
+  'cloud dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit external upstream',
 );
 const customCatalogUpstreamPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
-    SDKWORK_IM_SERVICE_LAYOUT: 'split-services',
     SDKWORK_CATALOG_APP_API_UPSTREAM: 'http://127.0.0.1:28094/',
   },
   repoRoot,
@@ -794,12 +790,12 @@ const customCatalogUpstreamPlan = createSdkworkChatPcDevPlan({
 assert.equal(
   customCatalogUpstreamPlan.processes[0].env.SDKWORK_IM_CATALOG_APP_API_UPSTREAM,
   'http://127.0.0.1:28094',
-  'PC dev must allow the catalog app-api dependency upstream to be overridden for split catalog deployments',
+  'PC dev must allow the catalog app-api dependency upstream to be overridden for external catalog deployments',
 );
 assert.deepEqual(
   customCatalogUpstreamPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when catalog uses an explicit split upstream',
+  'cloud dev must keep the shared gateway available for remaining foundation surfaces when catalog uses an explicit external upstream',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
@@ -822,7 +818,6 @@ const shiftedPortPlan = createSdkworkChatPcDevPlan({
   devServerPort: shiftedDevPort,
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
-    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
   },
   repoRoot,
 });
@@ -853,7 +848,7 @@ assert.equal(postgresDatabaseConfig.postgres.username, 'sdkwork_ai_dev');
 assert.equal(postgresDatabaseConfig.postgres.password, 'sdkworkdev123');
 assert.equal(postgresDatabaseConfig.postgres.database, 'sdkwork_ai_dev');
 
-const postgresSplitDatabaseConfig = resolveSdkworkImSharedDatabaseConfig({
+const postgresStructuredDatabaseConfig = resolveSdkworkImSharedDatabaseConfig({
   env: {
     SDKWORK_CLAW_DATABASE_PROVIDER: 'postgresql',
     SDKWORK_CLAW_DATABASE_HOST: '127.0.0.1',
@@ -866,20 +861,20 @@ const postgresSplitDatabaseConfig = resolveSdkworkImSharedDatabaseConfig({
   },
   repoRoot,
 });
-assert.equal(postgresSplitDatabaseConfig.kind, 'postgresql');
+assert.equal(postgresStructuredDatabaseConfig.kind, 'postgresql');
 assert.equal(
-  postgresSplitDatabaseConfig.env.SDKWORK_CLAW_DATABASE_URL,
+  postgresStructuredDatabaseConfig.env.SDKWORK_CLAW_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:chat%20pass@127.0.0.1:15432/sdkwork_ai_dev?sslmode=disable',
-  'shared DB helper must assemble PostgreSQL URLs from split database fields',
+  'shared DB helper must assemble PostgreSQL URLs from structured database fields',
 );
 assert.equal(
-  postgresSplitDatabaseConfig.env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS,
+  postgresStructuredDatabaseConfig.env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS,
   '12',
-  'shared DB helper must pass split-field PostgreSQL max connection settings to the Rust server',
+  'shared DB helper must pass structured PostgreSQL max connection settings to the Rust server',
 );
-assert.equal(postgresSplitDatabaseConfig.postgres.username, 'sdkwork_ai_dev');
-assert.equal(postgresSplitDatabaseConfig.postgres.password, 'chat pass');
-assert.equal(postgresSplitDatabaseConfig.postgres.database, 'sdkwork_ai_dev');
+assert.equal(postgresStructuredDatabaseConfig.postgres.username, 'sdkwork_ai_dev');
+assert.equal(postgresStructuredDatabaseConfig.postgres.password, 'chat pass');
+assert.equal(postgresStructuredDatabaseConfig.postgres.database, 'sdkwork_ai_dev');
 assert.throws(
   () => resolveSdkworkImSharedDatabaseConfig({
     env: {
@@ -891,7 +886,7 @@ assert.throws(
     repoRoot,
   }),
   /SDKWORK_IM_DATABASE_PASSWORD/u,
-  'split-field PostgreSQL configuration must require an explicit password',
+  'structured PostgreSQL configuration must require an explicit password',
 );
 assert.throws(
   () => resolveSdkworkImSharedDatabaseConfig({
@@ -905,7 +900,7 @@ assert.throws(
     repoRoot,
   }),
   /unsupported Sdkwork IM database engine/u,
-  'shared DB helper must reject unsupported split-field database engines instead of silently falling back to SQLite',
+  'shared DB helper must reject unsupported structured database engines instead of silently falling back to SQLite',
 );
 
 const postgresUrlPrecedenceConfig = resolveSdkworkImSharedDatabaseConfig({
@@ -914,9 +909,9 @@ const postgresUrlPrecedenceConfig = resolveSdkworkImSharedDatabaseConfig({
     SDKWORK_CLAW_DATABASE_PROVIDER: 'postgresql',
     SDKWORK_CLAW_DATABASE_HOST: '127.0.0.1',
     SDKWORK_CLAW_DATABASE_PORT: '15432',
-    SDKWORK_CLAW_DATABASE_NAME: 'split_db',
-    SDKWORK_CLAW_DATABASE_USERNAME: 'split_user',
-    SDKWORK_CLAW_DATABASE_PASSWORD: 'split_pass',
+    SDKWORK_CLAW_DATABASE_NAME: 'structured_db',
+    SDKWORK_CLAW_DATABASE_USERNAME: 'structured_user',
+    SDKWORK_CLAW_DATABASE_PASSWORD: 'structured_pass',
     SDKWORK_CLAW_DATABASE_SSLMODE: 'disable',
   },
   repoRoot,
@@ -924,7 +919,7 @@ const postgresUrlPrecedenceConfig = resolveSdkworkImSharedDatabaseConfig({
 assert.equal(
   postgresUrlPrecedenceConfig.env.SDKWORK_CLAW_DATABASE_URL,
   'postgresql://url_user:url_pass@127.0.0.1:25432/url_db?sslmode=require',
-  'explicit SDKWORK_CLAW_DATABASE_URL must take precedence over split PostgreSQL fields',
+  'explicit SDKWORK_CLAW_DATABASE_URL must take precedence over structured PostgreSQL fields',
 );
 assert.doesNotMatch(
   sharedDatabaseSource,
@@ -947,8 +942,12 @@ for (const requiredName of [
   );
 }
 assert.ok(
-  postgresDatabaseConfigIndexSource.includes('./开发环境PostgreSQL数据库配置教程.md')
-    && postgresDatabaseConfigIndexSource.includes('./线上环境PostgreSQL数据库配置教程.md')
+  postgresDatabaseConfigIndexSource.includes(
+    './\u5f00\u53d1\u73af\u5883PostgreSQL\u6570\u636e\u5e93\u914d\u7f6e\u6559\u7a0b.md',
+  )
+    && postgresDatabaseConfigIndexSource.includes(
+      './\u7ebf\u4e0a\u73af\u5883PostgreSQL\u6570\u636e\u5e93\u914d\u7f6e\u6559\u7a0b.md',
+    )
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
     && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/chat.toml')
@@ -1020,7 +1019,6 @@ const desktopPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'desktop'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
-    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
   },
   repoRoot,
 });
@@ -1028,7 +1026,7 @@ assert.equal(desktopPlan.target, 'desktop');
 assert.deepEqual(
   desktopPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-standalone-gateway', 'sdkwork-im-pc-desktop'],
-  'standalone unified-process desktop dev must start the embedded standalone gateway and Tauri desktop process',
+  'standalone single-ingress desktop dev must start the embedded standalone gateway and Tauri desktop process',
 );
 assert.deepEqual(desktopPlan.processes[1], {
   args: ['--dir', 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-desktop', 'dev:desktop'],
@@ -1075,7 +1073,7 @@ assert.equal(
 );
 assert.ok(
   !('SDKWORK_IM_PLATFORM_API_GATEWAY_MANAGED_EXTERNALLY' in desktopPlan.processes[0].env),
-  'standalone unified-process desktop dev must not mark platform gateway as externally managed',
+  'standalone single-ingress desktop dev must not mark platform gateway as externally managed',
 );
 
 const spawned = [];
@@ -1093,7 +1091,6 @@ await runSdkworkChatPcDev({
   argv: ['--target', 'desktop'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
-    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
   },
   findAvailableDevPort: async () => 4179,
   resolveServerBindEnv: async ({ env }) => ({
@@ -1117,7 +1114,7 @@ await runSdkworkChatPcDev({
 assert.equal(
   spawned.length,
   2,
-  'standalone unified-process desktop dev runner must spawn standalone gateway and desktop renderer processes',
+  'standalone single-ingress desktop dev runner must spawn standalone gateway and desktop renderer processes',
 );
 assert.equal(
   spawned[0].options.env.SDKWORK_IM_BROWSER_ORIGINS,
@@ -1146,13 +1143,13 @@ assert.equal(
 );
 assert.ok(
   !('SDKWORK_IM_PLATFORM_API_GATEWAY_MANAGED_EXTERNALLY' in spawned[0].options.env),
-  'standalone unified-process dev runner must not mark platform gateway as externally managed',
+  'standalone single-ingress dev runner must not mark platform gateway as externally managed',
 );
 assert.ok(
   !('SDKWORK_IM_DRIVE_APP_API_UPSTREAM' in spawned[0].options.env)
     && !('SDKWORK_IM_NOTARY_APP_API_UPSTREAM' in spawned[0].options.env)
     && !('SDKWORK_IM_CATALOG_APP_API_UPSTREAM' in spawned[0].options.env),
-  'standalone unified-process dev runner must not pass split foundation upstreams',
+  'standalone single-ingress dev runner must not pass explicit external dependency upstreams',
 );
 assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
@@ -1181,7 +1178,7 @@ assert.deepEqual(
     '--config',
     spawned[0].options.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
   ],
-  'dev runner must spawn the embedded standalone gateway for standalone unified-process profiles',
+  'dev runner must spawn the embedded standalone gateway for standalone single-ingress profiles',
 );
 assert.equal(
   spawned[0].command,

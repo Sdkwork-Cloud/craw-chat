@@ -88,14 +88,17 @@ assert.match(
   'local standard must document that current canonical appbase auth config only accepts qrLoginEnabled.',
 );
 
-assert.ok(appPackageJson.dependencies['@sdkwork-internal/im-app-api-generated']);
-assert.ok(appPackageJson.dependencies['@sdkwork-internal/im-backend-api-generated']);
+assert.ok(appPackageJson.dependencies['@sdkwork/im-app-sdk']);
+assert.ok(appPackageJson.dependencies['@sdkwork/im-backend-sdk']);
+assert.ok(!appPackageJson.dependencies['@sdkwork-internal/im-app-api-generated']);
+assert.ok(!appPackageJson.dependencies['@sdkwork-internal/im-backend-api-generated']);
 assert.ok(appPackageJson.dependencies['@sdkwork/iam-app-sdk']);
 assert.ok(!appPackageJson.dependencies[retiredGenericAppSdkPackage]);
 assert.ok(!appPackageJson.dependencies[retiredGenericBackendSdkPackage]);
 
 assert.match(appSdkClientSource, /SdkworkImAppClient/u);
-assert.match(appSdkClientSource, /@sdkwork-internal\/im-app-api-generated/u);
+assert.match(appSdkClientSource, /@sdkwork\/im-app-sdk/u);
+assert.doesNotMatch(appSdkClientSource, /@sdkwork-internal\/im-app-api-generated/u);
 assert.doesNotMatch(
   appSdkClientSource,
   /@sdkwork\/(?:app|backend)-sdk|spring-ai-plus-(?:app|backend)-api/u,
@@ -153,7 +156,21 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(imSdkClientSource, /\bfetch\s*\(/u);
 
-assert.match(viteConfigSource, /@sdkwork\/im-sdk-generated/u);
+assert.match(
+  viteConfigSource,
+  /@sdkwork\/im-sdk/u,
+  'Vite must alias @sdkwork/im-sdk to the composed IM SDK facade.',
+);
+assert.match(
+  viteConfigSource,
+  /sdkwork-im-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve @sdkwork/im-sdk to the composed facade source.',
+);
+assert.doesNotMatch(
+  viteConfigSource,
+  /@sdkwork\/im-sdk-generated|sdkwork-im-sdk-typescript[\\\/]generated[\\\/]server-openapi/u,
+  'Vite must not expose the IM generated transport alias to PC consumers.',
+);
 assert.match(viteConfigSource, /@sdkwork\/sdkwork-knowledgebase-pc-commons/u);
 assert.match(viteConfigSource, /sdkworkChatLocalApiPlugin/u);
 assert.match(viteConfigSource, /handleSdkworkChatLocalApiRequest/u);

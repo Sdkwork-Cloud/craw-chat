@@ -78,7 +78,8 @@ ALTER ROLE "sdkwork" SET search_path TO public;
 ```toml
 [runtime]
 environment = "production"
-deployment_mode = "server"
+deployment_profile = "standalone"
+runtime_target = "server"
 app_code = "chat"
 
 [server]
@@ -126,7 +127,8 @@ max_connections = 16
 `server.env` 维护进程级环境项，不保存数据库密码：
 
 ```env
-SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
 SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
 SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
@@ -247,4 +249,3 @@ Windows Service 使用 `install-service-server.ps1` 安装并注册 `SdkworkImSe
 - 连接池配置需与 PostgreSQL `max_connections` 和容器资源上限匹配。
 - 公网 API 与 WebSocket 使用 HTTPS/WSS。
 - 线上环境不要复用单个配置文件；线上不要复用 `.env.postgres` 作为生产配置。
-

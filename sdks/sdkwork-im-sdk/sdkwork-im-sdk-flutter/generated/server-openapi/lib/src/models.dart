@@ -1356,7 +1356,7 @@ class MessageBody {
   }
 }
 
-class TimelineViewEntry {
+class ConversationMessageEntry {
   final String tenantId;
   final String conversationId;
   final String messageId;
@@ -1372,7 +1372,7 @@ class TimelineViewEntry {
   final String occurredAt;
   final String? committedAt;
 
-  TimelineViewEntry({
+  ConversationMessageEntry({
     required this.tenantId,
     required this.conversationId,
     required this.messageId,
@@ -1389,33 +1389,33 @@ class TimelineViewEntry {
     this.committedAt
   });
 
-  factory TimelineViewEntry.fromJson(Map<String, dynamic> json) {
-    return TimelineViewEntry(
+  factory ConversationMessageEntry.fromJson(Map<String, dynamic> json) {
+    return ConversationMessageEntry(
       tenantId: (() {
         final value = json['tenantId']?.toString();
         if (value == null) {
-          throw FormatException('TimelineViewEntry.tenantId is required');
+          throw FormatException('ConversationMessageEntry.tenantId is required');
         }
         return value;
       })(),
       conversationId: (() {
         final value = json['conversationId']?.toString();
         if (value == null) {
-          throw FormatException('TimelineViewEntry.conversationId is required');
+          throw FormatException('ConversationMessageEntry.conversationId is required');
         }
         return value;
       })(),
       messageId: (() {
         final value = json['messageId']?.toString();
         if (value == null) {
-          throw FormatException('TimelineViewEntry.messageId is required');
+          throw FormatException('ConversationMessageEntry.messageId is required');
         }
         return value;
       })(),
       messageSeq: (() {
         final value = json['messageSeq'];
         if (value is! int) {
-          throw FormatException('TimelineViewEntry.messageSeq is required');
+          throw FormatException('ConversationMessageEntry.messageSeq is required');
         }
         return value;
       })(),
@@ -1423,28 +1423,28 @@ class TimelineViewEntry {
       sender: (() {
         final map = _sdkworkAsMap(json['sender']);
         if (map == null) {
-          throw FormatException('TimelineViewEntry.sender is required');
+          throw FormatException('ConversationMessageEntry.sender is required');
         }
         return Sender.fromJson(map);
       })(),
       body: (() {
         final map = _sdkworkAsMap(json['body']);
         if (map == null) {
-          throw FormatException('TimelineViewEntry.body is required');
+          throw FormatException('ConversationMessageEntry.body is required');
         }
         return MessageBody.fromJson(map);
       })(),
       messageType: (() {
         final value = json['messageType']?.toString();
         if (value == null) {
-          throw FormatException('TimelineViewEntry.messageType is required');
+          throw FormatException('ConversationMessageEntry.messageType is required');
         }
         return value;
       })(),
       deliveryMode: (() {
         final value = json['deliveryMode']?.toString();
         if (value == null) {
-          throw FormatException('TimelineViewEntry.deliveryMode is required');
+          throw FormatException('ConversationMessageEntry.deliveryMode is required');
         }
         return value;
       })(),
@@ -1454,7 +1454,7 @@ class TimelineViewEntry {
       occurredAt: (() {
         final value = json['occurredAt']?.toString();
         if (value == null) {
-          throw FormatException('TimelineViewEntry.occurredAt is required');
+          throw FormatException('ConversationMessageEntry.occurredAt is required');
         }
         return value;
       })(),
@@ -1478,6 +1478,52 @@ class TimelineViewEntry {
       'rtcSessionId': rtcSessionId,
       'occurredAt': occurredAt,
       'committedAt': committedAt,
+    };
+  }
+}
+
+class ConversationMessageListResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  ConversationMessageListResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory ConversationMessageListResponse.fromJson(Map<String, dynamic> json) {
+    return ConversationMessageListResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('ConversationMessageListResponse.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('ConversationMessageListResponse.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('ConversationMessageListResponse.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1541,11 +1587,17 @@ class EditMessageRequest {
   final String? text;
   final List<ContentPart>? parts;
   final MessageReplyReference? replyTo;
+  final String? summary;
+  final Map<String, dynamic>? renderHints;
+  final String? idempotencyKey;
 
   EditMessageRequest({
     this.text,
     this.parts,
-    this.replyTo
+    this.replyTo,
+    this.summary,
+    this.renderHints,
+    this.idempotencyKey
   });
 
   factory EditMessageRequest.fromJson(Map<String, dynamic> json) {
@@ -1567,7 +1619,10 @@ class EditMessageRequest {
       replyTo: (() {
         final map = _sdkworkAsMap(json['replyTo']);
         return map == null ? null : MessageReplyReference.fromJson(map);
-      })()
+      })(),
+      summary: json['summary']?.toString(),
+      renderHints: _sdkworkAsMap(json['renderHints']),
+      idempotencyKey: json['idempotencyKey']?.toString()
     );
   }
 
@@ -1576,59 +1631,137 @@ class EditMessageRequest {
       'text': text,
       'parts': parts?.map((item) => item.toJson()).toList(),
       'replyTo': replyTo?.toJson(),
+      'summary': summary,
+      'renderHints': renderHints,
+      'idempotencyKey': idempotencyKey,
     };
   }
 }
 
-class PostedMessageResponse {
-  final String conversationId;
-  final String messageId;
-  final int messageSeq;
-  final MessageBody body;
-  final String occurredAt;
+class RecallMessageRequest {
+  final String? idempotencyKey;
 
-  PostedMessageResponse({
-    required this.conversationId,
-    required this.messageId,
-    required this.messageSeq,
-    required this.body,
-    required this.occurredAt
+  RecallMessageRequest({
+    this.idempotencyKey
   });
 
-  factory PostedMessageResponse.fromJson(Map<String, dynamic> json) {
-    return PostedMessageResponse(
-      conversationId: (() {
-        final value = json['conversationId']?.toString();
-        if (value == null) {
-          throw FormatException('PostedMessageResponse.conversationId is required');
-        }
-        return value;
-      })(),
+  factory RecallMessageRequest.fromJson(Map<String, dynamic> json) {
+    return RecallMessageRequest(
+      idempotencyKey: json['idempotencyKey']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'idempotencyKey': idempotencyKey,
+    };
+  }
+}
+
+class PostMessageResult {
+  final String messageId;
+  final int messageSeq;
+  final String eventId;
+  final String? requestKey;
+  final String deliveryStatus;
+  final String? proofVersion;
+
+  PostMessageResult({
+    required this.messageId,
+    required this.messageSeq,
+    required this.eventId,
+    this.requestKey,
+    required this.deliveryStatus,
+    this.proofVersion
+  });
+
+  factory PostMessageResult.fromJson(Map<String, dynamic> json) {
+    return PostMessageResult(
       messageId: (() {
         final value = json['messageId']?.toString();
         if (value == null) {
-          throw FormatException('PostedMessageResponse.messageId is required');
+          throw FormatException('PostMessageResult.messageId is required');
         }
         return value;
       })(),
       messageSeq: (() {
         final value = json['messageSeq'];
         if (value is! int) {
-          throw FormatException('PostedMessageResponse.messageSeq is required');
+          throw FormatException('PostMessageResult.messageSeq is required');
         }
         return value;
       })(),
-      body: (() {
-        final map = _sdkworkAsMap(json['body']);
-        if (map == null) {
-          throw FormatException('PostedMessageResponse.body is required');
-        }
-        return MessageBody.fromJson(map);
-      })(),
-      occurredAt: (() {
-        final value = json['occurredAt']?.toString();
+      eventId: (() {
+        final value = json['eventId']?.toString();
         if (value == null) {
-          throw FormatException('PostedMessageResponse.occurredAt is required');
+          throw FormatException('PostMessageResult.eventId is required');
+        }
+        return value;
+      })(),
+      requestKey: json['requestKey']?.toString(),
+      deliveryStatus: (() {
+        final value = json['deliveryStatus']?.toString();
+        if (value == null) {
+          throw FormatException('PostMessageResult.deliveryStatus is required');
+        }
+        return value;
+      })(),
+      proofVersion: json['proofVersion']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'messageId': messageId,
+      'messageSeq': messageSeq,
+      'eventId': eventId,
+      'requestKey': requestKey,
+      'deliveryStatus': deliveryStatus,
+      'proofVersion': proofVersion,
+    };
+  }
+}
+
+class MessageMutationResult {
+  final String conversationId;
+  final String messageId;
+  final int messageSeq;
+  final String eventId;
+
+  MessageMutationResult({
+    required this.conversationId,
+    required this.messageId,
+    required this.messageSeq,
+    required this.eventId
+  });
+
+  factory MessageMutationResult.fromJson(Map<String, dynamic> json) {
+    return MessageMutationResult(
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('MessageMutationResult.conversationId is required');
+        }
+        return value;
+      })(),
+      messageId: (() {
+        final value = json['messageId']?.toString();
+        if (value == null) {
+          throw FormatException('MessageMutationResult.messageId is required');
+        }
+        return value;
+      })(),
+      messageSeq: (() {
+        final value = json['messageSeq'];
+        if (value is! int) {
+          throw FormatException('MessageMutationResult.messageSeq is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('MessageMutationResult.eventId is required');
         }
         return value;
       })()
@@ -1640,8 +1773,7 @@ class PostedMessageResponse {
       'conversationId': conversationId,
       'messageId': messageId,
       'messageSeq': messageSeq,
-      'body': body.toJson(),
-      'occurredAt': occurredAt,
+      'eventId': eventId,
     };
   }
 }
@@ -4245,27 +4377,40 @@ class SocialFriendshipMutationResponse {
 
 class CreateConversationRequest {
   final String? conversationId;
-  final String? conversationType;
-  final String? kind;
-  final String? title;
-  final List<String>? memberIds;
+  final String conversationType;
+  final String? groupName;
+  final String? clientRequestKey;
+  final String? policyVersion;
+  final List<String>? capabilityFlags;
+  final String? historyVisibility;
+  final String? retentionPolicyRef;
 
   CreateConversationRequest({
     this.conversationId,
-    this.conversationType,
-    this.kind,
-    this.title,
-    this.memberIds
+    required this.conversationType,
+    this.groupName,
+    this.clientRequestKey,
+    this.policyVersion,
+    this.capabilityFlags,
+    this.historyVisibility,
+    this.retentionPolicyRef
   });
 
   factory CreateConversationRequest.fromJson(Map<String, dynamic> json) {
     return CreateConversationRequest(
       conversationId: json['conversationId']?.toString(),
-      conversationType: json['conversationType']?.toString(),
-      kind: json['kind']?.toString(),
-      title: json['title']?.toString(),
-      memberIds: (() {
-        final list = _sdkworkAsList(json['memberIds']);
+      conversationType: (() {
+        final value = json['conversationType']?.toString();
+        if (value == null) {
+          throw FormatException('CreateConversationRequest.conversationType is required');
+        }
+        return value;
+      })(),
+      groupName: json['groupName']?.toString(),
+      clientRequestKey: json['clientRequestKey']?.toString(),
+      policyVersion: json['policyVersion']?.toString(),
+      capabilityFlags: (() {
+        final list = _sdkworkAsList(json['capabilityFlags']);
         if (list == null) {
           return null;
         }
@@ -4273,7 +4418,9 @@ class CreateConversationRequest {
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
-      })()
+      })(),
+      historyVisibility: json['historyVisibility']?.toString(),
+      retentionPolicyRef: json['retentionPolicyRef']?.toString()
     );
   }
 
@@ -4281,9 +4428,12 @@ class CreateConversationRequest {
     return <String, dynamic>{
       'conversationId': conversationId,
       'conversationType': conversationType,
-      'kind': kind,
-      'title': title,
-      'memberIds': memberIds?.map((item) => item).toList(),
+      'groupName': groupName,
+      'clientRequestKey': clientRequestKey,
+      'policyVersion': policyVersion,
+      'capabilityFlags': capabilityFlags?.map((item) => item).toList(),
+      'historyVisibility': historyVisibility,
+      'retentionPolicyRef': retentionPolicyRef,
     };
   }
 }
@@ -4291,12 +4441,10 @@ class CreateConversationRequest {
 class CreateAgentDialogRequest {
   final String agentId;
   final String? conversationId;
-  final String? title;
 
   CreateAgentDialogRequest({
     required this.agentId,
-    this.conversationId,
-    this.title
+    this.conversationId
   });
 
   factory CreateAgentDialogRequest.fromJson(Map<String, dynamic> json) {
@@ -4308,8 +4456,7 @@ class CreateAgentDialogRequest {
         }
         return value;
       })(),
-      conversationId: json['conversationId']?.toString(),
-      title: json['title']?.toString()
+      conversationId: json['conversationId']?.toString()
     );
   }
 
@@ -4317,7 +4464,148 @@ class CreateAgentDialogRequest {
     return <String, dynamic>{
       'agentId': agentId,
       'conversationId': conversationId,
-      'title': title,
+    };
+  }
+}
+
+class CreateAgentHandoffRequest {
+  final String conversationId;
+  final String targetId;
+  final String targetKind;
+  final String handoffSessionId;
+  final String? handoffReason;
+
+  CreateAgentHandoffRequest({
+    required this.conversationId,
+    required this.targetId,
+    required this.targetKind,
+    required this.handoffSessionId,
+    this.handoffReason
+  });
+
+  factory CreateAgentHandoffRequest.fromJson(Map<String, dynamic> json) {
+    return CreateAgentHandoffRequest(
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateAgentHandoffRequest.conversationId is required');
+        }
+        return value;
+      })(),
+      targetId: (() {
+        final value = json['targetId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateAgentHandoffRequest.targetId is required');
+        }
+        return value;
+      })(),
+      targetKind: (() {
+        final value = json['targetKind']?.toString();
+        if (value == null) {
+          throw FormatException('CreateAgentHandoffRequest.targetKind is required');
+        }
+        return value;
+      })(),
+      handoffSessionId: (() {
+        final value = json['handoffSessionId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateAgentHandoffRequest.handoffSessionId is required');
+        }
+        return value;
+      })(),
+      handoffReason: json['handoffReason']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'conversationId': conversationId,
+      'targetId': targetId,
+      'targetKind': targetKind,
+      'handoffSessionId': handoffSessionId,
+      'handoffReason': handoffReason,
+    };
+  }
+}
+
+class CreateSystemChannelRequest {
+  final String conversationId;
+  final String subscriberId;
+
+  CreateSystemChannelRequest({
+    required this.conversationId,
+    required this.subscriberId
+  });
+
+  factory CreateSystemChannelRequest.fromJson(Map<String, dynamic> json) {
+    return CreateSystemChannelRequest(
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateSystemChannelRequest.conversationId is required');
+        }
+        return value;
+      })(),
+      subscriberId: (() {
+        final value = json['subscriberId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateSystemChannelRequest.subscriberId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'conversationId': conversationId,
+      'subscriberId': subscriberId,
+    };
+  }
+}
+
+class CreateThreadConversationRequest {
+  final String conversationId;
+  final String parentConversationId;
+  final String rootMessageId;
+
+  CreateThreadConversationRequest({
+    required this.conversationId,
+    required this.parentConversationId,
+    required this.rootMessageId
+  });
+
+  factory CreateThreadConversationRequest.fromJson(Map<String, dynamic> json) {
+    return CreateThreadConversationRequest(
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateThreadConversationRequest.conversationId is required');
+        }
+        return value;
+      })(),
+      parentConversationId: (() {
+        final value = json['parentConversationId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateThreadConversationRequest.parentConversationId is required');
+        }
+        return value;
+      })(),
+      rootMessageId: (() {
+        final value = json['rootMessageId']?.toString();
+        if (value == null) {
+          throw FormatException('CreateThreadConversationRequest.rootMessageId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'conversationId': conversationId,
+      'parentConversationId': parentConversationId,
+      'rootMessageId': rootMessageId,
     };
   }
 }
@@ -4325,31 +4613,52 @@ class CreateAgentDialogRequest {
 class BindDirectChatRequest {
   final String? conversationId;
   final String? directChatId;
-  final String? leftActorId;
-  final String? leftActorKind;
-  final String? rightActorId;
-  final String? rightActorKind;
-  final String? targetUserId;
+  final String leftActorId;
+  final String leftActorKind;
+  final String rightActorId;
+  final String rightActorKind;
 
   BindDirectChatRequest({
     this.conversationId,
     this.directChatId,
-    this.leftActorId,
-    this.leftActorKind,
-    this.rightActorId,
-    this.rightActorKind,
-    this.targetUserId
+    required this.leftActorId,
+    required this.leftActorKind,
+    required this.rightActorId,
+    required this.rightActorKind
   });
 
   factory BindDirectChatRequest.fromJson(Map<String, dynamic> json) {
     return BindDirectChatRequest(
       conversationId: json['conversationId']?.toString(),
       directChatId: json['directChatId']?.toString(),
-      leftActorId: json['leftActorId']?.toString(),
-      leftActorKind: json['leftActorKind']?.toString(),
-      rightActorId: json['rightActorId']?.toString(),
-      rightActorKind: json['rightActorKind']?.toString(),
-      targetUserId: json['targetUserId']?.toString()
+      leftActorId: (() {
+        final value = json['leftActorId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.leftActorId is required');
+        }
+        return value;
+      })(),
+      leftActorKind: (() {
+        final value = json['leftActorKind']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.leftActorKind is required');
+        }
+        return value;
+      })(),
+      rightActorId: (() {
+        final value = json['rightActorId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.rightActorId is required');
+        }
+        return value;
+      })(),
+      rightActorKind: (() {
+        final value = json['rightActorKind']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.rightActorKind is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -4361,7 +4670,6 @@ class BindDirectChatRequest {
       'leftActorKind': leftActorKind,
       'rightActorId': rightActorId,
       'rightActorKind': rightActorKind,
-      'targetUserId': targetUserId,
     };
   }
 }
@@ -5225,6 +5533,8 @@ class ProblemDetail {
   final String? instance;
   final int code;
   final String traceId;
+  final String? i18nKey;
+  final String? locale;
   final List<FieldError>? errors;
 
   ProblemDetail({
@@ -5235,6 +5545,8 @@ class ProblemDetail {
     this.instance,
     required this.code,
     required this.traceId,
+    this.i18nKey,
+    this.locale,
     this.errors
   });
 
@@ -5277,6 +5589,8 @@ class ProblemDetail {
         }
         return value;
       })(),
+      i18nKey: json['i18nKey']?.toString(),
+      locale: json['locale']?.toString(),
       errors: (() {
         final list = _sdkworkAsList(json['errors']);
         if (list == null) {
@@ -5302,6 +5616,8 @@ class ProblemDetail {
       'instance': instance,
       'code': code,
       'traceId': traceId,
+      'i18nKey': i18nKey,
+      'locale': locale,
       'errors': errors?.map((item) => item.toJson()).toList(),
     };
   }
@@ -5311,11 +5627,15 @@ class FieldError {
   final String field;
   final String message;
   final int? code;
+  final String? i18nKey;
+  final Map<String, dynamic>? params;
 
   FieldError({
     required this.field,
     required this.message,
-    this.code
+    this.code,
+    this.i18nKey,
+    this.params
   });
 
   factory FieldError.fromJson(Map<String, dynamic> json) {
@@ -5334,7 +5654,22 @@ class FieldError {
         }
         return value;
       })(),
-      code: json['code'] is int ? json['code'] : null
+      code: json['code'] is int ? json['code'] : null,
+      i18nKey: json['i18nKey']?.toString(),
+      params: (() {
+        final map = _sdkworkAsMap(json['params']);
+        if (map == null) {
+          return null;
+        }
+        final result = <String, String>{};
+        map.forEach((key, item) {
+          final deserialized = item?.toString();
+          if (deserialized is String) {
+            result[key] = deserialized;
+          }
+        });
+        return result;
+      })()
     );
   }
 
@@ -5343,6 +5678,8 @@ class FieldError {
       'field': field,
       'message': message,
       'code': code,
+      'i18nKey': i18nKey,
+      'params': params?.map((key, item) => MapEntry(key, item)),
     };
   }
 }
@@ -8856,52 +9193,6 @@ class ConversationsMemberDirectoryListResponse {
         final value = json['traceId']?.toString();
         if (value == null) {
           throw FormatException('ConversationsMemberDirectoryListResponse.traceId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'code': code,
-      'data': data,
-      'traceId': traceId,
-    };
-  }
-}
-
-class ConversationsMessagesListResponse {
-  final int code;
-  final dynamic data;
-  final String traceId;
-
-  ConversationsMessagesListResponse({
-    required this.code,
-    required this.data,
-    required this.traceId
-  });
-
-  factory ConversationsMessagesListResponse.fromJson(Map<String, dynamic> json) {
-    return ConversationsMessagesListResponse(
-      code: (() {
-        final value = json['code'];
-        if (value is! int) {
-          throw FormatException('ConversationsMessagesListResponse.code is required');
-        }
-        return value;
-      })(),
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('ConversationsMessagesListResponse.data is required');
-        }
-        return map;
-      })(),
-      traceId: (() {
-        final value = json['traceId']?.toString();
-        if (value == null) {
-          throw FormatException('ConversationsMessagesListResponse.traceId is required');
         }
         return value;
       })()

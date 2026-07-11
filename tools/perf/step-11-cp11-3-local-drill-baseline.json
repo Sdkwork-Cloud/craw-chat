@@ -1,5 +1,5 @@
 {
-  "profile": "standalone.split-services.development",
+  "profile": "standalone.development",
   "tier": "CI Smoke Tier",
   "drainRebalance": {
     "expectedRouteCount": 1

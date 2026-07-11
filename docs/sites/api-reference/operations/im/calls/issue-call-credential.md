@@ -24,7 +24,7 @@ Issues an RTC media participant credential after IM authorization.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.calls`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `call.issue_credential` capability.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcParticipantCredential`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 RtcParticipantCredential in data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -37,7 +37,7 @@ Issues an RTC media participant credential after IM authorization.
 
 <ApiSchemaTable schema="IssueRtcParticipantCredentialRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="RtcParticipantCredential" />
 
@@ -46,8 +46,8 @@ Issues an RTC media participant credential after IM authorization.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101`, `40102` | AppContext projection is missing or invalid. |
-| `403` | `40301`, `40302` | The caller is not allowed to mutate the target resource. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
 | `503` | `50301` | A required subsystem or provider is unavailable. |

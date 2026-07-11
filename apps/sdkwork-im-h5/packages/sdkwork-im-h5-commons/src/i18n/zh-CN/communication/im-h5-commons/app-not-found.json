@@ -1,0 +1,5 @@
+{
+  "app.notFound.title": "页面不存在",
+  "app.notFound.message": "未知 IM 路由：{{route}}",
+  "app.notFound.action": "返回收件箱"
+}

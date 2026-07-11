@@ -9,5 +9,8 @@ namespace Sdkwork.Im.Sdk.Generated.Models
         public string? Text { get; set; }
         public List<ContentPart>? Parts { get; set; }
         public MessageReplyReference? ReplyTo { get; set; }
+        public string? Summary { get; set; }
+        public Dictionary<string, object>? RenderHints { get; set; }
+        public string? IdempotencyKey { get; set; }
     }
 }

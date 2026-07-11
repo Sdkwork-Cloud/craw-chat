@@ -6,6 +6,7 @@ pub mod deadline;
 pub mod dispatcher;
 pub mod error;
 pub mod health;
+pub mod internal_context;
 pub mod metadata;
 pub mod method_manifest;
 pub mod rpc_client_bootstrap;
@@ -29,10 +30,14 @@ pub use dispatcher::{
 };
 pub use error::{ImRpcError, map_rpc_error_to_status};
 pub use health::{ImRpcHealthService, build_im_rpc_health_server};
+pub use internal_context::{
+    InternalOrchestrationContext, assert_body_scope_matches_authoritative_context,
+    orchestration_headers_from_rpc_metadata, resolve_internal_orchestration_context,
+};
 pub use metadata::{
     METADATA_ACCESS_TOKEN, METADATA_AUTHORIZATION, METADATA_CLIENT_VERSION,
-    METADATA_IDEMPOTENCY_KEY, METADATA_REQUEST_HASH, METADATA_REQUEST_ID,
-    METADATA_SERVICE_IDENTITY, METADATA_TRACEPARENT, RpcMetadata,
+    METADATA_IDEMPOTENCY_KEY, METADATA_REQUEST_HASH, METADATA_SERVICE_IDENTITY, METADATA_TRACE_ID,
+    METADATA_TRACEPARENT, RpcMetadata,
 };
 pub use method_manifest::RPC_METHOD_BINDINGS;
 pub use rpc_client_bootstrap::{

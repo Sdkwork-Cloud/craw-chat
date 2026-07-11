@@ -229,7 +229,7 @@ fn apply_gateway_process_environment(config: &ResolvedGatewayConfig) {
         .map(|value| value.trim().is_empty())
         .unwrap_or(true)
     {
-        // Unified-process hosts mount IAM once via build_sdkwork_iam_app_api_router below.
+        // Single-ingress hosts mount IAM once via build_sdkwork_iam_app_api_router below.
         // Embedded sibling assemblies such as sdkwork-knowledgebase-gateway-assembly must
         // not merge IAM routes again or axum panics on duplicate handlers.
         // SAFETY: Called from fn main() before the Tokio runtime is created.
@@ -451,6 +451,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn standalone_gateway_process_environment_keeps_single_ingress_defaults() {
+        let _env = TestProcessEnvGuard::enter_test_environment();
+
+        super::apply_gateway_process_environment(&test_gateway_config());
+
+        let web_gateway_config = sdkwork_im_cloud_gateway_config::WebGatewayConfig::from_env();
+        assert_eq!(
+            web_gateway_config.runtime_mode,
+            sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::SingleIngress
+        );
+        assert_eq!(
+            web_gateway_config.upstream_base_url("comms-conversation-service"),
+            None
+        );
+    }
+
     async fn bootstrap_test_iam_runtime() {
         sdkwork_iam_database_host::bootstrap_iam_database_from_env()
             .await
@@ -619,7 +636,7 @@ mod tests {
     fn web_gateway_config() -> sdkwork_im_cloud_gateway_config::WebGatewayConfig {
         sdkwork_im_cloud_gateway_config::WebGatewayConfig {
             bind_addr: "127.0.0.1:0".to_owned(),
-            runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::Split,
+            runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::SingleIngress,
             strict_startup: true,
             upstreams: Vec::new(),
         }

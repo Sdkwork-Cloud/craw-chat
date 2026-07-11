@@ -83,7 +83,7 @@ final connection = composed.connect(
   ),
 );
 connection.messages.onConversation('conversation-demo-01', (_) {
-  // refresh timeline
+  // refresh message history
 });
 ```
 

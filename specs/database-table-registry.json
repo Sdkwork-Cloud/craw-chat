@@ -246,7 +246,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
       "systemOfRecord": false,
-      "writeOwner": "projection-service",
+      "writeOwner": "comms-conversation-service",
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {
@@ -255,7 +255,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
       "systemOfRecord": false,
-      "writeOwner": "projection-service",
+      "writeOwner": "comms-conversation-service",
       "migration": "database/ddl/baseline/postgres/0001_im_baseline.sql"
     },
     {

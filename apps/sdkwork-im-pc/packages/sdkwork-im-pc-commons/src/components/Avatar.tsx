@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { User } from 'lucide-react';
 import { cn } from '../utils';
 
 interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -22,6 +23,16 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       square: 'rounded-md',
     };
 
+    const [hasError, setHasError] = useState(false);
+
+    // Reset error state when src changes so a new URL gets a fresh attempt.
+    useEffect(() => {
+      setHasError(false);
+    }, [src]);
+
+    const showImage = src && !hasError;
+    const fallbackText = fallback || alt?.charAt(0);
+
     return (
       <div
         ref={ref}
@@ -33,10 +44,20 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
         )}
         {...props}
       >
-        {src ? (
-          <img src={src} alt={alt} className="aspect-square h-full w-full object-cover" referrerPolicy="no-referrer" />
+        {showImage ? (
+          <img
+            src={src}
+            alt={alt}
+            className="aspect-square h-full w-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setHasError(true)}
+          />
         ) : (
-          <span>{fallback || alt?.charAt(0) || '?'}</span>
+          fallbackText ? (
+            <span>{fallbackText}</span>
+          ) : (
+            <User className="h-1/2 w-1/2 opacity-60" aria-hidden="true" />
+          )
         )}
       </div>
     );

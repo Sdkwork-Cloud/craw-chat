@@ -32,6 +32,8 @@ pub const CONVERSATION_MEMBERS_CHANGE_ROLE: &str =
     "/im/v3/api/chat/conversations/{conversationId}/members/change_role";
 pub const CONVERSATION_MEMBERS_LEAVE: &str =
     "/im/v3/api/chat/conversations/{conversationId}/members/leave";
+pub const CONVERSATION_MEMBERS_ACCEPT_INVITATION: &str =
+    "/im/v3/api/chat/conversations/{conversationId}/members/accept_invitation";
 pub const CONVERSATION_READ_CURSOR: &str =
     "/im/v3/api/chat/conversations/{conversationId}/read_cursor";
 pub const MESSAGE_EDIT: &str = "/im/v3/api/chat/messages/{messageId}/edit";

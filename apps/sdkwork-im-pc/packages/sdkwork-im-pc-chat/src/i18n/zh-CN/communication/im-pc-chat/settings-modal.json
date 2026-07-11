@@ -1,0 +1,44 @@
+{
+  "settingsModal": {
+    "title": "设置",
+    "tabs": {
+      "general": "通用设置",
+      "modules": "功能模块",
+      "notifications": "消息通知",
+      "privacy": "隐私安全",
+      "appearance": "外观设置",
+      "devices": "设备管理"
+    },
+    "logout": "退出登录",
+    "general": {
+      "language": "语言",
+      "languageZh": "简体中文",
+      "languageEn": "English",
+      "autoStartTitle": "系统开机启动",
+      "autoStartDescription": "开机时自动启动 Sdkwork IM"
+    },
+    "modules": {
+      "description": "勾选需要在侧边栏显示的功能模块：",
+      "moveUp": "上移",
+      "moveDown": "下移"
+    },
+    "privacy": {
+      "requireAuth": "加我为朋友时需要验证",
+      "showOnline": "向朋友展示在线状态",
+      "clearCache": "清理本地数据",
+      "cacheCleared": "本地缓存数据已清理"
+    },
+    "appearance": {
+      "themeTitle": "主题配色",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "devices": {
+      "currentDevice": "当前设备 ({{name}})",
+      "online": "在线",
+      "signOut": "下线",
+      "signedOut": "已退出 {{name}}"
+    }
+  }
+}

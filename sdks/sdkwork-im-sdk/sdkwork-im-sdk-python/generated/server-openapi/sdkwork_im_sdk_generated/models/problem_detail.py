@@ -15,4 +15,6 @@ class ProblemDetail:
     trace_id: str
     detail: Optional[str] = None
     instance: Optional[str] = None
+    i18n_key: Optional[str] = None
+    locale: Optional[str] = None
     errors: Optional[List[FieldError]] = None

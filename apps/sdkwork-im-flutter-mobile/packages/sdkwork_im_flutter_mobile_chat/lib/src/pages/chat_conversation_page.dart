@@ -7,7 +7,7 @@ import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.da
 import '../services/chat_conversation_service.dart';
 import '../services/chat_media_upload_service.dart';
 import '../services/chat_realtime_service.dart';
-import '../services/chat_timeline_utils.dart';
+import '../services/chat_message_history_utils.dart';
 import '../services/offline_send_queue.dart';
 
 class ChatConversationPage extends StatefulWidget {
@@ -36,8 +36,8 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
   final _scrollController = ScrollController();
   final _composerController = TextEditingController();
 
-  List<TimelineViewEntry> _entries = const [];
-  TimelinePaginationState _pagination = const TimelinePaginationState(
+  List<ConversationMessageEntry> _entries = const [];
+  MessageHistoryPaginationState _pagination = const MessageHistoryPaginationState(
     hasMore: false,
     nextAfterSeq: 0,
   );
@@ -55,7 +55,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    unawaited(_loadTimeline());
+    unawaited(_loadMessageHistory());
     unawaited(_startRealtime());
     unawaited(_flushPendingSends());
   }
@@ -69,21 +69,21 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     super.dispose();
   }
 
-  void _applyTimelineResponse(
-    List<TimelineViewEntry> items,
-    TimelinePaginationState pagination, {
+  void _applyConversationMessagePage(
+    List<ConversationMessageEntry> items,
+    MessageHistoryPaginationState pagination, {
     required String mode,
   }) {
     setState(() {
       _entries = mode == 'replace'
           ? items
-          : mergeTimelineEntries(_entries, items);
+          : mergeConversationMessageEntries(_entries, items);
       _pagination = pagination;
       _latestSeq = resolveLatestMessageSeq(_entries);
     });
   }
 
-  Future<void> _loadTimeline({bool silent = false}) async {
+  Future<void> _loadMessageHistory({bool silent = false}) async {
     if (!silent) {
       setState(() {
         _loading = true;
@@ -92,15 +92,15 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     }
 
     try {
-      final response = await widget.conversationService.fetchTimeline(
+      final response = await widget.conversationService.fetchMessageHistory(
         widget.conversationId,
       );
       if (!mounted) {
         return;
       }
-      _applyTimelineResponse(
+      _applyConversationMessagePage(
         response.items,
-        pickTimelinePagination(response),
+        pickMessageHistoryPagination(response),
         mode: 'replace',
       );
     } catch (error) {
@@ -114,12 +114,12 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     }
   }
 
-  Future<void> _appendNewTimelineEntries() async {
+  Future<void> _appendNewMessageEntries() async {
     if (_latestSeq <= 0) {
       return;
     }
     try {
-      final response = await widget.conversationService.fetchTimelineDelta(
+      final response = await widget.conversationService.fetchMessageHistoryDelta(
         widget.conversationId,
         _latestSeq,
       );
@@ -127,13 +127,13 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
       if (items.isEmpty || !mounted) {
         return;
       }
-      _applyTimelineResponse(
+      _applyConversationMessagePage(
         items,
-        pickTimelinePagination(response),
+        pickMessageHistoryPagination(response),
         mode: 'merge',
       );
     } catch (_) {
-      // Keep existing timeline visible when incremental sync fails.
+      // Keep existing message history visible when incremental sync fails.
     }
   }
 
@@ -146,7 +146,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     final previousHeight = _scrollController.position.maxScrollExtent;
 
     try {
-      final response = await widget.conversationService.fetchTimeline(
+      final response = await widget.conversationService.fetchMessageHistory(
         widget.conversationId,
         afterSeq: _pagination.nextAfterSeq,
         pageSize: 50,
@@ -154,9 +154,9 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
       if (!mounted) {
         return;
       }
-      _applyTimelineResponse(
+      _applyConversationMessagePage(
         response.items,
-        pickTimelinePagination(response),
+        pickMessageHistoryPagination(response),
         mode: 'append',
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -191,7 +191,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     try {
       await widget.realtimeService.startConversation(
         conversationId: widget.conversationId,
-        onRefresh: _appendNewTimelineEntries,
+        onRefresh: _appendNewMessageEntries,
       );
       if (mounted) {
         setState(() => _liveConnected = widget.realtimeService.isLiveConnected);
@@ -234,7 +234,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
             break;
           }
         }
-        await _appendNewTimelineEntries();
+        await _appendNewMessageEntries();
       },
     );
   }
@@ -258,7 +258,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
         clientMsgId: clientMsgId,
       );
       _composerController.clear();
-      await _appendNewTimelineEntries();
+      await _appendNewMessageEntries();
     } catch (error) {
       if (isRetryableFlutterSendError(error)) {
         await enqueuePendingTextSend(
@@ -320,7 +320,7 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
         mimeType: mimeType,
         sizeBytes: bytes.length,
       );
-      await _appendNewTimelineEntries();
+      await _appendNewMessageEntries();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -334,11 +334,11 @@ class _ChatConversationPageState extends State<ChatConversationPage> {
     }
   }
 
-  String _entryLabel(TimelineViewEntry entry) {
+  String _entryLabel(ConversationMessageEntry entry) {
     return entry.sender.displayName ?? entry.sender.id;
   }
 
-  String _entryText(TimelineViewEntry entry) {
+  String _entryText(ConversationMessageEntry entry) {
     return entry.body.text ?? entry.summary ?? '';
   }
 

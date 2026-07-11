@@ -20,18 +20,6 @@ export function createIamRuntime() {
     applyImH5IamSessionTokens({
       accessToken: callbackSession.accessToken,
       authToken: callbackSession.authToken,
-      context: {
-        appId: "sdkwork-im-h5",
-        authLevel: "password",
-        dataScope: [],
-        deploymentMode: "saas",
-        environment: "dev",
-        organizationId: callbackSession.organizationId,
-        permissionScope: [],
-        sessionId: "appbase-callback",
-        tenantId: callbackSession.tenantId,
-        userId: callbackSession.userId,
-      },
     });
   }
 

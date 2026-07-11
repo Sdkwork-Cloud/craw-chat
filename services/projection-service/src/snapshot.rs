@@ -27,13 +27,13 @@ use crate::{
     model::{ConversationCatalogEntry, MessageVisibilityMutationResult},
 };
 
-const CONVERSATION_SUMMARY_KEY: &str = "conversation-summary";
-pub(crate) const CONVERSATION_SUMMARY_SNAPSHOT_KEY: &str = CONVERSATION_SUMMARY_KEY;
-const CONVERSATION_CATALOG_KEY: &str = "conversation-catalog";
-const CONVERSATION_MEMBERS_KEY: &str = "conversation-members";
-const CONVERSATION_READ_CURSORS_KEY: &str = "conversation-read_cursors";
-const CONVERSATION_PROFILE_KEY: &str = "conversation-profile";
-const MESSAGE_INTERACTIONS_KEY: &str = "message-interactions";
+pub(crate) const CONVERSATION_SUMMARY_KEY: &str = "conversation-summary";
+pub(crate) const CONVERSATION_CATALOG_KEY: &str = "conversation-catalog";
+pub(crate) const CONVERSATION_MEMBERS_KEY: &str = "conversation-members";
+pub(crate) const CONVERSATION_READ_CURSORS_KEY: &str = "conversation-read_cursors";
+pub(crate) const CONVERSATION_PROFILE_KEY: &str = "conversation-profile";
+pub(crate) const MESSAGE_INTERACTIONS_KEY: &str = "message-interactions";
+
 const CONTACTS_KEY: &str = "contacts";
 const CONTACT_OWNERS_KEY: &str = "contact-owners";
 const CONTACT_DIRECT_CHAT_BINDINGS_KEY: &str = "contact-direct-chat-bindings";
@@ -47,7 +47,7 @@ const CLIENT_ROUTE_SYNC_SNAPSHOT_SCOPE_PREFIX: &str = "client-route-sync";
 const CLIENT_ROUTE_SYNC_CATALOG_SCOPE: &str = "projection-client-route-sync";
 const MESSAGE_VISIBILITY_CATALOG_SCOPE: &str = "projection-message-visibilities";
 const MESSAGE_VISIBILITY_SCOPES_KEY: &str = "message-visibility-scopes";
-const MESSAGE_VISIBILITY_STATE_KEY: &str = "message-visibilities";
+pub(crate) const MESSAGE_VISIBILITY_STATE_KEY: &str = "message-visibilities";
 
 #[derive(Default)]
 pub(crate) struct ProjectionSnapshotWritePlan {
@@ -275,24 +275,47 @@ impl TimelineProjectionService {
     ) -> Result<bool, ProjectionError> {
         let scope = conversation_snapshot_scope(tenant_id, organization_id, conversation_id);
         let result = (|| {
-            let Some(summary) = load_metadata_snapshot::<ConversationSummaryView>(
+            // Summary is optional during restore: a prior persist cycle may have
+            // failed mid-batch, leaving members/cursors/interactions behind
+            // without a summary. We restore every available sub-snapshot so
+            // read-through paths can still hit memory for member/cursor/interaction
+            // lookups even when the summary is missing.
+            let summary = load_metadata_snapshot::<ConversationSummaryView>(
                 metadata_store,
                 scope.as_str(),
                 CONVERSATION_SUMMARY_KEY,
-            )?
-            else {
-                return Ok(false);
-            };
+            )?;
+            if summary.is_none() {
+                tracing::warn!(
+                    target: "sdkwork.im.projection.snapshot",
+                    event = "im.projection.conversation_summary_missing_during_restore",
+                    scope = %scope,
+                    conversation_id = %conversation_id,
+                    "conversation summary snapshot missing; restoring remaining sub-snapshots",
+                );
+            }
             let memory_cap = self.memory_timeline_cap();
             let timeline =
                 if memory_cap < crate::timeline_tier::PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED {
-                    crate::timeline_tier::load_timeline_tail_for_restore(
-                        timeline_store,
-                        tenant_id,
-                        conversation_id,
-                        summary.message_count,
-                        memory_cap,
-                    )?
+                    let message_count = summary
+                        .as_ref()
+                        .map(|summary| summary.message_count)
+                        .unwrap_or(0);
+                    if message_count == 0 {
+                        crate::timeline_tier::load_full_timeline_for_restore(
+                            timeline_store,
+                            tenant_id,
+                            conversation_id,
+                        )?
+                    } else {
+                        crate::timeline_tier::load_timeline_tail_for_restore(
+                            timeline_store,
+                            tenant_id,
+                            conversation_id,
+                            message_count,
+                            memory_cap,
+                        )?
+                    }
                 } else {
                     timeline_store
                         .load_timeline(tenant_id, conversation_id)
@@ -337,9 +360,11 @@ impl TimelineProjectionService {
             .map(interaction_map_from_items)
             .unwrap_or_default();
 
-            self.summaries
-                .lock_projection("summary store")
-                .insert(scope.clone(), summary);
+            if let Some(summary) = summary {
+                self.summaries
+                    .lock_projection("summary store")
+                    .insert(scope.clone(), summary);
+            }
             self.received_messages
                 .lock_projection("received message index")
                 .rebuild_conversation(scope.as_str(), &timeline);
@@ -940,14 +965,7 @@ impl TimelineProjectionService {
         timeline_store: &dyn TimelineProjectionStore,
         conversation_scopes: &[String],
     ) -> Result<(), ProjectionError> {
-        propagate_optional_snapshot_restore(self.restore_personalization_snapshot(metadata_store))?;
-        propagate_optional_snapshot_restore(self.restore_contact_snapshot(metadata_store))?;
-        propagate_optional_snapshot_restore(
-            self.restore_client_route_sync_snapshot(metadata_store, timeline_store),
-        )?;
-        propagate_optional_snapshot_restore(
-            self.restore_message_visibility_snapshot(metadata_store),
-        )?;
+        self.restore_durable_catalog_snapshots(metadata_store, timeline_store)?;
         for scope in conversation_scopes {
             let Some((tenant_id, organization_id, conversation_id)) =
                 parse_conversation_snapshot_scope(scope.as_str())
@@ -965,6 +983,25 @@ impl TimelineProjectionService {
         Ok(())
     }
 
+    pub(crate) fn restore_durable_catalog_snapshots(
+        &self,
+        metadata_store: &dyn MetadataStore,
+        timeline_store: &dyn TimelineProjectionStore,
+    ) -> Result<(), ProjectionError> {
+        propagate_optional_snapshot_restore(self.restore_personalization_snapshot(metadata_store))?;
+        propagate_optional_snapshot_restore(self.restore_contact_snapshot(metadata_store))?;
+        propagate_optional_snapshot_restore(
+            self.restore_client_route_sync_snapshot(metadata_store, timeline_store),
+        )?;
+        propagate_optional_snapshot_restore(
+            self.restore_message_visibility_snapshot(metadata_store),
+        )?;
+        propagate_optional_snapshot_restore(
+            self.restore_group_conversation_binding_snapshot(metadata_store),
+        )?;
+        Ok(())
+    }
+
     pub fn persist_all_durable_snapshots(
         &self,
         metadata_store: &dyn MetadataStore,
@@ -974,6 +1011,7 @@ impl TimelineProjectionService {
         self.persist_contact_snapshot(metadata_store)?;
         self.persist_client_route_sync_snapshot(metadata_store, timeline_store)?;
         self.persist_message_visibility_snapshot(metadata_store)?;
+        self.persist_group_conversation_binding_snapshot(metadata_store)?;
         let scopes = self
             .conversations
             .lock_projection("conversation store")

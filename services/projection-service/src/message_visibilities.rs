@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use im_time::utc_now_rfc3339_millis;
 
 use super::model::MessageVisibilityMutationResult;
 use super::{
     TimelineProjectionService, TimelineWindowView, lock_projection_mutex,
     scope::{self, scope_key},
+    snapshot,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,6 +40,10 @@ impl TimelineProjectionService {
     /// stored `MessageVisibilityMutationResult` snapshot if previously recorded.
     /// Returns `None` when the principal has not explicitly mutated visibility
     /// (defaults to visible: `is_deleted = false`).
+    ///
+    /// When the in-memory store misses, falls back to the durable metadata
+    /// snapshot so multi-replica deployments and post-restart reads see
+    /// consistent soft-delete state.
     pub fn message_visibility_for_principal(
         &self,
         tenant_id: &str,
@@ -47,10 +54,53 @@ impl TimelineProjectionService {
     ) -> Option<MessageVisibilityMutationResult> {
         let key =
             message_visibility_scope_key(tenant_id, organization_id, principal_kind, principal_id);
-        lock_projection_mutex(&self.message_visibilities, "message visibility store")
-            .get(key.as_str())
-            .and_then(|messages| messages.get(message_id))
-            .cloned()
+        if let Some(result) =
+            lock_projection_mutex(&self.message_visibilities, "message visibility store")
+                .get(key.as_str())
+                .and_then(|messages| messages.get(message_id))
+                .cloned()
+        {
+            return Some(result);
+        }
+        self.load_message_visibility_from_durable_store(key.as_str(), message_id)
+    }
+
+    /// Read-through fallback: hydrate the entire per-principal visibility map
+    /// from the durable metadata snapshot and return the requested message's
+    /// state. The hydrated map is inserted into the in-memory store so
+    /// subsequent reads hit memory directly.
+    fn load_message_visibility_from_durable_store(
+        &self,
+        scope: &str,
+        message_id: &str,
+    ) -> Option<MessageVisibilityMutationResult> {
+        let store = self.durable_metadata_store()?;
+        let items = match snapshot::load_metadata_snapshot::<
+            HashMap<String, MessageVisibilityMutationResult>,
+        >(
+            store.as_ref(),
+            scope,
+            snapshot::MESSAGE_VISIBILITY_STATE_KEY,
+        ) {
+            Ok(Some(items)) => items,
+            Ok(None) => return None,
+            Err(error) => {
+                tracing::warn!(
+                    target: "sdkwork.im.projection.read_through",
+                    event = "im.projection.message_visibility_durable_read_failed",
+                    scope = %scope,
+                    error = %error,
+                    "durable metadata read-through failed for message visibility",
+                );
+                return None;
+            }
+        };
+        let view = items.get(message_id).cloned();
+        if !items.is_empty() {
+            lock_projection_mutex(&self.message_visibilities, "message visibility store")
+                .insert(scope.to_owned(), items);
+        }
+        view
     }
 
     /// Resolve `message_seq` for a conversation message from the projection

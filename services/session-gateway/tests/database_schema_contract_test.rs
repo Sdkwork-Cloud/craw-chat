@@ -9,6 +9,15 @@ fn postgres_core_schema() -> String {
         .to_lowercase()
 }
 
+fn sqlite_core_schema() -> String {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../database/ddl/baseline/sqlite/0001_im_baseline.sql");
+    std::fs::read_to_string(path)
+        .expect("core IM SQLite baseline should be checked in")
+        .replace("\r\n", "\n")
+        .to_lowercase()
+}
+
 fn assert_contains_all(source: &str, expected: &[&str]) {
     for item in expected {
         assert!(
@@ -237,7 +246,10 @@ fn test_core_im_postgres_schema_defines_projection_hot_paths() {
             "create table if not exists im_projection_conversation_members",
             "principal_kind text not null",
             "constraint pk_im_projection_conversation_members primary key (tenant_id, organization_id, conversation_id, principal_kind, principal_id)",
-            "constraint uk_im_projection_conversation_members_member unique (tenant_id, organization_id, conversation_id, member_id)",
+            // The redundant uk_im_projection_conversation_members_member constraint was removed:
+            // the composite PK on principal_kind+principal_id already guarantees one row per
+            // principal per conversation, and the UK collided with member_to_record's
+            // parse<i64>.unwrap_or(0) for string member_id, blocking persist of additional members.
             "create index if not exists idx_im_projection_conversation_members_principal",
             "on im_projection_conversation_members (tenant_id, organization_id, principal_kind, principal_id, membership_state, conversation_id)",
             "create index if not exists idx_im_projection_conversation_members_active",
@@ -265,6 +277,22 @@ fn test_core_im_postgres_schema_defines_projection_hot_paths() {
             "constraint uk_im_projection_direct_chat_bindings_conversation unique (tenant_id, organization_id, conversation_id)",
             "create index if not exists idx_im_projection_direct_chat_bindings_conversation",
             "on im_projection_direct_chat_bindings (tenant_id, organization_id, conversation_id, direct_chat_status)",
+        ],
+    );
+}
+
+#[test]
+fn test_core_im_sqlite_projection_read_cursor_contract_matches_postgres_device_scope() {
+    let schema = sqlite_core_schema();
+
+    assert_contains_all(
+        &schema,
+        &[
+            "create table im_projection_read_cursors",
+            "device_id text not null default ''",
+            "constraint pk_im_projection_read_cursors primary key (tenant_id, organization_id, conversation_id, member_id, device_id)",
+            "create index if not exists idx_im_projection_read_cursors_principal",
+            "on im_projection_read_cursors (tenant_id, organization_id, principal_kind, principal_id, conversation_id)",
         ],
     );
 }

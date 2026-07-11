@@ -44,10 +44,10 @@ Creates or idempotently reuses a notification task.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The notification request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks delegated notification authority. |
-| `409` | `notification_conflict` | The idempotent notification request conflicts with existing state. |
+| `400` | `40001` | The notification request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks delegated notification authority. |
+| `409` | `40901` | The idempotent notification request conflicts with existing state. |
 
 </section>
 <a id="list-notifications"></a>
@@ -80,9 +80,9 @@ Lists notification tasks visible to the current principal.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller is not allowed to read the target notification scope. |
-| `404` | `notification_not_found` | The requested notification task does not exist. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to read the target notification scope. |
+| `404` | `40401` | The requested notification task does not exist. |
 
 </section>
 <a id="get-notification"></a>
@@ -121,8 +121,8 @@ Reads a single notification task by identifier.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller is not allowed to read the target notification scope. |
-| `404` | `notification_not_found` | The requested notification task does not exist. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to read the target notification scope. |
+| `404` | `40401` | The requested notification task does not exist. |
 
 </section>

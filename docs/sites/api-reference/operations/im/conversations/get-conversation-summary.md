@@ -42,6 +42,10 @@ Reads the conversation summary projection.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `404` | `conversation_summary_not_found` | The conversation summary is not available. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

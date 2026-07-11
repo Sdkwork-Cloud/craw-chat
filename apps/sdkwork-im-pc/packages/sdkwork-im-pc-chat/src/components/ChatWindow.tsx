@@ -17,7 +17,6 @@ interface ChatWindowProps {
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery = '', onOpenGroupInvite }) => {
   const { t } = useTranslation();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [replyingTo, setReplyingTo] = useState<Message['replyTo'] | undefined>();
   const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -82,7 +81,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
     try {
       await chatService.sendMessage(chat.id, content, type, replyingTo, extraInfo);
       setReplyingTo(undefined);
-      setRefreshKey(prev => prev + 1);
     } catch (error) {
       toast(t('chat.window.toast.sendFailed'), 'error');
     }
@@ -92,7 +90,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
     try {
       await chatService.editMessage(chat.id, messageId, text);
       setEditingMessage(null);
-      setRefreshKey(prev => prev + 1);
     } catch (error) {
       toast(t('chat.window.toast.editFailed'), 'error');
     }
@@ -104,7 +101,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
       <MessageList
         chatId={chat.id}
         fallbackMessages={displayWelcomeMessages}
-        refreshKey={refreshKey}
         searchQuery={messageSearchQuery}
         senderProfiles={displaySenderProfiles}
         onReply={(msg, senderName) => setReplyingTo({ id: msg.id, senderName, content: msg.content })}

@@ -541,6 +541,11 @@ where
                     envelope.scope_id
                 ))
             })?;
+        // Advance the aggregate commit watermark so a later
+        // `next_commit_seq()` allocation cannot reuse this journal slot.
+        conversation
+            .aggregate
+            .observe_commit_seq(envelope.ordering_seq);
         upsert_read_cursor(conversation, cursor);
         Ok(())
     }
@@ -662,7 +667,7 @@ where
             })?;
         let scope_key = conversation_scope_key_for_envelope(envelope);
         let mut state = write_runtime_state(&self.state, "runtime state");
-        {
+        let evicted_message_ids = {
             let conversation =
                 state
                     .conversations
@@ -673,7 +678,7 @@ where
                             envelope.scope_id
                         ))
                     })?;
-            conversation.message_log.store_posted(message.clone());
+            let evicted_message_ids = conversation.message_log.store_posted(message.clone());
             conversation
                 .aggregate
                 .observe_commit_seq(envelope.ordering_seq);
@@ -700,6 +705,14 @@ where
                         .insert(request_key, replay_record);
                 }
             }
+            evicted_message_ids
+        };
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(message.tenant_id.as_str(), message_id.as_str());
         }
         state.message_locator.register_message(&message);
         Ok(())
@@ -727,7 +740,7 @@ where
                     envelope.scope_id
                 ))
             })?;
-        conversation
+        let evicted_message_ids = conversation
             .message_log
             .apply_edited(&edited)
             .ok_or_else(|| {
@@ -735,10 +748,18 @@ where
                     "cannot replay message.edited without message {}",
                     edited.message_id
                 ))
-            })?;
+            })?
+            .evicted_message_ids;
         conversation
             .aggregate
             .observe_commit_seq(envelope.ordering_seq);
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(edited.tenant_id.as_str(), message_id.as_str());
+        }
         Ok(())
     }
 
@@ -764,7 +785,7 @@ where
                     envelope.scope_id
                 ))
             })?;
-        conversation
+        let evicted_message_ids = conversation
             .message_log
             .apply_recalled(&recalled)
             .ok_or_else(|| {
@@ -772,10 +793,18 @@ where
                     "cannot replay message.recalled without message {}",
                     recalled.message_id
                 ))
-            })?;
+            })?
+            .evicted_message_ids;
         conversation
             .aggregate
             .observe_commit_seq(envelope.ordering_seq);
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(recalled.tenant_id.as_str(), message_id.as_str());
+        }
         Ok(())
     }
 
@@ -801,7 +830,7 @@ where
                     envelope.scope_id
                 ))
             })?;
-        conversation
+        let evicted_message_ids = conversation
             .message_log
             .apply_reaction_added(&reaction)
             .ok_or_else(|| {
@@ -809,7 +838,15 @@ where
                     "cannot replay message.reaction_added without message {}",
                     reaction.message_id
                 ))
-            })?;
+            })?
+            .evicted_message_ids;
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(reaction.tenant_id.as_str(), message_id.as_str());
+        }
         Ok(())
     }
 
@@ -835,7 +872,7 @@ where
                     envelope.scope_id
                 ))
             })?;
-        conversation
+        let evicted_message_ids = conversation
             .message_log
             .apply_reaction_removed(&reaction)
             .ok_or_else(|| {
@@ -843,7 +880,15 @@ where
                     "cannot replay message.reaction_removed without message {}",
                     reaction.message_id
                 ))
-            })?;
+            })?
+            .evicted_message_ids;
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(reaction.tenant_id.as_str(), message_id.as_str());
+        }
         Ok(())
     }
 
@@ -869,12 +914,23 @@ where
                     envelope.scope_id
                 ))
             })?;
-        conversation.message_log.apply_pinned(&pin).ok_or_else(|| {
-            RuntimeError::Conflict(format!(
-                "cannot replay message.pin_added without message {}",
-                pin.message_id
-            ))
-        })?;
+        let evicted_message_ids = conversation
+            .message_log
+            .apply_pinned(&pin)
+            .ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "cannot replay message.pin_added without message {}",
+                    pin.message_id
+                ))
+            })?
+            .evicted_message_ids;
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(pin.tenant_id.as_str(), message_id.as_str());
+        }
         Ok(())
     }
 
@@ -900,7 +956,7 @@ where
                     envelope.scope_id
                 ))
             })?;
-        conversation
+        let evicted_message_ids = conversation
             .message_log
             .apply_unpinned(&pin)
             .ok_or_else(|| {
@@ -908,7 +964,15 @@ where
                     "cannot replay message.pin_removed without message {}",
                     pin.message_id
                 ))
-            })?;
+            })?
+            .evicted_message_ids;
+        self.metrics
+            .record_message_evictions(evicted_message_ids.len());
+        for message_id in evicted_message_ids {
+            state
+                .message_locator
+                .remove(pin.tenant_id.as_str(), message_id.as_str());
+        }
         Ok(())
     }
 }

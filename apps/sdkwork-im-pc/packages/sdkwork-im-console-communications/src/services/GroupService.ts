@@ -59,6 +59,7 @@ class GroupService {
     const client = getImSdkClientWithSession();
     const response = await client.chat.inbox.list({
       pageSize: Math.min(params.pageSize, GROUP_INBOX_PAGE_LIMIT),
+      conversationType: 'group',
       ...(params.cursor ? { cursor: params.cursor } : {}),
     });
     const data = response.items

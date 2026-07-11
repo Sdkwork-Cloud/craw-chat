@@ -2,11 +2,13 @@
 //!
 //! Implements distributed outbox pattern with FOR UPDATE SKIP LOCKED.
 
-use im_platform_contracts::{ContractError, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
+use im_platform_contracts::{
+    ContractError, OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
+};
 
 use crate::{
     PostgresJournalPool, now_rfc3339, postgres_jsonb_payload, postgres_pool_client,
-    postgres_unavailable, run_postgres_io,
+    postgres_timestamptz, postgres_unavailable, run_postgres_io,
 };
 
 /// PostgreSQL implementation of [`OutboxStore`].
@@ -31,22 +33,46 @@ insert into im_outbox_events (
 ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14)
 "#;
 
-const DRAIN_PENDING_SQL: &str = r#"
-select tenant_id, organization_id, outbox_id, aggregate_type, aggregate_id,
-    event_id, event_type, payload_json::text, payload_hash, publish_status,
-    attempt_count, available_at, published_at, created_at, updated_at
-from im_outbox_events
-where tenant_id = $1 and organization_id = $2
-    and publish_status = 'pending' and available_at <= $3
-order by available_at, outbox_id
-for update skip locked
-limit $4
+const CLAIM_PENDING_SQL: &str = r#"
+with candidates as materialized (
+    select tenant_id, organization_id, outbox_id, aggregate_type, aggregate_id,
+        event_id, event_type, payload_json, payload_hash, publish_status,
+        attempt_count, available_at, published_at, created_at, updated_at
+    from im_outbox_events
+    where tenant_id = $1 and organization_id = $2
+        and aggregate_type = $3
+        and publish_status = 'pending' and available_at <= $5
+    order by available_at, outbox_id
+    for update skip locked
+    limit $6
+), claimed as (
+    update im_outbox_events as event
+    set available_at = $4, updated_at = $5
+    from candidates as candidate
+    where event.tenant_id = candidate.tenant_id
+        and event.organization_id = candidate.organization_id
+        and event.outbox_id = candidate.outbox_id
+        and event.publish_status = 'pending'
+        and event.available_at = candidate.available_at
+    returning event.tenant_id, event.organization_id, event.outbox_id,
+        event.available_at as lease_expires_at
+)
+select candidate.tenant_id, candidate.organization_id, candidate.outbox_id,
+    candidate.aggregate_type, candidate.aggregate_id, candidate.event_id,
+    candidate.event_type, candidate.payload_json::text, candidate.payload_hash,
+    candidate.publish_status, candidate.attempt_count, candidate.available_at,
+    candidate.published_at, candidate.created_at, candidate.updated_at,
+    claimed.lease_expires_at
+from candidates as candidate
+join claimed using (tenant_id, organization_id, outbox_id)
+order by candidate.available_at, candidate.outbox_id
 "#;
 
 const MARK_PUBLISHED_SQL: &str = r#"
 update im_outbox_events
-set publish_status = 'published', published_at = $4, updated_at = $4
+set publish_status = 'published', published_at = $5, updated_at = $5
 where tenant_id = $1 and organization_id = $2 and outbox_id = $3
+    and publish_status = 'pending' and available_at = $4
 "#;
 
 const MARK_FAILED_SQL: &str = r#"
@@ -54,15 +80,16 @@ UPDATE im_outbox_events
 SET
     attempt_count = attempt_count + 1,
     publish_status = CASE
-        WHEN attempt_count + 1 >= $5 THEN 'failed'
+        WHEN attempt_count + 1 >= $6 THEN 'failed'
         ELSE 'pending'
     END,
     available_at = CASE
-        WHEN attempt_count + 1 >= $5 THEN available_at
-        ELSE NOW() + make_interval(secs => LEAST(300, POWER(2, LEAST(attempt_count, 8)::int))::int)
+        WHEN attempt_count + 1 >= $6 THEN available_at
+        ELSE $5 + make_interval(secs => LEAST(300, POWER(2, LEAST(attempt_count, 8)::int))::int)
     END,
-    updated_at = $4
+    updated_at = $5
 WHERE tenant_id = $1 AND organization_id = $2 AND outbox_id = $3
+    AND publish_status = 'pending' AND available_at = $4
 "#;
 
 const OUTBOX_MAX_ATTEMPTS_ENV: &str = "SDKWORK_IM_OUTBOX_MAX_ATTEMPTS";
@@ -93,13 +120,25 @@ const LIST_PENDING_SCOPES_SQL: &str = r#"
 select tenant_id, organization_id
 from im_outbox_events
 where publish_status = 'pending' and available_at <= $1
+    and aggregate_type = $2
 group by tenant_id, organization_id
 order by min(available_at), tenant_id, organization_id
-limit $2
+limit $3
+"#;
+
+const RETRY_FAILED_SQL: &str = r#"
+update im_outbox_events
+set publish_status = 'pending', available_at = $4, published_at = null, updated_at = $4
+where tenant_id = $1 and organization_id = $2 and outbox_id = $3
+    and publish_status = 'failed'
 "#;
 
 fn row_to_record(row: &postgres::Row) -> OutboxEventRecord {
     let status_str: String = row.get(9);
+    let available_at: chrono::DateTime<chrono::Utc> = row.get(11);
+    let published_at: Option<chrono::DateTime<chrono::Utc>> = row.get(12);
+    let created_at: chrono::DateTime<chrono::Utc> = row.get(13);
+    let updated_at: chrono::DateTime<chrono::Utc> = row.get(14);
     OutboxEventRecord {
         tenant_id: row.get(0),
         organization_id: row.get(1),
@@ -113,10 +152,10 @@ fn row_to_record(row: &postgres::Row) -> OutboxEventRecord {
         publish_status: OutboxPublishStatus::from_str(&status_str)
             .unwrap_or(OutboxPublishStatus::Pending),
         attempt_count: row.get::<_, i32>(10) as u32,
-        available_at: row.get(11),
-        published_at: row.get(12),
-        created_at: row.get(13),
-        updated_at: row.get(14),
+        available_at: available_at.to_rfc3339(),
+        published_at: published_at.map(|dt| dt.to_rfc3339()),
+        created_at: created_at.to_rfc3339(),
+        updated_at: updated_at.to_rfc3339(),
     }
 }
 
@@ -127,6 +166,9 @@ impl OutboxStore for PostgresOutboxStore {
             let mut client = postgres_pool_client(&pool, "enqueue")?;
             let attempt_count_i32 = event.attempt_count as i32;
             let payload_json = postgres_jsonb_payload(event.payload_json.as_str())?;
+            let available_at = postgres_timestamptz(event.available_at.as_str(), "available_at")?;
+            let created_at = postgres_timestamptz(event.created_at.as_str(), "created_at")?;
+            let updated_at = postgres_timestamptz(event.updated_at.as_str(), "updated_at")?;
             let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
                 &event.tenant_id,
                 &event.organization_id,
@@ -139,9 +181,9 @@ impl OutboxStore for PostgresOutboxStore {
                 &event.payload_hash,
                 &event.publish_status.as_str(),
                 &attempt_count_i32,
-                &event.available_at,
-                &event.created_at,
-                &event.updated_at,
+                &available_at,
+                &created_at,
+                &updated_at,
             ];
             let result = client.execute(ENQUEUE_SQL, params);
             match result {
@@ -157,80 +199,103 @@ impl OutboxStore for PostgresOutboxStore {
         })
     }
 
-    fn drain_pending(
+    fn claim_pending(
         &self,
         tenant_id: &str,
         organization_id: &str,
+        aggregate_type: &str,
         batch_size: usize,
-    ) -> Result<Vec<OutboxEventRecord>, ContractError> {
+        lease_duration: std::time::Duration,
+    ) -> Result<Vec<OutboxEventClaim>, ContractError> {
+        if batch_size == 0 {
+            return Ok(Vec::new());
+        }
+        if lease_duration.is_zero() {
+            return Err(ContractError::Invalid(
+                "outbox claim lease_duration must be greater than zero".into(),
+            ));
+        }
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();
-        let now = now_rfc3339();
-        let limit = batch_size as i32;
+        let aggregate_type = aggregate_type.to_owned();
+        let now = postgres_timestamptz(&now_rfc3339(), "now")?;
+        let lease_delta = chrono::Duration::from_std(lease_duration).map_err(|_| {
+            ContractError::Invalid("outbox claim lease_duration is out of range".into())
+        })?;
+        let lease_expires_at = now + lease_delta;
+        let limit = i64::try_from(batch_size)
+            .map_err(|_| ContractError::Invalid("outbox claim batch_size is too large".into()))?;
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "drain_pending")?;
+            let mut client = postgres_pool_client(&pool, "claim_pending")?;
             let rows = client
                 .query(
-                    DRAIN_PENDING_SQL,
-                    &[&tenant_id, &organization_id, &now, &limit],
+                    CLAIM_PENDING_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &aggregate_type,
+                        &lease_expires_at,
+                        &now,
+                        &limit,
+                    ],
                 )
-                .map_err(|error| postgres_unavailable("drain_pending", error))?;
-            Ok(rows.iter().map(row_to_record).collect())
+                .map_err(|error| postgres_unavailable("claim_pending", error))?;
+            Ok(rows.iter().map(row_to_claim).collect())
         })
     }
 
-    fn mark_published(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        outbox_id: &str,
-    ) -> Result<(), ContractError> {
+    fn mark_published(&self, claim: &OutboxEventClaim) -> Result<(), ContractError> {
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let organization_id = organization_id.to_owned();
-        let outbox_id = outbox_id.to_owned();
-        let now = now_rfc3339();
+        let tenant_id = claim.event.tenant_id.clone();
+        let organization_id = claim.event.organization_id.clone();
+        let outbox_id = claim.event.outbox_id.clone();
+        let lease_expires_at =
+            postgres_timestamptz(claim.lease_expires_at.as_str(), "lease_expires_at")?;
+        let now = postgres_timestamptz(&now_rfc3339(), "now")?;
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "mark_published")?;
-            client
+            let affected_rows = client
                 .execute(
                     MARK_PUBLISHED_SQL,
-                    &[&tenant_id, &organization_id, &outbox_id, &now],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &outbox_id,
+                        &lease_expires_at,
+                        &now,
+                    ],
                 )
                 .map_err(|error| postgres_unavailable("mark_published", error))?;
-            Ok(())
+            require_claim_transition("mark_published", affected_rows)
         })
     }
 
-    fn mark_failed(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        outbox_id: &str,
-        _reason: &str,
-    ) -> Result<(), ContractError> {
+    fn mark_failed(&self, claim: &OutboxEventClaim, _reason: &str) -> Result<(), ContractError> {
         let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let organization_id = organization_id.to_owned();
-        let outbox_id = outbox_id.to_owned();
-        let now = now_rfc3339();
+        let tenant_id = claim.event.tenant_id.clone();
+        let organization_id = claim.event.organization_id.clone();
+        let outbox_id = claim.event.outbox_id.clone();
+        let lease_expires_at =
+            postgres_timestamptz(claim.lease_expires_at.as_str(), "lease_expires_at")?;
+        let now = postgres_timestamptz(&now_rfc3339(), "now")?;
         let max_attempts = resolve_outbox_max_attempts();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "mark_failed")?;
-            client
+            let affected_rows = client
                 .execute(
                     MARK_FAILED_SQL,
                     &[
                         &tenant_id,
                         &organization_id,
                         &outbox_id,
+                        &lease_expires_at,
                         &now,
                         &max_attempts,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("mark_failed", error))?;
-            Ok(())
+            require_claim_transition("mark_failed", affected_rows)
         })
     }
 
@@ -280,12 +345,12 @@ impl OutboxStore for PostgresOutboxStore {
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();
         let outbox_id = outbox_id.to_owned();
-        let now = now_rfc3339();
+        let now = postgres_timestamptz(&now_rfc3339(), "now")?;
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "retry_failed")?;
             client
                 .execute(
-                    "update im_outbox_events set publish_status = 'pending', updated_at = $4 where tenant_id = $1 and organization_id = $2 and outbox_id = $3 and publish_status = 'failed'",
+                    RETRY_FAILED_SQL,
                     &[&tenant_id, &organization_id, &outbox_id, &now],
                 )
                 .map_err(|error| postgres_unavailable("retry_failed", error))?;
@@ -293,19 +358,102 @@ impl OutboxStore for PostgresOutboxStore {
         })
     }
 
-    fn list_pending_scopes(&self, limit: usize) -> Result<Vec<(String, String)>, ContractError> {
+    fn list_pending_scopes(
+        &self,
+        aggregate_type: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, String)>, ContractError> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
         let pool = self.pool.clone();
-        let now = now_rfc3339();
-        let limit = limit as i32;
+        let aggregate_type = aggregate_type.to_owned();
+        let now = postgres_timestamptz(&now_rfc3339(), "now")?;
+        let limit = i64::try_from(limit)
+            .map_err(|_| ContractError::Invalid("outbox scope limit is too large".into()))?;
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "list_pending_scopes")?;
             let rows = client
-                .query(LIST_PENDING_SCOPES_SQL, &[&now, &limit])
+                .query(LIST_PENDING_SCOPES_SQL, &[&now, &aggregate_type, &limit])
                 .map_err(|error| postgres_unavailable("list_pending_scopes", error))?;
             Ok(rows
                 .iter()
                 .map(|row| (row.get::<_, String>(0), row.get::<_, String>(1)))
                 .collect())
         })
+    }
+}
+
+fn row_to_claim(row: &postgres::Row) -> OutboxEventClaim {
+    let event = row_to_record(row);
+    let lease_expires_at: chrono::DateTime<chrono::Utc> = row.get(15);
+    OutboxEventClaim {
+        event,
+        lease_expires_at: lease_expires_at.to_rfc3339(),
+    }
+}
+
+fn require_claim_transition(operation: &str, affected_rows: u64) -> Result<(), ContractError> {
+    if affected_rows == 1 {
+        Ok(())
+    } else {
+        Err(ContractError::Conflict(format!(
+            "{operation} rejected because the outbox claim expired or changed"
+        )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn normalized_sql(sql: &str) -> String {
+        sql.split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase()
+    }
+
+    #[test]
+    fn pending_claim_is_atomic_domain_scoped_and_leased() {
+        let sql = normalized_sql(CLAIM_PENDING_SQL);
+
+        assert!(sql.contains("aggregate_type = $3"));
+        assert!(sql.contains("for update skip locked"));
+        assert!(sql.contains("update im_outbox_events"));
+        assert!(sql.contains("returning"));
+        assert!(sql.contains("available_at = $4"));
+    }
+
+    #[test]
+    fn publish_transition_is_fenced_by_pending_status_and_lease() {
+        let sql = normalized_sql(MARK_PUBLISHED_SQL);
+
+        assert!(sql.contains("publish_status = 'pending'"));
+        assert!(sql.contains("available_at = $4"));
+    }
+
+    #[test]
+    fn failure_transition_is_fenced_by_pending_status_and_lease() {
+        let sql = normalized_sql(MARK_FAILED_SQL);
+
+        assert!(sql.contains("publish_status = 'pending'"));
+        assert!(sql.contains("available_at = $4"));
+    }
+
+    #[test]
+    fn pending_scope_discovery_is_domain_scoped() {
+        let sql = normalized_sql(LIST_PENDING_SCOPES_SQL);
+
+        assert!(sql.contains("aggregate_type = $2"));
+    }
+
+    #[test]
+    fn retry_failed_makes_the_event_immediately_claimable() {
+        let sql = normalized_sql(RETRY_FAILED_SQL);
+
+        assert!(sql.contains("available_at = $4"));
+        assert!(sql.contains("published_at = null"));
+        assert!(sql.contains("publish_status = 'failed'"));
     }
 }

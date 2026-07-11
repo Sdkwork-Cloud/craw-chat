@@ -91,7 +91,7 @@ String unwrapInboundRealtimeFrame(String raw) {
   return envelope['payload'] as String;
 }
 
-String encodeCcpHelloFrame(String requestId) {
+String encodeCcpHelloFrame() {
   return encodeCcpControlFrame(
     'cc.control.hello.v1',
     'hello',
@@ -99,9 +99,7 @@ String encodeCcpHelloFrame(String requestId) {
       'protocol': Map<String, dynamic>.from(_ccpProtocol),
       'binding': _ccpWsBinding,
       'capabilities': <String, dynamic>{'items': <String>['payload.json', 'session.resume']},
-      'trace_id': requestId,
     },
-    traceId: requestId,
   );
 }
 

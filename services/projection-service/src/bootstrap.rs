@@ -9,7 +9,6 @@ use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_web_core::WebEnvironment;
 use tracing::info;
 
-use crate::snapshot::CONVERSATION_SUMMARY_SNAPSHOT_KEY;
 use crate::{PROJECTION_TIMELINE_MEMORY_CAP_UNLIMITED, ProjectionError, TimelineProjectionService};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
@@ -35,19 +34,6 @@ impl ProjectionPersistenceBackend {
             Self::Memory { timeline, .. } => timeline,
             Self::Postgres(stores) => &stores.timeline,
         }
-    }
-
-    pub fn list_conversation_snapshot_scopes(&self) -> Result<Vec<String>, ProjectionError> {
-        let scopes = match self {
-            Self::Memory { metadata, .. } => {
-                metadata.list_scopes_for_snapshot_key(CONVERSATION_SUMMARY_SNAPSHOT_KEY)
-            }
-            Self::Postgres(stores) => stores
-                .metadata
-                .list_scopes_for_snapshot_key(CONVERSATION_SUMMARY_SNAPSHOT_KEY)
-                .map_err(ProjectionError::StoreFailure)?,
-        };
-        Ok(scopes)
     }
 
     pub fn is_postgres(&self) -> bool {
@@ -237,7 +223,7 @@ fn init_shared_projection_runtime() -> Arc<ProjectionRuntime> {
     )
 }
 
-/// Best-effort embedded projection runtime for unified-process journal append paths.
+/// Best-effort embedded projection runtime for standalone journal append paths.
 ///
 /// Returns `None` when durable bootstrap is unavailable and in-memory fallback is not allowed.
 /// HTTP handlers continue to use [`shared_projection_runtime`], which fail-closes in production.
@@ -268,39 +254,53 @@ pub fn try_init_embedded_projection_runtime() -> Option<Arc<ProjectionRuntime>> 
     }
 }
 
+/// Returns the already-initialized shared projection runtime without lazy initialization.
+///
+/// Unlike [`shared_projection_runtime`] (which lazily builds and fail-closes in production)
+/// and [`try_init_embedded_projection_runtime`] (which lazily builds when allowed), this
+/// accessor only succeeds when a runtime was previously installed — typically by the
+/// projection HTTP bootstrap path. Separated cloud services (e.g. conversation-service
+/// running without projection HTTP handlers) never initialize the shared runtime, so
+/// embedded journal apply becomes a silent no-op there and the journal consumer on
+/// projection-service replicas drives consistency instead.
+pub fn try_shared_projection_runtime() -> Option<Arc<ProjectionRuntime>> {
+    SHARED_PROJECTION_RUNTIME.get().cloned()
+}
+
 pub fn build_projection_runtime_from_env() -> Result<ProjectionRuntime, String> {
     let backend = resolve_projection_persistence_from_env()?;
+    let search_provider = resolve_postgres_search_provider_from_env();
+    assemble_projection_runtime(backend, search_provider)
+}
+
+fn assemble_projection_runtime(
+    backend: ProjectionPersistenceBackend,
+    search_provider: Option<Arc<PostgresSearchProvider>>,
+) -> Result<ProjectionRuntime, String> {
     let service = Arc::new(TimelineProjectionService::default());
     if let ProjectionPersistenceBackend::Postgres(stores) = &backend {
         let memory_cap = crate::resolve_memory_timeline_cap_from_env(true);
         let durable_store: Arc<dyn TimelineProjectionStore + Send + Sync> =
             Arc::new(stores.timeline.clone());
         service.configure_durable_timeline(durable_store, memory_cap);
+        let durable_metadata: Arc<dyn MetadataStore + Send + Sync> =
+            Arc::new(stores.metadata.clone());
+        service.configure_durable_metadata(durable_metadata);
         info!(
             memory_timeline_cap = memory_cap,
             "projection-service configured tiered timeline (postgres durable + in-memory hot cache)"
         );
     }
-    let conversation_scopes = backend
-        .list_conversation_snapshot_scopes()
-        .map_err(|error| format!("projection durable restore scope discovery failed: {error:?}"))?;
     service
-        .restore_all_durable_snapshots(
-            backend.metadata(),
-            backend.timeline(),
-            conversation_scopes.as_slice(),
-        )
+        .restore_durable_catalog_snapshots(backend.metadata(), backend.timeline())
         .map_err(|error| format!("projection durable restore failed: {error:?}"))?;
-    if backend.is_postgres() && !conversation_scopes.is_empty() {
-        info!(
-            restored_conversation_snapshots = conversation_scopes.len(),
-            "projection-service restored durable conversation snapshots from postgres"
-        );
+    if backend.is_postgres() {
+        info!("projection-service uses lazy durable read-through for conversation snapshots");
     }
     Ok(ProjectionRuntime {
         service,
         backend,
-        search_provider: resolve_postgres_search_provider_from_env(),
+        search_provider,
     })
 }
 
@@ -322,6 +322,53 @@ fn resolve_im_database_url_from_env() -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn projection_startup_does_not_eagerly_restore_historical_conversation_scopes() {
+        let metadata = MemoryMetadataStore::default();
+        for index in 0..256 {
+            let conversation_id = format!("c_history_{index}");
+            let scope = crate::scope_key("100001", "default", conversation_id.as_str());
+            metadata
+                .put_snapshot(
+                    scope.as_str(),
+                    crate::snapshot::CONVERSATION_SUMMARY_KEY,
+                    json!({
+                        "tenantId": "100001",
+                        "conversationId": conversation_id,
+                        "messageCount": 1,
+                        "lastMessageId": "1",
+                        "lastMessageSeq": 1,
+                        "lastSenderId": "1",
+                        "lastSenderKind": "user",
+                        "lastSender": null,
+                        "lastSummary": "historical",
+                        "lastMessageAt": "2026-07-10T00:00:00.000Z",
+                        "agentHandoff": null
+                    })
+                    .to_string()
+                    .as_str(),
+                )
+                .expect("historical snapshot should be stored");
+        }
+        let runtime = assemble_projection_runtime(
+            ProjectionPersistenceBackend::Memory {
+                metadata,
+                timeline: MemoryTimelineProjectionStore::default(),
+            },
+            None,
+        )
+        .expect("projection runtime should assemble");
+
+        assert!(
+            runtime
+                .service
+                .conversation_summary("100001", "default", "c_history_255")
+                .is_none(),
+            "startup must leave historical conversations cold for durable read-through"
+        );
+    }
 
     #[test]
     fn production_requires_database_url_for_projection_stores() {

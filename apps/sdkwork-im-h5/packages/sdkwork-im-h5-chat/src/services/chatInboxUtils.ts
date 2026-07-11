@@ -1,6 +1,6 @@
 import type { ConversationInboxEntry } from "@sdkwork/im-sdk";
 
-/** Maximum inbox rows retained in memory while paginating (aligned with timeline cap policy). */
+/** Maximum inbox rows retained in memory while paginating. */
 export const MAX_INBOX_ENTRIES = 200;
 
 export function mergeInboxEntries(

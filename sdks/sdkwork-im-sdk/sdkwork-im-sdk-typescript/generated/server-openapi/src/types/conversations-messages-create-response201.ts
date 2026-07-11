@@ -1,4 +1,4 @@
-import type { PostedMessageResponse } from './posted-message-response';
+import type { PostMessageResult } from './post-message-result';
 
 export interface ConversationsMessagesCreateResponse201 {
   code: 0;

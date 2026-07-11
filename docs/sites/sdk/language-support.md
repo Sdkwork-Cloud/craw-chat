@@ -18,8 +18,9 @@ RTC integration belongs to `sdkwork-rtc-sdk`.
 
 After the family is selected, choose the package or generated transport for the target language and
 run that family's verification command before publishing or consuming artifacts. Release semantics
-are workspace-based: `.sdkwork-assembly.json` records package ownership and release state, while
-checked-in generated output does not by itself mean registry publication.
+are workspace-based: family-root `sdk-manifest.json` records package ownership, generated transport
+identity, dependency, and release state, while checked-in generated output does not by itself mean
+registry publication.
 
 ## Current SDK Families
 
@@ -63,8 +64,9 @@ and `/backend/v3/api/admin/*` are backend SDK modules.
 | `sdkwork-im-backend-sdk` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
 | `sdkwork-rtc-sdk` | `node ../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
 
-Use `.sdkwork-assembly.json` in each workspace for package-layer ownership, `manifestPath`,
-generated output path, and release-state facts.
+Use family-root `sdk-manifest.json` in each workspace for package-layer ownership, `manifestPath`,
+generated output path, dependency, transport naming, and release-state facts. Per-family
+`.sdkwork-assembly.json` is retired and must not be restored.
 
 ## What To Read Next
 

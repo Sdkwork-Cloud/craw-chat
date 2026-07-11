@@ -4,7 +4,7 @@
 # Messages
 
 <p class="api-page-intro">
-  Message endpoints expose timeline reads, regular and system-channel submission, and message
+  Message endpoints expose paged message history reads, regular and system-channel submission, and message
   mutations such as edit and recall. The recommended TypeScript SDK surface for these routes is the
   root <code>ImSdkClient</code> message path, not raw route-group calls.
 </p>
@@ -98,7 +98,7 @@ operations are also available on `sdk.conversations.listMessages(...)`,
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/messages</code>
-  <span class="api-op-id">operationId: postMessage</span>
+  <span class="api-op-id">operationId: conversations.messages.create</span>
 </div>
 
 Posts a regular conversation message.
@@ -108,7 +108,7 @@ Posts a regular conversation message.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 PostMessageResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -121,7 +121,7 @@ Posts a regular conversation message.
 
 <ApiSchemaTable schema="PostMessageRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="PostMessageResult" />
 
@@ -148,7 +148,7 @@ Posts a regular conversation message.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-<a id="get-timeline"></a>
+<a id="list-messages"></a>
 <section class="api-op">
 
 ## `GET /im/v3/api/chat/conversations/{conversationId}/messages`
@@ -156,17 +156,32 @@ Posts a regular conversation message.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/messages</code>
-  <span class="api-op-id">operationId: getTimeline</span>
+  <span class="api-op-id">operationId: conversations.messages.list</span>
 </div>
 
-Returns the projection-backed message timeline for the conversation.
+Lists a durable, store-backed message history window for the conversation. This public route is
+owned by `sdkwork-comms-conversation-service`; `projection-service` does not register or serve
+`GET /im/v3/api/chat/conversations/{conversationId}/messages`. Projection remains responsible for
+inbox, conversation summaries, read cursors, message search, pins, visibility, and interaction
+summary reads.
+
+Production deployments read from `message_store.read_window` on `PostgresMessageStore` with
+`message_seq > afterSeq`, ascending sequence order, and `page_size + 1` fetch-ahead. Startup is
+fail-closed outside dev/test when Postgres is not configured, so a `50301` on this route means the
+conversation runtime's required durable dependency is unavailable, not that the GET API is missing.
+The dev/test in-memory message-log fallback is only for explicit in-memory runtime tests and must
+not be treated as the production history store.
+
+The handler never performs unbounded in-process pagination for this path. Normal app clients request
+one page, render it, and call `sdk.conversations.listMessages(...)` again with the returned cursor
+only when the user explicitly loads more history.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations.listMessages(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 TimelineListResponse`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMessageListResponse`</span></div>
 </div>
 
 ### Path Parameters
@@ -175,9 +190,26 @@ Returns the projection-backed message timeline for the conversation.
 | --- | --- | --- | --- |
 | `conversation_id` | `string` | Yes | Conversation identifier. |
 
+### Query Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `afterSeq` | `integer` | No | Return messages with `messageSeq` greater than this value. Defaults to `0`. |
+| `page_size` | `integer` | No | Page size. Defaults to `20`; maximum is `200`. |
+
 ### Response `200`
 
-<ApiSchemaTable schema="TimelineListResponse" />
+<ApiSchemaTable schema="ConversationMessageListResponse" />
+
+The response uses the SDKWork list envelope: `data.items`, `data.pageInfo`, and
+`data.highWatermark`. `data.pageInfo.mode` is `cursor`; callers continue by passing the last
+returned `messageSeq` as `afterSeq`.
+
+`ConversationMessageEntry` is the message-history DTO for this route. It contains message identity,
+sequence, sender, message body, summary, type, delivery mode, and timestamps. It intentionally does
+not inline `reactionCounts` or `pin` state; clients must not issue hidden per-message
+`interaction_summary` requests while loading history. Reactions, pins, and other interaction state
+remain explicit projection operations.
 
 
 ### Error Responses
@@ -199,7 +231,7 @@ Returns the projection-backed message timeline for the conversation.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/system_channel/publish</code>
-  <span class="api-op-id">operationId: publishSystemChannelMessage</span>
+  <span class="api-op-id">operationId: conversations.systemChannel.publish</span>
 </div>
 
 Publishes a system message to the conversation's system channel.
@@ -209,7 +241,7 @@ Publishes a system message to the conversation's system channel.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -249,7 +281,7 @@ Uses the same request schema as regular message submission.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/messages/{messageId}/edit</code>
-  <span class="api-op-id">operationId: editMessage</span>
+  <span class="api-op-id">operationId: messages.edit</span>
 </div>
 
 Edits a previously posted message.
@@ -259,7 +291,7 @@ Edits a previously posted message.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -297,7 +329,7 @@ Edits a previously posted message.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/messages/{messageId}/recall</code>
-  <span class="api-op-id">operationId: recallMessage</span>
+  <span class="api-op-id">operationId: messages.recall</span>
 </div>
 
 Recalls a message. This operation does not require a JSON request body.
@@ -307,7 +339,7 @@ Recalls a message. This operation does not require a JSON request body.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -337,4 +369,3 @@ None. This operation does not accept a JSON request body.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

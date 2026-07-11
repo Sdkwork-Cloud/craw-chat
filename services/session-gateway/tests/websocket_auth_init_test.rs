@@ -99,7 +99,16 @@ async fn session_gateway_accepts_browser_auth_init_frame_before_ccp_handshake() 
     if auth_ok["type"] != "auth.ok" {
         panic!("expected auth.ok frame, got: {auth_ok}");
     }
-    assert_eq!(auth_ok["requestId"], "auth-1");
+    assert!(
+        auth_ok.get("requestId").is_none(),
+        "auth.ok must not expose legacy requestId: {auth_ok}"
+    );
+    assert!(
+        auth_ok["traceId"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "auth.ok must include server-owned traceId: {auth_ok}"
+    );
     assert_eq!(auth_ok["tenantId"], "100001");
     assert_eq!(auth_ok["principalId"], "30");
     assert_eq!(auth_ok["sessionId"], "session_real");

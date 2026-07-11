@@ -77,7 +77,7 @@ fn resolve_pool_idle_timeout_secs() -> u64 {
 /// - `pool_max_idle_per_host`: Maximum idle connections kept alive per upstream host
 /// - `pool_idle_timeout`: How long to keep idle connections before closing
 /// - `tcp_nodelay`: Disable Nagle's algorithm for lower latency
-/// - `connect_timeout`: Fail fast when upstream is unreachable in split-service mode
+/// - `connect_timeout`: Fail fast when an explicit upstream is unreachable
 ///
 /// These settings prevent connection pool exhaustion under high load (P1-10 fix)
 /// and ensure fast failure when an upstream service is down.

@@ -1,13 +1,13 @@
 import 'package:sdkwork_im_flutter_mobile_core/sdkwork_im_flutter_mobile_core.dart';
 
-import 'chat_timeline_utils.dart';
+import 'chat_message_history_utils.dart';
 
 class ChatConversationService {
   ChatConversationService(this._client);
 
   final SdkworkImClient _client;
 
-  Future<ChatTimelineResult> fetchTimeline(
+  Future<ChatMessageHistoryResult> fetchMessageHistory(
     String conversationId, {
     int pageSize = 50,
     int afterSeq = 0,
@@ -17,18 +17,22 @@ class ChatConversationService {
       afterSeq,
       pageSize,
     );
-    return readTimelinePageFromSdkResponse(response);
+    return readMessageHistoryPageFromSdkResponse(response);
   }
 
-  Future<ChatTimelineResult> fetchTimelineDelta(
+  Future<ChatMessageHistoryResult> fetchMessageHistoryDelta(
     String conversationId,
     int afterSeq, {
     int pageSize = 50,
   }) {
-    return fetchTimeline(conversationId, pageSize: pageSize, afterSeq: afterSeq);
+    return fetchMessageHistory(
+      conversationId,
+      pageSize: pageSize,
+      afterSeq: afterSeq,
+    );
   }
 
-  Future<PostedMessageResponse?> sendText(
+  Future<PostMessageResult?> sendText(
     String conversationId,
     String text, {
     String? clientMsgId,
@@ -40,7 +44,7 @@ class ChatConversationService {
         clientMsgId: clientMsgId,
       ),
     );
-    return readPostedMessageFromSdkResponse(response);
+    return readPostMessageResultFromSdkResponse(response);
   }
 
   Future<void> markConversationRead(
@@ -59,7 +63,7 @@ class ChatConversationService {
     );
   }
 
-  Future<PostedMessageResponse?> sendImageMessage({
+  Future<PostMessageResult?> sendImageMessage({
     required String conversationId,
     required String driveUri,
     required String spaceId,
@@ -94,7 +98,7 @@ class ChatConversationService {
         ],
       ),
     );
-    return readPostedMessageFromSdkResponse(response);
+    return readPostMessageResultFromSdkResponse(response);
   }
 }
 

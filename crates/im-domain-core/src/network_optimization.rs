@@ -14,11 +14,14 @@
 //! ## Usage
 //!
 //! ```rust
-//! use im_domain_core::network_optimization::{ArqManager, NetworkQuality};
+//! use im_domain_core::network_optimization::ArqManager;
+//! use std::time::Duration;
 //!
 //! // Track unacknowledged messages for ARQ
-//! let arq = ArqManager::new(Duration::from_millis(100), 3);
-//! arq.track(sequence_num, &message);
+//! let mut arq = ArqManager::new(Duration::from_millis(100), 3);
+//! let sequence_num = 1;
+//! let message = b"event payload";
+//! arq.track(sequence_num, message);
 //!
 //! // Process NACK
 //! if let Some(lost) = arq.handle_nack(sequence_num) {

@@ -41,9 +41,9 @@ Creates or idempotently reuses a notification task.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The notification request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks delegated notification authority. |
-| `409` | `notification_conflict` | The idempotent notification request conflicts with existing state. |
+| `400` | `40001` | The notification request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks delegated notification authority. |
+| `409` | `40901` | The idempotent notification request conflicts with existing state. |
 
 </section>

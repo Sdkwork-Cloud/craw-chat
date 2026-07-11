@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsMessagesListResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateConversationRequest, CreateRoomRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
+from ..models import AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactsListResponse, ConversationMessageListResponse, ConversationsAgentDialogsCreateResponse201, ConversationsAgentHandoffAcceptResponse, ConversationsAgentHandoffCloseResponse, ConversationsAgentHandoffResolveResponse, ConversationsAgentHandoffRetrieveResponse, ConversationsAgentHandoffsCreateResponse201, ConversationsCreateResponse201, ConversationsDirectChatsBindingsCreateResponse201, ConversationsMemberDirectoryListResponse, ConversationsMembersAcceptInvitationResponse, ConversationsMembersAddResponse, ConversationsMembersChangeRoleResponse, ConversationsMembersLeaveResponse, ConversationsMembersListResponse, ConversationsMembersRemoveResponse, ConversationsMembersTransferOwnerResponse, ConversationsMessagesCreateResponse201, ConversationsMessagesInteractionSummaryRetrieveResponse, ConversationsPinsListResponse, ConversationsPreferencesRetrieveResponse, ConversationsPreferencesUpdateResponse, ConversationsProfileRetrieveResponse, ConversationsProfileUpdateResponse, ConversationsReadCursorRetrieveResponse, ConversationsReadCursorUpdateResponse, ConversationsRetrieveResponse, ConversationsSystemChannelPublishResponse, ConversationsSystemChannelsCreateResponse201, ConversationsThreadsCreateResponse201, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, FavoriteMessageRequest, InboxListResponse, MessageReactionRequest, MessagesEditResponse, MessagesFavoritesCreateResponse201, MessagesFavoritesListResponse, MessagesPinResponse, MessagesReactionsCreateResponse201, MessagesReactionsRemoveResponse, MessagesRecallResponse, MessagesUnpinResponse, PostMessageRequest, RecallMessageRequest, RemoveConversationMemberRequest, RoomsCreateResponse201, RoomsEnterResponse, RoomsLeaveResponse, RoomsRetrieveResponse, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -271,7 +271,7 @@ class ChatConversationsAgentHandoffsApi:
         self._client = client
 
 
-    def create(self, body: CreateAgentDialogRequest) -> ConversationsAgentHandoffsCreateResponse201:
+    def create(self, body: CreateAgentHandoffRequest) -> ConversationsAgentHandoffsCreateResponse201:
         """Create an agent handoff"""
         return self._client.post(f"/im/v3/api/chat/conversations/agent_handoffs", json=body)
 
@@ -298,7 +298,7 @@ class ChatConversationsSystemChannelsApi:
         self._client = client
 
 
-    def create(self, body: CreateConversationRequest) -> ConversationsSystemChannelsCreateResponse201:
+    def create(self, body: CreateSystemChannelRequest) -> ConversationsSystemChannelsCreateResponse201:
         """Create a system channel"""
         return self._client.post(f"/im/v3/api/chat/conversations/system_channels", json=body)
 
@@ -313,7 +313,7 @@ class ChatConversationsThreadsApi:
         self._client = client
 
 
-    def create(self, body: CreateConversationRequest) -> ConversationsThreadsCreateResponse201:
+    def create(self, body: CreateThreadConversationRequest) -> ConversationsThreadsCreateResponse201:
         """Create a thread conversation"""
         return self._client.post(f"/im/v3/api/chat/conversations/threads", json=body)
 
@@ -439,8 +439,8 @@ class ChatConversationsMessagesApi:
         self.interaction_summary = ChatConversationsMessagesInteractionSummaryApi(client)
 
 
-    def list(self, conversation_id: str, after_seq: Optional[int] = None, page_size: Optional[int] = None) -> ConversationsMessagesListResponse:
-        """List conversation message timeline"""
+    def list(self, conversation_id: str, after_seq: Optional[int] = None, page_size: Optional[int] = None) -> ConversationMessageListResponse:
+        """List conversation message history"""
         query = build_query_string([
             {'name': 'afterSeq', 'value': after_seq, 'style': 'form', 'explode': True, 'allow_reserved': False},
             {'name': 'page_size', 'value': page_size, 'style': 'form', 'explode': True, 'allow_reserved': False},
@@ -487,9 +487,9 @@ class ChatMessagesApi:
         """Edit a message"""
         return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/edit", json=body)
 
-    def recall(self, message_id: str) -> MessagesRecallResponse:
+    def recall(self, message_id: str, body: RecallMessageRequest) -> MessagesRecallResponse:
         """Recall a message"""
-        return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/recall")
+        return self._client.post(f"/im/v3/api/chat/messages/{serialize_path_parameter(message_id, {'name': 'messageId', 'style': 'simple', 'explode': False})}/recall", json=body)
 
     def pin(self, message_id: str) -> MessagesPinResponse:
         """Pin a message"""

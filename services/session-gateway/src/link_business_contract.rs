@@ -3,7 +3,6 @@ use sdkwork_im_ccp_core::CcpEnvelope;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinkClientBusinessFrame {
     pub frame_type: String,
-    pub request_id: Option<String>,
 }
 
 pub fn expected_link_business_contract(frame_type: &str) -> Option<(&'static str, &'static str)> {
@@ -66,7 +65,6 @@ mod tests {
         );
         let frame = LinkClientBusinessFrame {
             frame_type: "subscriptions.sync".into(),
-            request_id: None,
         };
         let error = validate_link_client_business_envelope(&envelope, &frame)
             .expect_err("subscriptions.sync must require cmd kind");

@@ -164,12 +164,12 @@ impl ReadinessCheck for ImEnvReadinessCheck {
     }
 }
 
-/// Default readiness probe for split IM HTTP service processes.
+/// Default readiness probe for IM HTTP service processes.
 pub fn im_env_readiness_check() -> Arc<dyn ReadinessCheck> {
     Arc::new(ImEnvReadinessCheck)
 }
 
-/// Synchronous dependency probe for split-service processes that expose `/readyz`
+/// Synchronous dependency probe for cloud service processes that expose `/readyz`
 /// without async startup wiring.
 pub fn evaluate_im_runtime_dependency_health_from_env() -> bool {
     let environment = resolve_web_environment_from_process_env();
@@ -233,7 +233,7 @@ pub fn init_im_service_tracing_from_env() {
 
 /// Install shared IM sqlx + r2d2 pools when PostgreSQL is configured.
 ///
-/// Every IM HTTP/RPC process (standalone, cloud, unified-process, split-services)
+/// Every IM HTTP/RPC process in standalone and cloud deployments
 /// SHOULD call this before assembling routes or opening PostgreSQL adapters.
 pub async fn bootstrap_im_service_database_from_env() -> Result<(), String> {
     sdkwork_im_database_pool::try_bootstrap_im_process_database_pools_from_env()

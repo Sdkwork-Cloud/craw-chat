@@ -73,7 +73,7 @@ const requiredFiles = [
   'apis/rpc/sdkwork/communication/internal/v1/distributed_runtime_service.proto',
   'apis/rpc/sdkwork/communication/internal/v1/message_dispatch_service.proto',
   'apis/rpc/sdkwork/communication/internal/v1/room_orchestration_service.proto',
-  'sdks/sdkwork-im-rpc-sdk/.sdkwork-assembly.json',
+  'sdks/sdkwork-im-rpc-sdk/sdk-manifest.json',
   'sdks/sdkwork-im-rpc-sdk/README.md',
   'sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json',
   'sdks/sdkwork-im-rpc-sdk/specs/README.md',
@@ -128,18 +128,18 @@ for (const relativePath of requiredFiles) {
   assertFile(relativePath);
 }
 
-const assembly = readJson('sdks/sdkwork-im-rpc-sdk/.sdkwork-assembly.json');
-assert.equal(assembly.workspace, 'sdkwork-im-rpc-sdk');
-assert.equal(assembly.domain, 'communication');
-assert.equal(assembly.capability, 'chat');
-assert.deepEqual(assembly.discoverySurface.generatedProtocols, ['rpc']);
-assert.equal(assembly.discoverySurface.protoRoot, '../../apis/rpc');
-assert.equal(assembly.rpcManifest, 'rpc/sdkwork-im-rpc.manifest.json');
-assert.equal(assembly.httpFamilyMapping.openApiSdkFamily, 'sdkwork-im-sdk');
-assert.equal(assembly.httpFamilyMapping.appApiSdkFamily, 'sdkwork-im-app-sdk');
-assert.equal(assembly.httpFamilyMapping.backendApiSdkFamily, 'sdkwork-im-backend-sdk');
+const sdkManifest = readJson('sdks/sdkwork-im-rpc-sdk/sdk-manifest.json');
+assert.equal(sdkManifest.sdkFamily, 'sdkwork-im-rpc-sdk');
+assert.equal(sdkManifest.domain, 'communication');
+assert.equal(sdkManifest.capability, 'chat');
+assert.deepEqual(sdkManifest.discoverySurface.generatedProtocols, ['rpc']);
+assert.equal(sdkManifest.discoverySurface.protoRoot, '../../apis/rpc');
+assert.equal(sdkManifest.rpcManifest, 'rpc/sdkwork-im-rpc.manifest.json');
+assert.equal(sdkManifest.httpFamilyMapping.openApiSdkFamily, 'sdkwork-im-sdk');
+assert.equal(sdkManifest.httpFamilyMapping.appApiSdkFamily, 'sdkwork-im-app-sdk');
+assert.equal(sdkManifest.httpFamilyMapping.backendApiSdkFamily, 'sdkwork-im-backend-sdk');
 assert.deepEqual(
-  assembly.inspectionPolicy,
+  sdkManifest.inspectionPolicy,
   {
     mode: 'convention',
     protocol: 'rpc',
@@ -148,23 +148,23 @@ assert.deepEqual(
       purpose: ['release', 'ci', 'audit', 'migration'],
     },
   },
-  'assembly must declare the optional RPC control-plane policy once at the family level.',
+  'sdk-manifest.json must declare the optional RPC control-plane policy once at the family level.',
 );
 assert.doesNotMatch(
-  read('sdks/sdkwork-im-rpc-sdk/.sdkwork-assembly.json'),
+  read('sdks/sdkwork-im-rpc-sdk/sdk-manifest.json'),
   /sdkwork-generator-(manifest|changes|report)\.json/u,
-  'assembly must not duplicate derived optional control-plane file names per language.',
+  'sdk-manifest.json must not duplicate derived optional control-plane file names per language.',
 );
 
 const expectedRpcLanguages = ['go', 'java', 'python', 'rust', 'typescript'];
 assert.deepEqual(
-  assembly.languages.map((entry) => entry.language).sort(),
+  sdkManifest.languages.map((entry) => entry.language).sort(),
   expectedRpcLanguages,
-  'RPC SDK assembly must declare every generated baseline language.',
+  'RPC SDK manifest must declare every generated baseline language.',
 );
 for (const language of expectedRpcLanguages) {
-  const entry = assembly.languages.find((candidate) => candidate.language === language);
-  assert.ok(entry, `assembly must declare ${language}.`);
+  const entry = sdkManifest.languages.find((candidate) => candidate.language === language);
+  assert.ok(entry, `sdk-manifest.json must declare ${language}.`);
   assert.equal(entry.generationState, 'generated', `${language} generation state must be generated.`);
   assert.equal(entry.releaseState, 'not_published', `${language} release state must remain not_published.`);
   assert.match(entry.workspace, new RegExp(`^sdkwork-im-rpc-sdk-${language}$`, 'u'), `${language} workspace must use RPC SDK family naming.`);
@@ -221,11 +221,11 @@ assert.equal(
 );
 
 for (const [language, packageVersion] of Object.entries(packageVersionByLanguage)) {
-  const entry = assembly.languages.find((candidate) => candidate.language === language);
+  const entry = sdkManifest.languages.find((candidate) => candidate.language === language);
   assert.equal(
     entry.version,
     packageVersion,
-    `${language} assembly version must match the generated package manifest version.`,
+    `${language} manifest version must match the generated package manifest version.`,
   );
 }
 
@@ -312,6 +312,35 @@ assert.equal(manifest.kind, 'sdkwork.rpc.manifest');
 assert.equal(manifest.domain, 'communication');
 assert.equal(manifest.sdkFamily, 'sdkwork-im-rpc-sdk');
 
+const rpcContextProto = read('apis/rpc/sdkwork/common/v1/context.proto');
+assert.match(
+  rpcContextProto,
+  /message\s+RequestMetadata\s*\{[\s\S]*string\s+trace_id\s*=\s*1;/u,
+  'RPC RequestMetadata must use server trace_id as the primary correlation identity.',
+);
+assert.match(
+  rpcContextProto,
+  /message\s+ResponseMetadata\s*\{[\s\S]*string\s+trace_id\s*=\s*1;/u,
+  'RPC ResponseMetadata must use server trace_id as the primary correlation identity.',
+);
+assert.doesNotMatch(
+  rpcContextProto,
+  /\brequest_id\b/u,
+  'RPC common metadata must not expose legacy request_id fields.',
+);
+
+const rpcServiceMetadataSource = read('crates/sdkwork-im-rpc-service-rust/src/metadata.rs');
+assert.match(
+  rpcServiceMetadataSource,
+  /METADATA_TRACE_ID:\s*&str\s*=\s*"x-sdkwork-trace-id"/u,
+  'RPC service metadata adapter must use x-sdkwork-trace-id for trace identity.',
+);
+assert.doesNotMatch(
+  rpcServiceMetadataSource,
+  /METADATA_REQUEST_ID|x-request-id|request_id/u,
+  'RPC service metadata adapter must not expose request id naming for trace identity.',
+);
+
 for (const relativePath of [
   ...listFiles('apis/rpc').filter((entryPath) => entryPath.endsWith('.proto')),
   ...listFiles('sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/generated/proto').filter(isRpcGeneratedTextSource),
@@ -325,6 +354,29 @@ for (const relativePath of [
     source,
     /communication-rpc-go/u,
     `${relativePath} must not reference the legacy communication RPC Go package family.`,
+  );
+}
+
+for (const relativePath of [
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/generated/proto/sdkwork/common/v1/context_pb.ts',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go/generated/proto/sdkwork/common/v1/context.pb.go',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java/generated/proto/java/com/sdkwork/common/v1/RequestMetadata.java',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java/generated/proto/java/com/sdkwork/common/v1/ResponseMetadata.java',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java/generated/proto/java/com/sdkwork/common/v1/RequestMetadataOrBuilder.java',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java/generated/proto/java/com/sdkwork/common/v1/ResponseMetadataOrBuilder.java',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-python/generated/proto/sdkwork/common/v1/context_pb2.py',
+  'sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust/generated/proto/sdkwork/common/v1/sdkwork.common.v1.rs',
+]) {
+  const source = read(relativePath);
+  assert.match(
+    source,
+    /trace[_IidD]|TraceId|traceId|trace_id/u,
+    `${relativePath} must expose trace identity fields.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /request_id|requestId|RequestId/u,
+    `${relativePath} must not expose legacy request id fields for RPC metadata.`,
   );
 }
 
@@ -471,7 +523,7 @@ for (const requiredText of [
   'sdkwork-im-cloud-gateway calls runtime',
   'Flexible Distributed Deployment',
   'single-process local mode',
-  'split service mode',
+  'cloud service mode',
   'sharded realtime mode',
   'mTLS',
   'health checking',

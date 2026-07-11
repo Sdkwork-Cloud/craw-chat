@@ -46,7 +46,11 @@ Aborts the stream lifecycle.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `404` | `stream_not_found` | The target stream does not exist. |
-| `409` | `invalid_stream_state` | The stream lifecycle does not permit the requested transition. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

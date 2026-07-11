@@ -126,6 +126,35 @@ fn envelope_payload_json(envelope: &CcpEnvelope) -> serde_json::Value {
     serde_json::from_str(envelope.payload.as_str()).expect("ccp payload should be valid json")
 }
 
+fn assert_server_trace_contract(payload: &serde_json::Value, label: &str) {
+    assert!(
+        payload.get("requestId").is_none(),
+        "{label} must not expose the legacy correlation field: {payload:?}"
+    );
+    assert!(
+        payload["traceId"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "{label} must include server-owned traceId: {payload:?}"
+    );
+}
+
+fn assert_ccp_trace_contract(envelope: &CcpEnvelope, payload: &serde_json::Value, label: &str) {
+    assert!(
+        envelope
+            .trace_id
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "{label} envelope must include server-owned trace_id: {envelope:?}"
+    );
+    assert_server_trace_contract(payload, label);
+    assert_eq!(
+        payload["traceId"].as_str(),
+        envelope.trace_id.as_deref(),
+        "{label} payload traceId must match ccp envelope trace_id"
+    );
+}
+
 fn assert_policy_close_with_reason(message: Message, reason: &str) {
     match message {
         Message::Close(Some(frame)) => {
@@ -383,7 +412,6 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
         "cc.realtime.subscriptions.sync.v1",
         json!({
             "type":"subscriptions.sync",
-            "requestId":"req_sync_1",
             "items":[
                 {
                     "scopeType":"conversation",
@@ -397,7 +425,7 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
 
     let synced = next_ccp_business_payload(&mut socket).await;
     assert_eq!(synced["type"], "subscriptions.synced");
-    assert_eq!(synced["requestId"], "req_sync_1");
+    assert_server_trace_contract(&synced, "subscriptions.synced");
     assert_eq!(synced["snapshot"]["deviceId"], "d_pad");
     assert_eq!(synced["snapshot"]["items"][0]["scopeType"], "conversation");
     assert_eq!(synced["snapshot"]["items"][0]["scopeId"], "c_demo");
@@ -407,7 +435,6 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
         "cc.realtime.events.pull.v1",
         json!({
             "type":"events.pull",
-            "requestId":"req_pull_1",
             "afterSeq":0,
             "limit":10
         }),
@@ -416,7 +443,7 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
 
     let window = next_ccp_business_payload(&mut socket).await;
     assert_eq!(window["type"], "event.window");
-    assert_eq!(window["requestId"], "req_pull_1");
+    assert_server_trace_contract(&window, "event.window");
     assert_eq!(window["reason"], "pull");
     assert_eq!(window["window"]["deviceId"], "d_pad");
     assert_eq!(window["window"]["items"].as_array().unwrap().len(), 0);
@@ -429,7 +456,6 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
         "ack",
         json!({
             "type":"events.ack",
-            "requestId":"req_ack_1",
             "ackedSeq":0
         }),
     )
@@ -437,7 +463,7 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
 
     let acked = next_ccp_business_payload(&mut socket).await;
     assert_eq!(acked["type"], "events.acked");
-    assert_eq!(acked["requestId"], "req_ack_1");
+    assert_server_trace_contract(&acked, "events.acked");
     assert_eq!(acked["ack"]["deviceId"], "d_pad");
     assert_eq!(acked["ack"]["ackedThroughSeq"], 0);
     assert_eq!(acked["ack"]["trimmedThroughSeq"], 0);
@@ -449,7 +475,7 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
 }
 
 #[tokio::test]
-async fn test_realtime_websocket_rejects_oversized_request_id() {
+async fn test_realtime_websocket_ignores_legacy_correlation_field() {
     let app = session_gateway::build_app();
     let (_env, address, handle) = spawn_server(app).await;
     let mut socket = connect_ccp_realtime_socket(&address).await;
@@ -467,17 +493,10 @@ async fn test_realtime_websocket_rejects_oversized_request_id() {
     )
     .await;
 
-    let error = next_ccp_business_payload(&mut socket).await;
-    assert_eq!(error["type"], "error");
-    assert!(error["requestId"].is_null());
-    assert_eq!(error["code"], "payload_too_large");
-    assert!(
-        error["message"]
-            .as_str()
-            .expect("message should be a string")
-            .contains("requestId"),
-        "error should point to requestId payload guard, got: {error:?}"
-    );
+    let window = next_ccp_business_payload(&mut socket).await;
+    assert_eq!(window["type"], "event.window");
+    assert_server_trace_contract(&window, "event.window");
+    assert_eq!(window["reason"], "pull");
 
     let _ = socket.close(None).await;
     handle.abort();
@@ -496,14 +515,13 @@ async fn test_realtime_websocket_rejects_oversized_frame_type() {
         "cc.realtime.events.pull.v1",
         json!({
             "type":"x".repeat(1024),
-            "requestId":"req_oversized_type_1"
         }),
     )
     .await;
 
     let error = next_ccp_business_payload(&mut socket).await;
     assert_eq!(error["type"], "error");
-    assert_eq!(error["requestId"], "req_oversized_type_1");
+    assert_server_trace_contract(&error, "realtime error");
     assert_eq!(error["code"], "payload_too_large");
     assert!(
         error["message"]
@@ -620,7 +638,6 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
             "cmd",
             json!({
                 "type":"subscriptions.sync",
-                "requestId":"req_sync_ccp_1",
                 "items":[
                     {
                         "scopeType":"conversation",
@@ -637,7 +654,7 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
     assert_eq!(synced.schema, "cc.realtime.subscriptions.synced.v1");
     let synced_payload = envelope_payload_json(&synced);
     assert_eq!(synced_payload["type"], "subscriptions.synced");
-    assert_eq!(synced_payload["requestId"], "req_sync_ccp_1");
+    assert_ccp_trace_contract(&synced, &synced_payload, "subscriptions.synced");
 
     socket
         .send(encode_ccp_text_frame(
@@ -645,7 +662,6 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
             "cmd",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_ccp_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -657,7 +673,7 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
     assert_eq!(window.schema, "cc.realtime.event.window.v1");
     let window_payload = envelope_payload_json(&window);
     assert_eq!(window_payload["type"], "event.window");
-    assert_eq!(window_payload["requestId"], "req_pull_ccp_1");
+    assert_ccp_trace_contract(&window, &window_payload, "event.window");
     assert_eq!(window_payload["reason"], "pull");
 
     socket
@@ -666,7 +682,6 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
             "ack",
             json!({
                 "type":"events.ack",
-                "requestId":"req_ack_ccp_1",
                 "ackedSeq":0
             }),
         ))
@@ -677,7 +692,7 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
     assert_eq!(acked.schema, "cc.realtime.events.acked.v1");
     let acked_payload = envelope_payload_json(&acked);
     assert_eq!(acked_payload["type"], "events.acked");
-    assert_eq!(acked_payload["requestId"], "req_ack_ccp_1");
+    assert_ccp_trace_contract(&acked, &acked_payload, "events.acked");
     assert_eq!(acked_payload["ack"]["deviceId"], "d_pad");
 
     let _ = socket.close(None).await;
@@ -740,7 +755,6 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_af
             "control",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_wrong_kind_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -753,7 +767,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_af
     assert_eq!(error.schema, "cc.realtime.error.v1");
     let error_payload = envelope_payload_json(&error);
     assert_eq!(error_payload["type"], "error");
-    assert_eq!(error_payload["requestId"], "req_pull_wrong_kind_1");
+    assert_ccp_trace_contract(&error, &error_payload, "realtime error");
     assert_eq!(error_payload["code"], "invalid_frame");
     assert!(
         error_payload["message"]
@@ -769,7 +783,6 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_af
             "cmd",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_after_invalid_kind_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -782,7 +795,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_af
     assert_eq!(window.schema, "cc.realtime.event.window.v1");
     let window_payload = envelope_payload_json(&window);
     assert_eq!(window_payload["type"], "event.window");
-    assert_eq!(window_payload["requestId"], "req_pull_after_invalid_kind_1");
+    assert_ccp_trace_contract(&window, &window_payload, "event.window");
 
     let _ = socket.close(None).await;
     handle.abort();
@@ -844,7 +857,6 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_af
             "cmd",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_wrong_schema_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -857,7 +869,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_af
     assert_eq!(error.schema, "cc.realtime.error.v1");
     let error_payload = envelope_payload_json(&error);
     assert_eq!(error_payload["type"], "error");
-    assert_eq!(error_payload["requestId"], "req_pull_wrong_schema_1");
+    assert_ccp_trace_contract(&error, &error_payload, "realtime error");
     assert_eq!(error_payload["code"], "invalid_frame");
     assert!(
         error_payload["message"]
@@ -873,7 +885,6 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_af
             "cmd",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_after_invalid_schema_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -886,10 +897,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_af
     assert_eq!(window.schema, "cc.realtime.event.window.v1");
     let window_payload = envelope_payload_json(&window);
     assert_eq!(window_payload["type"], "event.window");
-    assert_eq!(
-        window_payload["requestId"],
-        "req_pull_after_invalid_schema_1"
-    );
+    assert_ccp_trace_contract(&window, &window_payload, "event.window");
 
     let _ = socket.close(None).await;
     handle.abort();
@@ -963,7 +971,6 @@ async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_hands
             "cmd",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_after_heartbeat_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -976,10 +983,7 @@ async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_hands
     assert_eq!(first_response.schema, "cc.realtime.event.window.v1");
     let first_response_payload = envelope_payload_json(&first_response);
     assert_eq!(first_response_payload["type"], "event.window");
-    assert_eq!(
-        first_response_payload["requestId"],
-        "req_pull_after_heartbeat_1"
-    );
+    assert_ccp_trace_contract(&first_response, &first_response_payload, "event.window");
 
     let _ = socket.close(None).await;
     handle.abort();
@@ -1046,7 +1050,6 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_me
             )),
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_client_route_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -1059,7 +1062,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_me
     assert_eq!(error.schema, "cc.realtime.error.v1");
     let error_payload = envelope_payload_json(&error);
     assert_eq!(error_payload["type"], "error");
-    assert_eq!(error_payload["requestId"], "req_pull_client_route_1");
+    assert_ccp_trace_contract(&error, &error_payload, "realtime error");
     assert_eq!(error_payload["code"], "invalid_frame");
     assert!(
         error_payload["message"]
@@ -1075,7 +1078,6 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_me
             "cmd",
             json!({
                 "type":"events.pull",
-                "requestId":"req_pull_after_client_route_1",
                 "afterSeq":0,
                 "limit":10
             }),
@@ -1088,7 +1090,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_me
     assert_eq!(window.schema, "cc.realtime.event.window.v1");
     let window_payload = envelope_payload_json(&window);
     assert_eq!(window_payload["type"], "event.window");
-    assert_eq!(window_payload["requestId"], "req_pull_after_client_route_1");
+    assert_ccp_trace_contract(&window, &window_payload, "event.window");
 
     let _ = socket.close(None).await;
     handle.abort();
@@ -1468,7 +1470,6 @@ async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotoco
             "cmd",
             json!({
                 "type":"subscriptions.sync",
-                "requestId":"req_live_push_ccp_1",
                 "items":[
                     {
                         "scopeType":"conversation",
@@ -1485,6 +1486,7 @@ async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotoco
     assert_eq!(synced.schema, "cc.realtime.subscriptions.synced.v1");
     let synced_payload = envelope_payload_json(&synced);
     assert_eq!(synced_payload["type"], "subscriptions.synced");
+    assert_ccp_trace_contract(&synced, &synced_payload, "subscriptions.synced");
 
     runtime
         .publish_scope_event_for_principal_kind(
@@ -1664,7 +1666,6 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
         "cc.realtime.events.pull.v1",
         json!({
             "type":"events.pull",
-            "requestId":"req_pull_backpressure_1",
             "afterSeq":0,
             "limit":999
         }),
@@ -1673,7 +1674,7 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
 
     let pull = next_ccp_business_payload(&mut socket).await;
     assert_eq!(pull["type"], "event.window");
-    assert_eq!(pull["requestId"], "req_pull_backpressure_1");
+    assert_server_trace_contract(&pull, "event.window");
     assert_eq!(pull["reason"], "pull");
     assert_eq!(pull["window"]["items"].as_array().unwrap().len(), 512);
     assert_eq!(pull["window"]["hasMore"], true);
@@ -1770,7 +1771,6 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
         "cc.realtime.events.pull.v1",
         json!({
             "type":"events.pull",
-            "requestId":"req_pull_after_overload_1",
             "afterSeq":128,
             "limit":999
         }),
@@ -1779,7 +1779,7 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
 
     let pull = next_ccp_business_payload(&mut socket).await;
     assert_eq!(pull["type"], "event.window");
-    assert_eq!(pull["requestId"], "req_pull_after_overload_1");
+    assert_server_trace_contract(&pull, "event.window");
     assert_eq!(pull["reason"], "pull");
     assert_eq!(pull["window"]["items"].as_array().unwrap().len(), 512);
     assert_eq!(pull["window"]["nextAfterSeq"], 640);
@@ -1850,7 +1850,6 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
         "cc.realtime.events.pull.v1",
         json!({
             "type":"events.pull",
-            "requestId":"req_pull_stale_replay_overload_1",
             "afterSeq":0,
             "limit":999
         }),
@@ -1859,7 +1858,7 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
 
     let pull = next_ccp_business_payload(&mut socket).await;
     assert_eq!(pull["type"], "event.window");
-    assert_eq!(pull["requestId"], "req_pull_stale_replay_overload_1");
+    assert_server_trace_contract(&pull, "event.window");
     assert_eq!(pull["reason"], "pull");
     assert_eq!(pull["window"]["items"].as_array().unwrap().len(), 512);
     assert_eq!(pull["window"]["items"][0]["realtimeSeq"], 129);
@@ -1932,7 +1931,6 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
         "cc.realtime.events.pull.v1",
         json!({
             "type":"events.pull",
-            "requestId":"req_pull_recovery_1",
             "afterSeq":128,
             "limit":999
         }),
@@ -1941,7 +1939,7 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
 
     let pull = next_ccp_business_payload(&mut socket).await;
     assert_eq!(pull["type"], "event.window");
-    assert_eq!(pull["requestId"], "req_pull_recovery_1");
+    assert_server_trace_contract(&pull, "event.window");
     assert_eq!(pull["reason"], "pull");
     assert_eq!(pull["window"]["items"].as_array().unwrap().len(), 512);
     assert_eq!(pull["window"]["nextAfterSeq"], 640);

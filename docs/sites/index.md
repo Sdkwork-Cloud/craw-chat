@@ -47,7 +47,7 @@ plus checked-in SDK workspaces built from those services:
   families used by product, app-business, backend/operator, admin, governance, and provider-runtime
   integrations.
 
-The default development profile is `standalone.split-services.development` (`pnpm dev`). Topology
+The default development profile is `standalone.development` (`pnpm dev`). Topology
 authority lives in `specs/topology.spec.json` and `configs/topology/*.env`.
 
 For most new integrations, the fastest reading order is:
@@ -68,7 +68,7 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>Unified Server Listener</h3>
-    <p><code>0.0.0.0:18080</code> in the frozen <code>server.yaml.example</code> contract for <code>sdkwork-im-server</code> and the unified <code>web-gateway</code>.</p>
+    <p><code>0.0.0.0:18079</code> in the frozen <code>server.yaml.example</code> contract for <code>sdkwork-im-server</code> and the unified <code>web-gateway</code>.</p>
   </div>
   <div class="fact-card">
     <h3>Control Plane Listener</h3>
