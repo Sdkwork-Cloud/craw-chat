@@ -447,6 +447,12 @@
       "videoCall": "Video call",
       "more": "More"
     },
+    "moduleError": {
+      "title": "This module is temporarily unavailable",
+      "description": "The current view could not be displayed. Return to a stable area to continue working.",
+      "returnToWorkspace": "Return to workspace",
+      "returnToChat": "Return to chats"
+    },
     "menu": {
       "moreActions": "New conversation",
       "startGroup": "Start group",

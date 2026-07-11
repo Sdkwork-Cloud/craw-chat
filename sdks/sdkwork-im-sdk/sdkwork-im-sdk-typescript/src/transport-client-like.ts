@@ -33,7 +33,7 @@ import type {
   PinnedMessagesResponse,
   SocialFriendRequestListResponse,
   SocialUserSearchResponse,
-} from './openapi-compat-types';
+} from './openapi-compat-types.js';
 import type {
   MessageFavoriteView,
   MessageFavoriteType,

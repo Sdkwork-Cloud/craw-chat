@@ -1,4 +1,7 @@
-use im_domain_core::conversation::{ConversationActorView, ConversationAgentHandoffView};
+use im_domain_core::conversation::{
+    ConversationActorView, ConversationAgentAssignment, ConversationAgentAssignmentSet,
+    ConversationAgentAssignmentSource, ConversationAgentHandoffView,
+};
 use serde::Deserialize;
 
 use super::ConversationSummaryView;
@@ -7,6 +10,7 @@ use super::ConversationSummaryView;
 #[serde(rename_all = "camelCase")]
 pub(super) struct ConversationCreatedPayload {
     pub(super) conversation_type: String,
+    pub(super) agent_assignments: Option<ConversationAgentAssignmentsProjectionPayload>,
     pub(super) title: Option<String>,
     pub(super) group_name: Option<String>,
     pub(super) display_name: Option<String>,
@@ -132,6 +136,35 @@ pub(super) fn handoff_view_from_created_payload(
         closed_at: None,
         closed_by: None,
     }))
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ConversationAgentAssignmentsProjectionPayload {
+    pub(super) generation: u64,
+    pub(super) source: ConversationAgentAssignmentSource,
+    pub(super) agents: Vec<ConversationAgentAssignment>,
+    pub(super) policy_id: Option<String>,
+    pub(super) policy_version: Option<u32>,
+}
+
+impl ConversationAgentAssignmentsProjectionPayload {
+    pub(super) fn assignment_set(&self) -> ConversationAgentAssignmentSet {
+        ConversationAgentAssignmentSet {
+            generation: self.generation,
+            source: self.source.clone(),
+            agents: self.agents.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ConversationAgentsReplacedProjectionPayload {
+    pub(super) conversation_id: String,
+    pub(super) previous_generation: u64,
+    pub(super) agent_assignments: ConversationAgentAssignmentsProjectionPayload,
+    pub(super) replaced_at: String,
 }
 
 pub(super) fn title_from_created_payload(payload: &ConversationCreatedPayload) -> Option<String> {

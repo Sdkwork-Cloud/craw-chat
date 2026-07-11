@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use im_domain_core::conversation::{
-    AgentHandoffStateView, ChangeAgentHandoffStatusView, ConversationAggregateState,
-    ConversationBusinessBinding, ConversationHandoffLifecycle,
+    AgentHandoffStateView, ChangeAgentHandoffStatusView, ConversationAgentAssignment,
+    ConversationAgentAssignmentError, ConversationAgentAssignmentSource,
+    ConversationAggregateState, ConversationBusinessBinding, ConversationHandoffLifecycle,
     ConversationHandoffTransitionOutcome, ConversationPolicy, ConversationRoster,
     ConversationScenario, MembershipRole, MembershipState, build_conversation_member,
     build_conversation_member_with_attributes, build_default_read_cursor, member_episode_id,
@@ -866,6 +867,163 @@ fn test_conversation_aggregate_state_tracks_business_binding() {
     aggregate.replace_business_binding(Some(binding.clone()));
 
     assert_eq!(aggregate.business_binding(), Some(&binding));
+}
+
+#[test]
+fn test_group_agent_assignments_are_ordered_versioned_and_not_members() {
+    let mut aggregate = ConversationAggregateState::new("group");
+    let roster = ConversationRoster::default();
+
+    let generation = aggregate
+        .replace_agent_assignments(
+            ConversationAgentAssignmentSource::DefaultPolicy,
+            vec![
+                ConversationAgentAssignment::new(
+                    "agent.im.default",
+                    Some("revision.default.1".into()),
+                ),
+                ConversationAgentAssignment::new(
+                    "agent.im.reviewer",
+                    Some("revision.reviewer.3".into()),
+                ),
+            ],
+        )
+        .expect("group agent assignments should be accepted");
+
+    assert_eq!(generation, 1);
+    let assignments = aggregate
+        .agent_assignments()
+        .expect("group should expose agent assignments");
+    assert_eq!(assignments.generation, generation);
+    assert_eq!(
+        assignments.source,
+        ConversationAgentAssignmentSource::DefaultPolicy
+    );
+    assert_eq!(
+        assignments
+            .agents
+            .iter()
+            .map(|agent| agent.agent_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["agent.im.default", "agent.im.reviewer"]
+    );
+    assert!(
+        roster
+            .resolve_active_member_with_kind("agent.im.default", "agent")
+            .is_none(),
+        "synthetic group agents must not become conversation members"
+    );
+}
+
+#[test]
+fn test_group_agent_assignment_generation_is_independent_from_journal_ordering() {
+    let mut aggregate = ConversationAggregateState::new("group");
+    assert_eq!(aggregate.next_member_epoch(), 1);
+
+    let first_generation = aggregate
+        .replace_agent_assignments(
+            ConversationAgentAssignmentSource::DefaultPolicy,
+            vec![ConversationAgentAssignment::new("agent.im.default", None)],
+        )
+        .expect("first assignment generation should be allocated");
+    assert_eq!(first_generation, 1);
+    assert_eq!(
+        aggregate.commit_seq(),
+        1,
+        "assignment generation must not consume an invisible journal ordering sequence"
+    );
+
+    assert_eq!(aggregate.next_member_epoch(), 2);
+    let second_generation = aggregate
+        .replace_agent_assignments(
+            ConversationAgentAssignmentSource::ConversationOverride,
+            vec![ConversationAgentAssignment::new("agent.im.reviewer", None)],
+        )
+        .expect("replacement assignment generation should be allocated");
+    assert_eq!(second_generation, 2);
+    assert_eq!(aggregate.commit_seq(), 2);
+}
+
+#[test]
+fn test_group_agent_assignments_reject_duplicates_and_non_group_conversations() {
+    let duplicate = ConversationAgentAssignment::new("agent.im.default", None);
+    let mut group = ConversationAggregateState::new("group");
+    let duplicate_result = group.replace_agent_assignments(
+        ConversationAgentAssignmentSource::ConversationOverride,
+        vec![duplicate.clone(), duplicate],
+    );
+    assert_eq!(
+        duplicate_result,
+        Err(ConversationAgentAssignmentError::DuplicateAgentId(
+            "agent.im.default".into()
+        ))
+    );
+
+    let mut direct = ConversationAggregateState::new("direct");
+    let direct_result = direct.replace_agent_assignments(
+        ConversationAgentAssignmentSource::ConversationOverride,
+        vec![ConversationAgentAssignment::new("agent.im.default", None)],
+    );
+    assert_eq!(
+        direct_result,
+        Err(ConversationAgentAssignmentError::UnsupportedConversationType("direct".into()))
+    );
+}
+
+#[test]
+fn test_group_agent_assignment_restore_rejects_stale_and_conflicting_generations() {
+    let mut aggregate = ConversationAggregateState::new("group");
+    let current = vec![ConversationAgentAssignment::new(
+        "agent.im.reviewer",
+        Some("revision.im.reviewer.7".into()),
+    )];
+    aggregate
+        .restore_agent_assignments(
+            7,
+            ConversationAgentAssignmentSource::ConversationOverride,
+            current.clone(),
+        )
+        .expect("current assignment generation should restore");
+
+    aggregate
+        .restore_agent_assignments(
+            7,
+            ConversationAgentAssignmentSource::ConversationOverride,
+            current.clone(),
+        )
+        .expect("replaying the same assignment generation should be idempotent");
+
+    let stale = aggregate.restore_agent_assignments(
+        4,
+        ConversationAgentAssignmentSource::DefaultPolicy,
+        vec![ConversationAgentAssignment::new("agent.im.default", None)],
+    );
+    assert_eq!(
+        stale,
+        Err(ConversationAgentAssignmentError::StaleGeneration {
+            current: 7,
+            attempted: 4,
+        })
+    );
+
+    let conflicting = aggregate.restore_agent_assignments(
+        7,
+        ConversationAgentAssignmentSource::ConversationOverride,
+        vec![ConversationAgentAssignment::new("agent.im.writer", None)],
+    );
+    assert_eq!(
+        conflicting,
+        Err(ConversationAgentAssignmentError::GenerationConflict { generation: 7 })
+    );
+
+    assert_eq!(aggregate.agent_assignment_epoch(), 7);
+    assert_eq!(
+        aggregate
+            .agent_assignments()
+            .expect("effective assignment should remain available")
+            .agents,
+        current
+    );
 }
 
 #[test]

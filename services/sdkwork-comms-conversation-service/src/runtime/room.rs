@@ -190,6 +190,10 @@ where
             policy.history_visibility = room_kind.default_history_visibility().into();
             policy
         }));
+        let created_agent_assignments = agents::apply_current_group_agent_default(
+            &mut conversation.aggregate,
+            &self.group_agent_default_policy,
+        )?;
 
         let owner_ordering_seq = conversation.aggregate.next_member_epoch();
         upsert_member(
@@ -199,13 +203,27 @@ where
             owner_member.clone(),
         );
         upsert_read_cursor(&mut conversation, build_default_read_cursor(&owner_member));
+        let mut created_payload = json!({
+            "conversationId": command.conversation_id.clone(),
+            "conversationType": "group",
+            "businessType": business_binding.business_type.clone(),
+            "businessId": business_binding.business_id.clone(),
+            "roomKind": room_kind.as_wire_value(),
+            "maxMembers": room_kind.default_max_members(),
+        });
+        created_payload["agentAssignments"] = serde_json::to_value(&created_agent_assignments)
+            .map_err(|error| {
+                RuntimeError::InvalidInput(format!(
+                    "failed to serialize room agent assignments: {error}"
+                ))
+            })?;
 
         let envelope = CommitEnvelope {
             event_id: event_id.clone(),
             tenant_id: command.tenant_id.clone(),
             organization_id: command.organization_id.clone(),
             event_type: "conversation.created".into(),
-            event_version: 1,
+            event_version: 2,
             aggregate_type: AggregateType::Conversation,
             aggregate_id: command.conversation_id.clone(),
             scope_type: "conversation".into(),
@@ -225,22 +243,13 @@ where
             },
             occurred_at: created_at.clone(),
             committed_at: created_at,
-            payload_schema: Some("conversation.created.v1".into()),
-            payload: json!({
-                "conversationId": command.conversation_id.clone(),
-                "conversationType": "group",
-                "businessType": business_binding.business_type.clone(),
-                "businessId": business_binding.business_id.clone(),
-                "roomKind": room_kind.as_wire_value(),
-                "maxMembers": room_kind.default_max_members(),
-            })
-            .to_string(),
+            payload_schema: Some("conversation.created.v2".into()),
+            payload: created_payload.to_string(),
             retention_class: "standard".into(),
             audit_class: "default".into(),
         };
 
-        self.journal.append(envelope)?;
-        self.journal.append(build_member_envelope(
+        let member_envelope = build_member_envelope(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
@@ -250,7 +259,8 @@ where
             "standard",
             command.creator_id.as_str(),
             creator_kind,
-        ))?;
+        );
+        self.journal.append_batch(vec![envelope, member_envelope])?;
         state.insert_conversation(scope_key, conversation);
         state
             .business_index

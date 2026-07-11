@@ -70,7 +70,11 @@ async function main() {
       'PLAYWRIGHT_PC_PORT and PLAYWRIGHT_PC_COMPONENT_PORT must be different',
     );
     await Promise.all([
-      assertPortAvailable({ host: '0.0.0.0', port: e2ePort }),
+      assertPortAvailable({
+        host: '0.0.0.0',
+        port: e2ePort,
+        readinessHosts: ['127.0.0.1'],
+      }),
       assertPortAvailable({ host: '127.0.0.1', port: componentPort }),
     ]);
     if (signal.aborted) {

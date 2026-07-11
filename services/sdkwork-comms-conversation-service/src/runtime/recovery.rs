@@ -5,6 +5,7 @@ use super::*;
 #[serde(rename_all = "camelCase")]
 struct RecoveredConversationCreatedPayload {
     conversation_type: String,
+    agent_assignments: Option<agents::ConversationAgentAssignmentsEventPayload>,
     business_type: Option<String>,
     business_id: Option<String>,
     room_kind: Option<String>,
@@ -16,6 +17,33 @@ struct RecoveredConversationCreatedPayload {
     source: Option<ChangeAgentHandoffStatusView>,
     target: Option<ChangeAgentHandoffStatusView>,
     handoff: Option<RecoveredConversationHandoffPayload>,
+}
+
+fn recovered_created_agent_assignments(
+    envelope: &CommitEnvelope,
+    payload: &RecoveredConversationCreatedPayload,
+) -> Result<Option<agents::ConversationAgentAssignmentsEventPayload>, RuntimeError> {
+    if payload.conversation_type != "group" {
+        return Ok(None);
+    }
+    match (envelope.event_version, envelope.payload_schema.as_deref()) {
+        (1, Some("conversation.created.v1")) | (1, None) => {
+            Ok(Some(agents::legacy_v1_group_agent_default()))
+        }
+        (2, Some("conversation.created.v2")) => {
+            let assignments = payload.agent_assignments.clone().ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "conversation.created.v2 {} is missing mandatory agent assignments",
+                    envelope.event_id
+                ))
+            })?;
+            agents::validate_created_group_agent_assignments(&assignments)?;
+            Ok(Some(assignments))
+        }
+        (event_version, payload_schema) => Err(RuntimeError::Conflict(format!(
+            "unsupported group conversation.created version: eventVersion={event_version}, payloadSchema={payload_schema:?}"
+        ))),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,6 +242,9 @@ where
     pub fn apply_recovered_envelope(&self, envelope: &CommitEnvelope) -> Result<(), RuntimeError> {
         match envelope.event_type.as_str() {
             "conversation.created" => self.apply_recovered_conversation_created(envelope),
+            "conversation.agents_replaced" => {
+                self.apply_recovered_conversation_agents_replaced(envelope)
+            }
             "conversation.policy_applied" => {
                 self.apply_recovered_conversation_policy_applied(envelope)
             }
@@ -254,6 +285,7 @@ where
                     envelope.event_id
                 ))
             })?;
+        let recovered_agent_assignments = recovered_created_agent_assignments(envelope, &payload)?;
         let business_binding = match (payload.business_type.clone(), payload.business_id.clone()) {
             (Some(business_type), Some(business_id)) => Some(ConversationBusinessBinding {
                 business_type,
@@ -298,8 +330,34 @@ where
             let direct_chat_binding_record =
                 direct_chat_binding_replay_record_from_recovered_payload(&payload, envelope);
             let conversation = state.conversations.entry(scope_key).or_default();
-            conversation.aggregate =
-                ConversationAggregateState::new(payload.conversation_type.clone());
+            if conversation.aggregate.conversation_type().is_empty() {
+                conversation.aggregate =
+                    ConversationAggregateState::new(payload.conversation_type.clone());
+            } else if conversation.aggregate.conversation_type() != payload.conversation_type {
+                return Err(RuntimeError::Conflict(format!(
+                    "replayed conversation.created {} changed conversation type from {} to {}",
+                    envelope.event_id,
+                    conversation.aggregate.conversation_type(),
+                    payload.conversation_type
+                )));
+            }
+            if let Some(assignments) = recovered_agent_assignments {
+                let current_generation = conversation
+                    .aggregate
+                    .agent_assignments()
+                    .map(|current| current.generation)
+                    .unwrap_or_default();
+                if assignments.generation >= current_generation {
+                    conversation
+                        .aggregate
+                        .restore_agent_assignments(
+                            assignments.generation,
+                            assignments.source,
+                            assignments.agents,
+                        )
+                        .map_err(agents::agent_assignment_error_to_runtime)?;
+                }
+            }
             if let Some(record) = generic_create_record {
                 if let Some(existing) = conversation.generic_create_request.as_ref() {
                     if existing != &record {
@@ -416,6 +474,114 @@ where
                 .business_index
                 .insert(business_scope_key, envelope.scope_id.clone());
         }
+        Ok(())
+    }
+
+    fn apply_recovered_conversation_agents_replaced(
+        &self,
+        envelope: &CommitEnvelope,
+    ) -> Result<(), RuntimeError> {
+        if envelope.event_version != 1
+            || envelope.payload_schema.as_deref() != Some("conversation.agents_replaced.v1")
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "unsupported conversation.agents_replaced version for {}",
+                envelope.event_id
+            )));
+        }
+        let payload: agents::ConversationAgentsReplacedPayload =
+            serde_json::from_str(envelope.payload.as_str()).map_err(|error| {
+                RuntimeError::Conflict(format!(
+                    "failed to replay conversation.agents_replaced {}: {error}",
+                    envelope.event_id
+                ))
+            })?;
+        if payload.conversation_id != envelope.scope_id {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.agents_replaced {} scope does not match payload conversation id",
+                envelope.event_id
+            )));
+        }
+        if payload.agent_assignments.source
+            != ConversationAgentAssignmentSource::ConversationOverride
+            || payload.agent_assignments.policy_id.is_some()
+            || payload.agent_assignments.policy_version.is_some()
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.agents_replaced {} must contain a conversation_override assignment set",
+                envelope.event_id
+            )));
+        }
+        let expected_generation = payload.previous_generation.checked_add(1).ok_or_else(|| {
+            RuntimeError::Conflict(
+                "conversation agent assignment generation overflow during replay".into(),
+            )
+        })?;
+        if payload.agent_assignments.generation != expected_generation {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.agents_replaced {} generation is not contiguous: previous={}, next={}",
+                envelope.event_id,
+                payload.previous_generation,
+                payload.agent_assignments.generation
+            )));
+        }
+        let mut validated = ConversationAggregateState::new("group");
+        validated
+            .restore_agent_assignments(
+                payload.agent_assignments.generation,
+                payload.agent_assignments.source.clone(),
+                payload.agent_assignments.agents.clone(),
+            )
+            .map_err(agents::agent_assignment_error_to_runtime)?;
+
+        let scope_key = conversation_scope_key_for_envelope(envelope);
+        let mut state = write_runtime_state(&self.state, "runtime state");
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(envelope.scope_id.clone()))?;
+        if conversation.aggregate.conversation_type() != "group" {
+            return Err(RuntimeError::ConversationTypeInvalid(format!(
+                "agent assignments require a group conversation, got {}",
+                conversation.aggregate.conversation_type()
+            )));
+        }
+        let current_generation = conversation
+            .aggregate
+            .agent_assignments()
+            .map(|current| current.generation)
+            .ok_or_else(|| {
+                RuntimeError::Conflict(format!(
+                    "group conversation is missing mandatory agent assignments: {}",
+                    envelope.scope_id
+                ))
+            })?;
+        if payload.agent_assignments.generation < current_generation {
+            conversation
+                .aggregate
+                .observe_commit_seq(envelope.ordering_seq);
+            return Ok(());
+        }
+        if payload.agent_assignments.generation > current_generation
+            && payload.previous_generation != current_generation
+        {
+            return Err(RuntimeError::Conflict(format!(
+                "conversation.agents_replaced {} does not continue current generation {}",
+                envelope.event_id, current_generation
+            )));
+        }
+        conversation
+            .aggregate
+            .restore_agent_assignments(
+                payload.agent_assignments.generation,
+                payload.agent_assignments.source,
+                payload.agent_assignments.agents,
+            )
+            .map_err(agents::agent_assignment_error_to_runtime)?;
+        conversation
+            .aggregate
+            .observe_commit_seq(envelope.ordering_seq);
+        state.touch_conversation(scope_key.as_str());
         Ok(())
     }
 
@@ -992,6 +1158,7 @@ mod tests {
     fn recovered_created_envelope() -> CommitEnvelope {
         let payload = RecoveredConversationCreatedPayload {
             conversation_type: "group".into(),
+            agent_assignments: None,
             business_type: None,
             business_id: None,
             room_kind: None,
@@ -1031,6 +1198,33 @@ mod tests {
             retention_class: "standard".into(),
             audit_class: "default".into(),
         }
+    }
+
+    #[test]
+    fn test_v1_group_recovery_does_not_consult_the_current_default_policy() {
+        let runtime = ConversationRuntime::new(InMemoryJournal::default())
+            .with_group_agent_default_policy_for_test(
+                "policy.im.group.current",
+                9,
+                vec![ConversationAgentAssignment::new(
+                    "agent.im.current",
+                    Some("revision.im.current.9".into()),
+                )],
+            );
+
+        runtime
+            .apply_recovered_envelope(&recovered_created_envelope())
+            .expect("legacy group creation should replay");
+        let assignments = runtime
+            .conversation_agent_assignments_snapshot("100001", "0", "c_demo")
+            .expect("legacy assignments should be available");
+
+        assert_eq!(assignments.generation, 1);
+        assert_eq!(assignments.agents[0].agent_id, "agent.im.default");
+        assert_eq!(
+            assignments.agents[0].revision_id.as_deref(),
+            Some("revision.im.default.1")
+        );
     }
 
     #[test]

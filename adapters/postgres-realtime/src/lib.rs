@@ -283,7 +283,7 @@ fn build_realtime_pool(
 fn build_realtime_pool_local(
     config: &PostgresRealtimeConfig,
 ) -> Result<PostgresRealtimePool, ContractError> {
-    verify_production_sslmode(config.database_url.as_str());
+    verify_production_sslmode(config.database_url.as_str())?;
     let pg_config = config
         .database_url
         .parse()
@@ -314,7 +314,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
-fn verify_production_sslmode(database_url: &str) {
+fn verify_production_sslmode(database_url: &str) -> Result<(), ContractError> {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()
         .trim()
@@ -324,7 +324,7 @@ fn verify_production_sslmode(database_url: &str) {
         "" | "dev" | "development" | "test" | "testing"
     );
     if !is_production {
-        return;
+        return Ok(());
     }
     let lowered = database_url.to_ascii_lowercase();
     let requires_tls = lowered.contains("sslmode=require")
@@ -333,10 +333,17 @@ fn verify_production_sslmode(database_url: &str) {
         || lowered.contains("sslmode=verifyca")
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
-        panic!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
-        );
+        return Err(ContractError::Unavailable(
+            format!(
+                "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+                 sslmode=require or sslmode=verify-full in production \
+                 (current environment={environment}). Refusing to start with a \
+                 plaintext database connection."
+            )
+            .into(),
+        ));
     }
+    Ok(())
 }
 
 #[derive(Clone)]

@@ -13,9 +13,9 @@ import type {
 import type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
-} from './openapi-compat-types';
-import { requireStringIdentifier } from './identifier-boundary';
-import type { ImTransportClientLike } from './transport-client-like';
+} from './openapi-compat-types.js';
+import { requireStringIdentifier } from './identifier-boundary.js';
+import type { ImTransportClientLike } from './transport-client-like.js';
 
 export class ImMessagesModule {
   readonly favorites = {

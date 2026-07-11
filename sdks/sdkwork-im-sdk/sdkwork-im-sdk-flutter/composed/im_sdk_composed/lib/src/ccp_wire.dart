@@ -4,7 +4,15 @@ const imCcpWebSocketSubprotocol = 'sdkwork-im.ccp.ws.v1';
 const imRealtimeWsPath = '/im/v3/api/realtime/ws';
 
 const _ccpProtocol = <String, dynamic>{'family': 'ccp', 'major': 1, 'minor': 0};
-const _ccpWsBinding = 'Ws1';
+
+/// CCP binding identifier constants, aligned with the server-side
+/// `sdkwork-im-ccp-core` `TransportBinding`.
+const ccpWsBinding = 'Ws1';
+const ccpTcpBinding = 'Tcp1';
+const ccpUdpBinding = 'Udp1';
+
+/// All supported CCP binding identifiers.
+const ccpBindingIds = <String>[ccpWsBinding, ccpTcpBinding, ccpUdpBinding];
 
 class ImCcpAuthBindContext {
   const ImCcpAuthBindContext({
@@ -25,10 +33,11 @@ Map<String, dynamic> _encodeCcpEnvelope(
   String kind,
   Map<String, dynamic> payload, {
   String? traceId,
+  String binding = ccpWsBinding,
 }) {
   return <String, dynamic>{
     'protocol': Map<String, dynamic>.from(_ccpProtocol),
-    'binding': _ccpWsBinding,
+    'binding': binding,
     'kind': kind,
     'schema': schema,
     'scope': null,
@@ -44,17 +53,24 @@ String encodeCcpControlFrame(
   String controlType,
   Map<String, dynamic> data, {
   String? traceId,
+  String binding = ccpWsBinding,
 }) {
   return jsonEncode(_encodeCcpEnvelope(
     schema,
     'control',
     <String, dynamic>{'type': controlType, 'data': data},
     traceId: traceId,
+    binding: binding,
   ));
 }
 
-String encodeCcpBusinessFrame(String schema, String kind, Map<String, dynamic> payload) {
-  return jsonEncode(_encodeCcpEnvelope(schema, kind, payload));
+String encodeCcpBusinessFrame(
+  String schema,
+  String kind,
+  Map<String, dynamic> payload, {
+  String binding = ccpWsBinding,
+}) {
+  return jsonEncode(_encodeCcpEnvelope(schema, kind, payload, binding: binding));
 }
 
 Map<String, dynamic>? decodeCcpEnvelope(String raw) {
@@ -91,38 +107,54 @@ String unwrapInboundRealtimeFrame(String raw) {
   return envelope['payload'] as String;
 }
 
-String encodeCcpHelloFrame() {
+String encodeCcpHelloFrame({String binding = ccpWsBinding}) {
   return encodeCcpControlFrame(
     'cc.control.hello.v1',
     'hello',
     <String, dynamic>{
       'protocol': Map<String, dynamic>.from(_ccpProtocol),
-      'binding': _ccpWsBinding,
+      'binding': binding,
       'capabilities': <String, dynamic>{'items': <String>['payload.json', 'session.resume']},
     },
+    binding: binding,
   );
 }
 
-String encodeCcpAuthBindFrame(ImCcpAuthBindContext context) {
-  return encodeCcpControlFrame('cc.control.auth_bind.v1', 'auth_bind', <String, dynamic>{
-    'principal_id': context.principalId,
-    'device_id': context.deviceId,
-    'session_id': context.sessionId,
-    'actor_kind': context.actorKind,
-  });
+String encodeCcpAuthBindFrame(ImCcpAuthBindContext context, {String binding = ccpWsBinding}) {
+  return encodeCcpControlFrame(
+    'cc.control.auth_bind.v1',
+    'auth_bind',
+    <String, dynamic>{
+      'principal_id': context.principalId,
+      'device_id': context.deviceId,
+      'session_id': context.sessionId,
+      'actor_kind': context.actorKind,
+    },
+    binding: binding,
+  );
 }
 
-String encodeCcpHeartbeatFrame(int sequence) {
-  return encodeCcpControlFrame('cc.control.heartbeat.v1', 'heartbeat', <String, dynamic>{
-    'sequence': sequence,
-  });
+String encodeCcpHeartbeatFrame(int sequence, {String binding = ccpWsBinding}) {
+  return encodeCcpControlFrame(
+    'cc.control.heartbeat.v1',
+    'heartbeat',
+    <String, dynamic>{
+      'sequence': sequence,
+    },
+    binding: binding,
+  );
 }
 
-String encodeCcpSessionResumeFrame(String sessionId, {int lastAckedSeq = 0}) {
-  return encodeCcpControlFrame('cc.control.session_resume.v1', 'session_resume', <String, dynamic>{
-    'session_id': sessionId,
-    'last_acked_seq': lastAckedSeq,
-  });
+String encodeCcpSessionResumeFrame(String sessionId, {int lastAckedSeq = 0, String binding = ccpWsBinding}) {
+  return encodeCcpControlFrame(
+    'cc.control.session_resume.v1',
+    'session_resume',
+    <String, dynamic>{
+      'session_id': sessionId,
+      'last_acked_seq': lastAckedSeq,
+    },
+    binding: binding,
+  );
 }
 
 Map<String, dynamic>? _parseCcpControlPayload(String raw) {

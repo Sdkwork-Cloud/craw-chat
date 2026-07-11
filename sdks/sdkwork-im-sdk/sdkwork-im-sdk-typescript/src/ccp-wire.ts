@@ -1,7 +1,17 @@
 export const IM_CCP_WEBSOCKET_SUBPROTOCOL = 'sdkwork-im.ccp.ws.v1';
 
 const CCP_PROTOCOL = { family: 'ccp', major: 1, minor: 0 } as const;
-const CCP_WS_BINDING = 'Ws1';
+
+/** CCP binding 标识常量，对齐服务端 sdkwork-im-ccp-core TransportBinding。 */
+export const CCP_WS_BINDING = 'Ws1' as const;
+export const CCP_TCP_BINDING = 'Tcp1' as const;
+export const CCP_UDP_BINDING = 'Udp1' as const;
+
+/** 所有受支持的 CCP binding 标识。 */
+export const CCP_BINDING_IDS = [CCP_WS_BINDING, CCP_TCP_BINDING, CCP_UDP_BINDING] as const;
+
+/** 默认使用 WebSocket binding，保持向后兼容。 */
+const DEFAULT_CCP_BINDING = CCP_WS_BINDING;
 
 export interface ImCcpAuthBindContext {
   actorKind: string;
@@ -22,10 +32,15 @@ interface ImCcpEnvelope {
   trace_id?: string;
 }
 
-function encodeCcpEnvelope(schema: string, kind: string, payload: Record<string, unknown>): string {
+function encodeCcpEnvelope(
+  schema: string,
+  kind: string,
+  payload: Record<string, unknown>,
+  binding: string = DEFAULT_CCP_BINDING,
+): string {
   const envelope: ImCcpEnvelope = {
     protocol: { ...CCP_PROTOCOL },
-    binding: CCP_WS_BINDING,
+    binding,
     kind,
     schema,
     scope: null,
@@ -40,12 +55,18 @@ export function encodeCcpControlFrame(
   schema: string,
   controlType: string,
   data: Record<string, unknown>,
+  binding: string = DEFAULT_CCP_BINDING,
 ): string {
-  return encodeCcpEnvelope(schema, 'control', { type: controlType, data });
+  return encodeCcpEnvelope(schema, 'control', { type: controlType, data }, binding);
 }
 
-export function encodeCcpBusinessFrame(schema: string, kind: string, payload: Record<string, unknown>): string {
-  return encodeCcpEnvelope(schema, kind, payload);
+export function encodeCcpBusinessFrame(
+  schema: string,
+  kind: string,
+  payload: Record<string, unknown>,
+  binding: string = DEFAULT_CCP_BINDING,
+): string {
+  return encodeCcpEnvelope(schema, kind, payload, binding);
 }
 
 export function decodeCcpEnvelope(raw: string): ImCcpEnvelope | undefined {
@@ -77,38 +98,62 @@ export function unwrapInboundRealtimeFrame(raw: string): string {
   return envelope.payload;
 }
 
-export function encodeCcpHelloFrame(): string {
+export function encodeCcpHelloFrame(binding: string = DEFAULT_CCP_BINDING): string {
   return encodeCcpControlFrame(
     'cc.control.hello.v1',
     'hello',
     {
       protocol: { ...CCP_PROTOCOL },
-      binding: CCP_WS_BINDING,
+      binding,
       capabilities: { items: ['payload.json', 'session.resume'] },
     },
+    binding,
   );
 }
 
-export function encodeCcpAuthBindFrame(context: ImCcpAuthBindContext): string {
-  return encodeCcpControlFrame('cc.control.auth_bind.v1', 'auth_bind', {
-    principal_id: context.principalId,
-    device_id: context.deviceId ?? null,
-    session_id: context.sessionId ?? null,
-    actor_kind: context.actorKind,
-  });
+export function encodeCcpAuthBindFrame(
+  context: ImCcpAuthBindContext,
+  binding: string = DEFAULT_CCP_BINDING,
+): string {
+  return encodeCcpControlFrame(
+    'cc.control.auth_bind.v1',
+    'auth_bind',
+    {
+      principal_id: context.principalId,
+      device_id: context.deviceId ?? null,
+      session_id: context.sessionId ?? null,
+      actor_kind: context.actorKind,
+    },
+    binding,
+  );
 }
 
-export function encodeCcpHeartbeatFrame(sequence: number): string {
-  return encodeCcpControlFrame('cc.control.heartbeat.v1', 'heartbeat', {
-    sequence,
-  });
+export function encodeCcpHeartbeatFrame(
+  sequence: number,
+  binding: string = DEFAULT_CCP_BINDING,
+): string {
+  return encodeCcpControlFrame(
+    'cc.control.heartbeat.v1',
+    'heartbeat',
+    { sequence },
+    binding,
+  );
 }
 
-export function encodeCcpSessionResumeFrame(sessionId: string, lastAckedSeq = 0): string {
-  return encodeCcpControlFrame('cc.control.session_resume.v1', 'session_resume', {
-    session_id: sessionId,
-    last_acked_seq: lastAckedSeq,
-  });
+export function encodeCcpSessionResumeFrame(
+  sessionId: string,
+  lastAckedSeq = 0,
+  binding: string = DEFAULT_CCP_BINDING,
+): string {
+  return encodeCcpControlFrame(
+    'cc.control.session_resume.v1',
+    'session_resume',
+    {
+      session_id: sessionId,
+      last_acked_seq: lastAckedSeq,
+    },
+    binding,
+  );
 }
 
 function parseCcpControlPayload(raw: string): Record<string, unknown> | undefined {

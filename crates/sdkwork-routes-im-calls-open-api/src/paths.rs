@@ -6,3 +6,5 @@ pub const CALL_SESSION_REJECT: &str = "/im/v3/api/calls/sessions/{rtcSessionId}/
 pub const CALL_SESSION_END: &str = "/im/v3/api/calls/sessions/{rtcSessionId}/end";
 pub const CALL_SESSION_SIGNALS: &str = "/im/v3/api/calls/sessions/{rtcSessionId}/signals";
 pub const CALL_SESSION_CREDENTIALS: &str = "/im/v3/api/calls/sessions/{rtcSessionId}/credentials";
+pub const CALL_SESSION_CREDENTIALS_REFRESH: &str =
+    "/im/v3/api/calls/sessions/{rtcSessionId}/credentials/refresh";

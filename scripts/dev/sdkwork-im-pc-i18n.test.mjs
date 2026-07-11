@@ -63,6 +63,9 @@ const workspaceZh = readWorkspaceLocale('zh-CN');
 const workspaceEn = readWorkspaceLocale('en-US');
 const rootPackage = readJson('package.json');
 
+const workspaceStringEntries = (locale) => flattenStrings(locale).sort(([left], [right]) => left.localeCompare(right));
+const interpolationTokens = (value) => [...value.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/gu)].map((match) => match[1]).sort();
+
 assert.equal(
   rootPackage.scripts?.['test:sdkwork-im-pc-i18n'],
   'node scripts/dev/sdkwork-im-pc-i18n.test.mjs',
@@ -175,6 +178,37 @@ assert.equal(workspaceZh.apps.drive, '云盘');
 assert.match(workspaceZh.apps.writing, /^AI\s*智能写作$/u);
 assert.deepEqual(Object.keys(workspaceZh.apps).sort(), Object.keys(workspaceEn.apps).sort(), 'workspace app locale keys must match');
 assert.deepEqual(Object.keys(workspaceZh.docs).sort(), Object.keys(workspaceEn.docs).sort(), 'workspace doc locale keys must match');
+assert.deepEqual(
+  workspaceStringEntries(workspaceZh).map(([key]) => key),
+  workspaceStringEntries(workspaceEn).map(([key]) => key),
+  'workspace locale fragments must have identical string key paths',
+);
+for (const [key, zhValue] of workspaceStringEntries(workspaceZh)) {
+  const enValue = Object.fromEntries(workspaceStringEntries(workspaceEn))[key];
+  assert.deepEqual(
+    interpolationTokens(zhValue),
+    interpolationTokens(enValue),
+    `workspace interpolation tokens must match for ${key}`,
+  );
+}
+for (const key of ['knowledge', 'community', 'voice', 'shop', 'orders']) {
+  assert.equal(typeof workspaceZh.apps[key], 'string', `workspace zh-CN app key ${key} must exist`);
+  assert.equal(typeof workspaceEn.apps[key], 'string', `workspace en-US app key ${key} must exist`);
+}
+for (const key of [
+  'searchNoResults',
+  'manageShortcuts',
+  'manageShortcutsTitle',
+  'save',
+  'retry',
+  'noApps',
+  'openDrive',
+  'time.todayAt',
+]) {
+  const resolve = (value) => key.split('.').reduce((current, segment) => current?.[segment], value);
+  assert.equal(typeof resolve(workspaceZh), 'string', `workspace zh-CN key ${key} must exist`);
+  assert.equal(typeof resolve(workspaceEn), 'string', `workspace en-US key ${key} must exist`);
+}
 
 const sidebarSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/Sidebar.tsx');
 const sidebarHoverTitleKeys = Object.keys(chatEn.sidebar).filter((key) => key !== 'settingsLocked');

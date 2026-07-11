@@ -60,7 +60,12 @@ assert.match(
 );
 assert.match(
   callServiceSource,
-  /targetName:\s*[\s\S]*\?\?\s*this\.snapshot\.targetName/u,
+  /targetName:\s*[\s\S]*options\.targetName/u,
+  'CallService snapshots must preserve an explicit UI-resolved target name instead of deriving one from a raw initiator id.',
+);
+assert.doesNotMatch(
+  callServiceSource,
+  /targetName:\s*(?:session\.)?initiatorId/u,
   'CallService snapshots must not expose raw initiator ids as target names when ChatLayout can resolve friendly chat/contact names.',
 );
 assert.match(

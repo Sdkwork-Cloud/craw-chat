@@ -269,6 +269,7 @@ impl TimelineProjectionService {
         }
         let result = match event.event_type.as_str() {
             "conversation.created" => self.apply_conversation_created(event),
+            "conversation.agents_replaced" => self.apply_conversation_agents_replaced(event),
             "conversation.policy_applied" => self.apply_conversation_policy_applied(event),
             "conversation.agent_handoff_status_changed" => {
                 self.apply_agent_handoff_status_changed(event)

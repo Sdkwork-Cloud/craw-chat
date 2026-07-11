@@ -30,7 +30,7 @@ struct ApplicationAssemblyBackground {
     _projection_journal_consumer: Option<projection_service::ProjectionJournalConsumerHandle>,
 }
 
-pub async fn assemble_application_router() -> ApplicationAssembly {
+pub async fn assemble_application_router() -> Result<ApplicationAssembly, String> {
     let mut router = Router::new();
     let mut background = ApplicationAssemblyBackground {
         _social_shared_channel_sync: None,
@@ -40,7 +40,7 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
         _projection_journal_consumer: None,
     };
 
-    let social_runtime = build_social_runtime();
+    let social_runtime = build_social_runtime()?;
     background._social_shared_channel_sync =
         social_service::spawn_shared_channel_sync_stale_reclaim_scheduler_from_env(
             social_runtime.clone(),
@@ -90,16 +90,16 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
 
     router = router.merge(sdkwork_routes_im_stream_app_api::gateway_mount());
 
-    ApplicationAssembly {
+    Ok(ApplicationAssembly {
         router,
         social_runtime,
         _background: background,
-    }
+    })
 }
 
-fn build_social_runtime() -> Arc<SocialRuntime> {
+fn build_social_runtime() -> Result<Arc<SocialRuntime>, String> {
     match social_service::build_social_runtime_from_env() {
-        Ok(runtime) => runtime,
+        Ok(runtime) => Ok(runtime),
         Err(error) if allows_header_only_app_context_fallback() => {
             tracing::warn!(
                 error = %error,
@@ -107,14 +107,14 @@ fn build_social_runtime() -> Arc<SocialRuntime> {
             );
             match std::env::var(SOCIAL_RUNTIME_DIR_ENV) {
                 Ok(runtime_dir) if !runtime_dir.trim().is_empty() => {
-                    Arc::new(SocialRuntime::from_runtime_dir(runtime_dir.as_str()))
+                    Ok(Arc::new(SocialRuntime::from_runtime_dir(runtime_dir.as_str())))
                 }
-                _ => Arc::new(SocialRuntime::default()),
+                _ => Ok(Arc::new(SocialRuntime::default())),
             }
         }
-        Err(error) => {
-            panic!("social runtime env bootstrap failed in production-like environment: {error}");
-        }
+        Err(error) => Err(format!(
+            "social runtime env bootstrap failed in production-like environment: {error}"
+        )),
     }
 }
 

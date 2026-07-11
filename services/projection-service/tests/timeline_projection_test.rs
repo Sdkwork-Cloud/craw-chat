@@ -1,5 +1,5 @@
 use im_app_context::AppContext;
-use im_domain_core::conversation::MembershipRole;
+use im_domain_core::conversation::{ConversationAgentAssignmentSource, MembershipRole};
 use projection_service::{
     ClientRouteSyncFeedWindowQuery, MessageReactionCountView, NotificationRecipientView,
     RealtimeFanoutTarget, TimelineProjectionService, TimelineViewEntry,
@@ -521,6 +521,228 @@ fn test_message_posted_event_projects_into_conversation_summary_view() {
     assert_eq!(summary.last_sender_id.as_deref(), Some("agent_demo"));
     assert_eq!(summary.last_sender_kind.as_deref(), Some("agent"));
     assert_eq!(summary.last_summary.as_deref(), Some("second"));
+}
+
+#[test]
+fn test_group_agent_assignments_project_as_metadata_without_synthetic_recipients() {
+    let service = TimelineProjectionService::default();
+    let mut conversation_created = im_domain_events::CommitEnvelope::minimal(
+        "evt_group_agents_created",
+        "100001",
+        "conversation.created",
+        "conversation",
+        "c_group_agents_projection",
+        0,
+    )
+    .with_payload(
+        "conversation.created.v2",
+        r#"{
+            "conversationId":"c_group_agents_projection",
+            "conversationType":"group",
+            "agentAssignments":{
+                "generation":1,
+                "source":"default_policy",
+                "agents":[
+                    {
+                        "agentId":"agent.im.default",
+                        "revisionId":"revision.im.default.1"
+                    }
+                ],
+                "policyId":"policy.im.group.default",
+                "policyVersion":1
+            }
+        }"#,
+    );
+    conversation_created.event_version = 2;
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_group_agents_owner",
+        "100001",
+        "conversation.member_joined",
+        "conversation",
+        "c_group_agents_projection",
+        1,
+    )
+    .with_payload(
+        "conversation.member_joined.v1",
+        r#"{
+            "tenantId":"100001",
+            "conversationId":"c_group_agents_projection",
+            "memberId":"cm_group_agents_user_1",
+            "principalId":"1",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-07-11T00:00:00.000Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let agents_replaced = im_domain_events::CommitEnvelope::minimal(
+        "evt_group_agents_replaced",
+        "100001",
+        "conversation.agents_replaced",
+        "conversation",
+        "c_group_agents_projection",
+        2,
+    )
+    .with_payload(
+        "conversation.agents_replaced.v1",
+        r#"{
+            "conversationId":"c_group_agents_projection",
+            "previousGeneration":1,
+            "agentAssignments":{
+                "generation":2,
+                "source":"conversation_override",
+                "agents":[
+                    {
+                        "agentId":"agent.im.reviewer",
+                        "revisionId":"revision.im.reviewer.3"
+                    },
+                    {
+                        "agentId":"agent.im.writer"
+                    }
+                ]
+            },
+            "replacedAt":"2026-07-11T00:01:00.000Z"
+        }"#,
+    );
+
+    service
+        .apply(&conversation_created)
+        .expect("conversation created projection should succeed");
+    service
+        .apply(&member_joined)
+        .expect("owner member projection should succeed");
+    service
+        .apply(&agents_replaced)
+        .expect("agent replacement projection should succeed");
+
+    let assignments = service
+        .conversation_agent_assignments("100001", "default", "c_group_agents_projection")
+        .expect("group agent assignments should be projected");
+    assert_eq!(assignments.generation, 2);
+    assert_eq!(
+        assignments.source,
+        ConversationAgentAssignmentSource::ConversationOverride
+    );
+    assert_eq!(
+        assignments
+            .agents
+            .iter()
+            .map(|agent| agent.agent_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["agent.im.reviewer", "agent.im.writer"]
+    );
+    assert!(
+        service
+            .member_snapshot_for_principal_kind(
+                "100001",
+                "default",
+                "c_group_agents_projection",
+                "agent.im.reviewer",
+                "agent",
+            )
+            .is_none()
+    );
+    assert!(
+        service
+            .read_cursor_for_principal_kind(
+                "100001",
+                "default",
+                "c_group_agents_projection",
+                "agent.im.reviewer",
+                "agent",
+            )
+            .is_none()
+    );
+    assert_eq!(
+        service
+            .message_posted_notification_recipients_from_auth_context(
+                &app_context("100001", "1", "user", None, None),
+                "c_group_agents_projection",
+            )
+            .expect("owner should be able to resolve notification recipients"),
+        vec![NotificationRecipientView {
+            principal_id: "1".into(),
+            principal_kind: "user".into(),
+        }]
+    );
+}
+
+#[test]
+fn test_group_agent_projection_rejects_invalid_created_policy_and_future_replacement_schema() {
+    let service = TimelineProjectionService::default();
+    let mut invalid_created = im_domain_events::CommitEnvelope::minimal(
+        "evt_group_agents_invalid_created",
+        "100001",
+        "conversation.created",
+        "conversation",
+        "c_group_agents_invalid_projection",
+        0,
+    )
+    .with_payload(
+        "conversation.created.v2",
+        r#"{
+            "conversationId":"c_group_agents_invalid_projection",
+            "conversationType":"group",
+            "agentAssignments":{
+                "generation":1,
+                "source":"conversation_override",
+                "agents":[{"agentId":"agent.im.default"}]
+            }
+        }"#,
+    );
+    invalid_created.event_version = 2;
+    assert!(
+        service.apply(&invalid_created).is_err(),
+        "created.v2 must require a versioned default_policy assignment snapshot"
+    );
+
+    let mut valid_created = invalid_created.clone();
+    valid_created.event_id = "evt_group_agents_valid_created".into();
+    valid_created.payload = r#"{
+        "conversationId":"c_group_agents_invalid_projection",
+        "conversationType":"group",
+        "agentAssignments":{
+            "generation":1,
+            "source":"default_policy",
+            "agents":[{"agentId":"agent.im.default"}],
+            "policyId":"policy.im.group.default",
+            "policyVersion":1
+        }
+    }"#
+    .into();
+    service
+        .apply(&valid_created)
+        .expect("valid created.v2 should project");
+
+    let mut future_replacement = im_domain_events::CommitEnvelope::minimal(
+        "evt_group_agents_future_replacement",
+        "100001",
+        "conversation.agents_replaced",
+        "conversation",
+        "c_group_agents_invalid_projection",
+        1,
+    )
+    .with_payload(
+        "conversation.agents_replaced.v2",
+        r#"{
+            "conversationId":"c_group_agents_invalid_projection",
+            "previousGeneration":1,
+            "agentAssignments":{
+                "generation":2,
+                "source":"conversation_override",
+                "agents":[{"agentId":"agent.im.writer"}]
+            },
+            "replacedAt":"2026-07-11T00:02:00.000Z"
+        }"#,
+    );
+    future_replacement.event_version = 2;
+    assert!(
+        service.apply(&future_replacement).is_err(),
+        "an unknown replacement event version must not be interpreted as v1"
+    );
 }
 
 #[test]

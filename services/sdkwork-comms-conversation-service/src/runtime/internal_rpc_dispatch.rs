@@ -399,6 +399,17 @@ fn message_view_from_stored(stored: &im_domain_core::message::StoredMessage) -> 
                     payload_json: data.payload.clone(),
                     media: None,
                 },
+                ContentPart::Mention(mention) => MessageBodyPart {
+                    kind: "mention".into(),
+                    text: mention.display_text.clone(),
+                    payload_json: serde_json::json!({
+                        "targetKind": "agent",
+                        "targetId": mention.target_id,
+                        "assignmentGeneration": mention.assignment_generation,
+                    })
+                    .to_string(),
+                    media: None,
+                },
                 ContentPart::Media(_) | ContentPart::Signal(_) | ContentPart::StreamRef(_) => {
                     MessageBodyPart {
                         kind: "structured".into(),

@@ -27,10 +27,9 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
         return this.props.fallback;
       }
       return (
-        <div className="flex h-full w-full items-center justify-center bg-zinc-950 p-6 text-center text-sm text-zinc-300">
+        <div className="flex h-full w-full items-center justify-center bg-zinc-950 p-6 text-center text-sm text-zinc-300" role="alert">
           <div className="max-w-md space-y-2">
             <div className="text-base font-medium text-zinc-100">Something went wrong</div>
-            <div className="text-zinc-400">{this.state.error.message}</div>
           </div>
         </div>
       );

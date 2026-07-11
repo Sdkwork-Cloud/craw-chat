@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthGate } from '../AuthGate';
+import { RequirePermission } from '../permissionGuard';
 import { useTauriTrayNavigationBridge } from './trayNavigation';
 
 const ChatLayout = lazy(() =>
@@ -120,8 +121,26 @@ export function AppRoutes() {
     <AuthGate>
       <Suspense fallback={ROUTE_FALLBACK}>
         <Routes>
-          <Route path="/console/*" element={<ConsoleApp />} />
-          <Route path="/admin/*" element={<AdminApp />} />
+          {/* Route-level RBAC: privileged operator/admin surfaces mount only
+              when the session token grants the matching permission claim, so a
+              user who is merely authenticated can no longer reach `/admin/*` or
+              `/console/*`. See REVIEW-2026-0710-im-commercial-readiness.md. */}
+          <Route
+            path="/console/*"
+            element={
+              <RequirePermission anyOf={['control.read', 'control.write']}>
+                <ConsoleApp />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/admin/*"
+            element={
+              <RequirePermission anyOf={['admin.read', 'admin.write']}>
+                <AdminApp />
+              </RequirePermission>
+            }
+          />
           <Route path="/*" element={<ChatLayout />} />
         </Routes>
       </Suspense>

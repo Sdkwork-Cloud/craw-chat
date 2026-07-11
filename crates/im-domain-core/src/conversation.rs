@@ -1,7 +1,69 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Bound;
 
 use serde::{Deserialize, Serialize};
+
+pub const CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT: usize = 16;
+pub const LEGACY_GROUP_AGENT_DEFAULT_POLICY_ID: &str = "policy.im.group.default";
+pub const LEGACY_GROUP_AGENT_DEFAULT_POLICY_VERSION: u32 = 1;
+pub const LEGACY_GROUP_AGENT_DEFAULT_ID: &str = "agent.im.default";
+pub const LEGACY_GROUP_AGENT_DEFAULT_REVISION_ID: &str = "revision.im.default.1";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConversationAgentAssignmentSource {
+    DefaultPolicy,
+    ConversationOverride,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationAgentAssignment {
+    pub agent_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_id: Option<String>,
+}
+
+impl ConversationAgentAssignment {
+    pub fn new(agent_id: impl Into<String>, revision_id: Option<String>) -> Self {
+        Self {
+            agent_id: agent_id.into(),
+            revision_id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationAgentAssignmentSet {
+    pub generation: u64,
+    pub source: ConversationAgentAssignmentSource,
+    pub agents: Vec<ConversationAgentAssignment>,
+}
+
+pub fn legacy_group_agent_assignment_set() -> ConversationAgentAssignmentSet {
+    ConversationAgentAssignmentSet {
+        generation: 1,
+        source: ConversationAgentAssignmentSource::DefaultPolicy,
+        agents: vec![ConversationAgentAssignment::new(
+            LEGACY_GROUP_AGENT_DEFAULT_ID,
+            Some(LEGACY_GROUP_AGENT_DEFAULT_REVISION_ID.into()),
+        )],
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ConversationAgentAssignmentError {
+    UnsupportedConversationType(String),
+    Empty,
+    TooMany { max: usize, actual: usize },
+    InvalidAgentId(String),
+    InvalidRevisionId(String),
+    DuplicateAgentId(String),
+    StaleGeneration { current: u64, attempted: u64 },
+    GenerationConflict { generation: u64 },
+    GenerationOverflow,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -882,6 +944,10 @@ pub struct ConversationAggregateState {
     policy_epoch: u64,
     policy: Option<ConversationPolicy>,
     business_binding: Option<ConversationBusinessBinding>,
+    #[serde(default)]
+    agent_assignment_epoch: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agent_assignments: Option<ConversationAgentAssignmentSet>,
     handoff_status_epoch: u64,
     handoff_state: Option<AgentHandoffStateView>,
 }
@@ -995,6 +1061,64 @@ impl ConversationAggregateState {
         self.business_binding = business_binding;
     }
 
+    pub fn agent_assignment_epoch(&self) -> u64 {
+        self.agent_assignment_epoch
+    }
+
+    pub fn agent_assignments(&self) -> Option<&ConversationAgentAssignmentSet> {
+        self.agent_assignments.as_ref()
+    }
+
+    pub fn replace_agent_assignments(
+        &mut self,
+        source: ConversationAgentAssignmentSource,
+        agents: Vec<ConversationAgentAssignment>,
+    ) -> Result<u64, ConversationAgentAssignmentError> {
+        validate_agent_assignments(self.conversation_type.as_str(), agents.as_slice())?;
+        let generation = self
+            .agent_assignment_epoch
+            .checked_add(1)
+            .ok_or(ConversationAgentAssignmentError::GenerationOverflow)?;
+        self.agent_assignment_epoch = generation;
+        self.agent_assignments = Some(ConversationAgentAssignmentSet {
+            generation,
+            source,
+            agents,
+        });
+        Ok(generation)
+    }
+
+    pub fn restore_agent_assignments(
+        &mut self,
+        generation: u64,
+        source: ConversationAgentAssignmentSource,
+        agents: Vec<ConversationAgentAssignment>,
+    ) -> Result<(), ConversationAgentAssignmentError> {
+        validate_agent_assignments(self.conversation_type.as_str(), agents.as_slice())?;
+        let restored = ConversationAgentAssignmentSet {
+            generation,
+            source,
+            agents,
+        };
+        if generation < self.agent_assignment_epoch {
+            return Err(ConversationAgentAssignmentError::StaleGeneration {
+                current: self.agent_assignment_epoch,
+                attempted: generation,
+            });
+        }
+        if generation == self.agent_assignment_epoch {
+            if self.agent_assignments.as_ref() == Some(&restored) {
+                return Ok(());
+            }
+            if self.agent_assignments.is_some() {
+                return Err(ConversationAgentAssignmentError::GenerationConflict { generation });
+            }
+        }
+        self.agent_assignment_epoch = generation;
+        self.agent_assignments = Some(restored);
+        Ok(())
+    }
+
     pub fn handoff_status_epoch(&self) -> u64 {
         self.handoff_status_epoch
     }
@@ -1057,6 +1181,73 @@ impl ConversationAggregateState {
             state,
         })
     }
+}
+
+fn validate_agent_assignments(
+    conversation_type: &str,
+    agents: &[ConversationAgentAssignment],
+) -> Result<(), ConversationAgentAssignmentError> {
+    if conversation_type != "group" {
+        return Err(
+            ConversationAgentAssignmentError::UnsupportedConversationType(
+                conversation_type.to_owned(),
+            ),
+        );
+    }
+    if agents.is_empty() {
+        return Err(ConversationAgentAssignmentError::Empty);
+    }
+    if agents.len() > CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT {
+        return Err(ConversationAgentAssignmentError::TooMany {
+            max: CONVERSATION_AGENT_ASSIGNMENT_MAX_COUNT,
+            actual: agents.len(),
+        });
+    }
+
+    let mut seen = BTreeSet::new();
+    for agent in agents {
+        if !is_standard_agent_target_id(agent.agent_id.as_str()) {
+            return Err(ConversationAgentAssignmentError::InvalidAgentId(
+                agent.agent_id.clone(),
+            ));
+        }
+        if let Some(revision_id) = agent.revision_id.as_deref()
+            && !is_standard_agent_revision_id(revision_id)
+        {
+            return Err(ConversationAgentAssignmentError::InvalidRevisionId(
+                revision_id.to_owned(),
+            ));
+        }
+        if !seen.insert(agent.agent_id.as_str()) {
+            return Err(ConversationAgentAssignmentError::DuplicateAgentId(
+                agent.agent_id.clone(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn is_standard_agent_target_id(value: &str) -> bool {
+    is_standard_dotted_id(value, "agent.")
+}
+
+fn is_standard_agent_revision_id(value: &str) -> bool {
+    is_standard_dotted_id(value, "revision.")
+}
+
+fn is_standard_dotted_id(value: &str, prefix: &str) -> bool {
+    value.len() <= 128
+        && value == value.trim()
+        && value.starts_with(prefix)
+        && value.split('.').all(|segment| {
+            !segment.is_empty()
+                && segment.bytes().all(|byte| {
+                    byte.is_ascii_lowercase()
+                        || byte.is_ascii_digit()
+                        || byte == b'_'
+                        || byte == b'-'
+                })
+        })
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

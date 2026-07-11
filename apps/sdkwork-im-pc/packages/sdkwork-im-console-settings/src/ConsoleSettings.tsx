@@ -163,13 +163,12 @@ export const ConsoleSettings = () => {
             <div className="flex justify-between items-center p-3 rounded-xl border border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/5">
               <div>
                 <div className="text-sm font-medium text-rose-700 dark:text-rose-400 mb-1">私有密钥 (Secret Key)</div>
-                <div className="font-mono text-xs text-rose-600/70 dark:text-rose-400/70">用于服务器端 API 调用，请勿在客户端暴露</div>
+                <div className="font-mono text-xs text-rose-600/70 dark:text-rose-400/70">用于服务器端 API 调用，客户端不展示明文，请通过安全渠道获取</div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="font-mono text-sm bg-white dark:bg-console-bg-root px-3 py-1.5 rounded-md border border-rose-200 dark:border-rose-500/30 text-console-text-main">
-                  {settings.secretKey}
+                <div className="font-mono text-sm bg-white dark:bg-console-bg-root px-3 py-1.5 rounded-md border border-rose-200 dark:border-rose-500/30 text-console-text-muted select-all">
+                  ••••••••••••••••
                 </div>
-                <button className="text-blue-600 text-sm font-medium hover:text-blue-700">显示</button>
               </div>
             </div>
           </div>

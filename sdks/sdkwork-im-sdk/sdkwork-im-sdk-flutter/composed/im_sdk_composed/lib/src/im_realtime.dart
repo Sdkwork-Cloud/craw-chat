@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:web_socket_channel/io.dart';
 
 import 'ccp_wire.dart';
+import 'transport.dart';
 
 typedef ImSubscription = void Function();
 
@@ -119,6 +120,7 @@ class ImCreateLiveConnectionParams {
     this.authToken,
     this.headers = const {},
     this.options = const ImConnectOptions(),
+    this.transport,
   });
 
   final String websocketBaseUrl;
@@ -126,6 +128,12 @@ class ImCreateLiveConnectionParams {
   final String? authToken;
   final Map<String, String> headers;
   final ImConnectOptions options;
+
+  /// Optional pre-built transport connection. When provided, the realtime
+  /// layer uses this transport instead of creating a new WebSocket. This
+  /// enables TCP/UDP/custom transports. When null, falls back to the
+  /// existing WebSocket path (backward compatible).
+  final ImTransportConnection? transport;
 }
 
 ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
@@ -136,16 +144,29 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   final subscriptionScopes = <ImRealtimeScopeSubscription>[
     ...params.options.subscriptions?.scopes ?? const [],
   ];
-  var subscriptionDirty = subscriptionConversations.isNotEmpty || subscriptionScopes.isNotEmpty;
+  // Replay the complete desired snapshot after every handshake, including an
+  // empty snapshot. A resumed server session may otherwise retain old scopes.
+  var subscriptionDirty = true;
 
   var currentState = const ImLiveConnectionState(status: 'connecting');
-  final uri = _buildWebSocketUri(params.websocketBaseUrl, params.options.deviceId);
+  final transport = params.transport;
+  final usingTransport = transport != null;
+  // Determine the CCP binding id from the transport capabilities, defaulting
+  // to the WebSocket binding for backward compatibility.
+  final ccpBinding = transport != null
+      ? _ccpBindingLabelFromId(transport.capabilities.ccpBinding)
+      : ccpWsBinding;
+  // TCP/UDP have no HTTP upgrade auth; credentials are passed via the CCP
+  // auth_bind frame. WebSocket still uses headers to decide frameAuthRequired.
+  final isNonWebSocketTransport =
+      usingTransport && transport.kind != ImTransportKind.websocket;
   final headers = _buildWebSocketHeaders(
     accessToken: params.accessToken,
     authToken: params.authToken,
     headers: params.headers,
   );
-  final frameAuthRequired = !_hasUpgradeAuthHeaders(headers);
+  final frameAuthRequired =
+      isNonWebSocketTransport ? false : !_hasUpgradeAuthHeaders(headers);
   var connectionPhase = frameAuthRequired ? 'gateway_auth' : 'ccp_hello_ack';
   ImCcpAuthBindContext? pendingBindContext;
   var resumeNegotiated = false;
@@ -153,18 +174,99 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   Timer? connectionTimeout;
   Timer? heartbeatTimer;
   var heartbeatCounter = 0;
+  var lastInboundAt = DateTime.now();
   var suppressNextClosedState = false;
   var authInitSent = false;
+  var openNotified = false;
+  var closeNotified = false;
+  var closeRequested = false;
 
-  final channel = IOWebSocketChannel.connect(
-    uri,
-    headers: headers,
-    protocols: [imCcpWebSocketSubprotocol],
-  );
+  // Socket abstraction: either transport-backed (TCP/UDP/custom) or the
+  // existing WebSocket path. Both expose the same send/close/subscribe
+  // interface so the CCP state machine is transport-agnostic.
+  late final void Function(String data) socketSend;
+  late final void Function(int code, String reason) socketClose;
+  late final void Function(
+    void Function(String event) onData,
+    void Function() onDone,
+    void Function(Object error) onError,
+  ) socketSubscribe;
+  late final void Function(void Function() onOpen) socketOnOpen;
+
+  if (transport != null) {
+    socketSend = (data) {
+      transport.send(ImTransportFrame(data: data, isBinary: false));
+    };
+    socketClose = (code, reason) {
+      transport.close(code: code, reason: reason);
+    };
+    socketSubscribe = (onData, onDone, onError) {
+      transport.onMessage((frame) {
+        if (frame.data is String) {
+          onData(frame.data as String);
+        }
+      });
+      transport.onClose((_) => onDone());
+      transport.onError((event) => onError(event.error));
+    };
+    socketOnOpen = (onOpen) {
+      // 如果传输已关闭（极端竞态），不注册 open 回调；
+      // close 事件会通过 socketSubscribe 的 onDone 派发。
+      if (transport.state == ImTransportConnectionState.closed) {
+        return;
+      }
+      // 如果传输已经 open，立即调度回调（late-registration）。
+      // transport.onOpen 内部有 _openDispatched 检查，但 constructor 的
+      // scheduleMicrotask 可能在 onOpen 注册前就已完成。
+      if (transport.state == ImTransportConnectionState.open) {
+        scheduleMicrotask(() {
+          if (transport.state == ImTransportConnectionState.open) {
+            onOpen();
+          }
+        });
+        return;
+      }
+      transport.onOpen(onOpen);
+    };
+  } else {
+    final uri = _buildWebSocketUri(params.websocketBaseUrl, params.options.deviceId);
+    final channel = IOWebSocketChannel.connect(
+      uri,
+      headers: headers,
+      protocols: [imCcpWebSocketSubprotocol],
+    );
+    socketSend = (data) {
+      channel.sink.add(data);
+    };
+    socketClose = (code, reason) {
+      channel.sink.close(code, reason);
+    };
+    socketSubscribe = (onData, onDone, onError) {
+      channel.stream.listen(
+        (event) {
+          if (event is String) {
+            onData(event);
+          }
+        },
+        onDone: onDone,
+        onError: (e) => onError(e),
+      );
+    };
+    socketOnOpen = (onOpen) {
+      // IOWebSocketChannel.ready completes when the WebSocket handshake
+      // succeeds. Use it to drive the open callback.
+      channel.ready.then(
+        (_) => onOpen(),
+        onError: (_) {
+          // Swallow: the stream's onError listener already surfaces errors.
+        },
+      );
+    };
+  }
 
   void emitState(ImLiveConnectionState state) {
     currentState = state;
-    for (final handler in stateHandlers) {
+    for (final handler in List.of(stateHandlers)) {
       handler(state);
     }
   }
@@ -179,8 +281,31 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   }
 
   void closeSocket(int code, String reason) {
+    if (closeRequested) {
+      return;
+    }
+    closeRequested = true;
     clearTimers();
-    channel.sink.close(code, reason);
+    try {
+      socketClose(code, reason);
+    } catch (error) {
+      if (!closeNotified) {
+        closeNotified = true;
+        emitState(ImLiveConnectionState(status: 'closed', reason: '$error'));
+      }
+    }
+  }
+
+  void sendSocket(String data) {
+    if (closeRequested) {
+      return;
+    }
+    try {
+      socketSend(data);
+    } catch (error) {
+      emitState(ImLiveConnectionState(status: 'error', reason: '$error'));
+      closeSocket(4000, 'transport_send_failed');
+    }
   }
 
   void failAuth(String code, String message) {
@@ -217,7 +342,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     }
     pendingBindContext = bindContext;
     connectionPhase = 'ccp_hello_ack';
-    channel.sink.add(encodeCcpHelloFrame());
+    sendSocket(encodeCcpHelloFrame(binding: ccpBinding));
     scheduleAuthTimeout(() => failCcpHandshake(
       'websocket_ccp_handshake_timeout',
       'websocket CCP handshake was not completed before timeout',
@@ -227,8 +352,17 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   void startHeartbeat() {
     heartbeatTimer?.cancel();
     heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (heartbeatCounter > 0 &&
+          DateTime.now().difference(lastInboundAt) > const Duration(seconds: 75)) {
+        emitState(const ImLiveConnectionState(
+          status: 'error',
+          reason: 'websocket heartbeat response was not received before timeout',
+        ));
+        closeSocket(4408, 'websocket_heartbeat_timeout');
+        return;
+      }
       heartbeatCounter += 1;
-      channel.sink.add(encodeCcpHeartbeatFrame(heartbeatCounter));
+      sendSocket(encodeCcpHeartbeatFrame(heartbeatCounter, binding: ccpBinding));
     });
   }
 
@@ -251,7 +385,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
           'eventTypes': scope.eventTypes,
         })
         .toList();
-    channel.sink.add(
+    sendSocket(
       encodeCcpBusinessFrame(
         'cc.realtime.subscriptions.sync.v1',
         'cmd',
@@ -259,6 +393,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
           'type': 'subscriptions.sync',
           'items': <dynamic>[...conversationScopes, ...scopeItems],
         },
+        binding: ccpBinding,
       ),
     );
   }
@@ -281,7 +416,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
       return;
     }
     connectionPhase = 'ccp_session_resume';
-    channel.sink.add(encodeCcpSessionResumeFrame(sessionId));
+    sendSocket(encodeCcpSessionResumeFrame(sessionId, binding: ccpBinding));
     scheduleAuthTimeout(() => failCcpHandshake(
       'websocket_ccp_handshake_timeout',
       'websocket CCP handshake was not completed before timeout',
@@ -297,7 +432,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
       failAuth('websocket_auth_tokens_not_ready', 'websocket auth tokens are not ready');
       return;
     }
-    channel.sink.add(jsonEncode(<String, dynamic>{
+    sendSocket(jsonEncode(<String, dynamic>{
       'type': 'auth.init',
       'authToken': params.authToken,
       'accessToken': params.accessToken,
@@ -310,6 +445,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   }
 
   void handleInbound(String raw) {
+    lastInboundAt = DateTime.now();
     if (frameAuthRequired && connectionPhase == 'gateway_auth' && !authInitSent) {
       sendAuthInit();
     }
@@ -339,7 +475,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
           return;
         }
         connectionPhase = 'ccp_auth_ok';
-        channel.sink.add(encodeCcpAuthBindFrame(bindContext));
+        sendSocket(encodeCcpAuthBindFrame(bindContext, binding: ccpBinding));
         return;
       }
       final error = _parseControlError(raw);
@@ -396,7 +532,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
       if (handlers == null) {
         continue;
       }
-      for (final handler in handlers) {
+      for (final handler in List.of(handlers)) {
         handler(message);
       }
     }
@@ -411,7 +547,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
       if (handlers == null) {
         continue;
       }
-      for (final handler in handlers) {
+      for (final handler in List.of(handlers)) {
         handler(event);
       }
     }
@@ -429,15 +565,16 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     },
   );
 
-  channel.stream.listen(
+  socketSubscribe(
     (event) {
-      connectionTimeout?.cancel();
-      connectionTimeout = null;
-      if (event is String) {
-        handleInbound(event);
-      }
+      handleInbound(event);
     },
-    onDone: () {
+    () {
+      if (closeNotified) {
+        return;
+      }
+      closeNotified = true;
+      closeRequested = true;
       clearTimers();
       if (suppressNextClosedState) {
         suppressNextClosedState = false;
@@ -445,17 +582,31 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
       }
       emitState(const ImLiveConnectionState(status: 'closed'));
     },
-    onError: (_) {
+    (error) {
+      if (closeNotified || closeRequested) {
+        return;
+      }
       clearTimers();
-      emitState(const ImLiveConnectionState(status: 'error'));
+      emitState(ImLiveConnectionState(status: 'error', reason: '$error'));
+      closeSocket(4000, 'transport_error');
     },
   );
 
-  if (frameAuthRequired) {
-    Timer(const Duration(milliseconds: 100), sendAuthInit);
-  } else {
-    Timer(const Duration(milliseconds: 100), () => beginCcpHandshake());
-  }
+  // 使用 open 事件（而非固定延迟）启动握手，确保传输层真正就绪后再发送 CCP 帧。
+  // 对 WebSocket：channel.ready 完成后触发；对 TCP/UDP：transport.onOpen 触发。
+  socketOnOpen(() {
+    if (openNotified || closeRequested || closeNotified) {
+      return;
+    }
+    openNotified = true;
+    connectionTimeout?.cancel();
+    connectionTimeout = null;
+    if (frameAuthRequired) {
+      sendAuthInit();
+    } else {
+      beginCcpHandshake();
+    }
+  });
 
   return ImLiveConnection._(
     disconnect: ([int code = 1000, String reason = 'client disconnect']) {
@@ -561,6 +712,20 @@ Uri _buildWebSocketUri(String websocketBaseUrl, String? deviceId) {
     query['deviceId'] = deviceId;
   }
   return parsed.replace(path: path, queryParameters: query);
+}
+
+/// Maps an [ImCcpBindingId] enum to its wire-protocol string label.
+String _ccpBindingLabelFromId(ImCcpBindingId id) {
+  switch (id) {
+    case ImCcpBindingId.ws1:
+      return ccpWsBinding;
+    case ImCcpBindingId.tcp1:
+      return ccpTcpBinding;
+    case ImCcpBindingId.udp1:
+      return ccpUdpBinding;
+    case ImCcpBindingId.quic1:
+      return 'Quic1';
+  }
 }
 
 Map<String, String> _buildWebSocketHeaders({

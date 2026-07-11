@@ -5,7 +5,21 @@ import { uploadChatMediaFile } from "./chatMediaUploadService";
 
 export interface FetchConversationMessagesOptions {
   pageSize?: number;
-  afterSeq?: number;
+  cursor?: string;
+}
+
+const DEFAULT_MESSAGE_PAGE_SIZE = 20;
+const MAX_MESSAGE_PAGE_SIZE = 200;
+
+function normalizeMessagePageSize(pageSize: number | undefined): number {
+  if (pageSize === undefined) {
+    return DEFAULT_MESSAGE_PAGE_SIZE;
+  }
+  const normalized = Math.floor(pageSize);
+  if (!Number.isFinite(normalized) || normalized <= 0) {
+    return DEFAULT_MESSAGE_PAGE_SIZE;
+  }
+  return Math.min(normalized, MAX_MESSAGE_PAGE_SIZE);
 }
 
 function buildMediaMessageParts(
@@ -40,19 +54,19 @@ export async function fetchConversationMessages(
   options?: FetchConversationMessagesOptions,
 ): Promise<ConversationMessageListResponse> {
   return getImSdkClient().conversations.listMessages(conversationId, {
-    pageSize: options?.pageSize ?? 20,
-    afterSeq: options?.afterSeq ?? 0,
+    pageSize: normalizeMessagePageSize(options?.pageSize),
+    ...(options?.cursor ? { cursor: options.cursor } : {}),
   });
 }
 
 export async function fetchConversationMessageDelta(
   conversationId: string,
-  afterSeq: number,
-  pageSize = 20,
+  pageSize = DEFAULT_MESSAGE_PAGE_SIZE,
 ): Promise<ConversationMessageListResponse> {
+  // The cursor contract walks backwards through older history. Live refreshes
+  // must request the latest page without reusing that older-history cursor.
   return getImSdkClient().conversations.listMessages(conversationId, {
-    afterSeq,
-    pageSize,
+    pageSize: normalizeMessagePageSize(pageSize),
   });
 }
 

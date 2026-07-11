@@ -9,6 +9,7 @@
     "root": "sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace",
     "domain": "communication",
     "capability": "im-pc-workspace",
+    "surface": "app",
     "languages": [
       "typescript"
     ],
@@ -80,6 +81,7 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-feature",
     "publicExports": [
       "."
     ],

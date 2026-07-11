@@ -90,7 +90,9 @@ async fn async_main(
         .map_err(|error| format!("failed to build embedded IAM router: {error}"))?;
 
     let embedded_application =
-        embedded_application_routes::bootstrap_embedded_application_routes().await;
+        embedded_application_routes::bootstrap_embedded_application_routes()
+            .await
+            .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
     let embedded_dependencies =
         embedded_dependency_routes::bootstrap_embedded_dependency_routes().await;
 

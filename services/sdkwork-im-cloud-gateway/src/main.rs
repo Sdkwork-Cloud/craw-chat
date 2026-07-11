@@ -83,7 +83,9 @@ async fn run() -> Result<(), String> {
     sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IM process database pools: {error}"))?;
-    let embedded_application = sdkwork_im_gateway_assembly::assemble_application_router().await;
+    let embedded_application = sdkwork_im_gateway_assembly::assemble_application_router()
+        .await
+        .map_err(|error| format!("failed to assemble IM application router: {error}"))?;
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
     let runtime_fallback_router = embedded_application
         .router

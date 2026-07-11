@@ -242,7 +242,6 @@ function createSearchKey(value: string): string {
 function wireFriendRequestId(request: ImFriendRequest): string {
   const requestRecord = toRecord(request);
   const requestId = pickString(
-    request.requestId,
     requestRecord.friendRequestId,
     requestRecord.request_id,
     requestRecord.friend_request_id,
@@ -264,7 +263,7 @@ function readFriendRequestListPage(
   },
   cursor?: string,
 ): { items: ImFriendRequest[]; hasMore: boolean; nextCursor?: string } {
-  const nextCursor = pickString(response.pageInfo?.nextCursor, response.nextCursor);
+  const nextCursor = response.pageInfo?.nextCursor;
   const hasMore = response.pageInfo?.hasMore === true
     || Boolean(nextCursor && nextCursor !== cursor);
   return {
@@ -528,8 +527,8 @@ class SdkworkContactService implements ContactService {
     const contacts = this.hydrateContactUsers(response.items);
     return {
       items: contacts,
-      nextCursor: response.hasMore ? (response.nextCursor ?? undefined) : undefined,
-      hasMore: response.hasMore,
+      nextCursor: (response.pageInfo?.hasMore ?? false) ? (response.pageInfo?.nextCursor ?? undefined) : undefined,
+      hasMore: response.pageInfo?.hasMore ?? false,
     };
   }
 
@@ -837,8 +836,8 @@ class SdkworkContactService implements ContactService {
     });
     return {
       items: response.items.map((tag) => this.mapContactTagViewToContactTag(tag)),
-      hasMore: Boolean(response.nextCursor),
-      nextCursor: response.nextCursor ?? undefined,
+      hasMore: Boolean(response.pageInfo?.nextCursor),
+      nextCursor: response.pageInfo?.nextCursor ?? undefined,
     };
   }
 

@@ -45,7 +45,7 @@ class _ChatLiveHub {
     _reconnectTimer = null;
     final generation = _connectionGeneration + 1;
     _connectionGeneration = generation;
-    final connection = _bundle.composed.connect(
+    final connection = await _bundle.composed.connect(
       options: const ImConnectOptions(subscriptions: ImConnectSubscriptions()),
     );
     _connection = connection;

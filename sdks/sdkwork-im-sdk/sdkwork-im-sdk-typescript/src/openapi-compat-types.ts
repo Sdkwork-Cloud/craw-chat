@@ -10,12 +10,8 @@ import type {
   SocialUserSearchResult,
 } from '../generated/server-openapi/dist/index.js';
 
-/** OpenAPI-aligned friend request with stable request id. */
-export interface FriendRequest extends Omit<GeneratedFriendRequest, 'requestId'> {
-  friendRequestId: string;
-  /** @deprecated Use friendRequestId. Retained for legacy wire compatibility. */
-  requestId?: string;
-}
+/** OpenAPI-aligned friend request. */
+export type FriendRequest = GeneratedFriendRequest;
 
 /** Unwrapped inbox list page aligned with `sdkwork-im-im.openapi.yaml` `data.items` + `data.pageInfo`. */
 export interface ConversationInboxPage {
@@ -51,8 +47,7 @@ export interface PinnedMessagesResponse {
 
 export interface FavoriteMessagesResponse {
   items: MessageFavoriteView[];
-  nextCursor?: string | null;
-  hasMore: boolean;
+  pageInfo: SdkWorkListPageInfo;
 }
 
 export interface DeleteMessageFavoriteResponse {
@@ -62,15 +57,13 @@ export interface DeleteMessageFavoriteResponse {
 
 export interface ContactsResponse {
   items: ContactView[];
-  nextCursor?: string | null;
-  hasMore: boolean;
+  pageInfo: SdkWorkListPageInfo;
 }
 
 /** Unwrapped cursor list page (`data.items` + `data.pageInfo`) for contact tags. */
 export interface ContactTagsResponse {
   items: ContactTagView[];
-  nextCursor?: string | null;
-  hasMore: boolean;
+  pageInfo: SdkWorkListPageInfo;
 }
 
 export interface DeleteContactTagResponse {
@@ -80,12 +73,11 @@ export interface DeleteContactTagResponse {
 
 export interface SocialUserSearchResponse {
   items: SocialUserSearchResult[];
-  nextCursor?: string | null;
-  hasMore: boolean;
+  pageInfo: SdkWorkListPageInfo;
 }
 
 /** Unwrapped cursor list page (`data.items` + `data.pageInfo`) for friend requests. */
 export interface SocialFriendRequestListResponse {
   items: FriendRequest[];
-  nextCursor?: string | null;
+  pageInfo: SdkWorkListPageInfo;
 }

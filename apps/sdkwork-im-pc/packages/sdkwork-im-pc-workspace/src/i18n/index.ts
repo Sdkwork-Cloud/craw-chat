@@ -1,23 +1,22 @@
 import { createInstance } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import {
+  IM_PC_SUPPORTED_LANGUAGES,
   SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT,
-  resolvePersistedLanguage,
+  normalizeImPcLanguage,
+  resolveImPcHostLanguage,
 } from '@sdkwork/im-pc-commons';
 import zhCN from './zh-CN/communication/im-pc-workspace/home.json';
 import enUS from './en-US/communication/im-pc-workspace/home.json';
 
-const SUPPORTED_LANGUAGES = ['zh-CN', 'en-US'] as const;
-type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
+type SupportedLanguage = (typeof IM_PC_SUPPORTED_LANGUAGES)[number];
 
 function normalizeLanguage(value: unknown): SupportedLanguage {
-  return SUPPORTED_LANGUAGES.includes(value as SupportedLanguage)
-    ? value as SupportedLanguage
-    : 'zh-CN';
+  return normalizeImPcLanguage(value);
 }
 
 export function resolveInitialLanguage(): SupportedLanguage {
-  return resolvePersistedLanguage(SUPPORTED_LANGUAGES, 'zh-CN');
+  return resolveImPcHostLanguage();
 }
 
 const i18n = createInstance();
@@ -31,6 +30,9 @@ i18n
     },
     lng: resolveInitialLanguage(),
     fallbackLng: 'zh-CN',
+    supportedLngs: [...IM_PC_SUPPORTED_LANGUAGES],
+    load: 'currentOnly',
+    returnEmptyString: false,
     interpolation: {
       escapeValue: false
     }

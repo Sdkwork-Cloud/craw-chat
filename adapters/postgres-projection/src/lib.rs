@@ -90,7 +90,7 @@ fn build_projection_pool(
 fn build_projection_pool_local(
     config: &PostgresProjectionConfig,
 ) -> Result<PostgresProjectionPool, ContractError> {
-    verify_production_sslmode(config.database_url.as_str());
+    verify_production_sslmode(config.database_url.as_str())?;
     let pg_config = config
         .database_url
         .parse()
@@ -121,7 +121,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
-fn verify_production_sslmode(database_url: &str) {
+fn verify_production_sslmode(database_url: &str) -> Result<(), ContractError> {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()
         .trim()
@@ -131,7 +131,7 @@ fn verify_production_sslmode(database_url: &str) {
         "" | "dev" | "development" | "test" | "testing"
     );
     if !is_production {
-        return;
+        return Ok(());
     }
     let lowered = database_url.to_ascii_lowercase();
     let requires_tls = lowered.contains("sslmode=require")
@@ -140,10 +140,17 @@ fn verify_production_sslmode(database_url: &str) {
         || lowered.contains("sslmode=verifyca")
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
-        panic!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
-        );
+        return Err(ContractError::Unavailable(
+            format!(
+                "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+                 sslmode=require or sslmode=verify-full in production \
+                 (current environment={environment}). Refusing to start with a \
+                 plaintext database connection."
+            )
+            .into(),
+        ));
     }
+    Ok(())
 }
 
 #[derive(Clone)]
@@ -250,6 +257,29 @@ fn redact_postgres_url(database_url: &str) -> String {
     format!("{scheme}<redacted>{host}")
 }
 
+/// Resolve the projection organization scope for the active request.
+///
+/// P0-12 multi-tenancy isolation: the `TimelineProjectionStore` trait does not
+/// carry `organization_id` from the request context (no `AppContext` is
+/// threaded through the trait signature). Rather than silently degrading to a
+/// hardcoded `"default"` organization scope — which would leak timeline data
+/// across organizations — this fails closed. When the trait is upgraded to
+/// thread `organization_id` from `AppContext`, this should return the
+/// request-scoped value instead of erroring.
+pub(crate) fn require_projection_organization_id() -> Result<String, ContractError> {
+    Err(ContractError::Conflict(
+        "postgres projection organization_id scope is required but unavailable; \
+         refusing to degrade to hardcoded \"default\" organization scope"
+            .into(),
+    ))
+}
+
+#[deprecated(
+    since = "0.1.0",
+    note = "hardcoded \"default\" organization_id breaks multi-tenancy isolation; \
+            use request-scoped organization_id via require_projection_organization_id instead"
+)]
+#[allow(dead_code)]
 pub(crate) fn default_projection_organization_id() -> &'static str {
     "default"
 }

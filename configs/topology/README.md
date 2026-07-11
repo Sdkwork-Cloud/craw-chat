@@ -133,4 +133,8 @@ IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_IM_DATABASE_URL`) enables 
 node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root ../.. --spec specs/topology.spec.json
 pnpm test:topology-baggage
 pnpm test:sdkwork-im-pc-dev-command
+node scripts/dev/sdkwork-im-topology-env-lint.test.mjs
+node scripts/dev/sdkwork-im-k8s-secret-guard.test.mjs
 ```
+
+The topology env lint guard rejects bare `\r` line breaks and concatenated `KEY=VALUE` entries in `.env` profiles (prevents silent `SDKWORK_IM_ENVIRONMENT` drops that disable production fail-closed guards). The K8s secret guard rejects legacy `CHANGE_ME` placeholders and ensures credential placeholders only live inside `Secret` resources, never `ConfigMap`.

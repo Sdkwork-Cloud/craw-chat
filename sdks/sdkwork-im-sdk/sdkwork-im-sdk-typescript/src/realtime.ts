@@ -7,6 +7,7 @@ import type {
 } from '../generated/server-openapi/dist/index.js';
 
 import {
+  CCP_WS_BINDING,
   IM_CCP_WEBSOCKET_SUBPROTOCOL,
   ccpHelloAckNegotiatesSessionResume,
   encodeCcpAuthBindFrame,
@@ -19,10 +20,11 @@ import {
   isCcpSessionResumedEnvelope,
   resolveCcpAuthBindContext,
   unwrapInboundRealtimeFrame,
-} from './ccp-wire';
-import { IM_REALTIME_WS } from './realtime-api-paths';
+} from './ccp-wire.js';
+import { IM_REALTIME_WS } from './realtime-api-paths.js';
+import type { ImTransportConnection } from './transport.js';
 
-export { IM_CCP_WEBSOCKET_SUBPROTOCOL } from './ccp-wire';
+export { IM_CCP_WEBSOCKET_SUBPROTOCOL } from './ccp-wire.js';
 
 export interface ImMessageContext {
   ack(): Promise<void>;
@@ -179,6 +181,15 @@ export interface ImCreateLiveConnectionParams {
   tokenManager?: unknown;
   websocketBaseUrl: string;
   webSocketFactory?: ImWebSocketFactory;
+  /**
+   * 可选的通用传输连接（WebSocket/TCP/UDP）。
+   *
+   * 提供时优先使用该传输，webSocketFactory 与 websocketBaseUrl 将被忽略。
+   * 传输必须已由 ImTransportFactory.connect() 建立并处于 connecting 或 open 状态。
+   * TCP/UDP 传输跳过 gateway_auth 阶段，直接进入 CCP 握手（Hello → AuthBind），
+   * 凭据通过 auth_bind 帧传递，对齐服务端 link_transport 完整握手流程。
+   */
+  transport?: ImTransportConnection;
 }
 
 interface ListenerBag {
@@ -702,6 +713,7 @@ function parseRealtimePayloads(raw: string): ParsedRealtimeMessage[] {
 function sendSubscriptionSync(
   socket: ImWebSocketLike,
   scopes: ImRealtimeScopeSubscription[],
+  binding: string = CCP_WS_BINDING,
 ): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
@@ -717,12 +729,17 @@ function sendSubscriptionSync(
         eventTypes: scope.eventTypes ?? [],
       })),
     },
+    binding,
   ));
 }
 
 const DEFAULT_EVENTS_NACK_REPLAY_LIMIT = 100;
 
-function sendEventsAck(socket: ImWebSocketLike, ackedSeq: number): void {
+function sendEventsAck(
+  socket: ImWebSocketLike,
+  ackedSeq: number,
+  binding: string = CCP_WS_BINDING,
+): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
   }
@@ -733,6 +750,7 @@ function sendEventsAck(socket: ImWebSocketLike, ackedSeq: number): void {
       type: 'events.ack',
       ackedSeq,
     },
+    binding,
   ));
 }
 
@@ -740,6 +758,7 @@ function sendEventsNack(
   socket: ImWebSocketLike,
   nackThroughSeq: number,
   limit: number,
+  binding: string = CCP_WS_BINDING,
 ): void {
   if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
@@ -752,10 +771,14 @@ function sendEventsNack(
       nackThroughSeq,
       limit,
     },
+    binding,
   ));
 }
 
-function createRealtimeSeqTracker(socket: ImWebSocketLike): {
+function createRealtimeSeqTracker(
+  socket: ImWebSocketLike,
+  binding: string = CCP_WS_BINDING,
+): {
   reset: () => void;
   track: (sequence: number) => void;
 } {
@@ -780,6 +803,7 @@ function createRealtimeSeqTracker(socket: ImWebSocketLike): {
       socket,
       lastContiguousRealtimeSeq,
       DEFAULT_EVENTS_NACK_REPLAY_LIMIT,
+      binding,
     );
   };
 
@@ -904,6 +928,163 @@ function readCloseReason(event: unknown): string | undefined {
   return isRecord(event) ? pickString(event.reason) : undefined;
 }
 
+/**
+ * 将 ImTransportConnection 适配为 ImWebSocketLike 接口。
+ *
+ * realtime.ts 内部 CCP 状态机依赖 ImWebSocketLike（readyState/addEventListener/send/close），
+ * 通过此适配器可将任意 ImTransportConnection（WebSocket/TCP/UDP）包装为 ImWebSocketLike，
+ * 使上层逻辑无需感知具体传输协议即可复用于所有传输。
+ */
+class TransportBackedSocketLike implements ImWebSocketLike {
+  private readonly transport: ImTransportConnection;
+  private readonly openHandlers = new Set<() => void>();
+  private readonly closeHandlers = new Set<(event: unknown) => void>();
+  private readonly errorHandlers = new Set<(event: unknown) => void>();
+  private readonly messageHandlers = new Set<(event: unknown) => void>();
+  private readonly unsubscribers: Array<() => void> = [];
+  private disposed = false;
+  private openNotified = false;
+  private closeNotified = false;
+  private closeEvent: unknown;
+
+  constructor(transport: ImTransportConnection) {
+    this.transport = transport;
+    this.unsubscribers.push(
+      transport.onOpen(() => {
+        this.dispatchOpen();
+      }),
+      transport.onClose((event) => {
+        this.dispatchClose({ code: event.code, reason: event.reason, wasClean: event.wasClean });
+      }),
+      transport.onError((event) => {
+        if (this.disposed) {
+          return;
+        }
+        for (const handler of this.errorHandlers) {
+          handler(event.error);
+        }
+      }),
+      transport.onMessage((frame) => {
+        if (this.disposed || transport.state !== 'open') {
+          return;
+        }
+        for (const handler of this.messageHandlers) {
+          handler({ data: frame.data });
+        }
+      }),
+    );
+
+    // 如果传输在构造时已经关闭（极端竞态），立即派发 close 事件，
+    // 避免上层永远等待 open 事件
+    if (transport.state === 'closed') {
+      queueMicrotask(() => {
+        this.dispatchClose({ code: 1000, reason: 'transport_already_closed', wasClean: true });
+      });
+    }
+  }
+
+  private dispatchOpen(): void {
+    if (this.disposed || this.openNotified || this.transport.state !== 'open') {
+      return;
+    }
+    this.openNotified = true;
+    for (const handler of [...this.openHandlers]) {
+      handler();
+    }
+  }
+
+  private dispatchClose(event: unknown): void {
+    if (this.closeNotified) {
+      return;
+    }
+    this.closeNotified = true;
+    this.closeEvent = event;
+    for (const handler of [...this.closeHandlers]) {
+      handler(event);
+    }
+    this.dispose();
+  }
+
+  private dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    for (const unsubscribe of this.unsubscribers) {
+      try {
+        unsubscribe();
+      } catch {
+        // 忽略取消订阅错误
+      }
+    }
+    this.unsubscribers.length = 0;
+    this.openHandlers.clear();
+    this.messageHandlers.clear();
+    this.errorHandlers.clear();
+  }
+
+  get readyState(): number {
+    switch (this.transport.state) {
+      case 'connecting':
+        return SOCKET_CONNECTING_STATE;
+      case 'open':
+        return SOCKET_OPEN_STATE;
+      case 'closing':
+        return SOCKET_CLOSING_STATE;
+      case 'closed':
+        return SOCKET_CLOSED_STATE;
+    }
+  }
+
+  addEventListener(type: ImWebSocketEventName, handler: (event: unknown) => void): void {
+    switch (type) {
+      case 'open': {
+        this.openHandlers.add(handler as () => void);
+        if (this.openNotified) {
+          queueMicrotask(() => {
+            if (this.openHandlers.has(handler as () => void) && !this.disposed) {
+              (handler as () => void)();
+            }
+          });
+        } else if (this.transport.state === 'open' && !this.disposed) {
+          queueMicrotask(() => this.dispatchOpen());
+        }
+        break;
+      }
+      case 'close':
+        this.closeHandlers.add(handler);
+        if (this.closeNotified) {
+          queueMicrotask(() => {
+            if (this.closeHandlers.has(handler)) {
+              handler(this.closeEvent);
+            }
+          });
+        } else if (this.transport.state === 'closed') {
+          queueMicrotask(() => this.dispatchClose({
+            code: 1000,
+            reason: 'transport_already_closed',
+            wasClean: true,
+          }));
+        }
+        break;
+      case 'error':
+        this.errorHandlers.add(handler);
+        break;
+      case 'message':
+        this.messageHandlers.add(handler);
+        break;
+    }
+  }
+
+  close(code?: number, reason?: string): void {
+    this.transport.close(code, reason);
+  }
+
+  send(value: string): void {
+    this.transport.send({ data: value, isBinary: false });
+  }
+}
+
 export function createImLiveConnection({
   accessToken,
   auth,
@@ -912,6 +1093,7 @@ export function createImLiveConnection({
   headers,
   options,
   tokenManager,
+  transport,
   websocketBaseUrl,
   webSocketFactory,
 }: ImCreateLiveConnectionParams): ImLiveConnection {
@@ -924,20 +1106,43 @@ export function createImLiveConnection({
   let subscriptionConversations = pickStringArray(options.subscriptions?.conversations);
   let subscriptionScopes = normalizeRealtimeScopeSubscriptions(options.subscriptions?.scopes);
   const credentials = resolveWebSocketCredentials({ accessToken, auth, authToken, tokenManager });
-  const url = buildWebSocketUrl(websocketBaseUrl, {
-    ...options,
-    subscriptions: {
-      conversations: subscriptionConversations,
-      scopes: subscriptionScopes,
-    },
-  });
-  const usesBrowserWebSocket = !webSocketFactory;
-  const resolvedHeaders = buildWebSocketHeaders({ ...credentials, headerProvider, headers });
-  const socket = resolveWebSocketFactory(webSocketFactory)(url, {
-    headers: resolvedHeaders,
-    protocols: [IM_CCP_WEBSOCKET_SUBPROTOCOL],
-  });
-  const frameAuthRequired = (usesBrowserWebSocket || !hasUpgradeAuthHeaders(resolvedHeaders)) && auth?.mode !== 'none';
+
+  const usingTransport = Boolean(transport);
+  const ccpBinding = transport ? transport.capabilities.ccpBinding : CCP_WS_BINDING;
+
+  let socket: ImWebSocketLike;
+  let usesBrowserWebSocket: boolean;
+  let resolvedHeaders: Record<string, string>;
+
+  if (transport) {
+    // TCP/UDP/自定义 transport：直接使用 ImTransportConnection，通过适配器转换为 ImWebSocketLike
+    socket = new TransportBackedSocketLike(transport);
+    usesBrowserWebSocket = false;
+    // 仍然解析 headers 用于判断 WebSocket 传输的 frameAuthRequired
+    resolvedHeaders = buildWebSocketHeaders({ ...credentials, headerProvider, headers });
+  } else {
+    // WebSocket 路径：保持原有逻辑
+    const url = buildWebSocketUrl(websocketBaseUrl, {
+      ...options,
+      subscriptions: {
+        conversations: subscriptionConversations,
+        scopes: subscriptionScopes,
+      },
+    });
+    usesBrowserWebSocket = !webSocketFactory;
+    resolvedHeaders = buildWebSocketHeaders({ ...credentials, headerProvider, headers });
+    socket = resolveWebSocketFactory(webSocketFactory)(url, {
+      headers: resolvedHeaders,
+      protocols: [IM_CCP_WEBSOCKET_SUBPROTOCOL],
+    });
+  }
+
+  // TCP/UDP 没有 HTTP 升级认证，直接进入 CCP 握手（credentials 通过 auth_bind 帧传递）；
+  // WebSocket 传输仍按 headers 判断是否需要 gateway_auth
+  const isNonWebSocketTransport = usingTransport && transport!.kind !== 'websocket';
+  const frameAuthRequired = isNonWebSocketTransport
+    ? false
+    : (usesBrowserWebSocket || !hasUpgradeAuthHeaders(resolvedHeaders)) && auth?.mode !== 'none';
   const frameAuthCredentials = credentials.accessToken && credentials.authToken
     ? { accessToken: credentials.accessToken, authToken: credentials.authToken }
     : undefined;
@@ -946,13 +1151,16 @@ export function createImLiveConnection({
   let connectionTimeout: ReturnType<typeof setTimeout> | undefined;
   let currentState: ImLiveConnectionState = { status: 'connecting' };
   let suppressNextClosedState = false;
-  let subscriptionSnapshotDirty = subscriptionConversations.length > 0 || subscriptionScopes.length > 0;
+  // Always replay the full desired snapshot after the handshake, including an
+  // empty snapshot. Session resume can otherwise retain stale server-side
+  // subscriptions from a previous connection.
+  let subscriptionSnapshotDirty = true;
   const heartbeatOptions = resolveHeartbeatOptions(options);
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   let heartbeatCounter = 0;
   let lastInboundAt = Date.now();
   let connectionTraceId: string | undefined;
-  const realtimeSeqTracker = createRealtimeSeqTracker(socket);
+  const realtimeSeqTracker = createRealtimeSeqTracker(socket, ccpBinding);
 
   const emitState = (state: ImLiveConnectionState): void => {
     currentState = state;
@@ -1035,7 +1243,7 @@ export function createImLiveConnection({
       return;
     }
     connectionPhase = 'ccp_session_resume';
-    socket.send(encodeCcpSessionResumeFrame(sessionId));
+    socket.send(encodeCcpSessionResumeFrame(sessionId, 0, ccpBinding));
     startAuthTimeout();
   };
 
@@ -1054,7 +1262,7 @@ export function createImLiveConnection({
     }
     pendingCcpAuthBindContext = bindContext;
     connectionPhase = 'ccp_hello_ack';
-    socket.send(encodeCcpHelloFrame());
+    socket.send(encodeCcpHelloFrame(ccpBinding));
     startAuthTimeout();
   };
 
@@ -1095,7 +1303,7 @@ export function createImLiveConnection({
       return;
     }
     heartbeatCounter += 1;
-    socket.send(encodeCcpHeartbeatFrame(heartbeatCounter));
+    socket.send(encodeCcpHeartbeatFrame(heartbeatCounter, ccpBinding));
   };
 
   const startHeartbeat = (): void => {
@@ -1150,6 +1358,7 @@ export function createImLiveConnection({
     sendSubscriptionSync(
       socket,
       mergeRealtimeScopeSubscriptions(subscriptionConversations, subscriptionScopes),
+      ccpBinding,
     );
   };
 
@@ -1240,7 +1449,7 @@ export function createImLiveConnection({
           return;
         }
         connectionPhase = 'ccp_auth_ok';
-        socket.send(encodeCcpAuthBindFrame(bindContext));
+        socket.send(encodeCcpAuthBindFrame(bindContext, ccpBinding));
         return;
       }
       const authError = parseRealtimeControlError(raw);
@@ -1297,7 +1506,7 @@ export function createImLiveConnection({
       decoded.context.ack = () => {
         if (socket.readyState === SOCKET_OPEN_STATE) {
           const ackedSeq = decoded.context.sequence;
-          sendEventsAck(socket, ackedSeq);
+          sendEventsAck(socket, ackedSeq, ccpBinding);
         }
         return Promise.resolve();
       };
@@ -1320,7 +1529,7 @@ export function createImLiveConnection({
       decoded.context.ack = () => {
         if (socket.readyState === SOCKET_OPEN_STATE) {
           const ackedSeq = decoded.context.sequence;
-          sendEventsAck(socket, ackedSeq);
+          sendEventsAck(socket, ackedSeq, ccpBinding);
         }
         return Promise.resolve();
       };
@@ -1346,13 +1555,25 @@ export function createImLiveConnection({
         const key = realtimeScopeKey('conversation', conversationId);
         const handlers = listeners.events.get(key) ?? new Set();
         listeners.events.set(key, handlers);
-        return subscribe(handlers, handler);
+        const unsubscribe = subscribe(handlers, handler);
+        return () => {
+          unsubscribe();
+          if (handlers.size === 0) {
+            listeners.events.delete(key);
+          }
+        };
       },
       onScope(scopeType, scopeId, handler) {
         const key = realtimeScopeKey(scopeType, scopeId);
         const handlers = listeners.events.get(key) ?? new Set();
         listeners.events.set(key, handlers);
-        return subscribe(handlers, handler);
+        const unsubscribe = subscribe(handlers, handler);
+        return () => {
+          unsubscribe();
+          if (handlers.size === 0) {
+            listeners.events.delete(key);
+          }
+        };
       },
     },
     lifecycle: {
@@ -1369,7 +1590,13 @@ export function createImLiveConnection({
       onConversation(conversationId, handler) {
         const handlers = listeners.messages.get(conversationId) ?? new Set();
         listeners.messages.set(conversationId, handlers);
-        return subscribe(handlers, handler);
+        const unsubscribe = subscribe(handlers, handler);
+        return () => {
+          unsubscribe();
+          if (handlers.size === 0) {
+            listeners.messages.delete(conversationId);
+          }
+        };
       },
     },
     subscriptions: {

@@ -103,7 +103,7 @@ impl PostgresRtcStateConfig {
     }
 
     fn connect_pool_local(&self) -> Result<PostgresRtcPool, RtcContractError> {
-        verify_production_sslmode(self.database_url.as_str());
+        verify_production_sslmode(self.database_url.as_str())?;
         let pg_config = self
             .database_url
             .parse::<r2d2_postgres::postgres::Config>()
@@ -442,33 +442,43 @@ pub fn build_postgres_rtc_state_store(
 }
 
 /// Build a [`PostgresRtcStateStore`] wrapped in an [`Arc`] for shared use,
-/// returning `None` when the database URL is empty (signaling-only mode).
+/// returning `Ok(None)` when the database URL is empty (signaling-only mode).
 ///
-/// Production deployments MUST provide a valid database URL; the `None`
-/// fallback is intended for development/testing only.
+/// Production deployments MUST provide a valid database URL; the `Ok(None)`
+/// fallback is intended for development/testing only. In production-like
+/// environments, connection failures return `Err(RtcContractError::Unavailable)`
+/// instead of panicking, allowing the caller to decide how to recover (e.g.
+/// via a fail-closed check or K8s restart).
 pub fn build_postgres_rtc_state_store_optional(
     database_url: Option<&str>,
-) -> Option<Arc<PostgresRtcStateStore>> {
-    let url = database_url?.trim();
+) -> Result<Option<Arc<PostgresRtcStateStore>>, RtcContractError> {
+    let url = match database_url {
+        Some(url) => url.trim(),
+        None => return Ok(None),
+    };
     if url.is_empty() {
-        return None;
+        return Ok(None);
     }
     match build_postgres_rtc_state_store(url) {
         Ok(store) => {
             tracing::info!("PostgresRtcStateStore connected successfully");
-            Some(Arc::new(store))
+            Ok(Some(Arc::new(store)))
         }
         Err(err) => {
             if is_production_like_im_environment() {
-                panic!(
-                    "PostgresRtcStateStore connection failed in production-like environment: {err:?}"
-                );
+                return Err(RtcContractError::Unavailable(
+                    format!(
+                        "PostgresRtcStateStore connection failed in production-like \
+                         environment: {err:?}"
+                    )
+                    .into(),
+                ));
             }
             tracing::warn!(
                 error = %format!("{err:?}"),
                 "PostgresRtcStateStore connection failed; durable store unavailable (development/test only)"
             );
-            None
+            Ok(None)
         }
     }
 }
@@ -486,7 +496,7 @@ fn make_tls_connector() -> Result<postgres_native_tls::MakeTlsConnector, native_
 /// P0-12 fail-closed: in production, the database URL MUST contain
 /// `sslmode=require` or `sslmode=verify-full`. This prevents silent plaintext
 /// connections to production databases (SECURITY_SPEC §4.3).
-fn verify_production_sslmode(database_url: &str) {
+fn verify_production_sslmode(database_url: &str) -> Result<(), RtcContractError> {
     let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
         .unwrap_or_default()
         .trim()
@@ -496,7 +506,7 @@ fn verify_production_sslmode(database_url: &str) {
         "" | "dev" | "development" | "test" | "testing"
     );
     if !is_production {
-        return;
+        return Ok(());
     }
     let lowered = database_url.to_ascii_lowercase();
     let requires_tls = lowered.contains("sslmode=require")
@@ -505,10 +515,17 @@ fn verify_production_sslmode(database_url: &str) {
         || lowered.contains("sslmode=verifyca")
         || lowered.contains("sslmode=verifyfull");
     if !requires_tls {
-        panic!(
-            "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain sslmode=require or sslmode=verify-full in production (current environment={environment}). Refusing to start with a plaintext database connection."
-        );
+        return Err(RtcContractError::Unavailable(
+            format!(
+                "P0-12 production fail-closed: SDKWORK_IM_DATABASE_URL must contain \
+                 sslmode=require or sslmode=verify-full in production \
+                 (current environment={environment}). Refusing to start with a \
+                 plaintext database connection."
+            )
+            .into(),
+        ));
     }
+    Ok(())
 }
 
 /// Parse an RFC3339 timestamp string into `DateTime<Utc>` so it serializes
@@ -573,9 +590,9 @@ mod tests {
 
     #[test]
     fn build_optional_returns_none_for_empty_url() {
-        assert!(build_postgres_rtc_state_store_optional(None).is_none());
-        assert!(build_postgres_rtc_state_store_optional(Some("")).is_none());
-        assert!(build_postgres_rtc_state_store_optional(Some("   ")).is_none());
+        assert!(build_postgres_rtc_state_store_optional(None).unwrap().is_none());
+        assert!(build_postgres_rtc_state_store_optional(Some("")).unwrap().is_none());
+        assert!(build_postgres_rtc_state_store_optional(Some("   ")).unwrap().is_none());
     }
 
     #[test]

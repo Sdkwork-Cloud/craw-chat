@@ -42,7 +42,12 @@ import {
 import { settingsService, type AppSettings } from "../services/SettingsService";
 import { systemAssistantService } from "../services/SystemAssistantService";
 import { appAuthService, isAppSdkSessionAuthenticated, SDKWORK_IM_SESSION_CHANGED_EVENT, readAppSdkSessionTokens } from "@sdkwork/im-pc-core";
-import { AppShellFrame, ModuleRenderHost } from "@sdkwork/im-pc-shell";
+import {
+  AppShellFrame,
+  ModuleRenderHost,
+  type DriveOpenRequest,
+} from "@sdkwork/im-pc-shell";
+import type { WorkspaceDocumentOpenTarget } from "@sdkwork/im-pc-workspace";
 import { CapabilityModuleSurface } from "../surfaces/CapabilityModuleSurface";
 import type { Chat, User } from "@sdkwork/im-pc-types";
 import { IconButton } from "@sdkwork/im-pc-commons";
@@ -80,7 +85,9 @@ const ChatLayoutComponent: React.FC = () => {
   const [isAssistantAvailable, setIsAssistantAvailable] = useState(false);
   const [friendRequestUnreadCount, setFriendRequestUnreadCount] = useState(0);
   const [runtimeReady, setRuntimeReady] = useState(false);
+  const [driveOpenRequest, setDriveOpenRequest] = useState<DriveOpenRequest>();
   const chatListProjectionRevisionRef = useRef(0);
+  const driveOpenRequestSequenceRef = useRef(0);
   const groupDetailHydrationIdsRef = useRef(new Set<string>());
   const pendingReadCursorChatIdsRef = useRef(new Set<string>());
   const chatsRef = useRef<Chat[]>([]);
@@ -150,6 +157,22 @@ const ChatLayoutComponent: React.FC = () => {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
+  };
+  const handleWorkspaceDocumentOpen = (target: WorkspaceDocumentOpenTarget): void => {
+    driveOpenRequestSequenceRef.current += 1;
+    setDriveOpenRequest({
+      requestId: `workspace-drive-${driveOpenRequestSequenceRef.current}`,
+      section: "recent",
+      intent: "preview",
+      nodeId: target.resourceId,
+      ...(target.spaceId ? { spaceId: target.spaceId } : {}),
+    });
+    setActiveTab("drive");
+  };
+  const handleDriveOpenRequestHandled = (requestId: string): void => {
+    setDriveOpenRequest((currentRequest) => (
+      currentRequest?.requestId === requestId ? undefined : currentRequest
+    ));
   };
   const currentUserId = currentUser.id;
   const activeGroupMemberSignature = useMemo(
@@ -1262,11 +1285,14 @@ const ChatLayoutComponent: React.FC = () => {
   const capabilitySurface = (
     <CapabilityModuleSurface
       activeTab={activeTab}
+      driveOpenRequest={driveOpenRequest}
       searchQuery={searchQuery}
       editAgentId={editAgentId}
       pendingCommunityId={pendingCommunityId}
       t={t}
       onTabChange={setActiveTab}
+      onWorkspaceDocumentOpen={handleWorkspaceDocumentOpen}
+      onDriveOpenRequestHandled={handleDriveOpenRequestHandled}
       onEditAgentIdChange={setEditAgentId}
       onOpenCreateAgentModal={() => {
         setEditAgentId(undefined);
@@ -1354,6 +1380,21 @@ const ChatLayoutComponent: React.FC = () => {
     >
             <ModuleRenderHost
               activeTab={activeTab}
+              errorFallback={
+                <div className="flex h-full w-full items-center justify-center bg-zinc-950 p-6 text-center" role="alert">
+                  <div className="max-w-md space-y-3">
+                    <h2 className="text-base font-medium text-zinc-100">{t("chat.moduleError.title")}</h2>
+                    <p className="text-sm text-zinc-400">{t("chat.moduleError.description")}</p>
+                    <button
+                      type="button"
+                      className="rounded-md bg-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/15"
+                      onClick={() => setActiveTab(activeTab === "chat" ? "workspace" : "chat")}
+                    >
+                      {t(activeTab === "chat" ? "chat.moduleError.returnToWorkspace" : "chat.moduleError.returnToChat")}
+                    </button>
+                  </div>
+                </div>
+              }
               chatSurface={
               <>
                   <ChatList

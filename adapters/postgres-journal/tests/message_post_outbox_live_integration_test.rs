@@ -4,9 +4,11 @@
 //! im-adapters-postgres-journal --test message_post_outbox_live_integration_test --
 //! --ignored --nocapture`.
 
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use chrono::{DateTime, FixedOffset, Utc};
 use im_adapters_postgres_journal::{
     PostgresDurableMessagePostWriter, PostgresJournalConfig, PostgresJournalPool,
     PostgresOutboxStore,
@@ -40,12 +42,34 @@ struct PersistedImmutableRows {
     journal_aggregate_id: String,
     journal_aggregate_seq: i64,
     journal_event_type: String,
+    journal_payload_json: serde_json::Value,
     journal_payload_hash: String,
+    message_tenant_id: String,
+    message_organization_id: String,
+    message_conversation_id: String,
     message_id: i64,
+    message_seq: i64,
+    message_sender_principal_kind: String,
+    message_sender_principal_id: String,
+    message_sender_device_id: Option<String>,
+    message_client_msg_id: Option<String>,
+    message_type: String,
+    message_payload_json: serde_json::Value,
     message_payload_hash: String,
+    message_created_at: DateTime<Utc>,
+    outbox_tenant_id: String,
+    outbox_organization_id: String,
     outbox_id: String,
+    outbox_aggregate_type: String,
+    outbox_aggregate_id: String,
+    outbox_event_id: String,
+    outbox_event_type: String,
+    outbox_payload_json: serde_json::Value,
     outbox_payload_hash: String,
+    outbox_created_at: DateTime<Utc>,
 }
+
+const SAFE_REPLAY_CONFLICT: &str = "message post replay conflicts with existing durable state";
 
 fn test_suffix() -> String {
     SystemTime::now()
@@ -58,7 +82,8 @@ fn test_suffix() -> String {
 fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> MessagePostFixture {
     let organization_id = "0";
     let conversation_id = format!("c_atomic_{scenario}_{suffix}");
-    let event_id = format!("evt_atomic_{scenario}_{suffix}");
+    let journal_event_id = format!("evt_journal_atomic_{scenario}_{suffix}");
+    let outbox_event_id = format!("evt_outbox_atomic_{scenario}_{suffix}");
     let now = chrono::Utc::now().to_rfc3339();
     let message_payload = json!({
         "conversationId": conversation_id,
@@ -67,8 +92,14 @@ fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> Me
         "text": "atomic message post integration test"
     })
     .to_string();
+    let journal_payload = json!({
+        "eventId": journal_event_id,
+        "conversationId": conversation_id,
+        "messageId": message_id.to_string()
+    })
+    .to_string();
     let outbox_payload = json!({
-        "eventId": event_id,
+        "eventId": outbox_event_id,
         "conversationId": conversation_id,
         "messageId": message_id.to_string()
     })
@@ -76,7 +107,7 @@ fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> Me
 
     MessagePostFixture {
         envelope: CommitEnvelope {
-            event_id: event_id.clone(),
+            event_id: journal_event_id,
             tenant_id: tenant_id.to_owned(),
             organization_id: organization_id.to_owned(),
             event_type: "message.posted".to_owned(),
@@ -98,7 +129,7 @@ fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> Me
             occurred_at: now.clone(),
             committed_at: now.clone(),
             payload_schema: Some("message.posted.v1".to_owned()),
-            payload: outbox_payload.clone(),
+            payload: journal_payload,
             retention_class: "standard".to_owned(),
             audit_class: "default".to_owned(),
         },
@@ -126,7 +157,7 @@ fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> Me
             outbox_id: format!("outbox_atomic_{scenario}_{suffix}"),
             aggregate_type: "conversation".to_owned(),
             aggregate_id: conversation_id,
-            event_id,
+            event_id: outbox_event_id,
             event_type: "message.posted".to_owned(),
             payload_hash: sdkwork_utils_rust::sha256_hash(outbox_payload.as_bytes()),
             payload_json: outbox_payload,
@@ -140,14 +171,38 @@ fn fixture(tenant_id: &str, scenario: &str, suffix: &str, message_id: i64) -> Me
     }
 }
 
+fn semantically_equivalent_json(payload: &str) -> String {
+    let payload = serde_json::from_str::<serde_json::Value>(payload)
+        .expect("fixture payload should be valid JSON");
+    serde_json::to_string_pretty(&payload).expect("fixture payload should format as JSON")
+}
+
+fn same_instant_with_eight_hour_offset(value: &str) -> String {
+    let instant = DateTime::parse_from_rfc3339(value).expect("fixture timestamp should be RFC3339");
+    let offset = FixedOffset::east_opt(8 * 60 * 60).expect("eight-hour offset should be valid");
+    instant.with_timezone(&offset).to_rfc3339()
+}
+
+fn assert_safe_replay_conflict<T: Debug>(result: Result<T, ContractError>, scenario: &str) {
+    match result {
+        Err(ContractError::Conflict(message)) => assert_eq!(
+            message, SAFE_REPLAY_CONFLICT,
+            "{scenario} must use the non-sensitive replay conflict"
+        ),
+        other => panic!("{scenario} must fail closed with Conflict: {other:?}"),
+    }
+}
+
 async fn persisted_row_counts(
     pool: PostgresJournalPool,
     fixture: &MessagePostFixture,
 ) -> PersistedRowCounts {
     let tenant_id = fixture.message.tenant_id.clone();
     let organization_id = fixture.message.organization_id.clone();
-    let event_id = fixture.envelope.event_id.clone();
+    let journal_event_id = fixture.envelope.event_id.clone();
+    let conversation_id = fixture.message.conversation_id.clone();
     let message_id = fixture.message.message_id;
+    let outbox_id = fixture.outbox.outbox_id.clone();
     tokio::task::spawn_blocking(move || {
         let mut client = pool
             .get()
@@ -159,11 +214,19 @@ select
     (select count(*) from im_commit_journal
         where tenant_id = $1 and organization_id = $2 and event_id = $3),
     (select count(*) from im_conversation_messages
-        where tenant_id = $1 and organization_id = $2 and message_id = $4),
+        where tenant_id = $1 and organization_id = $2
+          and conversation_id = $4 and message_id = $5),
     (select count(*) from im_outbox_events
-        where tenant_id = $1 and organization_id = $2 and event_id = $3)
+        where tenant_id = $1 and organization_id = $2 and outbox_id = $6)
 "#,
-                &[&tenant_id, &organization_id, &event_id, &message_id],
+                &[
+                    &tenant_id,
+                    &organization_id,
+                    &journal_event_id,
+                    &conversation_id,
+                    &message_id,
+                    &outbox_id,
+                ],
             )
             .expect("atomic message post rows should be countable");
         PersistedRowCounts {
@@ -180,8 +243,12 @@ async fn persisted_immutable_rows(
     pool: PostgresJournalPool,
     fixture: &MessagePostFixture,
 ) -> PersistedImmutableRows {
-    let event_id = fixture.envelope.event_id.clone();
+    let journal_event_id = fixture.envelope.event_id.clone();
+    let tenant_id = fixture.message.tenant_id.clone();
+    let organization_id = fixture.message.organization_id.clone();
+    let conversation_id = fixture.message.conversation_id.clone();
     let message_id = fixture.message.message_id;
+    let outbox_id = fixture.outbox.outbox_id.clone();
     tokio::task::spawn_blocking(move || {
         let mut client = pool
             .get()
@@ -198,23 +265,53 @@ select
     journal.aggregate_id,
     journal.aggregate_seq,
     journal.event_type,
+    journal.payload_json,
     journal.payload_hash,
+    message.tenant_id,
+    message.organization_id,
+    message.conversation_id,
     message.message_id,
+    message.message_seq,
+    message.sender_principal_kind,
+    message.sender_principal_id,
+    message.sender_device_id,
+    message.client_msg_id,
+    message.message_type,
+    message.payload_json,
     message.payload_hash,
+    message.created_at,
+    outbox.tenant_id,
+    outbox.organization_id,
     outbox.outbox_id,
-    outbox.payload_hash
+    outbox.aggregate_type,
+    outbox.aggregate_id,
+    outbox.event_id,
+    outbox.event_type,
+    outbox.payload_json,
+    outbox.payload_hash,
+    outbox.created_at
 from im_commit_journal journal
-join im_conversation_messages message
-  on message.tenant_id = journal.tenant_id
- and message.organization_id = journal.organization_id
- and message.message_id = $2
-join im_outbox_events outbox
-  on outbox.tenant_id = journal.tenant_id
- and outbox.organization_id = journal.organization_id
- and outbox.event_id = journal.event_id
+cross join im_conversation_messages message
+cross join im_outbox_events outbox
 where journal.event_id = $1
+  and journal.tenant_id = $2
+  and journal.organization_id = $3
+  and message.tenant_id = $2
+  and message.organization_id = $3
+  and message.conversation_id = $4
+  and message.message_id = $5
+  and outbox.tenant_id = $2
+  and outbox.organization_id = $3
+  and outbox.outbox_id = $6
 "#,
-                &[&event_id, &message_id],
+                &[
+                    &journal_event_id,
+                    &tenant_id,
+                    &organization_id,
+                    &conversation_id,
+                    &message_id,
+                    &outbox_id,
+                ],
             )
             .expect("committed immutable rows should be readable");
         PersistedImmutableRows {
@@ -226,15 +323,86 @@ where journal.event_id = $1
             journal_aggregate_id: row.get(5),
             journal_aggregate_seq: row.get(6),
             journal_event_type: row.get(7),
-            journal_payload_hash: row.get(8),
-            message_id: row.get(9),
-            message_payload_hash: row.get(10),
-            outbox_id: row.get(11),
-            outbox_payload_hash: row.get(12),
+            journal_payload_json: row.get(8),
+            journal_payload_hash: row.get(9),
+            message_tenant_id: row.get(10),
+            message_organization_id: row.get(11),
+            message_conversation_id: row.get(12),
+            message_id: row.get(13),
+            message_seq: row.get(14),
+            message_sender_principal_kind: row.get(15),
+            message_sender_principal_id: row.get(16),
+            message_sender_device_id: row.get(17),
+            message_client_msg_id: row.get(18),
+            message_type: row.get(19),
+            message_payload_json: row.get(20),
+            message_payload_hash: row.get(21),
+            message_created_at: row.get(22),
+            outbox_tenant_id: row.get(23),
+            outbox_organization_id: row.get(24),
+            outbox_id: row.get(25),
+            outbox_aggregate_type: row.get(26),
+            outbox_aggregate_id: row.get(27),
+            outbox_event_id: row.get(28),
+            outbox_event_type: row.get(29),
+            outbox_payload_json: row.get(30),
+            outbox_payload_hash: row.get(31),
+            outbox_created_at: row.get(32),
         }
     })
     .await
     .expect("immutable-row task should not panic")
+}
+
+async fn delete_fixture_message(pool: PostgresJournalPool, fixture: &MessagePostFixture) {
+    let tenant_id = fixture.message.tenant_id.clone();
+    let organization_id = fixture.message.organization_id.clone();
+    let conversation_id = fixture.message.conversation_id.clone();
+    let message_id = fixture.message.message_id;
+    tokio::task::spawn_blocking(move || {
+        let mut client = pool
+            .get()
+            .expect("message-deletion connection should be available");
+        let deleted = client
+            .execute(
+                r#"
+delete from im_conversation_messages
+where tenant_id = $1 and organization_id = $2
+  and conversation_id = $3 and message_id = $4
+"#,
+                &[&tenant_id, &organization_id, &conversation_id, &message_id],
+            )
+            .expect("fixture message should be deletable");
+        assert_eq!(deleted, 1, "exactly one fixture message should be deleted");
+    })
+    .await
+    .expect("message-deletion task should not panic");
+}
+
+async fn delete_fixture_outbox(pool: PostgresJournalPool, fixture: &MessagePostFixture) {
+    let tenant_id = fixture.outbox.tenant_id.clone();
+    let organization_id = fixture.outbox.organization_id.clone();
+    let outbox_id = fixture.outbox.outbox_id.clone();
+    tokio::task::spawn_blocking(move || {
+        let mut client = pool
+            .get()
+            .expect("outbox-deletion connection should be available");
+        let deleted = client
+            .execute(
+                r#"
+delete from im_outbox_events
+where tenant_id = $1 and organization_id = $2 and outbox_id = $3
+"#,
+                &[&tenant_id, &organization_id, &outbox_id],
+            )
+            .expect("fixture outbox row should be deletable");
+        assert_eq!(
+            deleted, 1,
+            "exactly one fixture outbox row should be deleted"
+        );
+    })
+    .await
+    .expect("outbox-deletion task should not panic");
 }
 
 async fn cleanup_tenant(pool: PostgresJournalPool, tenant_id: String) {
@@ -308,6 +476,31 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         suffix.as_str(),
         base_message_id + 2,
     );
+    let missing_message_fixture = fixture(
+        tenant_id.as_str(),
+        "missing_message",
+        suffix.as_str(),
+        base_message_id + 3,
+    );
+    let missing_outbox_fixture = fixture(
+        tenant_id.as_str(),
+        "missing_outbox",
+        suffix.as_str(),
+        base_message_id + 4,
+    );
+
+    for fixture in [
+        &outbox_id_conflict_fixture,
+        &event_id_conflict_fixture,
+        &commit_fixture,
+        &missing_message_fixture,
+        &missing_outbox_fixture,
+    ] {
+        assert_ne!(
+            fixture.envelope.event_id, fixture.outbox.event_id,
+            "journal and outbox event identities must remain distinct in production behavior"
+        );
+    }
 
     let mut conflicting_outbox_id_row = outbox_id_conflict_fixture.outbox.clone();
     conflicting_outbox_id_row.event_id = format!("evt_existing_outbox_id_{suffix}");
@@ -343,9 +536,9 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         PersistedRowCounts {
             journal: 0,
             message: 0,
-            outbox: 1,
+            outbox: 0,
         },
-        "the pre-existing mismatched event must not have a matching journal or message row"
+        "the pre-existing event-id conflict must not use the requested outbox identity"
     );
 
     let outbox_id_conflict_result = writer.persist_message_post(
@@ -377,16 +570,33 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
     );
     let replay_counts = persisted_row_counts(pool.clone(), &commit_fixture).await;
 
+    let mut semantically_equivalent_message = commit_fixture.message.clone();
+    semantically_equivalent_message.payload_json =
+        semantically_equivalent_json(commit_fixture.message.payload_json.as_str());
+    semantically_equivalent_message.created_at =
+        same_instant_with_eight_hour_offset(commit_fixture.message.created_at.as_str());
+    semantically_equivalent_message.updated_at = "2035-01-01T00:00:00Z".to_owned();
+    semantically_equivalent_message.deleted_at = Some("2035-01-02T00:00:00Z".to_owned());
+    semantically_equivalent_message.retention_until = Some("2035-02-01T00:00:00Z".to_owned());
+    let mut semantically_equivalent_outbox = commit_fixture.outbox.clone();
+    semantically_equivalent_outbox.payload_json =
+        semantically_equivalent_json(commit_fixture.outbox.payload_json.as_str());
+    semantically_equivalent_outbox.created_at =
+        same_instant_with_eight_hour_offset(commit_fixture.outbox.created_at.as_str());
+    semantically_equivalent_outbox.publish_status = OutboxPublishStatus::Published;
+    semantically_equivalent_outbox.attempt_count = 7;
+    semantically_equivalent_outbox.available_at = "2035-01-01T00:00:00Z".to_owned();
+    semantically_equivalent_outbox.published_at = Some("2035-01-01T00:00:01Z".to_owned());
+    semantically_equivalent_outbox.updated_at = "2035-01-01T00:00:02Z".to_owned();
+    let semantic_replay_position = writer.persist_message_post(
+        commit_fixture.envelope.clone(),
+        semantically_equivalent_message,
+        Some(semantically_equivalent_outbox),
+    );
+    let semantic_replay_counts = persisted_row_counts(pool.clone(), &commit_fixture).await;
+
     let immutable_rows_before_conflict =
         persisted_immutable_rows(pool.clone(), &commit_fixture).await;
-    let mut conflicting_envelope = commit_fixture.envelope.clone();
-    conflicting_envelope.payload = json!({
-        "eventId": conflicting_envelope.event_id,
-        "conversationId": conflicting_envelope.aggregate_id,
-        "messageId": commit_fixture.message.message_id.to_string(),
-        "replayVariant": "different-journal-payload"
-    })
-    .to_string();
     let mut conflicting_message = commit_fixture.message.clone();
     conflicting_message.payload_json = json!({
         "conversationId": conflicting_message.conversation_id,
@@ -395,8 +605,22 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         "text": "different message payload for the same event id"
     })
     .to_string();
-    conflicting_message.payload_hash =
-        sdkwork_utils_rust::sha256_hash(conflicting_message.payload_json.as_bytes());
+    assert_ne!(
+        serde_json::from_str::<serde_json::Value>(conflicting_message.payload_json.as_str())
+            .expect("conflicting message payload should be JSON"),
+        serde_json::from_str::<serde_json::Value>(commit_fixture.message.payload_json.as_str())
+            .expect("original message payload should be JSON")
+    );
+    let message_conflicting_replay_result = writer.persist_message_post(
+        commit_fixture.envelope.clone(),
+        conflicting_message,
+        Some(commit_fixture.outbox.clone()),
+    );
+    let message_conflicting_replay_counts =
+        persisted_row_counts(pool.clone(), &commit_fixture).await;
+    let immutable_rows_after_message_conflict =
+        persisted_immutable_rows(pool.clone(), &commit_fixture).await;
+
     let mut conflicting_outbox = commit_fixture.outbox.clone();
     conflicting_outbox.payload_json = json!({
         "eventId": conflicting_outbox.event_id,
@@ -405,16 +629,53 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         "replayVariant": "different-outbox-payload"
     })
     .to_string();
-    conflicting_outbox.payload_hash =
-        sdkwork_utils_rust::sha256_hash(conflicting_outbox.payload_json.as_bytes());
-    let conflicting_replay_result = writer.persist_message_post(
-        conflicting_envelope,
-        conflicting_message,
+    assert_ne!(
+        serde_json::from_str::<serde_json::Value>(conflicting_outbox.payload_json.as_str())
+            .expect("conflicting outbox payload should be JSON"),
+        serde_json::from_str::<serde_json::Value>(commit_fixture.outbox.payload_json.as_str())
+            .expect("original outbox payload should be JSON")
+    );
+    let outbox_conflicting_replay_result = writer.persist_message_post(
+        commit_fixture.envelope.clone(),
+        commit_fixture.message.clone(),
         Some(conflicting_outbox),
     );
-    let conflicting_replay_counts = persisted_row_counts(pool.clone(), &commit_fixture).await;
-    let immutable_rows_after_conflict =
+    let outbox_conflicting_replay_counts =
+        persisted_row_counts(pool.clone(), &commit_fixture).await;
+    let immutable_rows_after_outbox_conflict =
         persisted_immutable_rows(pool.clone(), &commit_fixture).await;
+
+    writer
+        .persist_message_post(
+            missing_message_fixture.envelope.clone(),
+            missing_message_fixture.message.clone(),
+            Some(missing_message_fixture.outbox.clone()),
+        )
+        .expect("missing-message fixture should initially persist");
+    delete_fixture_message(pool.clone(), &missing_message_fixture).await;
+    let missing_message_replay_result = writer.persist_message_post(
+        missing_message_fixture.envelope.clone(),
+        missing_message_fixture.message.clone(),
+        Some(missing_message_fixture.outbox.clone()),
+    );
+    let missing_message_replay_counts =
+        persisted_row_counts(pool.clone(), &missing_message_fixture).await;
+
+    writer
+        .persist_message_post(
+            missing_outbox_fixture.envelope.clone(),
+            missing_outbox_fixture.message.clone(),
+            Some(missing_outbox_fixture.outbox.clone()),
+        )
+        .expect("missing-outbox fixture should initially persist");
+    delete_fixture_outbox(pool.clone(), &missing_outbox_fixture).await;
+    let missing_outbox_replay_result = writer.persist_message_post(
+        missing_outbox_fixture.envelope.clone(),
+        missing_outbox_fixture.message.clone(),
+        Some(missing_outbox_fixture.outbox.clone()),
+    );
+    let missing_outbox_replay_counts =
+        persisted_row_counts(pool.clone(), &missing_outbox_fixture).await;
 
     cleanup_tenant(pool, tenant_id).await;
 
@@ -424,14 +685,14 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
                 == PersistedRowCounts {
                     journal: 0,
                     message: 0,
-                    outbox: 0,
+                    outbox: 1,
                 }
             && matches!(event_id_conflict_result, Err(ContractError::Conflict(_)))
             && event_id_conflict_counts
                 == PersistedRowCounts {
                     journal: 0,
                     message: 0,
-                    outbox: 1,
+                    outbox: 0,
                 },
         "outbox unique conflicts must be Conflict and roll back journal/message rows: \
          outbox_id_result={outbox_id_conflict_result:?}, \
@@ -462,21 +723,73 @@ async fn message_post_and_outbox_are_committed_or_rolled_back_together() {
         },
         "journal replay must not duplicate message or outbox rows"
     );
-    assert!(
-        matches!(conflicting_replay_result, Err(ContractError::Conflict(_))),
-        "the same event_id with different immutable payloads must conflict: {conflicting_replay_result:?}"
+    assert_eq!(
+        semantic_replay_position.expect(
+            "semantic JSON equality, normalized instants, and mutable lifecycle fields must replay",
+        ),
+        commit_position
     );
     assert_eq!(
-        conflicting_replay_counts,
+        semantic_replay_counts,
         PersistedRowCounts {
             journal: 1,
             message: 1,
             outbox: 1,
         },
-        "conflicting replay must not add journal, message, or outbox rows"
+        "semantic replay must not duplicate durable rows"
+    );
+    assert_safe_replay_conflict(
+        message_conflicting_replay_result,
+        "message fingerprint mismatch",
     );
     assert_eq!(
-        immutable_rows_after_conflict, immutable_rows_before_conflict,
-        "conflicting replay must leave the original immutable rows unchanged"
+        message_conflicting_replay_counts,
+        PersistedRowCounts {
+            journal: 1,
+            message: 1,
+            outbox: 1,
+        },
+        "message-conflicting replay must not add durable rows"
+    );
+    assert_eq!(
+        immutable_rows_after_message_conflict, immutable_rows_before_conflict,
+        "message-conflicting replay must leave all original immutable rows unchanged"
+    );
+    assert_safe_replay_conflict(
+        outbox_conflicting_replay_result,
+        "outbox fingerprint mismatch",
+    );
+    assert_eq!(
+        outbox_conflicting_replay_counts,
+        PersistedRowCounts {
+            journal: 1,
+            message: 1,
+            outbox: 1,
+        },
+        "outbox-conflicting replay must not add durable rows"
+    );
+    assert_eq!(
+        immutable_rows_after_outbox_conflict, immutable_rows_before_conflict,
+        "outbox-conflicting replay must leave all original immutable rows unchanged"
+    );
+    assert_safe_replay_conflict(missing_message_replay_result, "missing durable message");
+    assert_eq!(
+        missing_message_replay_counts,
+        PersistedRowCounts {
+            journal: 1,
+            message: 0,
+            outbox: 1,
+        },
+        "missing-message replay must not repair or duplicate durable rows"
+    );
+    assert_safe_replay_conflict(missing_outbox_replay_result, "missing durable outbox row");
+    assert_eq!(
+        missing_outbox_replay_counts,
+        PersistedRowCounts {
+            journal: 1,
+            message: 1,
+            outbox: 0,
+        },
+        "missing-outbox replay must not repair or duplicate durable rows"
     );
 }

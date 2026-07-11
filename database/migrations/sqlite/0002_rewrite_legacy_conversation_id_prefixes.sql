@@ -205,18 +205,18 @@ WHERE target_conversation_id IS NOT NULL
 -- matches in unrelated JSON text are extremely unlikely.
 
 UPDATE im_outbox_events
-SET payload = REPLACE(REPLACE(payload, 'c_direct_', 'c_'), 'c_agent_', 'a_')
-WHERE payload LIKE '%c_direct_%' OR payload LIKE '%c_agent_%';
+SET payload_json = REPLACE(REPLACE(payload_json, 'c_direct_', 'c_'), 'c_agent_', 'a_')
+WHERE payload_json LIKE '%c_direct_%' OR payload_json LIKE '%c_agent_%';
 
 UPDATE im_inbox_events
-SET payload = REPLACE(REPLACE(payload, 'c_direct_', 'c_'), 'c_agent_', 'a_')
-WHERE payload LIKE '%c_direct_%' OR payload LIKE '%c_agent_%';
+SET payload_json = REPLACE(REPLACE(payload_json, 'c_direct_', 'c_'), 'c_agent_', 'a_')
+WHERE payload_json LIKE '%c_direct_%' OR payload_json LIKE '%c_agent_%';
 
 UPDATE im_commit_journal
-SET payload = REPLACE(REPLACE(payload, 'c_direct_', 'c_'), 'c_agent_', 'a_')
-WHERE payload LIKE '%c_direct_%' OR payload LIKE '%c_agent_%';
+SET payload_json = REPLACE(REPLACE(payload_json, 'c_direct_', 'c_'), 'c_agent_', 'a_')
+WHERE payload_json LIKE '%c_direct_%' OR payload_json LIKE '%c_agent_%';
 
--- aggregate_id / scope_id / ordering_key in im_commit_journal -----------------
+-- aggregate_id / partition_key / commit_offset in im_commit_journal -----------------
 
 UPDATE im_commit_journal
 SET aggregate_id =
@@ -228,17 +228,17 @@ SET aggregate_id =
 WHERE aggregate_id LIKE 'c_direct_%' OR aggregate_id LIKE 'c_agent_%';
 
 UPDATE im_commit_journal
-SET scope_id =
+SET partition_key =
     CASE
-        WHEN scope_id LIKE 'c_direct_%' THEN 'c_' || substr(scope_id, 9)
-        WHEN scope_id LIKE 'c_agent_%'  THEN 'a_' || substr(scope_id, 8)
-        ELSE scope_id
+        WHEN partition_key LIKE 'c_direct_%' THEN 'c_' || substr(partition_key, 9)
+        WHEN partition_key LIKE 'c_agent_%'  THEN 'a_' || substr(partition_key, 8)
+        ELSE partition_key
     END
-WHERE scope_id LIKE 'c_direct_%' OR scope_id LIKE 'c_agent_%';
+WHERE partition_key LIKE 'c_direct_%' OR partition_key LIKE 'c_agent_%';
 
 UPDATE im_commit_journal
-SET ordering_key = REPLACE(REPLACE(ordering_key, 'c_direct_', 'c_'), 'c_agent_', 'a_')
-WHERE ordering_key LIKE '%c_direct_%' OR ordering_key LIKE '%c_agent_%';
+SET commit_offset = REPLACE(REPLACE(commit_offset, 'c_direct_', 'c_'), 'c_agent_', 'a_')
+WHERE commit_offset LIKE '%c_direct_%' OR commit_offset LIKE '%c_agent_%';
 
 -- Idempotency keys ------------------------------------------------------------
 

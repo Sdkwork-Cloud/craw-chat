@@ -9,6 +9,19 @@ declare module '@sdkwork/drive-pc-drive' {
     subscribeHostLanguage?: (listener: (language: string) => void) => () => void;
   }
 
-  export const DriveView: ComponentType<unknown>;
+  export interface DriveOpenRequest {
+    requestId: string;
+    section: 'recent';
+    nodeId: string;
+    spaceId?: string;
+    intent: 'preview';
+  }
+
+  export interface DriveViewProps {
+    openRequest?: DriveOpenRequest;
+    onOpenRequestHandled?: (requestId: string) => void;
+  }
+
+  export const DriveView: ComponentType<DriveViewProps>;
   export function configureDrivePcRuntime(options: { sdkPorts: DrivePcSdkPorts }): void;
 }

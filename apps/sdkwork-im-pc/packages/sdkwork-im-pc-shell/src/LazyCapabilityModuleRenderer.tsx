@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
+import { hasAppSdkPermissionForCurrentSession } from '@sdkwork/im-pc-core';
 
 import { isShellCapabilityModule, resolveLazyCapabilityModule } from './capabilityModuleLoaders';
-import { isCommercialRuntimeModule } from './moduleRegistry';
+import { isCommercialRuntimeModule, resolveModuleRequiredPermission } from './moduleRegistry';
 
 export interface LazyCapabilityModuleRendererProps {
   activeTab: string;
@@ -22,6 +23,15 @@ export const LazyCapabilityModuleRenderer: React.FC<LazyCapabilityModuleRenderer
   renderModule,
 }) => {
   if (!isShellCapabilityModule(activeTab) || !isCommercialRuntimeModule(activeTab)) {
+    return null;
+  }
+
+  // Route-level RBAC: refuse to mount a commercial module whose declared
+  // `requiredPermission` is not granted by the current session token. The
+  // check mirrors the backend `AppContext::has_permission` semantics so a
+  // client without the permission claim can never load the module surface.
+  const requiredPermission = resolveModuleRequiredPermission(activeTab);
+  if (requiredPermission && !hasAppSdkPermissionForCurrentSession(requiredPermission)) {
     return null;
   }
 

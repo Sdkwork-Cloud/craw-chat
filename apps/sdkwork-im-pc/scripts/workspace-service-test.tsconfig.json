@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@sdkwork/im-pc-core/sdk/appSdkClient": [
+        "scripts/stubs/workspace-core.stub.ts"
+      ],
+      "@sdkwork/im-pc-core/sdk/driveAppSdkClient": [
+        "scripts/stubs/workspace-core.stub.ts"
+      ],
+      "@sdkwork/im-pc-core/sdk/session": [
+        "scripts/stubs/workspace-core.stub.ts"
+      ],
+      "@sdkwork/im-pc-shell": [
+        "scripts/stubs/workspace-shell.stub.ts"
+      ]
+    }
+  }
+}

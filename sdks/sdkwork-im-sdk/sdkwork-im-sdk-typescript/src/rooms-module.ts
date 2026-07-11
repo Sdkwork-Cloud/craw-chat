@@ -3,8 +3,8 @@ import type {
   EnterRoomResponse,
   RoomView,
 } from '../generated/server-openapi/dist/index.js';
-import { requireStringIdentifier } from './identifier-boundary';
-import type { ImCreateRoomRequest, ImTransportClientLike } from './transport-client-like';
+import { requireStringIdentifier } from './identifier-boundary.js';
+import type { ImCreateRoomRequest, ImTransportClientLike } from './transport-client-like.js';
 
 export class ImRoomsModule {
   constructor(private readonly transportClient: ImTransportClientLike) {}

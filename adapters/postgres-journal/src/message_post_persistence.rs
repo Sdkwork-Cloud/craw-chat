@@ -1,6 +1,6 @@
 //! Atomic journal + message truth + optional outbox enqueue in one Postgres transaction.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     CommitPosition, ContractError, OutboxEventRecord, StoredMessageRecord,
@@ -30,9 +30,165 @@ insert into im_outbox_events (
 ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14)
 "#;
 
+const LOAD_REPLAY_MESSAGE_SQL: &str = r#"
+select
+    tenant_id,
+    organization_id,
+    conversation_id,
+    message_id,
+    message_seq,
+    sender_principal_kind,
+    sender_principal_id,
+    sender_device_id,
+    client_msg_id,
+    message_type,
+    payload_json,
+    payload_hash,
+    created_at
+from im_conversation_messages
+where tenant_id = $1
+  and organization_id = $2
+  and conversation_id = $3
+  and message_id = $4
+"#;
+
+const LOAD_REPLAY_OUTBOX_SQL: &str = r#"
+select
+    tenant_id,
+    organization_id,
+    outbox_id,
+    aggregate_type,
+    aggregate_id,
+    event_id,
+    event_type,
+    payload_json,
+    payload_hash,
+    created_at
+from im_outbox_events
+where tenant_id = $1
+  and organization_id = $2
+  and outbox_id = $3
+"#;
+
+const MESSAGE_POST_REPLAY_CONFLICT_MESSAGE: &str =
+    "message post replay conflicts with existing durable state";
+
 enum JournalAppendOutcome {
     Inserted(String, i64),
     EventIdAbsorbed(String, i64),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct MessageCreationFingerprint {
+    tenant_id: String,
+    organization_id: String,
+    conversation_id: String,
+    message_id: i64,
+    message_seq: i64,
+    sender_principal_kind: String,
+    sender_principal_id: String,
+    sender_device_id: Option<String>,
+    client_msg_id: Option<String>,
+    message_type: String,
+    payload_json: serde_json::Value,
+    payload_hash: String,
+    created_at_micros: i64,
+}
+
+impl MessageCreationFingerprint {
+    fn from_record(message: &StoredMessageRecord) -> Result<Self, ContractError> {
+        let message_seq = postgres_bigint_input(message.message_seq, "message sequence")
+            .map_err(|_| message_post_replay_conflict())?;
+        let payload_json = postgres_jsonb_payload(message.payload_json.as_str())
+            .map_err(|_| message_post_replay_conflict())?;
+        let created_at = postgres_timestamptz(message.created_at.as_str(), "created_at")
+            .map_err(|_| message_post_replay_conflict())?;
+        Ok(Self {
+            tenant_id: message.tenant_id.clone(),
+            organization_id: message.organization_id.clone(),
+            conversation_id: message.conversation_id.clone(),
+            message_id: message.message_id,
+            message_seq,
+            sender_principal_kind: message.sender_principal_kind.clone(),
+            sender_principal_id: message.sender_principal_id.clone(),
+            sender_device_id: message.sender_device_id.clone(),
+            client_msg_id: message.client_msg_id.clone(),
+            message_type: message.message_type.clone(),
+            payload_json,
+            payload_hash: message.payload_hash.clone(),
+            created_at_micros: created_at.timestamp_micros(),
+        })
+    }
+
+    fn from_row(row: &postgres::Row) -> Result<Self, ContractError> {
+        Ok(Self {
+            tenant_id: replay_message_row_get(row, 0, "tenant_id")?,
+            organization_id: replay_message_row_get(row, 1, "organization_id")?,
+            conversation_id: replay_message_row_get(row, 2, "conversation_id")?,
+            message_id: replay_message_row_get(row, 3, "message_id")?,
+            message_seq: replay_message_row_get(row, 4, "message_seq")?,
+            sender_principal_kind: replay_message_row_get(row, 5, "sender_principal_kind")?,
+            sender_principal_id: replay_message_row_get(row, 6, "sender_principal_id")?,
+            sender_device_id: replay_message_row_get(row, 7, "sender_device_id")?,
+            client_msg_id: replay_message_row_get(row, 8, "client_msg_id")?,
+            message_type: replay_message_row_get(row, 9, "message_type")?,
+            payload_json: replay_message_row_get(row, 10, "payload_json")?,
+            payload_hash: replay_message_row_get(row, 11, "payload_hash")?,
+            created_at_micros: replay_message_row_get::<DateTime<Utc>>(row, 12, "created_at")?
+                .timestamp_micros(),
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct OutboxCreationFingerprint {
+    tenant_id: String,
+    organization_id: String,
+    outbox_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    event_id: String,
+    event_type: String,
+    payload_json: serde_json::Value,
+    payload_hash: String,
+    created_at_micros: i64,
+}
+
+impl OutboxCreationFingerprint {
+    fn from_record(event: &OutboxEventRecord) -> Result<Self, ContractError> {
+        let payload_json = postgres_jsonb_payload(event.payload_json.as_str())
+            .map_err(|_| message_post_replay_conflict())?;
+        let created_at = postgres_timestamptz(event.created_at.as_str(), "created_at")
+            .map_err(|_| message_post_replay_conflict())?;
+        Ok(Self {
+            tenant_id: event.tenant_id.clone(),
+            organization_id: event.organization_id.clone(),
+            outbox_id: event.outbox_id.clone(),
+            aggregate_type: event.aggregate_type.clone(),
+            aggregate_id: event.aggregate_id.clone(),
+            event_id: event.event_id.clone(),
+            event_type: event.event_type.clone(),
+            payload_json,
+            payload_hash: event.payload_hash.clone(),
+            created_at_micros: created_at.timestamp_micros(),
+        })
+    }
+
+    fn from_row(row: &postgres::Row) -> Result<Self, ContractError> {
+        Ok(Self {
+            tenant_id: replay_outbox_row_get(row, 0, "tenant_id")?,
+            organization_id: replay_outbox_row_get(row, 1, "organization_id")?,
+            outbox_id: replay_outbox_row_get(row, 2, "outbox_id")?,
+            aggregate_type: replay_outbox_row_get(row, 3, "aggregate_type")?,
+            aggregate_id: replay_outbox_row_get(row, 4, "aggregate_id")?,
+            event_id: replay_outbox_row_get(row, 5, "event_id")?,
+            event_type: replay_outbox_row_get(row, 6, "event_type")?,
+            payload_json: replay_outbox_row_get(row, 7, "payload_json")?,
+            payload_hash: replay_outbox_row_get(row, 8, "payload_hash")?,
+            created_at_micros: replay_outbox_row_get::<DateTime<Utc>>(row, 9, "created_at")?
+                .timestamp_micros(),
+        })
+    }
 }
 
 /// Postgres-backed atomic message post writer (journal + message + outbox).
@@ -82,6 +238,7 @@ fn persist_message_post_txn(
 
     match append_journal_in_transaction(&mut txn, prefix, envelope)? {
         JournalAppendOutcome::EventIdAbsorbed(partition, offset) => {
+            ensure_message_post_replay_matches(&mut txn, message, outbox)?;
             let offset = postgres_bigint_output(offset, "commit_offset")?;
             txn.commit()
                 .map_err(|error| postgres_unavailable_db("persist_message_post commit", error))?;
@@ -98,6 +255,77 @@ fn persist_message_post_txn(
             Ok(CommitPosition::new(partition, offset))
         }
     }
+}
+
+fn ensure_message_post_replay_matches(
+    txn: &mut Transaction<'_>,
+    message: &StoredMessageRecord,
+    outbox: Option<&OutboxEventRecord>,
+) -> Result<(), ContractError> {
+    let attempted_message = MessageCreationFingerprint::from_record(message)?;
+    let message_row = txn
+        .query_opt(
+            LOAD_REPLAY_MESSAGE_SQL,
+            &[
+                &message.tenant_id,
+                &message.organization_id,
+                &message.conversation_id,
+                &message.message_id,
+            ],
+        )
+        .map_err(|error| postgres_unavailable_db("message post replay message lookup", error))?
+        .ok_or_else(message_post_replay_conflict)?;
+    let existing_message = MessageCreationFingerprint::from_row(&message_row)?;
+    if existing_message != attempted_message {
+        return Err(message_post_replay_conflict());
+    }
+
+    if let Some(outbox) = outbox {
+        let attempted_outbox = OutboxCreationFingerprint::from_record(outbox)?;
+        let outbox_row = txn
+            .query_opt(
+                LOAD_REPLAY_OUTBOX_SQL,
+                &[
+                    &outbox.tenant_id,
+                    &outbox.organization_id,
+                    &outbox.outbox_id,
+                ],
+            )
+            .map_err(|error| postgres_unavailable_db("message post replay outbox lookup", error))?
+            .ok_or_else(message_post_replay_conflict)?;
+        let existing_outbox = OutboxCreationFingerprint::from_row(&outbox_row)?;
+        if existing_outbox != attempted_outbox {
+            return Err(message_post_replay_conflict());
+        }
+    }
+
+    Ok(())
+}
+
+fn replay_message_row_get<T>(
+    row: &postgres::Row,
+    column: usize,
+    field: &'static str,
+) -> Result<T, ContractError>
+where
+    T: for<'a> postgres::types::FromSql<'a>,
+{
+    postgres_row_get(row, column, "message post replay message", field)
+}
+
+fn replay_outbox_row_get<T>(
+    row: &postgres::Row,
+    column: usize,
+    field: &'static str,
+) -> Result<T, ContractError>
+where
+    T: for<'a> postgres::types::FromSql<'a>,
+{
+    postgres_row_get(row, column, "message post replay outbox", field)
+}
+
+fn message_post_replay_conflict() -> ContractError {
+    ContractError::Conflict(MESSAGE_POST_REPLAY_CONFLICT_MESSAGE.into())
 }
 
 fn append_journal_in_transaction(
