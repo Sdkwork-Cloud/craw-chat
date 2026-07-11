@@ -2,8 +2,8 @@
   "name": "@sdkwork/im-pc-commons",
   "version": "1.0.0",
   "type": "module",
-  "main": "./src/index.tsx",
-  "types": "./src/index.tsx",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "devDependencies": {
     "jsdom": "catalog:"
   },

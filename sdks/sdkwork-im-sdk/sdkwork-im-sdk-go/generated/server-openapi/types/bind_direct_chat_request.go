@@ -8,5 +8,4 @@ type BindDirectChatRequest struct {
 	LeftActorKind string `json:"leftActorKind"`
 	RightActorId string `json:"rightActorId"`
 	RightActorKind string `json:"rightActorKind"`
-	TargetUserId string `json:"targetUserId"`
 }

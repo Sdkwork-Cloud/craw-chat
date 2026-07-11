@@ -894,8 +894,13 @@ CREATE TABLE IF NOT EXISTS im_projection_conversation_members (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     retention_until TIMESTAMPTZ,
+    -- The member_id column is bigint but the runtime ConversationMember.member_id is a string
+    -- (cm_<conv_id>_<principal_kind>_<principal_id>). It is parsed to i64 via principal_id, so
+    -- member_id is effectively the principal's Snowflake i64. There is no separate UK on member_id:
+    -- the composite PK on (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
+    -- is the sole uniqueness guarantee for conversation members, since principal already identifies a
+    -- member uniquely within a conversation. See specs/database-table-registry.json writeOwner.
     CONSTRAINT pk_im_projection_conversation_members PRIMARY KEY (tenant_id, organization_id, conversation_id, principal_kind, principal_id),
-    CONSTRAINT uk_im_projection_conversation_members_member UNIQUE (tenant_id, organization_id, conversation_id, member_id),
     CONSTRAINT chk_im_projection_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
 );
 

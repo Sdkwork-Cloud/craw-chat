@@ -93,7 +93,7 @@ final connection = composed.connect(
 );
 
 connection.messages.onConversation('conv-demo-01', (_) {
-  // refresh conversation timeline
+  // refresh message history
 });
 connection.events.onScope('user', '1', (_) {
   // refresh inbox

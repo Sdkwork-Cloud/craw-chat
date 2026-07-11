@@ -8,5 +8,7 @@ data class ProblemDetail(
     val instance: String? = null,
     val code: Int? = null,
     val traceId: String? = null,
+    val i18nKey: String? = null,
+    val locale: String? = null,
     val errors: List<FieldError>? = null
 )

@@ -7,7 +7,7 @@ Specs: DOMAIN_SPEC.md, NAMING_SPEC.md, API_SPEC.md, ARCHITECTURE_DECISION_SPEC.m
 
 ## Context
 
-Sdkwork IM uses topology v2 split deploy behind `sdkwork-im-server` (`application.public-ingress`).
+Sdkwork IM uses `application.public-ingress` with gateway-owned routing for cloud internal services.
 Several boundaries drifted from SDKWork standards:
 
 - `contact-service` and `social-service` both mount `/im/v3/api/social/*`.
@@ -23,7 +23,7 @@ Several boundaries drifted from SDKWork standards:
 
 - Canonical domain: `communication` (abbreviated `comms` in service ids and future crate names).
 - SDK family stem remains `im` (`sdkwork-im-sdk`, `/im/v3/api`).
-- Canonical split-deploy service ids:
+- Canonical cloud/internal service ids:
 
 | Capability | Canonical `service_id` | OpenAPI tag | Path prefix |
 | --- | --- | --- | --- |
@@ -36,7 +36,7 @@ Legacy aliases `social-service` and `space-service` remain resolvable in gateway
 
 ### Service ownership
 
-- **`social-service` is the sole HTTP owner** of `/im/v3/api/social/*` for split deploy and monolith merge.
+- **`social-service` is the sole HTTP owner** of `/im/v3/api/social/*` for cloud internal routing and standalone gateway assembly.
 - **`contact-service` is deprecated** as a public HTTP surface. Postgres CRUD handlers may be merged into
   `social-service` in a follow-up; until then the crate stays library-only.
 - **`interaction-service` is deprecated** as a public HTTP surface. Reactions, pins, threads, and conversation
@@ -86,7 +86,7 @@ node sdks/materialize-im-v3-openapi-boundaries.mjs
 - Fixed dual-token context resolution when `organization_id` sentinel is `default` (TENANT login scope parity).
 
 
-- `social-service` and `space-service` gained standalone `main.rs` binaries for split deploy.
+- `social-service` and `space-service` gained standalone `main.rs` binaries for cloud/internal process deployment.
 - `contact-service` supplemental Postgres routes merge into `social-service` when `SDKWORK_IM_DATABASE_URL` is set.
 - OpenAPI `spaces` tag expanded with members/groups seed paths.
 

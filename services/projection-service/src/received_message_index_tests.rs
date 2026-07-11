@@ -42,7 +42,10 @@ fn timeline_entry(message_seq: u64, sender_id: &str) -> TimelineViewEntry {
         occurred_at: "2026-04-05T10:00:01Z".into(),
         committed_at: Some("2026-04-05T10:00:01Z".into()),
         retention_until: None,
+        reaction_counts: Vec::new(),
+        pin: None,
     }
+}
 }
 
 #[test]

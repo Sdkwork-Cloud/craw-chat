@@ -18,7 +18,7 @@ use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use sdkwork_routes_web_framework_backend_api::response::{ApiProblem, ApiResult, finish_api_json};
 use sdkwork_utils_rust::{
     MAX_LIST_PAGE_SIZE, SDKWORK_TRACE_ID_HEADER, SdkWorkCursorListQuery, SdkWorkProblemDetail,
-    SdkWorkResultCode, SdkWorkSeqWindowQuery,
+    SdkWorkResultCode,
 };
 use sdkwork_web_core::{
     ProblemCorrelation, WebFrameworkError, WebFrameworkErrorKind, WebRequestContext,
@@ -49,6 +49,13 @@ struct FavoriteMessagesQuery {
     paging: SdkWorkCursorListQuery,
     favorite_type: Option<String>,
     q: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct InboxQuery {
+    #[serde(flatten)]
+    paging: SdkWorkCursorListQuery,
+    conversation_type: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -301,10 +308,6 @@ pub fn build_supplemental_domain_api_router(service: Arc<TimelineProjectionServi
             get(get_pinned_messages),
         )
         .route(
-            "/im/v3/api/chat/conversations/{conversation_id}/messages",
-            get(get_timeline),
-        )
-        .route(
             "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
             get(get_message_interaction_summary),
         )
@@ -362,10 +365,6 @@ pub fn build_domain_api_router(service: Arc<TimelineProjectionService>) -> Route
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
             get(get_message_interaction_summary),
-        )
-        .route(
-            "/im/v3/api/chat/conversations/{conversation_id}/messages",
-            get(get_timeline),
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/profile",
@@ -535,7 +534,7 @@ fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Sdkwork IM Projection Service API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, message search, contacts, read cursor, and interaction summary queries.",
+        description: "Live OpenAPI contract generated from the projection-service router for inbox, contacts, conversation summaries, read cursor, message search, and interaction summary queries.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
@@ -635,43 +634,11 @@ async fn search_messages(
     finish_api_json(&ctx, result)
 }
 
-async fn get_timeline(
-    Extension(ctx): Extension<WebRequestContext>,
-    Extension(auth): Extension<AppContext>,
-    Path(conversation_id): Path<String>,
-    uri: Uri,
-    query: Result<Query<SdkWorkSeqWindowQuery>, QueryRejection>,
-    State(service): State<Arc<TimelineProjectionService>>,
-) -> Response {
-    if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
-        return response;
-    }
-    let Query(query) = match query {
-        Ok(value) => value,
-        Err(rejection) => return finish_query_rejection(&ctx, rejection),
-    };
-    let after_seq = query.after_seq;
-    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
-        Ok(value) => value,
-        Err(response) => return response,
-    };
-    let result = run_blocking_projection(service, auth, move |service, auth| {
-        Ok(service.timeline_window_from_auth_context(
-            &auth,
-            conversation_id.as_str(),
-            after_seq,
-            page_size,
-        )?)
-    })
-    .await;
-    finish_api_json(&ctx, result)
-}
-
 async fn get_inbox(
     Extension(ctx): Extension<WebRequestContext>,
     Extension(auth): Extension<AppContext>,
     uri: Uri,
-    query: Result<Query<SdkWorkCursorListQuery>, QueryRejection>,
+    query: Result<Query<InboxQuery>, QueryRejection>,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Response {
     if let Some(response) = reject_non_standard_list_query(&ctx, &uri) {
@@ -681,13 +648,19 @@ async fn get_inbox(
         Ok(value) => value,
         Err(rejection) => return finish_query_rejection(&ctx, rejection),
     };
-    let page_size = match resolve_list_page_size(&ctx, query.page_size) {
+    let page_size = match resolve_list_page_size(&ctx, query.paging.page_size) {
         Ok(value) => value,
         Err(response) => return response,
     };
-    let cursor = query.cursor.clone();
+    let cursor = query.paging.cursor.clone();
+    let conversation_type = query.conversation_type.clone();
     let result = run_blocking_projection(service, auth, move |service, auth| {
-        Ok(service.inbox_window_from_auth_context(&auth, page_size, cursor.as_deref())?)
+        Ok(service.inbox_window_from_auth_context_filtered(
+            &auth,
+            page_size,
+            cursor.as_deref(),
+            conversation_type.as_deref(),
+        )?)
     })
     .await;
     finish_api_json(&ctx, result)

@@ -94,8 +94,8 @@ Example test shape:
 #[test]
 fn registry_rejects_duplicate_method_path_owner() {
     let result = build_registry(vec![
-        route("projection-service", "GET", "/im/v3/api/chat/conversations/{conversationId}/messages"),
-        route("conversation-runtime", "GET", "/im/v3/api/chat/conversations/{conversationId}/messages"),
+        route("projection-service", "GET", "/im/v3/api/chat/conversations/{conversationId}/member_directory"),
+        route("comms-conversation-service", "GET", "/im/v3/api/chat/conversations/{conversationId}/member_directory"),
     ]);
     assert!(result.is_err());
 }
@@ -242,10 +242,10 @@ Example:
 
 ```rust
 #[tokio::test]
-async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
+async fn gateway_routes_conversation_messages_reads_and_writes_to_runtime_upstream() {
     let gateway = test_gateway();
-    assert_owner(&gateway, Method::GET, "/im/v3/api/chat/conversations/c_1/messages", "projection-service").await;
-    assert_owner(&gateway, Method::POST, "/im/v3/api/chat/conversations/c_1/messages", "conversation-runtime").await;
+    assert_owner(&gateway, Method::GET, "/im/v3/api/chat/conversations/c_1/messages", "comms-conversation-service").await;
+    assert_owner(&gateway, Method::POST, "/im/v3/api/chat/conversations/c_1/messages", "comms-conversation-service").await;
 }
 ```
 

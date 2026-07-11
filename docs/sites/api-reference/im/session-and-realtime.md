@@ -161,12 +161,12 @@ Refreshes the presence heartbeat for the current client route.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="get-presence-me"></a>
@@ -199,11 +199,11 @@ Reads the current principal's presence snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="sync-realtime-subscriptions"></a>
@@ -240,12 +240,12 @@ Replaces the realtime subscription set for the current client route.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="list-realtime-events"></a>
@@ -285,11 +285,11 @@ Fetches realtime events from the realtime event window.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="ack-realtime-events"></a>
@@ -326,12 +326,12 @@ Acknowledges the highest realtime event sequence consumed by the client.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="realtime-websocket"></a>
@@ -353,7 +353,7 @@ not expand the full realtime frame protocol.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active client route is prepared before upgrade.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
 
 ### Security
@@ -369,7 +369,7 @@ not expand the full realtime frame protocol.
 | --- | --- | --- |
 | `Sec-WebSocket-Protocol` | No | When set to `ccp/ws/1`, the runtime enters the `CcpJson` subprotocol mode. Otherwise it falls back to the legacy JSON frame mode. |
 
-### Response `101`
+### Response `200`
 
 | Output | Type | Description |
 | --- | --- | --- |
@@ -390,8 +390,10 @@ not expand the full realtime frame protocol.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `409` | `client_route_scope_conflict` | The client route key is already bound to another principal. |
-| `409` | `disconnect_fence_conflict` | Routing or session state blocks the upgrade. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

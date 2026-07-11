@@ -236,35 +236,6 @@ where
         Ok(())
     }
 
-    fn collect_active_member_principal_pairs(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-    ) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
-        let mut principal_ids = Vec::new();
-        let mut principal_kinds = Vec::new();
-        let mut cursor: Option<String> = None;
-        loop {
-            let window = self.list_members_window(
-                tenant_id,
-                organization_id,
-                conversation_id,
-                Some(CONVERSATION_MEMBER_LIST_MAX_LIMIT),
-                cursor.as_deref(),
-            )?;
-            for member in window.items {
-                principal_ids.push(member.principal_id);
-                principal_kinds.push(member.principal_kind);
-            }
-            if window.page_info.has_more != Some(true) {
-                break;
-            }
-            cursor = window.page_info.next_cursor.clone();
-        }
-        Ok((principal_ids, principal_kinds))
-    }
-
     fn publish_or_enqueue_message_mutation_realtime(
         &self,
         tenant_id: &str,
@@ -339,52 +310,12 @@ where
         if self.outbox_store.is_none() || self.id_generator.is_none() {
             return Ok(None);
         }
-        let members = self.list_members(tenant_id, organization_id, conversation_id)?;
-        if members.is_empty() {
-            return Ok(None);
-        }
-        let recipient_principal_ids = members
-            .iter()
-            .map(|member| member.principal_id.clone())
-            .collect::<Vec<_>>();
-        let recipient_principal_kinds = members
-            .iter()
-            .map(|member| member.principal_kind.clone())
-            .collect::<Vec<_>>();
-        let payload_value = serde_json::from_str::<serde_json::Value>(&payload_body_json)
-            .unwrap_or_else(|_| serde_json::json!({}));
-        let mut payload_object = match payload_value {
-            serde_json::Value::Object(map) => map,
-            other => {
-                let mut map = serde_json::Map::new();
-                map.insert("payload".into(), other);
-                map
-            }
-        };
-        payload_object.insert(
-            "recipientPrincipalIds".into(),
-            serde_json::Value::Array(
-                recipient_principal_ids
-                    .into_iter()
-                    .map(serde_json::Value::String)
-                    .collect(),
-            ),
-        );
-        payload_object.insert(
-            "recipientPrincipalKinds".into(),
-            serde_json::Value::Array(
-                recipient_principal_kinds
-                    .into_iter()
-                    .map(serde_json::Value::String)
-                    .collect(),
-            ),
-        );
-        let payload_json = serde_json::to_string(&serde_json::Value::Object(payload_object))
-            .map_err(|error| {
-                RuntimeError::InvalidInput(format!(
-                    "{event_type} outbox payload encode failed: {error}"
-                ))
-            })?;
+        serde_json::from_str::<serde_json::Value>(payload_body_json.as_str()).map_err(|error| {
+            RuntimeError::InvalidInput(format!(
+                "{event_type} outbox payload encode failed: {error}"
+            ))
+        })?;
+        let payload_json = payload_body_json;
         let payload_hash = sha256_hash(payload_json.as_bytes());
         let now = utc_now_rfc3339_millis();
         let id_generator = self
@@ -456,23 +387,12 @@ where
                 .summary_or_derived()
                 .unwrap_or_else(|| "[message]".into()),
         };
-        let (recipient_principal_ids, recipient_principal_kinds) = self
-            .collect_active_member_principal_pairs(
-                tenant_id,
-                organization_id,
-                message.conversation_id.as_str(),
-            )?;
-        if recipient_principal_ids.is_empty() {
-            return Ok(None);
-        }
         let payload_json = serde_json::json!({
             "conversationId": payload_body.conversation_id,
             "messageId": payload_body.message_id,
             "messageSeq": payload_body.message_seq,
             "messageType": payload_body.message_type,
             "summary": payload_body.summary,
-            "recipientPrincipalIds": recipient_principal_ids,
-            "recipientPrincipalKinds": recipient_principal_kinds,
         });
         let payload_json = serde_json::to_string(&payload_json).map_err(|error| {
             RuntimeError::InvalidInput(format!(
@@ -527,4 +447,171 @@ fn env_flag_enabled(name: &str) -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+    use std::time::Duration;
+
+    use im_domain_core::conversation::MembershipRole;
+    use im_platform_contracts::{
+        CommitPosition, ContractError, IdGenerator, OutboxEventClaim, OutboxStore,
+    };
+
+    use super::*;
+    use crate::{AddConversationMemberCommand, CreateConversationCommand};
+
+    #[derive(Default)]
+    struct RealtimeTestJournal {
+        offset: AtomicU64,
+    }
+
+    impl CommitJournal for RealtimeTestJournal {
+        fn append(
+            &self,
+            _envelope: im_domain_events::CommitEnvelope,
+        ) -> Result<CommitPosition, ContractError> {
+            Ok(CommitPosition::new(
+                "message-realtime-test",
+                self.offset.fetch_add(1, Ordering::Relaxed) + 1,
+            ))
+        }
+    }
+
+    #[derive(Default)]
+    struct NoopOutboxStore;
+
+    impl OutboxStore for NoopOutboxStore {
+        fn enqueue(&self, _event: OutboxEventRecord) -> Result<(), ContractError> {
+            Ok(())
+        }
+
+        fn claim_pending(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _aggregate_type: &str,
+            _batch_size: usize,
+            _lease_duration: Duration,
+        ) -> Result<Vec<OutboxEventClaim>, ContractError> {
+            Ok(Vec::new())
+        }
+
+        fn mark_published(&self, _claim: &OutboxEventClaim) -> Result<(), ContractError> {
+            Ok(())
+        }
+
+        fn mark_failed(
+            &self,
+            _claim: &OutboxEventClaim,
+            _reason: &str,
+        ) -> Result<(), ContractError> {
+            Ok(())
+        }
+
+        fn retry_failed(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _outbox_id: &str,
+        ) -> Result<(), ContractError> {
+            Ok(())
+        }
+
+        fn read_by_event_id(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+            _event_id: &str,
+        ) -> Result<Option<OutboxEventRecord>, ContractError> {
+            Ok(None)
+        }
+
+        fn count_pending(
+            &self,
+            _tenant_id: &str,
+            _organization_id: &str,
+        ) -> Result<u64, ContractError> {
+            Ok(0)
+        }
+
+        fn list_pending_scopes(
+            &self,
+            _aggregate_type: &str,
+            _limit: usize,
+        ) -> Result<Vec<(String, String)>, ContractError> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[derive(Default)]
+    struct RealtimeTestIdGenerator {
+        next: AtomicI64,
+    }
+
+    impl IdGenerator for RealtimeTestIdGenerator {
+        fn next_id(&self) -> Result<i64, ContractError> {
+            Ok(self.next.fetch_add(1, Ordering::Relaxed) + 1)
+        }
+
+        fn node_id(&self) -> u16 {
+            0
+        }
+
+        fn next_id_at(&self, _timestamp_millis: u64) -> Result<i64, ContractError> {
+            self.next_id()
+        }
+    }
+
+    #[test]
+    fn conversation_outbox_payload_does_not_embed_unbounded_recipient_inventory() {
+        let runtime = ConversationRuntime::new(RealtimeTestJournal::default())
+            .with_outbox_store(Arc::new(NoopOutboxStore))
+            .with_id_generator(Arc::new(RealtimeTestIdGenerator::default()));
+        runtime
+            .create_conversation(CreateConversationCommand {
+                tenant_id: "100001".into(),
+                organization_id: "0".into(),
+                conversation_id: "c_scope_only_outbox".into(),
+                creator_id: "user_000".into(),
+                conversation_type: "group".into(),
+            })
+            .expect("outbox test conversation should be created");
+        for index in 1..=400 {
+            runtime
+                .add_member(AddConversationMemberCommand {
+                    tenant_id: "100001".into(),
+                    organization_id: "0".into(),
+                    conversation_id: "c_scope_only_outbox".into(),
+                    principal_id: format!("user_{index:03}"),
+                    principal_kind: "user".into(),
+                    role: MembershipRole::Member,
+                    invited_by: "user_000".into(),
+                })
+                .expect("outbox test member should be added");
+        }
+
+        let record = runtime
+            .build_message_mutation_outbox_record(
+                "100001",
+                "0",
+                "c_scope_only_outbox",
+                "message.edited",
+                "evt_message_edited",
+                serde_json::json!({
+                    "conversationId": "c_scope_only_outbox",
+                    "messageId": "42",
+                })
+                .to_string(),
+            )
+            .expect("scope-only outbox record should build")
+            .expect("outbox record should be present");
+        let payload: serde_json::Value = serde_json::from_str(record.payload_json.as_str())
+            .expect("outbox payload should be valid json");
+
+        assert!(payload.get("recipientPrincipalIds").is_none());
+        assert!(payload.get("recipientPrincipalKinds").is_none());
+        assert!(record.payload_json.len() < 1024);
+    }
 }

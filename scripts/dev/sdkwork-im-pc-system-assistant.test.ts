@@ -5,8 +5,6 @@ import {
   SYSTEM_ASSISTANT_AGENT,
 } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/SystemAssistantService';
 
-type StartAgentChatInput = Pick<Chat, 'avatar' | 'name'> & { id: string };
-
 function chat(overrides: Partial<Chat> & Pick<Chat, 'id' | 'name'>): Chat {
   return {
     avatar: '',
@@ -24,19 +22,7 @@ async function main(): Promise<void> {
     'assistant SDK profile fallback name must be neutral English and UI localization must provide the visible name',
   );
 
-  const calls: StartAgentChatInput[] = [];
-  const createdAssistant = chat({
-    avatar: SYSTEM_ASSISTANT_AGENT.avatar,
-    id: 'c_agent_0123456789abcdef01234567',
-    name: SYSTEM_ASSISTANT_AGENT.name,
-    updatedAt: 200,
-  });
-  const service = createSdkworkSystemAssistantService({
-    startAgentChat: async (agent) => {
-      calls.push(agent);
-      return createdAssistant;
-    },
-  });
+  const service = createSdkworkSystemAssistantService();
 
   const existingAssistant = chat({
     avatar: SYSTEM_ASSISTANT_AGENT.avatar,
@@ -47,38 +33,12 @@ async function main(): Promise<void> {
   assert.equal(existingResult.available, true, 'existing assistant conversation must be available');
   assert.equal(existingResult.created, false, 'existing assistant conversation must not be recreated');
   assert.equal(existingResult.chat?.id, existingAssistant.id, 'existing assistant conversation must be returned');
-  assert.equal(calls.length, 0, 'existing assistant conversation must not call startAgentChat');
 
-  const createdResult = await service.ensureSystemAssistantChat([]);
-  assert.equal(createdResult.available, true, 'missing assistant conversation should be created when the IM SDK accepts it');
-  assert.equal(createdResult.created, true, 'missing assistant conversation must report that it was created');
-  assert.equal(createdResult.chat?.id, createdAssistant.id, 'created assistant conversation must be returned');
-  assert.deepEqual(
-    calls,
-    [
-      {
-        avatar: SYSTEM_ASSISTANT_AGENT.avatar,
-        id: SYSTEM_ASSISTANT_AGENT.id,
-        name: SYSTEM_ASSISTANT_AGENT.name,
-      },
-    ],
-    'assistant creation must delegate to ChatService.startAgentChat with the standard agent id and profile',
-  );
-
-  const failingService = createSdkworkSystemAssistantService({
-    startAgentChat: async () => {
-      throw new Error('agent dialog unavailable');
-    },
-  });
-  const unavailableResult = await failingService.ensureSystemAssistantChat([]);
-  assert.equal(unavailableResult.available, false, 'assistant startup failure must degrade instead of blocking login');
-  assert.equal(unavailableResult.created, false, 'failed assistant startup must not claim creation');
-  assert.equal(unavailableResult.chat, null, 'failed assistant startup must not synthesize a local conversation');
-  assert.match(
-    unavailableResult.error instanceof Error ? unavailableResult.error.message : '',
-    /agent dialog unavailable/u,
-    'assistant startup should preserve the underlying SDK error for diagnostics',
-  );
+  const unavailableResult = await service.ensureSystemAssistantChat([]);
+  assert.equal(unavailableResult.available, false, 'missing assistant conversation must not trigger automatic creation during startup');
+  assert.equal(unavailableResult.created, false, 'missing assistant startup must not claim creation');
+  assert.equal(unavailableResult.chat, null, 'missing assistant startup must not synthesize a local conversation');
+  assert.equal(unavailableResult.error, undefined, 'missing assistant startup should not report a backend error when no create was attempted');
 
   const unreadDirectChat = chat({
     id: 'pc-direct-alice-current-user',

@@ -1,6 +1,6 @@
 //! Process-wide shared PostgreSQL pools for every IM deployment profile.
 //!
-//! Standalone, cloud, unified-process, and split-service binaries MUST install one
+//! Standalone and cloud binaries MUST install one
 //! sqlx lifecycle host and one r2d2 PostgreSQL pool per process via
 //! [`bootstrap_im_process_database_pools_from_env`]. Adapters MUST reuse that r2d2
 //! pool and MUST NOT open independent pools against the same DSN.
@@ -23,9 +23,6 @@ pub type ImSharedPostgresConnectionManager =
     PostgresConnectionManager<ImSharedPostgresTlsConnector>;
 /// Canonical synchronous PostgreSQL pool shared by IM modules in one process.
 pub type ImSharedPostgresR2d2Pool = Pool<ImSharedPostgresConnectionManager>;
-
-/// Deprecated alias retained for callers migrating from the unified-process name.
-pub type ImUnifiedProcessPools = ImProcessDatabasePools;
 
 static IM_PROCESS_DATABASE_POOLS: OnceLock<ImProcessDatabasePools> = OnceLock::new();
 
@@ -50,19 +47,9 @@ pub fn im_process_database_pools() -> Option<&'static ImProcessDatabasePools> {
     IM_PROCESS_DATABASE_POOLS.get()
 }
 
-/// Deprecated alias retained for callers migrating from the unified-process name.
-pub fn unified_process_pools() -> Option<&'static ImProcessDatabasePools> {
-    im_process_database_pools()
-}
-
 /// Whether shared IM process pools were installed in this process.
 pub fn is_im_process_database_pools_installed() -> bool {
     IM_PROCESS_DATABASE_POOLS.get().is_some()
-}
-
-/// Deprecated alias retained for callers migrating from the unified-process name.
-pub fn is_im_unified_process_pools_installed() -> bool {
-    is_im_process_database_pools_installed()
 }
 
 /// Shared r2d2 pool handle when process pools are installed.
@@ -160,12 +147,6 @@ pub async fn bootstrap_im_process_database_pools_from_env()
     );
 
     Ok(im_process_database_pools().expect("process database pools installed"))
-}
-
-/// Deprecated alias retained for callers migrating from the unified-process name.
-pub async fn bootstrap_im_unified_process_pools_from_env()
--> Result<&'static ImProcessDatabasePools, String> {
-    bootstrap_im_process_database_pools_from_env().await
 }
 
 /// Tuning parameters for the shared r2d2 PostgreSQL pool. Defaults follow r2d2

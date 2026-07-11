@@ -1,10 +1,11 @@
-[runtime]
+﻿[runtime]
 environment = "production"
-deployment_mode = "server"
+deployment_profile = "standalone"
+runtime_target = "server"
 app_code = "chat"
 
 [server]
-bind_address = "0.0.0.0:18080"
+bind_address = "0.0.0.0:18079"
 trust_forwarded_headers = true
 
 [public_endpoints]

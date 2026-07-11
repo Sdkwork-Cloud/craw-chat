@@ -9,5 +9,7 @@ type ProblemDetail struct {
 	Instance string `json:"instance"`
 	Code SdkWorkPlatformErrorCode `json:"code"`
 	TraceId string `json:"traceId"`
+	I18nKey string `json:"i18nKey"`
+	Locale string `json:"locale"`
 	Errors []FieldError `json:"errors"`
 }

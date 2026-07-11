@@ -47,6 +47,93 @@ fn build_default_test_app_with_principal_directory(
     sdkwork_routes_im_chat_open_api::build_public_app_with_principal_directory(principal_directory)
 }
 
+fn response_item(value: &serde_json::Value) -> &serde_json::Value {
+    value
+        .get("data")
+        .and_then(|data| data.get("item"))
+        .expect("response should use standard data.item envelope")
+}
+
+async fn create_test_group_conversation(
+    app: axum::Router,
+    tenant_id: &str,
+    user_id: &str,
+    actor_kind: &str,
+    client_request_key: &str,
+) -> String {
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .with_dual_token_tenant(tenant_id)
+                .with_dual_token_user(user_id)
+                .with_dual_token_actor_kind(actor_kind)
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"conversationType":"group","groupName":"test group","clientRequestKey":"{}"}}"#,
+                    client_request_key.replace('"', "\\\"")
+                )))
+                .unwrap(),
+        )
+        .await
+        .expect("create group conversation request should succeed");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("create response should be valid json");
+    value["data"]["item"]["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string()
+}
+
+async fn post_test_text_message(
+    app: axum::Router,
+    conversation_id: &str,
+    client_msg_id: &str,
+    summary: &str,
+) -> serde_json::Value {
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "clientMsgId": client_msg_id,
+                        "summary": summary,
+                        "text": summary,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post test message request should complete");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("post test message body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("post test message body should be valid json");
+    response_item(&value).clone()
+}
+
 fn unique_principal_catalog_path() -> PathBuf {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -190,34 +277,17 @@ async fn test_public_app_rejects_missing_credentials_over_http() {
 async fn test_create_conversation_and_post_message_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_http").await;
 
     let post_response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_http/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -234,7 +304,7 @@ async fn test_create_conversation_and_post_message_over_http() {
         .await
         .expect("post message request should succeed");
 
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
     let body = post_response
         .into_body()
         .collect()
@@ -243,42 +313,33 @@ async fn test_create_conversation_and_post_message_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
+    let item = response_item(&value);
 
-    assert_eq!(value["data"]["messageSeq"], 1);
-    assert_eq!(value["data"]["messageId"], "msg_c_http_1");
+    assert_eq!(item["messageSeq"], 1);
+    assert_eq!(item["messageId"], format!("msg_{}_1", conversation_id));
 }
 
 #[tokio::test]
 async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_media_missing_drive_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_media_missing_drive_http",
+    )
+    .await;
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_media_missing_drive_http/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -327,33 +388,23 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
 async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_media_bad_drive_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_media_bad_drive_http",
+    )
+    .await;
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_media_bad_drive_http/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -407,33 +458,23 @@ async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http(
 async fn test_post_media_message_rejects_external_url_source_with_drive_reference_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_media_external_url_source_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_media_external_url_source_http",
+    )
+    .await;
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_media_external_url_source_http/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -500,16 +541,13 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    r#"{
-                        "conversationId":"c_create_retry_http",
-                        "conversationType":"group"
-                    }"#,
+                    r#"{"conversationType":"group","groupName":"test group","clientRequestKey":"c_create_retry_http"}"#,
                 ))
                 .unwrap(),
         )
         .await
         .expect("first create should return response");
-    assert_eq!(first_create.status(), StatusCode::OK);
+    assert_eq!(first_create.status(), StatusCode::CREATED);
     let first_create_body = first_create
         .into_body()
         .collect()
@@ -518,12 +556,17 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
         .to_bytes();
     let first_create_json: serde_json::Value =
         serde_json::from_slice(&first_create_body).expect("first create should be valid json");
-    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
+    let first_create_item = response_item(&first_create_json);
+    assert_eq!(first_create_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["data"]["proofVersion"],
+        first_create_item["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
-    assert!(first_create_json["data"]["requestKey"].is_string());
+    assert!(first_create_item["requestKey"].is_string());
+    let conversation_id = first_create_item["conversationId"]
+        .as_str()
+        .expect("first create should return canonical conversation id")
+        .to_string();
 
     let duplicate_create = app
         .clone()
@@ -536,16 +579,13 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    r#"{
-                        "conversationId":"c_create_retry_http",
-                        "conversationType":"group"
-                    }"#,
+                    r#"{"conversationType":"group","groupName":"test group","clientRequestKey":"c_create_retry_http"}"#,
                 ))
                 .unwrap(),
         )
         .await
         .expect("duplicate create should return response");
-    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    assert_eq!(duplicate_create.status(), StatusCode::CREATED);
     let duplicate_create_body = duplicate_create
         .into_body()
         .collect()
@@ -554,14 +594,15 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate create should be valid json");
-    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_create_item = response_item(&duplicate_create_json);
+    assert_eq!(duplicate_create_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["data"]["requestKey"],
-        first_create_json["data"]["requestKey"]
+        duplicate_create_item["requestKey"],
+        first_create_item["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["data"]["eventId"],
-        first_create_json["data"]["eventId"]
+        duplicate_create_item["eventId"],
+        first_create_item["eventId"]
     );
 
     let conflicting_retry = app
@@ -573,12 +614,10 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_create_retry_http",
-                        "conversationType":"direct"
-                    }"#,
-                ))
+                .body(Body::from(format!(
+                    r#"{{"conversationId":"{}","conversationType":"direct"}}"#,
+                    conversation_id
+                )))
                 .unwrap(),
         )
         .await
@@ -600,34 +639,19 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
  {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_http_post_retry",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_http_post_retry")
+            .await;
 
     let first_post = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -643,7 +667,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         )
         .await
         .expect("first post should succeed");
-    assert_eq!(first_post.status(), StatusCode::OK);
+    assert_eq!(first_post.status(), StatusCode::CREATED);
     let first_post_body = first_post
         .into_body()
         .collect()
@@ -652,9 +676,10 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let first_post_json: serde_json::Value =
         serde_json::from_slice(&first_post_body).expect("first post should be valid json");
-    assert_eq!(first_post_json["data"]["deliveryStatus"], "applied");
+    let first_post_item = response_item(&first_post_json);
+    assert_eq!(first_post_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_post_json["data"]["proofVersion"],
+        first_post_item["proofVersion"],
         "conversation.message.delivery-proof.v1"
     );
 
@@ -663,7 +688,10 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -679,7 +707,7 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         )
         .await
         .expect("duplicate post should return response");
-    assert_eq!(duplicate_post.status(), StatusCode::OK);
+    assert_eq!(duplicate_post.status(), StatusCode::CREATED);
     let duplicate_post_body = duplicate_post
         .into_body()
         .collect()
@@ -688,29 +716,30 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .to_bytes();
     let duplicate_post_json: serde_json::Value =
         serde_json::from_slice(&duplicate_post_body).expect("duplicate post should be valid json");
-    assert_eq!(duplicate_post_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_post_item = response_item(&duplicate_post_json);
+    assert_eq!(duplicate_post_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_post_json["data"]["requestKey"],
-        first_post_json["data"]["requestKey"]
+        duplicate_post_item["requestKey"],
+        first_post_item["requestKey"]
     );
     assert_eq!(
-        duplicate_post_json["data"]["messageId"],
-        first_post_json["data"]["messageId"]
+        duplicate_post_item["messageId"],
+        first_post_item["messageId"]
     );
     assert_eq!(
-        duplicate_post_json["data"]["messageSeq"],
-        first_post_json["data"]["messageSeq"]
+        duplicate_post_item["messageSeq"],
+        first_post_item["messageSeq"]
     );
-    assert_eq!(
-        duplicate_post_json["data"]["eventId"],
-        first_post_json["data"]["eventId"]
-    );
+    assert_eq!(duplicate_post_item["eventId"], first_post_item["eventId"]);
 
     let history = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -735,7 +764,10 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -764,37 +796,22 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
 }
 
 #[tokio::test]
-async fn test_post_message_http_is_served_and_get_timeline_is_not() {
+async fn test_post_message_http_and_message_history_get_are_served() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_history_page_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_history_page_http")
+            .await;
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_page_http/messages")
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -810,14 +827,24 @@ async fn test_post_message_http_is_served_and_get_timeline_is_not() {
         )
         .await
         .expect("post message should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
+    let post_body = post_response
+        .into_body()
+        .collect()
+        .await
+        .expect("post body should collect")
+        .to_bytes();
+    let post_json: serde_json::Value =
+        serde_json::from_slice(&post_body).expect("post body should be valid json");
+    let post_item = response_item(&post_json);
 
-    let timeline_response = app
+    let message_history_response = app
         .oneshot(
             Request::builder()
-                .uri(
-                    "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=0&page_size=1",
-                )
+                .uri(&format!(
+                    "/im/v3/api/chat/conversations/{}/messages?page_size=1",
+                    conversation_id
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -825,18 +852,196 @@ async fn test_post_message_http_is_served_and_get_timeline_is_not() {
                 .unwrap(),
         )
         .await
-        .expect("timeline read request should complete");
-    assert_eq!(timeline_response.status(), StatusCode::OK);
-    let timeline_body = timeline_response
+        .expect("message history read request should complete");
+    assert_eq!(message_history_response.status(), StatusCode::OK);
+    let message_history_body = message_history_response
         .into_body()
         .collect()
         .await
-        .expect("timeline body should collect")
+        .expect("message history body should collect")
         .to_bytes();
-    let timeline_json: serde_json::Value =
-        serde_json::from_slice(&timeline_body).expect("timeline body should be valid json");
-    assert_eq!(timeline_json["data"]["pageInfo"]["mode"], "cursor");
-    assert_eq!(timeline_json["data"]["items"].as_array().unwrap().len(), 1);
+    let message_history_json: serde_json::Value = serde_json::from_slice(&message_history_body)
+        .expect("message history body should be valid json");
+    assert_eq!(message_history_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(
+        message_history_json["data"]["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let message_history_item = &message_history_json["data"]["items"][0];
+    assert_eq!(message_history_item["conversationId"], conversation_id);
+    assert_eq!(message_history_item["messageId"], post_item["messageId"]);
+    assert_eq!(message_history_item["messageSeq"], post_item["messageSeq"]);
+    assert_eq!(message_history_item["sender"]["id"], "1");
+    assert_eq!(message_history_item["body"]["summary"], "message 1");
+    assert_eq!(message_history_item["summary"], "message 1");
+    assert_eq!(message_history_item["messageType"], "standard");
+    assert_eq!(message_history_item["deliveryMode"], "discrete");
+    assert!(message_history_item.get("message").is_none());
+}
+
+#[tokio::test]
+async fn test_message_history_pages_backward_with_opaque_cursor_under_new_inserts() {
+    let app = build_default_test_app();
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_history_backward_http",
+    )
+    .await;
+
+    for message_seq in 1..=4 {
+        post_test_text_message(
+            app.clone(),
+            conversation_id.as_str(),
+            format!("client_history_backward_{message_seq}").as_str(),
+            format!("message {message_seq}").as_str(),
+        )
+        .await;
+    }
+
+    let first_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages?page_size=2"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first history page should complete");
+    assert_eq!(first_response.status(), StatusCode::OK);
+    let first_json: serde_json::Value = serde_json::from_slice(
+        &first_response
+            .into_body()
+            .collect()
+            .await
+            .expect("first history body should collect")
+            .to_bytes(),
+    )
+    .expect("first history body should be valid json");
+    let first_sequences = first_json["data"]["items"]
+        .as_array()
+        .expect("first history items should be an array")
+        .iter()
+        .map(|item| {
+            item["messageSeq"]
+                .as_u64()
+                .expect("messageSeq should be u64")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(first_sequences, [3, 4]);
+    assert_eq!(first_json["data"]["pageInfo"]["mode"], "cursor");
+    assert_eq!(first_json["data"]["pageInfo"]["hasMore"], true);
+    let cursor = first_json["data"]["pageInfo"]["nextCursor"]
+        .as_str()
+        .expect("first history page should return nextCursor")
+        .to_owned();
+    assert!(cursor.parse::<u64>().is_err(), "cursor must not be numeric");
+
+    post_test_text_message(
+        app.clone(),
+        conversation_id.as_str(),
+        "client_history_backward_5",
+        "message 5",
+    )
+    .await;
+
+    let second_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages?page_size=2&cursor={cursor}"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("1")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second history page should complete");
+    assert_eq!(second_response.status(), StatusCode::OK);
+    let second_json: serde_json::Value = serde_json::from_slice(
+        &second_response
+            .into_body()
+            .collect()
+            .await
+            .expect("second history body should collect")
+            .to_bytes(),
+    )
+    .expect("second history body should be valid json");
+    let second_sequences = second_json["data"]["items"]
+        .as_array()
+        .expect("second history items should be an array")
+        .iter()
+        .map(|item| {
+            item["messageSeq"]
+                .as_u64()
+                .expect("messageSeq should be u64")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(second_sequences, [1, 2]);
+    assert_eq!(second_json["data"]["pageInfo"]["hasMore"], false);
+    assert!(second_json["data"]["pageInfo"]["nextCursor"].is_null());
+}
+
+#[tokio::test]
+async fn test_message_history_rejects_legacy_aliases_numeric_cursor_and_oversized_pages() {
+    let app = build_default_test_app();
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_history_invalid_paging_http",
+    )
+    .await;
+
+    for query in [
+        "afterSeq=0&page_size=20",
+        "after_seq=0&page_size=20",
+        "pageSize=20",
+        "limit=20",
+        "cursor=8&page_size=20",
+        "page_size=201",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!(
+                        "/im/v3/api/chat/conversations/{conversation_id}/messages?{query}"
+                    ))
+                    .with_dual_token_tenant("100001")
+                    .with_dual_token_user("1")
+                    .with_dual_token_actor_kind("user")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("invalid message history pagination should return a response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "query: {query}");
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("invalid pagination body should collect")
+            .to_bytes();
+        let value: serde_json::Value = serde_json::from_slice(&body)
+            .expect("invalid pagination response should be valid json");
+        assert_eq!(value["code"], 40003, "query: {query}");
+    }
 }
 
 #[tokio::test]
@@ -892,7 +1097,8 @@ async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_unknown_creator_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_unknown_creator_http",
                         "conversationType":"group"
                     }"#,
                 ))
@@ -918,7 +1124,7 @@ async fn test_create_conversation_rejects_oversized_conversation_id_over_http() 
     let app = build_default_test_app();
     let request_body = serde_json::json!({
         "conversationId": "c".repeat(2048),
-        "conversationType": "group"
+        "conversationType": "direct",
     })
     .to_string();
 
@@ -1006,32 +1212,21 @@ async fn test_generic_create_rejects_reserved_special_types_over_http() {
 async fn test_group_create_preserves_actor_kind_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("svc_ops")
-                .with_dual_token_actor_kind("system")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_group_actor_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create group request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "svc_ops",
+        "system",
+        "c_group_actor_http",
+    )
+    .await;
 
     let list_members = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_group_actor_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("svc_ops")
                 .with_dual_token_actor_kind("system")
@@ -1111,7 +1306,7 @@ async fn test_create_agent_dialog_over_http() {
         )
         .await
         .expect("create agent dialog request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
     let create_body = create_response
         .into_body()
         .collect()
@@ -1120,10 +1315,11 @@ async fn test_create_agent_dialog_over_http() {
         .to_bytes();
     let create_json: serde_json::Value =
         serde_json::from_slice(&create_body).expect("create response should be valid json");
-    let conversation_id = create_json["data"]["conversationId"]
+    let create_item = response_item(&create_json);
+    let conversation_id = create_item["conversationId"]
         .as_str()
         .expect("create response should include canonical conversation id");
-    assert!(conversation_id.starts_with("c_agent_"));
+    assert!(conversation_id.starts_with("a_"));
 
     let list_members = app
         .oneshot(
@@ -1189,7 +1385,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         )
         .await
         .expect("first agent dialog create should return response");
-    assert_eq!(first_create.status(), StatusCode::OK);
+    assert_eq!(first_create.status(), StatusCode::CREATED);
     let first_create_body = first_create
         .into_body()
         .collect()
@@ -1198,15 +1394,16 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first agent dialog create should be valid json");
-    let conversation_id = first_create_json["data"]["conversationId"]
+    let first_create_item = response_item(&first_create_json);
+    let conversation_id = first_create_item["conversationId"]
         .as_str()
         .expect("first create should return canonical conversation id");
-    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
+    assert_eq!(first_create_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["data"]["proofVersion"],
+        first_create_item["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
-    assert!(first_create_json["data"]["requestKey"].is_string());
+    assert!(first_create_item["requestKey"].is_string());
 
     let duplicate_create = app
         .clone()
@@ -1227,7 +1424,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         )
         .await
         .expect("duplicate agent dialog create should return response");
-    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    assert_eq!(duplicate_create.status(), StatusCode::CREATED);
     let duplicate_create_body = duplicate_create
         .into_body()
         .collect()
@@ -1236,14 +1433,15 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate agent dialog create should be valid json");
-    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_create_item = response_item(&duplicate_create_json);
+    assert_eq!(duplicate_create_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["data"]["requestKey"],
-        first_create_json["data"]["requestKey"]
+        duplicate_create_item["requestKey"],
+        first_create_item["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["data"]["eventId"],
-        first_create_json["data"]["eventId"]
+        duplicate_create_item["eventId"],
+        first_create_item["eventId"]
     );
 
     let conflicting_retry = app
@@ -1376,7 +1574,7 @@ async fn test_create_agent_handoff_over_http() {
         )
         .await
         .expect("create agent handoff request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let list_members = app
         .oneshot(
@@ -1524,7 +1722,7 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         )
         .await
         .expect("first agent handoff create should return response");
-    assert_eq!(first_create.status(), StatusCode::OK);
+    assert_eq!(first_create.status(), StatusCode::CREATED);
     let first_create_body = first_create
         .into_body()
         .collect()
@@ -1533,13 +1731,14 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first agent handoff create should be valid json");
-    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
+    let first_create_item = response_item(&first_create_json);
+    assert_eq!(first_create_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["data"]["proofVersion"],
+        first_create_item["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["data"]["requestKey"],
+        first_create_item["requestKey"],
         "6#1000015#agent9#ag_source20#create-agent_handoff26#c_agent_handoff_retry_http"
     );
 
@@ -1566,7 +1765,7 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         )
         .await
         .expect("duplicate agent handoff create should return response");
-    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    assert_eq!(duplicate_create.status(), StatusCode::CREATED);
     let duplicate_create_body = duplicate_create
         .into_body()
         .collect()
@@ -1575,14 +1774,15 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate agent handoff create should be valid json");
-    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_create_item = response_item(&duplicate_create_json);
+    assert_eq!(duplicate_create_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["data"]["requestKey"],
-        first_create_json["data"]["requestKey"]
+        duplicate_create_item["requestKey"],
+        first_create_item["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["data"]["eventId"],
-        first_create_json["data"]["eventId"]
+        duplicate_create_item["eventId"],
+        first_create_item["eventId"]
     );
 
     let conflicting_retry = app
@@ -1646,7 +1846,7 @@ async fn test_agent_handoff_target_can_post_over_http() {
         )
         .await
         .expect("create agent handoff request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let post_response = app
         .oneshot(
@@ -1668,7 +1868,7 @@ async fn test_agent_handoff_target_can_post_over_http() {
         .await
         .expect("target post request should return response");
 
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 }
 
 #[tokio::test]
@@ -1698,7 +1898,7 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         )
         .await
         .expect("create agent handoff request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let get_open = app
         .clone()
@@ -1862,7 +2062,7 @@ async fn test_agent_handoff_accept_rejects_non_target_actor_over_http() {
         )
         .await
         .expect("create agent handoff request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let accept_response = app
         .oneshot(
@@ -1905,7 +2105,7 @@ async fn test_create_system_channel_over_http() {
         )
         .await
         .expect("create system channel request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let list_members = app
         .oneshot(
@@ -1961,7 +2161,6 @@ async fn test_chat_room_create_enter_leave_over_http() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_chat_room_http",
                         "roomId":"room_chat_http",
                         "roomKind":"chat"
                     }"#,
@@ -1970,7 +2169,20 @@ async fn test_chat_room_create_enter_leave_over_http() {
         )
         .await
         .expect("create chat room request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let created: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("room create response should be json");
+    let conversation_id = response_item(&created)["conversationId"]
+        .as_str()
+        .expect("room create should return a conversation id")
+        .to_owned();
+    assert!(conversation_id.starts_with("r_"));
 
     let view_response = app
         .clone()
@@ -1995,9 +2207,10 @@ async fn test_chat_room_create_enter_leave_over_http() {
         .to_bytes();
     let view: serde_json::Value =
         serde_json::from_slice(&view_body).expect("room view should be json");
-    assert_eq!(view["data"]["roomKind"], "chat");
-    assert_eq!(view["data"]["conversationId"], "c_chat_room_http");
-    assert_eq!(view["data"]["activeMemberCount"], 1);
+    let view_item = response_item(&view);
+    assert_eq!(view_item["roomKind"], "chat");
+    assert_eq!(view_item["conversationId"], conversation_id);
+    assert_eq!(view_item["activeMemberCount"], 1);
 
     let enter_response = app
         .clone()
@@ -2130,7 +2343,7 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         )
         .await
         .expect("first system channel create should return response");
-    assert_eq!(first_create.status(), StatusCode::OK);
+    assert_eq!(first_create.status(), StatusCode::CREATED);
     let first_create_body = first_create
         .into_body()
         .collect()
@@ -2139,13 +2352,14 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first system channel create should be valid json");
-    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
+    let first_create_item = response_item(&first_create_json);
+    assert_eq!(first_create_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["data"]["proofVersion"],
+        first_create_item["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["data"]["requestKey"],
+        first_create_item["requestKey"],
         "6#1000016#system7#svc_ops21#create-system_channel27#c_system_channel_retry_http"
     );
 
@@ -2169,7 +2383,7 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         )
         .await
         .expect("duplicate system channel create should return response");
-    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    assert_eq!(duplicate_create.status(), StatusCode::CREATED);
     let duplicate_create_body = duplicate_create
         .into_body()
         .collect()
@@ -2178,14 +2392,15 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate system channel create should be valid json");
-    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_create_item = response_item(&duplicate_create_json);
+    assert_eq!(duplicate_create_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["data"]["requestKey"],
-        first_create_json["data"]["requestKey"]
+        duplicate_create_item["requestKey"],
+        first_create_item["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["data"]["eventId"],
-        first_create_json["data"]["eventId"]
+        duplicate_create_item["eventId"],
+        first_create_item["eventId"]
     );
 
     let conflicting_retry = app
@@ -2243,7 +2458,7 @@ async fn test_system_channel_subscriber_cannot_post_over_http() {
         )
         .await
         .expect("create system channel request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let post_response = app
         .oneshot(
@@ -2301,7 +2516,7 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_htt
         )
         .await
         .expect("create system channel request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let post_response = app
         .oneshot(
@@ -2359,7 +2574,7 @@ async fn test_system_channel_dedicated_publish_over_http() {
         )
         .await
         .expect("create system channel request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
 
     let publish_response = app
         .clone()
@@ -2391,7 +2606,8 @@ async fn test_system_channel_dedicated_publish_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
-    assert_eq!(value["data"]["messageSeq"], 1);
+    let item = response_item(&value);
+    assert_eq!(item["messageSeq"], 1);
 
     let subscriber_publish = app
         .oneshot(
@@ -2429,33 +2645,14 @@ async fn test_system_channel_dedicated_publish_over_http() {
 async fn test_post_message_accepts_structured_parts_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_media_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_media_http").await;
 
     let post_response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_media_http/messages")
+                .uri(format!("/im/v3/api/chat/conversations/{conversation_id}/messages"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2495,7 +2692,7 @@ async fn test_post_message_accepts_structured_parts_over_http() {
         .await
         .expect("post media message request should succeed");
 
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
     let body = post_response
         .into_body()
         .collect()
@@ -2504,36 +2701,19 @@ async fn test_post_message_accepts_structured_parts_over_http() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
+    let item = response_item(&value);
 
-    assert_eq!(value["data"]["messageSeq"], 1);
-    assert_eq!(value["data"]["messageId"], "msg_c_media_http_1");
+    assert_eq!(item["messageSeq"], 1);
+    assert_eq!(item["messageId"], format!("msg_{conversation_id}_1"));
 }
 
 #[tokio::test]
 async fn test_post_message_rejects_oversized_text_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_http_oversized_text",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_http_oversized_text")
+            .await;
 
     let request_body = serde_json::json!({
         "clientMsgId": "client_http_oversized_text",
@@ -2546,7 +2726,9 @@ async fn test_post_message_rejects_oversized_text_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_http_oversized_text/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2579,33 +2761,22 @@ async fn test_post_message_rejects_oversized_text_over_http() {
 async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_http_oversized_sender_session",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_http_oversized_sender_session",
+    )
+    .await;
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_http_oversized_sender_session/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2645,27 +2816,14 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
 async fn test_add_member_rejects_oversized_attributes_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_member_attributes_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_member_attributes_http",
+    )
+    .await;
 
     let oversized_request = serde_json::json!({
         "principalId": "1043",
@@ -2681,7 +2839,9 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_member_attributes_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2716,33 +2876,22 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
         StrictKnownPrincipalDirectory::new(&["1"]),
     ));
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_unknown_principal_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_members_unknown_principal_http",
+    )
+    .await;
 
     let add_member_response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_unknown_principal_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2775,33 +2924,17 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
 async fn test_conversation_member_endpoints_manage_roster_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_members_http").await;
+    let added_member_id = format!("cm_{conversation_id}_user_1043");
 
     let list_initial_members = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2827,7 +2960,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2852,17 +2987,16 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .to_bytes();
     let add_member_json: serde_json::Value =
         serde_json::from_slice(&add_member_body).expect("add member response should be valid json");
-    assert_eq!(
-        add_member_json["data"]["memberId"],
-        "cm_c_members_http_user_1043"
-    );
+    assert_eq!(add_member_json["data"]["memberId"], added_member_id);
     assert_eq!(add_member_json["data"]["state"], "joined");
 
     let list_after_add = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2893,16 +3027,14 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_http/members/remove")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/remove"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "memberId":"cm_c_members_http_user_1043"
-                    }"#,
-                ))
+                .body(Body::from(format!(r#"{{"memberId":"{added_member_id}"}}"#)))
                 .unwrap(),
         )
         .await
@@ -2921,7 +3053,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
     let list_after_remove = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -2956,34 +3090,23 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
 async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_actor_kind_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_members_actor_kind_http",
+    )
+    .await;
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_actor_kind_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("agent")
@@ -3015,34 +3138,18 @@ async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
 async fn test_group_member_can_leave_roster_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_leave_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_members_leave_http")
+            .await;
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_leave_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3065,7 +3172,9 @@ async fn test_group_member_can_leave_roster_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_leave_http/members/leave")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/leave"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1043")
                 .with_dual_token_actor_kind("user")
@@ -3088,7 +3197,9 @@ async fn test_group_member_can_leave_roster_over_http() {
     let list_after_leave = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_leave_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3123,34 +3234,24 @@ async fn test_group_member_can_leave_roster_over_http() {
 async fn test_group_owner_transfer_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_transfer_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_members_transfer_http",
+    )
+    .await;
+    let added_member_id = format!("cm_{conversation_id}_user_1043");
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3173,16 +3274,14 @@ async fn test_group_owner_transfer_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members/transfer_owner")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/transfer_owner"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "memberId":"cm_c_members_transfer_http_user_1043"
-                    }"#,
-                ))
+                .body(Body::from(format!(r#"{{"memberId":"{added_member_id}"}}"#)))
                 .unwrap(),
         )
         .await
@@ -3204,7 +3303,9 @@ async fn test_group_owner_transfer_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members/leave")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/leave"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3218,7 +3319,9 @@ async fn test_group_owner_transfer_over_http() {
     let list_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1043")
                 .with_dual_token_actor_kind("user")
@@ -3245,34 +3348,19 @@ async fn test_group_owner_transfer_over_http() {
 async fn test_change_member_role_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_role_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_members_role_http")
+            .await;
+    let added_member_id = format!("cm_{conversation_id}_user_1043");
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_role_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3295,17 +3383,16 @@ async fn test_change_member_role_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_members_role_http/members/change_role")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/change_role"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "memberId":"cm_c_members_role_http_user_1043",
-                        "role":"admin"
-                    }"#,
-                ))
+                .body(Body::from(format!(
+                    r#"{{"memberId":"{added_member_id}","role":"admin"}}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -3325,7 +3412,9 @@ async fn test_change_member_role_over_http() {
     let list_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_role_http/members")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3356,27 +3445,9 @@ async fn test_change_member_role_over_http() {
 async fn test_list_members_returns_bounded_cursor_window_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_members_window_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_members_window_http")
+            .await;
 
     for principal_id in ["1045", "1046", "1047"] {
         let add_member_response = app
@@ -3384,7 +3455,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/im/v3/api/chat/conversations/c_members_window_http/members/add")
+                    .uri(format!(
+                        "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                    ))
                     .with_dual_token_tenant("100001")
                     .with_dual_token_user("1")
                     .with_dual_token_actor_kind("user")
@@ -3407,7 +3480,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?page_size=2")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members?page_size=2"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3435,13 +3510,21 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .as_str()
         .expect("first member page should include nextCursor")
         .to_owned();
+    assert_ne!(
+        next_cursor, "2",
+        "member cursors must be opaque and must not expose the in-process offset"
+    );
+    assert!(
+        next_cursor.parse::<usize>().is_err(),
+        "member cursors must not be numeric offset aliases"
+    );
 
     let second_page_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/im/v3/api/chat/conversations/c_members_window_http/members?page_size=2&cursor={next_cursor}"
+                    "/im/v3/api/chat/conversations/{conversation_id}/members?page_size=2&cursor={next_cursor}"
                 ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
@@ -3451,7 +3534,7 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         )
         .await
         .expect("second member page should return response");
-    assert_eq!(second_page_response.status(), StatusCode::OK);
+    let second_page_status = second_page_response.status();
     let second_page_body = second_page_response
         .into_body()
         .collect()
@@ -3460,6 +3543,11 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .to_bytes();
     let second_page_json: serde_json::Value =
         serde_json::from_slice(&second_page_body).expect("second page should be valid json");
+    assert_eq!(
+        second_page_status,
+        StatusCode::OK,
+        "unexpected second member page response: {second_page_json}"
+    );
     assert_eq!(
         second_page_json["data"]["items"].as_array().unwrap().len(),
         2
@@ -3481,7 +3569,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
     let invalid_limit_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?page_size=0")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members?page_size=0"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3506,34 +3596,17 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
 async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_cursor_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_cursor_http").await;
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_cursor_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3557,7 +3630,9 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/im/v3/api/chat/conversations/c_cursor_http/messages")
+                    .uri(format!(
+                        "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                    ))
                     .with_dual_token_tenant("100001")
                     .with_dual_token_user("1043")
                     .with_dual_token_actor_kind("user")
@@ -3573,14 +3648,16 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
             )
             .await
             .expect("post message request should succeed");
-        assert_eq!(post_response.status(), StatusCode::OK);
+        assert_eq!(post_response.status(), StatusCode::CREATED);
     }
 
     let initial_cursor_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/chat/conversations/c_cursor_http/read_cursor")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3598,25 +3675,28 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .to_bytes();
     let initial_cursor_json: serde_json::Value =
         serde_json::from_slice(&initial_cursor_body).expect("initial cursor should be valid json");
-    assert_eq!(initial_cursor_json["data"]["readSeq"], 0);
-    assert_eq!(initial_cursor_json["data"]["unreadCount"], 2);
+    let initial_cursor_item = response_item(&initial_cursor_json);
+    assert_eq!(initial_cursor_item["readSeq"], 0);
+    assert_eq!(initial_cursor_item["unreadCount"], 2);
 
     let update_cursor_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("PATCH")
-                .uri("/im/v3/api/chat/conversations/c_cursor_http/read_cursor")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
+                .body(Body::from(format!(
+                    r#"{{
                         "readSeq": 1,
-                        "lastReadMessageId":"msg_c_cursor_http_1"
-                    }"#,
-                ))
+                        "lastReadMessageId":"msg_{conversation_id}_1"
+                    }}"#,
+                )))
                 .unwrap(),
         )
         .await
@@ -3630,42 +3710,32 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .to_bytes();
     let update_cursor_json: serde_json::Value =
         serde_json::from_slice(&update_cursor_body).expect("updated cursor should be valid json");
-    assert_eq!(update_cursor_json["data"]["readSeq"], 1);
-    assert_eq!(update_cursor_json["data"]["unreadCount"], 1);
+    let update_cursor_item = response_item(&update_cursor_json);
+    assert_eq!(update_cursor_item["readSeq"], 1);
+    assert_eq!(update_cursor_item["unreadCount"], 1);
 }
 
 #[tokio::test]
 async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_cursor_actor_kind_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_cursor_actor_kind_http",
+    )
+    .await;
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_cursor_actor_kind_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3681,23 +3751,25 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
         )
         .await
         .expect("post message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let update_cursor_response = app
         .oneshot(
             Request::builder()
                 .method("PATCH")
-                .uri("/im/v3/api/chat/conversations/c_cursor_actor_kind_http/read_cursor")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
+                .body(Body::from(format!(
+                    r#"{{
                         "readSeq": 1,
-                        "lastReadMessageId":"msg_c_cursor_actor_kind_http_1"
-                    }"#,
-                ))
+                        "lastReadMessageId":"msg_{conversation_id}_1"
+                    }}"#,
+                )))
                 .unwrap(),
         )
         .await
@@ -3718,34 +3790,18 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
 async fn test_edit_and_recall_message_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_edit_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_edit_http").await;
+    let message_id = format!("msg_{conversation_id}_1");
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_edit_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3761,14 +3817,14 @@ async fn test_edit_and_recall_message_over_http() {
         )
         .await
         .expect("post message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let edit_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_edit_http_1/edit")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/edit"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3792,14 +3848,15 @@ async fn test_edit_and_recall_message_over_http() {
         .to_bytes();
     let edit_json: serde_json::Value =
         serde_json::from_slice(&edit_body).expect("edit response should be valid json");
-    assert_eq!(edit_json["data"]["messageId"], "msg_c_edit_http_1");
-    assert_eq!(edit_json["data"]["messageSeq"], 1);
+    let edit_item = response_item(&edit_json);
+    assert_eq!(edit_item["messageId"], message_id);
+    assert_eq!(edit_item["messageSeq"], 1);
 
     let recall_response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_edit_http_1/recall")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/recall"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3818,42 +3875,28 @@ async fn test_edit_and_recall_message_over_http() {
         .to_bytes();
     let recall_json: serde_json::Value =
         serde_json::from_slice(&recall_body).expect("recall response should be valid json");
-    assert_eq!(recall_json["data"]["messageId"], "msg_c_edit_http_1");
-    assert_eq!(recall_json["data"]["messageSeq"], 1);
+    let recall_item = response_item(&recall_json);
+    assert_eq!(recall_item["messageId"], message_id);
+    assert_eq!(recall_item["messageSeq"], 1);
 }
 
 #[tokio::test]
 async fn test_reaction_and_pin_message_over_http() {
     let app = build_default_test_app();
 
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_reaction_pin_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    let conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_reaction_pin_http")
+            .await;
+    let message_id = format!("msg_{conversation_id}_1");
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_reaction_pin_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3869,14 +3912,14 @@ async fn test_reaction_and_pin_message_over_http() {
         )
         .await
         .expect("post message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let reaction_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/reactions")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/reactions"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3890,7 +3933,7 @@ async fn test_reaction_and_pin_message_over_http() {
         )
         .await
         .expect("add reaction request should succeed");
-    assert_eq!(reaction_response.status(), StatusCode::OK);
+    assert_eq!(reaction_response.status(), StatusCode::CREATED);
     let reaction_body = reaction_response
         .into_body()
         .collect()
@@ -3899,20 +3942,18 @@ async fn test_reaction_and_pin_message_over_http() {
         .to_bytes();
     let reaction_json: serde_json::Value =
         serde_json::from_slice(&reaction_body).expect("reaction response should be valid json");
-    assert_eq!(
-        reaction_json["data"]["messageId"],
-        "msg_c_reaction_pin_http_1"
-    );
-    assert_eq!(reaction_json["data"]["messageSeq"], 1);
-    assert_eq!(reaction_json["data"]["reactionKey"], "thumbs_up");
-    assert_eq!(reaction_json["data"]["changed"], true);
+    let reaction_item = response_item(&reaction_json);
+    assert_eq!(reaction_item["messageId"], message_id);
+    assert_eq!(reaction_item["messageSeq"], 1);
+    assert_eq!(reaction_item["reactionKey"], "thumbs_up");
+    assert_eq!(reaction_item["changed"], true);
 
     let pin_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/pin")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/pin"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3931,16 +3972,17 @@ async fn test_reaction_and_pin_message_over_http() {
         .to_bytes();
     let pin_json: serde_json::Value =
         serde_json::from_slice(&pin_body).expect("pin response should be valid json");
-    assert_eq!(pin_json["data"]["messageId"], "msg_c_reaction_pin_http_1");
-    assert_eq!(pin_json["data"]["messageSeq"], 1);
-    assert_eq!(pin_json["data"]["changed"], true);
+    let pin_item = response_item(&pin_json);
+    assert_eq!(pin_item["messageId"], message_id);
+    assert_eq!(pin_item["messageSeq"], 1);
+    assert_eq!(pin_item["changed"], true);
 
     let unpin_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/unpin")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/unpin"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3956,7 +3998,9 @@ async fn test_reaction_and_pin_message_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/reactions/remove")
+                .uri(format!(
+                    "/im/v3/api/chat/messages/{message_id}/reactions/remove"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -3989,7 +4033,8 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_policy_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_policy_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "capabilityFlags":["message.reaction"],
@@ -4001,14 +4046,29 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
         )
         .await
         .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
+    let message_id = format!("msg_{conversation_id}_1");
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_policy_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4024,14 +4084,14 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
         )
         .await
         .expect("post message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let reaction_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_policy_http_1/reactions")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/reactions"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4045,13 +4105,13 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
         )
         .await
         .expect("add reaction request should succeed");
-    assert_eq!(reaction_response.status(), StatusCode::OK);
+    assert_eq!(reaction_response.status(), StatusCode::CREATED);
 
     let pin_response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/messages/msg_c_policy_http_1/pin")
+                .uri(format!("/im/v3/api/chat/messages/{message_id}/pin"))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4089,7 +4149,8 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_joined_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_joined_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"joined",
@@ -4100,14 +4161,28 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
         )
         .await
         .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_joined_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4123,13 +4198,15 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
         )
         .await
         .expect("post message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let history_response = app
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_joined_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1048")
                 .with_dual_token_actor_kind("user")
@@ -4166,7 +4243,8 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_world_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_world_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"world_readable",
@@ -4177,14 +4255,28 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
         )
         .await
         .expect("create conversation request should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_world_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4200,13 +4292,15 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
         )
         .await
         .expect("post message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let history_response = app
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_world_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1048")
                 .with_dual_token_actor_kind("user")
@@ -4225,11 +4319,11 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
     let history_json: serde_json::Value =
         serde_json::from_slice(&history_body).expect("history response should be valid json");
     assert_eq!(
-        history_json["data"]["items"][0]["message"]["messageId"],
-        "msg_c_history_world_http_1"
+        history_json["data"]["items"][0]["messageId"],
+        format!("msg_{conversation_id}_1")
     );
     assert_eq!(
-        history_json["data"]["items"][0]["message"]["body"]["summary"],
+        history_json["data"]["items"][0]["body"]["summary"],
         "hello world"
     );
 }
@@ -4260,7 +4354,7 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         )
         .await
         .expect("direct chat binding request should return response");
-    assert_eq!(bind_response.status(), StatusCode::OK);
+    assert_eq!(bind_response.status(), StatusCode::CREATED);
     let bind_body = bind_response
         .into_body()
         .collect()
@@ -4269,7 +4363,8 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let bind_json: serde_json::Value =
         serde_json::from_slice(&bind_body).expect("bind response should be valid json");
-    let conversation_id = bind_json["data"]["conversationId"]
+    let bind_item = response_item(&bind_json);
+    let conversation_id = bind_item["conversationId"]
         .as_str()
         .expect("direct chat response should include canonical conversationId")
         .to_owned();
@@ -4329,6 +4424,73 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .to_bytes();
     let members_json: serde_json::Value =
         serde_json::from_slice(&members_body).expect("members response should be valid json");
+    assert_eq!(members_json["data"]["items"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn test_user_participant_can_bind_direct_chat_conversation_over_http() {
+    let app = build_default_test_app();
+
+    let bind_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("actor_a")
+                .with_dual_token_actor_kind("user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "leftActorId":"actor_a",
+                        "leftActorKind":"user",
+                        "rightActorId":"actor_b",
+                        "rightActorKind":"user"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("participant direct chat binding request should return response");
+    assert_eq!(bind_response.status(), StatusCode::CREATED);
+    let bind_body = bind_response
+        .into_body()
+        .collect()
+        .await
+        .expect("participant bind body should collect")
+        .to_bytes();
+    let bind_json: serde_json::Value =
+        serde_json::from_slice(&bind_body).expect("participant bind should be valid json");
+    let bind_item = response_item(&bind_json);
+    let conversation_id = bind_item["conversationId"]
+        .as_str()
+        .expect("participant bind response should include canonical conversationId")
+        .to_owned();
+
+    let members_response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members"
+                ))
+                .with_dual_token_tenant("100001")
+                .with_dual_token_user("actor_a")
+                .with_dual_token_actor_kind("user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("participant list members request should return response");
+    assert_eq!(members_response.status(), StatusCode::OK);
+    let members_body = members_response
+        .into_body()
+        .collect()
+        .await
+        .expect("participant members body should collect")
+        .to_bytes();
+    let members_json: serde_json::Value = serde_json::from_slice(&members_body)
+        .expect("participant members response should be valid json");
     assert_eq!(members_json["data"]["items"].as_array().unwrap().len(), 2);
 }
 
@@ -4461,7 +4623,7 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         )
         .await
         .expect("first direct chat binding should return response");
-    assert_eq!(first_bind.status(), StatusCode::OK);
+    assert_eq!(first_bind.status(), StatusCode::CREATED);
     let first_bind_body = first_bind
         .into_body()
         .collect()
@@ -4470,12 +4632,13 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         .to_bytes();
     let first_bind_json: serde_json::Value =
         serde_json::from_slice(&first_bind_body).expect("first bind should be valid json");
-    assert_eq!(first_bind_json["data"]["deliveryStatus"], "applied");
+    let first_bind_item = response_item(&first_bind_json);
+    assert_eq!(first_bind_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_bind_json["data"]["proofVersion"],
+        first_bind_item["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
-    assert!(first_bind_json["data"]["requestKey"].is_string());
+    assert!(first_bind_item["requestKey"].is_string());
 
     let duplicate_bind = app
         .clone()
@@ -4499,7 +4662,7 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         )
         .await
         .expect("duplicate direct chat binding should return response");
-    assert_eq!(duplicate_bind.status(), StatusCode::OK);
+    assert_eq!(duplicate_bind.status(), StatusCode::CREATED);
     let duplicate_bind_body = duplicate_bind
         .into_body()
         .collect()
@@ -4508,15 +4671,13 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
         .to_bytes();
     let duplicate_bind_json: serde_json::Value =
         serde_json::from_slice(&duplicate_bind_body).expect("duplicate bind should be valid json");
-    assert_eq!(duplicate_bind_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_bind_item = response_item(&duplicate_bind_json);
+    assert_eq!(duplicate_bind_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_bind_json["data"]["requestKey"],
-        first_bind_json["data"]["requestKey"]
+        duplicate_bind_item["requestKey"],
+        first_bind_item["requestKey"]
     );
-    assert_eq!(
-        duplicate_bind_json["data"]["eventId"],
-        first_bind_json["data"]["eventId"]
-    );
+    assert_eq!(duplicate_bind_item["eventId"], first_bind_item["eventId"]);
 
     let conflicting_bind = app
         .oneshot(
@@ -4556,34 +4717,18 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
 async fn test_create_thread_conversation_over_http_and_query_binding() {
     let app = build_default_test_app();
 
-    let create_parent_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_parent_thread_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create parent conversation request should return response");
-    assert_eq!(create_parent_response.status(), StatusCode::OK);
+    let parent_conversation_id =
+        create_test_group_conversation(app.clone(), "100001", "1", "user", "c_parent_thread_http")
+            .await;
 
     let post_root_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_parent_thread_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{parent_conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4599,7 +4744,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         )
         .await
         .expect("post root message request should return response");
-    assert_eq!(post_root_response.status(), StatusCode::OK);
+    assert_eq!(post_root_response.status(), StatusCode::CREATED);
     let post_root_body = post_root_response
         .into_body()
         .collect()
@@ -4608,6 +4753,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         .to_bytes();
     let post_root_json: serde_json::Value =
         serde_json::from_slice(&post_root_body).expect("post root response should be valid json");
+    let post_root_item = response_item(&post_root_json);
 
     let create_thread_response = app
         .clone()
@@ -4622,16 +4768,16 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
                 .body(Body::from(format!(
                     r#"{{
                         "conversationId":"c_thread_http",
-                        "parentConversationId":"c_parent_thread_http",
+                        "parentConversationId":"{parent_conversation_id}",
                         "rootMessageId":"{}"
                     }}"#,
-                    post_root_json["data"]["messageId"].as_str().unwrap()
+                    post_root_item["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
         .await
         .expect("create thread request should return response");
-    assert_eq!(create_thread_response.status(), StatusCode::OK);
+    assert_eq!(create_thread_response.status(), StatusCode::CREATED);
     let create_thread_body = create_thread_response
         .into_body()
         .collect()
@@ -4640,10 +4786,8 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         .to_bytes();
     let create_thread_json: serde_json::Value = serde_json::from_slice(&create_thread_body)
         .expect("create thread response should be valid json");
-    assert_eq!(
-        create_thread_json["data"]["conversationId"],
-        "c_thread_http"
-    );
+    let create_thread_item = response_item(&create_thread_json);
+    assert_eq!(create_thread_item["conversationId"], "c_thread_http");
 
     let binding_response = app
         .clone()
@@ -4672,7 +4816,7 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
     assert_eq!(binding_json["data"]["businessType"], "thread");
     assert_eq!(
         binding_json["data"]["businessId"],
-        post_root_json["data"]["messageId"]
+        post_root_item["messageId"]
     );
 
     let members_response = app
@@ -4699,11 +4843,11 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
         .expect("thread members response should be valid json");
     assert_eq!(
         members_json["data"]["items"][0]["attributes"]["parentConversationId"],
-        "c_parent_thread_http"
+        parent_conversation_id
     );
     assert_eq!(
         members_json["data"]["items"][0]["attributes"]["rootMessageId"],
-        post_root_json["data"]["messageId"]
+        post_root_item["messageId"]
     );
     assert_eq!(
         members_json["data"]["items"][0]["attributes"]["threadRole"],
@@ -4716,34 +4860,23 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
  {
     let app = build_default_test_app();
 
-    let create_parent_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .with_dual_token_tenant("100001")
-                .with_dual_token_user("1")
-                .with_dual_token_actor_kind("user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_parent_thread_retry_http",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create parent conversation request should return response");
-    assert_eq!(create_parent_response.status(), StatusCode::OK);
+    let parent_conversation_id = create_test_group_conversation(
+        app.clone(),
+        "100001",
+        "1",
+        "user",
+        "c_parent_thread_retry_http",
+    )
+    .await;
 
     let first_root_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_parent_thread_retry_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{parent_conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4759,7 +4892,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         )
         .await
         .expect("first root message request should return response");
-    assert_eq!(first_root_response.status(), StatusCode::OK);
+    assert_eq!(first_root_response.status(), StatusCode::CREATED);
     let first_root_body = first_root_response
         .into_body()
         .collect()
@@ -4768,13 +4901,16 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let first_root_json: serde_json::Value =
         serde_json::from_slice(&first_root_body).expect("first root response should be valid json");
+    let first_root_item = response_item(&first_root_json);
 
     let second_root_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_parent_thread_retry_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{parent_conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -4790,7 +4926,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         )
         .await
         .expect("second root message request should return response");
-    assert_eq!(second_root_response.status(), StatusCode::OK);
+    assert_eq!(second_root_response.status(), StatusCode::CREATED);
     let second_root_body = second_root_response
         .into_body()
         .collect()
@@ -4799,6 +4935,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let second_root_json: serde_json::Value = serde_json::from_slice(&second_root_body)
         .expect("second root response should be valid json");
+    let second_root_item = response_item(&second_root_json);
 
     let first_create = app
         .clone()
@@ -4813,16 +4950,16 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .body(Body::from(format!(
                     r#"{{
                         "conversationId":"c_thread_retry_http",
-                        "parentConversationId":"c_parent_thread_retry_http",
+                        "parentConversationId":"{parent_conversation_id}",
                         "rootMessageId":"{}"
                     }}"#,
-                    first_root_json["data"]["messageId"].as_str().unwrap()
+                    first_root_item["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
         .await
         .expect("first thread create should return response");
-    assert_eq!(first_create.status(), StatusCode::OK);
+    assert_eq!(first_create.status(), StatusCode::CREATED);
     let first_create_body = first_create
         .into_body()
         .collect()
@@ -4831,13 +4968,14 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
         .expect("first thread create should be valid json");
-    assert_eq!(first_create_json["data"]["deliveryStatus"], "applied");
+    let first_create_item = response_item(&first_create_json);
+    assert_eq!(first_create_item["deliveryStatus"], "applied");
     assert_eq!(
-        first_create_json["data"]["proofVersion"],
+        first_create_item["proofVersion"],
         "conversation.create.delivery-proof.v1"
     );
     assert_eq!(
-        first_create_json["data"]["requestKey"],
+        first_create_item["requestKey"],
         "6#1000014#user1#113#create-thread19#c_thread_retry_http"
     );
 
@@ -4854,16 +4992,16 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .body(Body::from(format!(
                     r#"{{
                         "conversationId":"c_thread_retry_http",
-                        "parentConversationId":"c_parent_thread_retry_http",
+                        "parentConversationId":"{parent_conversation_id}",
                         "rootMessageId":"{}"
                     }}"#,
-                    first_root_json["data"]["messageId"].as_str().unwrap()
+                    first_root_item["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
         .await
         .expect("duplicate thread create should return response");
-    assert_eq!(duplicate_create.status(), StatusCode::OK);
+    assert_eq!(duplicate_create.status(), StatusCode::CREATED);
     let duplicate_create_body = duplicate_create
         .into_body()
         .collect()
@@ -4872,14 +5010,15 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
         .to_bytes();
     let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
         .expect("duplicate thread create should be valid json");
-    assert_eq!(duplicate_create_json["data"]["deliveryStatus"], "replayed");
+    let duplicate_create_item = response_item(&duplicate_create_json);
+    assert_eq!(duplicate_create_item["deliveryStatus"], "replayed");
     assert_eq!(
-        duplicate_create_json["data"]["requestKey"],
-        first_create_json["data"]["requestKey"]
+        duplicate_create_item["requestKey"],
+        first_create_item["requestKey"]
     );
     assert_eq!(
-        duplicate_create_json["data"]["eventId"],
-        first_create_json["data"]["eventId"]
+        duplicate_create_item["eventId"],
+        first_create_item["eventId"]
     );
 
     let conflicting_retry = app
@@ -4894,10 +5033,10 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
                 .body(Body::from(format!(
                     r#"{{
                         "conversationId":"c_thread_retry_http",
-                        "parentConversationId":"c_parent_thread_retry_http",
+                        "parentConversationId":"{parent_conversation_id}",
                         "rootMessageId":"{}"
                     }}"#,
-                    second_root_json["data"]["messageId"].as_str().unwrap()
+                    second_root_item["messageId"].as_str().unwrap()
                 )))
                 .unwrap(),
         )
@@ -4916,7 +5055,7 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
 }
 
 #[tokio::test]
-async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http() {
+async fn test_bind_direct_chat_conversation_rejects_non_participant_user_over_http() {
     let app = build_default_test_app();
 
     let bind_response = app
@@ -4972,7 +5111,8 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_invited_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_invited_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"invited",
@@ -4983,14 +5123,28 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
         )
         .await
         .expect("create invited-history conversation request should return response");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_invited_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -5006,14 +5160,16 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
         )
         .await
         .expect("post invited-history message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_invited_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -5045,7 +5201,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_invited_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1049")
                 .with_dual_token_actor_kind("user")
@@ -5064,11 +5222,11 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
     let invited_history_json: serde_json::Value = serde_json::from_slice(&invited_history_body)
         .expect("invited history response should be valid json");
     assert_eq!(
-        invited_history_json["data"]["items"][0]["message"]["messageId"],
-        "msg_c_history_invited_http_1"
+        invited_history_json["data"]["items"][0]["messageId"],
+        format!("msg_{conversation_id}_1")
     );
     assert_eq!(
-        invited_history_json["data"]["items"][0]["message"]["body"]["summary"],
+        invited_history_json["data"]["items"][0]["body"]["summary"],
         "hello invited"
     );
 
@@ -5076,7 +5234,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_invited_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1048")
                 .with_dual_token_actor_kind("user")
@@ -5114,7 +5274,8 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_shared_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_shared_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"shared",
@@ -5125,14 +5286,28 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         )
         .await
         .expect("create shared-history conversation request should return response");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -5148,14 +5323,16 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         )
         .await
         .expect("post shared-history message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let add_member_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_http/members/add")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/members/add"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -5196,7 +5373,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1050")
                 .with_dual_token_actor_kind("user")
@@ -5215,11 +5394,11 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
     let linked_history_json: serde_json::Value = serde_json::from_slice(&linked_history_body)
         .expect("shared linked history should be valid json");
     assert_eq!(
-        linked_history_json["data"]["items"][0]["message"]["messageId"],
-        "msg_c_history_shared_http_1"
+        linked_history_json["data"]["items"][0]["messageId"],
+        format!("msg_{conversation_id}_1")
     );
     assert_eq!(
-        linked_history_json["data"]["items"][0]["message"]["body"]["summary"],
+        linked_history_json["data"]["items"][0]["body"]["summary"],
         "hello shared"
     );
 
@@ -5228,7 +5407,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1050")
                 .with_dual_token_actor_kind("user")
@@ -5259,7 +5440,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1048")
                 .with_dual_token_actor_kind("user")
@@ -5296,7 +5479,8 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_shared_sync_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_shared_sync_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"shared",
@@ -5307,14 +5491,28 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         )
         .await
         .expect("create shared-history conversation request should return response");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
 
     let post_response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_sync_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
@@ -5330,7 +5528,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         )
         .await
         .expect("post shared-history message request should succeed");
-    assert_eq!(post_response.status(), StatusCode::OK);
+    assert_eq!(post_response.status(), StatusCode::CREATED);
 
     let sync_response = app
         .clone()
@@ -5343,16 +5541,16 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .with_dual_token_actor_kind("system")
                 .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_history_shared_sync_http",
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"{conversation_id}",
                         "sharedChannelPolicyId":"scp_sync_http",
                         "externalConnectionId":"ec_sync_http",
                         "localActorId":"1007",
                         "localActorKind":"user",
                         "externalMemberId":"partner::sync-user"
-                    }"#,
-                ))
+                    }}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -5373,7 +5571,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     assert_eq!(sync_json["data"]["status"], "applied");
     assert_eq!(
         sync_json["data"]["requestKey"],
-        "100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
+        format!("100001|{conversation_id}|scp_sync_http|ec_sync_http|1007|user|partner::sync-user")
     );
     assert_eq!(sync_json["data"]["principalId"], "1007");
     assert_eq!(sync_json["data"]["principalKind"], "user");
@@ -5397,7 +5595,9 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/chat/conversations/c_history_shared_sync_http/messages")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
                 .with_dual_token_tenant("100001")
                 .with_dual_token_user("1007")
                 .with_dual_token_actor_kind("user")
@@ -5416,11 +5616,11 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     let linked_history_json: serde_json::Value = serde_json::from_slice(&linked_history_body)
         .expect("shared linked history should be valid json");
     assert_eq!(
-        linked_history_json["data"]["items"][0]["message"]["messageId"],
-        "msg_c_history_shared_sync_http_1"
+        linked_history_json["data"]["items"][0]["messageId"],
+        format!("msg_{conversation_id}_1")
     );
     assert_eq!(
-        linked_history_json["data"]["items"][0]["message"]["body"]["summary"],
+        linked_history_json["data"]["items"][0]["body"]["summary"],
         "hello sync"
     );
 
@@ -5435,17 +5635,17 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .with_dual_token_actor_kind("system")
                 .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_history_shared_sync_http",
+                .body(Body::from(format!(
+                    r#"{{
+                        "conversationId":"{conversation_id}",
                         "sharedChannelPolicyId":"scp_sync_http",
                         "externalConnectionId":"ec_sync_http",
                         "localActorId":"1007",
                         "localActorKind":"user",
                         "externalMemberId":"partner::sync-user",
-                        "requestKey":"100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
-                    }"#,
-                ))
+                        "requestKey":"100001|{conversation_id}|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
+                    }}"#
+                )))
                 .unwrap(),
         )
         .await
@@ -5466,11 +5666,11 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
     assert_eq!(resync_json["data"]["status"], "replayed");
     assert_eq!(
         resync_json["data"]["requestKey"],
-        "100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
+        format!("100001|{conversation_id}|scp_sync_http|ec_sync_http|1007|user|partner::sync-user")
     );
     assert_eq!(
         resync_json["data"]["attributes"]["sharedChannelSyncRequestKey"],
-        "100001|c_history_shared_sync_http|scp_sync_http|ec_sync_http|1007|user|partner::sync-user"
+        format!("100001|{conversation_id}|scp_sync_http|ec_sync_http|1007|user|partner::sync-user")
     );
 }
 
@@ -5492,7 +5692,8 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_shared_sync_unknown_http",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_shared_sync_unknown_http",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"shared",
@@ -5503,7 +5704,29 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
         )
         .await
         .expect("create shared-history conversation request should return response");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
+
+    let sync_request_body = serde_json::json!({
+        "conversationId": conversation_id,
+        "sharedChannelPolicyId":"scp_sync_unknown_http",
+        "externalConnectionId":"ec_sync_unknown_http",
+        "localActorId":"1044",
+        "localActorKind":"user",
+        "externalMemberId":"partner::unknown-user"
+    })
+    .to_string();
 
     let sync_response = app
         .oneshot(
@@ -5515,16 +5738,7 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
                 .with_dual_token_actor_kind("system")
                 .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_history_shared_sync_unknown_http",
-                        "sharedChannelPolicyId":"scp_sync_unknown_http",
-                        "externalConnectionId":"ec_sync_unknown_http",
-                        "localActorId":"1044",
-                        "localActorKind":"user",
-                        "externalMemberId":"partner::unknown-user"
-                    }"#,
-                ))
+                .body(Body::from(sync_request_body))
                 .unwrap(),
         )
         .await
@@ -5558,7 +5772,8 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "conversationId":"c_history_shared_sync_oversized_kind",
+                        "groupName":"test group",
+                        "clientRequestKey":"c_history_shared_sync_oversized_kind",
                         "conversationType":"group",
                         "policyVersion":"group.policy.v1",
                         "historyVisibility":"shared",
@@ -5569,10 +5784,22 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
         )
         .await
         .expect("create shared-history conversation request should return response");
-    assert_eq!(create_response.status(), StatusCode::OK);
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .expect("create body should collect")
+        .to_bytes();
+    let create_json: serde_json::Value =
+        serde_json::from_slice(&create_body).expect("create response should be valid json");
+    let conversation_id = response_item(&create_json)["conversationId"]
+        .as_str()
+        .expect("create response should include canonical conversation id")
+        .to_string();
 
     let request_body = serde_json::json!({
-        "conversationId":"c_history_shared_sync_oversized_kind",
+        "conversationId": conversation_id,
         "sharedChannelPolicyId":"scp_sync_http_oversized_kind",
         "externalConnectionId":"ec_sync_http_oversized_kind",
         "localActorId":"1007_oversized_kind",

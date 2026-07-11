@@ -180,17 +180,17 @@ ON CONFLICT (tenant_id, organization_id, space_id) DO NOTHING
 "#;
 
 const SPACE_GET_BY_ID_SQL: &str = r#"
-SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at::text, updated_at::text
 FROM im_spaces WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
 "#;
 
 const SPACE_LIST_BY_OWNER_SQL: &str = r#"
-SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, space_id, space_name, space_type, owner_user_id, description, avatar_url, max_members, settings_json, created_at::text, updated_at::text
 FROM im_spaces WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3 ORDER BY created_at DESC LIMIT $4
 "#;
 
 const SPACE_LIST_ACCESSIBLE_BY_USER_SQL: &str = r#"
-SELECT s.tenant_id, s.organization_id, s.space_id, s.space_name, s.space_type, s.owner_user_id, s.description, s.avatar_url, s.max_members, s.settings_json, s.created_at, s.updated_at
+SELECT s.tenant_id, s.organization_id, s.space_id, s.space_name, s.space_type, s.owner_user_id, s.description, s.avatar_url, s.max_members, s.settings_json, s.created_at::text, s.updated_at::text
 FROM im_spaces s
 WHERE s.tenant_id = $1
   AND s.organization_id = $2
@@ -444,19 +444,19 @@ ON CONFLICT (tenant_id, organization_id, group_id) DO NOTHING
 "#;
 
 const GROUP_GET_BY_ID_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at::text, updated_at::text
 FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
 "#;
 
 const GROUP_LIST_BY_SPACE_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at::text, updated_at::text
 FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
   AND ($4::timestamptz IS NULL OR (created_at, group_id) < ($4::timestamptz, $5::int8))
 ORDER BY created_at DESC, group_id DESC LIMIT $6
 "#;
 
 const GROUP_LIST_BY_OWNER_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, group_id, space_id, group_name, group_type, owner_user_id, conversation_id, max_members, description, avatar_url, announcement, settings_json, created_at::text, updated_at::text
 FROM im_chat_groups WHERE tenant_id = $1 AND organization_id = $2 AND owner_user_id = $3 ORDER BY created_at DESC LIMIT $4
 "#;
 
@@ -833,12 +833,12 @@ ON CONFLICT (tenant_id, organization_id, channel_id) DO NOTHING
 "#;
 
 const CHANNEL_GET_BY_ID_SQL: &str = r#"
-SELECT tenant_id, organization_id, channel_id, space_id, channel_name, channel_type, description, conversation_id, position, is_nsfw, is_pinned, topic, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, channel_id, space_id, channel_name, channel_type, description, conversation_id, position, is_nsfw, is_pinned, topic, settings_json, created_at::text, updated_at::text
 FROM im_chat_channels WHERE tenant_id = $1 AND organization_id = $2 AND channel_id = $3
 "#;
 
 const CHANNEL_LIST_BY_SPACE_SQL: &str = r#"
-SELECT tenant_id, organization_id, channel_id, space_id, channel_name, channel_type, description, conversation_id, position, is_nsfw, is_pinned, topic, settings_json, created_at, updated_at
+SELECT tenant_id, organization_id, channel_id, space_id, channel_name, channel_type, description, conversation_id, position, is_nsfw, is_pinned, topic, settings_json, created_at::text, updated_at::text
 FROM im_chat_channels WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
   AND ($4::timestamptz IS NULL OR (created_at, channel_id) < ($4::timestamptz, $5::int8))
 ORDER BY created_at DESC, channel_id DESC LIMIT $6
@@ -1095,13 +1095,13 @@ FROM locked_group lg, member_count mc
 "#;
 
 const GROUP_MEMBER_GET_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at, updated_at
+SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at::text, updated_at::text
 FROM im_group_members
 WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3 AND user_id = $4
 "#;
 
 const GROUP_MEMBER_LIST_SQL: &str = r#"
-SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at, updated_at
+SELECT tenant_id, organization_id, group_id, user_id, role, nickname, mute_until::text, joined_at::text, updated_at::text
 FROM im_group_members
 WHERE tenant_id = $1 AND organization_id = $2 AND group_id = $3
   AND ($4::timestamptz IS NULL OR (joined_at, user_id) > ($4::timestamptz, $5::text))

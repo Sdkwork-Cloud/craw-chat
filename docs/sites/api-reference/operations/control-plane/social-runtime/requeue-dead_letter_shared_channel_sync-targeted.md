@@ -40,11 +40,11 @@ runtime operation payload in the checked-in control-plane authority. Treat it as
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The targeted requeue payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | One or more targeted request keys do not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the requeue. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

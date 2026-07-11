@@ -4,8 +4,44 @@ import {
   SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT,
   resolvePersistedLanguage,
 } from '@sdkwork/im-pc-commons';
-import zhCN from './locales/zh-CN.json';
-import enUS from './locales/en-US.json';
+import enUSAgent from './en-US/communication/im-pc-chat/agent.json';
+import enUSChat from './en-US/communication/im-pc-chat/chat.json';
+import enUSContacts from './en-US/communication/im-pc-chat/contacts.json';
+import enUSFavorites from './en-US/communication/im-pc-chat/favorites.json';
+import enUSProfile from './en-US/communication/im-pc-chat/profile.json';
+import enUSScanQr from './en-US/communication/im-pc-chat/scan-qr.json';
+import enUSSettingsModal from './en-US/communication/im-pc-chat/settings-modal.json';
+import enUSSidebar from './en-US/communication/im-pc-chat/sidebar.json';
+import zhCNAgent from './zh-CN/communication/im-pc-chat/agent.json';
+import zhCNChat from './zh-CN/communication/im-pc-chat/chat.json';
+import zhCNContacts from './zh-CN/communication/im-pc-chat/contacts.json';
+import zhCNFavorites from './zh-CN/communication/im-pc-chat/favorites.json';
+import zhCNProfile from './zh-CN/communication/im-pc-chat/profile.json';
+import zhCNScanQr from './zh-CN/communication/im-pc-chat/scan-qr.json';
+import zhCNSettingsModal from './zh-CN/communication/im-pc-chat/settings-modal.json';
+import zhCNSidebar from './zh-CN/communication/im-pc-chat/sidebar.json';
+
+const zhCN = {
+  ...zhCNSidebar,
+  ...zhCNAgent,
+  ...zhCNProfile,
+  ...zhCNContacts,
+  ...zhCNFavorites,
+  ...zhCNSettingsModal,
+  ...zhCNChat,
+  ...zhCNScanQr,
+};
+
+const enUS = {
+  ...enUSSidebar,
+  ...enUSAgent,
+  ...enUSProfile,
+  ...enUSContacts,
+  ...enUSFavorites,
+  ...enUSSettingsModal,
+  ...enUSChat,
+  ...enUSScanQr,
+};
 
 const SUPPORTED_LANGUAGES = ['zh-CN', 'en-US'] as const;
 type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];

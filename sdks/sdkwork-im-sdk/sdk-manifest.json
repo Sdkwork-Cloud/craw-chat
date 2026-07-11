@@ -42,16 +42,17 @@
       "releaseState": "not_published",
       "generatedPath": "sdkwork-im-sdk-typescript/generated/server-openapi",
       "manifestPath": "sdkwork-im-sdk-typescript/generated/server-openapi/package.json",
+      "name": "sdkwork-im-sdk-generated-typescript",
       "version": "0.1.0",
       "description": "Generator-owned TypeScript transport SDK for the Sdkwork IM IM standardized development API.",
+      "consumerPackageName": "@sdkwork/im-sdk",
+      "transportPackageName": "sdkwork-im-sdk-generated-typescript",
       "consumerSurface": {
         "primaryClient": "SdkworkImClient",
         "apiPrefix": "/im/v3/api",
         "publicPackage": "@sdkwork/im-sdk",
         "composedPath": "sdkwork-im-sdk-typescript/src"
-      },
-      "consumerPackageName": "@sdkwork/im-sdk-generated",
-      "transportPackageName": "sdkwork-im-sdk-generated-typescript"
+      }
     },
     {
       "language": "flutter",

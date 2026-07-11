@@ -12,13 +12,13 @@ function dependencyRoot(dependencyId: string): string {
   return path.resolve(repoRoot, '..', dependencyId);
 }
 
-const generatedImAppSdkEntry = path.resolve(
+const imAppSdkEntry = path.resolve(
   __dirname,
-  '../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  '../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/src/index.ts',
 );
-const generatedImBackendSdkEntry = path.resolve(
+const imBackendSdkEntry = path.resolve(
   __dirname,
-  '../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+  '../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/src/index.ts',
 );
 const appbaseAppSdkEntry = path.resolve(
   repoRoot,
@@ -57,22 +57,22 @@ const generatedMembershipAppSdkEntry = path.resolve(
   'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts',
 );
 
-const generatedMailAppSdkTransportEntry = path.resolve(
+const mailAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-mail'),
-  'sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-mail-app-sdk/sdkwork-mail-app-sdk-typescript/src/index.ts',
 );
-const generatedCommunityAppSdkTransportEntry = path.resolve(
+const communityAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-community'),
-  'sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts',
 );
 
 const generatedCourseAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-course'),
-  'sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/src/index.ts',
 );
 const generatedCourseBackendSdkEntry = path.resolve(
   dependencyRoot('sdkwork-course'),
-  'sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/src/index.ts',
 );
 
 const generatedNotaryAppSdkEntry = path.resolve(
@@ -137,7 +137,7 @@ const communityPcCommunitySourceRoot = path.resolve(
 );
 const generatedVoiceAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-voice'),
-  'sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  'sdks/sdkwork-voice-app-sdk/sdkwork-voice-app-sdk-typescript/src/index.ts',
 );
 const agentsAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-agents'),
@@ -150,10 +150,6 @@ const generatedKnowledgebaseAppSdkEntry = path.resolve(
 const generatedImSdkEntry = path.resolve(
   __dirname,
   '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts',
-);
-const generatedImSdkTransportEntry = path.resolve(
-  __dirname,
-  '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedRtcSdkEntry = path.resolve(
   dependencyRoot('sdkwork-rtc'),
@@ -268,8 +264,8 @@ export default defineConfig(({mode}) => {
         { find: /^react-router$/, replacement: reactRouterEntry },
         { find: /^react-router-dom$/, replacement: reactRouterDomEntry },
         { find: /^react$/, replacement: reactEntry },
-        { find: '@sdkwork-internal/im-app-api-generated', replacement: generatedImAppSdkEntry },
-        { find: '@sdkwork-internal/im-backend-api-generated', replacement: generatedImBackendSdkEntry },
+        { find: '@sdkwork/im-app-sdk', replacement: imAppSdkEntry },
+        { find: '@sdkwork/im-backend-sdk', replacement: imBackendSdkEntry },
         { find: '@sdkwork/agents-app-sdk', replacement: agentsAppSdkEntry },
         { find: '@sdkwork/agents-pc-agents', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-agents/src/index.ts') },
         { find: '@sdkwork/agents-pc-commons', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-commons/src/index.ts') },
@@ -286,14 +282,11 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/shop-app-sdk', replacement: shopAppSdkEntry },
         { find: '@sdkwork/order-app-sdk', replacement: orderAppSdkEntry },
         { find: '@sdkwork/membership-app-sdk', replacement: generatedMembershipAppSdkEntry },
-        { find: '@sdkwork/mail-app-sdk', replacement: generatedMailAppSdkTransportEntry },
-        { find: 'sdkwork-mail-app-sdk-generated-typescript', replacement: generatedMailAppSdkTransportEntry },
-        { find: 'sdkwork-community-app-sdk-generated-typescript', replacement: generatedCommunityAppSdkTransportEntry },
+        { find: '@sdkwork/mail-app-sdk', replacement: mailAppSdkEntry },
         { find: '@sdkwork/course-app-sdk', replacement: generatedCourseAppSdkEntry },
         { find: '@sdkwork/course-backend-sdk', replacement: generatedCourseBackendSdkEntry },
         { find: '@sdkwork/notary-app-sdk', replacement: generatedNotaryAppSdkEntry },
         { find: '@sdkwork/im-sdk', replacement: generatedImSdkEntry },
-        { find: '@sdkwork/im-sdk-generated', replacement: generatedImSdkTransportEntry },
         { find: '@sdkwork/rtc-sdk', replacement: generatedRtcSdkEntry },
         { find: '@sdkwork/rtc-sdk-provider-volcengine', replacement: generatedRtcVolcengineProviderEntry },
         { find: '@sdkwork/appbase-pc-react', replacement: appbasePcReactEntry },
@@ -313,7 +306,8 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/sdk-common/errors', replacement: path.resolve(sdkCommonSourceRoot, 'errors/index.ts') },
         { find: '@sdkwork/sdk-common/utils', replacement: path.resolve(sdkCommonSourceRoot, 'utils/index.ts') },
         { find: '@sdkwork/sdk-common', replacement: sdkCommonEntry },
-        { find: '@sdkwork/utils', replacement: sdkworkUtilsEntry },
+        { find: /^@sdkwork\/utils\/(.+)$/, replacement: `${sdkworkUtilsSourceRoot}/$1` },
+        { find: /^@sdkwork\/utils$/, replacement: sdkworkUtilsEntry },
         { find: '@sdkwork/im-pc-types', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-types/src') },
         { find: '@sdkwork/im-pc-commons', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-commons/src') },
         { find: '@sdkwork/im-pc-shell', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shell/src') },
@@ -365,7 +359,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/community-runtime', replacement: path.resolve(communityCommonPackageRoot, 'sdkwork-community-runtime/src/index.ts') },
         { find: '@sdkwork/community-sdk-ports', replacement: path.resolve(communityCommonPackageRoot, 'sdkwork-community-sdk-ports/src/index.ts') },
         { find: '@sdkwork/community-contracts', replacement: path.resolve(communityCommonPackageRoot, 'sdkwork-community-contracts/src/index.ts') },
-        { find: '@sdkwork/community-app-sdk', replacement: path.resolve(dependencyRoot('sdkwork-community'), 'sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript/src/index.ts') },
+        { find: '@sdkwork/community-app-sdk', replacement: communityAppSdkEntry },
         { find: '@sdkwork/im-pc-enterprise', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-enterprise/src') },
         { find: '@sdkwork/im-console-core', replacement: path.resolve(__dirname, './packages/sdkwork-im-console-core/src') },
         { find: /^@sdkwork\/im-pc-admin-sdk\/(.+)$/, replacement: `${adminSdkSourceRoot}/$1` },
@@ -400,8 +394,8 @@ export default defineConfig(({mode}) => {
     },
     optimizeDeps: {
       exclude: [
-        '@sdkwork-internal/im-app-api-generated',
-        '@sdkwork-internal/im-backend-api-generated',
+        '@sdkwork/im-app-sdk',
+        '@sdkwork/im-backend-sdk',
         '@sdkwork/agents-app-sdk',
         '@sdkwork/aiot-app-sdk',
         '@sdkwork/aiot-backend-sdk',
@@ -433,8 +427,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork/shop-app-sdk',
         '@sdkwork/order-app-sdk',
         '@sdkwork/membership-app-sdk',
-        'sdkwork-mail-app-sdk-generated-typescript',
-        'sdkwork-community-app-sdk-generated-typescript',
+        '@sdkwork/mail-app-sdk',
         '@sdkwork/course-app-sdk',
         '@sdkwork/course-backend-sdk',
         '@sdkwork/notary-app-sdk',

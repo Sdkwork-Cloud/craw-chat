@@ -6,13 +6,14 @@ use sdkwork_im_contract_control::{
     RealtimeSubscriptionStore,
 };
 
-use crate::{PresenceRuntime, RealtimeClusterBridge, RealtimeDeliveryRuntime};
+use crate::{PresenceRuntime, RealtimeClusterBridge, RealtimeDeliveryRuntime, ServiceReadiness};
 
 #[derive(Clone)]
 pub struct RealtimePlaneAssembly {
     realtime_cluster: Arc<RealtimeClusterBridge>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     presence_runtime: Arc<PresenceRuntime>,
+    readiness: ServiceReadiness,
 }
 
 impl Default for RealtimePlaneAssembly {
@@ -35,6 +36,7 @@ impl RealtimePlaneAssembly {
             realtime_cluster,
             realtime_runtime,
             presence_runtime,
+            readiness: ServiceReadiness::from_env(),
         }
     }
 
@@ -101,5 +103,9 @@ impl RealtimePlaneAssembly {
 
     pub fn presence_runtime(&self) -> Arc<PresenceRuntime> {
         self.presence_runtime.clone()
+    }
+
+    pub fn readiness(&self) -> ServiceReadiness {
+        self.readiness.clone()
     }
 }

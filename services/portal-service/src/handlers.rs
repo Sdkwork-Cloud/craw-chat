@@ -9,8 +9,6 @@ use sdkwork_web_core::WebRequestContext;
 use crate::error::PortalError;
 use crate::state::AppState;
 
-const PORTAL_READ_PERMISSION: &str = "portal.read";
-
 pub(crate) async fn get_portal_workspace(Extension(ctx): Extension<WebRequestContext>) -> Response {
     let result: ApiResult<SdkWorkResourceData<im_portal_snapshots::PortalWorkspaceView>> = (|| {
         Ok(SdkWorkResourceData {
@@ -66,10 +64,7 @@ pub(crate) async fn get_portal_access_snapshot(
 }
 
 fn ensure_authenticated(auth: &AppContext) -> Result<(), PortalError> {
-    if auth.tenant_id.trim().is_empty()
-        || auth.user_id.trim().is_empty()
-        || !auth.has_permission(PORTAL_READ_PERMISSION)
-    {
+    if auth.tenant_id.trim().is_empty() || auth.user_id.trim().is_empty() {
         return Err(PortalError::unauthorized(
             "portal snapshot requires an authenticated app session",
         ));

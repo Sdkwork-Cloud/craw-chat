@@ -43,8 +43,8 @@ assert.match(
 
 assert.match(
   contactDetailSource,
-  /contactService\.getStarredContacts\(\)[\s\S]*?\.catch\s*\(/u,
-  'ContactDetailPane starred status hydration must handle backend failures',
+  /contactService\.getContactPreferences\(user\.id\)[\s\S]*?\.catch\s*\(/u,
+  'ContactDetailPane contact preference hydration must handle backend failures',
 );
 assert.match(
   contactDetailSource,

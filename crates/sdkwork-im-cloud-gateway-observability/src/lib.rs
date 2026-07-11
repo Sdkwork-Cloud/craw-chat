@@ -120,10 +120,7 @@ pub fn build_startup_summary_with_registry(
 }
 
 pub fn format_startup_summary(summary: &GatewayStartupSummary) -> String {
-    let mode = match summary.runtime_mode {
-        GatewayRuntimeMode::Split => "split",
-        GatewayRuntimeMode::Unified => "unified",
-    };
+    let mode = "unified";
 
     let mut lines = vec![
         "Mode".to_owned(),

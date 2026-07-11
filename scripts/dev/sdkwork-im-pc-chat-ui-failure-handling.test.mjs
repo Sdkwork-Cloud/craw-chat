@@ -28,40 +28,40 @@ assert.match(
 );
 assert.match(
   createGroupModalSource,
-  /contactService\.getContacts\(\)[\s\S]*?\.catch\s*\(/u,
+  /contactService\.listContactsPage\(\)[\s\S]*?\.catch\s*\(/u,
   'CreateGroupModal contact loading must fail-close instead of leaving the modal in a loading state',
 );
 assert.match(
   createGroupModalSource,
-  /contactService\.getContacts\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
+  /contactService\.listContactsPage\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
   'CreateGroupModal contact loading must always clear loading after success or failure',
 );
 
 assert.match(
   allContactsSource,
-  /contactService\.getContacts\(\)[\s\S]*?\.catch\s*\(/u,
+  /contactService\.listContactsPage\(\)[\s\S]*?\.catch\s*\(/u,
   'All contacts loading must surface backend failures and stop loading',
 );
 assert.match(
   allContactsSource,
-  /contactService\.getContacts\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?setLoading\(false\)/u,
+  /contactService\.listContactsPage\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?setLoading\(false\)/u,
   'All contacts loading must always clear loading after success or failure',
 );
 
 assert.match(
   groupsSource,
-  /groupService\.getGroups\(\)[\s\S]*?\.catch\s*\(/u,
+  /groupService\.listGroupsPage\(\)[\s\S]*?\.catch\s*\(/u,
   'Groups loading must surface backend failures and stop loading',
 );
 assert.match(
   groupsSource,
-  /groupService\.getGroups\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
+  /groupService\.listGroupsPage\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?setLoading\(false\)/u,
   'Groups loading must always clear loading after success or failure',
 );
 assert.match(
   groupsSource,
-  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?setGroups\(\s*\(\s*previousGroups\s*\)\s*=>\s*\[group,\s*\.\.\.previousGroups\]\s*\)[\s\S]*?onOpenGroup\?\.\(\s*group\s*\)/u,
-  'GroupsContainer must reuse CreateGroupModal and append through a functional state update so rapid group creation does not drop previous groups',
+  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?setGroups\(\s*\(\s*previousGroups\s*\)\s*=>\s*\[group,\s*\.\.\.previousGroups[\s\S]*?onOpenGroup\?\.\(\s*group\s*\)/u,
+  'GroupsContainer must reuse CreateGroupModal and prepend through a functional state update so rapid group creation does not drop previous groups',
 );
 assert.doesNotMatch(
   groupsSource,
@@ -71,12 +71,12 @@ assert.doesNotMatch(
 
 assert.match(
   newFriendsSource,
-  /contactService\.getFriendRequests\(\)[\s\S]*?\.catch\s*\(/u,
+  /contactService\.listFriendRequestsPage\(\{[\s\S]*direction:\s*['"]all['"][\s\S]*\}\)[\s\S]*?\.catch\s*\(/u,
   'New friends loading must surface backend failures and stop loading',
 );
 assert.match(
   newFriendsSource,
-  /contactService\.getFriendRequests\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
+  /contactService\.listFriendRequestsPage\(\{[\s\S]*direction:\s*['"]all['"][\s\S]*\}\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
   'New friends loading must always clear loading after success or failure',
 );
 assert.match(

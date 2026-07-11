@@ -5,6 +5,7 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+chrono = "0.4.44"
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time.workspace = true

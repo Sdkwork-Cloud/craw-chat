@@ -46,19 +46,19 @@ public class ChatApi {
     }
 
     /** Create an agent handoff */
-    public ConversationsAgentHandoffsCreateResponse201 conversationsAgentHandoffsCreate(CreateAgentDialogRequest body) throws Exception {
+    public ConversationsAgentHandoffsCreateResponse201 conversationsAgentHandoffsCreate(CreateAgentHandoffRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/agent_handoffs"), body, null, null, "application/json");
         return client.convertValue(raw, new TypeReference<ConversationsAgentHandoffsCreateResponse201>() {});
     }
 
     /** Create a system channel */
-    public ConversationsSystemChannelsCreateResponse201 conversationsSystemChannelsCreate(CreateConversationRequest body) throws Exception {
+    public ConversationsSystemChannelsCreateResponse201 conversationsSystemChannelsCreate(CreateSystemChannelRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/system_channels"), body, null, null, "application/json");
         return client.convertValue(raw, new TypeReference<ConversationsSystemChannelsCreateResponse201>() {});
     }
 
     /** Create a thread conversation */
-    public ConversationsThreadsCreateResponse201 conversationsThreadsCreate(CreateConversationRequest body) throws Exception {
+    public ConversationsThreadsCreateResponse201 conversationsThreadsCreate(CreateThreadConversationRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/chat/conversations/threads"), body, null, null, "application/json");
         return client.convertValue(raw, new TypeReference<ConversationsThreadsCreateResponse201>() {});
     }
@@ -187,14 +187,14 @@ public class ChatApi {
         return client.convertValue(raw, new TypeReference<ConversationsMemberDirectoryListResponse>() {});
     }
 
-    /** List conversation message timeline */
-    public ConversationsMessagesListResponse conversationsMessagesList(String conversationId, Integer afterSeq, Integer pageSize) throws Exception {
+    /** List conversation message history */
+    public ConversationMessageListResponse conversationsMessagesList(String conversationId, Integer afterSeq, Integer pageSize) throws Exception {
         String query = buildQueryString(List.of(
             new QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
             new QueryParameterSpec("page_size", pageSize, "form", true, false, null)
         ));
         Object raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/" + serializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false)) + "/messages"), query));
-        return client.convertValue(raw, new TypeReference<ConversationsMessagesListResponse>() {});
+        return client.convertValue(raw, new TypeReference<ConversationMessageListResponse>() {});
     }
 
     /** Post a conversation message */
@@ -228,8 +228,8 @@ public class ChatApi {
     }
 
     /** Recall a message */
-    public MessagesRecallResponse messagesRecall(String messageId) throws Exception {
-        Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/recall"), null);
+    public MessagesRecallResponse messagesRecall(String messageId, RecallMessageRequest body) throws Exception {
+        Object raw = client.post(ApiPaths.imPath("/chat/messages/" + serializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false)) + "/recall"), body, null, null, "application/json");
         return client.convertValue(raw, new TypeReference<MessagesRecallResponse>() {});
     }
 

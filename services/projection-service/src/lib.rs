@@ -13,6 +13,7 @@ mod access;
 mod bootstrap;
 mod client_route_sync;
 mod contacts;
+mod conversation_catalog;
 mod conversation_personalization;
 mod cursor_auth;
 pub mod embedded_bridge;
@@ -20,6 +21,7 @@ pub mod http;
 pub use http::build_integration_test_app;
 mod delivery_receipts;
 mod event_fanout;
+mod group_metadata;
 mod inbox;
 mod interactions;
 mod journal_consumer;
@@ -29,6 +31,8 @@ mod member_store;
 mod message_delivery_index;
 mod message_favorites;
 mod message_visibilities;
+mod metadata_read_through;
+mod metadata_tier;
 mod model;
 mod observability;
 mod personalization_snapshot;
@@ -45,15 +49,14 @@ use member_store::ProjectionMemberRuntimeStore;
 use model::ConversationCatalogEntry;
 use observability::ProjectionObservabilityState;
 use projection::{
-    AgentHandoffStatusChangedProjectionPayload, ConversationCreatedPayload,
-    ConversationMemberRoleChangedPayload, ConversationPolicyAppliedProjectionPayload,
-    handoff_view_from_created_payload, handoff_view_from_state_payload,
+    AgentHandoffStatusChangedProjectionPayload, ConversationMemberRoleChangedPayload,
+    handoff_view_from_state_payload,
 };
 use received_message_index::ReceivedMessageIndex;
 use scope::{
-    ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, ContactOwnerScopeKey,
-    projection_organization_id_for_event, scope_key, scope_key_for_event,
-    scope_key_for_event_conversation, tracked_live_projection_lag_scope_id,
+    ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, ContactOwnerScopeKey, GroupScopeKey,
+    projection_organization_id_for_event, scope_key, scope_key_for_event_conversation,
+    tracked_live_projection_lag_scope_id,
 };
 
 pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
@@ -114,6 +117,8 @@ pub struct TimelineProjectionService {
     read_cursors: Mutex<HashMap<String, HashMap<String, ConversationReadCursor>>>,
     received_messages: Mutex<ReceivedMessageIndex>,
     conversations: Mutex<HashMap<String, ConversationCatalogEntry>>,
+    group_conversation_bindings:
+        Mutex<HashMap<GroupScopeKey, group_metadata::GroupConversationBinding>>,
     contacts: Mutex<HashMap<ContactOwnerScopeKey, contacts::ContactScopeStore>>,
     direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>,
     message_interactions:
@@ -137,6 +142,7 @@ pub struct TimelineProjectionService {
         Mutex<HashMap<String, HashMap<String, model::MessageVisibilityMutationResult>>>,
     observability: Mutex<ProjectionObservabilityState>,
     timeline_tier: timeline_tier::TimelineTierConfig,
+    metadata_tier: metadata_tier::MetadataTierConfig,
 }
 
 impl TimelineProjectionService {
@@ -158,6 +164,19 @@ impl TimelineProjectionService {
     pub fn memory_timeline_cap(&self) -> usize {
         self.timeline_tier.memory_timeline_cap()
     }
+
+    pub fn configure_durable_metadata(
+        &self,
+        store: std::sync::Arc<dyn im_platform_contracts::MetadataStore + Send + Sync>,
+    ) {
+        self.metadata_tier.configure_durable_metadata(store);
+    }
+
+    pub fn durable_metadata_store(
+        &self,
+    ) -> Option<std::sync::Arc<dyn im_platform_contracts::MetadataStore + Send + Sync>> {
+        self.metadata_tier.durable_metadata_store()
+    }
 }
 
 impl TimelineProjectionService {
@@ -173,6 +192,11 @@ impl TimelineProjectionService {
         lock_projection_mutex(&self.read_cursors, "cursor store").clear();
         lock_projection_mutex(&self.received_messages, "received message index").clear();
         lock_projection_mutex(&self.conversations, "conversation store").clear();
+        lock_projection_mutex(
+            &self.group_conversation_bindings,
+            "group conversation binding store",
+        )
+        .clear();
         lock_projection_mutex(&self.contacts, "contact store").clear();
         lock_projection_mutex(
             &self.direct_chat_bindings,
@@ -267,6 +291,8 @@ impl TimelineProjectionService {
             "user_block.blocked" => self.apply_user_blocked(event),
             "user_block.released" => self.apply_user_block_released(event),
             "direct_chat.bound" => self.apply_direct_chat_bound(event),
+            "group.created" => self.apply_group_created(event),
+            "group.updated" => self.apply_group_updated(event),
             _ => Ok(()),
         };
 
@@ -293,98 +319,6 @@ impl TimelineProjectionService {
             conversation_id,
             fallback_recipients,
         )
-    }
-
-    fn apply_conversation_created(&self, event: &CommitEnvelope) -> Result<(), ProjectionError> {
-        let payload: ConversationCreatedPayload =
-            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
-        let handoff_view = handoff_view_from_created_payload(&payload)?;
-        let key = scope_key_for_event(event);
-        lock_projection_mutex(&self.conversations, "conversation store").insert(
-            key.clone(),
-            ConversationCatalogEntry {
-                conversation_type: payload.conversation_type,
-                created_at: event.committed_at.clone(),
-                history_visibility: "joined".into(),
-            },
-        );
-        let conversation_id = event.aggregate_id.clone();
-        let tenant_id = event.tenant_id.clone();
-        let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
-        let summary = summaries
-            .entry(key)
-            .or_insert_with(|| ConversationSummaryView {
-                tenant_id: tenant_id.clone(),
-                conversation_id: conversation_id.clone(),
-                message_count: 0,
-                last_message_id: None,
-                last_message_seq: 0,
-                last_sender_id: None,
-                last_sender_kind: None,
-                last_sender: None,
-                last_summary: None,
-                last_message_at: None,
-                agent_handoff: None,
-            });
-        if handoff_view.is_some() {
-            summary.agent_handoff = handoff_view;
-        }
-        Ok(())
-    }
-
-    fn apply_conversation_policy_applied(
-        &self,
-        event: &CommitEnvelope,
-    ) -> Result<(), ProjectionError> {
-        let payload: ConversationPolicyAppliedProjectionPayload =
-            serde_json::from_str(&event.payload).map_err(ProjectionError::InvalidPayload)?;
-        if payload.conversation_id.trim() != event.aggregate_id.trim() {
-            return Err(ProjectionError::InvalidEvent(format!(
-                "conversation.policy_applied conversationId {} does not match aggregate {}",
-                payload.conversation_id, event.aggregate_id
-            )));
-        }
-        if payload.policy_version.trim().is_empty() {
-            return Err(ProjectionError::InvalidEvent(
-                "conversation.policy_applied policyVersion must not be empty".into(),
-            ));
-        }
-        let key = scope_key_for_event(event);
-        let mut conversations = lock_projection_mutex(&self.conversations, "conversation store");
-        let entry = conversations
-            .entry(key.clone())
-            .or_insert_with(|| ConversationCatalogEntry {
-                conversation_type: "unknown".into(),
-                created_at: event.committed_at.clone(),
-                history_visibility: payload.history_visibility.clone(),
-            });
-        entry.history_visibility = payload.history_visibility;
-        if im_domain_core::retention::retention_is_indefinite(
-            im_domain_core::retention::retention_class_from_policy_ref(
-                payload.retention_policy_ref.as_str(),
-            )
-            .as_str(),
-        ) {
-            let mut entries = lock_projection_mutex(&self.entries, "projection store");
-            if let Some(timeline) = entries.get_mut(key.as_str()) {
-                for entry in timeline.values_mut() {
-                    entry.retention_until = None;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn history_visibility_for_conversation(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-    ) -> String {
-        lock_projection_mutex(&self.conversations, "conversation store")
-            .get(scope_key(tenant_id, organization_id, conversation_id).as_str())
-            .map(|entry| entry.history_visibility.clone())
-            .unwrap_or_else(|| "joined".into())
     }
 
     fn apply_agent_handoff_status_changed(
@@ -456,6 +390,8 @@ impl TimelineProjectionService {
                 event.retention_class.as_str(),
                 message.occurred_at.as_str(),
             ),
+            reaction_counts: Vec::new(),
+            pin: None,
         };
 
         let mut entries = lock_projection_mutex(&self.entries, "projection store");
@@ -805,9 +741,14 @@ impl TimelineProjectionService {
         organization_id: &str,
         conversation_id: &str,
     ) -> Option<ConversationSummaryView> {
-        lock_projection_mutex(&self.summaries, "summary store")
-            .get(scope_key(tenant_id, organization_id, conversation_id).as_str())
+        let scope = scope_key(tenant_id, organization_id, conversation_id);
+        if let Some(summary) = lock_projection_mutex(&self.summaries, "summary store")
+            .get(scope.as_str())
             .cloned()
+        {
+            return Some(summary);
+        }
+        self.load_summary_from_durable_store(scope.as_str())
     }
 
     pub fn read_cursor_for_principal_kind(
@@ -847,7 +788,9 @@ impl TimelineProjectionService {
         let key = scope_key(tenant_id, organization_id, conversation_id);
         let scope_cursors = lock_projection_mutex(&self.read_cursors, "cursor store")
             .get(key.as_str())
-            .cloned()?;
+            .cloned()
+            .or_else(|| self.load_read_cursors_from_durable_store(key.as_str()));
+        let scope_cursors = scope_cursors?;
         let storage_key = read_cursor_storage_key(member.member_id.as_str(), device_id);
         let cursor = scope_cursors
             .get(storage_key.as_str())
@@ -882,13 +825,14 @@ impl TimelineProjectionService {
         principal_id: &str,
         principal_kind: &str,
     ) -> Option<ConversationMember> {
-        lock_projection_mutex(&self.members, "member store")
-            .member_for_principal_kind(
-                scope_key(tenant_id, organization_id, conversation_id).as_str(),
-                principal_id,
-                principal_kind,
-            )
+        let scope = scope_key(tenant_id, organization_id, conversation_id);
+        if let Some(member) = lock_projection_mutex(&self.members, "member store")
+            .member_for_principal_kind(scope.as_str(), principal_id, principal_kind)
             .cloned()
+        {
+            return Some(member);
+        }
+        self.load_member_from_durable_store(scope.as_str(), principal_id, principal_kind)
     }
 }
 

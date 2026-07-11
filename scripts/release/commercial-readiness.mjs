@@ -475,7 +475,7 @@ export function assessPreReleaseEvidenceIndex(indexJson) {
   });
 }
 
-export function assessAppReleaseEvidence(appManifest) {
+export function assessAppReleaseEvidence(appManifest, { repoRoot = null } = {}) {
   const blockers = [];
   const checksumRequired = appManifest?.security?.checksumRequired === true;
   const signatureRequired = appManifest?.security?.signatureRequired === true;
@@ -501,22 +501,31 @@ export function assessAppReleaseEvidence(appManifest) {
       }
     }
 
-    if (signatureRequired && !hasPackageEvidence(releasePackage, SIGNATURE_EVIDENCE_PATHS)) {
-      blockers.push(
-        `${packageId} is an enabled direct distribution package but signature evidence is missing while security.signatureRequired=true.`,
-      );
+    if (signatureRequired) {
+      blockers.push(...assessRequiredPackageEvidence(releasePackage, SIGNATURE_EVIDENCE_PATHS, {
+        evidenceLabel: 'signature',
+        packageId,
+        repoRoot,
+        requirementText: 'security.signatureRequired=true',
+      }));
     }
 
-    if (sbomRequired && !hasPackageEvidence(releasePackage, SBOM_EVIDENCE_PATHS)) {
-      blockers.push(
-        `${packageId} is an enabled direct distribution package but SBOM evidence is missing while security.sbomRequired=true.`,
-      );
+    if (sbomRequired) {
+      blockers.push(...assessRequiredPackageEvidence(releasePackage, SBOM_EVIDENCE_PATHS, {
+        evidenceLabel: 'SBOM',
+        packageId,
+        repoRoot,
+        requirementText: 'security.sbomRequired=true',
+      }));
     }
 
-    if (sbomRequired && !hasPackageEvidence(releasePackage, PROVENANCE_EVIDENCE_PATHS)) {
-      blockers.push(
-        `${packageId} is an enabled direct distribution package but provenance or attestation evidence is missing while security.sbomRequired=true.`,
-      );
+    if (sbomRequired) {
+      blockers.push(...assessRequiredPackageEvidence(releasePackage, PROVENANCE_EVIDENCE_PATHS, {
+        evidenceLabel: 'provenance or attestation',
+        packageId,
+        repoRoot,
+        requirementText: 'security.sbomRequired=true',
+      }));
     }
   });
 
@@ -803,7 +812,7 @@ export async function runCommercialReadiness({
     };
   }
 
-  const appReleaseAssessment = assessAppReleaseEvidence(appManifest.manifestJson);
+  const appReleaseAssessment = assessAppReleaseEvidence(appManifest.manifestJson, { repoRoot });
   if (!appReleaseAssessment.ok) {
     logger.error(`[commercial-readiness] blocked by appReleaseAssessment: ${appReleaseAssessment.summary}`);
     for (const blocker of appReleaseAssessment.blockers) {
@@ -937,10 +946,6 @@ function formatManifestEntryId(entry, fallback) {
   return typeof entry?.id === 'string' && entry.id.length > 0 ? entry.id : fallback;
 }
 
-function hasPackageEvidence(releasePackage, evidencePaths) {
-  return evidencePaths.some((segments) => hasEvidenceValue(readNestedValue(releasePackage, segments)));
-}
-
 function readNestedValue(source, segments) {
   let value = source;
   for (const segment of segments) {
@@ -953,18 +958,152 @@ function readNestedValue(source, segments) {
   return value;
 }
 
-function hasEvidenceValue(value) {
-  if (typeof value === 'string') {
-    return value.trim().length > 0;
-  }
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-  if (isManifestObject(value)) {
-    return Object.keys(value).length > 0;
+function assessRequiredPackageEvidence(releasePackage, evidencePaths, {
+  evidenceLabel,
+  packageId,
+  repoRoot,
+  requirementText,
+}) {
+  const candidates = collectPackageEvidenceCandidates(releasePackage, evidencePaths);
+  if (candidates.length === 0) {
+    return [
+      `${packageId} is an enabled direct distribution package but ${evidenceLabel} evidence is missing while ${requirementText}.`,
+    ];
   }
 
-  return false;
+  const issues = [];
+  let hasValidEvidence = false;
+  for (const candidate of candidates) {
+    const candidateIssues = validateEvidenceValue(candidate.value, { repoRoot });
+    if (candidateIssues.length === 0) {
+      hasValidEvidence = true;
+      continue;
+    }
+
+    issues.push(...candidateIssues.map((issue) =>
+      `${packageId} ${evidenceLabel} evidence at ${candidate.path} ${issue}.`
+    ));
+  }
+
+  if (hasValidEvidence) {
+    return [];
+  }
+
+  return issues.length > 0
+    ? issues
+    : [`${packageId} is an enabled direct distribution package but ${evidenceLabel} evidence is missing while ${requirementText}.`];
+}
+
+function collectPackageEvidenceCandidates(releasePackage, evidencePaths) {
+  const candidates = [];
+  for (const segments of evidencePaths) {
+    const value = readNestedValue(releasePackage, segments);
+    if (typeof value !== 'undefined') {
+      candidates.push({
+        path: segments.join('.'),
+        value,
+      });
+    }
+  }
+  return candidates;
+}
+
+function validateEvidenceValue(value, { repoRoot }) {
+  if (typeof value === 'string') {
+    return validateEvidenceReference(value, { repoRoot });
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return ['is empty'];
+    }
+    return value.flatMap((item, index) =>
+      validateEvidenceValue(item, { repoRoot }).map((issue) => `item[${index}] ${issue}`)
+    );
+  }
+
+  if (isManifestObject(value)) {
+    if (Object.keys(value).length === 0) {
+      return ['is empty'];
+    }
+
+    const references = collectEvidenceReferences(value);
+    if (references.length === 0) {
+      return ['must include ref, path, url, uri, or another explicit evidence reference'];
+    }
+
+    return references.flatMap((reference) =>
+      validateEvidenceReference(reference.value, { repoRoot }).map((issue) => `${reference.key} ${issue}`)
+    );
+  }
+
+  return ['must be a non-empty string, array, or object'];
+}
+
+function collectEvidenceReferences(value) {
+  const references = [];
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (typeof nestedValue !== 'string') {
+      continue;
+    }
+    const normalizedKey = key.toLowerCase();
+    if (
+      normalizedKey === 'ref'
+      || normalizedKey === 'href'
+      || normalizedKey === 'uri'
+      || normalizedKey === 'url'
+      || normalizedKey === 'path'
+      || normalizedKey === 'file'
+      || normalizedKey.endsWith('ref')
+      || normalizedKey.endsWith('uri')
+      || normalizedKey.endsWith('url')
+      || normalizedKey.endsWith('path')
+    ) {
+      references.push({
+        key,
+        value: nestedValue,
+      });
+    }
+  }
+
+  return references;
+}
+
+function validateEvidenceReference(value, { repoRoot }) {
+  const reference = typeof value === 'string' ? value.trim() : '';
+  if (!reference) {
+    return ['is empty'];
+  }
+  if (!repoRoot || isRemoteEvidenceReference(reference)) {
+    return [];
+  }
+
+  if (reference.includes('\\')) {
+    return ['must use a portable forward-slash relative path or URL'];
+  }
+  if (path.isAbsolute(reference)) {
+    return ['must be a safe relative path or URL'];
+  }
+
+  const resolvedRepoRoot = path.resolve(repoRoot);
+  const resolvedReference = path.resolve(resolvedRepoRoot, reference);
+  if (!isPathInsideOrSame(resolvedReference, resolvedRepoRoot)) {
+    return [`${reference} must stay inside ${resolvedRepoRoot}`];
+  }
+  if (!existsSync(resolvedReference)) {
+    return [`${reference} does not exist`];
+  }
+
+  return [];
+}
+
+function isRemoteEvidenceReference(value) {
+  return /^[a-z][a-z0-9+.-]*:/iu.test(value) && !/^[A-Za-z]:[\\/]/u.test(value);
+}
+
+function isPathInsideOrSame(candidatePath, parentPath) {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
+  return relative === '' || (Boolean(relative) && !relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function formatErrorSummary(error) {

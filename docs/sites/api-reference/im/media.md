@@ -138,8 +138,7 @@ The same body can be sent through route-aligned message submission:
 
 - IM message creation validates media parts as message content, not as file storage commands.
 - Drive node visibility and retrieval are checked through `sdkwork-drive`.
-- Message timelines preserve the Drive reference and the resource snapshot so clients can render,
+- Message history entries preserve the Drive reference and the resource snapshot so clients can render,
   index, summarize, and audit media usage without owning file bytes.
 - RTC recordings and AI-generated artifacts follow the same shape: Drive owns the file, IM or RTC
   surfaces carry `DriveReference` plus `MediaResource`.
-

@@ -35,6 +35,18 @@ const governedDocs = [
   'specs/README.md',
 ];
 
+const currentMessageHistoryDocs = [
+  'docs/sites/architecture/module-map.md',
+  'docs/architecture/tech/TECH-module-map.md',
+  'docs/product/prd/PRD.md',
+  'docs/product/compliance/SLA_SLO.md',
+  'docs/operations/DISASTER_RECOVERY.md',
+  'docs/sites/api-reference/im/media.md',
+  'docs/architecture/tech/TECH-media.md',
+  'docs/architecture/tech/PAGINATION-DEBT-REGISTER.md',
+  'docs/architecture/tech/TECH-changelog.md',
+];
+
 for (const relativePath of governedDocs) {
   const absolutePath = path.join(repoRoot, relativePath);
   assert.ok(fs.existsSync(absolutePath), `governed doc must exist: ${relativePath}`);
@@ -50,5 +62,99 @@ for (const relativePath of governedDocs) {
     `${relativePath} must not contain mojibake from mis-decoded UTF-8`,
   );
 }
+
+for (const relativePath of currentMessageHistoryDocs) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  assert.ok(fs.existsSync(absolutePath), `current IM message-history doc must exist: ${relativePath}`);
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  assert.doesNotMatch(
+    source,
+    /\uFFFD|[鈥搂鈮鈹]/u,
+    `${relativePath} must not contain UTF-8 replacement characters or mojibake from mis-decoded UTF-8`,
+  );
+}
+
+const moduleMapDocs = [
+  'docs/sites/architecture/module-map.md',
+  'docs/architecture/tech/TECH-module-map.md',
+];
+for (const relativePath of moduleMapDocs) {
+  const source = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+  assert.doesNotMatch(
+    source,
+    /projection-service[^\n|]*\|[^\n]*timeline/iu,
+    `${relativePath} must not describe projection-service as the public message-history timeline owner`,
+  );
+}
+
+const prdSource = fs.readFileSync(path.join(repoRoot, 'docs/product/prd/PRD.md'), 'utf8');
+assert.doesNotMatch(
+  prdSource,
+  /virtualized timeline|WebSocket timeline sync/iu,
+  'PRD client delivery matrix must describe message history windows and message sync, not timeline sync',
+);
+assert.match(
+  prdSource,
+  /virtualized message history window/iu,
+  'PRD client delivery matrix must mention the bounded message history window',
+);
+
+const slaSource = fs.readFileSync(path.join(repoRoot, 'docs/product/compliance/SLA_SLO.md'), 'utf8');
+assert.doesNotMatch(
+  slaSource,
+  /Fetch timeline/iu,
+  'SLA/SLO API latency table must name message history fetches, not timeline fetches',
+);
+
+const disasterRecoverySource = fs.readFileSync(path.join(repoRoot, 'docs/operations/DISASTER_RECOVERY.md'), 'utf8');
+assert.doesNotMatch(
+  disasterRecoverySource,
+  /inbox \+ timeline|Fetch inbox \+ timeline/iu,
+  'disaster recovery gates must verify inbox plus message history, not inbox plus timeline',
+);
+assert.match(
+  disasterRecoverySource,
+  /Timeline of detection, decision, execution, verification/u,
+  'disaster recovery PIR text may keep incident timeline wording',
+);
+
+for (const relativePath of [
+  'docs/sites/api-reference/im/media.md',
+  'docs/architecture/tech/TECH-media.md',
+]) {
+  const source = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+  assert.doesNotMatch(
+    source,
+    /Message timelines/iu,
+    `${relativePath} must describe message history entries, not message timelines`,
+  );
+}
+
+const paginationDebtSource = fs.readFileSync(
+  path.join(repoRoot, 'docs/architecture/tech/PAGINATION-DEBT-REGISTER.md'),
+  'utf8',
+);
+for (const forbidden of [
+  /timeline seq fallback/iu,
+  /reappearing in timeline/iu,
+  /inbox\/contacts\/timeline/iu,
+  /ChatService` timeline\/members/iu,
+]) {
+  assert.doesNotMatch(
+    paginationDebtSource,
+    forbidden,
+    'pagination debt register must use message-history wording for current message history paths',
+  );
+}
+
+const techChangelogSource = fs.readFileSync(
+  path.join(repoRoot, 'docs/architecture/tech/TECH-changelog.md'),
+  'utf8',
+);
+assert.doesNotMatch(
+  techChangelogSource,
+  /timeline seq fallback/iu,
+  'TECH changelog must use message-history wording for current message history paths',
+);
 
 process.stdout.write('sdkwork-im governed docs encoding standard passed\n');

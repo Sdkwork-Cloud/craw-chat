@@ -163,7 +163,7 @@ assert.match(
 assert.match(
   devRunnerSource,
   /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitVoiceAppApiUpstream[\s\S]*SDKWORK_IM_VOICE_APP_API_UPSTREAM/u,
-  'PC dev runner must default sdkwork-voice traffic through the shared gateway root while preserving explicit Voice split upstream overrides.',
+  'PC dev runner must default sdkwork-voice traffic through the shared gateway root while preserving explicit Voice external upstream overrides.',
 );
 
 assert.match(

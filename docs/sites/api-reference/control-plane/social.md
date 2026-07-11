@@ -48,12 +48,12 @@ checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The direct-chat binding payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | The referenced direct chat or conversation aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="submit-friend-request"></a>
@@ -89,12 +89,12 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The friend-request payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced user or aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-friend-request-snapshot"></a>
@@ -132,12 +132,12 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The friend request identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested friend request aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="activate-friendship"></a>
@@ -173,12 +173,12 @@ checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The friendship activation payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced user, direct chat, or friendship aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-friendship-snapshot"></a>
@@ -216,12 +216,12 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The friendship identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested friendship aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="apply-shared-channel-policy"></a>
@@ -257,12 +257,12 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The shared-channel policy payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced policy, channel, or connection aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-shared-channel-policy-snapshot"></a>
@@ -300,12 +300,12 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The shared-channel policy identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested shared-channel policy aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="block-user"></a>
@@ -341,12 +341,12 @@ checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The user-block payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced user, direct chat, or block aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-user-block-snapshot"></a>
@@ -384,12 +384,12 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The user block identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested user block aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-direct-chat-snapshot"></a>
@@ -427,12 +427,12 @@ the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The direct chat identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested direct chat aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="establish-external-connection"></a>
@@ -468,12 +468,12 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The external-connection payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced external tenant or aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-external-connection-snapshot"></a>
@@ -511,12 +511,12 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The external connection identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested external connection aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="bind-external-member-link"></a>
@@ -552,12 +552,12 @@ in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The external-member-link payload is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `control.write`. |
-| `404` | `*_not_found` | A referenced external connection or actor does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the mutation. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40001` | The mutation payload is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `control.write`. |
+| `404` | `40401` | The requested node, plugin, or target resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the mutation. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-external-member-link-snapshot"></a>
@@ -595,11 +595,11 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The external member link identifier is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested external member link aggregate does not exist. |
-| `409` | `*_conflict` | Current social graph state blocks the read. |
-| `503` | `*_unavailable` | The social graph runtime or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

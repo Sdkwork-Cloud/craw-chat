@@ -437,7 +437,7 @@
       "catalogPolicy": "no-dedicated-gateway-catalog",
       "productApiPolicy": "Sdkwork IM IM APIs remain product-owned SDKWork API surfaces",
       "migrationState": "shared-gateway-default",
-      "standaloneUnifiedEmbeddedAuthorities": [
+      "standaloneEmbeddedAuthorities": [
         "sdkwork-drive-app-api",
         "sdkwork-knowledgebase-app-api",
         "sdkwork-account-app-api",
@@ -454,10 +454,10 @@
         "sdkwork-notary-app-api",
         "sdkwork-course-app-api"
       ],
-      "standaloneUnifiedDeferredAuthorities": [
+      "standaloneDeferredAuthorities": [
         "sdkwork-community-app-api"
       ],
-      "splitOverrideEnvKeys": {
+      "explicitExternalUpstreamEnvKeys": {
         "sdkwork-iam-app-api": [
           "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
           "SDKWORK_APPBASE_APP_API_BIND_ADDR"
@@ -543,7 +543,7 @@
           "SDKWORK_KNOWLEDGEBASE_APP_API_BASE_URL"
         ]
       },
-      "splitOverrideFoundationUpstreams": [
+      "explicitExternalFoundationUpstreams": [
         "sdkwork-iam-app-api",
         "sdkwork-drive-app-api",
         "sdkwork-notary-app-api",

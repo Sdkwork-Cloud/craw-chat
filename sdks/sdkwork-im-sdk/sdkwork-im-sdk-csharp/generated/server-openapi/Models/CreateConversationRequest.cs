@@ -7,9 +7,12 @@ namespace Sdkwork.Im.Sdk.Generated.Models
     public class CreateConversationRequest
     {
         public string? ConversationId { get; set; }
-        public string? ConversationType { get; set; }
-        public string? Kind { get; set; }
-        public string? Title { get; set; }
-        public List<string>? MemberIds { get; set; }
+        public string ConversationType { get; set; }
+        public string? GroupName { get; set; }
+        public string? ClientRequestKey { get; set; }
+        public string? PolicyVersion { get; set; }
+        public List<string>? CapabilityFlags { get; set; }
+        public string? HistoryVisibility { get; set; }
+        public string? RetentionPolicyRef { get; set; }
     }
 }

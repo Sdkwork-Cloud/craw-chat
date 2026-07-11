@@ -36,7 +36,7 @@ Read `sdkwork.app.config.json` only when changing IM application behavior, runti
 - RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`.
 - Phase 1 RPC hosts ship as `*-rpc-bin` services (`session-gateway-rpc-bin`, `sdkwork-comms-conversation-rpc-bin`, `sdkwork-comms-conversation-internal-rpc-bin`) through `sdkwork-rpc-framework`; optional registration uses `SDKWORK_IM_DISCOVERY_ENDPOINT`.
 - The `sdkwork-discovery` product control plane remains deferred until Phase 2. Phased adoption plan: `docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md`.
-- Until Phase 2 discovery ships, split-deploy routing continues to use static topology env vars in `configs/topology/` and gateway upstream URLs as the primary fallback.
+- Until Phase 2 discovery ships, cloud internal routing continues to use static topology env vars in `configs/topology/` and gateway upstream URLs as the primary fallback.
 
 ## Local Dictionary Structure
 
@@ -98,7 +98,7 @@ Build scripts, dev runners, and cross-repository dependency preparation tooling 
 
 Use canonical root package scripts from `PNPM_SCRIPT_SPEC.md`:
 
-- `pnpm dev`: default PostgreSQL, `unified-process`, `standalone` browser dev workflow.
+- `pnpm dev`: default PostgreSQL `standalone.development` browser dev workflow.
 - `pnpm dev:browser` and `pnpm dev:desktop`: same PostgreSQL standalone defaults for development orchestration.
 - `pnpm dev:server`: server-only development path.
 - `pnpm build`, `pnpm test`, `pnpm check`, `pnpm verify`, `pnpm clean`: standard root lifecycle commands.

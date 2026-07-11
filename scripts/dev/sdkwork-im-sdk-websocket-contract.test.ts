@@ -202,6 +202,26 @@ function encodeCcpControlFrame(schema: string, controlType: string, data: Record
   });
 }
 
+function encodeServerCcpControlFrame(
+  schema: string,
+  controlType: string,
+  data: Record<string, unknown>,
+  route: Record<string, string>,
+  traceId: string,
+): string {
+  return JSON.stringify({
+    protocol: { family: 'ccp', major: 1, minor: 0 },
+    binding: 'Ws1',
+    kind: 'control',
+    schema,
+    scope: null,
+    route,
+    flags: [],
+    trace_id: traceId,
+    payload: JSON.stringify({ type: controlType, data }),
+  });
+}
+
 function emitCcpHelloAck(socket: FakeWebSocket | FakeBrowserWebSocket): void {
   socket.emit('message', {
     data: encodeCcpControlFrame('cc.control.hello_ack.v1', 'hello_ack', {
@@ -327,7 +347,11 @@ async function main(): Promise<void> {
     const client = new ImSdkClient({
       accessToken: fakeAccessToken(TEST_ACCESS_CLAIMS),
       authToken: 'auth-token-1',
+      headers: {
+        'X-Request-Id': 'request-1',
+      },
       headerProvider: () => ({
+        'X-Client-Capability': 'realtime-contract',
         'X-Trace-Id': 'trace-1',
       }),
       webSocketAuth: ImWebSocketAuthOptions.automatic({
@@ -364,7 +388,7 @@ async function main(): Promise<void> {
     assert.deepEqual(socket.options.headers, {
       Authorization: 'Bearer auth-token-1',
       'Access-Token': fakeAccessToken(TEST_ACCESS_CLAIMS),
-      'X-Trace-Id': 'trace-1',
+      'X-Client-Capability': 'realtime-contract',
     });
 
     const lifecycleStates: string[] = [];
@@ -390,7 +414,6 @@ async function main(): Promise<void> {
     assert.equal(parseCcpControlType(socket.sent[2] ?? ''), 'session_resume', 'factory websocket must send CCP session_resume when negotiated');
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[3]), {
       type: 'subscriptions.sync',
-      requestId: 'sdkwork-im-subscriptions-sync-1',
       items: [
         {
           scopeType: 'conversation',
@@ -407,7 +430,6 @@ async function main(): Promise<void> {
     connection.subscriptions.syncConversations(['conversation-1', 'conversation-3']);
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[4]), {
       type: 'subscriptions.sync',
-      requestId: 'sdkwork-im-subscriptions-sync-2',
       items: [
         {
           scopeType: 'conversation',
@@ -424,13 +446,11 @@ async function main(): Promise<void> {
     connection.subscriptions.syncConversations([]);
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[5]), {
       type: 'subscriptions.sync',
-      requestId: 'sdkwork-im-subscriptions-sync-3',
       items: [],
     });
     connection.subscriptions.syncConversations(['conversation-1', 'conversation-3']);
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[6]), {
       type: 'subscriptions.sync',
-      requestId: 'sdkwork-im-subscriptions-sync-4',
       items: [
         {
           scopeType: 'conversation',
@@ -458,7 +478,6 @@ async function main(): Promise<void> {
     ]);
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[7]), {
       type: 'subscriptions.sync',
-      requestId: 'sdkwork-im-subscriptions-sync-5',
       items: [
         {
           scopeType: 'conversation',
@@ -486,7 +505,6 @@ async function main(): Promise<void> {
     socket.emit('message', {
       data: JSON.stringify({
         type: 'event.window',
-        requestId: null,
         reason: 'push',
         window: {
           deviceId: 'device-1',
@@ -529,14 +547,12 @@ async function main(): Promise<void> {
     await userScopeEvents[0].context.ack();
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[8]), {
       type: 'events.ack',
-      requestId: 'sdkwork-im-events-ack-6',
       ackedSeq: 6,
     });
 
     socket.emit('message', {
       data: JSON.stringify({
         type: 'event.window',
-        requestId: null,
         reason: 'push',
         window: {
           deviceId: 'device-1',
@@ -617,7 +633,6 @@ async function main(): Promise<void> {
     socket.emit('message', {
       data: JSON.stringify({
         type: 'event.window',
-        requestId: null,
         reason: 'push',
         window: {
           deviceId: 'device-1',
@@ -1176,7 +1191,6 @@ async function main(): Promise<void> {
     await received[0].context.ack();
     assert.deepEqual(parseCcpBusinessPayload(socket.sent[9]), {
       type: 'events.ack',
-      requestId: 'sdkwork-im-events-ack-7',
       ackedSeq: 7,
     });
 
@@ -1220,8 +1234,21 @@ async function main(): Promise<void> {
     heartbeatSocket.emit('message', {
       data: encodeCcpControlFrame('cc.control.heartbeat.v1', 'heartbeat', { sequence: 1 }),
     });
+    heartbeatSocket.emit('message', {
+      data: encodeServerCcpControlFrame(
+        'cc.control.heartbeat.v1',
+        'heartbeat',
+        { sequence: 2 },
+        {
+          tenant_id: '100001',
+          principal_id: '331115548962201600',
+          device_id: 'c_mqy28dxy_hrv4oul7',
+        },
+        'c9dafbd7-f968-4b5a-8256-6c63577aa1f7',
+      ),
+    });
     await new Promise((resolve) => setTimeout(resolve, 18));
-    assert.equal(heartbeatErrors.length, 0, 'IM realtime heartbeat must treat any inbound frame as connection liveness');
+    assert.equal(heartbeatErrors.length, 0, 'IM realtime heartbeat must accept server CCP heartbeat frames as liveness');
     assert.equal(heartbeatSocket.readyState, 1);
     heartbeatConnection.disconnect(1000, 'heartbeat test complete');
 
@@ -1264,7 +1291,6 @@ async function main(): Promise<void> {
     assert.deepEqual(staleHeartbeatErrors[0], {
       code: 'websocket_heartbeat_timeout',
       message: 'websocket heartbeat response was not received before timeout',
-      requestId: 'sdkwork-im-heartbeat-1',
       type: 'error',
     });
     assert.equal(staleHeartbeatSocket.readyState, 3, 'IM realtime heartbeat timeout must close stale sockets');
@@ -1302,7 +1328,7 @@ async function main(): Promise<void> {
     runtimeErrorSocket.emit('message', {
       data: JSON.stringify({
         type: 'error',
-        requestId: 'server-error-1',
+        traceId: 'trace-server-error-1',
         code: 'subscription_forbidden',
         message: 'conversation access denied',
       }),
@@ -1311,7 +1337,7 @@ async function main(): Promise<void> {
       {
         code: 'subscription_forbidden',
         message: 'conversation access denied',
-        requestId: 'server-error-1',
+        traceId: 'trace-server-error-1',
         type: 'error',
       },
     ], 'IM realtime SDK must surface server control error frames after the connection is open');
@@ -1352,7 +1378,7 @@ async function main(): Promise<void> {
     fatalRuntimeErrorSocket.emit('message', {
       data: JSON.stringify({
         type: 'error',
-        requestId: 'fatal-server-error-1',
+        traceId: 'trace-fatal-server-error-1',
         code: 'websocket_auth_failed',
         message: 'session expired after connection opened',
       }),
@@ -1362,11 +1388,54 @@ async function main(): Promise<void> {
       {
         code: 'websocket_auth_failed',
         message: 'session expired after connection opened',
-        requestId: 'fatal-server-error-1',
+        traceId: 'trace-fatal-server-error-1',
         type: 'error',
       },
     ]);
     assert.equal(fatalRuntimeErrorSocket.readyState, 3, 'fatal realtime control errors must close the socket so app reconnect can recover');
+
+    const ccpHandshakeErrorSockets: FakeWebSocket[] = [];
+    const ccpHandshakeErrorClient = new ImSdkClient({
+      accessToken: fakeAccessToken({ ...TEST_ACCESS_CLAIMS, device_id: 'ccp-handshake-error-device-1' }),
+      authToken: 'ccp-handshake-error-auth-token',
+      webSocketAuth: ImWebSocketAuthOptions.none(),
+      webSocketFactory: (url, options) => {
+        const ccpHandshakeErrorSocket = new FakeWebSocket(url, options);
+        ccpHandshakeErrorSockets.push(ccpHandshakeErrorSocket);
+        return ccpHandshakeErrorSocket;
+      },
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const ccpHandshakeErrorConnection = await ccpHandshakeErrorClient.connect({
+      deviceId: 'ccp-handshake-error-device-1',
+      heartbeat: false,
+      subscriptions: {
+        conversations: [],
+      },
+    });
+    const ccpHandshakeErrorSocket = ccpHandshakeErrorSockets[0];
+    const ccpHandshakeErrorStates: string[] = [];
+    const ccpHandshakeErrors: unknown[] = [];
+    ccpHandshakeErrorConnection.lifecycle.onStateChange((state) => ccpHandshakeErrorStates.push(state.status));
+    ccpHandshakeErrorConnection.lifecycle.onError((error) => ccpHandshakeErrors.push(error));
+    ccpHandshakeErrorSocket.open();
+    ccpHandshakeErrorSocket.emit('message', {
+      data: JSON.stringify({
+        type: 'error',
+        traceId: 'trace-ccp-handshake-error-1',
+        code: 'websocket_auth_failed',
+        message: 'CCP handshake rejected',
+      }),
+    });
+    assert.deepEqual(ccpHandshakeErrorStates, ['connecting', 'error', 'closed']);
+    assert.deepEqual(ccpHandshakeErrors, [
+      {
+        code: 'websocket_auth_failed',
+        message: 'CCP handshake rejected',
+        traceId: 'trace-ccp-handshake-error-1',
+        type: 'error',
+      },
+    ]);
 
     const connectTimeoutSockets: FakeWebSocket[] = [];
     const connectTimeoutClient = new ImSdkClient({
@@ -1405,11 +1474,9 @@ async function main(): Promise<void> {
     ]);
     assert.equal(
       connectTimeoutSocket.readyState,
-      0,
-      'IM realtime SDK must not call native close while a browser-compatible socket is still CONNECTING',
+      3,
+      'IM realtime SDK must close a CONNECTING socket immediately on connection timeout',
     );
-    connectTimeoutSocket.open();
-    assert.equal(connectTimeoutSocket.readyState, 3, 'pending connect-timeout close must be applied once the socket opens');
 
     FakeBrowserWebSocket.instances.length = 0;
     Object.defineProperty(globalThis, 'WebSocket', {
@@ -1440,11 +1507,9 @@ async function main(): Promise<void> {
 
     assert.equal(
       closingBrowserSocket.closeCalls.length,
-      0,
-      'browser websocket must not call native close while the socket is still CONNECTING',
+      1,
+      'browser websocket must close immediately when a CONNECTING realtime connection is disconnected',
     );
-    assert.deepEqual(closingBrowserStates, ['connecting']);
-    closingBrowserSocket.open();
     assert.deepEqual(closingBrowserSocket.closeCalls, [
       {
         code: 1000,
@@ -1494,7 +1559,6 @@ async function main(): Promise<void> {
     assert.deepEqual(browserStates, ['connecting'], 'browser websocket must wait for auth.ok before reporting open');
     assert.deepEqual(parseBrowserSent(browserSocket, 0), {
       type: 'auth.init',
-      requestId: 'sdkwork-im-auth-init-1',
       authToken: 'browser-auth-token-1',
       accessToken: 'browser-access-token-1',
       deviceId: 'browser-device-1',
@@ -1512,7 +1576,7 @@ async function main(): Promise<void> {
     );
 
     completeBrowserGatewayAuthAndCcp(browserSocket, {
-      requestId: 'sdkwork-im-auth-init-1',
+      traceId: 'trace-auth-ok-1',
       tenantId: '100001',
       principalId: '30',
       sessionId: 'session_real',
@@ -1522,7 +1586,6 @@ async function main(): Promise<void> {
     assert.equal(parseCcpControlType(browserSocket.sent[3] ?? ''), 'session_resume', 'browser websocket must send CCP session_resume when negotiated');
     assert.deepEqual(parseCcpBusinessPayload(browserSocket.sent[4]), {
       type: 'subscriptions.sync',
-      requestId: 'sdkwork-im-subscriptions-sync-1',
       items: [
         {
           scopeType: 'conversation',
@@ -1561,7 +1624,6 @@ async function main(): Promise<void> {
     failedBrowserSocket.open();
     assert.deepEqual(parseBrowserSent(failedBrowserSocket, 0), {
       type: 'auth.init',
-      requestId: 'sdkwork-im-auth-init-1',
       authToken: 'failed-browser-auth-token',
       accessToken: 'failed-browser-access-token',
       deviceId: 'failed-browser-device-1',
@@ -1569,7 +1631,7 @@ async function main(): Promise<void> {
     failedBrowserSocket.emit('message', {
       data: JSON.stringify({
         type: 'error',
-        requestId: 'sdkwork-im-auth-init-1',
+        traceId: 'trace-auth-error-1',
         code: 'websocket_auth_failed',
         message: 'session expired',
       }),
@@ -1580,7 +1642,7 @@ async function main(): Promise<void> {
     assert.deepEqual(failedBrowserErrors[0], {
       code: 'websocket_auth_failed',
       message: 'session expired',
-      requestId: 'sdkwork-im-auth-init-1',
+      traceId: 'trace-auth-error-1',
       type: 'error',
     });
     assert.equal(
@@ -1621,7 +1683,6 @@ async function main(): Promise<void> {
     assert.deepEqual(timeoutBrowserErrors[0], {
       code: 'websocket_auth_timeout',
       message: 'websocket auth.ok was not received before timeout',
-      requestId: 'sdkwork-im-auth-init-1',
       type: 'error',
     });
     assert.equal(timeoutBrowserSocket.readyState, 3);

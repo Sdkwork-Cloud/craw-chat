@@ -27,6 +27,7 @@ interface CallOverlayProps {
   isOpen: boolean;
   mode?: 'incoming' | 'outgoing';
   rtcSessionId?: string;
+  targetUserId?: string;
   type: CallType;
   callerName: string;
   callerAvatar: string;
@@ -38,6 +39,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   isOpen,
   mode = 'outgoing',
   rtcSessionId,
+  targetUserId,
   type,
   callerName,
   callerAvatar,
@@ -144,10 +146,11 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
       void callService.startOutgoingCall({
         conversationId,
         targetName: callerName,
+        targetUserId,
         type,
       });
     }
-  }, [callerName, conversationId, isOpen, mode, releaseCallMedia, rtcSessionId, type]);
+  }, [callerName, conversationId, isOpen, mode, releaseCallMedia, rtcSessionId, targetUserId, type]);
 
   useEffect(() => {
     if (!isOpen || callState !== 'connected' || type !== 'video' || isVideoOff) {

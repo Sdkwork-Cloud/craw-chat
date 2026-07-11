@@ -2,7 +2,7 @@
 //!
 //! Conversation HTTP handlers resolve the embedded [`RealtimeEventPublisher`]
 //! lazily so bootstrap order (application routes before session-gateway) does
-//! not block typing fanout in unified-process deployments.
+//! not block typing fanout in single-ingress deployments.
 
 use std::sync::{Arc, OnceLock};
 
@@ -32,7 +32,7 @@ pub fn register_embedded_conversation_runtime(
     let _ = EMBEDDED_CONVERSATION_RUNTIME.set(runtime);
 }
 
-/// Register the social direct-message access gate for embedded unified-process mode.
+/// Register the social direct-message access gate for embedded standalone mode.
 pub fn register_embedded_direct_message_access_gate(gate: Arc<dyn DirectMessageAccessGate>) {
     let _ = EMBEDDED_DIRECT_MESSAGE_ACCESS_GATE.set(gate);
 }
@@ -42,7 +42,7 @@ pub fn resolve_embedded_realtime_publisher() -> Option<Arc<dyn RealtimeEventPubl
     EMBEDDED_REALTIME_PUBLISHER.get().cloned()
 }
 
-/// Resolve the embedded conversation runtime when co-located in unified-process mode.
+/// Resolve the embedded conversation runtime when co-located in standalone mode.
 pub fn resolve_embedded_conversation_runtime()
 -> Option<Arc<ConversationRuntime<ConversationCommitJournal>>> {
     EMBEDDED_CONVERSATION_RUNTIME.get().cloned()

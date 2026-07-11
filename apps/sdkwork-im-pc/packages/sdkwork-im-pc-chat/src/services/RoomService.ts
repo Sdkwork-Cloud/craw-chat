@@ -1,6 +1,6 @@
 import type {
   ImSdkClient,
-  PostedMessageResponse,
+  PostMessageResult,
   RoomView,
 } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/imSdkClient';
@@ -36,8 +36,8 @@ export interface RoomService {
   getRoom(roomId: string): Promise<RoomView>;
   enterRoom(roomId: string): Promise<void>;
   leaveRoom(roomId: string): Promise<void>;
-  postGameMove(options: PostGameMoveOptions): Promise<PostedMessageResponse>;
-  postRoomMessage(conversationId: string, text: string, clientMsgId?: string): Promise<PostedMessageResponse>;
+  postGameMove(options: PostGameMoveOptions): Promise<PostMessageResult>;
+  postRoomMessage(conversationId: string, text: string, clientMsgId?: string): Promise<PostMessageResult>;
 }
 
 export function buildGameMoveSchemaRef(gameKey: string): string {
@@ -49,19 +49,11 @@ export function buildGameMoveSchemaRef(gameKey: string): string {
 }
 
 function createRoomId(): string {
-  const requestId =
+  const clientGeneratedId =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-room-${requestId}`;
-}
-
-function createConversationId(): string {
-  const requestId =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-room-conv-${requestId}`;
+  return `pc-room-${clientGeneratedId}`;
 }
 
 function uniqueMemberIds(memberIds: string[] | undefined): string[] {
@@ -100,12 +92,13 @@ class SdkworkRoomService implements RoomService {
   async createRoom(options: CreateSdkworkRoomOptions): Promise<SdkworkRoomBinding> {
     const roomKind = options.roomKind;
     const roomId = options.roomId?.trim() || createRoomId();
-    const conversationId = options.conversationId?.trim() || createConversationId();
-
-    await this.client().conversations.create({
-      conversationId,
-      conversationType: 'group',
+    const result = await this.client().rooms.create({
+      ...(options.conversationId?.trim() ? { conversationId: options.conversationId.trim() } : {}),
+      roomId,
+      roomKind,
     });
+    const conversationId = result.conversationId;
+
     await this.client().conversations.updateProfile(conversationId, {
       displayName: normalizeRoomTitle(options.title, roomKind),
     });
@@ -118,12 +111,6 @@ class SdkworkRoomService implements RoomService {
         role: 'member',
       });
     }
-
-    await this.client().rooms.create({
-      conversationId,
-      roomId,
-      roomKind,
-    });
 
     return {
       conversationId,
@@ -144,7 +131,7 @@ class SdkworkRoomService implements RoomService {
     await this.client().rooms.leave(roomId);
   }
 
-  async postGameMove(options: PostGameMoveOptions): Promise<PostedMessageResponse> {
+  async postGameMove(options: PostGameMoveOptions): Promise<PostMessageResult> {
     const payload = serializeGameMovePayload(options.payload);
     return this.client().conversations.postMessage(options.conversationId, {
       clientMsgId: options.clientMsgId,
@@ -162,7 +149,7 @@ class SdkworkRoomService implements RoomService {
     conversationId: string,
     text: string,
     clientMsgId?: string,
-  ): Promise<PostedMessageResponse> {
+  ): Promise<PostMessageResult> {
     return this.client().conversations.postText(conversationId, text, {
       clientMsgId,
       summary: text,

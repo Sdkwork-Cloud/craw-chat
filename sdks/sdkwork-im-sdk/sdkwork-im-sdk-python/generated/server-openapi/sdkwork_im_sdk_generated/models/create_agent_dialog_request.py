@@ -7,4 +7,3 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 class CreateAgentDialogRequest:
     agent_id: str
     conversation_id: Optional[str] = None
-    title: Optional[str] = None

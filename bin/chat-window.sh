@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -euo pipefail
 
 base_url=""
@@ -86,7 +86,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 read_config_value() {
   local key="$1"
-  local config_file="$script_dir/../configs/topology/self-hosted.split-services.development.env"
+  local config_file="$script_dir/../configs/topology/standalone.development.env"
   [[ -f "$config_file" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%$'\r'}"

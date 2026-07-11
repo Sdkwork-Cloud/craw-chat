@@ -48,6 +48,17 @@ Cloud gateway mode applies one per-IP `HybridIpRateLimiter` at the gateway edge.
 
 The limiter is not the primary cause of the historical "requests become pending after startup" incident. That incident was caused by recursive OpenAPI aggregation against the gateway's own `/openapi.json`; rate limiting only amplified the socket and request storm once recursion began.
 
+### Error Correlation
+
+Gateway error responses (`application/problem+json`, RFC 9457) carry full routing correlation per `API_SPEC.md` §15.2 and `OBSERVABILITY_SPEC.md` §2:
+
+- `instance` — rendered from the resolved route template (`{METHOD} {routeTemplate}`, e.g. `GET /im/v3/api/chat/conversations/{conversationId}/messages`). Raw business resource identifiers in the request path are never emitted; when no route template is matched, identifiable path segments are redacted before fallback.
+- `operationId` — the matched route's operation group (e.g. `conversations`, `calls`, `streams`) when the gateway resolved the route; omitted otherwise.
+- `traceId` — generated at the gateway boundary by the server. Client-supplied correlation headers such as `x-sdkwork-trace-id`, `traceparent`, and `x-request-id` are not trusted as the SDKWork response trace identity.
+- `i18nKey` — canonical localization key `errors.result.<code>` (e.g. `errors.result.50301`), derived from the numeric platform error code.
+
+The per-service circuit breaker trips to `503` / `50301` (`dependency_unavailable`) after `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` consecutive failures (default `10`) and recovers via a single half-open probe after `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` seconds (default `30`). Tripped responses still carry the full correlation fields above.
+
 ## SaaS/Private/Local Behavior
 
 This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.

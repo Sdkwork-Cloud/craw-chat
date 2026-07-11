@@ -5,17 +5,17 @@ Generated SDKWork v3 dual-token transport SDK.
 ## Installation
 
 ```bash
-npm install @sdkwork/im-sdk-generated
+npm install @sdkwork/im-sdk
 # or
-yarn add @sdkwork/im-sdk-generated
+yarn add @sdkwork/im-sdk
 # or
-pnpm add @sdkwork/im-sdk-generated
+pnpm add @sdkwork/im-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { SdkworkImClient } from '@sdkwork/im-sdk-generated';
+import { SdkworkImClient } from '@sdkwork/im-sdk';
 
 const client = new SdkworkImClient({
   baseUrl: 'http://127.0.0.1:18079',
@@ -41,7 +41,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```typescript
-import { SdkworkImClient } from '@sdkwork/im-sdk-generated';
+import { SdkworkImClient } from '@sdkwork/im-sdk';
 
 const client = new SdkworkImClient({
   baseUrl: 'http://127.0.0.1:18079',
@@ -137,7 +137,7 @@ const result = await client.spaces.list(params);
 ## Error Handling
 
 ```typescript
-import { SdkworkImClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/im-sdk-generated';
+import { SdkworkImClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/im-sdk';
 
 try {
   const result = await client.presence.me.retrieve();

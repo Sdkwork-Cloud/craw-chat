@@ -14,19 +14,24 @@
 //!
 //! ```rust
 //! use im_domain_core::idempotency::{IdempotencyGuard, IdempotencyKey};
+//! use std::time::Duration;
 //!
-//! let guard = IdempotencyGuard::new(Duration::from_secs(300));
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut guard = IdempotencyGuard::new(Duration::from_secs(300));
 //! let key = IdempotencyKey::new("tenant1", "org1", "req-12345");
 //!
 //! // Check if request was already processed
 //! if guard.check_and_reserve(&key)? {
 //!     // Process request
-//!     let result = do_work();
-//!     guard.complete(&key, result)?;
+//!     let response = Some("created".to_owned());
+//!     guard.complete(&key, response)?;
 //! } else {
 //!     // Return cached response
-//!     return guard.get_cached_response(&key);
+//!     let cached_response = guard.get_cached_response(&key);
+//!     assert!(cached_response.is_some());
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 use std::collections::HashMap;

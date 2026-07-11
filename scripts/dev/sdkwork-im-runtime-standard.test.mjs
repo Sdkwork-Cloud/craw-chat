@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -39,6 +39,14 @@ function readDeploymentDocsMatching(pattern) {
 
 function readJson(relativePath) {
   return JSON.parse(read(relativePath));
+}
+
+function shellSourceContainsGeneratedLine(source, text) {
+  return (
+    source.includes(text) ||
+    source.includes(text.replaceAll('"', '\\"')) ||
+    source.includes(text.replaceAll('"', '""'))
+  );
 }
 
 const manifest = readJson('sdkwork.app.config.json');
@@ -151,7 +159,7 @@ assert.equal(plan.runtimeName, 'chat');
 assert.equal(plan.product, 'chat');
 assert.equal(plan.packageName, 'sdkwork-chat');
 
-const linuxServer = plan.packages.find((item) => item.id === 'linux-x64-server-archive');
+const linuxServer = plan.packages.find((item) => item.id === 'linux-x64-standalone-server-tar-gz');
 assert.deepEqual(linuxServer.runtimePaths, {
   installRoot: '/opt/sdkwork/chat',
   configDir: '/etc/sdkwork/chat',
@@ -165,7 +173,7 @@ assert.equal(linuxServer.databasePolicy.passwordFile.path, '/etc/sdkwork/chat/da
 assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_ENGINE'));
 assert.ok(linuxServer.databasePolicy.envOverrides.includes('SDKWORK_IM_LOG_DIR'));
 
-const windowsServer = plan.packages.find((item) => item.id === 'windows-x64-server-archive');
+const windowsServer = plan.packages.find((item) => item.id === 'windows-x64-standalone-server-zip');
 assert.deepEqual(windowsServer.runtimePaths, {
   installRoot: '%ProgramFiles%/sdkwork/chat',
   configDir: '%ProgramData%/sdkwork/chat',
@@ -174,22 +182,26 @@ assert.deepEqual(windowsServer.runtimePaths, {
   runDir: '%ProgramData%/sdkwork/chat/Run',
 });
 
-const linuxDesktop = plan.packages.find((item) => item.id === 'linux-x64-desktop');
-assert.equal(linuxDesktop.databasePolicy.requiresExternalDatabase, false);
+const linuxDesktop = plan.packages.find((item) => item.id === 'linux-x64-standalone-desktop-zip');
+assert.equal(linuxDesktop.databasePolicy.defaultEngine, 'postgresql');
+assert.equal(linuxDesktop.databasePolicy.requiresExternalDatabase, true);
 assert.equal(linuxDesktop.databasePolicy.configFile.path, '~/.sdkwork/chat/config/chat.toml');
 assert.equal(linuxDesktop.databasePolicy.dataDirectory.path, '~/.sdkwork/chat/data');
-assert.ok(linuxDesktop.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_URL'));
+assert.equal(linuxDesktop.databasePolicy.passwordFile.path, '~/.sdkwork/chat/config/database.secret');
+assert.ok(linuxDesktop.databasePolicy.envOverrides.includes('SDKWORK_IM_DATABASE_PASSWORD_FILE'));
 
 const serverEnvTemplate = read('deployments/templates/server.env.example');
+const quickstartServerEnvTemplate = read('deployments/templates/quickstart-server-compose.env.example');
 for (const required of [
-  'SDKWORK_IM_DEPLOYMENT_MODE=server',
+  'SDKWORK_IM_DEPLOYMENT_PROFILE=standalone',
+  'SDKWORK_IM_RUNTIME_TARGET=server',
   'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml',
   'SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat',
   'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat',
   'SDKWORK_IM_RUN_DIR=/run/sdkwork/chat',
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret',
-  'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080',
+  'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079',
   'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
   'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
   'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
@@ -203,13 +215,28 @@ for (const required of [
   assert.ok(serverEnvTemplate.includes(required), `server.env.example must document ${required}`);
 }
 assert.doesNotMatch(serverEnvTemplate, /SDKWORK_IM_POSTGRES_/u);
+assert.doesNotMatch(serverEnvTemplate, /SDKWORK_IM_DEPLOYMENT_MODE/u);
+for (const required of [
+  'SDKWORK_IM_DEPLOYMENT_PROFILE=standalone',
+  'SDKWORK_IM_RUNTIME_TARGET=server',
+  'SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml',
+  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
+]) {
+  assert.ok(
+    quickstartServerEnvTemplate.includes(required),
+    `quickstart-server-compose.env.example must document ${required}`,
+  );
+}
+assert.doesNotMatch(quickstartServerEnvTemplate, /SDKWORK_IM_POSTGRES_/u);
+assert.doesNotMatch(quickstartServerEnvTemplate, /SDKWORK_IM_DEPLOYMENT_MODE/u);
 
 const serverConfigTemplate = read('deployments/templates/server.yaml.example');
 for (const required of [
   'instance:',
   'name: default',
   'appCode: chat',
-  'deploymentMode: server',
+  'deploymentProfile: standalone',
+  'runtimeTarget: server',
   'configFile: /etc/sdkwork/chat/chat.toml',
   'dataDirectory: /var/lib/sdkwork/chat',
   'dataDir: /var/lib/sdkwork/chat',
@@ -225,15 +252,72 @@ for (const required of [
 ]) {
   assert.ok(serverConfigTemplate.includes(required), `server.yaml.example must document ${required}`);
 }
+assert.doesNotMatch(serverConfigTemplate, /deploymentMode/u);
+
+const chatConfigTemplate = read('deployments/templates/chat.toml.example');
+for (const required of [
+  'deployment_profile = "standalone"',
+  'runtime_target = "server"',
+  'app_code = "chat"',
+  'engine = "postgresql"',
+]) {
+  assert.ok(chatConfigTemplate.includes(required), `chat.toml.example must document ${required}`);
+}
+assert.doesNotMatch(chatConfigTemplate, /deployment_mode/u);
 
 const desktopConfigTemplate = read('deployments/templates/desktop.toml.example');
 for (const required of [
-  'deployment_mode = "desktop"',
+  'deployment_profile = "standalone"',
+  'runtime_target = "desktop"',
   'app_code = "chat"',
-  'engine = "postgres"',
+  'engine = "postgresql"',
   'max_connections = 8',
 ]) {
   assert.ok(desktopConfigTemplate.includes(required), `desktop.toml.example must document ${required}`);
+}
+assert.doesNotMatch(desktopConfigTemplate, /deployment_mode/u);
+
+const initConfigServerPs1 = read('bin/init-config-server.ps1');
+const initConfigServerSh = read('bin/init-config-server.sh');
+for (const [scriptPath, source] of [
+  ['bin/init-config-server.ps1', initConfigServerPs1],
+  ['bin/init-config-server.sh', initConfigServerSh],
+]) {
+  for (const required of [
+    'deployment_profile = "standalone"',
+    'runtime_target = "server"',
+    'SDKWORK_IM_DEPLOYMENT_PROFILE=standalone',
+    'SDKWORK_IM_RUNTIME_TARGET=server',
+  ]) {
+    assert.ok(
+      shellSourceContainsGeneratedLine(source, required),
+      `${scriptPath} must generate ${required}`,
+    );
+  }
+  assert.doesNotMatch(source, /SDKWORK_IM_DEPLOYMENT_MODE/u);
+  assert.doesNotMatch(source, /deployment_mode = "server"/u);
+  assert.doesNotMatch(source, /database = (?:\\"|")sdkwork(?:\\"|")/u);
+}
+
+const verifyServerPs1 = read('bin/verify-server.ps1');
+const verifyServerSh = read('bin/verify-server.sh');
+for (const [scriptPath, source] of [
+  ['bin/verify-server.ps1', verifyServerPs1],
+  ['bin/verify-server.sh', verifyServerSh],
+]) {
+  for (const required of [
+    'deploymentProfile: standalone',
+    'runtimeTarget: server',
+    'deployment_profile = "standalone"',
+    'runtime_target = "server"',
+  ]) {
+    assert.ok(
+      shellSourceContainsGeneratedLine(source, required),
+      `${scriptPath} must validate ${required}`,
+    );
+  }
+  assert.doesNotMatch(source, /deployment_mode = "server"/u);
+  assert.doesNotMatch(source, /dataRoot:/u);
 }
 
 const databasePrefixRegistry = readJson('specs/database-prefix-registry.json');
@@ -268,6 +352,8 @@ const docs = [
   ...readDeploymentDocsMatching(/PostgreSQL.*\.md$/u),
 ].join('\n');
 for (const required of [
+  'SDKWORK_IM_DEPLOYMENT_PROFILE',
+  'SDKWORK_IM_RUNTIME_TARGET',
   'SDKWORK_IM_DATABASE_ENGINE',
   'SDKWORK_IM_DATABASE_SSL_MODE',
   '/etc/sdkwork/chat/chat.toml',
@@ -279,6 +365,9 @@ for (const required of [
 ]) {
   assert.ok(docs.includes(required), `database docs must include ${required}`);
 }
-assert.doesNotMatch(docs, /SDKWORK_CLAW_DATABASE_PROVIDER|SDKWORK_CLAW_DATABASE_SSLMODE/u);
+assert.doesNotMatch(
+  docs,
+  /SDKWORK_CLAW_DATABASE_PROVIDER|SDKWORK_CLAW_DATABASE_SSLMODE|SDKWORK_IM_DEPLOYMENT_MODE|deployment_mode = "server"/u,
+);
 
 console.log('sdkwork-chat runtime standard contract passed');

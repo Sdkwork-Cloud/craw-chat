@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +28,7 @@ function parseArgs(argv) {
     target: 'browser',
     database: undefined,
     deploymentProfile: 'standalone',
-    serviceLayout: 'unified-process',
+    environment: 'development',
     help: false,
   };
 
@@ -54,14 +53,20 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === '--environment') {
+      settings.environment = argv[index + 1] ?? settings.environment;
+      index += 1;
+      continue;
+    }
     if (arg === '--hosting') {
       throw new Error(
         '--hosting is retired; use --deployment-profile (standalone or cloud)',
       );
     }
     if (arg === '--service-layout') {
-      settings.serviceLayout = argv[index + 1] ?? settings.serviceLayout;
-      index += 1;
+      throw new Error(
+        '--service-layout is retired; process layout is selected by the topology profile',
+      );
     }
   }
 
@@ -75,7 +80,7 @@ Topology-aware IM dev entry. Loads configs/topology profile env via @sdkwork/app
 
 Options:
   --deployment-profile <standalone|cloud>           Default: standalone
-  --service-layout <unified-process|split-services> Default: unified-process
+  --environment <development|staging|production>    Default: development
   --target <browser|desktop>                        Default: browser
   --database <postgres>                             Default: postgres
   --help, -h
@@ -89,7 +94,7 @@ async function main() {
     process.exit(0);
   }
 
-  const profileId = resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout)
+  const profileId = resolveDevProfileId(settings.deploymentProfile, settings.environment)
     || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
   const postgresProfile = resolvePostgresDevProfile({ env: process.env, repoRoot: REPO_ROOT });
@@ -98,7 +103,6 @@ async function main() {
   const childEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
     SDKWORK_IM_DEPLOYMENT_PROFILE: settings.deploymentProfile,
-    SDKWORK_IM_SERVICE_LAYOUT: settings.serviceLayout,
     SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: resolveStandaloneGatewayConfigPath(
       { ...process.env, ...profileEnv, ...fileEnv, ...(postgresProfile?.env ?? {}) },
       REPO_ROOT,
@@ -109,7 +113,7 @@ async function main() {
 
   console.log(
     `[sdkwork-im] deploymentProfile=${settings.deploymentProfile} `
-    + `serviceLayout=${settings.serviceLayout} profileId=${profileId}`,
+    + `environment=${settings.environment} profileId=${profileId}`,
   );
 
   const runnerArgv = ['--target', settings.target];

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
-use im_platform_contracts::{OutboxEventRecord, OutboxStore};
+use im_platform_contracts::{OutboxEventClaim, OutboxEventRecord, OutboxStore};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use session_gateway::RealtimeDeliveryRuntime;
 use social_service::SOCIAL_OUTBOX_AGGREGATE_TYPE;
@@ -12,7 +12,9 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::outbox_relay_common::{mark_missing_recipients, mark_unexpected_aggregate_type};
+use crate::outbox_relay_common::{
+    DEFAULT_OUTBOX_CLAIM_LEASE, log_unexpected_aggregate_type, mark_missing_recipients,
+};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const SOCIAL_OUTBOX_RELAY_POLL_MS_ENV: &str = "SDKWORK_IM_SOCIAL_OUTBOX_RELAY_POLL_MS";
@@ -113,7 +115,10 @@ fn resolve_social_outbox_relay_scopes(outbox: &Arc<dyn OutboxStore>) -> Vec<(Str
         )];
     }
 
-    match outbox.list_pending_scopes(DEFAULT_SOCIAL_OUTBOX_RELAY_SCOPE_LIMIT) {
+    match outbox.list_pending_scopes(
+        SOCIAL_OUTBOX_AGGREGATE_TYPE,
+        DEFAULT_SOCIAL_OUTBOX_RELAY_SCOPE_LIMIT,
+    ) {
         Ok(scopes) => scopes,
         Err(error) => {
             warn!(error = ?error, "social outbox relay scope discovery failed");
@@ -134,23 +139,25 @@ async fn run_social_outbox_relay(
         }
 
         for (tenant_id, organization_id) in resolve_social_outbox_relay_scopes(&outbox) {
-            match outbox.drain_pending(
+            match outbox.claim_pending(
                 tenant_id.as_str(),
                 organization_id.as_str(),
+                SOCIAL_OUTBOX_AGGREGATE_TYPE,
                 DEFAULT_SOCIAL_OUTBOX_RELAY_BATCH_SIZE,
+                DEFAULT_OUTBOX_CLAIM_LEASE,
             ) {
-                Ok(events) => {
-                    for event in events {
+                Ok(claims) => {
+                    for claim in claims {
+                        let event = &claim.event;
                         if event.aggregate_type != SOCIAL_OUTBOX_AGGREGATE_TYPE {
-                            mark_unexpected_aggregate_type(
-                                &outbox,
-                                &event,
+                            log_unexpected_aggregate_type(
+                                event,
                                 SOCIAL_OUTBOX_AGGREGATE_TYPE,
                                 "social",
                             );
                             continue;
                         }
-                        relay_social_outbox_event(&realtime_runtime, &outbox, &event);
+                        relay_social_outbox_event(&realtime_runtime, &outbox, &claim);
                     }
                 }
                 Err(error) => {
@@ -174,12 +181,13 @@ async fn run_social_outbox_relay(
 fn relay_social_outbox_event(
     realtime_runtime: &RealtimeDeliveryRuntime,
     outbox: &Arc<dyn OutboxStore>,
-    event: &OutboxEventRecord,
+    claim: &OutboxEventClaim,
 ) {
+    let event = &claim.event;
     let payload = build_realtime_payload(event);
     let recipients = social_realtime_recipients(event.payload_json.as_str());
     if recipients.is_empty() {
-        mark_missing_recipients(outbox, event, "social", "recipientPrincipalIds");
+        mark_missing_recipients(outbox, claim, "social", "recipientPrincipalIds");
         return;
     }
 
@@ -196,20 +204,11 @@ fn relay_social_outbox_event(
             error = ?error,
             "social outbox relay publish failed"
         );
-        let _ = outbox.mark_failed(
-            event.tenant_id.as_str(),
-            event.organization_id.as_str(),
-            event.outbox_id.as_str(),
-            "social outbox relay publish failed",
-        );
+        let _ = outbox.mark_failed(claim, "social outbox relay publish failed");
         return;
     }
 
-    if let Err(error) = outbox.mark_published(
-        event.tenant_id.as_str(),
-        event.organization_id.as_str(),
-        event.outbox_id.as_str(),
-    ) {
+    if let Err(error) = outbox.mark_published(claim) {
         warn!(
             outbox_id = event.outbox_id.as_str(),
             error = ?error,

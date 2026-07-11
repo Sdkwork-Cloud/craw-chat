@@ -9,7 +9,9 @@ name = "sdkwork_im_rpc_service_rust"
 path = "src/lib.rs"
 
 [dependencies]
+axum.workspace = true
 futures-util.workspace = true
+im-app-context = { path = "../im-app-context" }
 prost = "0.14"
 sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
 sdkwork-rpc-client = { workspace = true }

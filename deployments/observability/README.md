@@ -1,4 +1,4 @@
-# Sdkwork IM Observability Runbook
+﻿# Sdkwork IM Observability Runbook
 
 Status: active  
 Owner: SDKWork maintainers  
@@ -7,10 +7,10 @@ Specs: OBSERVABILITY_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## Purpose
 
-Operational guidance for monitoring Sdkwork IM split-services deployments in Kubernetes or standalone
+Operational guidance for monitoring Sdkwork IM cloud deployments in Kubernetes or standalone
 systemd hosts. Alert rules live in [prometheus-rules.yaml](./prometheus-rules.yaml).  
 OpenTelemetry collector reference manifest: [otel-collector.yaml](./otel-collector.yaml).  
-Grafana operations dashboard: [grafana-dashboard.json](./grafana-dashboard.json) — import via Grafana UI or provisioning; covers service readiness, readyz probe success, HTTP 5xx ratio, per-service error rate, and firing alerts.
+Grafana operations dashboard: [grafana-dashboard.json](./grafana-dashboard.json) 鈥?import via Grafana UI or provisioning; covers service readiness, readyz probe success, HTTP 5xx ratio, per-service error rate, and firing alerts.
 
 ## Metrics and Logs
 
@@ -28,8 +28,8 @@ Configure OpenTelemetry export with `OTEL_EXPORTER_OTLP_ENDPOINT` (see `.env.pos
 
 ### SdkworkImGatewayNotReady / SdkworkImSessionGatewayNotReady / SdkworkImConversationServiceNotReady / SdkworkImProjectionServiceNotReady / SdkworkImMediaServiceNotReady / SdkworkImStreamingServiceNotReady
 
-1. `kubectl -n sdkwork-im get pods` — identify CrashLoopBackOff or Pending pods.
-2. `kubectl -n sdkwork-im logs deploy/<service> --tail=200` — check DB URL, Redis, JWT secret mount errors.
+1. `kubectl -n sdkwork-im get pods` 鈥?identify CrashLoopBackOff or Pending pods.
+2. `kubectl -n sdkwork-im logs deploy/<service> --tail=200` 鈥?check DB URL, Redis, JWT secret mount errors.
 3. Verify secrets: database password file, Redis password, FCM credentials path.
 4. Roll back deployment if a bad image tag was applied: `kubectl rollout undo deploy/<service> -n sdkwork-im`.
 
@@ -48,7 +48,7 @@ Configure OpenTelemetry export with `OTEL_EXPORTER_OTLP_ENDPOINT` (see `.env.pos
 ## Verification Commands
 
 ```bash
-kubectl apply --dry-run=client -f deployments/kubernetes/cloud-split-services/
+kubectl apply --dry-run=client -f deployments/kubernetes/cloud/
 kubectl apply --dry-run=client -f deployments/observability/otel-collector.yaml
 pnpm run test:commercial-deployment-contract
 pnpm run test:step11-ha-dr-drill
@@ -59,4 +59,4 @@ curl -sf http://127.0.0.1:18079/readyz
 ## Related
 
 - [../kubernetes/README.md](../kubernetes/README.md)
-- [../../docs/部署/性能与灾备演练场景.md](../../docs/部署/性能与灾备演练场景.md)
+- [../../docs/閮ㄧ讲/鎬ц兘涓庣伨澶囨紨缁冨満鏅?md](../../docs/閮ㄧ讲/鎬ц兘涓庣伨澶囨紨缁冨満鏅?md)

@@ -585,17 +585,119 @@ fn test_cluster_disconnect_fence_isolated_by_principal_kind() {
         .expect("user disconnect fence should persist");
 
     let user_error = cluster
-        .ensure_client_route_resume_not_required_for_principal_kind(
-            "100001", "default", "1", "user", "d_pad",
+        .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+            "100001",
+            "default",
+            "1",
+            "user",
+            "d_pad",
+            Some("s_user"),
         )
         .expect_err("user principal kind should require reconnect");
     assert_eq!(user_error.code, "reconnect_required");
 
     cluster
-        .ensure_client_route_resume_not_required_for_principal_kind(
-            "100001", "default", "1", "agent", "d_pad",
+        .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+            "100001",
+            "default",
+            "1",
+            "agent",
+            "d_pad",
+            Some("s_user"),
         )
         .expect("agent principal kind should remain isolated from user disconnect fence");
+}
+
+#[test]
+fn test_cluster_disconnect_fence_allows_new_session_and_reconnect_is_idempotent() {
+    let cluster = RealtimeClusterBridge::default();
+    cluster.bind_node_runtime(
+        "node_a",
+        Arc::new(RealtimeDeliveryRuntime::permissive_for_tests()),
+    );
+    cluster
+        .mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+            tenant_id: "100001",
+            organization_id: "default",
+            principal_id: "1",
+            principal_kind: "user",
+            device_id: "d_pad",
+            session_id: Some("s_old"),
+            owner_node_id: "node_a",
+        })
+        .expect("disconnect fence should persist");
+
+    for _ in 0..2 {
+        cluster
+            .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_new"),
+            )
+            .expect("new session reconnect should remain idempotently allowed");
+    }
+    assert!(
+        !cluster
+            .disconnect_fence_matches_client_route_session_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                "d_pad",
+                Some("s_old"),
+            )
+            .expect("cleared fence check should succeed")
+    );
+}
+
+#[test]
+fn test_cluster_bridge_drain_fences_and_releases_all_node_routes() {
+    let cluster = RealtimeClusterBridge::default();
+    cluster.bind_node_runtime(
+        "node_a",
+        Arc::new(RealtimeDeliveryRuntime::permissive_for_tests()),
+    );
+    for (device_id, session_id) in [("d_pad", "s_pad"), ("d_phone", "s_phone")] {
+        cluster
+            .bind_client_route_for_principal_kind(
+                "100001",
+                "default",
+                "1",
+                "user",
+                device_id,
+                "node_a",
+                Some(session_id),
+                "websocket",
+            )
+            .expect("route bind should succeed");
+    }
+    cluster
+        .mark_node_draining("node_a")
+        .expect("node should enter draining");
+
+    let released = cluster
+        .fence_and_release_node_routes("node_a")
+        .expect("node routes should drain");
+
+    assert_eq!(released, 2);
+    assert!(cluster.routes_for_node("node_a").is_empty());
+    for (device_id, session_id) in [("d_pad", "s_pad"), ("d_phone", "s_phone")] {
+        assert!(
+            cluster
+                .disconnect_fence_matches_client_route_session_for_principal_kind(
+                    "100001",
+                    "default",
+                    "1",
+                    "user",
+                    device_id,
+                    Some(session_id),
+                )
+                .expect("drain fence should load")
+        );
+    }
 }
 
 #[test]

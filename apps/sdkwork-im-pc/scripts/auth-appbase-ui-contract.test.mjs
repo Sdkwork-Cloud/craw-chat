@@ -104,14 +104,26 @@ assert.match(
 
 assert.match(
   authGateSource,
-  /runtimeConfig=\{resolveSdkworkChatAuthRuntimeConfig\(\)\}/u,
-  'AuthGate must pass the sdkwork-chat auth runtime config into the appbase auth UI.',
+  /const\s+authRuntimeConfig\s*=\s*useMemo\(\s*\(\)\s*=>\s*resolveSdkworkChatAuthRuntimeConfig\(\),\s*\[\]\s*\)/u,
+  'AuthGate must memoize the sdkwork-chat auth runtime config before passing it into the appbase auth UI.',
 );
 
 assert.match(
   authGateSource,
-  /appearance=\{resolveSdkworkChatAuthAppearance\(\)\}/u,
-  'AuthGate must pass a product-owned appearance override so login and verification backgrounds are controlled by the current app.',
+  /runtimeConfig=\{authRuntimeConfig\}/u,
+  'AuthGate must pass the stable sdkwork-chat auth runtime config into the appbase auth UI.',
+);
+
+assert.match(
+  authGateSource,
+  /const\s+authAppearance\s*=\s*useMemo\(\s*\(\)\s*=>\s*resolveSdkworkChatAuthAppearance\(\),\s*\[\]\s*\)/u,
+  'AuthGate must memoize the product-owned auth appearance override before passing it into the appbase auth UI.',
+);
+
+assert.match(
+  authGateSource,
+  /appearance=\{authAppearance\}/u,
+  'AuthGate must pass a stable product-owned appearance override so login and verification backgrounds are controlled by the current app.',
 );
 
 assert.match(

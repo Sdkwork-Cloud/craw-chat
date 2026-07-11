@@ -1,5 +1,6 @@
 import {
   getAppSdkClientWithSession,
+  retrievePortalHome,
   type SdkworkImAppClient,
 } from '@sdkwork/im-pc-core/sdk/appSdkClient';
 import type { EnterpriseData } from '../components/EnterpriseDetail';
@@ -179,7 +180,7 @@ class SdkworkEnterpriseService implements EnterpriseService {
 
   async getEnterprises(): Promise<EnterpriseData[]> {
     const client = this.getClient();
-    const homeSnapshot = await client.portal.home.retrieve();
+    const homeSnapshot = await retrievePortalHome(client);
     const enterprises = uniqueEnterprises(collectEnterpriseRecords(homeSnapshot));
 
     if (enterprises.length > 0) {

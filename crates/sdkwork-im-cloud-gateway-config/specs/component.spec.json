@@ -148,7 +148,7 @@
         "sdkwork-knowledgebase-app-api",
         "sdkwork-voice-app-api"
       ],
-      "splitOverrideEnvKeys": {
+      "explicitExternalUpstreamEnvKeys": {
         "sdkwork-iam-app-api": [
           "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
           "SDKWORK_APPBASE_APP_API_BIND_ADDR"

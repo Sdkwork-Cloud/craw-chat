@@ -314,6 +314,8 @@ mod tests {
             occurred_at: "2026-01-01T00:00:00.000Z".into(),
             committed_at: None,
             retention_until: None,
+            reaction_counts: Vec::new(),
+            pin: None,
         }
     }
 

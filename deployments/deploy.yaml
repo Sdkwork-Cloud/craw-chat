@@ -1,8 +1,8 @@
-version: 1
-defaultProfile: cloud.split-services.production
+﻿version: 1
+defaultProfile: cloud.production
 
 profiles:
-  cloud.split-services.production:
+  cloud.production:
     install:
       layout: binary-package
     expose:
@@ -21,12 +21,12 @@ profiles:
     overrides:
       topology:
         spec: specs/topology.spec.json
-        profile: cloud.split-services.production
-        env: configs/topology/cloud.split-services.production.env
+        profile: cloud.production
+        env: configs/topology/cloud.production.env
       kubernetes:
-        reference: deployments/kubernetes/cloud-split-services/
+        reference: deployments/kubernetes/cloud/
 
-  standalone.unified-process.development:
+  standalone.development:
     install:
       layout: source-tree
     expose:
@@ -39,5 +39,5 @@ profiles:
     overrides:
       topology:
         spec: specs/topology.spec.json
-        profile: standalone.unified-process.development
-        env: configs/topology/standalone.unified-process.development.env
+        profile: standalone.development
+        env: configs/topology/standalone.development.env

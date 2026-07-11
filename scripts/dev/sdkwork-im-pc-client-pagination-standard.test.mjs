@@ -36,6 +36,13 @@ const chatService = readPc('packages', 'sdkwork-im-pc-chat', 'src', 'services', 
 assert.match(chatService, /listChatsPage/u);
 assert.match(chatService, /forEachCursorPage/u);
 assert.match(chatService, /MAX_INBOX_CONVERSATIONS = SDKWORK_MAX_PAGE_SIZE/u);
+const updateChatBlock = chatService.match(/async\s+updateChat\s*\([^)]*\)[\s\S]*?\n\s+async\s+createChat/u)?.[0] ?? '';
+assert.ok(updateChatBlock, 'ChatService.updateChat block must stay discoverable by the pagination standard check.');
+assert.doesNotMatch(
+  updateChatBlock,
+  /this\.getChats\(\)/u,
+  'ChatService.updateChat must update one conversation without scanning every inbox page.',
+);
 assert.doesNotMatch(chatService, /listAllInboxEntries/u);
 assert.doesNotMatch(chatService, /collectCursorPages/u);
 

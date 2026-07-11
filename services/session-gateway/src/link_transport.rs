@@ -1092,7 +1092,6 @@ mod tests {
                     "cmd",
                     serde_json::json!({
                         "type": "subscriptions.sync",
-                        "requestId": "req_tcp_push_1",
                         "items": [{
                             "scopeType": "conversation",
                             "scopeId": "c_demo",

@@ -30,7 +30,7 @@ The semantic Java artifact remains reserved under `composed`.
 ## What Ships Today
 
 - live-schema generation from the Sdkwork IM OpenAPI 3.x export
-- verified generated artifact naming and assembly metadata
+- verified generated artifact naming and SDK manifest metadata
 - a stable split between `generated/server-openapi` and `composed`
 - a raw generated transport client named `ImTransportClient`
 
@@ -59,7 +59,7 @@ to the matching HTTP reference:
 | SDKWork appbase credential pass-through and portal reads | generated token hooks and portal route groups on `ImTransportClient` | [Portal Access](/api-reference/app/portal-access) |
 | Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/im/conversations) |
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/im/membership-and-read-state) |
-| Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
+| Message send payloads and message history schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/im/media) |
 | Realtime Presence, presence, and realtime coordination | session, presence, and realtime route groups | [Realtime Presence](/api-reference/im/session-and-realtime) |
 | IM call lifecycle and signaling-side HTTP operations | calls route groups | [Calls](/api-reference/im/calls) |
@@ -131,4 +131,3 @@ Java workspace wrappers:
   generated Java transport.
 - Read [Realtime Presence](/api-reference/im/session-and-realtime) and [Calls](/api-reference/im/calls)
   when you need the route-level transport contract for live coordination and call workflows.
-

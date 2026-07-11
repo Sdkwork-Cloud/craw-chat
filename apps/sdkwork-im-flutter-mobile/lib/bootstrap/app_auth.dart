@@ -17,7 +17,12 @@ Future<void> initAppAuthStorage() async {
   if (raw == null || raw.isEmpty) {
     return;
   }
-  _activeAppSession = _parseStoredSession(raw);
+  final session = _parseStoredSession(raw);
+  if (session == null) {
+    await _secureStorage.delete(key: imFlutterMobileSessionStorageKey);
+    return;
+  }
+  _activeAppSession = session;
 }
 
 ImAppSession? _parseStoredSession(String raw) {
@@ -25,7 +30,7 @@ ImAppSession? _parseStoredSession(String raw) {
     final decoded = jsonDecode(raw);
     if (decoded is Map<String, dynamic>) {
       final session = ImAppSession.fromJson(decoded);
-      if (session.accessToken.isNotEmpty) {
+      if (session.isComplete) {
         return session;
       }
     }
@@ -38,11 +43,14 @@ ImAppSession? _parseStoredSession(String raw) {
 ImAppSession? loadAppSession() => _activeAppSession;
 
 Future<void> saveAppSession(ImAppSession session) async {
-  _activeAppSession = session;
+  if (!session.isComplete) {
+    throw ArgumentError.value(session, 'session', 'Incomplete IM app session');
+  }
   await _secureStorage.write(
     key: imFlutterMobileSessionStorageKey,
     value: jsonEncode(session.toJson()),
   );
+  _activeAppSession = session;
 }
 
 Future<void> clearAppSession() async {

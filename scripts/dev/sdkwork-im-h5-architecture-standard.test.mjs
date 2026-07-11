@@ -76,7 +76,7 @@ assert.match(
   read('packages/sdkwork-im-h5-chat/src/services/chatMediaUploadService.ts'),
   /getDriveAppSdkClientWithSession/u,
 );
-assert.match(chatConversation, /fetchConversationTimeline/u);
+assert.match(chatConversation, /fetchConversationMessages/u);
 assert.match(chatConversation, /sendConversationText/u);
 assert.match(chatConversation, /subscribeConversationLiveMessages/u);
 assert.match(chatInbox, /subscribeInboxLiveRefresh/u);

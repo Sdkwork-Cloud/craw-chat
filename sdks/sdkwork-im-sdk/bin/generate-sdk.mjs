@@ -44,13 +44,13 @@ run('materialize-local-openapi-seed.mjs', [
   path.join(scriptDir, 'materialize-local-openapi-seed.mjs'),
 ], path.resolve(scriptDir, '..'));
 
-run('sync-openapi-authority-mirror.mjs', [
-  path.join(scriptDir, 'sync-openapi-authority-mirror.mjs'),
-], path.resolve(scriptDir, '..'));
-
 run('materialize-im-v3-openapi-boundaries.mjs', [
   path.resolve(scriptDir, '..', '..', 'materialize-im-v3-openapi-boundaries.mjs'),
 ], path.resolve(scriptDir, '..', '..'));
+
+run('sync-openapi-authority-mirror.mjs', [
+  path.join(scriptDir, 'sync-openapi-authority-mirror.mjs'),
+], path.resolve(scriptDir, '..'));
 
 await runGenerateSdkFamily(sdkFamilyConfig, argv);
 

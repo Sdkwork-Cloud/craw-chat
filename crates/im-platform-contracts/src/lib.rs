@@ -44,9 +44,10 @@ pub use retention_scope_store::RetentionScopeStore;
 pub use search_provider::{MessageSearchHit, SearchProvider, SearchResult, SearchableMessage};
 pub use seq_allocator::ConversationSeqAllocator;
 
-// 新增：消息真值存储契约
 pub use conversation_aggregate_store::{
-    ConversationAggregateState, ConversationAggregateStore, ConversationMemberRecord,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_DEFAULT, CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+    ConversationAggregateState, ConversationAggregateStore, ConversationMemberPage,
+    ConversationMemberPageCursor, ConversationMemberRecord, ReadCursorPage, ReadCursorPageCursor,
     ReadCursorRecord,
 };
 pub use conversation_member_access_gate::{
@@ -55,7 +56,7 @@ pub use conversation_member_access_gate::{
 };
 pub use id_generator::{IdGenerator, IdGeneratorConfig};
 pub use message_store::{MessageStore, MessageWindow, StoredMessageRecord};
-pub use outbox_store::{OutboxEventRecord, OutboxPublishStatus, OutboxStore};
+pub use outbox_store::{OutboxEventClaim, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
 pub use realtime_publisher::{
     RealtimeEventPublisher, RealtimeEventRecipient, RealtimeScopeEventPublishCommand,
 };

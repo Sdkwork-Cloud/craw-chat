@@ -2,13 +2,13 @@ import type {
   ContactTagView,
   ContactView,
   ConversationInboxEntry,
+  ConversationMessageEntry,
   ConversationMember,
   FriendRequest as GeneratedFriendRequest,
   MessageFavoriteView,
   MessageInteractionSummaryView,
   SocialUserSearchResult,
-  TimelineViewEntry,
-} from '@sdkwork/im-sdk-generated';
+} from '../generated/server-openapi/dist/index.js';
 
 /** OpenAPI-aligned friend request with stable request id. */
 export interface FriendRequest extends Omit<GeneratedFriendRequest, 'requestId'> {
@@ -23,10 +23,11 @@ export interface ConversationInboxPage {
   pageInfo: SdkWorkListPageInfo;
 }
 
-/** Unwrapped timeline list payload aligned with OpenAPI list `data`. */
-export interface TimelineResponse {
-  items: TimelineViewEntry[];
+/** Unwrapped conversation message list payload aligned with OpenAPI list `data`. */
+export interface ConversationMessageListResponse {
+  items: ConversationMessageEntry[];
   pageInfo: SdkWorkListPageInfo;
+  highWatermark: number;
 }
 
 export interface ListMembersResponse {

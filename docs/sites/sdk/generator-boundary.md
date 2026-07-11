@@ -76,7 +76,7 @@ live runtime remains a manual semantic concern.
 
 The generator boundary is also reflected in how verification is split:
 
-- root automation verification checks wrapper wiring, workspace assembly metadata, and required
+- root automation verification checks wrapper wiring, SDK manifest metadata, and required
   normalization steps
 - language workspace verification checks language-specific README contracts, package structure, and
   public boundary promises

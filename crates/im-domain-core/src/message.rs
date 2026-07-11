@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::io::Write;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -174,13 +175,16 @@ pub struct StoredMessage {
 pub struct MessageHistoryWindow {
     pub items: Vec<StoredMessage>,
     pub high_watermark: u64,
-    pub next_after_seq: Option<u64>,
+    pub next_before_seq: Option<u64>,
     pub has_more: bool,
 }
 
 /// Maximum number of messages to cache in memory per conversation.
 /// Beyond this limit, oldest messages are evicted to bound memory usage.
 pub const CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES: usize = 1000;
+
+/// Maximum estimated serialized bytes cached per conversation.
+pub const CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES: usize = 16 * 1024 * 1024;
 
 /// Number of messages to evict when the cache exceeds the limit.
 pub const CONVERSATION_MESSAGE_LOG_EVICTION_BATCH_SIZE: usize = 100;
@@ -189,13 +193,67 @@ pub const CONVERSATION_MESSAGE_LOG_EVICTION_BATCH_SIZE: usize = 100;
 pub struct ConversationMessageLog {
     high_watermark: u64,
     messages: HashMap<String, StoredMessage>,
+    message_bytes: HashMap<String, usize>,
+    cached_message_bytes: usize,
     message_ids_by_seq: BTreeMap<u64, String>,
     pinned_message_ids_by_seq: BTreeMap<u64, String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MessageCacheMutationOutcome<T> {
+    pub value: T,
+    pub evicted_message_ids: Vec<String>,
+}
+
+#[derive(Default)]
+struct SerializedSizeCounter {
+    bytes: usize,
+}
+
+impl Write for SerializedSizeCounter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.bytes = self.bytes.saturating_add(buffer.len());
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn estimated_serialized_bytes(value: &impl Serialize) -> usize {
+    let mut counter = SerializedSizeCounter::default();
+    serde_json::to_writer(&mut counter, value)
+        .map(|()| counter.bytes)
+        .unwrap_or(CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES)
 }
 
 impl ConversationMessageLog {
     pub fn high_watermark(&self) -> u64 {
         self.high_watermark
+    }
+
+    pub fn cached_message_count(&self) -> usize {
+        self.messages.len()
+    }
+
+    pub fn cached_message_bytes(&self) -> usize {
+        self.cached_message_bytes
+    }
+
+    pub fn estimated_heap_bytes(&self) -> usize {
+        const MESSAGE_CACHE_INDEX_OVERHEAD_BYTES: usize = 384;
+        std::mem::size_of::<Self>()
+            .saturating_add(self.cached_message_bytes)
+            .saturating_add(
+                self.messages
+                    .len()
+                    .saturating_mul(MESSAGE_CACHE_INDEX_OVERHEAD_BYTES),
+            )
+    }
+
+    pub fn observe_high_watermark(&mut self, high_watermark: u64) {
+        self.high_watermark = self.high_watermark.max(high_watermark);
     }
 
     pub fn next_message_seq(&mut self) -> u64 {
@@ -252,170 +310,364 @@ impl ConversationMessageLog {
     }
 
     pub fn messages_in_order(&self) -> Vec<StoredMessage> {
-        self.message_window_after(0, usize::MAX).items
+        self.message_ids_by_seq
+            .values()
+            .filter_map(|message_id| self.messages.get(message_id.as_str()).cloned())
+            .collect()
     }
 
-    pub fn message_window_after(&self, after_seq: u64, limit: usize) -> MessageHistoryWindow {
-        let mut items = Vec::with_capacity(limit.min(self.messages.len()));
-        let mut has_more = false;
-        for (_message_seq, message_id) in self.message_ids_by_seq.range((
-            std::ops::Bound::Excluded(after_seq),
-            std::ops::Bound::Unbounded,
-        )) {
-            if items.len() == limit {
-                has_more = true;
-                break;
-            }
+    pub fn message_window_before(
+        &self,
+        before_seq: Option<u64>,
+        page_size: usize,
+    ) -> MessageHistoryWindow {
+        let page_size = page_size.max(1);
+        let upper_bound = before_seq
+            .map(std::ops::Bound::Excluded)
+            .unwrap_or(std::ops::Bound::Unbounded);
+        let mut items = Vec::with_capacity(
+            page_size
+                .saturating_add(1)
+                .min(self.message_ids_by_seq.len()),
+        );
+        for (_message_seq, message_id) in self
+            .message_ids_by_seq
+            .range((std::ops::Bound::Unbounded, upper_bound))
+            .rev()
+        {
             if let Some(stored) = self.messages.get(message_id.as_str()) {
                 items.push(stored.clone());
             }
+            if items.len() > page_size {
+                break;
+            }
         }
-        let next_after_seq = items.last().map(|stored| stored.message.message_seq);
+        let has_more = items.len() > page_size;
+        if has_more {
+            items.truncate(page_size);
+        }
+        let next_before_seq = has_more
+            .then(|| items.last().map(|stored| stored.message.message_seq))
+            .flatten();
+        items.reverse();
 
         MessageHistoryWindow {
             items,
             high_watermark: self.high_watermark,
-            next_after_seq,
+            next_before_seq,
             has_more,
         }
     }
 
-    pub fn store_posted(&mut self, message: Message) {
+    pub fn store_posted(&mut self, message: Message) -> Vec<String> {
         let mut message = message;
         message.body = message.body.with_derived_summary();
-        self.high_watermark = self.high_watermark.max(message.message_seq);
-        if let Some(existing) = self.messages.get(message.message_id.as_str())
-            && existing.message.message_seq != message.message_seq
-        {
-            self.message_ids_by_seq
-                .remove(&existing.message.message_seq);
-        }
-        self.message_ids_by_seq
-            .insert(message.message_seq, message.message_id.clone());
-        self.messages.insert(
-            message.message_id.clone(),
+        self.store_cached(
             StoredMessage {
                 message,
                 recalled: false,
                 reactions: BTreeMap::new(),
                 pin: None,
             },
-        );
-        // Evict oldest messages when cache exceeds limit
-        self.evict_if_needed();
+            None,
+        )
+    }
+
+    pub fn store_hydrated(&mut self, stored: StoredMessage) -> Vec<String> {
+        let protected_message_id = stored.message.message_id.clone();
+        self.store_cached(stored, Some(protected_message_id.as_str()))
+    }
+
+    fn store_cached(
+        &mut self,
+        mut stored: StoredMessage,
+        protected_message_id: Option<&str>,
+    ) -> Vec<String> {
+        stored.message.body = stored.message.body.with_derived_summary();
+        let message_id = stored.message.message_id.clone();
+        let message_seq = stored.message.message_seq;
+        let estimated_bytes = estimated_serialized_bytes(&stored);
+        self.high_watermark = self.high_watermark.max(message_seq);
+        if let Some(existing) = self.messages.get(message_id.as_str()) {
+            self.message_ids_by_seq
+                .remove(&existing.message.message_seq);
+            self.pinned_message_ids_by_seq
+                .remove(&existing.message.message_seq);
+        }
+        if let Some(previous_bytes) = self.message_bytes.remove(message_id.as_str()) {
+            self.cached_message_bytes = self.cached_message_bytes.saturating_sub(previous_bytes);
+        }
+        self.message_ids_by_seq
+            .insert(message_seq, message_id.clone());
+        if stored.pin.is_some() {
+            self.pinned_message_ids_by_seq
+                .insert(message_seq, message_id.clone());
+        }
+        self.cached_message_bytes = self.cached_message_bytes.saturating_add(estimated_bytes);
+        self.message_bytes
+            .insert(message_id.clone(), estimated_bytes);
+        self.messages.insert(message_id, stored);
+        self.evict_if_needed(protected_message_id)
     }
 
     /// Evicts oldest messages when cache size exceeds CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES.
-    /// Pinned messages are preserved during eviction.
-    fn evict_if_needed(&mut self) {
-        if self.messages.len() <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES {
-            return;
+    fn evict_if_needed(&mut self, protected_message_id: Option<&str>) -> Vec<String> {
+        if self.messages.len() <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES
+            && self.cached_message_bytes <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES
+        {
+            return Vec::new();
         }
 
-        let evict_count = CONVERSATION_MESSAGE_LOG_EVICTION_BATCH_SIZE;
-
-        // Collect sequence numbers to evict (oldest first)
-        let seqs_to_evict: Vec<u64> = self
-            .message_ids_by_seq
-            .keys()
-            .take(evict_count)
-            .cloned()
-            .collect();
-
-        // Evict messages, skipping pinned ones
-        for seq in seqs_to_evict {
-            if self.messages.len() <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES {
+        let overflow = self
+            .messages
+            .len()
+            .saturating_sub(CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES);
+        let minimum_evict_count = if overflow == 0 {
+            0
+        } else {
+            overflow.max(CONVERSATION_MESSAGE_LOG_EVICTION_BATCH_SIZE)
+        };
+        let mut projected_count = self.messages.len();
+        let mut projected_bytes = self.cached_message_bytes;
+        let mut unpinned_seqs = Vec::with_capacity(minimum_evict_count);
+        for (seq, message_id) in &self.message_ids_by_seq {
+            if unpinned_seqs.len() >= minimum_evict_count
+                && projected_count <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES
+                && projected_bytes <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES
+            {
                 break;
             }
+            if protected_message_id == Some(message_id.as_str())
+                || self
+                    .messages
+                    .get(message_id.as_str())
+                    .is_some_and(|stored| stored.pin.is_some())
+            {
+                continue;
+            }
+            unpinned_seqs.push(*seq);
+            projected_count = projected_count.saturating_sub(1);
+            projected_bytes = projected_bytes.saturating_sub(
+                self.message_bytes
+                    .get(message_id.as_str())
+                    .copied()
+                    .unwrap_or_default(),
+            );
+        }
+        let mut evicted_message_ids = Vec::with_capacity(unpinned_seqs.len());
+        for seq in unpinned_seqs {
+            self.evict_message_at_seq(seq, &mut evicted_message_ids);
+        }
 
-            if let Some(message_id) = self.message_ids_by_seq.get(&seq) {
-                // Skip eviction if message is pinned
-                if let Some(stored) = self.messages.get(message_id.as_str())
-                    && stored.pin.is_some()
+        if self.messages.len() > CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES
+            || self.cached_message_bytes > CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES
+        {
+            let mut fallback_count = self.messages.len();
+            let mut fallback_bytes = self.cached_message_bytes;
+            let mut fallback_seqs = Vec::new();
+            for (seq, message_id) in &self.message_ids_by_seq {
+                if fallback_count <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES
+                    && fallback_bytes <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES
                 {
+                    break;
+                }
+                if protected_message_id == Some(message_id.as_str()) {
                     continue;
                 }
-
-                // Remove the message
-                self.messages.remove(message_id.as_str());
-                self.message_ids_by_seq.remove(&seq);
-                self.pinned_message_ids_by_seq.remove(&seq);
+                fallback_seqs.push(*seq);
+                fallback_count = fallback_count.saturating_sub(1);
+                fallback_bytes = fallback_bytes.saturating_sub(
+                    self.message_bytes
+                        .get(message_id.as_str())
+                        .copied()
+                        .unwrap_or_default(),
+                );
+            }
+            for seq in fallback_seqs {
+                self.evict_message_at_seq(seq, &mut evicted_message_ids);
             }
         }
+        evicted_message_ids
     }
 
-    pub fn apply_edited(&mut self, edited: &MessageEdited) -> Option<&StoredMessage> {
-        let stored = self.messages.get_mut(edited.message_id.as_str())?;
-        stored.message.body = edited.body.clone().with_derived_summary();
-        stored.message.committed_at = Some(edited.edited_at.clone());
-        Some(stored)
-    }
-
-    pub fn apply_recalled(&mut self, recalled: &MessageRecalled) -> Option<&StoredMessage> {
-        let stored = self.messages.get_mut(recalled.message_id.as_str())?;
-        stored.recalled = true;
-        stored.message.body.summary = Some("[recalled]".into());
-        stored.message.committed_at = Some(recalled.recalled_at.clone());
-        Some(stored)
-    }
-
-    pub fn apply_reaction_added(&mut self, added: &MessageReactionAdded) -> Option<bool> {
-        let stored = self.messages.get_mut(added.message_id.as_str())?;
-        let actor_ids = stored
-            .reactions
-            .entry(added.reaction_key.clone())
-            .or_insert_with(BTreeSet::new);
-        Some(actor_ids.insert(ReactionActorIdentity::from_sender(&added.reacted_by)))
-    }
-
-    pub fn apply_reaction_removed(&mut self, removed: &MessageReactionRemoved) -> Option<bool> {
-        let stored = self.messages.get_mut(removed.message_id.as_str())?;
-        let Some(actor_ids) = stored.reactions.get_mut(removed.reaction_key.as_str()) else {
-            return Some(false);
+    fn evict_message_at_seq(&mut self, seq: u64, evicted_message_ids: &mut Vec<String>) {
+        let Some(message_id) = self.message_ids_by_seq.remove(&seq) else {
+            return;
         };
-        let changed = actor_ids.remove(&ReactionActorIdentity::from_sender(&removed.removed_by));
-        if actor_ids.is_empty() {
-            stored.reactions.remove(removed.reaction_key.as_str());
+        self.messages.remove(message_id.as_str());
+        if let Some(message_bytes) = self.message_bytes.remove(message_id.as_str()) {
+            self.cached_message_bytes = self.cached_message_bytes.saturating_sub(message_bytes);
         }
-        Some(changed)
+        self.pinned_message_ids_by_seq.remove(&seq);
+        evicted_message_ids.push(message_id);
     }
 
-    pub fn apply_pinned(&mut self, pinned: &MessagePinned) -> Option<bool> {
-        let stored = self.messages.get_mut(pinned.message_id.as_str())?;
-        if stored.pin.is_some() {
-            return Some(false);
+    fn rebalance_mutated_message(&mut self, message_id: &str) -> Vec<String> {
+        let Some(stored) = self.messages.get(message_id) else {
+            return Vec::new();
+        };
+        let estimated_bytes = estimated_serialized_bytes(stored);
+        let previous_bytes = self
+            .message_bytes
+            .insert(message_id.to_owned(), estimated_bytes)
+            .unwrap_or_default();
+        self.cached_message_bytes = self
+            .cached_message_bytes
+            .saturating_sub(previous_bytes)
+            .saturating_add(estimated_bytes);
+        self.evict_if_needed(None)
+    }
+
+    pub fn apply_edited(
+        &mut self,
+        edited: &MessageEdited,
+    ) -> Option<MessageCacheMutationOutcome<()>> {
+        {
+            let stored = self.messages.get_mut(edited.message_id.as_str())?;
+            stored.message.body = edited.body.clone().with_derived_summary();
+            stored.message.committed_at = Some(edited.edited_at.clone());
         }
-        stored.pin = Some(StoredMessagePin {
-            pinned_by: pinned.pinned_by.clone(),
-            pinned_at: pinned.pinned_at.clone(),
-        });
+        Some(MessageCacheMutationOutcome {
+            value: (),
+            evicted_message_ids: self.rebalance_mutated_message(edited.message_id.as_str()),
+        })
+    }
+
+    pub fn apply_recalled(
+        &mut self,
+        recalled: &MessageRecalled,
+    ) -> Option<MessageCacheMutationOutcome<()>> {
+        {
+            let stored = self.messages.get_mut(recalled.message_id.as_str())?;
+            stored.recalled = true;
+            stored.message.body.summary = Some("[recalled]".into());
+            stored.message.committed_at = Some(recalled.recalled_at.clone());
+        }
+        Some(MessageCacheMutationOutcome {
+            value: (),
+            evicted_message_ids: self.rebalance_mutated_message(recalled.message_id.as_str()),
+        })
+    }
+
+    pub fn apply_reaction_added(
+        &mut self,
+        added: &MessageReactionAdded,
+    ) -> Option<MessageCacheMutationOutcome<bool>> {
+        let changed = {
+            let stored = self.messages.get_mut(added.message_id.as_str())?;
+            let actor_ids = stored
+                .reactions
+                .entry(added.reaction_key.clone())
+                .or_insert_with(BTreeSet::new);
+            actor_ids.insert(ReactionActorIdentity::from_sender(&added.reacted_by))
+        };
+        Some(MessageCacheMutationOutcome {
+            value: changed,
+            evicted_message_ids: if changed {
+                self.rebalance_mutated_message(added.message_id.as_str())
+            } else {
+                Vec::new()
+            },
+        })
+    }
+
+    pub fn apply_reaction_removed(
+        &mut self,
+        removed: &MessageReactionRemoved,
+    ) -> Option<MessageCacheMutationOutcome<bool>> {
+        let changed = {
+            let stored = self.messages.get_mut(removed.message_id.as_str())?;
+            let Some(actor_ids) = stored.reactions.get_mut(removed.reaction_key.as_str()) else {
+                return Some(MessageCacheMutationOutcome {
+                    value: false,
+                    evicted_message_ids: Vec::new(),
+                });
+            };
+            let changed =
+                actor_ids.remove(&ReactionActorIdentity::from_sender(&removed.removed_by));
+            if actor_ids.is_empty() {
+                stored.reactions.remove(removed.reaction_key.as_str());
+            }
+            changed
+        };
+        Some(MessageCacheMutationOutcome {
+            value: changed,
+            evicted_message_ids: if changed {
+                self.rebalance_mutated_message(removed.message_id.as_str())
+            } else {
+                Vec::new()
+            },
+        })
+    }
+
+    pub fn apply_pinned(
+        &mut self,
+        pinned: &MessagePinned,
+    ) -> Option<MessageCacheMutationOutcome<bool>> {
+        let message_seq = {
+            let stored = self.messages.get_mut(pinned.message_id.as_str())?;
+            if stored.pin.is_some() {
+                return Some(MessageCacheMutationOutcome {
+                    value: false,
+                    evicted_message_ids: Vec::new(),
+                });
+            }
+            stored.pin = Some(StoredMessagePin {
+                pinned_by: pinned.pinned_by.clone(),
+                pinned_at: pinned.pinned_at.clone(),
+            });
+            stored.message.message_seq
+        };
         self.pinned_message_ids_by_seq
-            .insert(stored.message.message_seq, pinned.message_id.clone());
-        Some(true)
+            .insert(message_seq, pinned.message_id.clone());
+        Some(MessageCacheMutationOutcome {
+            value: true,
+            evicted_message_ids: self.rebalance_mutated_message(pinned.message_id.as_str()),
+        })
     }
 
-    pub fn apply_unpinned(&mut self, unpinned: &MessageUnpinned) -> Option<bool> {
-        let stored = self.messages.get_mut(unpinned.message_id.as_str())?;
-        let message_seq = stored.message.message_seq;
-        let changed = stored.pin.take().is_some();
+    pub fn apply_unpinned(
+        &mut self,
+        unpinned: &MessageUnpinned,
+    ) -> Option<MessageCacheMutationOutcome<bool>> {
+        let (message_seq, changed) = {
+            let stored = self.messages.get_mut(unpinned.message_id.as_str())?;
+            (stored.message.message_seq, stored.pin.take().is_some())
+        };
         if changed {
             self.pinned_message_ids_by_seq.remove(&message_seq);
         }
-        Some(changed)
+        Some(MessageCacheMutationOutcome {
+            value: changed,
+            evicted_message_ids: if changed {
+                self.rebalance_mutated_message(unpinned.message_id.as_str())
+            } else {
+                Vec::new()
+            },
+        })
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MessageLocatorIndex {
     conversation_ids: HashMap<String, String>,
+    message_keys_by_conversation: HashMap<String, BTreeSet<String>>,
 }
 
 impl MessageLocatorIndex {
     pub fn register(&mut self, tenant_id: &str, message_id: &str, conversation_id: &str) {
-        self.conversation_ids.insert(
-            message_locator_key(tenant_id, message_id),
-            conversation_id.to_owned(),
-        );
+        let message_key = message_locator_key(tenant_id, message_id);
+        if let Some(previous_conversation_id) = self
+            .conversation_ids
+            .insert(message_key.clone(), conversation_id.to_owned())
+            && previous_conversation_id != conversation_id
+        {
+            self.remove_reverse_entry(tenant_id, previous_conversation_id.as_str(), &message_key);
+        }
+        self.message_keys_by_conversation
+            .entry(message_conversation_locator_key(tenant_id, conversation_id))
+            .or_default()
+            .insert(message_key);
     }
 
     pub fn register_message(&mut self, message: &Message) {
@@ -431,10 +683,61 @@ impl MessageLocatorIndex {
             .get(message_locator_key(tenant_id, message_id).as_str())
             .map(String::as_str)
     }
+
+    pub fn remove(&mut self, tenant_id: &str, message_id: &str) -> bool {
+        let message_key = message_locator_key(tenant_id, message_id);
+        let Some(conversation_id) = self.conversation_ids.remove(message_key.as_str()) else {
+            return false;
+        };
+        self.remove_reverse_entry(tenant_id, conversation_id.as_str(), message_key.as_str());
+        true
+    }
+
+    pub fn remove_conversation(&mut self, tenant_id: &str, conversation_id: &str) -> usize {
+        let reverse_key = message_conversation_locator_key(tenant_id, conversation_id);
+        let Some(message_keys) = self
+            .message_keys_by_conversation
+            .remove(reverse_key.as_str())
+        else {
+            return 0;
+        };
+        let removed = message_keys.len();
+        for message_key in message_keys {
+            self.conversation_ids.remove(message_key.as_str());
+        }
+        removed
+    }
+
+    pub fn len(&self) -> usize {
+        self.conversation_ids.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.conversation_ids.is_empty()
+    }
+
+    fn remove_reverse_entry(&mut self, tenant_id: &str, conversation_id: &str, message_key: &str) {
+        let reverse_key = message_conversation_locator_key(tenant_id, conversation_id);
+        let Some(message_keys) = self
+            .message_keys_by_conversation
+            .get_mut(reverse_key.as_str())
+        else {
+            return;
+        };
+        message_keys.remove(message_key);
+        if message_keys.is_empty() {
+            self.message_keys_by_conversation
+                .remove(reverse_key.as_str());
+        }
+    }
 }
 
 fn message_locator_key(tenant_id: &str, message_id: &str) -> String {
     encode_message_key_segments([tenant_id, message_id])
+}
+
+fn message_conversation_locator_key(tenant_id: &str, conversation_id: &str) -> String {
+    encode_message_key_segments([tenant_id, conversation_id])
 }
 
 fn encode_message_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
@@ -785,5 +1088,107 @@ mod pinned_message_page_tests {
         let (second_page, has_more) = log.pinned_message_ids_page(2, 2);
         assert!(!has_more);
         assert_eq!(second_page, vec!["msg_3".to_string()]);
+    }
+
+    #[test]
+    fn hydrated_old_message_stays_hot_when_cache_is_full() {
+        let mut log = ConversationMessageLog::default();
+        for seq in 2..=CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES as u64 + 1 {
+            log.store_posted(demo_pinned_message(seq, format!("msg_{seq}").as_str()));
+        }
+
+        let hydrated = StoredMessage {
+            message: demo_pinned_message(1, "msg_1"),
+            recalled: false,
+            reactions: BTreeMap::new(),
+            pin: None,
+        };
+        let evicted = log.store_hydrated(hydrated);
+
+        assert!(log.message("msg_1").is_some());
+        assert!(!evicted.iter().any(|message_id| message_id == "msg_1"));
+        assert!(log.messages_in_order().len() <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES);
+    }
+
+    #[test]
+    fn pinned_oldest_batch_does_not_allow_message_cache_growth() {
+        let mut log = ConversationMessageLog::default();
+        for seq in 1..=CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES as u64 {
+            let message = demo_pinned_message(seq, format!("msg_{seq}").as_str());
+            log.store_posted(message.clone());
+            if seq <= CONVERSATION_MESSAGE_LOG_EVICTION_BATCH_SIZE as u64 {
+                log.apply_pinned(&MessagePinned {
+                    tenant_id: message.tenant_id.clone(),
+                    conversation_id: message.conversation_id.clone(),
+                    message_id: message.message_id.clone(),
+                    message_seq: message.message_seq,
+                    pinned_by: message.sender.clone(),
+                    pinned_at: message.occurred_at.clone(),
+                });
+            }
+        }
+
+        let newest_seq = CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES as u64 + 1;
+        log.store_posted(demo_pinned_message(
+            newest_seq,
+            format!("msg_{newest_seq}").as_str(),
+        ));
+
+        assert!(log.messages_in_order().len() <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_MESSAGES);
+        assert!(log.message(format!("msg_{newest_seq}").as_str()).is_some());
+    }
+
+    #[test]
+    fn message_cache_is_bounded_by_serialized_bytes() {
+        const EXPECTED_MAX_CACHED_BYTES: usize = 16 * 1024 * 1024;
+        let mut log = ConversationMessageLog::default();
+        for seq in 1..=80_u64 {
+            let mut message = demo_pinned_message(seq, format!("msg_large_{seq}").as_str());
+            message.body = MessageBody {
+                summary: None,
+                parts: vec![ContentPart::text("x".repeat(256 * 1024))],
+                render_hints: BTreeMap::new(),
+                reply_to: None,
+            };
+            log.store_posted(message);
+        }
+
+        assert!(log.cached_message_bytes() <= EXPECTED_MAX_CACHED_BYTES);
+        assert!(log.cached_message_count() < 80);
+    }
+
+    #[test]
+    fn message_edit_rebalances_serialized_byte_budget_and_reports_evictions() {
+        let mut log = ConversationMessageLog::default();
+        for seq in 1..=40_u64 {
+            log.store_posted(demo_pinned_message(seq, format!("msg_edit_{seq}").as_str()));
+        }
+
+        let mut evicted_message_ids = Vec::new();
+        for seq in 1..=40_u64 {
+            let outcome = log
+                .apply_edited(&MessageEdited {
+                    tenant_id: "100001".into(),
+                    conversation_id: "c_pins".into(),
+                    message_id: format!("msg_edit_{seq}"),
+                    message_seq: seq,
+                    body: MessageBody {
+                        summary: None,
+                        parts: vec![ContentPart::text("x".repeat(1024 * 1024))],
+                        render_hints: BTreeMap::new(),
+                        reply_to: None,
+                    },
+                    editor: demo_sender(),
+                    edited_at: format!("2026-04-07T13:00:{seq:02}.000Z"),
+                })
+                .expect("cached message should be editable");
+            evicted_message_ids.extend(outcome.evicted_message_ids);
+        }
+
+        assert!(
+            log.cached_message_bytes() <= CONVERSATION_MESSAGE_LOG_MAX_CACHED_BYTES,
+            "message mutations must keep the serialized cache within its hard byte budget"
+        );
+        assert!(!evicted_message_ids.is_empty());
     }
 }

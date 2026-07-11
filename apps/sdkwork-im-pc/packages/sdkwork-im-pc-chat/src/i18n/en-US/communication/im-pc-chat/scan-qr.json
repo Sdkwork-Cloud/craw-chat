@@ -1,0 +1,88 @@
+{
+  "scanQr": {
+    "modal": {
+      "title": "Scan QR"
+    },
+    "tabs": {
+      "upload": "Upload QR",
+      "camera": "Camera"
+    },
+    "upload": {
+      "title": "Upload QR image",
+      "description": "PNG, JPG, and other image files are supported. The result opens the matching flow automatically."
+    },
+    "camera": {
+      "title": "Camera scanner",
+      "description": "Start the camera and place the QR code in the center of the frame.",
+      "state": {
+        "idle": "Camera is off",
+        "starting": "Starting camera",
+        "active": "Scanning QR code"
+      },
+      "device": "Camera",
+      "defaultDevice": "Default camera",
+      "deviceName": "Camera {{index}}",
+      "loadingDevices": "Loading cameras...",
+      "noDevices": "Default camera"
+    },
+    "browser": {
+      "title": "Built-in web browser"
+    },
+    "result": {
+      "user": "User QR code",
+      "group": "Group QR code",
+      "community": "Circle QR code",
+      "url": "Web link",
+      "unknown": "QR code content",
+      "source": "Source: {{source}}"
+    },
+    "group": {
+      "memberCount": "{{count}} members",
+      "unknownName": "Unknown group",
+      "unresolved": "Group details unavailable"
+    },
+    "community": {
+      "memberCount": "{{count}} members",
+      "unknownName": "Unknown circle",
+      "unresolved": "Circle details unavailable"
+    },
+    "actions": {
+      "chooseFile": "Choose file",
+      "decoding": "Decoding...",
+      "startCamera": "Start camera",
+      "stopCamera": "Stop scanning",
+      "viewUserProfile": "View profile",
+      "addFriend": "Add friend",
+      "openGroup": "Open group",
+      "joinGroup": "Join group",
+      "openCommunity": "View circle",
+      "joinCommunity": "Join circle",
+      "openLink": "Open link",
+      "viewContent": "View content",
+      "closeBrowser": "Close",
+      "copyContent": "Copy content"
+    },
+    "unknownContent": {
+      "modalTitle": "QR code content"
+    },
+    "userProfile": {
+      "modalTitle": "User profile"
+    },
+    "state": {
+      "resolving": "Reading QR code content...",
+      "resolveFailed": "Failed to read QR code content",
+      "invalidContent": "Invalid QR code content",
+      "decodeFailed": "Could not decode the QR code. Try a clearer image.",
+      "cameraUnavailable": "Camera is unavailable or permission was not granted.",
+      "joinCapabilityUnavailable": "Scan-to-join is not connected in this client. The standard QR scenario was recognized and displayed."
+    },
+    "toast": {
+      "copied": "QR code content copied",
+      "copyFailed": "Copy failed",
+      "friendRequestSent": "Friend request sent to {{name}}",
+      "friendRequestFailed": "Failed to send friend request",
+      "joinCapabilityUnavailable": "Scan-to-join is not connected yet",
+      "communityNotFound": "Circle not found"
+    }
+  }
+}

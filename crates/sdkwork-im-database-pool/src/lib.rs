@@ -1,6 +1,6 @@
 //! Sdkwork IM database pool bootstrap through `sdkwork-database`.
 //!
-//! Every IM process (standalone, cloud, unified-process, split-services) MUST call
+//! Every IM process (standalone and cloud) MUST call
 //! [`bootstrap_im_process_database_pools_from_env`] or
 //! [`try_bootstrap_im_process_database_pools_from_env`] once at startup when PostgreSQL
 //! is configured, so all modules reuse one sqlx lifecycle host and one shared r2d2 pool.
@@ -21,12 +21,10 @@ pub use sdkwork_im_database_host::{
 };
 pub use shared_postgres::{
     ImProcessDatabasePools, ImSharedPostgresConnectionManager, ImSharedPostgresR2d2Pool,
-    ImSharedPostgresTlsConnector, ImUnifiedProcessPools,
-    bootstrap_im_process_database_pools_from_env, bootstrap_im_unified_process_pools_from_env,
+    ImSharedPostgresTlsConnector, bootstrap_im_process_database_pools_from_env,
     clone_shared_im_postgres_r2d2_pool, ensure_im_process_postgres_r2d2_pool,
     im_process_database_pools, is_im_process_database_pools_installed,
-    is_im_unified_process_pools_installed, shared_im_postgres_r2d2_pool,
-    try_bootstrap_im_process_database_pools_from_env, unified_process_pools,
+    shared_im_postgres_r2d2_pool, try_bootstrap_im_process_database_pools_from_env,
 };
 
 /// Create the canonical IM sqlx pool from `SDKWORK_IM_DATABASE_*` environment variables.

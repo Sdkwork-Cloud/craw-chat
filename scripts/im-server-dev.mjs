@@ -10,7 +10,7 @@ import {
   createManagedSdkworkApiGatewayProcess,
   createSdkworkChatBrowserOrigins,
   createStandaloneGatewayProcess,
-  isStandaloneUnifiedProcess,
+  isStandaloneSingleIngress,
   isSdkworkApiGatewayManagedExternally,
   resolveSdkworkApiGatewayBaseUrl,
   resolveSdkworkApiGatewayBind,
@@ -271,7 +271,7 @@ await ensurePostgresDevDatabaseReady({
   repoRoot,
 });
 
-const standaloneGatewayProcess = isStandaloneUnifiedProcess(runtimeEnv)
+const standaloneGatewayProcess = isStandaloneSingleIngress(runtimeEnv)
   ? createStandaloneGatewayProcess({
     env: runtimeEnv,
     repoRoot,
@@ -279,7 +279,7 @@ const standaloneGatewayProcess = isStandaloneUnifiedProcess(runtimeEnv)
   : undefined;
 
 if (standaloneGatewayProcess) {
-  process.stdout.write('[sdkwork-im-server] using sdkwork-im-standalone-gateway for standalone unified-process IAM ingress\n');
+  process.stdout.write('[sdkwork-im-server] using sdkwork-im-standalone-gateway for standalone single-ingress IAM ingress\n');
   await runCommand(standaloneGatewayProcess.command, standaloneGatewayProcess.args, {
     env: standaloneGatewayProcess.env,
   });

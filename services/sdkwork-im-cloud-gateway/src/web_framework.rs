@@ -1,17 +1,22 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum::http::{StatusCode, header};
 use axum::middleware::from_fn_with_state;
+use axum::response::IntoResponse;
+use axum::routing::get;
 use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_iam_web_adapter::{IamAuthorizationPolicy, IamWebRequestContextResolver};
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
 use sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env;
 use sdkwork_web_axum::with_web_request_context;
 use sdkwork_web_bootstrap::{
-    HttpMethod, HttpRoute, HttpRouteManifest, ReadinessCheck, SecurityPolicy, WebEnvironment,
-    WebFramework, WebFrameworkBuilder, WebRequestContextProfile, service_router,
+    HttpMethod, HttpRoute, HttpRouteManifest, ReadinessCheck, SecurityPolicy, ServiceRouterConfig,
+    WebEnvironment, WebFramework, WebFrameworkBuilder, WebRequestContextProfile, service_router,
 };
-use sdkwork_web_core::{EnforcePrincipalTenantIsolationPolicy, WebFrameworkOptionalFeatures};
+use sdkwork_web_core::{
+    EnforcePrincipalTenantIsolationPolicy, HttpMetricsRegistry, WebFrameworkOptionalFeatures,
+};
 use sdkwork_web_store_sqlx::{
     connect_and_bootstrap_webstore_database_from_env, shared_audit_emitter,
     shared_idempotency_store, shared_rate_limit_store, shared_security_event_emitter,
@@ -137,7 +142,7 @@ fn wrap_gateway_router_with_resolver(
     let mut framework_builder = WebFramework::builder(resolver)
         .profile(profile)
         .security_policy(security_policy)
-        .route_manifest(route_manifest.clone())
+        .route_manifest(route_manifest)
         .authorization_policy(Arc::new(IamAuthorizationPolicy::new(route_manifest)))
         .tenant_isolation_policy(Arc::new(EnforcePrincipalTenantIsolationPolicy))
         .optional_features(optional_features)
@@ -146,12 +151,14 @@ fn wrap_gateway_router_with_resolver(
         framework_builder = framework_builder.readiness_check(check);
     }
     let framework = framework_builder.build();
-    service_router(
+    let metrics = framework.metrics().clone();
+    service_router_with_runtime_metrics(
         with_web_request_context(router, framework.layer().clone()).layer(from_fn_with_state(
             TenantRateLimiter::new(TenantRateLimitConfig::from_env()),
             per_tenant_rate_limit_middleware,
         )),
         framework.service_router_config(),
+        metrics,
     )
 }
 
@@ -189,7 +196,7 @@ async fn wrap_gateway_router_with_resolver_from_env(
     let mut framework_builder = WebFramework::builder(resolver)
         .profile(profile)
         .security_policy(security_policy)
-        .route_manifest(route_manifest.clone())
+        .route_manifest(route_manifest)
         .authorization_policy(Arc::new(IamAuthorizationPolicy::new(route_manifest)))
         .tenant_isolation_policy(Arc::new(EnforcePrincipalTenantIsolationPolicy))
         .optional_features(optional_features)
@@ -199,24 +206,108 @@ async fn wrap_gateway_router_with_resolver_from_env(
         framework_builder = configure_production_framework_builder(framework_builder).await;
     }
     let framework = framework_builder.build();
-    service_router(
+    let metrics = framework.metrics().clone();
+    service_router_with_runtime_metrics(
         with_web_request_context(router, framework.layer().clone()).layer(from_fn_with_state(
             TenantRateLimiter::new(TenantRateLimitConfig::from_env()),
             per_tenant_rate_limit_middleware,
         )),
         framework.service_router_config(),
+        metrics,
     )
 }
 
 /// Wrap the product gateway router with the canonical SDKWork HTTP interceptor pipeline.
 ///
-/// Health, readiness, and metrics are owned by `sdkwork-web-bootstrap::service_router`.
+/// Health and readiness are owned by `sdkwork-web-bootstrap::service_router`; `/metrics`
+/// preserves its HTTP registry and appends bounded IM runtime gauges and counters.
 pub fn wrap_gateway_router(router: Router) -> Router {
     wrap_gateway_router_with_resolver(
         router,
         IamWebRequestContextResolver::new(None),
         Some(Arc::new(sdkwork_web_bootstrap::AlwaysReady)),
         true,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use conversation_runtime::{
+        ConversationCommitJournal, ConversationRuntime, InMemoryJournal,
+        register_embedded_conversation_runtime,
+    };
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn metrics_endpoint_includes_http_and_conversation_runtime_metrics() {
+        register_embedded_conversation_runtime(Arc::new(ConversationRuntime::new(
+            ConversationCommitJournal::Memory(InMemoryJournal::default()),
+        )));
+
+        let response = wrap_gateway_router(Router::new())
+            .oneshot(
+                Request::builder()
+                    .uri("/metrics")
+                    .body(Body::empty())
+                    .expect("metrics request should build"),
+            )
+            .await
+            .expect("metrics request should complete");
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("metrics body should collect")
+            .to_bytes();
+        let body = String::from_utf8(body.to_vec()).expect("metrics body should be UTF-8");
+
+        assert!(body.contains("sdkwork_http_requests_total"));
+        assert!(body.contains("im_conversation_runtime_entries"));
+        assert!(body.contains("deployment_profile=\"standalone\""));
+        assert!(body.contains("runtime_target=\"server\""));
+    }
+}
+
+async fn im_gateway_metrics_handler(metrics: Arc<HttpMetricsRegistry>) -> impl IntoResponse {
+    let mut output = metrics.render_prometheus();
+    if let Some(runtime) = conversation_runtime::resolve_embedded_conversation_runtime() {
+        let dimensions = metrics.dimensions();
+        output.push('\n');
+        output.push_str(&runtime.render_runtime_metrics_prometheus(
+            dimensions.service.as_str(),
+            dimensions.environment.as_str(),
+            dimensions.deployment_profile.as_str(),
+            dimensions.runtime_target.as_str(),
+        ));
+    }
+    (
+        StatusCode::OK,
+        [(
+            header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
+        output,
+    )
+}
+
+fn service_router_with_runtime_metrics(
+    router: Router,
+    config: ServiceRouterConfig,
+    metrics: Arc<HttpMetricsRegistry>,
+) -> Router {
+    service_router(router, config.skip_metrics()).route(
+        "/metrics",
+        get({
+            move || {
+                let metrics = metrics.clone();
+                async move { im_gateway_metrics_handler(metrics).await }
+            }
+        }),
     )
 }
 

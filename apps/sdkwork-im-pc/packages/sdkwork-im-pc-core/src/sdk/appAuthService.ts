@@ -5,11 +5,14 @@ import {
   resetSdkworkChatAuthenticatedSdkClients,
   resetSdkworkChatIamRuntime,
 } from './appAuthRuntime';
+import { resolveDesktopOfflinePrincipalScope } from './desktopOfflineScope';
+import { purgeDesktopOfflinePrincipalCache } from './desktopOfflineStore';
 import {
   applyAppSdkSessionTokens,
   clearAppSdkSessionTokens,
   isAppSdkSessionAuthenticated,
   normalizeSdkworkChatSessionUser,
+  onAppSdkSessionPersisted,
   readAppSdkSessionTokens,
   type SdkworkChatSession,
   type SdkworkChatSessionUser,
@@ -168,6 +171,20 @@ function isAuthSessionRejectedError(error: unknown): boolean {
 
 let currentSessionRefreshPromise: Promise<SdkworkChatSession | null> | null = null;
 
+// TTL cache for getCurrentSession: AuthGate and ChatLayout both call
+// getCurrentSession() at startup. Without a cache, the second caller always
+// re-hits the network because the single-flight promise is already cleared.
+// A short TTL lets sequential startup callers share one network round-trip.
+const CURRENT_SESSION_TTL_MS = 30_000;
+let currentSessionCache: { session: SdkworkChatSession | null; expiresAt: number } | null = null;
+
+// Keep the TTL cache in sync when the session is persisted or cleared by
+// other code paths (token refresh, login commit, logout). This refreshes the
+// cached value and resets the TTL window so callers see the latest session.
+onAppSdkSessionPersisted((session) => {
+  currentSessionCache = { session, expiresAt: Date.now() + CURRENT_SESSION_TTL_MS };
+});
+
 async function refreshCurrentSessionFromServer(): Promise<SdkworkChatSession | null> {
   const storedSession = readAppSdkSessionTokens();
   if (!isAppSdkSessionAuthenticated(storedSession)) {
@@ -190,23 +207,56 @@ async function refreshCurrentSessionFromServer(): Promise<SdkworkChatSession | n
 
 export const appAuthService: AppAuthService = {
   async getCurrentSession() {
+    // Serve from TTL cache when fresh.
+    if (currentSessionCache && Date.now() < currentSessionCache.expiresAt) {
+      return currentSessionCache.session;
+    }
+    // Collapse concurrent callers onto a single in-flight request.
     if (currentSessionRefreshPromise) {
       return currentSessionRefreshPromise;
     }
 
+    currentSessionCache = null;
     currentSessionRefreshPromise = refreshCurrentSessionFromServer().finally(() => {
       currentSessionRefreshPromise = null;
     });
-    return currentSessionRefreshPromise;
+    const session = await currentSessionRefreshPromise;
+    currentSessionCache = { session, expiresAt: Date.now() + CURRENT_SESSION_TTL_MS };
+    return session;
   },
 
   async logout() {
+    const offlineScope = resolveDesktopOfflinePrincipalScope(readAppSdkSessionTokens());
+    let remoteLogoutError: unknown;
+    let offlinePurgeError: unknown;
     try {
       await getSdkworkChatIamRuntime().service.auth.sessions.current.delete();
+    } catch (error) {
+      remoteLogoutError = error;
+    }
+    try {
+      if (offlineScope) {
+        await purgeDesktopOfflinePrincipalCache(offlineScope);
+      }
+    } catch (error) {
+      offlinePurgeError = error;
     } finally {
+      currentSessionCache = null;
       clearAppSdkSessionTokens();
       resetSdkworkChatAuthenticatedSdkClients();
       resetSdkworkChatIamRuntime();
+    }
+    if (remoteLogoutError && offlinePurgeError) {
+      throw new AggregateError(
+        [remoteLogoutError, offlinePurgeError],
+        'Remote logout and desktop offline cache purge both failed.',
+      );
+    }
+    if (offlinePurgeError) {
+      throw offlinePurgeError;
+    }
+    if (remoteLogoutError) {
+      throw remoteLogoutError;
     }
   },
 };

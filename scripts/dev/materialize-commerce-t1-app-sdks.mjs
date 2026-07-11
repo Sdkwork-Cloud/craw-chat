@@ -186,7 +186,7 @@ function sliceOpenapiFromMonolith(family) {
   };
 }
 
-function writeAssemblyFiles(repoRoot, family, openapi, operationCount) {
+function writeSdkManifestFiles(repoRoot, family, openapi, operationCount) {
   const familyRoot = path.join(repoRoot, 'sdks', family.familyName);
   const authorityFile = `${family.authorityName}.openapi.json`;
   const authorityPath = path.join(familyRoot, 'openapi', authorityFile);
@@ -195,8 +195,18 @@ function writeAssemblyFiles(repoRoot, family, openapi, operationCount) {
   writeJson(authorityPath, openapi);
   writeJson(sdkgenPath, openapi);
   writeJson(path.join(repoRoot, family.sourceOpenapiRelative), openapi);
-  writeJson(path.join(familyRoot, '.sdkwork-assembly.json'), {
+  writeJson(path.join(familyRoot, 'sdk-manifest.json'), {
     schemaVersion: 1,
+    sdkFamily: family.familyName,
+    sdkName: family.familyName,
+    packageName: family.packageName,
+    transportPackageName: `${family.familyName}-generated-typescript`,
+    typescript: {
+      composedRoot: `${family.familyName}-typescript`,
+      composedEntry: `${family.familyName}-typescript/src/index.ts`,
+      transportRoot: `${family.familyName}-typescript/generated/server-openapi`,
+      transportEntry: `${family.familyName}-typescript/generated/server-openapi/src/index.ts`,
+    },
     workspace: family.familyName,
     title: family.displayTitle,
     apiVersion: openapi.info?.version ?? '1.0.0',
@@ -232,7 +242,9 @@ function writeAssemblyFiles(repoRoot, family, openapi, operationCount) {
         releaseState: 'not_published',
         packagePath: `${family.familyName}-typescript/generated/server-openapi`,
         manifestPath: `${family.familyName}-typescript/generated/server-openapi/package.json`,
-        name: family.packageName,
+        name: `${family.familyName}-generated-typescript`,
+        consumerPackageName: family.packageName,
+        transportPackageName: `${family.familyName}-generated-typescript`,
         version: '0.1.0',
         description: `Generator-owned TypeScript transport SDK for ${family.displayTitle}.`,
         generatedPath: `${family.familyName}-typescript/generated/server-openapi`,
@@ -307,7 +319,7 @@ function runSdkgen(family, familyRoot, sdkgenPath) {
   }
 }
 
-function patchGeneratedPackageJson(familyRoot, family) {
+function normalizeGeneratedTransportPackageJson(familyRoot, family) {
   const packageJsonPath = path.join(
     familyRoot,
     `${family.familyName}-typescript`,
@@ -319,7 +331,7 @@ function patchGeneratedPackageJson(familyRoot, family) {
     fail(`missing generated package.json for ${family.familyName}`);
   }
   const packageJson = readJson(packageJsonPath);
-  packageJson.name = family.packageName;
+  packageJson.name = `${family.familyName}-generated-typescript`;
   writeJson(packageJsonPath, packageJson);
 }
 
@@ -333,13 +345,13 @@ function main() {
     }
     const openapi = readOwnerOpenapi(repoRoot, family);
     const operationCount = countOperations(openapi);
-    const { familyRoot, sdkgenPath } = writeAssemblyFiles(repoRoot, family, openapi, operationCount);
+    const { familyRoot, sdkgenPath } = writeSdkManifestFiles(repoRoot, family, openapi, operationCount);
     process.stdout.write(
       `[materialize-commerce-t1-app-sdks] ${family.familyName}: ${operationCount} operations\n`,
     );
     if (!checkOnly && !family.skipSdkgen) {
       runSdkgen(family, familyRoot, sdkgenPath);
-      patchGeneratedPackageJson(familyRoot, family);
+      normalizeGeneratedTransportPackageJson(familyRoot, family);
     }
   }
 }

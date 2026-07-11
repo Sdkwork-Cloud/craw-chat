@@ -18,7 +18,7 @@ and provider-neutral media runtime contracts.
 | Boundary | Standard |
 | --- | --- |
 | SDK workspace root | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk` |
-| Authority snapshot | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` |
+| SDK manifest | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdk-manifest.json` |
 | Architecture | Provider-standard runtime SDK |
 | Default provider identity | `volcengine`, `rtc-volcengine`, `sdkwork-rtc-driver-volcengine` |
 | Primary verification | `node ../../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs` |
@@ -65,4 +65,3 @@ node ../../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 - [SDK Overview](/sdk/index)
 - [IM Calls API](/api-reference/im/calls)
 - `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
-

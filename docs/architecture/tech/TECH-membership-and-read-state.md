@@ -15,7 +15,7 @@
 
 <div class="api-link-list">
   <a href="/api-reference/im/conversations"><code>Conversations</code> Creation, inbox, and agent handoff are documented separately</a>
-  <a href="/api-reference/im/messages"><code>Messages</code> Timeline reads and message mutation flows live on their own page</a>
+  <a href="/api-reference/im/messages"><code>Messages</code> Message history reads and message mutation flows live on their own page</a>
   <a href="/sdk/app-sdk"><code>App SDK</code> These routes map to <code>sdk.conversations</code> rather than a standalone membership client</a>
 </div>
 
@@ -403,4 +403,3 @@ Updates the read cursor for the current principal.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

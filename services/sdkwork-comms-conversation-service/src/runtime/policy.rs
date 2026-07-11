@@ -144,15 +144,25 @@ pub(super) fn ensure_system_channel_requester_kind(
     )))
 }
 
-pub(super) fn ensure_direct_chat_binding_requester_kind(
+pub(super) fn ensure_direct_chat_binding_requester_allowed(
+    requester_id: &str,
     requester_kind: &str,
+    left_actor_id: &str,
+    left_actor_kind: &str,
+    right_actor_id: &str,
+    right_actor_kind: &str,
 ) -> Result<(), RuntimeError> {
     if requester_kind == "system" {
         return Ok(());
     }
+    if (requester_kind == left_actor_kind && requester_id == left_actor_id)
+        || (requester_kind == right_actor_kind && requester_id == right_actor_id)
+    {
+        return Ok(());
+    }
 
     Err(RuntimeError::PermissionDenied(format!(
-        "direct chat binding requires system requester, got {requester_kind}"
+        "direct chat binding requester must be one of the participants, got {requester_kind}:{requester_id}"
     )))
 }
 

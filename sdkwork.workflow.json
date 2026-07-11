@@ -281,21 +281,21 @@
         "env": {
           "SDKWORK_SHARED_SDK_MODE": "git"
         },
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:prod -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:prod -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  throw \"Unsupported Sdkwork IM package profile $env:SDKWORK_PACKAGE_PROFILE\"\n}"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"browser\") {\n  pnpm release:build:prod -- --target browser\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:prod -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:prod -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  throw \"Unsupported Sdkwork IM package profile $env:SDKWORK_PACKAGE_PROFILE\"\n}"
       }
     ],
     "stage": [
       {
         "name": "Stage selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:stage -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm release:stage -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION"
       }
     ],
     "package": [
       {
         "name": "Build selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:package -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm release:package -- --package-id $env:SDKWORK_PACKAGE_ID --version $env:SDKWORK_PACKAGE_VERSION"
       }
     ],
     "sign": [
@@ -316,11 +316,26 @@
       {
         "name": "Validate selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\n$artifactPrefix = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"sdkwork-im-server\" } else { \"sdkwork-im-desktop\" }\n$legacyArtifactSegment = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-server\" } else { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-desktop\" }\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"$artifactPrefix-$legacyArtifactSegment-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\npnpm release:validate -- --package-id $legacyPackageId --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"sdkwork-im-$env:SDKWORK_PACKAGE_ID-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\npnpm release:validate -- --package-id $env:SDKWORK_PACKAGE_ID --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
       }
     ]
   },
   "targets": [
+    {
+      "id": "web-universal-cloud-browser-zip",
+      "profile": "browser",
+      "platform": "web",
+      "architecture": "universal",
+      "formats": [
+        "zip"
+      ],
+      "runner": "ubuntu-latest",
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "browser"
+    },
     {
       "id": "linux-x64-standalone-server-tar-gz",
       "profile": "server",

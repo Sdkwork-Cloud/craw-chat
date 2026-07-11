@@ -66,7 +66,6 @@ async fn test_portal_workspace_returns_sdkwork_envelope() {
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("portal.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -117,7 +116,6 @@ async fn test_portal_dashboard_requires_authenticated_session() {
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("portal.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -157,7 +155,6 @@ async fn test_portal_governance_fail_closed_without_audit_records() {
                 .with_dual_token_organization("100001")
                 .with_dual_token_user("1")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("portal.read")
                 .body(Body::empty())
                 .unwrap(),
         )

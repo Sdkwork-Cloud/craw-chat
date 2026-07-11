@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_OPS_SERVICE_BIND_ADDR";
-const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18091";
+const DEFAULT_BIND_ADDR: &str = "127.0.0.1:28091";
 
 #[tokio::main]
 async fn main() -> ExitCode {

@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
         ),
         "@sdkwork/iam-app-sdk": path.resolve(
           iamRoot,
-          "sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts",
+          "sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts",
         ),
         "@sdkwork/iam-contracts": path.resolve(
           iamRoot,
@@ -58,10 +58,6 @@ export default defineConfig(({ mode }) => {
         "@sdkwork/im-sdk": path.resolve(
           imRoot,
           "sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts",
-        ),
-        "@sdkwork/im-sdk-generated": path.resolve(
-          imRoot,
-          "sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts",
         ),
         "@sdkwork/drive-app-sdk": path.resolve(
           driveRoot,

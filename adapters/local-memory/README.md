@@ -1,6 +1,6 @@
-# local-memory
+﻿# local-memory
 
-`local-memory` is the default in-memory adapter package used by `standalone.split-services.development`.
+`local-memory` is the default in-memory adapter package used by `standalone.development`.
 
 ## What It Provides
 

@@ -8,7 +8,7 @@ canonical binary name `sdkwork-im-server`.
 - binary: `sdkwork-im-server`
 - package source: `services/sdkwork-im-cloud-gateway`
 - startup command: `sdkwork-im-server --config <config-root>/server.yaml`
-- default frozen bind in `deployments/templates/server.yaml.example`: `0.0.0.0:18080`
+- default frozen bind in `deployments/templates/server.yaml.example`: `0.0.0.0:18079`
 
 This is the same startup contract used by foreground starts, generated service-manager assets, and
 release-bundle planning.

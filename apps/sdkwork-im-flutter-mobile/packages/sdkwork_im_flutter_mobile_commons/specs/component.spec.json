@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork_im_flutter_mobile_commons",
+    "displayName": "SDKWork IM Flutter Mobile Commons",
+    "version": "0.1.0",
+    "type": "flutter-package",
+    "root": "apps/sdkwork-im-flutter-mobile/packages/sdkwork_im_flutter_mobile_commons",
+    "domain": "chat",
+    "capability": "commons",
+    "surface": "app",
+    "languages": ["dart", "flutter"],
+    "generated": false,
+    "manifests": ["pubspec.yaml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored code organization and package responsibility boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Flutter mobile package naming and SDKWork identity vocabulary."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Architecture-neutral frontend package and UI-service rules."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "Flutter mobile app surface selection and frontend package role rules."
+    },
+    {
+      "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md",
+      "purpose": "Flutter mobile package taxonomy."
+    },
+    {
+      "file": "APP_FLUTTER_UI_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md",
+      "purpose": "Flutter package UI and shared primitive rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Frontend package verification requirements."
+    }
+  ],
+  "contracts": {
+    "layerRole": "frontend-commons",
+    "publicExports": ["lib/sdkwork_im_flutter_mobile_commons.dart"],
+    "providedPorts": [
+      {
+        "name": "imFlutterMobileCommons",
+        "export": "lib/sdkwork_im_flutter_mobile_commons.dart"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": ["pubspec.yaml"],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": ["flutter analyze", "flutter test"]
+  }
+}

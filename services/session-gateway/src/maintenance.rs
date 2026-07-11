@@ -33,6 +33,7 @@ pub fn spawn_realtime_maintenance_jobs(assembly: RealtimePlaneAssembly) -> Optio
             let cluster = assembly.realtime_cluster();
             cluster.cleanup_stale_route_epoch_notifiers();
             cluster.cleanup_stale_disconnect_fences();
+            cluster.purge_expired_disconnect_fences();
             expire_stale_presence_devices(assembly.presence_runtime().as_ref());
         }
     }))

@@ -144,6 +144,8 @@ pub struct GroupCreatedPayload {
 pub struct GroupUpdatedPayload {
     pub group_id: String,
     pub group_name: String,
+    #[serde(default)]
+    pub conversation_id: Option<String>,
     pub description: Option<String>,
     pub avatar_url: Option<String>,
     pub announcement: Option<String>,

@@ -1,16 +1,17 @@
 use im_app_context::AppContext;
 use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{
-    ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
-    MessageStore, OutboxStore, ReadCursorRecord, RealtimeEventPublisher, RetentionScopeStore,
-    StoredMessageRecord,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ConversationAggregateStore, ConversationMemberRecord,
+    ConversationSeqAllocator, IdGenerator, MessageStore, OutboxStore, ReadCursorRecord,
+    RealtimeEventPublisher, RetentionScopeStore, StoredMessageRecord,
 };
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{
     COMMIT_JOURNAL_REPLAY_BATCH_LIMIT, CommitJournal, CommitJournalAggregateScope,
     CommitJournalReplayCursor, CommitJournalReplayPage, CommitPosition,
 };
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::io::Write;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub use im_domain_core::conversation::{
@@ -37,7 +38,10 @@ use serde_json::{Value as JsonValue, json};
 
 mod actor_inbox;
 mod binding;
+#[cfg(test)]
+mod bounded_soak_tests;
 mod creation;
+mod cursor_signing;
 mod direct_message_access;
 mod durable_message_post;
 mod governance;
@@ -45,7 +49,9 @@ mod handoff;
 pub mod http;
 pub mod internal_rpc_dispatch;
 mod journal_bootstrap;
+mod member_list_cursor;
 mod membership;
+mod message_history_cursor;
 mod message_realtime;
 mod policy;
 mod postgres_direct_message_gate;
@@ -53,10 +59,13 @@ mod recovery;
 mod room;
 pub mod rpc_dispatch;
 mod rpc_projection_dispatch;
+mod runtime_metrics;
 mod support;
 
 use self::governance::ConversationPolicyAppliedPayload;
 use self::policy::MessagePostPolicy;
+use self::runtime_metrics::ConversationRuntimeMetrics;
+pub use self::runtime_metrics::ConversationRuntimeMetricsSnapshot;
 use self::support::{
     build_agent_handoff_status_changed_envelope, build_conversation_policy_applied_envelope,
     build_member_envelope, build_member_role_changed_envelope, build_message_edited_envelope,
@@ -65,9 +74,10 @@ use self::support::{
     build_message_unpinned_envelope, build_owner_transfer_envelope, build_read_cursor_envelope,
     conversation_business_scope_key, conversation_retention_class, conversation_scope_key,
     conversation_scope_key_for_envelope, conversation_timestamp, deactivate_roster_member,
-    encode_conversation_key_segments, event_id_component, next_member_episode,
-    resolve_active_member, resolve_active_member_id, resolve_active_member_id_with_kind,
-    resolve_active_member_with_kind, upsert_member, upsert_read_cursor, upsert_roster_member,
+    decode_conversation_scope_key, encode_conversation_key_segments, event_id_component,
+    next_member_episode, resolve_active_member, resolve_active_member_id,
+    resolve_active_member_id_with_kind, resolve_active_member_with_kind, upsert_member,
+    upsert_read_cursor, upsert_roster_member,
 };
 pub use direct_message_access::DirectMessageAccessGate;
 pub use durable_message_post::DurableMessagePostWriter;
@@ -97,15 +107,20 @@ const CONVERSATION_MAX_REQUEST_KEY_BYTES: usize = 2048;
 const MESSAGE_CLIENT_MSG_ID_MAX_BYTES: usize = 256;
 const MESSAGE_REACTION_KEY_MAX_BYTES: usize = 128;
 const MESSAGE_BODY_MAX_BYTES: usize = 512 * 1024;
-const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 100;
-const MESSAGE_HISTORY_MAX_LIMIT: usize = 1000;
-const CONVERSATION_MEMBER_LIST_DEFAULT_LIMIT: usize = 100;
-pub(super) const CONVERSATION_MEMBER_LIST_MAX_LIMIT: usize = 1000;
+const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 20;
+const MESSAGE_HISTORY_MAX_LIMIT: usize = 200;
+const CONVERSATION_MEMBER_LIST_DEFAULT_LIMIT: usize = 20;
+pub(super) const CONVERSATION_MEMBER_LIST_MAX_LIMIT: usize = CONVERSATION_AGGREGATE_PAGE_SIZE_MAX;
 const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
 const CONVERSATION_MAX_IN_MEMORY_DEFAULT: usize = 10_000;
+const CONVERSATION_CACHE_MAX_BYTES_DEFAULT: usize = 512 * 1024 * 1024;
 const CONVERSATION_IDLE_EVICTION_TARGET_RATIO: f64 = 0.8;
 const CONVERSATION_MAX_IN_MEMORY_ENV: &str = "SDKWORK_IM_CONVERSATION_MAX_IN_MEMORY";
+const CONVERSATION_CACHE_MAX_BYTES_ENV: &str = "SDKWORK_IM_CONVERSATION_CACHE_MAX_BYTES";
+const CONVERSATION_STATE_FIXED_OVERHEAD_BYTES: usize = 64 * 1024;
+const CONVERSATION_IDEMPOTENCY_REPLAY_MAX_ENTRIES: usize = 1_024;
+const CONVERSATION_IDEMPOTENCY_REPLAY_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 fn normalize_message_history_limit(limit: Option<usize>) -> Result<usize, String> {
     let limit = limit.unwrap_or(MESSAGE_HISTORY_DEFAULT_LIMIT);
@@ -136,6 +151,21 @@ pub struct CreateConversationCommand {
     pub conversation_id: String,
     pub creator_id: String,
     pub conversation_type: String,
+}
+
+/// Command for creating a group conversation with a server-derived canonical
+/// `g_` id. Groups have no natural deterministic pair key, so the canonical id
+/// seeds from the creator identity, the group display name at creation, and a
+/// client-supplied request key that guarantees idempotent retries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateGroupConversationCommand {
+    pub tenant_id: String,
+    #[serde(default = "default_organization_id")]
+    pub organization_id: String,
+    pub creator_id: String,
+    pub group_name: String,
+    pub client_request_key: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -685,6 +715,134 @@ struct MessageMutationReplayRecord {
     result: MessageMutationResult,
 }
 
+trait ReplayCacheEntrySize {
+    fn estimated_cache_bytes(&self) -> usize;
+}
+
+impl ReplayCacheEntrySize for PostedMessageReplayRecord {
+    fn estimated_cache_bytes(&self) -> usize {
+        self.sender_id
+            .len()
+            .saturating_add(self.sender_kind.len())
+            .saturating_add(self.message_id.len())
+            .saturating_add(estimated_json_bytes(&self.body))
+            .saturating_add(std::mem::size_of::<MessageType>())
+    }
+}
+
+impl ReplayCacheEntrySize for MessageMutationReplayRecord {
+    fn estimated_cache_bytes(&self) -> usize {
+        self.result
+            .conversation_id
+            .len()
+            .saturating_add(self.result.message_id.len())
+            .saturating_add(self.result.event_id.len())
+            .saturating_add(std::mem::size_of::<u64>())
+    }
+}
+
+#[derive(Default)]
+struct SerializedSizeCounter {
+    bytes: usize,
+}
+
+impl Write for SerializedSizeCounter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.bytes = self.bytes.saturating_add(buffer.len());
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn estimated_json_bytes(value: &impl serde::Serialize) -> usize {
+    let mut counter = SerializedSizeCounter::default();
+    serde_json::to_writer(&mut counter, value)
+        .map(|()| counter.bytes)
+        .unwrap_or(MESSAGE_BODY_MAX_BYTES)
+}
+
+struct BoundedReplayCache<V> {
+    entries: HashMap<String, V>,
+    insertion_order: VecDeque<String>,
+    entry_bytes: HashMap<String, usize>,
+    cached_bytes: usize,
+}
+
+impl<V> Default for BoundedReplayCache<V> {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+            insertion_order: VecDeque::new(),
+            entry_bytes: HashMap::new(),
+            cached_bytes: 0,
+        }
+    }
+}
+
+impl<V> BoundedReplayCache<V> {
+    fn get(&self, key: &str) -> Option<&V> {
+        self.entries.get(key)
+    }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        const REPLAY_CACHE_INDEX_OVERHEAD_BYTES: usize = 192;
+        std::mem::size_of::<Self>()
+            .saturating_add(self.cached_bytes)
+            .saturating_add(
+                self.entries
+                    .len()
+                    .saturating_mul(REPLAY_CACHE_INDEX_OVERHEAD_BYTES),
+            )
+    }
+
+    fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    fn cached_bytes(&self) -> usize {
+        self.cached_bytes
+    }
+}
+
+impl<V> BoundedReplayCache<V>
+where
+    V: ReplayCacheEntrySize,
+{
+    fn insert(&mut self, key: String, value: V) -> Option<V> {
+        let estimated_bytes = key.len().saturating_add(value.estimated_cache_bytes());
+        let previous = self.entries.remove(key.as_str());
+        if previous.is_some() {
+            self.insertion_order.retain(|queued| queued != &key);
+            if let Some(previous_bytes) = self.entry_bytes.remove(key.as_str()) {
+                self.cached_bytes = self.cached_bytes.saturating_sub(previous_bytes);
+            }
+        }
+        if estimated_bytes > CONVERSATION_IDEMPOTENCY_REPLAY_MAX_BYTES {
+            return previous;
+        }
+        while self.entries.len() >= CONVERSATION_IDEMPOTENCY_REPLAY_MAX_ENTRIES
+            || self.cached_bytes.saturating_add(estimated_bytes)
+                > CONVERSATION_IDEMPOTENCY_REPLAY_MAX_BYTES
+        {
+            let Some(oldest_key) = self.insertion_order.pop_front() else {
+                break;
+            };
+            self.entries.remove(oldest_key.as_str());
+            if let Some(oldest_bytes) = self.entry_bytes.remove(oldest_key.as_str()) {
+                self.cached_bytes = self.cached_bytes.saturating_sub(oldest_bytes);
+            }
+        }
+        self.insertion_order.push_back(key.clone());
+        self.cached_bytes = self.cached_bytes.saturating_add(estimated_bytes);
+        self.entry_bytes.insert(key.clone(), estimated_bytes);
+        self.entries.insert(key, value);
+        previous
+    }
+}
+
 fn message_mutation_request_key(sender: &Sender, idempotency_key: &str) -> String {
     format!(
         "{}:{}:{}",
@@ -699,6 +857,7 @@ enum PostMessageMutation {
     Applied {
         result: PostMessageResult,
         message: Message,
+        evicted_message_ids: Vec<String>,
     },
     Replayed(PostMessageResult),
 }
@@ -794,6 +953,22 @@ impl CreateConversationCommand {
             conversation_id,
             creator_id: auth.actor_id.clone(),
             conversation_type,
+        }
+    }
+}
+
+impl CreateGroupConversationCommand {
+    pub fn from_auth_context(
+        auth: &AppContext,
+        group_name: String,
+        client_request_key: String,
+    ) -> Self {
+        Self {
+            tenant_id: auth.tenant_id.clone(),
+            organization_id: organization_id_from_auth_context(auth),
+            creator_id: auth.actor_id.clone(),
+            group_name,
+            client_request_key,
         }
     }
 }
@@ -1259,6 +1434,7 @@ pub struct MessageHistoryResult {
     #[serde(flatten)]
     pub page: SdkWorkPageData<im_domain_core::message::StoredMessage>,
     pub high_watermark: u64,
+    pub next_before_seq: Option<u64>,
 }
 
 pub type ListMembersResult = SdkWorkPageData<ConversationMember>;
@@ -1373,14 +1549,27 @@ struct ConversationState {
     thread_create_request: Option<ThreadConversationCreateReplayRecord>,
     room_create_request: Option<RoomCreateReplayRecord>,
     direct_chat_binding_request: Option<DirectChatBindingReplayRecord>,
-    posted_message_requests: HashMap<String, PostedMessageReplayRecord>,
-    message_mutation_requests: HashMap<String, MessageMutationReplayRecord>,
+    posted_message_requests: BoundedReplayCache<PostedMessageReplayRecord>,
+    message_mutation_requests: BoundedReplayCache<MessageMutationReplayRecord>,
     last_accessed_at_ms: u64,
+}
+
+impl ConversationState {
+    fn estimated_heap_bytes(&self) -> usize {
+        CONVERSATION_STATE_FIXED_OVERHEAD_BYTES
+            .saturating_add(self.roster.estimated_heap_bytes())
+            .saturating_add(self.message_log.estimated_heap_bytes())
+            .saturating_add(self.posted_message_requests.estimated_heap_bytes())
+            .saturating_add(self.message_mutation_requests.estimated_heap_bytes())
+    }
 }
 
 #[derive(Default)]
 struct RuntimeState {
     conversations: HashMap<String, ConversationState>,
+    conversation_weights: HashMap<String, usize>,
+    dirty_conversation_scopes: HashSet<String>,
+    estimated_conversation_bytes: usize,
     business_index: HashMap<String, String>,
     message_locator: MessageLocatorIndex,
     actor_inbox: actor_inbox::ActorInboxRuntimeStore,
@@ -1444,39 +1633,138 @@ fn resolve_max_conversations_in_memory() -> usize {
         .unwrap_or(CONVERSATION_MAX_IN_MEMORY_DEFAULT)
 }
 
+fn resolve_conversation_cache_max_bytes() -> usize {
+    std::env::var(CONVERSATION_CACHE_MAX_BYTES_ENV)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(CONVERSATION_CACHE_MAX_BYTES_DEFAULT)
+}
+
 impl RuntimeState {
+    fn insert_conversation(&mut self, scope_key: String, mut conversation: ConversationState) {
+        if conversation.last_accessed_at_ms == 0 {
+            conversation.last_accessed_at_ms = now_ms();
+        }
+        if let Some(previous_weight) = self.conversation_weights.remove(scope_key.as_str()) {
+            self.estimated_conversation_bytes = self
+                .estimated_conversation_bytes
+                .saturating_sub(previous_weight);
+        }
+        let weight = conversation.estimated_heap_bytes();
+        self.estimated_conversation_bytes =
+            self.estimated_conversation_bytes.saturating_add(weight);
+        self.conversation_weights.insert(scope_key.clone(), weight);
+        self.dirty_conversation_scopes.remove(scope_key.as_str());
+        self.conversations.insert(scope_key, conversation);
+    }
+
     fn touch_conversation(&mut self, scope_key: &str) {
         if let Some(conv) = self.conversations.get_mut(scope_key) {
             conv.last_accessed_at_ms = now_ms();
+            self.dirty_conversation_scopes.insert(scope_key.to_owned());
         }
     }
 
-    fn evict_idle_conversations(&mut self, max_conversations: usize) -> usize {
+    fn refresh_dirty_conversation_weights(&mut self) {
+        if self.conversation_weights.len() != self.conversations.len() {
+            self.dirty_conversation_scopes.extend(
+                self.conversations
+                    .keys()
+                    .filter(|scope| !self.conversation_weights.contains_key(scope.as_str()))
+                    .cloned(),
+            );
+        }
+        let dirty_scopes = std::mem::take(&mut self.dirty_conversation_scopes);
+        for scope_key in dirty_scopes {
+            let Some(conversation) = self.conversations.get(scope_key.as_str()) else {
+                if let Some(previous_weight) = self.conversation_weights.remove(scope_key.as_str())
+                {
+                    self.estimated_conversation_bytes = self
+                        .estimated_conversation_bytes
+                        .saturating_sub(previous_weight);
+                }
+                continue;
+            };
+            let weight = conversation.estimated_heap_bytes();
+            let previous_weight = self
+                .conversation_weights
+                .insert(scope_key, weight)
+                .unwrap_or_default();
+            self.estimated_conversation_bytes = self
+                .estimated_conversation_bytes
+                .saturating_sub(previous_weight)
+                .saturating_add(weight);
+        }
+    }
+
+    fn evict_idle_conversations(&mut self, max_conversations: usize, max_bytes: usize) -> usize {
+        self.refresh_dirty_conversation_weights();
         let count = self.conversations.len();
-        if count <= max_conversations {
+        let over_count = count > max_conversations;
+        let over_bytes = self.estimated_conversation_bytes > max_bytes;
+        if !over_count && !over_bytes {
             return 0;
         }
-        let target = (max_conversations as f64 * CONVERSATION_IDLE_EVICTION_TARGET_RATIO) as usize;
-        let evict_count = count.saturating_sub(target.max(1));
+        let target_count = if over_count {
+            ((max_conversations as f64 * CONVERSATION_IDLE_EVICTION_TARGET_RATIO) as usize).max(1)
+        } else {
+            count
+        };
+        let target_bytes = if over_bytes {
+            ((max_bytes as f64 * CONVERSATION_IDLE_EVICTION_TARGET_RATIO) as usize).max(1)
+        } else {
+            self.estimated_conversation_bytes
+        };
         let mut entries: Vec<(String, u64)> = self
             .conversations
             .iter()
-            .map(|(k, v)| {
-                let ts = if v.last_accessed_at_ms == 0 {
-                    u64::MAX
-                } else {
-                    v.last_accessed_at_ms
-                };
-                (k.clone(), ts)
-            })
+            .map(|(key, conversation)| (key.clone(), conversation.last_accessed_at_ms))
             .collect();
-        // O(n) partial sort: partition so that entries[0..evict_count] are the
-        // evict_count smallest timestamps, avoiding a full O(n log n) sort.
-        entries.select_nth_unstable_by_key(evict_count, |(_, ts)| *ts);
-        for (key, _) in entries.iter().take(evict_count) {
-            self.conversations.remove(key.as_str());
+        entries.sort_unstable_by_key(|(_, last_accessed_at_ms)| *last_accessed_at_ms);
+        let mut evicted = 0usize;
+        for (key, _) in entries {
+            if self.conversations.len() <= target_count
+                && self.estimated_conversation_bytes <= target_bytes
+            {
+                break;
+            }
+            let Some(conversation) = self.conversations.remove(key.as_str()) else {
+                continue;
+            };
+            if let Some(weight) = self.conversation_weights.remove(key.as_str()) {
+                self.estimated_conversation_bytes =
+                    self.estimated_conversation_bytes.saturating_sub(weight);
+            }
+            self.dirty_conversation_scopes.remove(key.as_str());
+            if let Some((tenant_id, organization_id, conversation_id)) =
+                decode_conversation_scope_key(key.as_str())
+            {
+                self.message_locator
+                    .remove_conversation(tenant_id.as_str(), conversation_id.as_str());
+                self.actor_inbox.remove_conversation(
+                    organization_id.as_str(),
+                    conversation_id.as_str(),
+                    &conversation,
+                );
+                if let Some(binding) = conversation.aggregate.business_binding() {
+                    let business_scope_key = conversation_business_scope_key(
+                        tenant_id.as_str(),
+                        binding.business_type.as_str(),
+                        binding.business_id.as_str(),
+                    );
+                    if self
+                        .business_index
+                        .get(business_scope_key.as_str())
+                        .is_some_and(|mapped_id| mapped_id == conversation_id.as_str())
+                    {
+                        self.business_index.remove(business_scope_key.as_str());
+                    }
+                }
+            }
+            evicted = evicted.saturating_add(1);
         }
-        evict_count
+        evicted
     }
 }
 
@@ -2218,6 +2506,7 @@ impl CommitJournal for InMemoryJournal {
 pub struct ConversationRuntime<J> {
     journal: J,
     state: RwLock<RuntimeState>,
+    metrics: ConversationRuntimeMetrics,
     /// 可选的消息真值存储。注入后 post_message 走 DB seq 分配 + 真值写入路径。
     message_store: Option<Arc<dyn MessageStore>>,
     /// 可选的 Outbox 存储。注入后事件通过 outbox 异步投递。
@@ -2248,6 +2537,7 @@ where
         Self {
             journal,
             state: RwLock::new(RuntimeState::default()),
+            metrics: ConversationRuntimeMetrics::default(),
             message_store: None,
             outbox_store: None,
             id_generator: None,
@@ -2344,8 +2634,32 @@ where
 
     pub fn evict_idle_conversations(&self) -> usize {
         let max = resolve_max_conversations_in_memory();
+        let max_bytes = resolve_conversation_cache_max_bytes();
+        self.evict_idle_conversations_with_limits(max, max_bytes)
+    }
+
+    fn evict_idle_conversations_with_limits(
+        &self,
+        max_conversations: usize,
+        max_bytes: usize,
+    ) -> usize {
+        let started = std::time::Instant::now();
         let mut state = write_runtime_state(&self.state, "runtime.state.evict_idle");
-        state.evict_idle_conversations(max)
+        state.refresh_dirty_conversation_weights();
+        let over_count = state.conversations.len() > max_conversations;
+        let over_bytes = state.estimated_conversation_bytes > max_bytes;
+        let before_bytes = state.estimated_conversation_bytes;
+        let evicted = state.evict_idle_conversations(max_conversations, max_bytes);
+        let evicted_bytes = before_bytes.saturating_sub(state.estimated_conversation_bytes);
+        drop(state);
+        self.metrics.record_eviction_check(
+            over_count,
+            over_bytes,
+            evicted,
+            evicted_bytes,
+            started.elapsed(),
+        );
+        evicted
     }
 
     fn recover_single_conversation(
@@ -2393,6 +2707,45 @@ where
         Ok(recovered)
     }
 
+    fn load_journal_watermark_for_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Result<Option<u64>, RuntimeError> {
+        let scope = CommitJournalAggregateScope {
+            tenant_id: tenant_id.to_owned(),
+            aggregate_id: conversation_id.to_owned(),
+        };
+        let mut cursor = None;
+        let mut max_ordering_seq = None;
+        loop {
+            let page = self
+                .journal
+                .recorded_page_for_aggregate(
+                    &scope,
+                    cursor.as_ref(),
+                    COMMIT_JOURNAL_REPLAY_BATCH_LIMIT,
+                )
+                .map_err(RuntimeError::from)?;
+            if page.items.is_empty() {
+                break;
+            }
+            let batch_len = page.items.len();
+            for envelope in &page.items {
+                max_ordering_seq = Some(
+                    max_ordering_seq
+                        .unwrap_or(envelope.ordering_seq)
+                        .max(envelope.ordering_seq),
+                );
+            }
+            cursor = page.next_cursor;
+            if batch_len < COMMIT_JOURNAL_REPLAY_BATCH_LIMIT {
+                break;
+            }
+        }
+        Ok(max_ordering_seq)
+    }
+
     fn ensure_conversation_loaded(
         &self,
         tenant_id: &str,
@@ -2413,35 +2766,78 @@ where
         // acquiring the write lock prevents redundant inserts when another
         // thread loaded the same conversation concurrently.
         if let Some(ref aggregate_store) = self.aggregate_store {
-            let organization_id =
+            let normalized_organization_id =
                 im_domain_events::normalize_commit_organization_id(organization_id);
-            let db_state = aggregate_store.load_aggregate_state(
+            let members_page = aggregate_store.load_members_page(
                 tenant_id,
-                organization_id.as_str(),
+                normalized_organization_id.as_str(),
                 conversation_id,
-            );
-            let mut state =
-                write_runtime_state(&self.state, "ensure_conversation_loaded.aggregate");
-            // Double-check: another thread may have loaded this conversation
-            // while we were reading from the database.
-            if state.conversations.contains_key(scope_key.as_str()) {
+                None,
+                CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+            )?;
+            if members_page.items.is_empty() {
+                {
+                    let state = read_runtime_state(
+                        &self.state,
+                        "ensure_conversation_loaded.aggregate-empty",
+                    );
+                    if state.conversations.contains_key(scope_key.as_str()) {
+                        return Ok(());
+                    }
+                }
+                self.recover_single_conversation(tenant_id, conversation_id)?;
                 return Ok(());
             }
+            let read_cursors_page = aggregate_store.load_read_cursors_page(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                None,
+                CONVERSATION_AGGREGATE_PAGE_SIZE_MAX,
+            )?;
+            let high_watermark = aggregate_store.load_high_watermark(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+            )?;
             let mut conversation_state = ConversationState {
                 last_accessed_at_ms: now_ms(),
                 ..Default::default()
             };
-            if let Ok(db_state) = db_state {
-                for member_record in &db_state.members {
-                    let member = conversation_member_from_record(member_record);
-                    conversation_state.roster.upsert_member(member);
-                }
-                for cursor_record in &db_state.read_cursors {
-                    let cursor = read_cursor_from_record(cursor_record);
-                    conversation_state.roster.upsert_read_cursor(cursor);
-                }
+            for member_record in &members_page.items {
+                let member = conversation_member_from_record(member_record);
+                conversation_state.roster.upsert_member(member);
             }
-            state.conversations.insert(scope_key, conversation_state);
+            for cursor_record in &read_cursors_page.items {
+                let cursor = read_cursor_from_record(cursor_record);
+                conversation_state.roster.upsert_read_cursor(cursor);
+            }
+            conversation_state
+                .message_log
+                .observe_high_watermark(high_watermark);
+            if let Some(journal_watermark) =
+                self.load_journal_watermark_for_conversation(tenant_id, conversation_id)?
+            {
+                conversation_state
+                    .aggregate
+                    .observe_commit_seq(journal_watermark);
+            }
+            let mut state =
+                write_runtime_state(&self.state, "ensure_conversation_loaded.aggregate");
+            if state.conversations.contains_key(scope_key.as_str()) {
+                return Ok(());
+            }
+            let members_to_sync = conversation_state
+                .roster
+                .members()
+                .values()
+                .cloned()
+                .collect::<Vec<_>>();
+            state.insert_conversation(scope_key, conversation_state);
+            state.sync_actor_inbox_members(
+                normalized_organization_id.as_str(),
+                members_to_sync.as_slice(),
+            );
             return Ok(());
         }
         // 优先路径 2：有 MessageStore 时从 journal 重放成员/策略状态；
@@ -2455,10 +2851,165 @@ where
         Ok(())
     }
 
+    fn ensure_message_loaded(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        message_id: &str,
+    ) -> Result<String, RuntimeError> {
+        let hot_conversation_id = {
+            let state = read_runtime_state(&self.state, "runtime.state.ensure_message_loaded.hot");
+            state
+                .message_locator
+                .conversation_id(tenant_id, message_id)
+                .filter(|conversation_id| {
+                    let scope_key =
+                        conversation_scope_key(tenant_id, organization_id, conversation_id);
+                    state
+                        .conversations
+                        .get(scope_key.as_str())
+                        .and_then(|conversation| conversation.message_log.message(message_id))
+                        .is_some()
+                })
+                .map(str::to_owned)
+        };
+        if let Some(conversation_id) = hot_conversation_id {
+            return Ok(conversation_id);
+        }
+
+        let numeric_message_id = message_id
+            .parse::<i64>()
+            .map_err(|_| RuntimeError::MessageNotFound(message_id.to_owned()))?;
+        let message_store = self
+            .message_store
+            .as_ref()
+            .ok_or_else(|| RuntimeError::MessageNotFound(message_id.to_owned()))?;
+        let record = message_store
+            .read_message_by_id(tenant_id, numeric_message_id)?
+            .ok_or_else(|| RuntimeError::MessageNotFound(message_id.to_owned()))?;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        if record.tenant_id != tenant_id
+            || im_domain_events::normalize_commit_organization_id(record.organization_id.as_str())
+                != normalized_organization_id
+        {
+            return Err(RuntimeError::MessageNotFound(message_id.to_owned()));
+        }
+
+        let stored = membership::stored_message_from_record(&record)?;
+        let conversation_id = record.conversation_id.clone();
+        self.ensure_conversation_loaded(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id.as_str(),
+        )?;
+        let mut state = write_runtime_state(
+            &self.state,
+            "conversation-runtime.state.ensure_message_loaded.hydrate",
+        );
+        let scope_key = conversation_scope_key(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id.as_str(),
+        );
+        state.touch_conversation(scope_key.as_str());
+        let evicted_message_ids = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::MessageNotFound(message_id.to_owned()))?
+            .message_log
+            .store_hydrated(stored);
+        let evicted_message_count = evicted_message_ids.len();
+        for evicted_message_id in &evicted_message_ids {
+            state
+                .message_locator
+                .remove(tenant_id, evicted_message_id.as_str());
+        }
+        if !evicted_message_ids
+            .iter()
+            .any(|evicted_message_id| evicted_message_id == message_id)
+        {
+            state
+                .message_locator
+                .register(tenant_id, message_id, conversation_id.as_str());
+        }
+        drop(state);
+        self.metrics.record_message_evictions(evicted_message_count);
+        self.maybe_evict_after_write();
+        Ok(conversation_id)
+    }
+
+    fn ensure_member_loaded(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let scope_key = conversation_scope_key(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+        );
+        {
+            let state = read_runtime_state(&self.state, "runtime.state.ensure_member_loaded.hot");
+            if state
+                .conversations
+                .get(scope_key.as_str())
+                .and_then(|conversation| {
+                    conversation
+                        .roster
+                        .resolve_current_member_with_kind(principal_id, principal_kind)
+                })
+                .is_some()
+            {
+                return Ok(());
+            }
+        }
+        let Some(aggregate_store) = self.aggregate_store.as_ref() else {
+            return Ok(());
+        };
+        let Some(member_record) = aggregate_store.load_member(
+            tenant_id,
+            normalized_organization_id.as_str(),
+            conversation_id,
+            principal_kind,
+            principal_id,
+        )?
+        else {
+            return Ok(());
+        };
+        let member = conversation_member_from_record(&member_record);
+        let mut state = write_runtime_state(
+            &self.state,
+            "conversation-runtime.state.ensure_member_loaded.hydrate",
+        );
+        let conversation = state
+            .conversations
+            .get_mut(scope_key.as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        if conversation
+            .roster
+            .resolve_current_member_with_kind(principal_id, principal_kind)
+            .is_none()
+        {
+            conversation.roster.upsert_member(member.clone());
+            state.sync_actor_inbox_member(normalized_organization_id.as_str(), &member);
+        }
+        state.touch_conversation(scope_key.as_str());
+        drop(state);
+        self.maybe_evict_after_write();
+        Ok(())
+    }
+
     fn maybe_evict_after_write(&self) {
         let max = resolve_max_conversations_in_memory();
-        let mut state = write_runtime_state(&self.state, "runtime.state.maybe_evict");
-        state.evict_idle_conversations(max);
+        let max_bytes = resolve_conversation_cache_max_bytes();
+        self.evict_idle_conversations_with_limits(max, max_bytes);
     }
 
     /// 将会话的当前内存聚合状态（成员 + 已读游标）持久化到 AggregateStore。
@@ -2497,20 +3048,35 @@ where
         organization_id: &str,
         conversation_id: &str,
     ) {
+        if self.aggregate_store.is_some() {
+            if let Err(error) =
+                self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
+            {
+                tracing::warn!(
+                    tenant_id,
+                    organization_id,
+                    conversation_id,
+                    error = ?error,
+                    "failed to persist conversation aggregate state"
+                );
+            }
+        }
+        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        write_runtime_state(&self.state, "runtime.state.aggregate_persisted")
+            .touch_conversation(scope_key.as_str());
+        self.maybe_evict_after_write();
+    }
+
+    fn persist_aggregate_state_if_configured(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<(), RuntimeError> {
         if self.aggregate_store.is_none() {
-            return;
+            return Ok(());
         }
-        if let Err(error) =
-            self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
-        {
-            tracing::warn!(
-                tenant_id,
-                organization_id,
-                conversation_id,
-                error = ?error,
-                "failed to persist conversation aggregate state"
-            );
-        }
+        self.persist_aggregate_state(tenant_id, organization_id, conversation_id)
     }
 
     pub fn post_message(
@@ -2555,10 +3121,12 @@ where
             MESSAGE_CLIENT_MSG_ID_MAX_BYTES,
         )?;
         validate_message_body_contract(&command.body)?;
-        self.ensure_conversation_loaded(
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
+            command.sender.kind.as_str(),
+            command.sender.id.as_str(),
         )?;
         let request_key = post_message_request_key(&command);
         let scope_key = conversation_scope_key(
@@ -2792,7 +3360,8 @@ where
                             }
                         }
 
-                        conversation.message_log.store_posted(message.clone());
+                        let evicted_message_ids =
+                            conversation.message_log.store_posted(message.clone());
                         if let Some(request_key) = request_key.as_ref() {
                             conversation.posted_message_requests.insert(
                                 request_key.clone(),
@@ -2813,12 +3382,25 @@ where
                                 request_key.clone(),
                             ),
                             message,
+                            evicted_message_ids,
                         }
                     }
                 }
             };
 
-            if let PostMessageMutation::Applied { message, .. } = &mutation {
+            if let PostMessageMutation::Applied {
+                message,
+                evicted_message_ids,
+                ..
+            } = &mutation
+            {
+                self.metrics
+                    .record_message_evictions(evicted_message_ids.len());
+                for message_id in evicted_message_ids {
+                    state
+                        .message_locator
+                        .remove(message.tenant_id.as_str(), message_id.as_str());
+                }
                 state.message_locator.register_message(message);
             }
 
@@ -2827,7 +3409,9 @@ where
 
         match mutation {
             PostMessageMutation::Replayed(result) => Ok(result),
-            PostMessageMutation::Applied { result, message } => {
+            PostMessageMutation::Applied {
+                result, message, ..
+            } => {
                 self.publish_message_posted_realtime(
                     command.tenant_id.as_str(),
                     command.organization_id.as_str(),
@@ -2850,18 +3434,17 @@ where
         )?;
         validate_sender_payload_size("editor", &command.editor)?;
         validate_message_body_contract(&command.body)?;
-        let conversation_id = {
-            let state = read_runtime_state(&self.state, "runtime.state.edit_message.locate");
-            state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
-        };
-        self.ensure_conversation_loaded(
+        let conversation_id = self.ensure_message_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.message_id.as_str(),
+        )?;
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
+            command.editor.kind.as_str(),
+            command.editor.id.as_str(),
         )?;
         let edited = {
             let mut state =
@@ -2943,10 +3526,18 @@ where
                 ordering_seq,
                 retention_class.as_str(),
             ))?;
-            conversation
+            let evicted_message_ids = conversation
                 .message_log
                 .apply_edited(&edited)
-                .ok_or_else(|| RuntimeError::MessageNotFound(edited.message_id.clone()))?;
+                .ok_or_else(|| RuntimeError::MessageNotFound(edited.message_id.clone()))?
+                .evicted_message_ids;
+            self.metrics
+                .record_message_evictions(evicted_message_ids.len());
+            for message_id in evicted_message_ids {
+                state
+                    .message_locator
+                    .remove(command.tenant_id.as_str(), message_id.as_str());
+            }
             (edited, event_id)
         };
 
@@ -3006,18 +3597,17 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("recalledBy", &command.recalled_by)?;
-        let conversation_id = {
-            let state = read_runtime_state(&self.state, "runtime.state.recall_message.locate");
-            state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
-        };
-        self.ensure_conversation_loaded(
+        let conversation_id = self.ensure_message_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.message_id.as_str(),
+        )?;
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
+            command.recalled_by.kind.as_str(),
+            command.recalled_by.id.as_str(),
         )?;
         let recalled = {
             let mut state =
@@ -3102,10 +3692,18 @@ where
                 ordering_seq,
                 retention_class.as_str(),
             ))?;
-            conversation
+            let evicted_message_ids = conversation
                 .message_log
                 .apply_recalled(&recalled)
-                .ok_or_else(|| RuntimeError::MessageNotFound(recalled.message_id.clone()))?;
+                .ok_or_else(|| RuntimeError::MessageNotFound(recalled.message_id.clone()))?
+                .evicted_message_ids;
+            self.metrics
+                .record_message_evictions(evicted_message_ids.len());
+            for message_id in evicted_message_ids {
+                state
+                    .message_locator
+                    .remove(command.tenant_id.as_str(), message_id.as_str());
+            }
             (recalled, event_id)
         };
 
@@ -3170,19 +3768,17 @@ where
             MESSAGE_REACTION_KEY_MAX_BYTES,
         )?;
         validate_sender_payload_size("reactedBy", &command.reacted_by)?;
-        let conversation_id = {
-            let state =
-                read_runtime_state(&self.state, "runtime.state.add_message_reaction.locate");
-            state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
-        };
-        self.ensure_conversation_loaded(
+        let conversation_id = self.ensure_message_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.message_id.as_str(),
+        )?;
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
+            command.reacted_by.kind.as_str(),
+            command.reacted_by.id.as_str(),
         )?;
         let (reaction, changed) = {
             let mut state = write_runtime_state(
@@ -3257,10 +3853,18 @@ where
                     ordering_seq,
                     retention_class.as_str(),
                 ))?;
-                conversation
+                let evicted_message_ids = conversation
                     .message_log
                     .apply_reaction_added(&reaction)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?;
+                    .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?
+                    .evicted_message_ids;
+                self.metrics
+                    .record_message_evictions(evicted_message_ids.len());
+                for message_id in evicted_message_ids {
+                    state
+                        .message_locator
+                        .remove(command.tenant_id.as_str(), message_id.as_str());
+                }
             }
             (reaction, changed)
         };
@@ -3303,19 +3907,17 @@ where
             MESSAGE_REACTION_KEY_MAX_BYTES,
         )?;
         validate_sender_payload_size("removedBy", &command.removed_by)?;
-        let conversation_id = {
-            let state =
-                read_runtime_state(&self.state, "runtime.state.remove_message_reaction.locate");
-            state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
-        };
-        self.ensure_conversation_loaded(
+        let conversation_id = self.ensure_message_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.message_id.as_str(),
+        )?;
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
+            command.removed_by.kind.as_str(),
+            command.removed_by.id.as_str(),
         )?;
         let (reaction, changed) = {
             let mut state = write_runtime_state(
@@ -3391,10 +3993,18 @@ where
                         ordering_seq,
                         retention_class.as_str(),
                     ))?;
-                conversation
+                let evicted_message_ids = conversation
                     .message_log
                     .apply_reaction_removed(&reaction)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?;
+                    .ok_or_else(|| RuntimeError::MessageNotFound(reaction.message_id.clone()))?
+                    .evicted_message_ids;
+                self.metrics
+                    .record_message_evictions(evicted_message_ids.len());
+                for message_id in evicted_message_ids {
+                    state
+                        .message_locator
+                        .remove(command.tenant_id.as_str(), message_id.as_str());
+                }
             }
             (reaction, changed)
         };
@@ -3432,18 +4042,17 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("pinnedBy", &command.pinned_by)?;
-        let conversation_id = {
-            let state = read_runtime_state(&self.state, "runtime.state.pin_message.locate");
-            state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
-        };
-        self.ensure_conversation_loaded(
+        let conversation_id = self.ensure_message_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.message_id.as_str(),
+        )?;
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
+            command.pinned_by.kind.as_str(),
+            command.pinned_by.id.as_str(),
         )?;
         let (pin, changed) = {
             let mut state =
@@ -3509,10 +4118,18 @@ where
                     ordering_seq,
                     retention_class.as_str(),
                 ))?;
-                conversation
+                let evicted_message_ids = conversation
                     .message_log
                     .apply_pinned(&pin)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?;
+                    .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?
+                    .evicted_message_ids;
+                self.metrics
+                    .record_message_evictions(evicted_message_ids.len());
+                for message_id in evicted_message_ids {
+                    state
+                        .message_locator
+                        .remove(command.tenant_id.as_str(), message_id.as_str());
+                }
             }
             (pin, changed)
         };
@@ -3548,18 +4165,17 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("unpinnedBy", &command.unpinned_by)?;
-        let conversation_id = {
-            let state = read_runtime_state(&self.state, "runtime.state.unpin_message.locate");
-            state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
-        };
-        self.ensure_conversation_loaded(
+        let conversation_id = self.ensure_message_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.message_id.as_str(),
+        )?;
+        self.ensure_member_loaded(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             conversation_id.as_str(),
+            command.unpinned_by.kind.as_str(),
+            command.unpinned_by.id.as_str(),
         )?;
         let (pin, changed) = {
             let mut state =
@@ -3625,10 +4241,18 @@ where
                     ordering_seq,
                     retention_class.as_str(),
                 ))?;
-                conversation
+                let evicted_message_ids = conversation
                     .message_log
                     .apply_unpinned(&pin)
-                    .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?;
+                    .ok_or_else(|| RuntimeError::MessageNotFound(pin.message_id.clone()))?
+                    .evicted_message_ids;
+                self.metrics
+                    .record_message_evictions(evicted_message_ids.len());
+                for message_id in evicted_message_ids {
+                    state
+                        .message_locator
+                        .remove(command.tenant_id.as_str(), message_id.as_str());
+                }
             }
             (pin, changed)
         };
@@ -3721,6 +4345,7 @@ where
         actor_kind: &str,
         capability: &str,
     ) -> Result<(), RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(
             &self.state,
@@ -3767,6 +4392,13 @@ where
         principal_id: &str,
         principal_kind: &str,
     ) -> Result<ConversationMember, RuntimeError> {
+        self.ensure_member_loaded(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_kind,
+            principal_id,
+        )?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(
             &self.state,
@@ -3786,6 +4418,7 @@ where
         conversation_id: &str,
         principal_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(
             &self.state,
@@ -3885,7 +4518,17 @@ fn member_to_record(
         conversation_id: conversation_id.to_owned(),
         principal_kind: member.principal_kind.clone(),
         principal_id: member.principal_id.clone(),
-        member_id: member.member_id.parse::<i64>().unwrap_or(0),
+        // The relational member_id column is bigint, but the in-memory ConversationMember.member_id
+        // is a string composite (cm_<conv_id>_<principal_kind>_<principal_id>). Parsing the string
+        // always fails and yields 0, which historically collided on the now-removed
+        // uk_im_projection_conversation_members_member unique constraint (see baseline DDL change).
+        // Since principal_id is the Snowflake i64 for user principals (the only kind that RTC
+        // authorization and projections actually rely on), parse it directly so the stored
+        // member_id is non-zero and unique per user within a conversation. For non-user principals
+        // (agents/system) the value falls back to 0, which is acceptable because the composite
+        // primary key on (tenant, org, conversation, principal_kind, principal_id) remains the
+        // sole uniqueness guarantee.
+        member_id: member.principal_id.parse::<i64>().unwrap_or(0),
         membership_role: membership_role.into(),
         membership_state: membership_state.into(),
         invited_by: member.invited_by.clone(),
@@ -3905,7 +4548,10 @@ fn cursor_to_record(
         tenant_id: tenant_id.to_owned(),
         organization_id: organization_id.to_owned(),
         conversation_id: conversation_id.to_owned(),
-        member_id: cursor.member_id.parse::<i64>().unwrap_or(0),
+        // Same rationale as member_to_record: cursor.member_id is a string composite, while the
+        // relational member_id column is bigint. Parse principal_id (Snowflake i64 for users) so
+        // the value is unique per member and matches the conversation_members row.
+        member_id: cursor.principal_id.parse::<i64>().unwrap_or(0),
         device_id: cursor.device_id.clone().unwrap_or_default(),
         principal_kind: cursor.principal_kind.clone(),
         principal_id: cursor.principal_id.clone(),
@@ -3921,7 +4567,6 @@ fn cursor_to_record(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use im_domain_core::retention::retention_until_from_envelope;
     use std::panic::{self, AssertUnwindSafe};
 
     fn drive_reference_for_test() -> DriveReference {
@@ -4091,5 +4736,357 @@ mod tests {
         );
         let post_result = result.expect("panic status should be captured");
         assert!(post_result.is_err());
+    }
+
+    #[test]
+    fn evict_idle_conversations_removes_all_evicted_companion_indexes() {
+        let mut state = RuntimeState::default();
+        let old_scope = conversation_scope_key("100001", "default", "c_old");
+        let current_scope = conversation_scope_key("100001", "default", "c_current");
+        let old_member = ConversationMember {
+            tenant_id: "100001".into(),
+            conversation_id: "c_old".into(),
+            member_id: "m_old".into(),
+            principal_id: "alice".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            state: MembershipState::Joined,
+            invited_by: None,
+            joined_at: "2026-07-10T00:00:00.000Z".into(),
+            removed_at: None,
+            attributes: BTreeMap::new(),
+        };
+        let mut old_conversation = ConversationState {
+            last_accessed_at_ms: 1,
+            ..Default::default()
+        };
+        old_conversation
+            .aggregate
+            .replace_business_binding(Some(ConversationBusinessBinding {
+                business_type: "thread".into(),
+                business_id: "root_old".into(),
+            }));
+        old_conversation.roster.upsert_member(old_member.clone());
+        state.conversations.insert(old_scope, old_conversation);
+        state.conversations.insert(
+            current_scope,
+            ConversationState {
+                last_accessed_at_ms: 2,
+                ..Default::default()
+            },
+        );
+        state.message_locator.register("100001", "101", "c_old");
+        state.message_locator.register("100001", "102", "c_current");
+        let business_scope = conversation_business_scope_key("100001", "thread", "root_old");
+        state
+            .business_index
+            .insert(business_scope.clone(), "c_old".into());
+        state.sync_actor_inbox_member("0", &old_member);
+
+        state.refresh_dirty_conversation_weights();
+        let byte_budget = state.estimated_conversation_bytes;
+        assert_eq!(state.evict_idle_conversations(1, byte_budget), 1);
+
+        assert_eq!(state.message_locator.conversation_id("100001", "101"), None);
+        assert_eq!(
+            state.message_locator.conversation_id("100001", "102"),
+            Some("c_current")
+        );
+        assert!(!state.business_index.contains_key(business_scope.as_str()));
+        assert!(
+            state
+                .actor_inbox_page("100001", "0", "user", "alice", 0, 20)
+                .items
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn global_runtime_byte_budget_evicts_oldest_conversations_before_oom() {
+        let mut state = RuntimeState::default();
+        for (index, conversation_id) in ["c_old", "c_middle", "c_current"].into_iter().enumerate() {
+            let scope = conversation_scope_key("100001", "0", conversation_id);
+            let mut conversation = ConversationState {
+                last_accessed_at_ms: (index + 1) as u64,
+                ..Default::default()
+            };
+            conversation.message_log.store_posted(Message {
+                tenant_id: "100001".into(),
+                conversation_id: conversation_id.into(),
+                message_id: format!("message_{index}"),
+                message_seq: 1,
+                sender: Sender {
+                    id: "1".into(),
+                    kind: "user".into(),
+                    member_id: None,
+                    device_id: None,
+                    session_id: None,
+                    metadata: BTreeMap::new(),
+                },
+                message_type: MessageType::Standard,
+                delivery_mode: "discrete".into(),
+                client_msg_id: None,
+                stream_session_id: None,
+                rtc_session_id: None,
+                body: MessageBody {
+                    summary: None,
+                    parts: vec![ContentPart::text("x".repeat(512 * 1024))],
+                    render_hints: BTreeMap::new(),
+                    reply_to: None,
+                },
+                attributes: BTreeMap::new(),
+                metadata: BTreeMap::new(),
+                occurred_at: "2026-07-10T00:00:00.000Z".into(),
+                committed_at: Some("2026-07-10T00:00:00.000Z".into()),
+            });
+            state.insert_conversation(scope, conversation);
+            state.message_locator.register(
+                "100001",
+                format!("message_{index}").as_str(),
+                conversation_id,
+            );
+        }
+        let byte_budget = state
+            .conversation_weights
+            .values()
+            .copied()
+            .take(2)
+            .sum::<usize>();
+
+        let evicted = state.evict_idle_conversations(100, byte_budget);
+
+        assert!(evicted >= 1);
+        assert!(state.estimated_conversation_bytes <= byte_budget);
+        assert!(
+            !state
+                .conversations
+                .contains_key(conversation_scope_key("100001", "0", "c_old").as_str())
+        );
+        assert_eq!(
+            state.message_locator.conversation_id("100001", "message_0"),
+            None
+        );
+    }
+
+    #[test]
+    fn conversation_idempotency_replay_caches_are_bounded_under_high_volume() {
+        let mut conversation = ConversationState::default();
+        for index in 0..2_048 {
+            conversation.posted_message_requests.insert(
+                format!("post-{index}"),
+                PostedMessageReplayRecord {
+                    sender_id: "1".into(),
+                    sender_kind: "user".into(),
+                    message_type: MessageType::Standard,
+                    body: MessageBody {
+                        summary: Some("bounded".into()),
+                        parts: vec![ContentPart::text("bounded")],
+                        render_hints: BTreeMap::new(),
+                        reply_to: None,
+                    },
+                    message_id: index.to_string(),
+                },
+            );
+            conversation.message_mutation_requests.insert(
+                format!("mutation-{index}"),
+                MessageMutationReplayRecord {
+                    result: MessageMutationResult {
+                        conversation_id: "c_bound".into(),
+                        message_id: index.to_string(),
+                        message_seq: index,
+                        event_id: format!("evt-{index}"),
+                    },
+                },
+            );
+        }
+
+        assert!(conversation.posted_message_requests.len() <= 1_024);
+        assert!(conversation.message_mutation_requests.len() <= 1_024);
+        assert!(
+            conversation
+                .posted_message_requests
+                .get("post-2047")
+                .is_some()
+        );
+        assert!(
+            conversation
+                .message_mutation_requests
+                .get("mutation-2047")
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn posted_message_replay_cache_is_bounded_by_estimated_bytes() {
+        let mut conversation = ConversationState::default();
+        let body_text = "x".repeat(256 * 1024);
+        for index in 0..64 {
+            conversation.posted_message_requests.insert(
+                format!("large-post-{index}"),
+                PostedMessageReplayRecord {
+                    sender_id: "1".into(),
+                    sender_kind: "user".into(),
+                    message_type: MessageType::Standard,
+                    body: MessageBody {
+                        summary: None,
+                        parts: vec![ContentPart::text(body_text.clone())],
+                        render_hints: BTreeMap::new(),
+                        reply_to: None,
+                    },
+                    message_id: index.to_string(),
+                },
+            );
+        }
+
+        let estimated_bytes = conversation
+            .posted_message_requests
+            .entries
+            .iter()
+            .map(|(key, value)| {
+                key.len()
+                    + value.sender_id.len()
+                    + value.sender_kind.len()
+                    + value.message_id.len()
+                    + serde_json::to_vec(&value.body)
+                        .expect("message body should serialize")
+                        .len()
+            })
+            .sum::<usize>();
+        assert!(estimated_bytes <= 8 * 1024 * 1024);
+    }
+
+    #[test]
+    fn runtime_metrics_report_bounded_cache_pressure_and_byte_evictions() {
+        let runtime = ConversationRuntime::new(InMemoryJournal::default());
+        {
+            let mut state = write_runtime_state(&runtime.state, "runtime metrics test setup");
+            for (index, conversation_id) in ["c_metrics_old", "c_metrics_current"]
+                .into_iter()
+                .enumerate()
+            {
+                let mut conversation = ConversationState {
+                    last_accessed_at_ms: (index + 1) as u64,
+                    ..Default::default()
+                };
+                let binding = ConversationBusinessBinding {
+                    business_type: "thread".into(),
+                    business_id: format!("metrics_root_{index}"),
+                };
+                conversation
+                    .aggregate
+                    .replace_business_binding(Some(binding.clone()));
+                let member = ConversationMember {
+                    tenant_id: "100001".into(),
+                    conversation_id: conversation_id.into(),
+                    member_id: format!("metrics_member_{index}"),
+                    principal_id: "metrics_actor".into(),
+                    principal_kind: "user".into(),
+                    role: MembershipRole::Member,
+                    state: MembershipState::Joined,
+                    invited_by: None,
+                    joined_at: "2026-07-10T00:00:00.000Z".into(),
+                    removed_at: None,
+                    attributes: BTreeMap::new(),
+                };
+                conversation.roster.upsert_member(member.clone());
+                conversation.message_log.store_posted(Message {
+                    tenant_id: "100001".into(),
+                    conversation_id: conversation_id.into(),
+                    message_id: format!("metrics_message_{index}"),
+                    message_seq: 1,
+                    sender: Sender {
+                        id: "1".into(),
+                        kind: "user".into(),
+                        member_id: None,
+                        device_id: None,
+                        session_id: None,
+                        metadata: BTreeMap::new(),
+                    },
+                    message_type: MessageType::Standard,
+                    delivery_mode: "discrete".into(),
+                    client_msg_id: None,
+                    stream_session_id: None,
+                    rtc_session_id: None,
+                    body: MessageBody {
+                        summary: None,
+                        parts: vec![ContentPart::text("x".repeat(256 * 1024))],
+                        render_hints: BTreeMap::new(),
+                        reply_to: None,
+                    },
+                    attributes: BTreeMap::new(),
+                    metadata: BTreeMap::new(),
+                    occurred_at: "2026-07-10T00:00:00.000Z".into(),
+                    committed_at: Some("2026-07-10T00:00:00.000Z".into()),
+                });
+                let scope = conversation_scope_key("100001", "0", conversation_id);
+                state.insert_conversation(scope, conversation);
+                state.business_index.insert(
+                    conversation_business_scope_key(
+                        "100001",
+                        binding.business_type.as_str(),
+                        binding.business_id.as_str(),
+                    ),
+                    conversation_id.into(),
+                );
+                state.sync_actor_inbox_member("0", &member);
+                state.message_locator.register(
+                    "100001",
+                    format!("metrics_message_{index}").as_str(),
+                    conversation_id,
+                );
+            }
+        }
+
+        let before = runtime.runtime_metrics_snapshot();
+        assert_eq!(before.conversation_entries, 2);
+        assert_eq!(before.message_cache_entries, 2);
+        assert!(before.message_cache_bytes >= 512 * 1024);
+        assert_eq!(before.message_locator_entries, 2);
+        assert_eq!(before.business_binding_entries, 2);
+        assert_eq!(before.actor_inbox_actor_entries, 1);
+        assert_eq!(before.actor_inbox_conversation_entries, 2);
+        assert_eq!(before.conversation_evictions_bytes_total, 0);
+
+        let byte_budget = before.estimated_conversation_bytes.saturating_sub(1);
+        assert!(runtime.evict_idle_conversations_with_limits(100, byte_budget) >= 1);
+
+        let after = runtime.runtime_metrics_snapshot();
+        assert!(after.estimated_conversation_bytes <= byte_budget);
+        assert!(after.conversation_evictions_bytes_total >= 1);
+        assert!(after.conversation_evicted_bytes_total > 0);
+        assert!(after.eviction_operations_total >= 1);
+        assert!(after.eviction_checks_total >= 1);
+        assert_eq!(after.business_binding_entries, 1);
+        assert_eq!(after.actor_inbox_actor_entries, 1);
+        assert_eq!(after.actor_inbox_conversation_entries, 1);
+
+        let rendered = runtime.render_runtime_metrics_prometheus(
+            "conversation-service",
+            "test",
+            "standalone",
+            "server",
+        );
+        assert!(rendered.contains("im_conversation_runtime_entries"));
+        assert!(rendered.contains("im_conversation_runtime_estimated_bytes"));
+        assert!(rendered.contains("im_conversation_runtime_message_cache_bytes"));
+        assert!(rendered.contains("im_conversation_runtime_business_binding_entries"));
+        assert!(rendered.contains("im_conversation_runtime_actor_inbox_actor_entries"));
+        assert!(rendered.contains("im_conversation_runtime_actor_inbox_conversation_entries"));
+        assert!(rendered.contains(
+            "im_conversation_runtime_evictions_total{service=\"conversation-service\",environment=\"test\",deployment_profile=\"standalone\",runtime_target=\"server\",reason=\"bytes\"}"
+        ));
+        assert!(!rendered.contains("100001"));
+        assert!(!rendered.contains("c_metrics_old"));
+    }
+
+    #[test]
+    fn runtime_metrics_snapshot_includes_the_current_scan() {
+        let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+        let first = runtime.runtime_metrics_snapshot();
+        let second = runtime.runtime_metrics_snapshot();
+
+        assert_eq!(first.metrics_scans_total, 1);
+        assert_eq!(second.metrics_scans_total, 2);
     }
 }

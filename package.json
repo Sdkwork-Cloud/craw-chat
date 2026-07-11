@@ -4,12 +4,12 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm dev:browser",
-    "dev:browser": "pnpm dev:browser:postgres:unified-process:standalone",
-    "dev:browser:postgres": "pnpm dev:browser:postgres:unified-process:standalone",
-    "dev:browser:postgres:unified-process:standalone": "node scripts/im-dev.mjs --target browser --deployment-profile standalone --service-layout unified-process --database postgres",
-    "dev:desktop": "pnpm dev:desktop:postgres:unified-process:standalone",
-    "dev:desktop:postgres": "pnpm dev:desktop:postgres:unified-process:standalone",
-    "dev:desktop:postgres:unified-process:standalone": "node scripts/im-dev.mjs --target desktop --deployment-profile standalone --service-layout unified-process --database postgres",
+    "dev:browser": "pnpm dev:browser:postgres:standalone",
+    "dev:browser:postgres": "pnpm dev:browser:postgres:standalone",
+    "dev:browser:postgres:standalone": "node scripts/im-dev.mjs --target browser --deployment-profile standalone --database postgres",
+    "dev:desktop": "pnpm dev:desktop:postgres:standalone",
+    "dev:desktop:postgres": "pnpm dev:desktop:postgres:standalone",
+    "dev:desktop:postgres:standalone": "node scripts/im-dev.mjs --target desktop --deployment-profile standalone --database postgres",
     "dev:server": "node scripts/im-server-dev.mjs",
     "gateway:run:standalone": "node scripts/gateway-standalone-run.mjs",
     "gateway:build:standalone": "cargo build -p sdkwork-im-standalone-gateway --bin sdkwork-im-standalone-gateway",
@@ -54,6 +54,8 @@
     "release:package": "node scripts/release/build-sdkwork-im-install-package.mjs",
     "release:package:check": "node scripts/release/build-sdkwork-im-install-package.mjs --check --dry-run --all",
     "release:validate": "node scripts/release/validate-sdkwork-im-install-artifacts.mjs",
+    "release:validate:evidence": "node scripts/release/sync-sdkwork-im-release-evidence.mjs --check",
+    "release:stage:evidence": "node scripts/release/sync-sdkwork-im-release-evidence.mjs --write",
     "release:build:desktop": "node scripts/release/build-sdkwork-im-production.mjs --target desktop",
     "perf:materialize-step-11-capacity-evidence": "node scripts/perf/materialize-step-11-capacity-evidence.mjs",
     "perf:refresh-step-11-capacity-evidence-index": "node scripts/perf/refresh-step-11-capacity-evidence-index.mjs",
@@ -122,6 +124,7 @@
     "sdk:ensure:im-generated-transport": "node scripts/dev/ensure-im-sdk-generated-built.mjs",
     "sdk:generate:check:realtime-api-paths": "node scripts/dev/sdkwork-im-realtime-api-paths-contract.test.mjs",
     "test:sdkwork-im-pc-e2e-smoke": "node scripts/dev/sdkwork-im-pc-e2e-smoke.test.mjs",
+    "test:sdkwork-im-pc-playwright-runner-lifecycle": "node scripts/dev/sdkwork-im-pc-playwright-runner-lifecycle.test.mjs",
     "test:sdkwork-im-pc-playwright-e2e": "node scripts/dev/sdkwork-im-pc-playwright-e2e.test.mjs",
     "test:step11-ha-dr-drill": "node scripts/dev/run-step11-ha-dr-drill.mjs",
     "test:im-app-sdk-flutter-parity": "node sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs",
@@ -168,8 +171,6 @@
   },
   "pnpm": {
     "overrides": {
-      "@sdkwork-internal/im-app-api-generated": "workspace:*",
-      "@sdkwork-internal/im-backend-api-generated": "workspace:*",
       "@sdkwork/agents-app-sdk": "workspace:*",
       "@sdkwork/skills-app-sdk": "workspace:*",
       "@sdkwork/aiot-app-sdk": "workspace:*",
@@ -183,8 +184,6 @@
       "@sdkwork/catalog-app-sdk": "workspace:*",
       "@sdkwork/shop-app-sdk": "workspace:*",
       "@sdkwork/order-app-sdk": "workspace:*",
-      "sdkwork-mail-app-sdk-generated-typescript": "workspace:*",
-      "sdkwork-community-app-sdk-generated-typescript": "workspace:*",
       "@sdkwork/mail-app-sdk": "workspace:*",
       "@sdkwork/community-app-sdk": "workspace:*",
       "@sdkwork/course-app-sdk": "workspace:*",
@@ -201,13 +200,14 @@
       "@sdkwork/iam-sdk-ports": "workspace:*",
       "@sdkwork/iam-service": "workspace:*",
       "@sdkwork/im-sdk": "workspace:*",
-      "@sdkwork/im-sdk-generated": "workspace:*",
       "@sdkwork/notary-app-sdk": "workspace:*",
       "@sdkwork/rtc-sdk": "workspace:*",
       "@sdkwork/rtc-sdk-provider-volcengine": "workspace:*",
       "@sdkwork/runtime-bootstrap": "workspace:*",
       "@sdkwork/ui-pc-react": "workspace:*",
-      "@sdkwork/utils": "workspace:*"
+      "@sdkwork/utils": "workspace:*",
+      "@sdkwork/im-app-sdk": "workspace:*",
+      "@sdkwork/im-backend-sdk": "workspace:*"
     }
   }
 }

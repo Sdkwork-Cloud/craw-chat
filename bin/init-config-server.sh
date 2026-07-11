@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -euo pipefail
 
 show_help() {
@@ -14,11 +14,11 @@ config_dir="/etc/sdkwork/chat"
 data_dir="/var/lib/sdkwork/chat"
 log_dir="/var/log/sdkwork/chat"
 run_dir="/run/sdkwork/chat"
-bind_address="0.0.0.0:18080"
-base_url="http://127.0.0.1:18080"
-api_base_url="http://127.0.0.1:18080"
-websocket_base_url="ws://127.0.0.1:18080"
-browser_origins="http://127.0.0.1:18080,http://localhost:18080"
+bind_address="0.0.0.0:18079"
+base_url="http://127.0.0.1:18079"
+api_base_url="http://127.0.0.1:18079"
+websocket_base_url="ws://127.0.0.1:18079"
+browser_origins="http://127.0.0.1:18079,http://localhost:18079"
 non_interactive=0
 force_write=0
 
@@ -116,7 +116,8 @@ write_if_needed() {
 
 write_if_needed "$chat_toml" "[runtime]
 environment = \"production\"
-deployment_mode = \"server\"
+deployment_profile = \"standalone\"
+runtime_target = \"server\"
 app_code = \"chat\"
 
 [server]
@@ -141,9 +142,9 @@ runtime_directory = \"${run_dir}\"
 engine = \"postgresql\"
 host = \"127.0.0.1\"
 port = 5432
-database = \"sdkwork\"
-schema = \"sdkwork\"
-username = \"sdkwork\"
+database = \"sdkwork_ai_prod\"
+schema = \"sdkwork_ai_prod\"
+username = \"sdkwork_ai_prod\"
 password_file = \"${password_file}\"
 ssl_mode = \"require\"
 max_connections = 20
@@ -159,7 +160,8 @@ tls = false
 max_connections = 16
 "
 
-write_if_needed "$server_env" "SDKWORK_IM_DEPLOYMENT_MODE=server
+write_if_needed "$server_env" "SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_CONFIG_FILE=${chat_toml}
 SDKWORK_IM_DATA_DIR=${data_dir}
 SDKWORK_IM_LOG_DIR=${log_dir}
@@ -172,7 +174,7 @@ SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=127.0.0.1
 SDKWORK_IM_DATABASE_PORT=5432
 SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_prod
-SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_prod_chat_prod
+SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_prod
 SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_prod
 SDKWORK_IM_DATABASE_PASSWORD_FILE=${password_file}
 SDKWORK_IM_DATABASE_SSL_MODE=require

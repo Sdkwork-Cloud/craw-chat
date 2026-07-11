@@ -18,6 +18,7 @@ const gatewayEmbedSource = read('services/session-gateway/src/gateway_embed.rs')
 const embeddedGatewayModule = read('services/sdkwork-im-cloud-gateway/src/embedded_session_gateway.rs');
 const sessionGatewayLib = read('services/session-gateway/src/lib.rs');
 const sessionGatewayHttpLimits = read('services/session-gateway/src/http_limits.rs');
+const sessionGatewayReadiness = read('services/session-gateway/src/service_readiness.rs');
 const sessionGatewayBin = read('services/session-gateway-bin/src/main.rs');
 const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
 const gatewayConfigLib = read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs');
@@ -25,6 +26,10 @@ const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
 const gatewayProxy = read('services/sdkwork-im-cloud-gateway/src/proxy.rs');
 const openApiRouter = read('crates/sdkwork-routes-im-realtime-open-api/src/lib.rs');
 const topologySpec = readJson('specs/topology.spec.json');
+const sessionGatewayDeployment = read('deployments/kubernetes/cloud/session-gateway/deployment.yaml');
+const sessionGatewayConfigMap = read('deployments/kubernetes/cloud/session-gateway/configmap.example.yaml');
+const cloudProductionTopology = read('configs/topology/cloud.production.env');
+const topologyReadme = read('configs/topology/README.md');
 
 const haEnvKeys = [
   'SDKWORK_IM_REALTIME_CLUSTER_BUS_URL',
@@ -80,6 +85,30 @@ assert.match(
   /spawn_cluster_route_event_subscriber/u,
   'session-gateway binary must start cluster route subscriber when configured',
 );
+assert.match(sessionGatewayBin, /SignalKind::terminate/u,
+  'session-gateway binary must handle SIGTERM on Unix');
+assert.match(sessionGatewayBin, /mark_node_draining/u,
+  'session-gateway binary must mark its route node draining');
+assert.match(sessionGatewayBin, /mark_draining/u,
+  'session-gateway binary must fail readiness before draining routes');
+assert.match(sessionGatewayReadiness, /get_multiplexed_async_connection/u,
+  'session-gateway readiness must probe Redis asynchronously');
+assert.doesNotMatch(sessionGatewayReadiness, /\.get_connection\(\)/u,
+  'session-gateway readiness must not block a Tokio worker on Redis I/O');
+assert.match(sessionGatewayDeployment, /terminationGracePeriodSeconds:\s+75/u,
+  'session-gateway deployment must leave headroom beyond the application drain deadline');
+assert.match(sessionGatewayConfigMap, /SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS:\s*"45"/u,
+  'session-gateway ConfigMap must own the bounded application drain deadline');
+assert.doesNotMatch(sessionGatewayDeployment, /name:\s*SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS/u,
+  'session-gateway deployment must not duplicate ConfigMap-owned drain configuration');
+assert.match(cloudProductionTopology, /^SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS=45$/mu,
+  'cloud production topology must configure the same bounded drain deadline');
+assert.match(topologyReadme, /SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS/u,
+  'topology documentation must define the session-gateway drain setting');
+assert.match(sessionGatewayDeployment, /kill -TERM 1/u,
+  'session-gateway preStop must start the application drain lifecycle');
+assert.doesNotMatch(sessionGatewayDeployment, /command:\s*\["\/bin\/sh",\s*"-c",\s*"sleep \d+"\]/u,
+  'session-gateway deployment must not use a sleep-only preStop hook');
 assert.match(
   sessionGatewayBin,
   /build_public_app_with_realtime_bootstrap/u,
@@ -167,30 +196,15 @@ assert.match(
   'session-gateway must resolve route store from env',
 );
 
-assert.ok(
-  topologySpec.internalUpstreams?.['split-services']?.['session-gateway'],
-  'topology spec must declare session-gateway internal upstream',
-);
-
 assert.match(
   gatewayConfigLib,
-  /Unified/u,
-  'gateway config must expose unified runtime mode for unified-process layouts',
-);
-assert.match(
-  gatewayConfigLib,
-  /SDKWORK_IM_SERVICE_LAYOUT/u,
-  'gateway config must resolve runtime mode from service layout env',
-);
-assert.match(
-  gatewayConfigLib,
-  /SDKWORK_IM_GATEWAY_EMBED_REALTIME_PLANE/u,
-  'gateway config must declare optional split-layout embed env',
+  /SingleIngress/u,
+  'gateway config must expose the single-ingress runtime mode',
 );
 assert.match(
   gatewayConfigLib,
   /should_embed_session_gateway/u,
-  'gateway config must resolve embed policy from layout and env',
+  'gateway config must resolve embedded realtime policy from typed config',
 );
 assert.match(
   gatewayEmbedSource,
@@ -206,6 +220,26 @@ assert.match(
   embeddedGatewayModule,
   /bootstrap_embedded_session_gateway_runtime/u,
   'gateway must expose shared embedded session-gateway runtime bootstrap',
+);
+assert.match(
+  embeddedGatewayModule,
+  /Option<session_gateway::GatewayEmbeddedRealtimePlane>/u,
+  'embedded gateway must retain the shared realtime plane lifecycle owner',
+);
+assert.match(
+  embeddedGatewayModule,
+  /plane\s*\.shutdown\(self\.drain_timeout\)\s*\.await/u,
+  'embedded gateway shutdown must delegate to the bounded realtime plane lifecycle',
+);
+assert.match(
+  gatewayEmbedSource,
+  /subscriber\s*\.shutdown\(remaining_duration\(deadline\)\)\s*\.await/u,
+  'shared embedded realtime plane shutdown must cancel and await the cluster subscriber',
+);
+assert.doesNotMatch(
+  embeddedGatewayModule,
+  /\.join\(\)/u,
+  'embedded gateway shutdown must not synchronously join a cluster subscriber',
 );
 assert.match(
   embeddedGatewayModule,
@@ -229,7 +263,7 @@ assert.match(
 );
 assert.doesNotMatch(
   gatewayProxy,
-  /runtime_mode != GatewayRuntimeMode::Unified/u,
+  /runtime_mode != GatewayRuntimeMode::SingleIngress/u,
   'embedded session-gateway dispatch must not be gated on unified-only runtime mode',
 );
 assert.match(
@@ -239,8 +273,18 @@ assert.match(
 );
 assert.doesNotMatch(
   standaloneGatewayMain,
-  /GatewayRuntimeMode::Unified/u,
-  'standalone gateway must not hard-code unified-only embed gate',
+  new RegExp(['GatewayRuntimeMode', 'Split'].join('::'), 'u'),
+  'standalone gateway must not keep a retired split runtime mode',
+);
+assert.doesNotMatch(
+  standaloneGatewayMain,
+  /runtime_mode\s*!=\s*GatewayRuntimeMode::SingleIngress/u,
+  'standalone gateway must not guard embedding behind a retired mode comparison',
+);
+assert.doesNotMatch(
+  standaloneGatewayMain,
+  new RegExp(['SDKWORK_IM', 'SERVICE_LAYOUT'].join('_'), 'u'),
+  'standalone gateway must not read the retired service-layout environment key',
 );
 
 const realtimeApiPathsLib = read('crates/sdkwork-im-realtime-api-paths/src/lib.rs');

@@ -18,17 +18,19 @@ const calls: Array<{
   method: string;
   params?: {
     afterSeq?: number;
-    limit?: number;
+    cursor?: string;
+    pageSize?: number;
   };
 }> = [];
 
 const driveUploadCalls: Array<Record<string, unknown>> = [];
+let includeSecondInboxChat = false;
 
 function lastMessageCreateCall(): typeof calls[number] | undefined {
   return calls.filter((call) => call.method === 'chat.conversations.messages.create').at(-1);
 }
 
-const timelinePages = [
+const messageHistoryPages = [
   {
     items: [
       {
@@ -98,21 +100,59 @@ const timelinePages = [
 const fakeClient = {
   chat: {
     inbox: {
-      async list() {
-        calls.push({ method: 'chat.inbox.list' });
-        return {
-          hasMore: false,
-          items: [
-            {
-              conversationId: 'chat-1',
-              conversationType: 'group',
-              lastActivityAt: '2026-06-04T10:00:10.000Z',
-              lastMessageSeq: 3,
-              messageCount: 3,
-              tenantId: '100001',
-              unreadCount: 0,
+      async list(params?: { cursor?: string; pageSize?: number }) {
+        calls.push({ method: 'chat.inbox.list', params });
+        if (params?.cursor === 'cursor-2') {
+          throw new Error('startup sync must not scan additional inbox pages');
+        }
+        const items = [
+          {
+            avatarUrl: 'https://cdn.example.test/chat-1.png',
+            conversationId: 'chat-1',
+            conversationType: 'group',
+            displayName: 'Backend Group',
+            lastActivityAt: '2026-06-04T10:00:10.000Z',
+            lastMessageSeq: 3,
+            messageCount: 3,
+            preferences: {
+              isHidden: false,
+              isMarkedUnread: false,
+              isMuted: false,
+              isPinned: false,
             },
-          ],
+            tenantId: '100001',
+            unreadCount: 0,
+          },
+          ...(includeSecondInboxChat
+            ? [
+                {
+                  avatarUrl: 'https://cdn.example.test/chat-2.png',
+                  conversationId: 'chat-2',
+                  conversationType: 'group',
+                  displayName: 'Second Backend Group',
+                  lastActivityAt: '2026-06-04T10:00:09.000Z',
+                  lastMessageSeq: 2,
+                  messageCount: 2,
+                  preferences: {
+                    isHidden: false,
+                    isMarkedUnread: false,
+                    isMuted: false,
+                    isPinned: false,
+                  },
+                  tenantId: '100001',
+                  unreadCount: 0,
+                },
+              ]
+            : []),
+        ];
+        return {
+          hasMore: includeSecondInboxChat,
+          items,
+          pageInfo: {
+            hasMore: includeSecondInboxChat,
+            mode: 'cursor',
+            ...(includeSecondInboxChat ? { nextCursor: 'cursor-2' } : {}),
+          },
         };
       },
     },
@@ -170,11 +210,11 @@ const fakeClient = {
       conversationId: string,
       params?: {
         afterSeq?: number;
-        limit?: number;
+        pageSize?: number;
       },
     ) {
       calls.push({ method: 'chat.conversations.messages.list', conversationId, params });
-      return timelinePages[calls.filter((call) => call.method === 'chat.conversations.messages.list').length - 1];
+      return messageHistoryPages[calls.filter((call) => call.method === 'chat.conversations.messages.list').length - 1];
     },
   },
   messages: {
@@ -338,6 +378,35 @@ function assertLastDriveUpload({
 }
 
 async function main(): Promise<void> {
+  includeSecondInboxChat = true;
+  const startupService = createSdkworkChatService({
+    getClient: () => fakeClient,
+    getDriveUploader: () => fakeDriveUploader,
+    getSession: () => ({
+      accessToken: 'header.eyJ0ZW5hbnRJZCI6InRfc2Vzc2lvbiIsIm9yZ2FuaXphdGlvbklkIjoib3JnX3Nlc3Npb24iLCJ1c2VySWQiOiJ1X3Nlc3Npb24ifQ.signature',
+      authToken: 'header.eyJ0ZW5hbnRJZCI6InRfc2Vzc2lvbiIsIm9yZ2FuaXphdGlvbklkIjoib3JnX3Nlc3Npb24iLCJ1c2VySWQiOiJ1X3Nlc3Npb24ifQ.signature',
+    }),
+  });
+  const startupSyncResult = await startupService.syncOfflineMessages();
+
+  assert.deepEqual(
+    startupSyncResult,
+    {
+      appliedMessages: 0,
+      refreshedChats: 2,
+    },
+    'startup chat sync must refresh inbox metadata without preloading every conversation message window',
+  );
+  assert.deepEqual(
+    calls,
+    [
+      { method: 'chat.inbox.list', params: { pageSize: 20 } },
+    ],
+    'startup chat sync must read only the first inbox page and must not request /messages for every listed conversation; MessageList loads only the active chat',
+  );
+  calls.length = 0;
+  includeSecondInboxChat = false;
+
   const service = createSdkworkChatService({
     getClient: () => fakeClient,
     getDriveUploader: () => fakeDriveUploader,
@@ -348,12 +417,11 @@ async function main(): Promise<void> {
   });
   const messages = await service.getMessages('chat-1');
 
-  assert.equal(calls.length, 2, 'chat message history must continue until the IM SDK timeline window is exhausted');
+  assert.equal(calls.length, 1, 'initial chat message history load must request exactly one IM SDK page');
   assert.deepEqual(
     calls,
     [
       { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 0, pageSize: 20 } },
-      { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 1, pageSize: 20 } },
     ],
   );
   assert.deepEqual(
@@ -367,6 +435,27 @@ async function main(): Promise<void> {
     ]),
     [
       ['message-1', 'u_alice', 'first page message', 'text', Date.parse('2026-06-04T10:00:00.000Z'), undefined],
+    ],
+  );
+  assert.equal(service.hasMoreMessages('chat-1'), true, 'initial page must preserve server hasMore state');
+
+  const moreMessages = await service.loadMoreMessages('chat-1');
+
+  assert.equal(calls.length, 2, 'loadMoreMessages must request the next explicit IM SDK message history page');
+  assert.deepEqual(
+    calls.at(-1),
+    { method: 'chat.conversations.messages.list', conversationId: 'chat-1', params: { afterSeq: 1, pageSize: 20 } },
+  );
+  assert.deepEqual(
+    moreMessages.map((message) => [
+      message.id,
+      message.senderId,
+      message.content,
+      message.type,
+      message.timestamp,
+      message.replyTo,
+    ]),
+    [
       [
         'message-2',
         'u_bob',

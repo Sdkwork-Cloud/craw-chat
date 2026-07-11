@@ -3,17 +3,19 @@
 
 # Profiles and Environment
 
-Sdkwork IM development and production routing are owned by topology v2. Use
+Sdkwork IM development and production routing are owned by topology v4. Use
 `specs/topology.spec.json` and `configs/topology/*.env` as the only profile authority.
 
 ## Development Profiles
 
 | Profile id | Command | Purpose |
 | --- | --- | --- |
-| `standalone.unified-process.development` | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop` | Default PostgreSQL standalone development stack |
-| `standalone.unified-process.development` | `pnpm dev:browser:postgres:unified-process:standalone` | Current topology v2 profile-file mapping |
-| `standalone.split-services.production` | private install templates | On-prem production bind + URL contract |
-| `cloud.split-services.production` | `pnpm build` | SaaS production (`im.sdkwork.com`, `api.sdkwork.com`) |
+| `standalone.development` | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop` | Default PostgreSQL standalone development stack |
+| `standalone.staging` | pre-production rehearsal | Standalone release rehearsal |
+| `standalone.production` | private install templates | Standalone production bind + URL contract |
+| `cloud.development` | cloud integration dev | Cloud integration with platform gateway |
+| `cloud.staging` | cloud rehearsal | SaaS pre-production rehearsal |
+| `cloud.production` | `pnpm build` | SaaS production (`im.sdkwork.com`, `api.sdkwork.com`) |
 
 See [Production Domain Binding](/deployment/production-domain-binding) for public URL keys.
 
@@ -28,8 +30,8 @@ See [Production Domain Binding](/deployment/production-domain-binding) for publi
 
 ## Server-Only Dev
 
-`pnpm dev:server` starts `scripts/im-server-dev.mjs`, which runs `sdkwork-im-server` with the
-default split-services development profile env and managed `sdkwork-api-cloud-gateway`.
+`pnpm dev:server` starts `scripts/im-server-dev.mjs`, which runs the server-only development
+stack for the selected topology v4 profile. Public profile ids do not encode process layout.
 
 ## Packaged Server Deployment
 
@@ -39,7 +41,7 @@ Production server installs use:
 - `deployments/templates/chat.toml.example`
 - `/etc/sdkwork/chat/server.env`
 
-Do not use retired pre-topology-v2 profile names or legacy per-profile runtime config trees under
+Do not use retired pre-topology-v4 profile names or legacy per-profile runtime config trees under
 `.runtime/`.
 
 ## Authentication Boundary
@@ -64,7 +66,7 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 | `SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID` | JWT header `kid` for the bootstrap signing key (defaults to `bootstrap`). |
 | `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET` | HS256 secret for tenant-bound JWT verification when services validate dual tokens directly. |
 
-## Realtime Session Gateway (split-services)
+## Realtime Session Gateway
 
 | Variable | Purpose |
 | --- | --- |
@@ -78,7 +80,7 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES` | Maximum accepted HTTP body size for session-gateway. |
 | `SDKWORK_IM_SESSION_GATEWAY_RPC_BIND_ADDR` | gRPC bind for `session-gateway-rpc` Phase 1 host. |
 | `SDKWORK_IM_SESSION_GATEWAY_RPC_PUBLIC_ENDPOINT` | Advertised gRPC endpoint for internal callers. |
-| `SDKWORK_IM_GATEWAY_EMBED_REALTIME_PLANE` | When `true`/`1`, embed session-gateway in the gateway process even under `split-services` (single-node dev/HA). |
+| `SDKWORK_IM_GATEWAY_EMBED_REALTIME_PLANE` | When `true`/`1`, embed session-gateway in the gateway process for single-node dev or HA drills. |
 | `SDKWORK_IM_REALTIME_TCP_BIND_ADDR` | Optional TCP link listener (`ccp/tcp/1`). |
 | `SDKWORK_IM_REALTIME_UDP_BIND_ADDR` | Optional UDP datagram listener (`ccp/udp/1`). |
 | `SDKWORK_IM_REALTIME_QUIC_BIND_ADDR` | Optional QUIC listener (`ccp/quic/1`); requires TLS cert/key env vars. |
@@ -96,4 +98,3 @@ deployments must set explicit values.
 WebSocket clients must negotiate subprotocol `sdkwork-im.ccp.ws.v1`. The legacy `legacy.json` subprotocol remains accepted for compatibility but is deprecated and emits server-side warnings.
 
 Desktop auth tokens on Tauri are stored in the OS keyring (`com.sdkwork.im-pc` / `session:v1`), not in webview `sessionStorage`.
-

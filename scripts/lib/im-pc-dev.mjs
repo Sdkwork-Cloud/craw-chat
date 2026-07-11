@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
 import {
   COMMERCE_T1_APP_API_AUTHORITIES,
-  COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS,
+  COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS,
 } from '../dev/commerce-t1-capabilities.mjs';
 import { ensurePostgresDevDatabaseReady } from '../dev/ensure-postgres-dev-database.mjs';
 import { terminateStaleDevGatewayProcesses } from '../dev/terminate-stale-dev-gateway-processes.mjs';
@@ -57,7 +57,7 @@ const COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS = Object.freeze(
   Object.fromEntries(
     COMMERCE_T1_APP_API_AUTHORITIES.map((authority, index) => [
       authority,
-      Object.freeze([...COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS[index]]),
+      Object.freeze([...COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS[index]]),
     ]),
   ),
 );
@@ -182,13 +182,8 @@ export function resolveDeploymentProfile(env = process.env) {
   return 'standalone';
 }
 
-export function resolveServiceLayout(env = process.env) {
-  return normalizeText(env.SDKWORK_IM_SERVICE_LAYOUT) ?? 'unified-process';
-}
-
-export function isStandaloneUnifiedProcess(env = process.env) {
-  return resolveDeploymentProfile(env) === 'standalone'
-    && resolveServiceLayout(env) === 'unified-process';
+export function isStandaloneSingleIngress(env = process.env) {
+  return resolveDeploymentProfile(env) === 'standalone';
 }
 
 export function resolveApplicationPublicHttpUrl(env = process.env) {
@@ -210,7 +205,7 @@ export function resolveApplicationPublicHttpUrl(env = process.env) {
 }
 
 export function resolveSdkworkApiGatewayBaseUrl(env = process.env) {
-  if (isStandaloneUnifiedProcess(env)) {
+  if (isStandaloneSingleIngress(env)) {
     return resolveApplicationPublicHttpUrl(env);
   }
   for (const key of SDKWORK_API_CLOUD_GATEWAY_BASE_URL_ENV_KEYS) {
@@ -699,7 +694,7 @@ export function createSdkworkChatPcDevPlan({
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
   });
-  const standaloneUnified = isStandaloneUnifiedProcess(mergedEnv);
+  const standaloneSingleIngress = isStandaloneSingleIngress(mergedEnv);
   const rendererInputEnv = {
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
@@ -725,13 +720,13 @@ export function createSdkworkChatPcDevPlan({
     throw new Error(resolvedRendererEnv.errors.join('\n'));
   }
   const rendererEnv = mergeSdkworkImBootstrapAccessTokenEnv(resolvedRendererEnv.env);
-  const explicitDriveAppApiUpstream = standaloneUnified
+  const explicitDriveAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, DRIVE_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitNotaryAppApiUpstream = standaloneUnified
+  const explicitNotaryAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, NOTARY_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCommerceT1AppApiUpstreams = standaloneUnified
+  const explicitCommerceT1AppApiUpstreams = standaloneSingleIngress
     ? {}
     : Object.fromEntries(
       COMMERCE_T1_APP_API_AUTHORITIES.flatMap((authority) => {
@@ -744,19 +739,19 @@ export function createSdkworkChatPcDevPlan({
         return imKey ? [[imKey, upstream]] : [];
       }),
     );
-  const explicitMailAppApiUpstream = standaloneUnified
+  const explicitMailAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, MAIL_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCommunityAppApiUpstream = standaloneUnified
+  const explicitCommunityAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, COMMUNITY_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCourseAppApiUpstream = standaloneUnified
+  const explicitCourseAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, COURSE_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitKnowledgebaseAppApiUpstream = standaloneUnified
+  const explicitKnowledgebaseAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitVoiceAppApiUpstream = standaloneUnified
+  const explicitVoiceAppApiUpstream = standaloneSingleIngress
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, VOICE_APP_API_UPSTREAM_ENV_KEYS);
   const sharedDatabaseEnv = resolveSdkworkImSharedDatabaseConfig({
@@ -776,7 +771,7 @@ export function createSdkworkChatPcDevPlan({
     VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
     VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: applicationPublicWebSocketUrl,
     VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: platformApiGatewayBaseUrl,
-    SDKWORK_API_CLOUD_GATEWAY_BIND: standaloneUnified
+    SDKWORK_API_CLOUD_GATEWAY_BIND: standaloneSingleIngress
       ? normalizeGatewayBind(
         mergedEnv.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
         'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
@@ -805,7 +800,7 @@ export function createSdkworkChatPcDevPlan({
       ? { SDKWORK_IM_VOICE_APP_API_UPSTREAM: explicitVoiceAppApiUpstream }
       : {}),
   };
-  if (standaloneUnified) {
+  if (standaloneSingleIngress) {
     for (const authority of COMMERCE_T1_APP_API_AUTHORITIES) {
       for (const key of COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? []) {
         if (key.startsWith('SDKWORK_IM_')) {
@@ -825,20 +820,20 @@ export function createSdkworkChatPcDevPlan({
       delete gatewayServerEnv[key];
     }
   }
-  const managedStandaloneGatewayProcess = standaloneUnified
+  const managedStandaloneGatewayProcess = standaloneSingleIngress
     ? createStandaloneGatewayProcess({
       env: gatewayServerEnv,
       repoRoot: resolvedRepoRoot,
     })
     : undefined;
-  const managedSdkworkApiGatewayProcess = standaloneUnified
+  const managedSdkworkApiGatewayProcess = standaloneSingleIngress
     ? undefined
     : createManagedSdkworkApiGatewayProcess({
       env: mergedEnv,
       repoRoot: resolvedRepoRoot,
     });
   const processes = [];
-  if (standaloneUnified) {
+  if (standaloneSingleIngress) {
     if (managedStandaloneGatewayProcess) {
       processes.push(managedStandaloneGatewayProcess);
     }

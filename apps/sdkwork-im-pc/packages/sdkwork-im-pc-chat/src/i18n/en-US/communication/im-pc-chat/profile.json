@@ -1,0 +1,21 @@
+{
+  "profile": {
+    "chatIdLabel": "Chat ID",
+    "copyChatId": "Copy Chat ID",
+    "actions": {
+      "favorites": "Favorites",
+      "logout": "Log out",
+      "settings": "Settings"
+    },
+    "status": {
+      "away": "Away",
+      "busy": "Busy",
+      "online": "Online"
+    },
+    "toast": {
+      "chatIdCopied": "Chat ID copied",
+      "chatIdNotReady": "Chat ID is not ready. Please try again.",
+      "copyChatIdFailed": "Copy Chat ID failed"
+    }
+  }
+}

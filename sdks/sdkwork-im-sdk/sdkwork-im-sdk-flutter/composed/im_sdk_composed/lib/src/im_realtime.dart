@@ -137,7 +137,6 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     ...params.options.subscriptions?.scopes ?? const [],
   ];
   var subscriptionDirty = subscriptionConversations.isNotEmpty || subscriptionScopes.isNotEmpty;
-  var subscriptionSyncCounter = 0;
 
   var currentState = const ImLiveConnectionState(status: 'connecting');
   final uri = _buildWebSocketUri(params.websocketBaseUrl, params.options.deviceId);
@@ -218,7 +217,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     }
     pendingBindContext = bindContext;
     connectionPhase = 'ccp_hello_ack';
-    channel.sink.add(encodeCcpHelloFrame('sdkwork-im-ccp-hello-1'));
+    channel.sink.add(encodeCcpHelloFrame());
     scheduleAuthTimeout(() => failCcpHandshake(
       'websocket_ccp_handshake_timeout',
       'websocket CCP handshake was not completed before timeout',
@@ -238,7 +237,6 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
       return;
     }
     subscriptionDirty = false;
-    subscriptionSyncCounter += 1;
     final conversationScopes = subscriptionConversations
         .map((conversationId) => <String, dynamic>{
           'scopeType': 'conversation',
@@ -259,7 +257,6 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
         'cmd',
         <String, dynamic>{
           'type': 'subscriptions.sync',
-          'requestId': 'sdkwork-im-subscriptions-sync-$subscriptionSyncCounter',
           'items': <dynamic>[...conversationScopes, ...scopeItems],
         },
       ),
@@ -302,7 +299,6 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     }
     channel.sink.add(jsonEncode(<String, dynamic>{
       'type': 'auth.init',
-      'requestId': 'sdkwork-im-auth-init-1',
       'authToken': params.authToken,
       'accessToken': params.accessToken,
       if (params.options.deviceId != null) 'deviceId': params.options.deviceId,
@@ -325,7 +321,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
         beginCcpHandshake(authOk: frame);
         return;
       }
-      final error = _parseControlError(raw, 'sdkwork-im-auth-init-1');
+      final error = _parseControlError(raw);
       if (error != null) {
         failAuth(error['code'] as String, error['message'] as String);
       }
@@ -606,13 +602,9 @@ Map<String, dynamic>? _parseControlFrame(String raw) {
   return null;
 }
 
-Map<String, dynamic>? _parseControlError(String raw, [String? requestId]) {
+Map<String, dynamic>? _parseControlError(String raw) {
   final frame = _parseControlFrame(raw);
   if (_pickString(frame?['type']) != 'error') {
-    return null;
-  }
-  final frameRequestId = _pickString(frame?['requestId']);
-  if (requestId != null && frameRequestId != null && frameRequestId != requestId) {
     return null;
   }
   return <String, dynamic>{
@@ -622,6 +614,9 @@ Map<String, dynamic>? _parseControlError(String raw, [String? requestId]) {
 }
 
 bool _isFatalControlError(String code) {
+  if (code == 'reconnect_required') {
+    return true;
+  }
   return RegExp(r'^websocket_(?:auth|upstream|connect)').hasMatch(code);
 }
 

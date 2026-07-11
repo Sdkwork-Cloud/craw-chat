@@ -8,7 +8,6 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 
 const scanRoots = [
   'adapters',
-  'artifacts',
   'crates',
   'services',
   'tools',
@@ -17,12 +16,15 @@ const scanRoots = [
   'deployments',
   'apps',
   'bin',
+  'database',
+  'docs/product',
+  'docs/operations',
   'docs/sites',
   'docs/部署',
   'docs/架构',
   'docs/step',
   'docs/review',
-  'docs/architecture',
+  'docs/architecture/decisions',
   'specs',
   'sdks',
   'README.md',
@@ -38,8 +40,13 @@ const skipPathFragments = [
   'sdkwork-im-topology-baggage.test.mjs',
   'migrate-step11-artifact-profiles.mjs',
   'migrate-topology-v2-baggage.mjs',
+  'scripts/perf/materialize-step-11-capacity-evidence.mjs',
   'topology-greenfield.md',
   'docs/superpowers/',
+  'docs/step/',
+  'docs/review/',
+  'docs/架构/',
+  'docs/鏋舵瀯/',
   'docs/architecture/tech/TECH-changelog.md',
   'docs/architecture/tech/TECH-2026-04-',
   'docs/architecture/tech/TECH-2026-05-',
@@ -48,12 +55,6 @@ const skipPathFragments = [
 ];
 
 const allowlistPathFragments = [
-  'specs/topology.spec.json',
-  'docs/sites/deployment/local-binary.md',
-  'docs/sites/deployment/docker.md',
-  'docs/sites/deployment/profiles-and-env.md',
-  'docs/sites/architecture/overview.md',
-  'docs/sites/architecture/runtime-topology.md',
   'docs/架构/README.md',
   'docs/step/README.md',
   'docs/review/README.md',
@@ -71,6 +72,21 @@ const bannedPatterns = [
   { id: 'legacy bind env', pattern: /SDKWORK_IM_BIND_ADDR/u },
   { id: 'legacy dev port', pattern: /127\.0\.0\.1:18090/u },
   { id: 'legacy runtime dir', pattern: /\.runtime\/local-/u },
+  { id: 'retired service layout env', pattern: /SDKWORK_IM_SERVICE_LAYOUT/u },
+  { id: 'retired split-services profile', pattern: /split-services/u },
+  { id: 'retired split-service wording', pattern: /split-service/u },
+  { id: 'retired split service wording', pattern: /split service/u },
+  { id: 'retired split-deploy wording', pattern: /split-deploy/u },
+  { id: 'retired split-deployment wording', pattern: /split-deployment/u },
+  { id: 'retired split deploy wording', pattern: /split deploy/u },
+  { id: 'retired split runtime mode', pattern: /runtimeMode\s*=\s*"split(?:-or-embedded)?"/u },
+  { id: 'retired split gateway mode', pattern: /mode\s*=\s*"split"/u },
+  { id: 'retired split enum', pattern: /GatewayRuntimeMode::Split/u },
+  { id: 'retired session sidecar port', pattern: /\b18080\b/u },
+  { id: 'retired conversation sidecar port', pattern: /\b18082\b/u },
+  { id: 'retired automation sidecar port', pattern: /\b18091\b/u },
+  { id: 'retired social sidecar port', pattern: /\b18092\b/u },
+  { id: 'retired space sidecar port', pattern: /\b18093\b/u },
   {
     id: 'local rtc sdk path',
     pattern: /(?<!(?:\.\.\/sdkwork-rtc\/|sdkwork-rtc\/))(?<![\w-])sdks\/sdkwork-rtc-sdk(?![\w/-])/u,
@@ -157,7 +173,7 @@ assert.doesNotMatch(
 );
 assert.match(
   postgresEnvExample,
-  /SDKWORK_IM_RUNTIME_DIR=\.\/\.runtime\/standalone\.unified-process\.development/u,
+  /SDKWORK_IM_RUNTIME_DIR=\.\/\.runtime\/standalone\.development/u,
   '.env.postgres.example must document the default dev profile runtime directory',
 );
 

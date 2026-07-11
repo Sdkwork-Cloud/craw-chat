@@ -10,6 +10,7 @@ name = "conversation_runtime"
 [dependencies]
 axum.workspace = true
 chrono = "0.4.44"
+getrandom = "0.3.4"
 sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }

@@ -4,14 +4,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use im_adapters_postgres_journal::{PostgresJournalConfig, PostgresOutboxStore};
-use im_platform_contracts::{OutboxEventRecord, OutboxStore};
+use im_platform_contracts::{OutboxEventClaim, OutboxEventRecord, OutboxStore};
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use session_gateway::RealtimeDeliveryRuntime;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::outbox_relay_common::{mark_missing_recipients, mark_unexpected_aggregate_type};
+use crate::outbox_relay_common::{
+    DEFAULT_OUTBOX_CLAIM_LEASE, log_unexpected_aggregate_type, mark_missing_recipients,
+};
 
 const IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 const RTC_OUTBOX_RELAY_POLL_MS_ENV: &str = "SDKWORK_IM_RTC_OUTBOX_RELAY_POLL_MS";
@@ -112,7 +114,10 @@ fn resolve_rtc_outbox_relay_scopes(outbox: &Arc<dyn OutboxStore>) -> Vec<(String
         )];
     }
 
-    match outbox.list_pending_scopes(DEFAULT_RTC_OUTBOX_RELAY_SCOPE_LIMIT) {
+    match outbox.list_pending_scopes(
+        RTC_OUTBOX_AGGREGATE_TYPE,
+        DEFAULT_RTC_OUTBOX_RELAY_SCOPE_LIMIT,
+    ) {
         Ok(scopes) => scopes,
         Err(error) => {
             warn!(error = ?error, "rtc outbox relay scope discovery failed");
@@ -133,23 +138,21 @@ async fn run_rtc_outbox_relay(
         }
 
         for (tenant_id, organization_id) in resolve_rtc_outbox_relay_scopes(&outbox) {
-            match outbox.drain_pending(
+            match outbox.claim_pending(
                 tenant_id.as_str(),
                 organization_id.as_str(),
+                RTC_OUTBOX_AGGREGATE_TYPE,
                 DEFAULT_RTC_OUTBOX_RELAY_BATCH_SIZE,
+                DEFAULT_OUTBOX_CLAIM_LEASE,
             ) {
-                Ok(events) => {
-                    for event in events {
+                Ok(claims) => {
+                    for claim in claims {
+                        let event = &claim.event;
                         if event.aggregate_type != RTC_OUTBOX_AGGREGATE_TYPE {
-                            mark_unexpected_aggregate_type(
-                                &outbox,
-                                &event,
-                                RTC_OUTBOX_AGGREGATE_TYPE,
-                                "rtc",
-                            );
+                            log_unexpected_aggregate_type(event, RTC_OUTBOX_AGGREGATE_TYPE, "rtc");
                             continue;
                         }
-                        relay_rtc_outbox_event(&realtime_runtime, &outbox, &event);
+                        relay_rtc_outbox_event(&realtime_runtime, &outbox, &claim);
                     }
                 }
                 Err(error) => {
@@ -173,13 +176,14 @@ async fn run_rtc_outbox_relay(
 fn relay_rtc_outbox_event(
     realtime_runtime: &RealtimeDeliveryRuntime,
     outbox: &Arc<dyn OutboxStore>,
-    event: &OutboxEventRecord,
+    claim: &OutboxEventClaim,
 ) {
+    let event = &claim.event;
     let payload = build_realtime_payload(event);
     let recipients =
         rtc_realtime_recipients(event.event_type.as_str(), event.payload_json.as_str());
     if recipients.is_empty() {
-        mark_missing_recipients(outbox, event, "rtc", "recipientPrincipalIds");
+        mark_missing_recipients(outbox, claim, "rtc", "recipientPrincipalIds");
         return;
     }
 
@@ -196,20 +200,11 @@ fn relay_rtc_outbox_event(
             error = ?error,
             "rtc outbox relay publish failed"
         );
-        let _ = outbox.mark_failed(
-            event.tenant_id.as_str(),
-            event.organization_id.as_str(),
-            event.outbox_id.as_str(),
-            "rtc outbox relay publish failed",
-        );
+        let _ = outbox.mark_failed(claim, "rtc outbox relay publish failed");
         return;
     }
 
-    if let Err(error) = outbox.mark_published(
-        event.tenant_id.as_str(),
-        event.organization_id.as_str(),
-        event.outbox_id.as_str(),
-    ) {
+    if let Err(error) = outbox.mark_published(claim) {
         warn!(
             outbox_id = event.outbox_id.as_str(),
             error = ?error,
@@ -219,6 +214,16 @@ fn relay_rtc_outbox_event(
 }
 
 fn build_realtime_payload(event: &OutboxEventRecord) -> String {
+    let mut payload = serde_json::from_str::<serde_json::Value>(event.payload_json.as_str())
+        .unwrap_or_else(|_| serde_json::json!(event.payload_json));
+    // Strip server-internal routing fields before exposing the payload to
+    // clients over WebSocket. `recipient_principal_ids` is injected by the
+    // outbox enqueue path for recipient resolution and must not leak the
+    // full participant list to each recipient (privacy: user IDs).
+    if let Some(obj) = payload.as_object_mut() {
+        obj.remove("recipient_principal_ids");
+        obj.remove("recipientPrincipalIds");
+    }
     serde_json::json!({
         "eventId": event.event_id,
         "eventType": event.event_type,
@@ -226,8 +231,7 @@ fn build_realtime_payload(event: &OutboxEventRecord) -> String {
         "aggregateId": event.aggregate_id,
         "tenantId": event.tenant_id,
         "organizationId": event.organization_id,
-        "payload": serde_json::from_str::<serde_json::Value>(event.payload_json.as_str())
-            .unwrap_or_else(|_| serde_json::json!(event.payload_json)),
+        "payload": payload,
     })
     .to_string()
 }

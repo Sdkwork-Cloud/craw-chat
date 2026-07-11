@@ -4,6 +4,18 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const read = (path) => readFileSync(join(root, path), 'utf8');
+const readJson = (path) => JSON.parse(read(path));
+const mergeJson = (paths) => Object.assign({}, ...paths.map(readJson));
+const readChatLocale = (locale) => mergeJson([
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/sidebar.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/agent.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/profile.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/contacts.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/favorites.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/settings-modal.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/chat.json`,
+  `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/scan-qr.json`,
+]);
 
 const chatServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService.ts');
 const groupServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/GroupService.ts');
@@ -12,8 +24,8 @@ const appShellFrameSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shel
 const chatRightPanelSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatRightPanel.tsx');
 const scanQrCodeModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ScanQrCodeModal.tsx');
 const defaultAvatarServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/DefaultAvatarService.ts');
-const enLocale = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json');
-const zhLocale = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json');
+const enLocale = JSON.stringify(readChatLocale('en-US'));
+const zhLocale = JSON.stringify(readChatLocale('zh-CN'));
 
 function listAuthoredSourceFiles(directory) {
   return readdirSync(join(root, directory), { withFileTypes: true }).flatMap((entry) => {

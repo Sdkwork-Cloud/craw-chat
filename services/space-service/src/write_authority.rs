@@ -272,6 +272,7 @@ impl SpaceWriteAuthority {
         let payload = GroupUpdatedPayload {
             group_id: record.group_id.to_string(),
             group_name: record.group_name.clone(),
+            conversation_id: record.conversation_id.clone(),
             description: record.description.clone(),
             avatar_url: record.avatar_url.clone(),
             announcement: record.announcement.clone(),

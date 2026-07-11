@@ -3,6 +3,7 @@
 mod metadata_store;
 mod timeline_store;
 
+use chrono::{DateTime, Utc};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -195,6 +196,24 @@ pub(crate) fn postgres_pool_client(
 
 pub(crate) fn now_rfc3339() -> String {
     im_time::utc_now_rfc3339_millis()
+}
+
+/// Parse an RFC3339 timestamp string into `DateTime<Utc>` so it serializes
+/// as `TIMESTAMPTZ` (matching the column type). Passing raw `String`s
+/// produces `VARCHAR`-typed parameters that fail serialization against
+/// `TIMESTAMPTZ` columns with "error serializing parameter N".
+pub(crate) fn postgres_timestamptz(
+    value: &str,
+    field: &'static str,
+) -> Result<DateTime<Utc>, ContractError> {
+    DateTime::parse_from_rfc3339(value.trim())
+        .map(|instant| instant.with_timezone(&Utc))
+        .or_else(|_| value.trim().parse::<DateTime<Utc>>())
+        .map_err(|error| {
+            ContractError::Conflict(format!(
+                "postgres projection {field} must be RFC3339: {error}"
+            ))
+        })
 }
 
 pub(crate) fn postgres_unavailable(

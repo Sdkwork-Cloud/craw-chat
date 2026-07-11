@@ -260,14 +260,14 @@ impl ProjectionMemberRuntimeStore {
     ///
     /// The visitor returns `false` to stop early. Returns `true` when every remaining scope was
     /// visited, `false` when iteration stopped early.
-    pub(crate) fn for_each_inbox_scope_after_cursor(
+    pub(crate) fn for_each_inbox_activity_after_cursor(
         &self,
         tenant_id: &str,
         organization_id: &str,
         principal_kind: &str,
         principal_id: &str,
         cursor: Option<(String, String)>,
-        mut visitor: impl FnMut(&str) -> bool,
+        mut visitor: impl FnMut(&str, &str) -> bool,
     ) -> bool {
         use std::collections::Bound::{Excluded, Unbounded};
 
@@ -287,19 +287,39 @@ impl ProjectionMemberRuntimeStore {
         if let Some((activity_at, scope)) = cursor {
             let cursor_entry = InboxActivityEntry { activity_at, scope };
             for entry in entries.range((Excluded(cursor_entry), Unbounded)) {
-                if !visitor(entry.scope.as_str()) {
+                if !visitor(entry.activity_at.as_str(), entry.scope.as_str()) {
                     return false;
                 }
             }
         } else {
             for entry in entries.iter() {
-                if !visitor(entry.scope.as_str()) {
+                if !visitor(entry.activity_at.as_str(), entry.scope.as_str()) {
                     return false;
                 }
             }
         }
 
         true
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn for_each_inbox_scope_after_cursor(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        cursor: Option<(String, String)>,
+        mut visitor: impl FnMut(&str) -> bool,
+    ) -> bool {
+        self.for_each_inbox_activity_after_cursor(
+            tenant_id,
+            organization_id,
+            principal_kind,
+            principal_id,
+            cursor,
+            |_, scope| visitor(scope),
+        )
     }
 
     pub(crate) fn refresh_inbox_activity_for_scope(&mut self, scope: &str, activity_at: &str) {

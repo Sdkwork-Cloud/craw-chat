@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -61,9 +61,10 @@ fs.writeFileSync(
   envFile,
   [
     '# source deployment test env',
-    'export SDKWORK_IM_DEPLOYMENT_MODE=server',
+    'export SDKWORK_IM_DEPLOYMENT_PROFILE=standalone',
+    'SDKWORK_IM_RUNTIME_TARGET=server',
     'SDKWORK_IM_CONFIG_FILE=' + configFile.replaceAll('\\', '/'),
-    'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080',
+    'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079',
     'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
     'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
     'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
@@ -94,9 +95,19 @@ assert.deepEqual(
   'source build plan must reuse the existing production server build without invoking release packaging',
 );
 assert.equal(
-  buildPlan.steps[0].env.SDKWORK_IM_DEPLOYMENT_MODE,
+  buildPlan.steps[0].env.SDKWORK_IM_DEPLOYMENT_PROFILE,
+  'standalone',
+  'source build plan must load deployment profile from server.env',
+);
+assert.equal(
+  buildPlan.steps[0].env.SDKWORK_IM_RUNTIME_TARGET,
   'server',
-  'source build plan must load deployment mode from server.env',
+  'source build plan must load runtime target from server.env',
+);
+assert.equal(
+  Object.hasOwn(buildPlan.steps[0].env, 'SDKWORK_IM_DEPLOYMENT_MODE'),
+  false,
+  'source build plan must not expose retired deployment mode',
 );
 assert.equal(
   buildPlan.steps[0].env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
@@ -132,7 +143,8 @@ assert.deepEqual(
     'SDKWORK_IM_PORTAL_SITE_DIR',
     'SDKWORK_IM_SERVER_BINARY_PATH',
     'SDKWORK_IM_CONFIG_FILE',
-    'SDKWORK_IM_DEPLOYMENT_MODE',
+    'SDKWORK_IM_DEPLOYMENT_PROFILE',
+    'SDKWORK_IM_RUNTIME_TARGET',
     'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
     'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL',
     'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL',
@@ -224,11 +236,11 @@ assert.equal(
 );
 
 const sourceDeployGuide = fs.readFileSync(
-  path.join(repoRoot, 'docs', '部署', '源码部署.md'),
+  path.join(repoRoot, 'docs', '閮ㄧ讲', '婧愮爜閮ㄧ讲.md'),
   'utf8',
 );
 const deploymentReadme = fs.readFileSync(
-  path.join(repoRoot, 'docs', '部署', 'README.md'),
+  path.join(repoRoot, 'docs', '閮ㄧ讲', 'README.md'),
   'utf8',
 );
 assert.ok(
@@ -239,7 +251,7 @@ assert.ok(
   'source deployment guide must document the pnpm workflow and base URL source of truth',
 );
 assert.ok(
-  deploymentReadme.includes('[源码部署](./源码部署.md)'),
+  deploymentReadme.includes('[婧愮爜閮ㄧ讲](./婧愮爜閮ㄧ讲.md)'),
   'deployment README must link the source deployment guide',
 );
 

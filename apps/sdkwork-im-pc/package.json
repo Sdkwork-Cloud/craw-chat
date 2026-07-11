@@ -27,13 +27,12 @@
     "test:communication-settings-sdk-boundary": "node scripts/communication-settings-sdk-boundary-contract.test.mjs",
     "test:pc-realtime-connection": "node ../../scripts/dev/run-tsx-cli.mjs scripts/pc-realtime-connection-contract.test.ts",
     "test:chat-auth-realtime-guard": "node ../../scripts/dev/run-tsx-cli.mjs scripts/chat-auth-realtime-guard-contract.test.ts",
+    "test:chat-message-pagination": "node scripts/chat-message-pagination-contract.test.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@zxing/browser": "catalog:",
     "@zxing/library": "catalog:",
-    "@sdkwork-internal/im-app-api-generated": "workspace:*",
-    "@sdkwork-internal/im-backend-api-generated": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
     "@sdkwork/appbase-pc-react": "workspace:*",
@@ -107,7 +106,9 @@
     "tiptap-markdown": "catalog:",
     "vite": "catalog:",
     "@sdkwork/notary-app-sdk": "workspace:*",
-    "@sdkwork/notary-pc-commons": "workspace:*"
+    "@sdkwork/notary-pc-commons": "workspace:*",
+    "@sdkwork/im-app-sdk": "workspace:*",
+    "@sdkwork/im-backend-sdk": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

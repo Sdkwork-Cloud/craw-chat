@@ -20,6 +20,23 @@ function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
 
+function mergeJson(relativePaths) {
+  return Object.assign({}, ...relativePaths.map(readJson));
+}
+
+function readChatLocale(locale) {
+  return mergeJson([
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/sidebar.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/agent.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/profile.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/contacts.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/favorites.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/settings-modal.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/chat.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/scan-qr.json`,
+  ]);
+}
+
 function extractYamlSchemaBlock(source, schemaName) {
   const marker = `    ${schemaName}:\n`;
   const start = source.indexOf(marker);
@@ -97,8 +114,8 @@ function assertNoImDeviceApiUsage(source, label) {
 }
 
 const appPackageJson = readJson('apps/sdkwork-im-pc/package.json');
-const chatEnUsMessages = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json');
-const chatZhCnMessages = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json');
+const chatEnUsMessages = readChatLocale('en-US');
+const chatZhCnMessages = readChatLocale('zh-CN');
 const runTauriCliSource = read('scripts/run-tauri-cli.mjs');
 const retiredGenericAppSdkPackage = `@sdkwork/${'app'}-sdk`;
 const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
@@ -124,12 +141,20 @@ assert.equal(appPackageJson.scripts['desktop:dev:local'], undefined);
 assert.equal(appPackageJson.scripts['desktop:build:local'], undefined);
 assert.equal(appPackageJson.scripts['build:desktop:local'], 'pnpm --filter @sdkwork/im-pc-desktop build:desktop:local');
 assert.ok(
-  appPackageJson.dependencies['@sdkwork-internal/im-app-api-generated'],
-  'PC app must depend on generated sdkwork-im-app-sdk TypeScript package',
+  appPackageJson.dependencies['@sdkwork/im-app-sdk'],
+  'PC app must depend on the composed @sdkwork/im-app-sdk consumer package',
 );
 assert.ok(
-  appPackageJson.dependencies['@sdkwork-internal/im-backend-api-generated'],
-  'PC app must depend on generated sdkwork-im-backend-sdk TypeScript package so backend SDK ownership is explicit',
+  appPackageJson.dependencies['@sdkwork/im-backend-sdk'],
+  'PC app must depend on the composed @sdkwork/im-backend-sdk consumer package so backend SDK ownership is explicit',
+);
+assert.ok(
+  !appPackageJson.dependencies['@sdkwork-internal/im-app-api-generated'],
+  'PC app must not depend directly on generated IM app transport packages',
+);
+assert.ok(
+  !appPackageJson.dependencies['@sdkwork-internal/im-backend-api-generated'],
+  'PC app must not depend directly on generated IM backend transport packages',
 );
 assert.ok(
   !appPackageJson.dependencies[retiredGenericAppSdkPackage],
@@ -224,29 +249,29 @@ assert.deepEqual(tauriConfig.bundle.icon, [
 
 const viteConfig = read('apps/sdkwork-im-pc/vite.config.ts');
 const tsconfig = read('apps/sdkwork-im-pc/tsconfig.json');
-assert.match(viteConfig, /@sdkwork-internal\/im-app-api-generated/u, 'Vite must alias generated IM app SDK source');
+assert.match(viteConfig, /@sdkwork\/im-app-sdk/u, 'Vite must alias composed IM app SDK facade source');
 assert.match(
   viteConfig,
-  /sdks[\\\/]sdkwork-im-app-sdk[\\\/]sdkwork-im-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  /sdks[\\\/]sdkwork-im-app-sdk[\\\/]sdkwork-im-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
 );
 assert.match(
   viteConfig,
-  /@sdkwork-internal\/im-backend-api-generated/u,
-  'Vite must alias generated IM backend SDK source',
+  /@sdkwork\/im-backend-sdk/u,
+  'Vite must alias composed IM backend SDK facade source',
 );
 assert.match(
   viteConfig,
-  /sdks[\\\/]sdkwork-im-backend-sdk[\\\/]sdkwork-im-backend-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  /sdks[\\\/]sdkwork-im-backend-sdk[\\\/]sdkwork-im-backend-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
 );
 assert.match(
   tsconfig,
-  /sdks[\\\/]sdkwork-im-app-sdk[\\\/]sdkwork-im-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'TypeScript must resolve generated IM app SDK from source for live development',
+  /sdks[\\\/]sdkwork-im-app-sdk[\\\/]sdkwork-im-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve composed IM app SDK facade from source for live development',
 );
 assert.match(
   tsconfig,
-  /sdks[\\\/]sdkwork-im-backend-sdk[\\\/]sdkwork-im-backend-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
-  'TypeScript must resolve generated IM backend SDK from source for live development',
+  /sdks[\\\/]sdkwork-im-backend-sdk[\\\/]sdkwork-im-backend-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve composed IM backend SDK facade from source for live development',
 );
 assert.doesNotMatch(
   viteConfig,
@@ -264,6 +289,11 @@ assert.match(
   tsconfig,
   /sdks[\\\/]sdkwork-im-sdk[\\\/]sdkwork-im-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
   'TypeScript must resolve generated IM SDK from source for live development',
+);
+assert.doesNotMatch(
+  `${viteConfig}\n${tsconfig}`,
+  /@sdkwork\/im-sdk-generated|sdkwork-im-sdk-typescript[\\\/]generated[\\\/]server-openapi/u,
+  'PC app must not alias IM generated transport; consumers use the composed @sdkwork/im-sdk facade',
 );
 assert.match(viteConfig, /@sdkwork\/rtc-sdk/u, 'Vite must alias generated RTC SDK source');
 assert.match(
@@ -372,8 +402,8 @@ for (const localReactPackageName of ['@sdkwork/core-pc-react', '@sdkwork/ui-pc-r
   );
 }
 for (const localSdkPackageName of [
-  '@sdkwork-internal/im-app-api-generated',
-  '@sdkwork-internal/im-backend-api-generated',
+  '@sdkwork/im-app-sdk',
+  '@sdkwork/im-backend-sdk',
   '@sdkwork/iam-app-sdk',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/catalog-app-sdk',
@@ -615,8 +645,13 @@ const agentAppSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-
 const sessionSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session.ts');
 assert.match(
   appSdkClientSource,
-  /from ['"]@sdkwork-internal\/im-app-api-generated['"]/u,
-  'app SDK wrapper must use generated sdkwork-im-app-sdk client',
+  /from ['"]@sdkwork\/im-app-sdk['"]/u,
+  'app SDK wrapper must use the composed @sdkwork/im-app-sdk consumer package',
+);
+assert.doesNotMatch(
+  appSdkClientSource,
+  /@sdkwork-internal\/im-app-api-generated/u,
+  'app SDK wrapper must not import generated IM app transport directly',
 );
 assert.match(appSdkClientSource, /createClient/u);
 assert.match(appSdkClientSource, /createAppSdkClientConfig/u);
@@ -1129,7 +1164,7 @@ assert.match(
 assert.match(
   chatServiceSource,
   /entry\.body\?\.replyTo/u,
-  'chat service must restore reply references from timeline MessageBody.replyTo',
+  'chat service must restore reply references from message history MessageBody.replyTo',
 );
 assert.match(
   chatServiceSource,
@@ -1314,8 +1349,13 @@ assert.match(
 );
 assert.match(
   settingsServiceSource,
-  /\.portal\.home\.retrieve\s*\(\s*\)/u,
-  'settings service module configuration must read the app portal snapshot through the generated SDK',
+  /retrievePortalHome\s*\(\s*this\.getClient\(\)\s*\)/u,
+  'settings service module configuration must use the shared generated-SDK portal snapshot adapter',
+);
+assert.match(
+  appSdkClientSource,
+  /retrievePortalHome[\s\S]*?client\.portal\.home\.retrieve\s*\(\s*\)/u,
+  'the shared portal snapshot adapter must call the generated app SDK operation',
 );
 assert.match(
   settingsServiceSource,
@@ -1393,15 +1433,28 @@ assert.doesNotMatch(
 );
 assertNoImDeviceApiUsage(chatServiceSource, 'chat service');
 assert.match(chatServiceSource, /syncOfflineMessages/u, 'chat service must expose offline message window sync');
+const syncOfflineMessagesImplementation = chatServiceSource.match(
+  /async\s+syncOfflineMessages\([^{]*\{([\s\S]*?)\n\s+recoverRealtimeConnection/u,
+)?.[1] ?? '';
 assert.match(
-  chatServiceSource,
-  /\.chat\.inbox\.list\s*\(/u,
-  'chat service offline sync must refresh the IM inbox through the generated SDK',
+  syncOfflineMessagesImplementation,
+  /this\.listChatsPage\s*\(\s*\)/u,
+  'chat service startup sync must refresh only the first IM inbox page through listChatsPage',
+);
+assert.doesNotMatch(
+  syncOfflineMessagesImplementation,
+  /this\.getChats\s*\(\s*\)|forEachCursorPage/u,
+  'chat service startup sync must not scan all inbox pages when many conversations exist',
+);
+assert.doesNotMatch(
+  syncOfflineMessagesImplementation,
+  /getMessages\s*\(|conversations\.listMessages\s*\(/u,
+  'chat service startup sync must not preload message history for every inbox conversation',
 );
 assert.match(
   chatServiceSource,
   /\.conversations\.listMessages\s*\(/u,
-  'chat service offline sync must refresh message windows through generated IM conversation messages APIs',
+  'chat service active conversation message history must load through generated IM conversation messages APIs',
 );
 assert.doesNotMatch(chatServiceSource, /class MockChatService/u, 'chat service must not be mock-backed');
 assert.doesNotMatch(chatServiceSource, /mockChats|mockMessages/u, 'chat service must not keep mock branches');
@@ -1451,18 +1504,18 @@ for (const requiredOperation of [
 }
 assert.match(
   imCallsModuleSource,
-  /retrieve\s*\(\s*rtcSessionId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<RtcSession>/u,
+  /retrieve\s*\(\s*rtcSessionId:\s*string\s*\)\s*:\s*Promise<RtcSession>/u,
   'IM SDK calls module must expose a semantic retrieve method for call session state backfill',
 );
 assert.match(
   imCallsModuleSource,
-  /transportClient\.calls\.sessions\.retrieve\s*\(\s*rtcSessionId\s*\)/u,
-  'IM SDK calls.retrieve must delegate to the generated calls.sessions.retrieve transport method',
+  /transportClient\.calls\.sessions\.retrieve\s*\(\s*requireStringIdentifier\s*\(\s*rtcSessionId,\s*['"]rtcSessionId['"]\s*\)\s*\)/u,
+  'IM SDK calls.retrieve must validate rtcSessionId before delegating to the generated calls.sessions.retrieve transport method',
 );
 assert.match(
   imTransportClientLikeSource,
-  /retrieve\s*\(\s*rtcSessionId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<RtcSession>/u,
-  'IM SDK transport client contract must include generated calls.sessions.retrieve',
+  /retrieve\s*\(\s*rtcSessionId:\s*string\s*\)\s*:\s*Promise<RtcSession>/u,
+  'IM SDK transport client contract must include generated calls.sessions.retrieve with string-only identifiers',
 );
 for (const requiredSchema of [
   'MessageReactionRequest',
@@ -1477,7 +1530,7 @@ for (const requiredSchema of [
   'MessageBody',
   'MessageReplyReference',
   'MessageType',
-  'TimelineViewEntry',
+  'ConversationMessageEntry',
   'ConversationInboxPeerView',
   'ConversationInboxPreferencesView',
   'ConversationProfileView',
@@ -1501,7 +1554,7 @@ for (const requiredSchema of [
     `IM OpenAPI must define ${requiredSchema} for generated SDK typing`,
   );
 }
-const timelineViewEntrySchema = extractYamlSchemaBlock(imOpenApiSource, 'TimelineViewEntry');
+const conversationMessageEntrySchema = extractYamlSchemaBlock(imOpenApiSource, 'ConversationMessageEntry');
 for (const requiredField of [
   'sender',
   'body',
@@ -1510,25 +1563,25 @@ for (const requiredField of [
   'occurredAt',
 ]) {
   assert.match(
-    timelineViewEntrySchema,
+    conversationMessageEntrySchema,
     new RegExp(`\\b${requiredField}:`, 'u'),
-    `TimelineViewEntry must expose ${requiredField} so PC history does not fall back to local mock fields`,
+    `ConversationMessageEntry must expose ${requiredField} so PC history does not fall back to local mock fields`,
   );
   assert.match(
-    timelineViewEntrySchema,
+    conversationMessageEntrySchema,
     new RegExp(`- ${requiredField}\\b`, 'u'),
-    `TimelineViewEntry must require ${requiredField} in the IM OpenAPI contract`,
+    `ConversationMessageEntry must require ${requiredField} in the IM OpenAPI contract`,
   );
 }
 assert.match(
-  timelineViewEntrySchema,
+  conversationMessageEntrySchema,
   /sender:\s*\n\s+\$ref:\s*'#\/components\/schemas\/Sender'/u,
-  'TimelineViewEntry.sender must reuse the standard Sender schema',
+  'ConversationMessageEntry.sender must reuse the standard Sender schema',
 );
 assert.match(
-  timelineViewEntrySchema,
+  conversationMessageEntrySchema,
   /body:\s*\n\s+\$ref:\s*'#\/components\/schemas\/MessageBody'/u,
-  'TimelineViewEntry.body must reuse the standard MessageBody schema',
+  'ConversationMessageEntry.body must reuse the standard MessageBody schema',
 );
 const messageBodySchema = extractYamlSchemaBlock(imOpenApiSource, 'MessageBody');
 assert.match(
@@ -1562,9 +1615,9 @@ for (const requiredField of ['messageId', 'senderDisplayName', 'contentPreview']
   );
 }
 assert.match(
-  timelineViewEntrySchema,
+  conversationMessageEntrySchema,
   /messageType:\s*\n\s+\$ref:\s*'#\/components\/schemas\/MessageType'/u,
-  'TimelineViewEntry.messageType must reuse the standard MessageType schema',
+  'ConversationMessageEntry.messageType must reuse the standard MessageType schema',
 );
 assert.match(
   extractYamlSchemaBlock(imOpenApiSource, 'MessageType'),
@@ -1594,6 +1647,12 @@ assert.match(
   conversationInboxEntrySchema,
   /preferences:\s*\n\s+\$ref:\s*'#\/components\/schemas\/ConversationInboxPreferencesView'/u,
   'ConversationInboxEntry.preferences must use the standard inbox preferences projection schema',
+);
+const inboxListOperation = extractYamlOperationBlock(imOpenApiSource, '/im/v3/api/chat/inbox', 'get');
+assert.match(
+  inboxListOperation,
+  /#\/components\/parameters\/ConversationTypeQuery/u,
+  'IM OpenAPI inbox list must expose server-side conversation_type filtering so group lists do not page the mixed inbox locally',
 );
 const conversationInboxPeerViewSchema = extractYamlSchemaBlock(imOpenApiSource, 'ConversationInboxPeerView');
 for (const requiredField of ['principalKind', 'principalId']) {
@@ -2013,13 +2072,13 @@ assert.match(
 );
 assert.match(
   imMessagesModuleSource,
-  /\bdeleteForMe\s*\(\s*messageId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<void>/u,
-  'IM messages module deleteForMe must expose the 204 delete contract as Promise<void>',
+  /\bdeleteForMe\s*\(\s*messageId:\s*string\s*\)\s*:\s*Promise<void>/u,
+  'IM messages module deleteForMe must expose a string-only 204 delete contract as Promise<void>',
 );
 assert.match(
   imSdkSource,
-  /\bdeleteMessageForMe\s*\(\s*messageId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<void>/u,
-  'IM SDK client deleteMessageForMe must expose the 204 delete contract as Promise<void>',
+  /\bdeleteMessageForMe\s*\(\s*messageId:\s*string\s*\)\s*:\s*Promise<void>/u,
+  'IM SDK client deleteMessageForMe must expose a string-only 204 delete contract as Promise<void>',
 );
 for (const sdkMethod of ['listFavorites', 'favoriteMessage', 'deleteFavorite']) {
   assert.match(
@@ -2105,23 +2164,23 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /rooms:\s*\{[\s\S]*create\(body: CreateRoomRequest\): Promise<CreateConversationResult>;/u,
-  'IM transport client type must expose generated chat.rooms create resource',
+  /rooms:\s*\{[\s\S]*create\(body: ImCreateRoomRequest\): Promise<CreateConversationResult>;/u,
+  'IM transport client type must expose composed chat.rooms create resource with server-owned conversation id support',
 );
 assert.match(
   imTransportClientLikeSource,
-  /retrieve\(roomId: string \| number\): Promise<RoomView>;/u,
-  'IM transport client type must expose generated chat.rooms retrieve resource',
+  /retrieve\(roomId: string\): Promise<RoomView>;/u,
+  'IM transport client type must expose generated chat.rooms retrieve resource with a string-only roomId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /enter\(roomId: string \| number\): Promise<EnterRoomResponse>;/u,
-  'IM transport client type must expose generated chat.rooms enter resource',
+  /enter\(roomId: string\): Promise<EnterRoomResponse>;/u,
+  'IM transport client type must expose generated chat.rooms enter resource with a string-only roomId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /leave\(roomId: string \| number\): Promise<EnterRoomResponse>;/u,
-  'IM transport client type must expose generated chat.rooms leave resource',
+  /leave\(roomId: string\): Promise<EnterRoomResponse>;/u,
+  'IM transport client type must expose generated chat.rooms leave resource with a string-only roomId',
 );
 assert.match(
   imTransportClientLikeSource,
@@ -2130,18 +2189,18 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /pin\(messageId: string \| number\): Promise<MessagePinMutationResult>;/u,
-  'IM transport client type must expose generated chat.messages.pin method',
+  /pin\(messageId: string\): Promise<MessagePinMutationResult>;/u,
+  'IM transport client type must expose generated chat.messages.pin method with a string-only messageId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /unpin\(messageId: string \| number\): Promise<MessagePinMutationResult>;/u,
-  'IM transport client type must expose generated chat.messages.unpin method',
+  /unpin\(messageId: string\): Promise<MessagePinMutationResult>;/u,
+  'IM transport client type must expose generated chat.messages.unpin method with a string-only messageId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /visibility:\s*\{[\s\S]*delete\(messageId: string \| number\): Promise<void>;/u,
-  'IM transport client type must expose generated chat.messages.visibility delete as Promise<void>',
+  /visibility:\s*\{[\s\S]*delete\(messageId: string\): Promise<void>;/u,
+  'IM transport client type must expose generated chat.messages.visibility delete with a string-only messageId as Promise<void>',
 );
 assert.match(
   imTransportClientLikeSource,
@@ -2150,13 +2209,13 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /create\(messageId: string \| number, body: FavoriteMessageRequest\): Promise<MessageFavoriteView>;/u,
-  'IM transport client type must expose generated chat.messages.favorites create resource',
+  /create\(messageId: string, body: FavoriteMessageRequest\): Promise<MessageFavoriteView>;/u,
+  'IM transport client type must expose generated chat.messages.favorites create resource with a string-only messageId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /delete\(favoriteId: string \| number\): Promise<DeleteMessageFavoriteResponse>;/u,
-  'IM transport client type must expose generated chat.messages.favorites delete resource',
+  /delete\(favoriteId: string\): Promise<DeleteMessageFavoriteResponse>;/u,
+  'IM transport client type must expose generated chat.messages.favorites delete resource with a string-only favoriteId',
 );
 assert.match(
   imTransportClientLikeSource,
@@ -2190,42 +2249,73 @@ assert.match(
 );
 assert.match(
   imTransportClientLikeSource,
-  /update\(\s*tagId: string \| number,\s*body: UpdateContactTagRequest,?\s*\): Promise<ContactTagView>;/u,
-  'IM transport client type must expose generated social.contacts.tags update resource',
+  /update\(\s*tagId: string,\s*body: UpdateContactTagRequest,?\s*\): Promise<ContactTagView>;/u,
+  'IM transport client type must expose generated social.contacts.tags update resource with a string-only tagId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /delete\(tagId: string \| number\): Promise<DeleteContactTagResponse>;/u,
-  'IM transport client type must expose generated social.contacts.tags delete resource',
+  /delete\(tagId: string\): Promise<DeleteContactTagResponse>;/u,
+  'IM transport client type must expose generated social.contacts.tags delete resource with a string-only tagId',
 );
 assert.match(
   imTransportClientLikeSource,
-  /recommendations:\s*\{[\s\S]*create\(\s*targetUserId: string \| number,\s*body: CreateContactRecommendationRequest,?\s*\): Promise<ContactRecommendationView>;/u,
-  'IM transport client type must expose generated social.contacts.recommendations create resource',
+  /recommendations:\s*\{[\s\S]*create\(\s*targetUserId: string,\s*body: CreateContactRecommendationRequest,?\s*\): Promise<ContactRecommendationView>;/u,
+  'IM transport client type must expose generated social.contacts.recommendations create resource with a string-only targetUserId',
 );
 assert.match(
   imTransportClientLikeSource,
   /users:\s*\{[\s\S]*list\(params\?:\s*\{[\s\S]*q\?: string;[\s\S]*pageSize\?: number;[\s\S]*cursor\?: string;[\s\S]*\}\): Promise<SocialUserSearchResponse>;/u,
   'IM transport client type must expose generated social.users.list for add-friend search',
 );
-assert.match(
-  chatServiceSource,
-  /this\.client\(\)\.addReaction\s*\(/u,
-  'chat service addReaction must persist through the IM SDK before applying local projection state',
-);
-assert.match(
-  chatServiceSource,
-  /this\.client\(\)\.removeReaction\s*\(/u,
-  'chat service removeReaction must persist through the IM SDK before applying local projection state',
-);
-assert.match(
-  chatServiceSource,
-  /async\s+deleteMessage\s*\([^)]*\)\s*:\s*Promise<void>\s*\{\s*await\s+this\.client\(\)\.messages\.deleteForMe\s*\(\s*messageId\s*\)/u,
-  'chat service deleteMessage must hide messages for the current user through the IM SDK visibility API',
-);
-const deleteMessageImplementation = chatServiceSource.match(
-  /async\s+deleteMessage\([^{]*\{([\s\S]*?)\n\s+\}/u,
-)?.[1] ?? '';
+function extractChatServiceCommand(methodName, nextMethodName) {
+  const methodStart = chatServiceSource.indexOf(`  async ${methodName}(`);
+  assert.notEqual(methodStart, -1, `chat service ${methodName} command must stay discoverable`);
+  const methodEnd = chatServiceSource.indexOf(`  async ${nextMethodName}(`, methodStart);
+  assert.notEqual(methodEnd, -1, `chat service ${methodName} command must end before ${nextMethodName}`);
+  return chatServiceSource.slice(methodStart, methodEnd);
+}
+
+const deleteMessageImplementation = extractChatServiceCommand('deleteMessage', 'recallMessage');
+const addReactionImplementation = extractChatServiceCommand('addReaction', 'removeReaction');
+const removeReactionImplementation = extractChatServiceCommand('removeReaction', 'updateChat');
+for (const [methodName, implementation, orderedMutation] of [
+  [
+    'deleteMessage',
+    deleteMessageImplementation,
+    /await\s+client\.messages\.deleteForMe\s*\(\s*messageId\s*\)[\s\S]*?this\.assertAuthSessionGenerationCurrent\s*\(\s*generation\s*,\s*operation\s*\)[\s\S]*?this\.setLocalMessages\s*\(/u,
+  ],
+  [
+    'addReaction',
+    addReactionImplementation,
+    /await\s+client\.addReaction\s*\(\s*messageId\s*,\s*emoji\s*\)[\s\S]*?this\.assertAuthSessionGenerationCurrent\s*\(\s*generation\s*,\s*operation\s*\)[\s\S]*?this\.updateLocalMessage\s*\(/u,
+  ],
+  [
+    'removeReaction',
+    removeReactionImplementation,
+    /await\s+client\.removeReaction\s*\(\s*messageId\s*,\s*emoji\s*\)[\s\S]*?this\.assertAuthSessionGenerationCurrent\s*\(\s*generation\s*,\s*operation\s*\)[\s\S]*?this\.updateLocalMessage\s*\(/u,
+  ],
+]) {
+  assert.match(
+    implementation,
+    /const\s+\{\s*client\s*,\s*generation\s*\}\s*=\s*await\s+this\.beginAuthSessionOperation\s*\(\s*operation\s*\)/u,
+    `chat service ${methodName} must capture one authenticated IM SDK client and generation`,
+  );
+  assert.match(
+    implementation,
+    orderedMutation,
+    `chat service ${methodName} must await the captured IM SDK mutation, fence its generation, then update local projection state`,
+  );
+  assert.doesNotMatch(
+    implementation,
+    /this\.client\s*\(\s*\)/u,
+    `chat service ${methodName} must not reacquire a dynamic IM SDK client after capturing the operation client`,
+  );
+  assert.doesNotMatch(
+    implementation,
+    /\bfetch\s*\(|\baxios(?:\.|\s*\()|\/im\/v3\/|\b(?:Authorization|Access-Token|X-API-Key)\b/u,
+    `chat service ${methodName} must not bypass the captured IM SDK client with raw HTTP or manual auth headers`,
+  );
+}
 assert.doesNotMatch(
   deleteMessageImplementation,
   /recallMessage/u,
@@ -2239,62 +2329,158 @@ assert.match(
 assert.match(
   chatServiceSource,
   /loadMoreMessages/u,
-  'chat service getMessages must load additional timeline pages from the IM SDK',
+  'chat service must expose explicit loadMoreMessages for additional message history pages',
+);
+const getMessagesImplementation = chatServiceSource.match(
+  /async\s+getMessages\([^{]*\{([\s\S]*?)\n\s+hasMoreMessages\(/u,
+)?.[1] ?? '';
+assert.match(
+  getMessagesImplementation,
+  /conversations\.listMessages\s*\(\s*chatId,\s*\{\s*pageSize,\s*\}/u,
+  'chat service getMessages must request exactly one bounded latest message page without constructing a cursor',
+);
+assert.doesNotMatch(
+  getMessagesImplementation,
+  /while\s*\(|loadMoreMessages\s*\(/u,
+  'chat service getMessages must not auto-load additional message history pages; loadMoreMessages is the explicit next-page path',
 );
 assert.match(
   chatServiceSource,
-  /getMessages[\s\S]{0,800}loadMoreMessages/u,
-  'chat service getMessages must auto-load timeline pages when the first SDK page is incomplete',
+  /nextCursor\?:\s*string/u,
+  'chat service message history sync must retain the server-issued opaque cursor',
+);
+assert.doesNotMatch(
+  chatServiceSource,
+  /afterSeq|nextAfterSeq|resolveInitialMessageHistoryAfterSeq/u,
+  'chat service must not parse or construct numeric message-history cursors',
 );
 assert.match(
   chatServiceSource,
-  /nextAfterSeq/u,
-  'chat service timeline sync must continue through SDK afterSeq cursor windows',
+  /resolveMessageEntryType/u,
+  'chat service must derive PC message type from the complete message history body/render hints',
 );
 assert.match(
   chatServiceSource,
-  /resolveTimelineMessageType/u,
-  'chat service must derive PC message type from the complete timeline body/render hints',
-);
-assert.match(
-  chatServiceSource,
-  /resolveTimelineMessageContent/u,
-  'chat service must derive PC message content from the complete timeline body/resource projection',
+  /resolveMessageEntryContent/u,
+  'chat service must derive PC message content from the complete message history body/resource projection',
 );
 assert.match(
   chatServiceSource,
   /entry\.sender\?\.id/u,
-  'chat service historical messages must use TimelineViewEntry.sender instead of system fallback',
+  'chat service historical messages must use ConversationMessageEntry.sender instead of system fallback',
 );
 assert.match(
   chatServiceSource,
   /entry\.body/u,
-  'chat service historical messages must use TimelineViewEntry.body instead of summary-only fallback',
+  'chat service historical messages must use ConversationMessageEntry.body instead of summary-only fallback',
 );
 assert.match(
   chatServiceSource,
   /entry\.committedAt\s*\?\?\s*entry\.occurredAt/u,
-  'chat service historical messages must use backend timeline timestamps',
+  'chat service historical messages must use backend message history timestamps',
 );
+assert.doesNotMatch(
+  getMessagesImplementation,
+  /getMessageInteractionSummary\s*\(/u,
+  'chat service getMessages must not issue per-message interaction_summary requests while loading message history',
+);
+assert.doesNotMatch(
+  chatServiceSource,
+  /MessageInteractionSummaryView|interactionSummaryCache|entry\.reactionCounts|entry\.pin/u,
+  'chat service message history must not depend on inline interaction fields that ConversationMessageEntry does not define',
+);
+const resolveReadSeqForMarkAsReadImplementation = chatServiceSource.match(
+  /private\s+resolveReadSeqForMarkAsRead\(chatId:\s*string\):\s*number\s*\{([\s\S]*?)\n\s+\}/u,
+)?.[1] ?? '';
 assert.match(
   chatServiceSource,
-  /conversations\.getMessageInteractionSummary\s*\(/u,
-  'chat service getMessages must restore historical reaction state through the IM SDK',
+  /private\s+resolveReadSeqForMarkAsRead\(chatId:\s*string\):\s*number/u,
+  'chat service markAsRead must resolve read cursor sequence from local inbox/message projection state synchronously',
 );
 assert.match(
-  chatServiceSource,
-  /conversations\.getPreferences\s*\(/u,
-  'chat service getChats must restore per-user pin/mute preferences through the IM SDK',
+  resolveReadSeqForMarkAsReadImplementation,
+  /return\s+this\.latestReadSeq\.get\(chatId\)\s*\?\?\s*0/u,
+  'chat service markAsRead must use the cached latest sequence from inbox, websocket, or message history synchronization',
+);
+assert.doesNotMatch(
+  resolveReadSeqForMarkAsReadImplementation,
+  /listMessages|pageSize:\s*1|await|response\.highWatermark|response\.items\?\.at\(-1\)|latestEntry\?\.messageSeq/u,
+  'chat service markAsRead must not issue an extra message-history/highWatermark request or infer state from a pageSize=1 peek',
+);
+const hydrateInboxEntriesToChatsImplementation = chatServiceSource.match(
+  /private\s+async\s+hydrateInboxEntriesToChats\([^{]*\{([\s\S]*?)\n\s+async\s+listChatsPage/u,
+)?.[1] ?? '';
+assert.match(
+  hydrateInboxEntriesToChatsImplementation,
+  /this\.writeLatestReadSeq\(entry\.conversationId,\s*Math\.max\([\s\S]*?entry\.lastMessageSeq/u,
+  'chat service inbox hydration must seed the bounded latestReadSeq cache from ConversationInboxEntry.lastMessageSeq for zero-extra-request markAsRead',
+);
+assert.doesNotMatch(
+  hydrateInboxEntriesToChatsImplementation,
+  /conversations\.(?:getPreferences|getProfile)\s*\(|hydrateDirectConversationViewState\s*\(|resolveDirectChatPeerProfile\s*\(|syncConversationMembers\s*\(/u,
+  'chat service chat-list hydration must not issue per-conversation preference, profile, member, or social fallback reads',
 );
 assert.match(
-  chatServiceSource,
-  /conversations\.getProfile\s*\(/u,
-  'chat service getChats must restore shared group profile fields through the IM SDK',
+  hydrateInboxEntriesToChatsImplementation,
+  /applyInboxProjectionToViewState[\s\S]*?mapInboxEntryToChat/u,
+  'chat service chat-list hydration must use ConversationInboxEntry projections and safe local fallbacks only',
 );
 assert.match(
   chatServiceSource,
   /conversations\.updateProfile\s*\(/u,
   'chat service updateChat/createChat must persist shared group profile fields through the IM SDK',
+);
+const emitChatListImplementation = chatServiceSource.match(
+  /private\s+emitChatList\([^{]*\{([\s\S]*?)\n\s+private\s+async\s+doEmitChatList/u,
+)?.[1] ?? '';
+assert.match(
+  emitChatListImplementation,
+  /chatListRefreshPromise/u,
+  'chat service realtime conversation-list refresh must coalesce burst events through a single in-flight inbox request',
+);
+const realtimeReadCursorSyncImplementation = chatServiceSource.match(
+  /private\s+queueRealtimeReadCursorSync\([^{]*\{([\s\S]*?)\n\s+async\s+markAsRead/u,
+)?.[1] ?? '';
+assert.match(
+  realtimeReadCursorSyncImplementation,
+  /pendingRealtimeReadCursorSeqs/u,
+  'chat service active realtime read sync must coalesce read cursor updates by conversation',
+);
+assert.match(
+  realtimeReadCursorSyncImplementation,
+  /conversations\.updateReadCursor/u,
+  'chat service active realtime read sync must advance the read cursor through the IM SDK read protocol',
+);
+assert.doesNotMatch(
+  realtimeReadCursorSyncImplementation,
+  /listMessages\s*\(|updatePreferences\s*\(/u,
+  'chat service active realtime read sync must not issue per-message history or preference requests',
+);
+const handleLiveScopeEventImplementation = chatServiceSource.match(
+  /private\s+handleLiveScopeEvent\([^{]*\{([\s\S]*?)\n\s+private\s+handleLiveMessage/u,
+)?.[1] ?? '';
+assert.doesNotMatch(
+  handleLiveScopeEventImplementation,
+  /markAsRead\s*\(/u,
+  'chat service user-scope realtime messages must not call manual markAsRead because that path performs durable history lookup',
+);
+assert.match(
+  handleLiveScopeEventImplementation,
+  /queueRealtimeReadCursorSync\s*\(\s*message\.chatId\s*,\s*messageSeq\s*\)/u,
+  'chat service user-scope realtime messages must sync active reads from the event sequence',
+);
+const handleLiveMessageImplementation = chatServiceSource.match(
+  /private\s+handleLiveMessage\([^{]*\{([\s\S]*?)\n\s+private\s+emitChatList/u,
+)?.[1] ?? '';
+assert.doesNotMatch(
+  handleLiveMessageImplementation,
+  /markAsRead\s*\(/u,
+  'chat service conversation-scope realtime messages must not call manual markAsRead because that path performs durable history lookup',
+);
+assert.match(
+  handleLiveMessageImplementation,
+  /queueRealtimeReadCursorSync\s*\(\s*message\.chatId\s*,\s*messageSeq\s*\)/u,
+  'chat service conversation-scope realtime messages must sync active reads from the event sequence',
 );
 for (const profileField of ['displayName', 'avatarUrl', 'notice']) {
   assert.match(
@@ -2330,13 +2516,27 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
-  /preferences\.isHidden/u,
-  'chat service must map hidden chat-list state through ConversationPreferencesView.isHidden',
+  /projectedPreferences\.isHidden/u,
+  'chat service must map hidden chat-list state from ConversationInboxEntry.preferences.isHidden',
 );
 assert.match(
   chatServiceSource,
   /if\s*\(\s*viewState\?\.isHidden\s*\)\s*\{\s*return undefined;\s*\}/u,
   'chat service getChats must filter hidden conversations using SDK-backed preferences',
+);
+const chatGetChatsSource = chatServiceSource.slice(
+  chatServiceSource.indexOf('  async getChats('),
+  chatServiceSource.indexOf('  subscribeChats(', chatServiceSource.indexOf('  async getChats(')),
+);
+assert.match(
+  chatGetChatsSource,
+  /const\s+page\s*=\s*await\s+this\.listChatsPage\(\s*\)/u,
+  'chat service getChats compatibility entry must read only the first inbox page',
+);
+assert.doesNotMatch(
+  chatGetChatsSource,
+  /forEachCursorPage|MAX_INBOX_CONVERSATIONS|cursor/u,
+  'chat service getChats compatibility entry must not aggregate every inbox page',
 );
 assert.match(
   chatServiceSource,
@@ -2345,8 +2545,8 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
-  /conversations\.updatePreferences\s*\(\s*chat\.id,\s*\{\s*isHidden:\s*false\s*\}\s*\)/u,
-  'chat service createChat must reopen hidden conversations through the IM SDK conversation preferences API',
+  /conversations\.updatePreferences\s*\(\s*conversationId,\s*\{\s*isHidden:\s*false\s*\}\s*\)/u,
+  'chat service createChat must reopen the server-created canonical conversation through the IM SDK conversation preferences API',
 );
 assert.doesNotMatch(
   chatServiceSource,
@@ -2422,6 +2622,8 @@ assert.match(
   /class\s+SdkworkContactService/u,
   'contact service must expose an SDK-backed service implementation',
 );
+const listContactsPageSource = contactServiceSource.match(/async\s+listContactsPage\s*\([\s\S]*?\n\s+async\s+listContactConversationIds/u)?.[0] ?? '';
+assert.ok(listContactsPageSource, 'contact service listContactsPage block must stay discoverable');
 assert.match(
   contactServiceSource,
   /getContacts\s*\([\s\S]*?this\.listContactsPage\s*\(/u,
@@ -2429,13 +2631,18 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /syncContacts\s*\([\s\S]*?this\.syncContactsFromServer\s*\(/u,
-  'contact service syncContacts must list contacts through the generated IM chat contacts SDK',
+  /syncContactsFromServer\s*\([\s\S]*?this\.listContactsPage\s*\(/u,
+  'contact service syncContacts must refresh a single bounded contact page through the generated IM chat contacts SDK',
 );
 assert.match(
   contactServiceSource,
   /\.chat\.contacts\.list\s*\(/u,
   'contact service must page contacts through chat.contacts.list',
+);
+assert.doesNotMatch(
+  listContactsPageSource,
+  /\.social\.contacts\.preferences\.retrieve\s*\(|\.social\.users\.list\s*\(/u,
+  'contact list pages must not fan out to per-contact preferences or social user profile requests',
 );
 assert.match(
   contactServiceSource,
@@ -2457,10 +2664,10 @@ assert.match(
   /\.social\.users\.list\s*\(/u,
   'contact service searchContacts must query users through the generated IM SDK social user search endpoint',
 );
-assert.match(
+assert.doesNotMatch(
   contactServiceSource,
-  /loadContactPeerProfiles\s*\([\s\S]*?this\.loadUserProfile\s*\(\s*userId\s*\)/u,
-  'contact service contact list hydration must resolve backend contact ids through real social user search profiles',
+  /loadContactPeerProfiles/u,
+  'contact service contact list hydration must not resolve every contact through social user search',
 );
 assert.doesNotMatch(
   contactServiceSource,
@@ -2495,22 +2702,17 @@ assert.match(
 assert.match(
   contactServiceSource,
   /syncFriendRequestsFromServer/u,
-  'contact service getFriendRequests must page through incoming and outgoing friend requests',
+  'contact service getFriendRequests must keep the legacy compatibility wrapper bounded to one request page',
 );
 assert.match(
   contactServiceSource,
-  /syncFriendRequestsFromServer\(\s*['"]incoming['"],\s*['"]pending['"]\s*\)/u,
-  'contact service getFriendRequests must list only pending incoming friend requests',
-);
-assert.match(
-  contactServiceSource,
-  /syncFriendRequestsFromServer\(\s*['"]outgoing['"],\s*['"]pending['"]\s*\)/u,
-  'contact service getFriendRequests must list only pending outgoing friend requests',
+  /syncFriendRequestsFromServer\(\s*['"]all['"],\s*['"]pending['"]\s*\)/u,
+  'contact service getFriendRequests must request one pending friend-request page without incoming/outgoing full aggregation',
 );
 assert.match(
   contactServiceSource,
   /nextCursor/u,
-  'contact service friend request sync must continue through SDK cursor windows',
+  'contact service paginated friend request lists must expose SDK cursor windows',
 );
 assert.match(
   contactServiceSource,
@@ -2554,8 +2756,8 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /\.social\.contacts\.preferences\.retrieve\s*\(/u,
-  'contact service getContacts/getStarredContacts must restore contact preferences through the generated IM SDK',
+  /getContactPreferences\s*\([\s\S]*?\.social\.contacts\.preferences\.retrieve\s*\(/u,
+  'contact service must load contact preferences only for explicit contact detail requests',
 );
 assert.match(
   contactServiceSource,
@@ -2619,12 +2821,12 @@ assert.match(
 );
 assert.doesNotMatch(
   contactServiceSource,
-  /\.portal\.home\.retrieve\s*\(\s*\)|mapPortalSnapshotToDepartments/u,
+  /\.portal\.home\.retrieve\s*\(\s*\)|retrievePortalHome|mapPortalSnapshotToDepartments/u,
   'contact service must not back the organization directory with portal home snapshots',
 );
 assert.doesNotMatch(
   organizationDirectoryServiceSource,
-  /\.portal\.home\.retrieve\s*\(\s*\)|mapPortalSnapshotToDepartments|iam_accounts|iamAccounts|department_members|departmentMembers/u,
+  /\.portal\.home\.retrieve\s*\(\s*\)|retrievePortalHome|mapPortalSnapshotToDepartments|iam_accounts|iamAccounts|department_members|departmentMembers/u,
   'organization directory service must not use portal home, iam_accounts, or direct department member modeling',
 );
 assert.match(
@@ -2665,8 +2867,8 @@ assert.match(
 assertNoImDeviceApiUsage(contactServiceSource, 'contact service');
 assert.match(
   contactServiceSource,
-  /syncContacts\s*\([\s\S]*?this\.syncContactsFromServer\s*\(/u,
-  'contact service sync must refresh contacts through the generated IM chat contacts SDK',
+  /syncContactsFromServer\s*\([\s\S]*?this\.listContactsPage\s*\(/u,
+  'contact service sync must refresh only one bounded contact page through the generated IM chat contacts SDK',
 );
 assert.match(
   contactServiceSource,
@@ -3062,11 +3264,6 @@ assert.match(
 assertNoImDeviceApiUsage(groupServiceSource, 'group service');
 assert.match(
   groupServiceSource,
-  /\.conversations\.list\s*\(/u,
-  'group service sync must refresh group conversations through the generated IM SDK',
-);
-assert.match(
-  groupServiceSource,
   /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.listGroupsPage\s*\(/u,
   'group service getGroups must read SDK inbox group projections through listGroupsPage',
 );
@@ -3075,20 +3272,52 @@ assert.match(
   /async\s+getGroupById\s*\(/u,
   'group service must hydrate a single group by conversation id without scanning the full inbox',
 );
+const groupListGroupsPageSource = groupServiceSource.slice(
+  groupServiceSource.indexOf('  async listGroupsPage('),
+  groupServiceSource.indexOf('  async getGroupById(', groupServiceSource.indexOf('  async listGroupsPage(')),
+);
 assert.match(
-  groupServiceSource,
-  /async\s+listGroupsPage\s*\([\s\S]*?chat\?\.inbox\?\.list[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
-  'group service listGroupsPage must hydrate inbox group projections and merge member state so invitees can see newly joined or empty groups without hydrating unrelated single chats',
+  groupListGroupsPageSource,
+  /chat\?\.inbox\?\.list[\s\S]*?hydrateConversationEntryGroup\(entry\)/u,
+  'group service listGroupsPage must hydrate group rows from paginated SDK inbox projections',
+);
+assert.match(
+  groupListGroupsPageSource,
+  /chat\?\.inbox\?\.list\s*\(\s*\{[\s\S]*conversationType:\s*['"]group['"]/u,
+  'group service listGroupsPage must request server-side group filtering instead of paging the mixed inbox then filtering locally',
+);
+assert.doesNotMatch(
+  groupListGroupsPageSource,
+  /withMemberState\s*\(|conversations\.(?:getPreferences|getProfile|listMembers|list)\s*\(/u,
+  'group service listGroupsPage must not issue per-group preference, profile, member, or conversation-list fallback reads',
 );
 assert.doesNotMatch(
   groupServiceSource,
   /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.chatClient\.getChats\(\)/u,
   'group service getGroups must not call ChatService.getChats because that hydrates unrelated single chats and creates avoidable N+1 work',
 );
+const groupGetGroupsSource = groupServiceSource.slice(
+  groupServiceSource.indexOf('  async getGroups('),
+  groupServiceSource.indexOf('  async syncGroupMembers(', groupServiceSource.indexOf('  async getGroups(')),
+);
+assert.doesNotMatch(
+  groupGetGroupsSource,
+  /while\s*\(|cursor|MAX_GROUP_INBOX_ENTRIES|listMissingConversationGroupEntries|hydrateConversationEntryGroups|withMemberState\s*\(|conversations\.(?:listMembers|getProfile|getPreferences|list)\s*\(/u,
+  'group service getGroups compatibility entry must not aggregate inbox pages or perform per-group detail hydration',
+);
 assert.match(
-  groupServiceSource,
-  /hydrateConversationEntryGroup[\s\S]*?conversations\.getPreferences\(entry\.conversationId\)[\s\S]*?preferences\.isHidden[\s\S]*?return\s+null[\s\S]*?conversations\.getProfile\(entry\.conversationId\)[\s\S]*?profile\.displayName[\s\S]*?profile\.avatarUrl/u,
-  'group service getGroups must hydrate conversation-list-only groups with backend profile and preferences before showing invitee empty groups',
+  groupGetGroupsSource,
+  /const\s+page\s*=\s*await\s+this\.listGroupsPage\(\s*\{\s*pageSize:\s*GROUP_INBOX_PAGE_LIMIT\s*\}\s*\)[\s\S]*?return\s+page\.items/u,
+  'group service getGroups compatibility entry must return one bounded group page',
+);
+const groupGetGroupByIdSource = groupServiceSource.slice(
+  groupServiceSource.indexOf('  async getGroupById('),
+  groupServiceSource.indexOf('  async getGroups(', groupServiceSource.indexOf('  async getGroupById(')),
+);
+assert.match(
+  groupGetGroupByIdSource,
+  /conversations\.getPreferences[\s\S]*?conversations\.getProfile[\s\S]*?this\.withMemberState/u,
+  'group service getGroupById must keep explicit active-group detail hydration for one selected group',
 );
 assert.match(
   groupServiceSource,
@@ -3152,7 +3381,7 @@ const newFriendsContainerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-p
 assert.match(
   newFriendsContainerSource,
   /Avatar\s+src=\{req\.avatar\}/u,
-  'new friends list must render avatars resolved from real friend request peer profiles',
+  'new friends list must render the request avatar field without hard-coded placeholder URLs',
 );
 assert.match(
   newFriendsContainerSource,
@@ -3400,15 +3629,15 @@ assert.match(
   /syncOfflineMessages\s*\(\s*\)/u,
   'IM sync coordinator startup sync must run offline message window synchronization',
 );
-assert.match(
+assert.doesNotMatch(
   imSyncCoordinatorServiceSource,
-  /syncContacts\s*\(\s*\)/u,
-  'IM sync coordinator startup sync must run friend/contact refresh synchronization',
+  /this\.contactService|result\.contacts\s*=/u,
+  'IM sync coordinator startup sync must not refresh contacts before the contacts surface is opened',
 );
-assert.match(
+assert.doesNotMatch(
   imSyncCoordinatorServiceSource,
   /syncGroupMembers\s*\(\s*\)/u,
-  'IM sync coordinator startup sync must run group member refresh synchronization',
+  'IM sync coordinator startup sync must not enumerate every group member list before a group is active',
 );
 assertNoImDeviceApiUsage(imSyncCoordinatorServiceSource, 'IM sync coordinator');
 assert.doesNotMatch(imSyncCoordinatorServiceSource, /\bfetch\s*\(/u, 'IM sync coordinator must not use raw fetch');
@@ -3435,7 +3664,7 @@ const capabilityModuleSurfaceSource = read(
 );
 const mergeGroupProjectionsStart = chatLayoutSource.indexOf('const mergeGroupProjections = async');
 assert.notEqual(mergeGroupProjectionsStart, -1, 'chat layout must keep realtime group projection merge behavior auditable');
-const mergeGroupProjectionsEnd = chatLayoutSource.indexOf('  const refreshChats = async', mergeGroupProjectionsStart);
+const mergeGroupProjectionsEnd = chatLayoutSource.indexOf('  const needsGroupDetailHydration', mergeGroupProjectionsStart);
 assert.notEqual(mergeGroupProjectionsEnd, -1, 'chat layout group projection merge helper must end before refreshChats');
 const mergeGroupProjectionsSource = chatLayoutSource.slice(mergeGroupProjectionsStart, mergeGroupProjectionsEnd);
 const openHydratedChatStart = chatLayoutSource.indexOf('const openHydratedChat = async');
@@ -3496,7 +3725,12 @@ assert.match(
 assert.match(
   chatLayoutSource,
   /imSyncCoordinatorService\.syncStartup\s*\(\s*\)/u,
-  'chat layout startup lifecycle must run offline messages, contacts, groups, and RTC recovery before initial chat hydration',
+  'chat layout startup lifecycle must run the lightweight IM startup coordinator before initial chat hydration',
+);
+assert.doesNotMatch(
+  chatLayoutSource,
+  /listContactConversationIds\s*\(/u,
+  'chat layout startup and call watch flows must not enumerate every contact conversation id',
 );
 assert.match(
   chatLayoutSource,
@@ -3550,13 +3784,23 @@ assert.doesNotMatch(
 );
 assert.match(
   chatServiceSource,
-  /startAgentChat\s*\([\s\S]*?\.conversations\.createAgentDialog\s*\(/u,
-  'chat service must start agent chats through the SDK-backed agent dialog API',
+  /startAgentChat\s*\([\s\S]*?const\s+auth\s*=\s*await\s+this\.beginAuthSessionOperation\s*\(\s*operation\s*\)[\s\S]*?findExistingAgentDialogEntry\s*\(\s*agentId\s*,\s*auth\s*\)[\s\S]*?auth\.client\.conversations\.createAgentDialog\s*\([\s\S]*?this\.assertAuthSessionGenerationCurrent\s*\(\s*auth\.generation\s*,\s*operation\s*\)/u,
+  'chat service agent start flow must reuse one authenticated SDK context to check the unified inbox before creating and generation-fencing an agent dialog',
+);
+assert.match(
+  chatServiceSource,
+  /findExistingAgentDialogEntry\s*\([\s\S]*?\.chat\.inbox\.list\s*\(/u,
+  'chat service must discover existing agent conversations from the unified inbox list',
+);
+assert.match(
+  chatServiceSource,
+  /inboxEntryContainsAgent\s*\([\s\S]*?syncConversationMembers\s*\(/u,
+  'chat service must confirm the requested agent through conversation members before reusing an inbox agent dialog',
 );
 assert.match(
   agentStartHandlerSource,
   /chatService\.startAgentChat\s*\(\s*agent\s*\)/u,
-  'chat layout agent start flow must create a real SDK-backed agent dialog',
+  'chat layout agent start flow must delegate to the SDK-backed chat service instead of synthesizing a local agent chat',
 );
 assert.doesNotMatch(
   agentStartHandlerSource,
@@ -3627,8 +3871,8 @@ assert.match(
 );
 assert.match(
   enterpriseServiceSource,
-  /\.portal\.home\.retrieve\s*\(\s*\)/u,
-  'enterprise service must load the backend portal home snapshot through the generated im-app-sdk',
+  /retrievePortalHome\s*\(\s*client\s*\)/u,
+  'enterprise service must load the backend portal home snapshot through the shared generated-SDK adapter',
 );
 assert.match(
   enterpriseServiceSource,
@@ -3828,8 +4072,8 @@ assert.match(
 );
 assert.match(
   workspaceServiceSource,
-  /\.portal\.home\.retrieve\s*\(\s*\)/u,
-  'workspace service must load the backend portal home snapshot through the generated im-app-sdk',
+  /retrievePortalHome\s*\(\s*this\.getClient\(\)\s*\)/u,
+  'workspace service must load the backend portal home snapshot through the shared generated-SDK adapter',
 );
 assert.match(
   workspaceServiceSource,
@@ -4199,14 +4443,72 @@ assert.match(
   'message list must subscribe to SDK realtime updates',
 );
 assert.match(
+  messageListSource,
+  /const\s+loadNextMessagePage\s*=\s*useCallback/u,
+  'message list must expose an explicit backward history-page load',
+);
+assert.match(
+  messageListSource,
+  /onClick=\{\(\)\s*=>\s*\{\s*void\s+loadNextMessagePage\s*\(\s*\)/u,
+  'message list must expose an explicit action for opaque-cursor message history windows',
+);
+const messageListHandleScrollImplementation = messageListSource.match(
+  /const\s+handleScroll\s*=\s*useCallback\(\(\)\s*=>\s*\{([\s\S]*?)\n\s*\},\s*\[[^\]]*\]\);/u,
+)?.[1] ?? '';
+assert.doesNotMatch(
+  messageListHandleScrollImplementation,
+  /loadNextMessagePage/u,
+  'message list must not auto-load history pages from scroll position because that can silently aggregate long conversations',
+);
+assert.match(
+  messageListSource,
+  /return\s+\[\s*\.\.\.nextMessages\.filter\([\s\S]{0,180}?\.\.\.previous/u,
+  'message list must prepend older history pages before the current chronological page',
+);
+assert.doesNotMatch(
+  messageListSource,
+  /return\s+\[\.\.\.previous,\s*\.\.\.nextMessages\.filter|element\.scrollTop\s*<\s*80[\s\S]*?load/u,
+  'message list must not append older pages or auto-load unbounded history near the top',
+);
+assert.match(
+  messageListSource,
+  /previousScrollHeight[\s\S]{0,1000}?scrollTop\s*\+=\s*element\.scrollHeight\s*-\s*previousScrollHeight/u,
+  'message list must preserve the viewport anchor after prepending an older page',
+);
+assert.equal(
+  chatEnUsMessages.chat?.messageList?.loadMore,
+  'Load more messages',
+  'English chat message list catalog must include the explicit next-page action label',
+);
+assert.equal(
+  chatEnUsMessages.chat?.messageList?.loadingMore,
+  'Loading more messages...',
+  'English chat message list catalog must include the explicit next-page loading state',
+);
+assert.equal(
+  chatZhCnMessages.chat?.messageList?.loadMore,
+  '\u52a0\u8f7d\u66f4\u591a\u6d88\u606f',
+  'Chinese chat message list catalog must include the explicit next-page action label',
+);
+assert.equal(
+  chatZhCnMessages.chat?.messageList?.loadingMore,
+  '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u6d88\u606f...',
+  'Chinese chat message list catalog must include the explicit next-page loading state',
+);
+assert.doesNotMatch(
+  messageListSource,
+  /chat\.messageList\.(loadMore|loadingMore)['"][\s\S]{0,120}defaultValue/u,
+  'message list must not rely on defaultValue fallback for committed catalog keys',
+);
+assert.match(
   subscribeChatsSource,
   /chatService\.subscribeChats\s*\(/u,
   'chat layout must subscribe to conversation-list realtime updates so unknown incoming conversations appear without opening them first',
 );
-assert.match(
+assert.doesNotMatch(
   subscribeChatsSource,
-  /mergeGroupProjections\s*\(\s*nextChats\s*\)[\s\S]*?applyChats/u,
-  'chat layout realtime conversation-list refresh must merge SDK-backed group projections so group management data stays current',
+  /mergeGroupProjections\s*\(\s*nextChats\s*\)/u,
+  'chat layout realtime conversation-list refresh must not batch-hydrate group details for every list row',
 );
 assert.match(
   chatLayoutSource,
@@ -4218,10 +4520,10 @@ assert.match(
   /const\s+projectionRevision\s*=\s*chatListProjectionRevisionRef\.current\s*\+\s*1[\s\S]*chatListProjectionRevisionRef\.current\s*=\s*projectionRevision/u,
   'chat layout realtime conversation-list refresh must increment a projection revision for every SDK chat-list snapshot',
 );
-assert.match(
+assert.doesNotMatch(
   subscribeChatsSource,
-  /mergeGroupProjections\s*\(\s*nextChats\s*\)[\s\S]*?\.then\(\(projectedChats\)\s*=>\s*\{[\s\S]*?chatListProjectionRevisionRef\.current\s*!==\s*projectionRevision[\s\S]*?return[\s\S]*?applyChats\(projectedChats\)/u,
-  'chat layout realtime conversation-list refresh must discard stale async group projections before applying them to the chat list',
+  /groupService\.getGroupById\s*\(/u,
+  'chat layout realtime conversation-list refresh must not request group profile/member details until one group is explicitly opened',
 );
 assert.doesNotMatch(
   subscribeChatsSource,
@@ -4238,10 +4540,10 @@ assert.match(
   /\?\?\s*systemAssistantService\.selectInitialChat\(/u,
   'chat layout realtime conversation-list refresh must clear or reselect active chat when the current group disappears from the SDK inbox',
 );
-assert.match(
+assert.doesNotMatch(
   mergeGroupProjectionsSource,
-  /groupService\.getGroupById\s*\([\s\S]*?\{\s*\.\.\.chat,\s*\.\.\.group\s*\}/u,
-  'chat layout group projection merge helper must hydrate group management data from GroupService',
+  /groupService\.getGroupById\s*\(/u,
+  'chat layout group projection merge helper must stay list-only and avoid per-group detail hydration',
 );
 assert.match(
   openHydratedChatSource,

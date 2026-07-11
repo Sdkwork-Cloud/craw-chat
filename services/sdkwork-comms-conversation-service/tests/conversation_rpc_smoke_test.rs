@@ -113,7 +113,7 @@ fn internal_service_metadata(idempotency_key: &str) -> RpcMetadata {
     RpcMetadata {
         service_identity: Some("sdkwork-game-runtime".into()),
         idempotency_key: Some(idempotency_key.into()),
-        request_id: Some("rpc-smoke-internal".into()),
+        trace_id: Some("trace-rpc-smoke-internal".into()),
         ..RpcMetadata::default()
     }
 }
@@ -131,7 +131,7 @@ async fn test_app_room_service_create_enter_over_grpc() {
         .expect("room service client should connect");
 
     let mut create_request = Request::new(CreateRoomRequest {
-        conversation_id: "c_rpc_smoke_app".into(),
+        conversation_id: String::new(),
         room_id: "room_rpc_smoke_app".into(),
         room_kind: "game".into(),
         metadata: None,
@@ -152,6 +152,12 @@ async fn test_app_room_service_create_enter_over_grpc() {
     assert_eq!(
         create_body.room.as_ref().map(|room| room.room_id.as_str()),
         Some("room_rpc_smoke_app")
+    );
+    assert!(
+        create_body
+            .room
+            .as_ref()
+            .is_some_and(|room| room.conversation_id.starts_with("r_"))
     );
 
     let player = local_service_app_context("100001", "1040", "user", Some("d_player"), ["*"]);
@@ -198,7 +204,7 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
         organization_id: "org_a".into(),
         actor_id: "1".into(),
         actor_kind: "user".into(),
-        conversation_id: "c_rpc_smoke_internal".into(),
+        conversation_id: String::new(),
         room_id: "room_rpc_smoke_internal".into(),
         room_kind: "game".into(),
         metadata: None,
@@ -211,10 +217,8 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
         .create_room(create_request)
         .await
         .expect("internal.rooms.create should succeed");
-    assert_eq!(
-        create_response.into_inner().conversation_id,
-        "c_rpc_smoke_internal"
-    );
+    let conversation_id = create_response.into_inner().conversation_id;
+    assert!(conversation_id.starts_with("r_"));
 
     let mut enter_request = Request::new(InternalEnterRoomRequest {
         tenant_id: "100001".into(),
@@ -232,16 +236,13 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
         .enter_room(enter_request)
         .await
         .expect("internal.rooms.enter should succeed");
-    assert_eq!(
-        enter_response.into_inner().conversation_id,
-        "c_rpc_smoke_internal"
-    );
+    assert_eq!(enter_response.into_inner().conversation_id, conversation_id);
 
     let schema_ref = game_move_schema_ref("landlord.play");
     let mut dispatch_request = Request::new(DispatchConversationMessageRequest {
         tenant_id: "100001".into(),
         organization_id: "org_a".into(),
-        conversation_id: "c_rpc_smoke_internal".into(),
+        conversation_id: conversation_id.clone(),
         sender_id: "1040".into(),
         sender_kind: "user".into(),
         schema_ref: schema_ref.clone(),
@@ -263,7 +264,7 @@ async fn test_internal_room_orchestration_and_message_dispatch_over_grpc() {
         .message
         .expect("dispatch should return stored message view");
     assert!(!message.message_id.is_empty());
-    assert_eq!(message.conversation_id, "c_rpc_smoke_internal");
+    assert_eq!(message.conversation_id, conversation_id);
     assert_eq!(message.sender_user_id, "1040");
 
     server.shutdown().await;

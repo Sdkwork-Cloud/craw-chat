@@ -41,13 +41,18 @@ The generated SDK is intentionally transport-level. Do not add handwritten busin
 `generated/server-openapi`. If a semantic wrapper is needed later, keep it outside generated output
 and keep OpenAPI as the source of truth.
 
-## Assembly Metadata
+## SDK Manifest Metadata
 
-The workspace assembly snapshot is `sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json`.
+The SDK family metadata source of truth is `sdks/sdkwork-im-app-sdk/sdk-manifest.json`.
 
-Use it to verify `manifestPath`, `generatedAt`, language workspace names, generated package paths,
-and release state. This family is generated transport first; do not invent a composed public layer
-inside generated output just to hide a missing OpenAPI operation.
+Use it to verify `manifestPath`, `transportPackageName`, `consumerPackageName`, language workspace
+names, generated package paths, dependencies, and release state. This family is generated transport
+first; do not invent a composed public layer inside generated output just to hide a missing OpenAPI
+operation.
+
+Per-family `.sdkwork-assembly.json` is retired and must not be restored. The only allowed assembly
+exception is the repo-level `sdks/.sdkwork-assembly.json` generation registry when it does not
+duplicate per-family manifest fields.
 
 ## Verification
 
@@ -64,7 +69,7 @@ node .\sdks\sdkwork-im-app-sdk\bin\generate-sdk.mjs --language typescript
 ```
 
 The verifier enforces `/app/v3/api/*` ownership, SDKWork dual-token security, generated output
-structure, assembly metadata, and the rule that the family must not contain backend, admin, or
+structure, SDK manifest metadata, and the rule that the family must not contain backend, admin, or
 control routes.
 
 In short: this family must not contain backend, admin, or control routes.

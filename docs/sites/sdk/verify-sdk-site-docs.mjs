@@ -249,7 +249,8 @@ export function verifySdkSiteDocs(options = {}) {
     'materialize-im-v3-openapi-boundaries.mjs',
     'sdks\\sdkwork-im-app-sdk\\bin\\verify-sdk.mjs',
     'sdks\\sdkwork-im-backend-sdk\\bin\\verify-sdk.mjs',
-    'sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs',
+    '..\\sdkwork-rtc\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs',
+    'sdk-manifest.json',
   ]) {
     expectIncludes(
       failures,

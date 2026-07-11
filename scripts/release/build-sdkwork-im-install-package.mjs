@@ -159,7 +159,10 @@ function createSdkworkImInstallPackageBuildPlan({
 
 function createPlannedArchiveEntries(packageItem, stagingRoot, { requireStagedFiles }) {
   const plannedPaths = new Set();
-  if (packageItem.deploymentMode === 'desktop') {
+  if (packageItem.profile === 'browser') {
+    plannedPaths.add('web/sdkwork-im-pc/dist');
+    plannedPaths.add('web-manifest.json');
+  } else if (packageItem.profile === 'desktop') {
     plannedPaths.add('desktop');
     plannedPaths.add('desktop-manifest.json');
   } else {
@@ -246,7 +249,7 @@ function validateSdkworkImInstallPackageBuildPlan(buildPlan) {
       issues.push(`${buildPlan.package.id} source path escapes staging root: ${entry.sourcePath}`);
     }
   }
-  if (buildPlan.package.deploymentMode === 'server-archive') {
+  if (buildPlan.package.profile === 'server') {
     for (const requiredPath of [
       `bin/${buildPlan.package.binaryName}`,
       'config/chat.toml.example',
@@ -260,7 +263,17 @@ function validateSdkworkImInstallPackageBuildPlan(buildPlan) {
       }
     }
   }
-  if (buildPlan.package.deploymentMode === 'desktop') {
+  if (buildPlan.package.profile === 'browser') {
+    for (const requiredPath of [
+      'web/sdkwork-im-pc/dist',
+      'web-manifest.json',
+    ]) {
+      if (!buildPlan.entries.some((entry) => entry.archivePath === requiredPath || entry.archivePath.startsWith(`${requiredPath}/`))) {
+        issues.push(`${buildPlan.package.id} must include ${requiredPath}`);
+      }
+    }
+  }
+  if (buildPlan.package.profile === 'desktop') {
     if (!buildPlan.entries.some((entry) => entry.archivePath === 'desktop-manifest.json')) {
       issues.push(`${buildPlan.package.id} must include desktop-manifest.json`);
     }
@@ -302,7 +315,10 @@ async function buildSdkworkImInstallPackageArchive(buildPlan) {
     version: buildPlan.package.version,
     platform: buildPlan.package.platform,
     architecture: buildPlan.package.architecture,
-    deploymentMode: buildPlan.package.deploymentMode,
+    deploymentProfile: buildPlan.package.deploymentProfile,
+    profile: buildPlan.package.profile,
+    runtimeTarget: buildPlan.package.runtimeTarget,
+    format: buildPlan.package.format,
     size: archiveBytes.length,
     sha256: sha256(archiveBytes),
   };
@@ -334,8 +350,10 @@ function createPackageBuildManifest(buildPlan, archive, files) {
       version: buildPlan.package.version,
       platform: buildPlan.package.platform,
       architecture: buildPlan.package.architecture,
-      deploymentMode: buildPlan.package.deploymentMode,
-      runtimeProfile: buildPlan.package.runtimeProfile,
+      deploymentProfile: buildPlan.package.deploymentProfile,
+      profile: buildPlan.package.profile,
+      runtimeTarget: buildPlan.package.runtimeTarget,
+      format: buildPlan.package.format,
     },
     archive,
     files,

@@ -166,7 +166,6 @@ function renderDependencySurface(surface, segment) {
     `apiAuthority = "${surface.apiAuthority}"`,
     'surface = "app"',
     `apiPrefix = "/app/v3/api/${segment}"`,
-    'runtimeMode = "split-or-embedded"',
     'sameOriginAllowed = true',
     `coverage = "${surface.apiAuthority}-${segment.replace(/\//g, '-')}-routes"`,
     `requiredBaseUrlKey = "${requiredBaseUrlKey}"`,

@@ -114,7 +114,7 @@ fn print_metric(metric: Value) {
 #[test]
 fn test_step11_ha_dr_baseline_config_is_frozen() {
     let baseline = load_drill_baseline();
-    assert_eq!(baseline.profile, "standalone.split-services.development");
+    assert_eq!(baseline.profile, "standalone.development");
     assert_eq!(baseline.tier, "CI Smoke Tier");
     assert_eq!(baseline.drain_rebalance.expected_route_count, 1);
     assert_eq!(baseline.restore_recovery.expected_restored_file_count, 12);

@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "im-adapters-postgres-journal",
+    "displayName": "IM PostgreSQL Journal Adapter",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-im/adapters/postgres-journal",
+    "domain": "communication",
+    "capability": "journal-persistence",
+    "status": "standardizing",
+    "languages": ["rust"],
+    "generated": false,
+    "private": false,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable adapter contract and dependency direction."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "PostgreSQL repositories, transactions, indexes, pools, and durability rules."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "Bounded SQL and keyset pagination rules."
+    },
+    {
+      "file": "EVENT_SPEC.md",
+      "path": "../../../sdkwork-specs/EVENT_SPEC.md",
+      "purpose": "Journal, outbox, ordering, idempotency, and replay rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Typed database and retention runtime configuration."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "Standalone and cloud PostgreSQL runtime requirements."
+    },
+    {
+      "file": "OBSERVABILITY_SPEC.md",
+      "path": "../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "purpose": "Repository latency, pool, retention, and failure telemetry."
+    },
+    {
+      "file": "PERFORMANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "purpose": "Concurrency, bounded memory, query, and capacity budgets."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "TLS, credential redaction, and tenant-isolation rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and public adapter boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork component, database, and Rust naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust concurrency, error, and module rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Repository, transaction, pagination, and integration verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-repository",
+    "publicExports": [
+      "im_adapters_postgres_journal::PostgresAggregateStore",
+      "im_adapters_postgres_journal::PostgresCommitJournal",
+      "im_adapters_postgres_journal::PostgresConversationSeqAllocator",
+      "im_adapters_postgres_journal::PostgresDurableMessagePostWriter",
+      "im_adapters_postgres_journal::PostgresJournalConfig",
+      "im_adapters_postgres_journal::PostgresJournalPool",
+      "im_adapters_postgres_journal::PostgresMessageStore",
+      "im_adapters_postgres_journal::PostgresNotificationTaskStore",
+      "im_adapters_postgres_journal::PostgresOutboxStore",
+      "im_adapters_postgres_journal::PostgresRetentionScopeStore",
+      "im_adapters_postgres_journal::PostgresSearchProvider",
+      "im_adapters_postgres_journal::PostgresStreamStateStore",
+      "im_adapters_postgres_journal::conversation_member_access_gate_from_pool",
+      "im_adapters_postgres_journal::purge_expired_retention_batch",
+      "im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env"
+    ],
+    "providedPorts": [
+      {
+        "name": "commitJournal",
+        "export": "im_adapters_postgres_journal::PostgresCommitJournal"
+      },
+      {
+        "name": "conversationAggregateStore",
+        "export": "im_adapters_postgres_journal::PostgresAggregateStore"
+      },
+      {
+        "name": "messageStore",
+        "export": "im_adapters_postgres_journal::PostgresMessageStore"
+      },
+      {
+        "name": "outboxStore",
+        "export": "im_adapters_postgres_journal::PostgresOutboxStore"
+      },
+      {
+        "name": "searchProvider",
+        "export": "im_adapters_postgres_journal::PostgresSearchProvider"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [
+      "im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": ["im_commit_journal", "im_outbox_events"],
+    "configKeys": [
+      "SDKWORK_IM_DATABASE_URL",
+      "SDKWORK_IM_ENVIRONMENT",
+      "SDKWORK_IM_OUTBOX_MAX_ATTEMPTS",
+      "SDKWORK_IM_RETENTION_PURGE_BATCH_SIZE",
+      "SDKWORK_IM_RETENTION_PURGE_INTERVAL_SECONDS",
+      "SDKWORK_IM_RETENTION_PURGE_MAX_BATCHES_PER_TICK",
+      "SDKWORK_IM_RETENTION_PURGE_SCHEDULER_ENABLED"
+    ]
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. PostgreSQL is the durable source of truth for journal, aggregate, message, outbox, and related repository facts.",
+    "dependencyPolicy": "Runtime bootstrap injects shared IM process database pools and consumes only the crate-root repository exports declared above.",
+    "sdkPolicy": "This adapter neither owns nor consumes generated HTTP SDKs.",
+    "languagePolicy": "Rust source uses parameterized PostgreSQL operations, bounded repository windows, and explicit blocking-I/O bridges."
+  },
+  "verification": {
+    "commands": ["cargo test -p im-adapters-postgres-journal"]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-im",
+    "standardVersion": "2026-07-10"
+  }
+}

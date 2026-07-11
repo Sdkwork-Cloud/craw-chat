@@ -52,12 +52,13 @@ impl ClientRouteRegistration {
         let session_id = auth.session_id.as_deref();
         if !allow_session_takeover {
             self.realtime_cluster
-                .ensure_client_route_resume_not_required_for_principal_kind(
+                .ensure_client_route_resume_not_required_with_session_for_principal_kind(
                     tenant_id,
                     organization_id,
                     principal_id,
                     principal_kind,
                     device_id,
+                    session_id,
                 )?;
             self.presence_runtime
                 .ensure_client_route_resume_not_required(auth, device_id)?;

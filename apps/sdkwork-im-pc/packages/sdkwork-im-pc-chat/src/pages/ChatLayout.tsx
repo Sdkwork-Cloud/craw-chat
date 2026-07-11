@@ -66,6 +66,8 @@ import { I18nextProvider } from "react-i18next";
 
 const ChatLayoutComponent: React.FC = () => {
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("chat");
   const [chats, setChats] = useState<Chat[]>([]);
@@ -79,6 +81,8 @@ const ChatLayoutComponent: React.FC = () => {
   const [friendRequestUnreadCount, setFriendRequestUnreadCount] = useState(0);
   const [runtimeReady, setRuntimeReady] = useState(false);
   const chatListProjectionRevisionRef = useRef(0);
+  const groupDetailHydrationIdsRef = useRef(new Set<string>());
+  const pendingReadCursorChatIdsRef = useRef(new Set<string>());
   const chatsRef = useRef<Chat[]>([]);
   const activeChatIdRef = useRef<string | undefined>(undefined);
   const currentSettingsRef = useRef<AppSettings | null>(null);
@@ -103,6 +107,7 @@ const ChatLayoutComponent: React.FC = () => {
     avatar: string;
     id: string;
     rtcSessionId?: string;
+    userId?: string;
   } | null>(null);
 
   // Plus Menu State
@@ -251,15 +256,95 @@ const ChatLayoutComponent: React.FC = () => {
 
   const needsGroupProjectionMerge = (sourceChats: Chat[]): boolean => sourceChats.some(needsGroupProjection);
 
-  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => Promise.all(
-    sourceChats.map(async (chat) => {
-      if (!needsGroupProjection(chat)) {
-        return chat;
-      }
-      const group = await groupService.getGroupById(chat.id);
-      return group ? { ...chat, ...group } : chat;
-    }),
+  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => {
+    if (!needsGroupProjectionMerge(sourceChats)) {
+      return sourceChats;
+    }
+
+    return sourceChats;
+  };
+
+  const needsGroupDetailHydration = (chat: Chat): boolean => (
+    chat.type === "group"
+    && (
+      chat.members === undefined
+      || chat.memberCount === undefined
+      || needsGroupProjection(chat)
+    )
   );
+
+  const clearChatUnreadProjection = (chat: Chat): Chat => ({
+    ...chat,
+    unreadCount: 0,
+    isMarkedUnread: false,
+  });
+
+  const markSelectedChatAsRead = (chat: Chat): void => {
+    const isUnread = chat.unreadCount > 0 || Boolean(chat.isMarkedUnread);
+    if (!isUnread || pendingReadCursorChatIdsRef.current.has(chat.id)) {
+      return;
+    }
+
+    pendingReadCursorChatIdsRef.current.add(chat.id);
+    setChats((previousChats) =>
+      previousChats.map((item) =>
+        item.id === chat.id ? clearChatUnreadProjection(item) : item,
+      ),
+    );
+    setActiveChat((previousActiveChat) =>
+      previousActiveChat?.id === chat.id
+        ? clearChatUnreadProjection(previousActiveChat)
+        : previousActiveChat,
+    );
+    void chatService.markAsRead(chat.id)
+      .catch(() => {
+        toast(t("chat.list.toast.markReadFailed"), "error");
+        void refreshChats().catch(() => undefined);
+      })
+      .finally(() => {
+        pendingReadCursorChatIdsRef.current.delete(chat.id);
+      });
+  };
+
+  const hydrateSelectedGroupDetails = (chat: Chat): void => {
+    if (!needsGroupDetailHydration(chat) || groupDetailHydrationIdsRef.current.has(chat.id)) {
+      return;
+    }
+
+    groupDetailHydrationIdsRef.current.add(chat.id);
+    void groupService.getGroupById(chat.id)
+      .then((group) => {
+        if (!group || activeChatIdRef.current !== chat.id) {
+          return;
+        }
+        setChats((previousChats) =>
+          previousChats.map((item) =>
+            item.id === chat.id ? { ...item, ...group } : item,
+          ),
+        );
+        setActiveChat((previousActiveChat) =>
+          previousActiveChat?.id === chat.id
+            ? { ...previousActiveChat, ...group }
+            : previousActiveChat,
+        );
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        groupDetailHydrationIdsRef.current.delete(chat.id);
+      });
+  };
+
+  const handleChatSelect = (chat: Chat): void => {
+    const selectedChat = chatsRef.current.find((item) => item.id === chat.id) ?? chat;
+    const isUnread = selectedChat.unreadCount > 0 || Boolean(selectedChat.isMarkedUnread);
+    const nextSelectedChat = isUnread ? clearChatUnreadProjection(selectedChat) : selectedChat;
+    activeChatIdRef.current = nextSelectedChat.id;
+    setActiveChat(nextSelectedChat);
+    if (isUnread) {
+      markSelectedChatAsRead(selectedChat);
+    }
+    hydrateSelectedGroupDetails(nextSelectedChat);
+  };
 
   const refreshChats = async (shouldApply: () => boolean = () => true): Promise<Chat[]> => {
     const page = await chatService.listChatsPage();
@@ -329,13 +414,11 @@ const ChatLayoutComponent: React.FC = () => {
         : chat,
     );
     setActiveTab("chat");
+    hydrateSelectedGroupDetails(chat);
     const isUnread = chat.unreadCount > 0 || chat.isMarkedUnread;
     if (isUnread) {
-      try {
-        await chatService.markAsRead(chat.id);
-      } catch {
-        toast(t("chat.list.toast.markReadFailed"), "error");
-      }
+      markSelectedChatAsRead(chat);
+      return;
     }
     void refreshChats().catch(() => undefined);
   };
@@ -482,12 +565,17 @@ const ChatLayoutComponent: React.FC = () => {
       await refreshChats(shouldApply);
       if (shouldApply()) {
         try {
-          const contactConversationIds = await contactService.listContactConversationIds();
           const conversationIds = resolveIncomingCallWatchConversationIds(
             chatsRef.current,
-            contactConversationIds,
+            [],
             contactService.getCurrentUser().id,
           );
+          // 先尝试从 localStorage 恢复活跃通话（页面刷新场景）。
+          const activeCallRecovery = await callService.recoverActiveCall();
+          if (activeCallRecovery.recovered) {
+            await openActiveCallOverlay();
+          }
+          // 设置来电监听（即使已恢复活跃通话，也需刷新 conversationIds 过滤）。
           const recoveredCallSnapshot = await callService.watchIncomingCalls(conversationIds);
           if (
             recoveredCallSnapshot.direction === "incoming"
@@ -504,6 +592,7 @@ const ChatLayoutComponent: React.FC = () => {
           } else if (
             recoveredCallSnapshot.rtcSessionId
             && (recoveredCallSnapshot.state === "connected" || recoveredCallSnapshot.state === "ringing")
+            && !activeCallRecovery.recovered
           ) {
             await openActiveCallOverlay();
           }
@@ -605,9 +694,7 @@ const ChatLayoutComponent: React.FC = () => {
       if (windowFocusedRef.current && focusedChatId) {
         const focusedChat = chatsRef.current.find((chat) => chat.id === focusedChatId);
         if (focusedChat && (focusedChat.unreadCount > 0 || focusedChat.isMarkedUnread)) {
-          void chatService.markAsRead(focusedChatId)
-            .then(() => refreshChats())
-            .catch(() => undefined);
+          markSelectedChatAsRead(focusedChat);
         }
       }
     };
@@ -712,14 +799,6 @@ const ChatLayoutComponent: React.FC = () => {
       };
 
       applyChats(nextChats);
-      void mergeGroupProjections(nextChats)
-        .then((projectedChats) => {
-          if (chatListProjectionRevisionRef.current !== projectionRevision) {
-            return;
-          }
-          applyChats(projectedChats);
-        })
-        .catch(() => undefined);
     });
   }, [runtimeReady]);
 
@@ -749,13 +828,13 @@ const ChatLayoutComponent: React.FC = () => {
       if (previousCount !== undefined && count > previousCount) {
         const increasedCount = count - previousCount;
         const friendRequestToastMessage = increasedCount > 1
-          ? t('contacts.newFriends.toast.incomingMultiple', { count: increasedCount })
-          : t('contacts.newFriends.toast.incomingSingle');
+          ? tRef.current('contacts.newFriends.toast.incomingMultiple', { count: increasedCount })
+          : tRef.current('contacts.newFriends.toast.incomingSingle');
         toast(friendRequestToastMessage, "info", { placement: "bottom-right" });
       }
       previousFriendRequestUnreadCountRef.current = count;
     });
-  }, [runtimeReady, t]);
+  }, [runtimeReady]);
 
   useEffect(() => {
     const openSettingsFromTray = () => {
@@ -790,9 +869,18 @@ const ChatLayoutComponent: React.FC = () => {
     };
   }, [isPlusMenuOpen]);
 
+  const resolvePeerUserIdFromChat = (chat: Chat | null): string | undefined => {
+    if (!chat || chat.type !== "single") {
+      return undefined;
+    }
+    const members = chat.members ?? [];
+    const peerId = members.find((memberId) => memberId !== currentUserId);
+    return peerId || undefined;
+  };
+
   const handleStartCall = (
     type: CallType,
-    target?: { name: string; avatar: string; id: string },
+    target?: { name: string; avatar: string; id: string; userId?: string },
   ) => {
     if (!target && activeChat && activeChat.type !== "single") {
       toast(
@@ -810,6 +898,7 @@ const ChatLayoutComponent: React.FC = () => {
         name: activeChat.name,
         avatar: activeChat.avatar || "",
         id: activeChat.id,
+        userId: resolvePeerUserIdFromChat(activeChat),
       });
     }
     setIsCallOpen(true);
@@ -833,6 +922,7 @@ const ChatLayoutComponent: React.FC = () => {
         name: chatTarget.name,
         avatar: chatTarget.avatar || "",
         id: directChat.id,
+        userId: user.id,
       });
     } catch {
       toast(t(type === "video" ? "contacts.detail.toast.videoUnavailable" : "contacts.detail.toast.voiceUnavailable"), "error");
@@ -847,15 +937,14 @@ const ChatLayoutComponent: React.FC = () => {
 
     const syncIncomingCallWatch = async () => {
       try {
-        const contactConversationIds = await contactService.listContactConversationIds();
+        const conversationIds = resolveIncomingCallWatchConversationIds(
+          chatsRef.current,
+          [],
+          contactService.getCurrentUser().id,
+        );
         if (cancelled) {
           return;
         }
-        const conversationIds = resolveIncomingCallWatchConversationIds(
-          chatsRef.current,
-          contactConversationIds,
-          contactService.getCurrentUser().id,
-        );
         await callService.watchIncomingCalls(conversationIds);
       } catch (error) {
         if (!cancelled) {
@@ -1267,10 +1356,10 @@ const ChatLayoutComponent: React.FC = () => {
               activeTab={activeTab}
               chatSurface={
               <>
-                <ChatList
+                  <ChatList
                   chats={localizedChats}
                   activeChatId={activeChat?.id}
-                  onChatSelect={(chat) => setActiveChat(chats.find((item) => item.id === chat.id) ?? chat)}
+                  onChatSelect={handleChatSelect}
                   searchQuery={searchQuery}
                   hasMoreChats={inboxHasMore}
                   loadingMoreChats={loadingMoreInboxChats}
@@ -1434,6 +1523,7 @@ const ChatLayoutComponent: React.FC = () => {
             isOpen={isCallOpen}
             mode={callMode}
             rtcSessionId={callTarget.rtcSessionId}
+            targetUserId={callTarget.userId}
             type={callType}
             callerName={callTarget.name}
             callerAvatar={callTarget.avatar}

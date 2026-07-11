@@ -1,12 +1,20 @@
-use im_time::rfc3339_le;
+use im_time::{rfc3339_add_secs, rfc3339_gt, rfc3339_le, utc_now_rfc3339_millis};
 use sdkwork_im_contract_control::{RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore};
 use sdkwork_im_contract_core::ContractError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::session_fence::{SessionFenceDecision, decide_session_fence};
+
 use super::{
     RealtimeClusterBridge, RealtimeClusterError, client_route_scope_key, cluster_timestamp,
 };
+
+/// Disconnect fences older than this TTL (seconds) are treated as stale and
+/// ignored by `ensure_client_route_resume_not_required`, and periodically
+/// purged by the maintenance job. Keeps storage bounded for long-offline
+/// devices without requiring an explicit clear.
+const DISCONNECT_FENCE_TTL_SECS: i64 = 86_400; // 24h
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct RealtimeDisconnectFence {
@@ -195,6 +203,39 @@ impl ClusterMemoryDisconnectFenceStore {
 }
 
 impl RealtimeClusterBridge {
+    pub fn fence_and_release_node_routes(
+        &self,
+        node_id: &str,
+    ) -> Result<usize, RealtimeClusterError> {
+        let routes = self.routes_for_node(node_id);
+        let mut released = 0usize;
+        for route in routes {
+            self.mark_client_route_disconnected_for_principal_kind(ClientRouteDisconnectCommand {
+                tenant_id: route.tenant_id.as_str(),
+                organization_id: route.organization_id.as_str(),
+                principal_id: route.principal_id.as_str(),
+                principal_kind: route.principal_kind.as_str(),
+                device_id: route.device_id.as_str(),
+                session_id: route.session_id.as_deref(),
+                owner_node_id: node_id,
+            })?;
+            if self
+                .release_client_route_for_principal_kind(
+                    route.tenant_id.as_str(),
+                    route.organization_id.as_str(),
+                    route.principal_id.as_str(),
+                    route.principal_kind.as_str(),
+                    route.device_id.as_str(),
+                    node_id,
+                )
+                .is_some()
+            {
+                released = released.saturating_add(1);
+            }
+        }
+        Ok(released)
+    }
+
     pub fn mark_client_route_disconnected_for_principal_kind(
         &self,
         command: ClientRouteDisconnectCommand<'_>,
@@ -393,9 +434,33 @@ impl RealtimeClusterBridge {
             principal_id,
             principal_kind,
             device_id,
+            None,
         )
     }
 
+    /// Same as `ensure_client_route_resume_not_required_for_principal_kind`
+    /// but carries the current request session id. A different authenticated
+    /// session clears the stale fence; the fenced session must explicitly resume.
+    pub fn ensure_client_route_resume_not_required_with_session_for_principal_kind(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        device_id: &str,
+        current_session_id: Option<&str>,
+    ) -> Result<(), RealtimeClusterError> {
+        self.ensure_client_route_resume_not_required_internal(
+            tenant_id,
+            organization_id,
+            principal_id,
+            principal_kind,
+            device_id,
+            current_session_id,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn ensure_client_route_resume_not_required_internal(
         &self,
         tenant_id: &str,
@@ -403,25 +468,44 @@ impl RealtimeClusterBridge {
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
+        current_session_id: Option<&str>,
     ) -> Result<(), RealtimeClusterError> {
-        let Some(fence) = self.load_disconnect_fence(
+        let fence = self.load_disconnect_fence(
             tenant_id,
             organization_id,
             principal_id,
             principal_kind,
             device_id,
-        )?
-        else {
-            return Ok(());
-        };
-        Err(self.node_error(
-            "reconnect_required",
-            fence.owner_node_id.as_str(),
-            format!(
-                "device must resume a fresh session before continuing after disconnect on node {}",
-                fence.owner_node_id
-            ),
-        ))
+        )?;
+        match decide_session_fence(
+            fence.is_some(),
+            fence.as_ref().and_then(|item| item.session_id.as_deref()),
+            current_session_id,
+        ) {
+            SessionFenceDecision::Allow => Ok(()),
+            SessionFenceDecision::ClearAndAllow => {
+                self.clear_client_route_disconnect_fence_for_current_session_internal(
+                    tenant_id,
+                    organization_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                    current_session_id,
+                )?;
+                Ok(())
+            }
+            SessionFenceDecision::RequireReconnect => {
+                let owner_node_id = fence
+                    .as_ref()
+                    .map(|item| item.owner_node_id.as_str())
+                    .unwrap_or("unknown");
+                Err(self.node_error(
+                    "reconnect_required",
+                    owner_node_id,
+                    format!("device must resume a fresh session before continuing: {device_id}"),
+                ))
+            }
+        }
     }
 
     pub fn disconnect_fence_matches_client_route_session_for_principal_kind(
@@ -486,6 +570,12 @@ impl RealtimeClusterBridge {
             .get(scope_key.as_str())
             .cloned()
         {
+            if is_disconnect_fence_expired(&fence) {
+                self.disconnect_fences
+                    .lock_cluster_disconnect_fence_cache()
+                    .remove(scope_key.as_str());
+                return Ok(None);
+            }
             return Ok(Some(fence));
         }
 
@@ -503,11 +593,23 @@ impl RealtimeClusterBridge {
             })?
             .map(RealtimeDisconnectFence::from_record);
         if let Some(fence) = restored.as_ref() {
+            if is_disconnect_fence_expired(fence) {
+                // Stale fence: best-effort clear from the backing store so it
+                // does not accumulate, then return None.
+                let _ = self.clear_client_route_disconnect_fence_internal(
+                    tenant_id,
+                    organization_id,
+                    principal_id,
+                    principal_kind,
+                    device_id,
+                );
+                return Ok(None);
+            }
             self.disconnect_fences
                 .lock_cluster_disconnect_fence_cache()
                 .insert(scope_key, fence.clone());
         }
-        Ok(restored)
+        Ok(restored.filter(|fence| !is_disconnect_fence_expired(fence)))
     }
 
     fn disconnect_fence_store_error(
@@ -522,6 +624,59 @@ impl RealtimeClusterBridge {
             format!("{action} failed: {error:?}"),
         )
     }
+
+    /// Periodic maintenance: purge expired disconnect fences from the backing
+    /// store and the in-memory cache. Called by the maintenance job so storage
+    /// stays bounded for long-offline devices.
+    pub fn purge_expired_disconnect_fences(&self) {
+        let cutoff = match rfc3339_add_secs(&utc_now_rfc3339_millis(), -DISCONNECT_FENCE_TTL_SECS) {
+            Some(cutoff) => cutoff,
+            None => return,
+        };
+
+        // Purge from the backing store via the time-bounded clear API.
+        let mut fences = self.disconnect_fences.lock_cluster_disconnect_fence_cache();
+        let expired_keys: Vec<String> = fences
+            .iter()
+            .filter(|(_, fence)| rfc3339_le(fence.disconnected_at.as_str(), cutoff.as_str()))
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in &expired_keys {
+            fences.remove(key.as_str());
+        }
+        drop(fences);
+
+        // Best-effort store-level purge per known scope key. The store's own
+        // `clear_fence_disconnected_at_or_before` is the canonical purge path
+        // and is invoked from the maintenance job directly when a store handle
+        // is available; this in-memory sweep covers the cache.
+        for key in expired_keys {
+            let parts: Vec<&str> = key.split(':').collect();
+            if parts.len() != 5 {
+                continue;
+            }
+            let _ = self
+                .disconnect_fence_store
+                .clear_fence_disconnected_at_or_before(
+                    parts[0],
+                    parts[1],
+                    parts[2],
+                    parts[3],
+                    parts[4],
+                    cutoff.as_str(),
+                );
+        }
+    }
+}
+
+/// Returns true when the fence has exceeded the TTL and should be ignored /
+/// purged.
+fn is_disconnect_fence_expired(fence: &RealtimeDisconnectFence) -> bool {
+    let Some(cutoff) = rfc3339_add_secs(&utc_now_rfc3339_millis(), -DISCONNECT_FENCE_TTL_SECS)
+    else {
+        return false;
+    };
+    rfc3339_gt(&cutoff, fence.disconnected_at.as_str())
 }
 
 impl RealtimeDisconnectFence {
@@ -668,5 +823,37 @@ mod tests {
         );
         let mark_result = result.expect("panic status should be captured");
         assert!(mark_result.is_ok());
+    }
+
+    #[test]
+    fn expired_persisted_disconnect_fence_does_not_block_reconnect() {
+        let cluster = RealtimeClusterBridge::default();
+        cluster
+            .disconnect_fence_store
+            .save_fence(RealtimeDisconnectFenceRecord {
+                tenant_id: "100001".into(),
+                organization_id: "default".into(),
+                principal_kind: "user".into(),
+                principal_id: "1".into(),
+                device_id: "d_pad".into(),
+                session_id: Some("s_old".into()),
+                owner_node_id: "node_a".into(),
+                disconnected_at: "2000-01-01T00:00:00.000Z".into(),
+                fence_token: "expired-fence".into(),
+            })
+            .expect("expired fence fixture should persist");
+
+        for _ in 0..2 {
+            cluster
+                .ensure_client_route_resume_not_required_with_session_for_principal_kind(
+                    "100001",
+                    "default",
+                    "1",
+                    "user",
+                    "d_pad",
+                    Some("s_old"),
+                )
+                .expect("expired fence must not block reconnect");
+        }
     }
 }

@@ -196,9 +196,8 @@ impl PostgresJournalConfig {
 
     /// Build the r2d2 connection pool.
     ///
-    /// Errors here are surfaced as [`ContractError::Unavailable`] with a
-    /// redacted URL (see [`redact_postgres_url`]) so connection-string
-    /// credentials never leak into logs.
+    /// Errors here are surfaced as [`ContractError::Unavailable`] without
+    /// driver or connection-string details.
     pub fn connect_pool(&self) -> Result<PostgresJournalPool, ContractError> {
         if Handle::try_current().is_ok() {
             return self.connect_pool_bridged();
@@ -230,10 +229,9 @@ fn build_journal_pool(
     if cfg!(test) {
         return build_journal_pool_local(config);
     }
+    let _ = sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool();
     Err(ContractError::Unavailable(
-        sdkwork_im_database_pool::ensure_im_process_postgres_r2d2_pool()
-            .err()
-            .unwrap_or_else(|| "IM process database pools are not installed".to_owned()),
+        "IM process PostgreSQL pool is unavailable".into(),
     ))
 }
 
@@ -245,10 +243,8 @@ fn build_journal_pool_local(
         .database_url
         .parse()
         .map_err(|error| postgres_config_error(config.database_url.as_str(), error))?;
-    let tls = make_tls_connector().map_err(|error| {
-        ContractError::Unavailable(format!(
-            "postgres journal TLS connector build failed: {error}"
-        ))
+    let tls = make_tls_connector().map_err(|_| {
+        ContractError::Unavailable("postgres journal TLS connector build failed".into())
     })?;
     let manager = PostgresConnectionManager::new(pg_config, tls);
     Pool::builder()
@@ -452,7 +448,19 @@ returning partition_key, commit_offset
 "#;
 
 pub(crate) const LOAD_EVENT_BY_ID_SQL: &str = r#"
-select partition_key, commit_offset
+select
+    partition_key,
+    commit_offset,
+    tenant_id,
+    organization_id,
+    aggregate_type,
+    aggregate_id,
+    aggregate_seq,
+    event_type,
+    payload_hash,
+    idempotency_key,
+    occurred_at,
+    retention_until
 from im_commit_journal
 where event_id = $1
 "#;
@@ -559,11 +567,8 @@ limit $5
 // ---------------------------------------------------------------------------
 
 pub(crate) fn postgres_jsonb_payload(payload: &str) -> Result<serde_json::Value, ContractError> {
-    serde_json::from_str(payload).map_err(|error| {
-        ContractError::Conflict(format!(
-            "postgres journal payload must be valid JSONB: {error}"
-        ))
-    })
+    serde_json::from_str(payload)
+        .map_err(|_| ContractError::Invalid("postgres journal payload must be valid JSON".into()))
 }
 
 pub(crate) fn postgres_timestamptz(
@@ -573,9 +578,7 @@ pub(crate) fn postgres_timestamptz(
     DateTime::parse_from_rfc3339(value.trim())
         .map(|instant| instant.with_timezone(&Utc))
         .or_else(|_| value.trim().parse::<DateTime<Utc>>())
-        .map_err(|error| {
-            ContractError::Conflict(format!("postgres journal {field} must be RFC3339: {error}"))
-        })
+        .map_err(|_| ContractError::Invalid(format!("postgres journal {field} must be RFC3339")))
 }
 
 fn journal_replay_row_get<T>(
@@ -586,9 +589,21 @@ fn journal_replay_row_get<T>(
 where
     T: for<'a> postgres::types::FromSql<'a>,
 {
-    row.try_get(column).map_err(|error| {
-        ContractError::Conflict(format!(
-            "postgres journal replay failed reading {field} (column {column}): {error}"
+    postgres_row_get(row, column, "replay", field)
+}
+
+pub(crate) fn postgres_row_get<T>(
+    row: &postgres::Row,
+    column: usize,
+    action: &'static str,
+    field: &'static str,
+) -> Result<T, ContractError>
+where
+    T: for<'a> postgres::types::FromSql<'a>,
+{
+    row.try_get(column).map_err(|_| {
+        ContractError::Unavailable(format!(
+            "postgres journal {action} returned an incompatible {field} field"
         ))
     })
 }
@@ -607,6 +622,200 @@ enum InsertOutcome {
     Inserted(r2d2_postgres::postgres::Row),
     EventIdAbsorbed,
     PositionCollision,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct JournalEventFingerprint {
+    partition_key: String,
+    commit_offset: i64,
+    tenant_id: String,
+    organization_id: String,
+    aggregate_type: String,
+    aggregate_id: String,
+    aggregate_seq: i64,
+    event_type: String,
+    payload_hash: String,
+    idempotency_key: Option<String>,
+    occurred_at_micros: i64,
+    retention_until_micros: Option<i64>,
+}
+
+impl JournalEventFingerprint {
+    fn from_envelope(prefix: &str, envelope: &CommitEnvelope) -> Result<Self, ContractError> {
+        let aggregate_seq = journal_aggregate_seq(envelope.ordering_seq)?;
+        let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
+        let retention_until = journal_retention_until(envelope)
+            .as_deref()
+            .map(|value| postgres_timestamptz(value, "retention_until"))
+            .transpose()?;
+        Ok(Self {
+            partition_key: compose_partition_key(prefix, envelope.ordering_key.as_str()),
+            commit_offset: aggregate_seq,
+            tenant_id: envelope.tenant_id.clone(),
+            organization_id: envelope.normalized_organization_id(),
+            aggregate_type: envelope.aggregate_type.as_wire_value().to_owned(),
+            aggregate_id: envelope.aggregate_id.clone(),
+            aggregate_seq,
+            event_type: envelope.event_type.clone(),
+            payload_hash: sha256_hash(envelope.payload.as_bytes()),
+            idempotency_key: envelope.idempotency_key.clone(),
+            occurred_at_micros: occurred_at.timestamp_micros(),
+            retention_until_micros: retention_until.map(|value| value.timestamp_micros()),
+        })
+    }
+
+    fn from_row(row: &r2d2_postgres::postgres::Row) -> Result<Self, ContractError> {
+        Ok(Self {
+            partition_key: journal_fingerprint_row_get(row, 0, "partition_key")?,
+            commit_offset: journal_fingerprint_row_get(row, 1, "commit_offset")?,
+            tenant_id: journal_fingerprint_row_get(row, 2, "tenant_id")?,
+            organization_id: journal_fingerprint_row_get(row, 3, "organization_id")?,
+            aggregate_type: journal_fingerprint_row_get(row, 4, "aggregate_type")?,
+            aggregate_id: journal_fingerprint_row_get(row, 5, "aggregate_id")?,
+            aggregate_seq: journal_fingerprint_row_get(row, 6, "aggregate_seq")?,
+            event_type: journal_fingerprint_row_get(row, 7, "event_type")?,
+            payload_hash: journal_fingerprint_row_get(row, 8, "payload_hash")?,
+            idempotency_key: journal_fingerprint_row_get(row, 9, "idempotency_key")?,
+            occurred_at_micros: journal_fingerprint_row_get::<DateTime<Utc>>(
+                row,
+                10,
+                "occurred_at",
+            )?
+            .timestamp_micros(),
+            retention_until_micros: journal_fingerprint_row_get::<Option<DateTime<Utc>>>(
+                row,
+                11,
+                "retention_until",
+            )?
+            .map(|value| value.timestamp_micros()),
+        })
+    }
+
+    fn position(&self) -> (String, i64) {
+        (self.partition_key.clone(), self.commit_offset)
+    }
+}
+
+fn journal_fingerprint_row_get<T>(
+    row: &r2d2_postgres::postgres::Row,
+    column: usize,
+    field: &'static str,
+) -> Result<T, ContractError>
+where
+    T: for<'a> r2d2_postgres::postgres::types::FromSql<'a>,
+{
+    postgres_row_get(row, column, "event replay", field)
+}
+
+pub(crate) fn ensure_journal_event_replay_matches(
+    existing: &JournalEventFingerprint,
+    attempted: &JournalEventFingerprint,
+    _event_id: &str,
+) -> Result<(), ContractError> {
+    let mut mismatched_fields = Vec::new();
+    if existing.partition_key != attempted.partition_key {
+        mismatched_fields.push("partition_key");
+    }
+    if existing.commit_offset != attempted.commit_offset {
+        mismatched_fields.push("commit_offset");
+    }
+    if existing.tenant_id != attempted.tenant_id {
+        mismatched_fields.push("tenant_id");
+    }
+    if existing.organization_id != attempted.organization_id {
+        mismatched_fields.push("organization_id");
+    }
+    if existing.aggregate_type != attempted.aggregate_type {
+        mismatched_fields.push("aggregate_type");
+    }
+    if existing.aggregate_id != attempted.aggregate_id {
+        mismatched_fields.push("aggregate_id");
+    }
+    if existing.aggregate_seq != attempted.aggregate_seq {
+        mismatched_fields.push("aggregate_seq");
+    }
+    if existing.event_type != attempted.event_type {
+        mismatched_fields.push("event_type");
+    }
+    if existing.payload_hash != attempted.payload_hash {
+        mismatched_fields.push("payload_hash");
+    }
+    if existing.idempotency_key != attempted.idempotency_key {
+        mismatched_fields.push("idempotency_key");
+    }
+    if existing.occurred_at_micros != attempted.occurred_at_micros {
+        mismatched_fields.push("occurred_at");
+    }
+    if existing.retention_until_micros != attempted.retention_until_micros {
+        mismatched_fields.push("retention_until");
+    }
+
+    if mismatched_fields.is_empty() {
+        return Ok(());
+    }
+    Err(ContractError::Conflict(format!(
+        "journal event already exists with different immutable fields: {}",
+        mismatched_fields.join(", ")
+    )))
+}
+
+pub(crate) fn journal_position_conflict() -> ContractError {
+    ContractError::Conflict(
+        "journal commit position is already occupied by a different event".into(),
+    )
+}
+
+pub(crate) fn resolve_journal_event_id_replay(
+    txn: &mut r2d2_postgres::postgres::Transaction<'_>,
+    prefix: &str,
+    envelope: &CommitEnvelope,
+    action: &'static str,
+) -> Result<(String, i64), ContractError> {
+    let row = txn
+        .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
+        .map_err(|error| postgres_unavailable_db(action, error))?;
+    let existing = JournalEventFingerprint::from_row(&row)?;
+    let attempted = JournalEventFingerprint::from_envelope(prefix, envelope)?;
+    ensure_journal_event_replay_matches(&existing, &attempted, envelope.event_id.as_str())?;
+    Ok(existing.position())
+}
+
+pub(crate) fn journal_aggregate_seq(ordering_seq: u64) -> Result<i64, ContractError> {
+    postgres_bigint_input(ordering_seq, "ordering sequence")?
+        .checked_add(1)
+        .ok_or_else(|| {
+            ContractError::Invalid(
+                "journal ordering sequence exceeds the PostgreSQL BIGINT range".into(),
+            )
+        })
+}
+
+pub(crate) fn postgres_bigint_input(value: u64, field: &'static str) -> Result<i64, ContractError> {
+    i64::try_from(value).map_err(|_| {
+        ContractError::Invalid(format!(
+            "postgres journal {field} exceeds the PostgreSQL BIGINT range"
+        ))
+    })
+}
+
+pub(crate) fn postgres_bigint_output(
+    value: i64,
+    field: &'static str,
+) -> Result<u64, ContractError> {
+    u64::try_from(value).map_err(|_| {
+        ContractError::Unavailable(format!(
+            "postgres journal returned an invalid {field} field"
+        ))
+    })
+}
+
+fn journal_replay_ordering_seq(aggregate_seq: i64) -> Result<u64, ContractError> {
+    let ordering_seq = aggregate_seq.checked_sub(1).ok_or_else(|| {
+        ContractError::Unavailable(
+            "postgres journal returned an invalid aggregate_seq field".into(),
+        )
+    })?;
+    postgres_bigint_output(ordering_seq, "aggregate_seq")
 }
 
 fn append_one(
@@ -629,9 +838,7 @@ fn append_one(
     // via `ordering_seq + 1`. Using `ordering_seq.max(1)` instead would map
     // both ordering_seq=0 and ordering_seq=1 to commit_offset=1, causing a
     // PK collision between the created event and the first member_joined event.
-    let aggregate_seq = i64::try_from(envelope.ordering_seq)
-        .unwrap_or(0)
-        .saturating_add(1);
+    let aggregate_seq = journal_aggregate_seq(envelope.ordering_seq)?;
     let commit_offset = aggregate_seq;
     let organization_id = envelope.normalized_organization_id();
     let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
@@ -695,22 +902,21 @@ fn append_one(
 
     let (final_partition, final_offset) = match outcome {
         InsertOutcome::Inserted(row) => {
-            let partition: String = row.get(0);
-            let offset: i64 = row.get(1);
-            (partition, offset as u64)
+            let partition: String = postgres_row_get(&row, 0, "append", "partition_key")?;
+            let offset: i64 = postgres_row_get(&row, 1, "append", "commit_offset")?;
+            (partition, postgres_bigint_output(offset, "commit_offset")?)
         }
         // ON CONFLICT (event_id) absorbed the row: read the previously
         // committed position by event_id. This path is the idempotent replay
         // of the exact same producer event.
         InsertOutcome::EventIdAbsorbed => {
-            let row = txn
-                .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
-                .map_err(|error| {
-                    postgres_unavailable_db("journal append conflict lookup", error)
-                })?;
-            let partition: String = row.get(0);
-            let offset: i64 = row.get(1);
-            (partition, offset as u64)
+            let (partition, offset) = resolve_journal_event_id_replay(
+                &mut txn,
+                prefix,
+                envelope,
+                "journal append conflict lookup",
+            )?;
+            (partition, postgres_bigint_output(offset, "commit_offset")?)
         }
         // PK (partition_key, commit_offset) violated with a different
         // event_id. Look up the occupying row by position: if it carries the
@@ -726,18 +932,18 @@ fn append_one(
                 .map_err(|error| {
                     postgres_unavailable_db("journal append position lookup", error)
                 })?;
-            let existing_event_id: String = row.get(0);
-            let partition: String = row.get(1);
-            let offset: i64 = row.get(2);
+            let existing_event_id: String =
+                postgres_row_get(&row, 0, "position lookup", "event_id")?;
             if existing_event_id == envelope.event_id {
-                (partition, offset as u64)
+                let (partition, offset) = resolve_journal_event_id_replay(
+                    &mut txn,
+                    prefix,
+                    envelope,
+                    "journal append defensive replay lookup",
+                )?;
+                (partition, postgres_bigint_output(offset, "commit_offset")?)
             } else {
-                return Err(ContractError::Conflict(format!(
-                    "journal position (partition_key={partition_key}, commit_offset={commit_offset}) \
-                     is already occupied by event_id={existing_event_id}; \
-                     cannot append event_id={}",
-                    envelope.event_id
-                )));
+                return Err(journal_position_conflict());
             }
         }
     };
@@ -766,9 +972,7 @@ fn append_many(
         let created_at = Utc::now();
         // Map 0-indexed `ordering_seq` to 1-indexed `commit_offset`/`aggregate_seq`.
         // See `append_one` for why `.max(1)` would collide ordering_seq=0 and =1.
-        let aggregate_seq = i64::try_from(envelope.ordering_seq)
-            .unwrap_or(0)
-            .saturating_add(1);
+        let aggregate_seq = journal_aggregate_seq(envelope.ordering_seq)?;
         let commit_offset = aggregate_seq;
         let organization_id = envelope.normalized_organization_id();
         let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
@@ -825,19 +1029,18 @@ fn append_many(
 
         let (final_partition, final_offset) = match outcome {
             InsertOutcome::Inserted(row) => {
-                let partition: String = row.get(0);
-                let offset: i64 = row.get(1);
-                (partition, offset as u64)
+                let partition: String = postgres_row_get(&row, 0, "append_batch", "partition_key")?;
+                let offset: i64 = postgres_row_get(&row, 1, "append_batch", "commit_offset")?;
+                (partition, postgres_bigint_output(offset, "commit_offset")?)
             }
             InsertOutcome::EventIdAbsorbed => {
-                let row = txn
-                    .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
-                    .map_err(|error| {
-                        postgres_unavailable("journal append_batch conflict lookup", error)
-                    })?;
-                let partition: String = row.get(0);
-                let offset: i64 = row.get(1);
-                (partition, offset as u64)
+                let (partition, offset) = resolve_journal_event_id_replay(
+                    &mut txn,
+                    prefix,
+                    envelope,
+                    "journal append_batch conflict lookup",
+                )?;
+                (partition, postgres_bigint_output(offset, "commit_offset")?)
             }
             InsertOutcome::PositionCollision => {
                 let row = txn
@@ -848,18 +1051,18 @@ fn append_many(
                     .map_err(|error| {
                         postgres_unavailable("journal append_batch position lookup", error)
                     })?;
-                let existing_event_id: String = row.get(0);
-                let partition: String = row.get(1);
-                let offset: i64 = row.get(2);
+                let existing_event_id: String =
+                    postgres_row_get(&row, 0, "position lookup", "event_id")?;
                 if existing_event_id == envelope.event_id {
-                    (partition, offset as u64)
+                    let (partition, offset) = resolve_journal_event_id_replay(
+                        &mut txn,
+                        prefix,
+                        envelope,
+                        "journal append_batch defensive replay lookup",
+                    )?;
+                    (partition, postgres_bigint_output(offset, "commit_offset")?)
                 } else {
-                    return Err(ContractError::Conflict(format!(
-                        "journal position (partition_key={partition_key}, commit_offset={commit_offset}) \
-                         is already occupied by event_id={existing_event_id}; \
-                         cannot append event_id={}",
-                        envelope.event_id
-                    )));
+                    return Err(journal_position_conflict());
                 }
             }
         };
@@ -889,7 +1092,7 @@ fn load_recorded_page(
     let mut client = postgres_pool_client(pool, "journal recorded")?;
     let pattern = format!("{prefix}%");
     let rows = if let Some(cursor) = cursor {
-        let commit_offset = i64::try_from(cursor.commit_offset).unwrap_or(i64::MAX);
+        let commit_offset = postgres_bigint_input(cursor.commit_offset, "replay cursor")?;
         client
             .query(
                 LOAD_RECORDED_AFTER_SQL,
@@ -915,7 +1118,7 @@ fn load_recorded_page_for_aggregate(
     let mut client = postgres_pool_client(pool, "journal recorded aggregate")?;
     let pattern = format!("{prefix}%");
     let rows = if let Some(cursor) = cursor {
-        let commit_offset = i64::try_from(cursor.commit_offset).unwrap_or(i64::MAX);
+        let commit_offset = postgres_bigint_input(cursor.commit_offset, "replay cursor")?;
         client
             .query(
                 LOAD_RECORDED_AGGREGATE_AFTER_SQL,
@@ -969,7 +1172,8 @@ fn parse_journal_replay_rows(
             partition_key.as_str(),
             prefix,
         );
-        let ordering_seq = aggregate_seq.saturating_sub(1).max(0) as u64;
+        let ordering_seq = journal_replay_ordering_seq(aggregate_seq)?;
+        let commit_offset = postgres_bigint_output(commit_offset, "commit_offset")?;
 
         envelopes.push(CommitEnvelope {
             event_id,
@@ -1002,7 +1206,7 @@ fn parse_journal_replay_rows(
         });
         next_cursor = Some(JournalReplayCursor {
             partition_key,
-            commit_offset: commit_offset.max(0) as u64,
+            commit_offset,
         });
     }
     Ok((envelopes, next_cursor))
@@ -1143,34 +1347,16 @@ pub(crate) fn now_rfc3339() -> String {
 }
 pub(crate) fn postgres_unavailable(
     action: &'static str,
-    error: impl std::fmt::Display,
+    _error: impl std::fmt::Display,
 ) -> ContractError {
-    ContractError::Unavailable(format!("postgres journal {action} failed: {error}"))
+    ContractError::Unavailable(format!("postgres journal {action} failed"))
 }
 
 pub(crate) fn postgres_unavailable_db(
     action: &'static str,
-    error: r2d2_postgres::postgres::Error,
+    _error: r2d2_postgres::postgres::Error,
 ) -> ContractError {
-    ContractError::Unavailable(format!(
-        "postgres journal {action} failed: {}",
-        format_postgres_db_error(&error)
-    ))
-}
-
-fn format_postgres_db_error(error: &r2d2_postgres::postgres::Error) -> String {
-    if let Some(db_error) = error.as_db_error() {
-        let message = db_error.message().trim();
-        if let Some(detail) = db_error
-            .detail()
-            .map(str::trim)
-            .filter(|detail| !detail.is_empty())
-        {
-            return format!("{message}; {detail}");
-        }
-        return message.to_string();
-    }
-    error.to_string()
+    ContractError::Unavailable(format!("postgres journal {action} failed"))
 }
 
 /// Returns true when the postgres error is a unique constraint violation
@@ -1215,36 +1401,17 @@ fn parse_aggregate_type(value: &str) -> AggregateType {
 // ---------------------------------------------------------------------------
 
 fn postgres_config_error(
-    database_url: &str,
-    error: r2d2_postgres::postgres::Error,
+    _database_url: &str,
+    _error: r2d2_postgres::postgres::Error,
 ) -> ContractError {
-    let redacted = redact_postgres_url(database_url);
-    ContractError::Unavailable(format!(
-        "postgres journal database url is invalid ({redacted}): {error}"
-    ))
+    ContractError::Unavailable("postgres journal database URL is invalid".into())
 }
 
-/// Redact credentials from a PostgreSQL connection URL before it enters an
-/// error message or log line. If the URL cannot be parsed as `scheme://user:pass@host`,
-/// it is replaced wholesale with `<redacted>` to avoid leaking any fragment.
 pub(crate) fn journal_retention_until(envelope: &CommitEnvelope) -> Option<String> {
     retention_until_from_envelope(
         envelope.retention_class.as_str(),
         envelope.occurred_at.as_str(),
     )
-}
-
-fn redact_postgres_url(database_url: &str) -> String {
-    let Some(scheme_end) = database_url.find("://") else {
-        return "<redacted>".into();
-    };
-    let after_scheme = scheme_end + 3;
-    let Some(at_offset) = database_url[after_scheme..].find('@') else {
-        return database_url.into();
-    };
-    let scheme = &database_url[..after_scheme];
-    let host = &database_url[after_scheme + at_offset..];
-    format!("{scheme}<redacted>{host}")
 }
 
 /// Build a conversation member access gate backed by projection membership rows.
@@ -1255,4 +1422,224 @@ pub fn conversation_member_access_gate_from_pool(
     std::sync::Arc::new(AggregateStoreConversationMemberAccessGate::new(
         std::sync::Arc::new(PostgresAggregateStore::from_pool(pool)),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use im_domain_events::{AggregateType, CommitEnvelope};
+    use im_platform_contracts::ContractError;
+
+    use super::{
+        JournalEventFingerprint, ensure_journal_event_replay_matches, journal_aggregate_seq,
+        journal_position_conflict, journal_replay_ordering_seq, postgres_bigint_input,
+        postgres_bigint_output, postgres_jsonb_payload, postgres_timestamptz, postgres_unavailable,
+    };
+
+    fn replay_envelope() -> CommitEnvelope {
+        CommitEnvelope::minimal(
+            "evt_replay_fingerprint",
+            "tenant_a",
+            "message.posted",
+            "conversation",
+            "conversation_a",
+            7,
+        )
+        .with_organization_id("organization_a")
+        .with_payload(
+            "message.posted.v1",
+            r#"{"conversationId":"conversation_a","messageId":"101"}"#,
+        )
+    }
+
+    #[test]
+    fn journal_event_fingerprint_accepts_an_exact_envelope_clone() {
+        let envelope = replay_envelope();
+        let existing = JournalEventFingerprint::from_envelope("journal", &envelope)
+            .expect("fixture envelope must be valid");
+        let replay = JournalEventFingerprint::from_envelope("journal", &envelope.clone())
+            .expect("fixture replay must be valid");
+
+        assert_eq!(
+            ensure_journal_event_replay_matches(&existing, &replay, envelope.event_id.as_str()),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn journal_event_fingerprint_matches_postgres_microsecond_precision() {
+        let mut original = replay_envelope();
+        original.occurred_at = "2026-07-11T01:02:03.123456789Z".into();
+        let mut postgres_round_trip = original.clone();
+        postgres_round_trip.occurred_at = "2026-07-11T01:02:03.123456000Z".into();
+        let existing = JournalEventFingerprint::from_envelope("journal", &original)
+            .expect("fixture envelope must be valid");
+        let replay = JournalEventFingerprint::from_envelope("journal", &postgres_round_trip)
+            .expect("PostgreSQL precision fixture must be valid");
+
+        assert_eq!(
+            ensure_journal_event_replay_matches(&existing, &replay, original.event_id.as_str(),),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn journal_event_fingerprint_rejects_each_persisted_identity_change() {
+        let envelope = replay_envelope();
+        let existing = JournalEventFingerprint::from_envelope("journal", &envelope)
+            .expect("fixture envelope must be valid");
+        let mut changed_envelopes = Vec::new();
+
+        let mut changed = envelope.clone();
+        changed.tenant_id = "tenant_b".into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.organization_id = "organization_b".into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.ordering_key = "different-ordering-key".into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.ordering_seq += 1;
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.aggregate_type = AggregateType::DirectChat;
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.aggregate_id = "conversation_b".into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.event_type = "message.edited".into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.payload = r#"{"conversationId":"conversation_a","messageId":"102"}"#.into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.idempotency_key = Some("different-idempotency-key".into());
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.occurred_at = "2026-07-11T01:02:03Z".into();
+        changed_envelopes.push(changed);
+
+        let mut changed = envelope.clone();
+        changed.retention_class = "ephemeral".into();
+        changed_envelopes.push(changed);
+
+        for changed in changed_envelopes {
+            let attempted = JournalEventFingerprint::from_envelope("journal", &changed)
+                .expect("changed fixture must remain structurally valid");
+            assert!(matches!(
+                ensure_journal_event_replay_matches(
+                    &existing,
+                    &attempted,
+                    envelope.event_id.as_str()
+                ),
+                Err(ContractError::Conflict(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn journal_aggregate_seq_rejects_values_outside_postgres_bigint() {
+        assert_eq!(journal_aggregate_seq(0), Ok(1));
+        assert_eq!(journal_aggregate_seq((i64::MAX - 1) as u64), Ok(i64::MAX));
+        assert!(matches!(
+            journal_aggregate_seq(i64::MAX as u64),
+            Err(ContractError::Invalid(_))
+        ));
+        assert!(matches!(
+            journal_aggregate_seq(u64::MAX),
+            Err(ContractError::Invalid(_))
+        ));
+    }
+
+    #[test]
+    fn postgres_bigint_conversions_reject_aliasing_and_corrupt_rows() {
+        assert_eq!(postgres_bigint_input(0, "cursor"), Ok(0));
+        assert_eq!(
+            postgres_bigint_input(i64::MAX as u64, "cursor"),
+            Ok(i64::MAX)
+        );
+        assert!(matches!(
+            postgres_bigint_input(i64::MAX as u64 + 1, "cursor"),
+            Err(ContractError::Invalid(_))
+        ));
+
+        assert_eq!(postgres_bigint_output(1, "commit_offset"), Ok(1));
+        assert!(matches!(
+            postgres_bigint_output(-1, "commit_offset"),
+            Err(ContractError::Unavailable(_))
+        ));
+        assert_eq!(journal_replay_ordering_seq(1), Ok(0));
+        assert!(matches!(
+            journal_replay_ordering_seq(0),
+            Err(ContractError::Unavailable(_))
+        ));
+    }
+
+    #[test]
+    fn postgres_unavailable_does_not_expose_driver_or_database_details() {
+        let error = postgres_unavailable(
+            "append",
+            "duplicate key contains tenant_secret partition_secret event_secret",
+        );
+        let ContractError::Unavailable(message) = error else {
+            panic!("postgres failures must remain unavailable");
+        };
+
+        assert!(message.contains("append"));
+        assert!(!message.contains("tenant_secret"));
+        assert!(!message.contains("partition_secret"));
+        assert!(!message.contains("event_secret"));
+        assert!(!message.contains("duplicate key"));
+    }
+
+    #[test]
+    fn invalid_journal_payloads_and_timestamps_are_not_reported_as_conflicts() {
+        assert!(matches!(
+            postgres_jsonb_payload("not-json"),
+            Err(ContractError::Invalid(_))
+        ));
+        assert!(matches!(
+            postgres_timestamptz("not-a-timestamp", "occurred_at"),
+            Err(ContractError::Invalid(_))
+        ));
+    }
+
+    #[test]
+    fn journal_conflicts_do_not_expose_event_or_partition_identifiers() {
+        let envelope = replay_envelope();
+        let existing = JournalEventFingerprint::from_envelope("journal", &envelope)
+            .expect("fixture envelope must be valid");
+        let mut changed = envelope.clone();
+        changed.tenant_id = "tenant_sensitive".into();
+        changed.ordering_key = "partition_sensitive".into();
+        let attempted = JournalEventFingerprint::from_envelope("journal", &changed)
+            .expect("changed fixture must remain structurally valid");
+
+        let ContractError::Conflict(replay_message) =
+            ensure_journal_event_replay_matches(&existing, &attempted, "event_sensitive")
+                .expect_err("changed replay must conflict")
+        else {
+            panic!("changed replay must remain a conflict");
+        };
+        let ContractError::Conflict(position_message) = journal_position_conflict() else {
+            panic!("occupied position must remain a conflict");
+        };
+
+        for message in [replay_message, position_message] {
+            assert!(!message.contains("tenant_sensitive"));
+            assert!(!message.contains("partition_sensitive"));
+            assert!(!message.contains("event_sensitive"));
+            assert!(!message.contains("evt_replay_fingerprint"));
+        }
+    }
 }

@@ -55,7 +55,7 @@ impl SpaceGroupConversationBinder for ConversationServiceSpaceConversationBinder
         input: CreateSpaceGroupConversationInput,
     ) -> Result<(), String> {
         self.runtime
-            .create_conversation_with_creator_kind(
+            .create_conversation_with_creator_kind_attributes_and_display_title(
                 CreateConversationCommand {
                     tenant_id: input.tenant_id.clone(),
                     organization_id: input.organization_id.clone(),
@@ -64,6 +64,8 @@ impl SpaceGroupConversationBinder for ConversationServiceSpaceConversationBinder
                     conversation_type: "group".to_owned(),
                 },
                 "system",
+                BTreeMap::new(),
+                input.group_name,
             )
             .map_err(|error| format!("{error:?}"))?;
         let mut policy = ConversationPolicy::default();

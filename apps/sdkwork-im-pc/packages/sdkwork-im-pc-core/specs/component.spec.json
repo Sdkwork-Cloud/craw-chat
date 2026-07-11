@@ -175,7 +175,7 @@
       "moduleCatalogRefs": [
         {
           "moduleId": "agents",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-agents/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
@@ -187,19 +187,19 @@
         },
         {
           "moduleId": "catalog",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-catalog/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "community",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/apps/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-community/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": false
         },
         {
           "moduleId": "course",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/courses/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-course/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
@@ -217,7 +217,19 @@
         },
         {
           "moduleId": "im",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "manifestRef": "../../../../../specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "iot",
+          "manifestRef": "../../../../../../sdkwork-aiot/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "knowledge",
+          "manifestRef": "../../../../../../sdkwork-knowledgebase/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
@@ -241,19 +253,19 @@
         },
         {
           "moduleId": "order",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-order/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "shop",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/commerce/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-shop/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
         {
           "moduleId": "voice",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/ai/iam.module.manifest.json",
+          "manifestRef": "../../../../../../sdkwork-voice/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -272,6 +284,9 @@
         "forbidLocalPermissionCatalogForDependencyDomains": true,
         "allowExplicitOverridesOnly": true,
         "allowFrontendHintsWithoutServerDuplication": true
+      },
+      "applicationModule": {
+        "manifestRef": "../../../../../specs/iam.module.manifest.json"
       }
     }
   },

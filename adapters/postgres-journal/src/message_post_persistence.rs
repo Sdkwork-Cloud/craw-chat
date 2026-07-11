@@ -8,8 +8,10 @@ use im_platform_contracts::{
 use r2d2_postgres::postgres::Transaction;
 
 use crate::{
-    PostgresJournalPool, compose_partition_key, journal_retention_until, postgres_jsonb_payload,
-    postgres_pool_client, postgres_timestamptz, postgres_unavailable_db, run_postgres_io,
+    PostgresJournalPool, compose_partition_key, journal_aggregate_seq, journal_position_conflict,
+    journal_retention_until, postgres_bigint_input, postgres_bigint_output, postgres_jsonb_payload,
+    postgres_pool_client, postgres_row_get, postgres_timestamptz, postgres_unavailable_db,
+    resolve_journal_event_id_replay, run_postgres_io,
 };
 
 const INSERT_MESSAGE_SQL: &str = r#"
@@ -26,7 +28,6 @@ insert into im_outbox_events (
     event_id, event_type, payload_json, payload_hash, publish_status,
     attempt_count, available_at, created_at, updated_at
 ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14)
-on conflict (tenant_id, organization_id, event_id) do nothing
 "#;
 
 enum JournalAppendOutcome {
@@ -81,18 +82,20 @@ fn persist_message_post_txn(
 
     match append_journal_in_transaction(&mut txn, prefix, envelope)? {
         JournalAppendOutcome::EventIdAbsorbed(partition, offset) => {
+            let offset = postgres_bigint_output(offset, "commit_offset")?;
             txn.commit()
                 .map_err(|error| postgres_unavailable_db("persist_message_post commit", error))?;
-            Ok(CommitPosition::new(partition, offset as u64))
+            Ok(CommitPosition::new(partition, offset))
         }
         JournalAppendOutcome::Inserted(partition, offset) => {
             insert_message_in_transaction(&mut txn, message)?;
             if let Some(outbox) = outbox {
                 enqueue_outbox_in_transaction(&mut txn, outbox)?;
             }
+            let offset = postgres_bigint_output(offset, "commit_offset")?;
             txn.commit()
                 .map_err(|error| postgres_unavailable_db("persist_message_post commit", error))?;
-            Ok(CommitPosition::new(partition, offset as u64))
+            Ok(CommitPosition::new(partition, offset))
         }
     }
 }
@@ -102,18 +105,14 @@ fn append_journal_in_transaction(
     prefix: &str,
     envelope: &CommitEnvelope,
 ) -> Result<JournalAppendOutcome, ContractError> {
-    use crate::{
-        APPEND_EVENT_SQL, LOAD_EVENT_BY_ID_SQL, LOAD_EVENT_BY_POSITION_SQL, is_unique_violation,
-    };
+    use crate::{APPEND_EVENT_SQL, LOAD_EVENT_BY_POSITION_SQL, is_unique_violation};
     use sdkwork_utils_rust::sha256_hash;
 
     let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
     let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
     let payload_hash = sha256_hash(envelope.payload.as_bytes());
     let created_at = Utc::now();
-    let aggregate_seq = i64::try_from(envelope.ordering_seq)
-        .unwrap_or(0)
-        .saturating_add(1);
+    let aggregate_seq = journal_aggregate_seq(envelope.ordering_seq)?;
     let commit_offset = aggregate_seq;
     let organization_id = envelope.normalized_organization_id();
     let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
@@ -153,18 +152,19 @@ fn append_journal_in_transaction(
                 })?;
                 match row {
                     Some(row) => {
-                        let partition: String = row.get(0);
-                        let offset: i64 = row.get(1);
+                        let partition: String =
+                            postgres_row_get(&row, 0, "message post append", "partition_key")?;
+                        let offset: i64 =
+                            postgres_row_get(&row, 1, "message post append", "commit_offset")?;
                         JournalAppendOutcome::Inserted(partition, offset)
                     }
                     None => {
-                        let row = txn
-                            .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
-                            .map_err(|error| {
-                                postgres_unavailable_db("message post journal replay lookup", error)
-                            })?;
-                        let partition: String = row.get(0);
-                        let offset: i64 = row.get(1);
+                        let (partition, offset) = resolve_journal_event_id_replay(
+                            txn,
+                            prefix,
+                            envelope,
+                            "message post journal replay lookup",
+                        )?;
                         JournalAppendOutcome::EventIdAbsorbed(partition, offset)
                     }
                 }
@@ -181,15 +181,18 @@ fn append_journal_in_transaction(
                     .map_err(|error| {
                         postgres_unavailable_db("message post journal position lookup", error)
                     })?;
-                let existing_event_id: String = row.get(0);
-                let partition: String = row.get(1);
-                let offset: i64 = row.get(2);
+                let existing_event_id: String =
+                    postgres_row_get(&row, 0, "message post position lookup", "event_id")?;
                 if existing_event_id == envelope.event_id {
+                    let (partition, offset) = resolve_journal_event_id_replay(
+                        txn,
+                        prefix,
+                        envelope,
+                        "message post journal defensive replay lookup",
+                    )?;
                     JournalAppendOutcome::EventIdAbsorbed(partition, offset)
                 } else {
-                    return Err(ContractError::Conflict(format!(
-                        "journal position occupied by different event_id={existing_event_id}"
-                    )));
+                    return Err(journal_position_conflict());
                 }
             }
             Err(error) => {
@@ -210,7 +213,7 @@ fn insert_message_in_transaction(
 ) -> Result<(), ContractError> {
     use crate::is_unique_violation;
 
-    let message_seq_i64 = message.message_seq as i64;
+    let message_seq_i64 = postgres_bigint_input(message.message_seq, "message sequence")?;
     let payload_json = postgres_jsonb_payload(message.payload_json.as_str())?;
     let created_at = postgres_timestamptz(message.created_at.as_str(), "created_at")?;
     let updated_at = postgres_timestamptz(message.updated_at.as_str(), "updated_at")?;
@@ -249,8 +252,17 @@ fn enqueue_outbox_in_transaction(
     txn: &mut Transaction<'_>,
     event: &OutboxEventRecord,
 ) -> Result<(), ContractError> {
+    use crate::is_unique_violation;
+
     let payload_json = postgres_jsonb_payload(event.payload_json.as_str())?;
-    let attempt_count_i32 = event.attempt_count as i32;
+    let attempt_count_i32 = i32::try_from(event.attempt_count).map_err(|_| {
+        ContractError::Invalid(
+            "message post outbox attempt count exceeds the PostgreSQL INTEGER range".into(),
+        )
+    })?;
+    let available_at = postgres_timestamptz(event.available_at.as_str(), "available_at")?;
+    let created_at = postgres_timestamptz(event.created_at.as_str(), "created_at")?;
+    let updated_at = postgres_timestamptz(event.updated_at.as_str(), "updated_at")?;
     let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
         &event.tenant_id,
         &event.organization_id,
@@ -263,11 +275,18 @@ fn enqueue_outbox_in_transaction(
         &event.payload_hash,
         &event.publish_status.as_str(),
         &attempt_count_i32,
-        &event.available_at,
-        &event.created_at,
-        &event.updated_at,
+        &available_at,
+        &created_at,
+        &updated_at,
     ];
-    txn.execute(ENQUEUE_OUTBOX_SQL, params)
-        .map_err(|error| postgres_unavailable_db("message post outbox enqueue", error))?;
-    Ok(())
+    match txn.execute(ENQUEUE_OUTBOX_SQL, params) {
+        Ok(_) => Ok(()),
+        Err(error) if is_unique_violation(&error) => {
+            Err(ContractError::Conflict("event already enqueued".into()))
+        }
+        Err(error) => Err(postgres_unavailable_db(
+            "message post outbox enqueue",
+            error,
+        )),
+    }
 }

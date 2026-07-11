@@ -73,17 +73,17 @@ find_config_file() {
     case "$profile" in
         production)
             # 查找生产配置文件
-            if [ -f "$CONFIG_DIR/cloud.split-services.production.env" ]; then
-                echo "$CONFIG_DIR/cloud.split-services.production.env"
-            elif [ -f "$CONFIG_DIR/standalone.unified-process.production.env" ]; then
-                echo "$CONFIG_DIR/standalone.unified-process.production.env"
+            if [ -f "$CONFIG_DIR/cloud.production.env" ]; then
+                echo "$CONFIG_DIR/cloud.production.env"
+            elif [ -f "$CONFIG_DIR/standalone.production.env" ]; then
+                echo "$CONFIG_DIR/standalone.production.env"
             else
                 echo "$ROOT_DIR/.env"
             fi
             ;;
         staging)
-            if [ -f "$CONFIG_DIR/cloud.split-services.staging.env" ]; then
-                echo "$CONFIG_DIR/cloud.split-services.staging.env"
+            if [ -f "$CONFIG_DIR/cloud.staging.env" ]; then
+                echo "$CONFIG_DIR/cloud.staging.env"
             else
                 echo "$ROOT_DIR/.env"
             fi

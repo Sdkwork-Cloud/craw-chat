@@ -47,6 +47,18 @@ assert(
   '@sdkwork/im-h5-core must depend on @sdkwork/utils for shared utility standardization',
 );
 
+const pcViteConfig = read('apps/sdkwork-im-pc/vite.config.ts');
+assert.match(
+  pcViteConfig,
+  /find:\s*\/\^@sdkwork\\\/utils\\\/\(\.\+\)\$\/,\s*replacement:\s*`\$\{sdkworkUtilsSourceRoot\}\/\$1`/u,
+  'apps/sdkwork-im-pc/vite.config.ts must alias @sdkwork/utils/* subpath imports to sdkwork-utils TypeScript source modules',
+);
+assert.match(
+  pcViteConfig,
+  /find:\s*\/\^@sdkwork\\\/utils\$\/,\s*replacement:\s*sdkworkUtilsEntry/u,
+  'apps/sdkwork-im-pc/vite.config.ts must alias the exact @sdkwork/utils root import to sdkwork-utils index.ts',
+);
+
 for (const relativePath of [
   'services/sdkwork-comms-conversation-service/src/runtime.rs',
   'adapters/postgres-realtime/src/lib.rs',

@@ -13,6 +13,7 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::{coalesce_websocket_device_id, websocket_query_device_id_from_path_and_query};
+use sdkwork_im_api_registry::RouteDescriptor;
 use sdkwork_im_websocket_auth_gate::{
     close_websocket_with_auth_error, dual_token_headers_from_auth_init_frame,
     read_websocket_auth_init_frame, resolve_websocket_device_binding, send_websocket_auth_ok,
@@ -29,8 +30,11 @@ use crate::constants::{
     SDKWORK_INTERNAL_HEADER_PREFIX, WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS,
 };
 use crate::gateway_protection::extract_client_ip_from_headers;
-use crate::response::json_error_response;
+use crate::response::{
+    json_error_response_with_correlation, new_gateway_trace_id, problem_correlation_for_parts,
+};
 use crate::state::GatewayState;
+use crate::trace_identity::new_server_trace_id;
 use crate::websocket_auth::{
     sanitized_gateway_websocket_path_and_query,
     should_authenticate_gateway_websocket_with_init_frame, websocket_auth_headers_from_query,
@@ -161,9 +165,23 @@ pub(crate) async fn proxy_websocket_request(
     ws: WebSocketUpgrade,
     request: Request,
     state: &GatewayState,
-    service_id: &str,
-    websocket_subprotocols: &[String],
+    route: &RouteDescriptor,
 ) -> Response {
+    let service_id = route.service_id.as_str();
+    let websocket_subprotocols = route.websocket_subprotocols.as_slice();
+
+    // Build correlation once so every error response carries route template,
+    // operationId, and traceId per API_SPEC.md §15.2 / OBSERVABILITY_SPEC.md §2.
+    let method_str = request.method().as_str().to_owned();
+    let path_str = request.uri().path().to_owned();
+    let trace_id = new_gateway_trace_id();
+    let correlation = problem_correlation_for_parts(
+        method_str.as_str(),
+        path_str.as_str(),
+        trace_id.as_str(),
+        Some(route),
+    );
+
     let client_ip = extract_client_ip_from_headers(request.headers());
     // `is_ip_blocked` may perform blocking Redis IO (ip_blocks.is_blocked);
     // run it on the blocking pool so the async worker stays free and the
@@ -173,9 +191,10 @@ pub(crate) async fn proxy_websocket_request(
         .await
         .unwrap_or(false);
     if is_blocked {
-        return json_error_response(
+        return json_error_response_with_correlation(
             StatusCode::TOO_MANY_REQUESTS,
             "client IP is temporarily blocked due to authentication abuse",
+            correlation,
         );
     }
 
@@ -186,17 +205,19 @@ pub(crate) async fn proxy_websocket_request(
     {
         Ok(permit) => permit,
         Err(_) => {
-            return json_error_response(
+            return json_error_response_with_correlation(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "gateway websocket connection capacity reached, please retry later",
+                correlation,
             );
         }
     };
 
     let Some(upstream_base_url) = websocket_upstream_base_url(state, service_id) else {
-        return json_error_response(
+        return json_error_response_with_correlation(
             StatusCode::BAD_GATEWAY,
             format!("upstream target is not configured for {service_id}").as_str(),
+            correlation,
         );
     };
     if !state.circuit_breakers.check(service_id) {
@@ -206,12 +227,13 @@ pub(crate) async fn proxy_websocket_request(
             service = %service_id,
             "websocket request rejected by circuit breaker for {service_id}"
         );
-        return json_error_response(
+        return json_error_response_with_correlation(
             StatusCode::SERVICE_UNAVAILABLE,
             format!(
                 "upstream service {service_id} is temporarily unavailable. Please retry later."
             )
             .as_str(),
+            correlation,
         );
     }
     if should_authenticate_gateway_websocket_with_init_frame(request.headers(), request.uri()) {
@@ -252,9 +274,10 @@ pub(crate) async fn proxy_websocket_request(
                 environment = %environment,
                 "WebSocket query-token auth rejected in production — clients must use auth.init frame auth"
             );
-            return json_error_response(
+            return json_error_response_with_correlation(
                 StatusCode::UNAUTHORIZED,
                 "WebSocket query-token authentication is not permitted in production. Use auth.init frame authentication instead.",
+                correlation,
             );
         } else {
             tracing::debug!(
@@ -285,25 +308,27 @@ pub(crate) async fn proxy_websocket_request(
     let Ok(upstream_url) =
         upstream_websocket_url(upstream_base_url.as_str(), &sanitized_path_and_query)
     else {
-        return json_error_response(
+        return json_error_response_with_correlation(
             StatusCode::BAD_GATEWAY,
             format!(
                 "gateway websocket upstream URL is invalid for {}",
                 service_id
             )
             .as_str(),
+            correlation,
         );
     };
     let mut upstream_request = match upstream_url.as_str().into_client_request() {
         Ok(request) => request,
         Err(error) => {
-            return json_error_response(
+            return json_error_response_with_correlation(
                 StatusCode::BAD_GATEWAY,
                 format!(
                     "gateway failed to prepare websocket upstream request for {}: {error}",
                     service_id
                 )
                 .as_str(),
+                correlation,
             );
         }
     };
@@ -326,13 +351,14 @@ pub(crate) async fn proxy_websocket_request(
         }
         Err(error) => {
             state.circuit_breakers.record_failure(service_id);
-            json_error_response(
+            json_error_response_with_correlation(
                 StatusCode::BAD_GATEWAY,
                 format!(
                     "gateway websocket upstream request to {} failed: {error}",
                     service_id
                 )
                 .as_str(),
+                correlation,
             )
         }
     }
@@ -347,6 +373,7 @@ async fn proxy_websocket_after_query_token_auth(
     query_auth_headers: HeaderMap,
     _connection_permit: OwnedSemaphorePermit,
 ) {
+    let trace_id = new_server_trace_id();
     let auth_init_device_id = websocket_query_device_id_from_path_and_query(&path_and_query);
     let upstream_auth_headers = match websocket_dual_token_headers_for_auth_init(
         &state.realtime_auth,
@@ -361,7 +388,7 @@ async fn proxy_websocket_after_query_token_auth(
             let mut socket = downstream_socket;
             close_websocket_with_auth_error(
                 &mut socket,
-                None,
+                &trace_id,
                 "websocket_auth_failed",
                 "websocket query token context validation failed",
             )
@@ -375,7 +402,7 @@ async fn proxy_websocket_after_query_token_auth(
         let mut socket = downstream_socket;
         close_websocket_with_auth_error(
             &mut socket,
-            None,
+            &trace_id,
             "websocket_upstream_unavailable",
             "gateway websocket upstream URL is invalid",
         )
@@ -388,7 +415,7 @@ async fn proxy_websocket_after_query_token_auth(
             let mut socket = downstream_socket;
             close_websocket_with_auth_error(
                 &mut socket,
-                None,
+                &trace_id,
                 "websocket_upstream_unavailable",
                 "gateway failed to prepare websocket upstream request",
             )
@@ -431,7 +458,7 @@ async fn proxy_websocket_after_query_token_auth(
             let mut socket = downstream_socket;
             close_websocket_with_auth_error(
                 &mut socket,
-                None,
+                &trace_id,
                 "websocket_upstream_unavailable",
                 format!("gateway websocket upstream request failed: {error}").as_str(),
             )
@@ -468,11 +495,12 @@ async fn proxy_websocket_after_auth_init(
     original_headers: HeaderMap,
     _connection_permit: OwnedSemaphorePermit,
 ) {
+    let trace_id = new_server_trace_id();
     let Some(auth_init) = read_websocket_auth_init_frame(&mut downstream_socket).await else {
         record_websocket_auth_failure(&state, &original_headers, None, None).await;
         close_websocket_with_auth_error(
             &mut downstream_socket,
-            None,
+            &trace_id,
             "websocket_auth_required",
             "auth.init frame is required before websocket frames",
         )
@@ -485,7 +513,7 @@ async fn proxy_websocket_after_auth_init(
             record_websocket_auth_failure(&state, &original_headers, None, None).await;
             close_websocket_with_auth_error(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 error.error_code(),
                 error.message(),
             )
@@ -508,7 +536,7 @@ async fn proxy_websocket_after_auth_init(
             record_websocket_auth_failure(&state, &original_headers, None, None).await;
             close_websocket_with_auth_error(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 "websocket_auth_failed",
                 "websocket auth.init token context validation failed",
             )
@@ -526,7 +554,7 @@ async fn proxy_websocket_after_auth_init(
             record_websocket_auth_failure(&state, &original_headers, None, None).await;
             close_websocket_with_auth_error(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 "websocket_auth_failed",
                 "websocket auth.init token context validation failed",
             )
@@ -546,7 +574,7 @@ async fn proxy_websocket_after_auth_init(
             .await;
             close_websocket_with_auth_error(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 error.code,
                 error.message.as_str(),
             )
@@ -561,7 +589,7 @@ async fn proxy_websocket_after_auth_init(
     else {
         close_websocket_with_auth_error(
             &mut downstream_socket,
-            auth_init.request_id.as_deref(),
+            &trace_id,
             "websocket_upstream_unavailable",
             "gateway websocket upstream URL is invalid",
         )
@@ -573,7 +601,7 @@ async fn proxy_websocket_after_auth_init(
         Err(_) => {
             close_websocket_with_auth_error(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 "websocket_upstream_unavailable",
                 "gateway failed to prepare websocket upstream request",
             )
@@ -596,7 +624,7 @@ async fn proxy_websocket_after_auth_init(
             .await;
             let _ = send_websocket_auth_ok(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 &auth_context,
                 device_id.as_str(),
             )
@@ -612,7 +640,7 @@ async fn proxy_websocket_after_auth_init(
         Err(error) => {
             close_websocket_with_auth_error(
                 &mut downstream_socket,
-                auth_init.request_id.as_deref(),
+                &trace_id,
                 "websocket_upstream_unavailable",
                 format!("gateway websocket upstream request failed after auth.init: {error}")
                     .as_str(),

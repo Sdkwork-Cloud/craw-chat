@@ -10,6 +10,7 @@ where
         organization_id: &str,
         conversation_id: &str,
     ) -> Result<ConversationBusinessBinding, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.binding");
         let conversation = state

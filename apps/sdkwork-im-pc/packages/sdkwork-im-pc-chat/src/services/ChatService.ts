@@ -1,10 +1,9 @@
 import type {
-  ContactPreferencesView,
   ContentPart,
+  ConversationMessageListResponse,
   ConversationInboxEntry,
   ConversationMember,
   DriveReference,
-  ConversationProfileView,
   ImDecodedMessage,
   ImMessageContext,
   ImRealtimeEventContext,
@@ -12,28 +11,21 @@ import type {
   ImSdkClient,
   MediaKind,
   MediaResource,
-  MessageInteractionSummaryView,
   MessageReplyReference,
-  SocialUserSearchResult,
-  TimelineResponse,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk';
-import {
-  getDriveAppSdkClientWithSession,
-  type DriveUploaderBlobLike,
-  type DriveUploaderProfile,
-  type DriveUploaderRequest,
-  type DriveUploaderUploadResult,
-  type SdkworkDriveUploader,
+import type {
+  DriveUploaderBlobLike,
+  DriveUploaderProfile,
+  DriveUploaderRequest,
+  DriveUploaderUploadResult,
+  SdkworkDriveUploader,
 } from '@sdkwork/im-pc-core/sdk/driveAppSdkClient';
 import {
   forEachCursorPage,
   SDKWORK_DEFAULT_PAGE_SIZE,
   SDKWORK_MAX_PAGE_SIZE,
 } from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
-import {
-  getImSdkClientWithSession,
-} from '@sdkwork/im-pc-core/sdk/imSdkClient';
 import {
   configurePcRealtimeConnectionManager,
   onPcLiveAuthenticationFailure,
@@ -52,9 +44,12 @@ import {
 } from '@sdkwork/im-pc-core/sdk/desktopOfflineChatCache';
 import {
   enqueueDesktopPendingSend,
+  isDesktopPendingSendClaimCurrent,
   isRetryableDesktopSendError,
   listDesktopPendingSends,
   removeDesktopPendingSend,
+  releaseDesktopPendingSendClaim,
+  runDesktopPendingSendFlush,
 } from '@sdkwork/im-pc-core/sdk/desktopOfflineSendQueue';
 import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
@@ -69,9 +64,10 @@ import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
 import i18n from '../i18n';
 
-type TimelineViewEntry = TimelineResponse['items'][number];
+type ConversationMessageEntry = ConversationMessageListResponse['items'][number];
 type ChatListHandler = (chats: Chat[]) => void;
 type MessageHandler = (message: Message) => void;
+type ImSdkClientProvider = () => Promise<ImSdkClient> | ImSdkClient;
 type SendableMediaMessageType = Extract<Message['type'], 'file' | 'image' | 'video' | 'voice'>;
 type SendableStructuredMessageType = Extract<Message['type'], 'applet' | 'card' | 'link' | 'music' | 'system' | 'video_call'>;
 
@@ -86,15 +82,9 @@ interface ChatMediaUploadResult {
   resource: MediaResource;
 }
 
-interface DirectChatPeerProfile {
-  avatar?: string;
-  name: string;
-  userId: string;
-}
-
 interface ChatServiceDependencies {
-  getClient?: () => ImSdkClient;
-  getDriveUploader?: () => SdkworkDriveUploader;
+  getClient?: ImSdkClientProvider;
+  getDriveUploader?: () => Promise<SdkworkDriveUploader> | SdkworkDriveUploader;
   getSession?: () => SdkworkChatSession | null;
 }
 
@@ -110,8 +100,13 @@ export interface ChatListPage {
 }
 
 interface ConversationLiveSubscription {
+  chatId: string;
   handlers: Set<MessageHandler>;
   notifiedMessageVersions: Map<string, string>;
+}
+
+interface ConversationCacheToken {
+  readonly serial: number;
 }
 
 export interface ChatService {
@@ -141,7 +136,7 @@ export interface ChatService {
   addReaction(chatId: string, messageId: string, emoji: string): Promise<void>;
   removeReaction(chatId: string, messageId: string, emoji: string): Promise<void>;
   updateChat(chatId: string, updates: Partial<Chat>): Promise<Chat>;
-  createChat(chat: Chat): Promise<void>;
+  createChat(chat: Chat): Promise<Chat>;
   startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { conversationId?: string; directChatId?: string; id: string }): Promise<Chat>;
   startAgentChat(agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'> & { id: string }): Promise<Chat>;
   startEnterpriseChat(enterprise: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
@@ -158,6 +153,8 @@ const INBOX_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const MAX_INBOX_CONVERSATIONS = SDKWORK_MAX_PAGE_SIZE;
 const LOCAL_MESSAGES_PER_CONVERSATION_CAP = SDKWORK_MAX_PAGE_SIZE;
 const LOCAL_CONVERSATION_CACHE_CAP = SDKWORK_MAX_PAGE_SIZE * 10;
+const MAX_CONCURRENT_MESSAGE_HISTORY_LOADS = SDKWORK_MAX_PAGE_SIZE;
+const MAX_LIVE_CONVERSATION_SUBSCRIPTIONS = SDKWORK_MAX_PAGE_SIZE;
 const MESSAGE_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 
 function readSdkCursorPageInfo(
@@ -170,25 +167,17 @@ function readSdkCursorPageInfo(
   };
 }
 
-function readSeqCursorPageInfo(
-  pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
-): { hasMore: boolean; nextAfterSeq: number } {
-  const hasMore = pageInfo?.hasMore === true;
-  const parsed = hasMore && pageInfo?.nextCursor
-    ? Number.parseInt(pageInfo.nextCursor, 10)
-    : 0;
-  return {
-    hasMore,
-    nextAfterSeq: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
-  };
-}
-
-const MAX_CATCH_UP_MESSAGE_PAGES = 50;
 const CONVERSATION_MEMBERS_PAGE_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
 const MAX_CONVERSATION_MEMBERS_SYNC = SDKWORK_MAX_PAGE_SIZE;
 const CHAT_LIST_HYDRATION_CONCURRENCY = 4;
-const INTERACTION_SUMMARY_BATCH_CONCURRENCY = 8;
+const REALTIME_READ_CURSOR_SYNC_CONCURRENCY = 4;
 const DEFAULT_MESSAGE_INITIAL_LIMIT = SDKWORK_DEFAULT_PAGE_SIZE;
+const CHAT_LIST_COALESCE_MS = 350;
+// Short TTL for the inbox first page: covers the startup sequence where
+// syncOfflineMessages and refreshChats call listChatsPage() back-to-back
+// (serial await defeats the in-flight dedup). This window is short enough
+// that realtime events still get a fresh load via emitChatList's coalesce.
+const INBOX_FIRST_PAGE_TTL_MS = 800;
 const CHAT_LIST_REALTIME_EVENT_TYPES = [
   'message.posted',
   'conversation.updated',
@@ -199,6 +188,17 @@ const CHAT_LIST_REALTIME_EVENT_TYPES = [
   'conversation.member_left',
   'conversation.owner_transferred',
 ];
+
+function normalizeInboxPageSize(pageSize: number | undefined): number {
+  if (pageSize === undefined) {
+    return INBOX_PAGE_LIMIT;
+  }
+  const normalizedPageSize = Math.floor(pageSize);
+  if (!Number.isFinite(normalizedPageSize) || normalizedPageSize <= 0) {
+    return INBOX_PAGE_LIMIT;
+  }
+  return Math.min(normalizedPageSize, SDKWORK_MAX_PAGE_SIZE);
+}
 const CHAT_DRIVE_SCENE = 'im';
 const CHAT_DRIVE_SOURCE = 'chat_message';
 const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
@@ -226,6 +226,14 @@ const STRUCTURED_MESSAGE_SCHEMA_BY_TYPE: Record<SendableStructuredMessageType, s
 };
 
 let driveUploaderClient: SdkworkDriveUploader | null = null;
+let driveUploaderClientPromise: Promise<SdkworkDriveUploader> | null = null;
+let driveUploaderClientGeneration = 0;
+
+function invalidateDefaultDriveUploader(): void {
+  driveUploaderClientGeneration += 1;
+  driveUploaderClient = null;
+  driveUploaderClientPromise = null;
+}
 
 function parseTimestamp(value: string | undefined): number {
   if (!value) {
@@ -261,10 +269,6 @@ function normalizeConversationType(value: string | undefined): Chat['type'] {
 
 function createFallbackConversationAvatar(conversationType: Chat['type']): string | undefined {
   return createDefaultAvatar(conversationType === 'group' ? 'group' : 'direct');
-}
-
-function createFallbackAgentConversationAvatar(): string {
-  return createDefaultAvatar('agent');
 }
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -377,7 +381,7 @@ function resolveAttachmentUrl(message: ImDecodedMessage): string | undefined {
   return resolveResourceUrl(message.attachments[0]?.resource);
 }
 
-function firstTimelinePart(entry: TimelineViewEntry): Record<string, unknown> {
+function firstMessageEntryPart(entry: ConversationMessageEntry): Record<string, unknown> {
   const parts = Array.isArray(entry.body?.parts) ? entry.body.parts : [];
   return toRecord(parts[0]);
 }
@@ -409,24 +413,24 @@ function resolvePartMessageType(part: Record<string, unknown>, renderHints: Reco
   }
 }
 
-function resolveTimelineMessageType(entry: TimelineViewEntry): Message['type'] {
+function resolveMessageEntryType(entry: ConversationMessageEntry): Message['type'] {
   const renderHints = toRecord(entry.body?.renderHints);
-  return resolvePartMessageType(firstTimelinePart(entry), renderHints);
+  return resolvePartMessageType(firstMessageEntryPart(entry), renderHints);
 }
 
-function resolveTimelineResource(entry: TimelineViewEntry): Record<string, unknown> {
-  const part = firstTimelinePart(entry);
+function resolveMessageEntryResource(entry: ConversationMessageEntry): Record<string, unknown> {
+  const part = firstMessageEntryPart(entry);
   return part.kind === 'media' ? toRecord(part.resource) : {};
 }
 
-function resolveTimelineResourceUrl(entry: TimelineViewEntry): string | undefined {
-  const resource = resolveTimelineResource(entry);
+function resolveMessageEntryResourceUrl(entry: ConversationMessageEntry): string | undefined {
+  const resource = resolveMessageEntryResource(entry);
   return pickString(resource.publicUrl, resource.url, resource.uri);
 }
 
-function resolveTimelineMessageContent(entry: TimelineViewEntry, type: Message['type']): string {
-  const part = firstTimelinePart(entry);
-  const resourceUrl = resolveTimelineResourceUrl(entry);
+function resolveMessageEntryContent(entry: ConversationMessageEntry, type: Message['type']): string {
+  const part = firstMessageEntryPart(entry);
+  const resourceUrl = resolveMessageEntryResourceUrl(entry);
   switch (type) {
     case 'image':
     case 'video':
@@ -848,8 +852,17 @@ function requireStandardAgentChatId(value: string): string {
 
 function isAgentDialogConversationId(conversationId: string): boolean {
   const value = conversationId.trim();
-  return /^c_agent_[a-f0-9]{24}$/u.test(value)
+  return /^a_[a-f0-9]{24}$/u.test(value)
+    || /^c_agent_[a-f0-9]{24}$/u.test(value)
     || /^pc-agent-[a-z0-9._-]+-agent[._-][a-z0-9._-]+$/iu.test(value);
+}
+
+function isAgentDialogInboxEntry(entry: ConversationInboxEntry): boolean {
+  return !entry.agentHandoff
+    && (
+      String(entry.conversationType).trim().toLowerCase() === 'agent_dialog'
+      || isAgentDialogConversationId(entry.conversationId)
+    );
 }
 
 function resolveMediaKind(type: Message['type']): MediaKind {
@@ -867,18 +880,40 @@ function resolveMediaKind(type: Message['type']): MediaKind {
   }
 }
 
-function createDefaultDriveUploaderClient(
+async function createDefaultDriveUploaderClient(
   session: SdkworkChatSession | null = readAppSdkSessionTokens(),
-): SdkworkDriveUploader {
+): Promise<SdkworkDriveUploader> {
+  const { getDriveAppSdkClientWithSession } = await import('@sdkwork/im-pc-core/sdk/driveAppSdkClient');
   const client = getDriveAppSdkClientWithSession(session ?? readAppSdkSessionTokens());
   return client.uploader;
 }
 
-function getDefaultDriveUploader(): SdkworkDriveUploader {
-  if (!driveUploaderClient) {
-    driveUploaderClient = createDefaultDriveUploaderClient();
+function getDefaultDriveUploader(): Promise<SdkworkDriveUploader> {
+  if (driveUploaderClient) {
+    return Promise.resolve(driveUploaderClient);
   }
-  return driveUploaderClient;
+  if (!driveUploaderClientPromise) {
+    const generation = driveUploaderClientGeneration;
+    let uploaderPromise: Promise<SdkworkDriveUploader>;
+    uploaderPromise = createDefaultDriveUploaderClient()
+      .then((client) => {
+        if (
+          generation === driveUploaderClientGeneration
+          && driveUploaderClientPromise === uploaderPromise
+        ) {
+          driveUploaderClient = client;
+        }
+        return client;
+      })
+      .catch((error: unknown) => {
+        if (driveUploaderClientPromise === uploaderPromise) {
+          driveUploaderClientPromise = null;
+        }
+        throw error;
+      });
+    driveUploaderClientPromise = uploaderPromise;
+  }
+  return driveUploaderClientPromise;
 }
 
 function resolveChatUploadUserId(session: SdkworkChatSession | null | undefined): string {
@@ -1079,7 +1114,7 @@ async function uploadChatMediaFile({
   chatId: string;
   content: string;
   extraInfo: ChatMessageExtraInfo | undefined;
-  getDriveUploader: () => SdkworkDriveUploader;
+  getDriveUploader: () => Promise<SdkworkDriveUploader> | SdkworkDriveUploader;
   getSession: () => SdkworkChatSession | null;
   type: SendableMediaMessageType;
 }): Promise<ChatMediaUploadResult> {
@@ -1104,7 +1139,7 @@ async function uploadChatMediaFile({
     ...(resolveMediaUploadContentType(type, file, extraInfo) ? { contentType: resolveMediaUploadContentType(type, file, extraInfo) } : {}),
   };
 
-  const uploader = getDriveUploader();
+  const uploader = await getDriveUploader();
   const uploadResult = type === 'image'
     ? await uploader.uploadImage(uploadRequest)
     : type === 'voice'
@@ -1212,24 +1247,16 @@ function buildConversationName(entry: ConversationInboxEntry): string {
     : 'Direct chat';
 }
 
-function buildLegacyDirectConversationName(conversationId: string): string {
-  return `Chat ${conversationId}`;
+function buildFallbackConversationName(conversationType: Chat['type']): string {
+  return conversationType === 'group' ? 'Group chat' : 'Direct chat';
 }
 
-function isInternalConversationIdentifier(value: string): boolean {
-  return /^(?:c_direct|c_agent|pc-direct|pc-agent|direct[-_:]|conversation[-_:])[a-z0-9._:-]*/iu.test(value.trim());
-}
-
-function isGeneratedDirectConversationName(name: string | undefined, conversationId: string): boolean {
-  const normalizedName = pickString(name);
-  if (!normalizedName) {
-    return true;
-  }
-
-  return normalizedName === buildLegacyDirectConversationName(conversationId)
-    || normalizedName === 'Direct chat'
-    || normalizedName === conversationId
-    || isInternalConversationIdentifier(normalizedName);
+function createChatClientRequestKey(): string {
+  const clientGeneratedId =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `pc-create-chat-${clientGeneratedId}`;
 }
 
 function buildLastMessage(entry: ConversationInboxEntry, timestamp: number): Message | undefined {
@@ -1354,37 +1381,20 @@ function applyInboxProjectionToViewState(
     ...(typeof projectedPreferences.isMarkedUnread === 'boolean'
       ? { isMarkedUnread: projectedPreferences.isMarkedUnread }
       : {}),
-    ...(typeof projectedPreferences.isHidden === 'boolean' ? { isHidden: projectedPreferences.isHidden } : {}),
+    ...(viewState?.isHidden === true
+      ? { isHidden: true }
+      : typeof projectedPreferences.isHidden === 'boolean'
+        ? { isHidden: projectedPreferences.isHidden }
+        : {}),
     type: normalizeConversationType(entry.conversationType),
   };
-}
-
-function hasInboxPreferencesProjection(entry: ConversationInboxEntry): boolean {
-  const preferences = toRecord(toRecord(entry).preferences);
-  return ['isPinned', 'isMuted', 'isMarkedUnread', 'isHidden']
-    .every((field) => typeof preferences[field] === 'boolean');
-}
-
-function hasInboxDisplayProjection(entry: ConversationInboxEntry): boolean {
-  const entryRecord = toRecord(entry);
-  const projectedName = pickString(entryRecord.displayName, entryRecord.display_name);
-  if (projectedName) {
-    return true;
-  }
-
-  if (normalizeConversationType(entry.conversationType) !== 'single') {
-    return false;
-  }
-
-  const peerRecord = toRecord(entryRecord.peer);
-  return Boolean(pickString(peerRecord.displayName, peerRecord.display_name));
 }
 
 function mapLocalMessageToChat(message: Message, viewState: ConversationViewState | undefined): Chat {
   const conversationType = viewState?.type ?? 'single';
   return {
     id: message.chatId,
-    name: viewState?.name ?? 'Direct chat',
+    name: viewState?.name ?? buildFallbackConversationName(conversationType),
     avatar: viewState?.avatar ?? createFallbackConversationAvatar(conversationType),
     type: conversationType,
     unreadCount: viewState?.isMarkedUnread ? 1 : 0,
@@ -1417,25 +1427,13 @@ function applyLocalLastMessageToChat(chat: Chat, localLastMessage: Message | und
 
 function applyConversationProfile(
   viewState: ConversationViewState | undefined,
-  profile: ConversationProfileView,
+  profile: { avatarUrl?: string; displayName?: string; notice?: string },
 ): ConversationViewState {
   return {
     ...viewState,
     ...(pickString(profile.displayName) ? { name: pickString(profile.displayName) } : {}),
     ...(pickString(profile.avatarUrl) ? { avatar: pickString(profile.avatarUrl) } : {}),
     notice: profile.notice,
-  };
-}
-
-function mapSocialUserResultToDirectPeerProfile(
-  result: SocialUserSearchResult,
-  preferences?: ContactPreferencesView,
-): DirectChatPeerProfile {
-  const name = pickString(preferences?.remark, result.displayName, result.userId) ?? result.userId;
-  return {
-    userId: result.userId,
-    name,
-    ...(pickString(result.avatarUrl) ? { avatar: pickString(result.avatarUrl) } : {}),
   };
 }
 
@@ -1465,8 +1463,8 @@ function buildLocalConversationViewUpdate(updates: Partial<Chat>): ConversationV
   };
 }
 
-function mapTimelineEntryToMessage(
-  entry: TimelineViewEntry,
+function mapConversationMessageEntryToMessage(
+  entry: ConversationMessageEntry,
   index: number,
   total: number,
   cachedMessage?: Message,
@@ -1488,9 +1486,9 @@ function mapTimelineEntryToMessage(
     return cachedMessage;
   }
 
-  const type = resolveTimelineMessageType(entry);
+  const type = resolveMessageEntryType(entry);
   const renderHints = toRecord(entry.body?.renderHints);
-  const resource = resolveTimelineResource(entry);
+  const resource = resolveMessageEntryResource(entry);
   const coverUrl = pickString(
     renderHints.coverUrl,
     resolveRenditionUrl(resource.poster),
@@ -1508,7 +1506,7 @@ function mapTimelineEntryToMessage(
     id: entry.messageId,
     chatId: entry.conversationId,
     senderId,
-    content: resolveTimelineMessageContent(entry, type),
+    content: resolveMessageEntryContent(entry, type),
     type,
     timestamp,
     ...(coverUrl ? { coverUrl } : {}),
@@ -1517,39 +1515,6 @@ function mapTimelineEntryToMessage(
     ...(pickString(renderHints.fileSize, resource.sizeBytes) ? { fileSize: pickString(renderHints.fileSize, resource.sizeBytes) } : {}),
     ...(replyTo ? { replyTo } : {}),
   };
-}
-
-function mapInteractionSummaryToReactions(
-  summary: MessageInteractionSummaryView | undefined,
-  cachedReactions: Message['reactions'],
-): Message['reactions'] | undefined {
-  if (!summary || summary.reactionCounts.length === 0) {
-    return undefined;
-  }
-
-  return summary.reactionCounts
-    .filter((reaction) => reaction.count > 0)
-    .map((reaction) => {
-      const cached = cachedReactions?.find((item) => item.emoji === reaction.reactionKey);
-      return {
-        emoji: reaction.reactionKey,
-        count: reaction.count,
-        hasReacted: cached?.hasReacted ?? false,
-      };
-    });
-}
-
-function withMessageInteractionSummary(
-  message: Message,
-  summary: MessageInteractionSummaryView | undefined,
-): Message {
-  const reactions = mapInteractionSummaryToReactions(summary, message.reactions);
-  if (reactions && reactions.length > 0) {
-    return { ...message, reactions };
-  }
-
-  const { reactions: _reactions, ...messageWithoutReactions } = message;
-  return messageWithoutReactions;
 }
 
 function sortChats(left: Chat, right: Chat): number {
@@ -1581,53 +1546,147 @@ function mergeMessageLists(remoteMessages: Message[], localMessages: Message[]):
   return Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp);
 }
 
+async function getDefaultImSdkClient(): Promise<ImSdkClient> {
+  const { getImSdkClientWithSession } = await import('@sdkwork/im-pc-core/sdk/imSdkClient');
+  return getImSdkClientWithSession();
+}
+
 configurePcRealtimeConnectionManager({
-  getClient: getImSdkClientWithSession,
+  getClient: getDefaultImSdkClient,
   getDeviceId: resolveSdkworkChatPcClientId,
   getSession: readAppSdkSessionTokens,
 });
 
-interface TimelinePaginationState {
+interface MessageHistoryPaginationState {
   hasMore: boolean;
-  nextAfterSeq: number;
+  nextCursor?: string;
+}
+
+interface AuthSessionOperationContext {
+  client: ImSdkClient;
+  generation: number;
+  operation: string;
+}
+
+function normalizeMessageHistoryPagination(
+  pageInfo: { hasMore?: boolean; nextCursor?: string | null } | undefined,
+  acceptedMessageCount: number,
+): MessageHistoryPaginationState {
+  const page = readSdkCursorPageInfo(pageInfo);
+  const nextCursor = page.nextCursor?.trim();
+  const hasNextPage = page.hasMore && acceptedMessageCount > 0 && Boolean(nextCursor);
+  return {
+    hasMore: hasNextPage,
+    ...(hasNextPage && nextCursor ? { nextCursor } : {}),
+  };
 }
 
 class SdkworkChatService implements ChatService {
+  private activeMessageHistoryLoads = new Set<Promise<Message[]>>();
+  private authSessionGeneration = 0;
   private readonly chatListHandlers = new Set<ChatListHandler>();
+  private conversationCacheTokens = new Map<string, ConversationCacheToken>();
   private conversationViewState = new Map<string, ConversationViewState>();
   private conversationWireUnsubs = new Map<string, () => void>();
-  private liveCatchUpConversations = new Set<string>();
+  private chatListRefreshPromise?: Promise<void>;
+  private chatListRefreshPending = false;
+  private chatListCoalesceTimer?: ReturnType<typeof setTimeout>;
+  private chatListCoalescePromise?: Promise<void>;
+  private chatListCoalesceResolve?: () => void;
+  private inboxFirstPagePromise?: Promise<ChatListPage>;
+  private inboxFirstPagePromiseGeneration?: number;
+  private inboxFirstPagePromisePageSize?: number;
+  private inboxFirstPagePromises = new Map<number, {
+    generation: number;
+    promise: Promise<ChatListPage>;
+  }>();
+  private inboxFirstPageCache?: {
+    expiresAt: number;
+    generation: number;
+    pageSize: number;
+    promise: Promise<ChatListPage>;
+  };
+  private inboxFirstPageCaches = new Map<number, {
+    expiresAt: number;
+    generation: number;
+    pageSize: number;
+    promise: Promise<ChatListPage>;
+  }>();
+  private getMessagesPromises = new Map<string, Promise<Message[]>>();
+  private loadMoreMessagesPromises = new Map<string, Promise<Message[]>>();
   private liveInboxWireUnsub?: () => void;
   private liveSubscriptions = new Map<string, ConversationLiveSubscription>();
+  private lastChatListSnapshot: Chat[] = [];
+  private localConversationCacheRecency = new Map<string, undefined>();
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
-  private timelinePaginationState = new Map<string, TimelinePaginationState>();
+  private messageHistoryPaginationState = new Map<string, MessageHistoryPaginationState>();
+  private pendingRealtimeReadCursorSeqs = new Map<string, number>();
+  private readCursorInFlightCounts = new Map<string, number>();
+  private realtimeReadCursorSyncPromise?: Promise<void>;
   private focusedConversationId?: string;
+  private nextConversationCacheTokenSerial = 0;
   private windowFocused = true;
-  private readonly getClient: () => ImSdkClient;
-  private readonly getDriveUploader: () => SdkworkDriveUploader;
+  private readonly getClient: ImSdkClientProvider;
+  private readonly getDriveUploader: () => Promise<SdkworkDriveUploader> | SdkworkDriveUploader;
   private readonly getSession: () => SdkworkChatSession | null;
 
   private readonly handleAuthSessionChanged = (): void => {
-    driveUploaderClient = null;
+    this.authSessionGeneration += 1;
+    invalidateDefaultDriveUploader();
+    this.conversationCacheTokens.clear();
+    this.localConversationCacheRecency.clear();
     this.localMessages.clear();
     this.latestReadSeq.clear();
     this.conversationViewState.clear();
-    this.timelinePaginationState.clear();
+    this.messageHistoryPaginationState.clear();
+    this.getMessagesPromises.clear();
+    this.loadMoreMessagesPromises.clear();
+    this.pendingRealtimeReadCursorSeqs.clear();
+    this.readCursorInFlightCounts.clear();
+    this.realtimeReadCursorSyncPromise = undefined;
+    this.focusedConversationId = undefined;
+    this.lastChatListSnapshot = [];
+    this.inboxFirstPagePromise = undefined;
+    this.inboxFirstPagePromiseGeneration = undefined;
+    this.inboxFirstPagePromisePageSize = undefined;
+    this.inboxFirstPagePromises.clear();
+    this.inboxFirstPageCache = undefined;
+    this.inboxFirstPageCaches.clear();
+    this.chatListRefreshPromise = undefined;
+    this.chatListRefreshPending = false;
+    if (this.chatListCoalesceTimer !== undefined) {
+      clearTimeout(this.chatListCoalesceTimer);
+      this.chatListCoalesceTimer = undefined;
+    }
+    const settleCoalescedRefresh = this.chatListCoalesceResolve;
+    this.chatListCoalescePromise = undefined;
+    this.chatListCoalesceResolve = undefined;
+    settleCoalescedRefresh?.();
     this.closeAllLiveSubscriptions('auth session changed');
+    for (const handler of this.chatListHandlers) {
+      try {
+        handler([]);
+      } catch {
+        // A failing view subscriber must not interrupt auth cache isolation.
+      }
+    }
+    if (this.getSession()) {
+      this.syncLiveSessionSubscriptions();
+    }
   };
 
   private handleRealtimeAuthenticationFailure(reason: string): void {
     this.closeAllLiveSubscriptions(reason);
   }
 
-  constructor(dependencies: ChatServiceDependencies | (() => ImSdkClient) = {}) {
+  constructor(dependencies: ChatServiceDependencies | ImSdkClientProvider = {}) {
     if (typeof dependencies === 'function') {
       this.getClient = dependencies;
       this.getDriveUploader = getDefaultDriveUploader;
       this.getSession = readAppSdkSessionTokens;
     } else {
-      this.getClient = dependencies.getClient ?? getImSdkClientWithSession;
+      this.getClient = dependencies.getClient ?? getDefaultImSdkClient;
       this.getDriveUploader = dependencies.getDriveUploader ?? getDefaultDriveUploader;
       this.getSession = dependencies.getSession ?? readAppSdkSessionTokens;
     }
@@ -1640,15 +1699,34 @@ class SdkworkChatService implements ChatService {
       window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
     }
     onPcLiveConnectionOpen(() => {
-      void this.catchUpOnConnectionOpen();
+      void this.handleConnectionOpen();
     });
     onPcLiveAuthenticationFailure((reason) => {
       this.handleRealtimeAuthenticationFailure(reason);
     });
   }
 
-  private client(): ImSdkClient {
+  private async client(): Promise<ImSdkClient> {
     return this.getClient();
+  }
+
+  private isAuthSessionGenerationCurrent(generation: number): boolean {
+    return this.authSessionGeneration === generation;
+  }
+
+  private assertAuthSessionGenerationCurrent(generation: number, operation: string): void {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      throw new Error(`Chat session changed while ${operation}.`);
+    }
+  }
+
+  private async beginAuthSessionOperation(
+    operation: string,
+  ): Promise<AuthSessionOperationContext> {
+    const generation = this.authSessionGeneration;
+    const client = await this.client();
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    return { client, generation, operation };
   }
 
   private configureRealtimeConnectionManager(): void {
@@ -1685,36 +1763,146 @@ class SdkworkChatService implements ChatService {
     ].filter((identifier): identifier is string => Boolean(identifier)));
   }
 
-  private trimLocalMessages(chatId: string): void {
-    const messages = this.localMessages.get(chatId);
-    if (!messages || messages.length <= LOCAL_MESSAGES_PER_CONVERSATION_CAP) {
-      return;
+  private isLocalConversationCacheProtected(chatId: string): boolean {
+    return this.liveSubscriptions.has(chatId)
+      || this.getMessagesPromises.has(chatId)
+      || this.loadMoreMessagesPromises.has(chatId)
+      || this.pendingRealtimeReadCursorSeqs.has(chatId)
+      || this.readCursorInFlightCounts.has(chatId)
+      || this.isConversationHidden(chatId)
+      || this.focusedConversationId === chatId;
+  }
+
+  private ensureConversationCacheToken(chatId: string): ConversationCacheToken {
+    const existing = this.conversationCacheTokens.get(chatId);
+    if (existing) {
+      return existing;
     }
-    this.localMessages.set(
+    const token = { serial: this.nextConversationCacheTokenSerial += 1 };
+    this.conversationCacheTokens.set(chatId, token);
+    return token;
+  }
+
+  private isConversationCacheTokenCurrent(
+    chatId: string,
+    token: ConversationCacheToken,
+  ): boolean {
+    return this.conversationCacheTokens.get(chatId) === token;
+  }
+
+  private isConversationHidden(chatId: string): boolean {
+    return this.conversationViewState.get(chatId)?.isHidden === true;
+  }
+
+  private assertMessageHistoryLoadCapacity(): void {
+    if (this.activeMessageHistoryLoads.size >= MAX_CONCURRENT_MESSAGE_HISTORY_LOADS) {
+      throw new RangeError(
+        `Concurrent message history load limit (${MAX_CONCURRENT_MESSAGE_HISTORY_LOADS}) reached.`,
+      );
+    }
+  }
+
+  private hasLocalConversationCacheState(chatId: string): boolean {
+    return this.conversationCacheTokens.has(chatId)
+      || this.localMessages.has(chatId)
+      || this.latestReadSeq.has(chatId)
+      || this.messageHistoryPaginationState.has(chatId)
+      || this.conversationViewState.has(chatId)
+      || this.pendingRealtimeReadCursorSeqs.has(chatId);
+  }
+
+  private touchLocalConversationCache(chatId: string): void {
+    this.localConversationCacheRecency.delete(chatId);
+    this.localConversationCacheRecency.set(chatId, undefined);
+  }
+
+  private touchLocalConversationCacheIfPresent(chatId: string): void {
+    if (this.hasLocalConversationCacheState(chatId)) {
+      this.touchLocalConversationCache(chatId);
+    }
+  }
+
+  private recordLocalConversationCacheWrite(chatId: string): void {
+    this.ensureConversationCacheToken(chatId);
+    this.touchLocalConversationCache(chatId);
+    this.trimLocalConversationCache();
+  }
+
+  private writeConversationViewState(chatId: string, state: ConversationViewState): void {
+    this.conversationViewState.set(chatId, state);
+    this.recordLocalConversationCacheWrite(chatId);
+  }
+
+  private writeLatestReadSeq(chatId: string, readSeq: number): void {
+    this.latestReadSeq.set(chatId, readSeq);
+    this.recordLocalConversationCacheWrite(chatId);
+  }
+
+  private writeMessageHistoryPaginationState(
+    chatId: string,
+    state: MessageHistoryPaginationState,
+  ): void {
+    this.messageHistoryPaginationState.set(chatId, state);
+    this.recordLocalConversationCacheWrite(chatId);
+  }
+
+  private writePendingRealtimeReadCursorSeq(chatId: string, readSeq: number): void {
+    this.pendingRealtimeReadCursorSeqs.set(chatId, readSeq);
+    this.recordLocalConversationCacheWrite(chatId);
+  }
+
+  private beginReadCursorSync(chatId: string): void {
+    this.readCursorInFlightCounts.set(
       chatId,
-      messages.slice(-LOCAL_MESSAGES_PER_CONVERSATION_CAP),
+      (this.readCursorInFlightCounts.get(chatId) ?? 0) + 1,
     );
+    this.touchLocalConversationCacheIfPresent(chatId);
+    this.trimLocalConversationCache();
+  }
+
+  private endReadCursorSync(chatId: string): void {
+    const remaining = (this.readCursorInFlightCounts.get(chatId) ?? 1) - 1;
+    if (remaining > 0) {
+      this.readCursorInFlightCounts.set(chatId, remaining);
+    } else {
+      this.readCursorInFlightCounts.delete(chatId);
+    }
+    this.trimLocalConversationCache();
+  }
+
+  private evictLocalConversationCache(chatId: string): void {
+    this.conversationCacheTokens.delete(chatId);
+    this.localConversationCacheRecency.delete(chatId);
+    this.localMessages.delete(chatId);
+    this.latestReadSeq.delete(chatId);
+    this.messageHistoryPaginationState.delete(chatId);
+    this.conversationViewState.delete(chatId);
+    this.pendingRealtimeReadCursorSeqs.delete(chatId);
+    this.pruneLiveSubscriptionNotificationVersions(chatId);
   }
 
   private trimLocalConversationCache(): void {
-    if (this.localMessages.size <= LOCAL_CONVERSATION_CACHE_CAP) {
-      return;
-    }
-    const removableConversations = Array.from(this.localMessages.entries())
-      .filter(([chatId]) => !this.liveSubscriptions.has(chatId))
-      .map(([chatId, messages]) => ({
-        chatId,
-        updatedAt: messages.at(-1)?.timestamp ?? 0,
-      }))
-      .sort((left, right) => left.updatedAt - right.updatedAt);
-    let removeCount = this.localMessages.size - LOCAL_CONVERSATION_CACHE_CAP;
-    for (const conversation of removableConversations) {
-      if (removeCount <= 0) {
-        break;
+    while (this.localConversationCacheRecency.size > LOCAL_CONVERSATION_CACHE_CAP) {
+      let evictionCandidate: string | undefined;
+      for (const chatId of this.localConversationCacheRecency.keys()) {
+        if (!this.isLocalConversationCacheProtected(chatId)) {
+          evictionCandidate = chatId;
+          break;
+        }
       }
-      this.localMessages.delete(conversation.chatId);
-      this.latestReadSeq.delete(conversation.chatId);
-      removeCount -= 1;
+      if (!evictionCandidate) {
+        for (const chatId of this.localConversationCacheRecency.keys()) {
+          if (chatId !== this.focusedConversationId) {
+            evictionCandidate = chatId;
+            break;
+          }
+        }
+      }
+      evictionCandidate ??= this.localConversationCacheRecency.keys().next().value;
+      if (!evictionCandidate) {
+        return;
+      }
+      this.evictLocalConversationCache(evictionCandidate);
     }
   }
 
@@ -1742,14 +1930,64 @@ class SdkworkChatService implements ChatService {
       .slice(0, MAX_INBOX_CONVERSATIONS);
   }
 
-  private async syncConversationMembers(conversationId: string): Promise<ConversationMember[]> {
+  private notifyChatListHandlers(chats: Chat[]): void {
+    this.lastChatListSnapshot = chats;
+    for (const handler of this.chatListHandlers) {
+      handler(chats);
+    }
+  }
+
+  private emitLocalChatListSnapshot(): void {
+    if (this.chatListHandlers.size === 0) {
+      return;
+    }
+    this.notifyChatListHandlers(this.mergeLiveLocalChats(this.lastChatListSnapshot));
+  }
+
+  private buildCachedConversationChat(chatId: string): Chat | undefined {
+    const viewState = this.conversationViewState.get(chatId);
+    if (viewState?.isHidden) {
+      return undefined;
+    }
+    const lastMessage = this.localMessages.get(chatId)?.at(-1);
+    if (lastMessage) {
+      return mapLocalMessageToChat(lastMessage, viewState);
+    }
+    if (!viewState) {
+      return undefined;
+    }
+    const conversationType = viewState.type ?? 'single';
+    return {
+      id: chatId,
+      name: viewState.name ?? buildFallbackConversationName(conversationType),
+      avatar: viewState.avatar ?? createFallbackConversationAvatar(conversationType),
+      type: conversationType,
+      unreadCount: viewState.isMarkedUnread ? 1 : 0,
+      updatedAt: Date.now(),
+      activeCount: viewState.activeCount,
+      memberCount: viewState.memberCount,
+      members: viewState.members,
+      isMarkedUnread: viewState.isMarkedUnread,
+      isMuted: viewState.isMuted,
+      isPinned: viewState.isPinned,
+      notice: viewState.notice,
+      welcomeMessage: viewState.welcomeMessage,
+    };
+  }
+
+  private async syncConversationMembers(
+    conversationId: string,
+    auth: AuthSessionOperationContext,
+  ): Promise<ConversationMember[]> {
     const members: ConversationMember[] = [];
     await forEachCursorPage(
       async (cursor) => {
-        const response = await this.client().conversations.listMembers(conversationId, {
+        this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+        const response = await auth.client.conversations.listMembers(conversationId, {
           pageSize: CONVERSATION_MEMBERS_PAGE_LIMIT,
           ...(cursor ? { cursor } : {}),
         });
+        this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
         const page = readSdkCursorPageInfo(response.pageInfo);
         return {
           items: response.items,
@@ -1765,158 +2003,167 @@ class SdkworkChatService implements ChatService {
     return members;
   }
 
-  private isDisplayableDirectMember(member: ConversationMember): boolean {
+  private isJoinedAgentMember(member: ConversationMember, agentId: string): boolean {
     const state = String(member.state).trim().toLowerCase();
-    return member.principalKind === 'user'
-      && Boolean(pickString(member.principalId))
+    return member.principalKind === 'agent'
+      && member.principalId === agentId
       && state !== 'left'
       && state !== 'removed';
   }
 
-  private findDirectPeerMember(members: ConversationMember[]): ConversationMember | undefined {
-    const currentUserIdentifiers = this.resolveCurrentUserIdentifiers();
-    return members
-      .filter((member) => this.isDisplayableDirectMember(member))
-      .find((member) => !currentUserIdentifiers.has(member.principalId));
-  }
-
-  private async resolveDirectPeerSocialProfile(peerUserId: string): Promise<SocialUserSearchResult | undefined> {
-    const response = await this.client().social.users.list({
-      q: peerUserId,
-      pageSize: 20,
-    });
-    return response.items.find((item: SocialUserSearchResult) => {
-      const itemRecord = toRecord(item);
-      const metadata = toRecord(itemRecord.metadata);
-      const chatId = pickString(item.chatId, itemRecord.chat_id, metadata.chatId, metadata.chat_id);
-      return item.userId === peerUserId || chatId === peerUserId;
-    });
-  }
-
-  private async resolveDirectPeerContactPreferences(peerUserId: string): Promise<ContactPreferencesView | undefined> {
-    try {
-      return await this.client().social.contacts.preferences.retrieve(peerUserId);
-    } catch {
-      return undefined;
-    }
-  }
-
-  private async resolveDirectChatPeerProfile(conversationId: string): Promise<DirectChatPeerProfile | undefined> {
-    const members = await this.syncConversationMembers(conversationId);
-    const peerMember = this.findDirectPeerMember(members);
-    const peerUserId = pickString(peerMember?.principalId);
-    if (!peerUserId) {
-      return undefined;
-    }
-
-    const [socialProfile, preferences] = await Promise.all([
-      this.resolveDirectPeerSocialProfile(peerUserId).catch(() => undefined),
-      this.resolveDirectPeerContactPreferences(peerUserId),
-    ]);
-    if (!socialProfile) {
-      const remark = pickString(preferences?.remark);
-      return remark ? { userId: peerUserId, name: remark } : undefined;
-    }
-
-    return mapSocialUserResultToDirectPeerProfile(socialProfile, preferences);
-  }
-
-  private async hydrateDirectConversationViewState(
+  private async inboxEntryContainsAgent(
     entry: ConversationInboxEntry,
-    viewState: ConversationViewState | undefined,
-  ): Promise<ConversationViewState | undefined> {
-    if (entry.agentHandoff) {
-      const handoffViewState = {
-        ...viewState,
-        name: viewState?.name ?? 'Support conversation',
-        type: 'single' as const,
-      };
-      this.conversationViewState.set(entry.conversationId, handoffViewState);
-      return handoffViewState;
-    }
-
-    if (isAgentDialogConversationId(entry.conversationId)) {
-      const agentViewState = {
-        ...viewState,
-        avatar: viewState?.avatar ?? createFallbackAgentConversationAvatar(),
-        name: viewState?.name ?? 'AI assistant chat',
-        type: 'single' as const,
-      };
-      this.conversationViewState.set(entry.conversationId, agentViewState);
-      return agentViewState;
-    }
-
-    if (
-      normalizeConversationType(entry.conversationType) !== 'single'
-      || !isGeneratedDirectConversationName(viewState?.name, entry.conversationId)
-    ) {
-      return viewState;
-    }
-
+    agentId: string,
+    auth: AuthSessionOperationContext,
+  ): Promise<boolean> {
     try {
-      const peerProfile = await this.resolveDirectChatPeerProfile(entry.conversationId);
-      const hydratedViewState = {
-        ...viewState,
-        name: peerProfile?.name ?? 'Direct chat',
-        ...(peerProfile?.avatar ? { avatar: peerProfile.avatar } : {}),
-        type: 'single' as const,
-      };
-      this.conversationViewState.set(entry.conversationId, hydratedViewState);
-      return hydratedViewState;
+      const members = await this.syncConversationMembers(entry.conversationId, auth);
+      return members.some((member) => this.isJoinedAgentMember(member, agentId));
     } catch {
-      const fallbackViewState = {
-        ...viewState,
-        name: 'Direct chat',
-        type: 'single' as const,
-      };
-      this.conversationViewState.set(entry.conversationId, fallbackViewState);
-      return fallbackViewState;
+      this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+      return false;
     }
   }
 
-  private async enrichMessagesWithInteractionSummaries(
-    chatId: string,
-    entries: TimelineViewEntry[],
-    cachedMessages: Map<string, Message>,
-  ): Promise<Message[]> {
-    return mapWithConcurrencyLimit(
-      entries,
-      INTERACTION_SUMMARY_BATCH_CONCURRENCY,
-      async (entry, index): Promise<Message> => {
-        this.latestReadSeq.set(chatId, Math.max(
-          this.latestReadSeq.get(chatId) ?? 0,
-          entry.messageSeq,
-        ));
-        const message = mapTimelineEntryToMessage(
-          entry,
-          index,
-          entries.length,
-          cachedMessages.get(entry.messageId),
-        );
-        if (!entry.messageId?.trim()) {
-          return message;
+  private readInboxPageInfo(
+    response: { hasMore?: boolean; nextCursor?: string | null; pageInfo?: { hasMore?: boolean; nextCursor?: string | null } },
+  ): Pick<ChatListPage, 'hasMore' | 'nextCursor'> {
+    if (response.pageInfo) {
+      return readSdkCursorPageInfo(response.pageInfo);
+    }
+    const hasMore = response.hasMore === true;
+    return {
+      hasMore,
+      nextCursor: hasMore ? (response.nextCursor ?? undefined) : undefined,
+    };
+  }
+
+  private async findExistingAgentDialogEntry(
+    agentId: string,
+    auth: AuthSessionOperationContext,
+  ): Promise<ConversationInboxEntry | undefined> {
+    let cursor: string | undefined;
+    let scanned = 0;
+
+    do {
+      this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+      const response = await auth.client.chat.inbox.list({
+        pageSize: INBOX_PAGE_LIMIT,
+        ...(cursor ? { cursor } : {}),
+      });
+      this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+      const entries = response.items ?? [];
+      for (const entry of entries) {
+        scanned += 1;
+        if (
+          isAgentDialogInboxEntry(entry)
+          && await this.inboxEntryContainsAgent(entry, agentId, auth)
+        ) {
+          return entry;
         }
-        try {
-          const summary = await this.client().conversations.getMessageInteractionSummary(
-            chatId,
-            entry.messageId,
-          );
-          return withMessageInteractionSummary(message, summary);
-        } catch {
-          return message;
+        if (scanned >= MAX_INBOX_CONVERSATIONS) {
+          return undefined;
         }
-      },
+      }
+      const page = this.readInboxPageInfo(response);
+      cursor = page.hasMore ? page.nextCursor : undefined;
+    } while (cursor);
+
+    return undefined;
+  }
+
+  private rememberAgentConversation(
+    conversationId: string,
+    agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'>,
+    baseViewState?: ConversationViewState,
+  ): ConversationViewState {
+    const viewState = {
+      ...baseViewState,
+      avatar: agent.avatar,
+      isHidden: false,
+      name: agent.name,
+      type: 'single' as const,
+      welcomeMessage: agent.welcomeMessage,
+    };
+    this.writeConversationViewState(conversationId, viewState);
+    return viewState;
+  }
+
+  private async syncAgentConversationPresentation(
+    conversationId: string,
+    agent: Pick<Chat, 'avatar' | 'name'>,
+    auth: AuthSessionOperationContext,
+  ): Promise<void> {
+    const profileUpdate = buildConversationProfileUpdate({
+      avatar: agent.avatar,
+      name: agent.name,
+    });
+    try {
+      this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+      if (hasProfileUpdate(profileUpdate)) {
+        await auth.client.conversations.updateProfile(conversationId, profileUpdate);
+        this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+      }
+      await auth.client.conversations.updatePreferences(conversationId, { isHidden: false });
+      this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+    } catch {
+      this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+      // Keep local naming/avatar usable if profile sync is temporarily unavailable.
+    }
+  }
+
+  private async restoreAgentChatFromInbox(
+    entry: ConversationInboxEntry,
+    agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'>,
+    auth: AuthSessionOperationContext,
+  ): Promise<Chat> {
+    const projectedViewState = applyInboxProjectionToViewState(
+      this.conversationViewState.get(entry.conversationId),
+      entry,
     );
+    await this.syncAgentConversationPresentation(entry.conversationId, agent, auth);
+    this.assertAuthSessionGenerationCurrent(auth.generation, auth.operation);
+    const viewState = this.rememberAgentConversation(entry.conversationId, agent, projectedViewState);
+    return {
+      ...mapInboxEntryToChat(entry, viewState),
+      avatar: agent.avatar,
+      name: agent.name,
+      type: 'single',
+      welcomeMessage: agent.welcomeMessage,
+    };
+  }
+
+  private mapConversationMessageEntriesToMessages(
+    chatId: string,
+    entries: ConversationMessageEntry[],
+    cachedMessages: Map<string, Message>,
+  ): Message[] {
+    return entries.map((entry, index): Message => {
+      const message = mapConversationMessageEntryToMessage(
+        entry,
+        index,
+        entries.length,
+        cachedMessages.get(entry.messageId),
+      );
+      return message;
+    });
   }
 
   private async hydrateInboxEntriesToChats(
     inboxEntries: ConversationInboxEntry[],
+    generation: number,
   ): Promise<Chat[]> {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return [];
+    }
     const chatResults = await mapWithConcurrencyLimit(
       inboxEntries,
       CHAT_LIST_HYDRATION_CONCURRENCY,
       async (entry): Promise<Chat | undefined> => {
-        this.latestReadSeq.set(entry.conversationId, Math.max(
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return undefined;
+        }
+        this.writeLatestReadSeq(entry.conversationId, Math.max(
           this.latestReadSeq.get(entry.conversationId) ?? 0,
           entry.lastMessageSeq,
         ));
@@ -1925,89 +2172,143 @@ class SdkworkChatService implements ChatService {
           entry,
         );
         if (viewState) {
-          this.conversationViewState.set(entry.conversationId, viewState);
-        }
-        if (!hasInboxPreferencesProjection(entry)) {
-          try {
-            const preferences = await this.client().conversations.getPreferences(entry.conversationId);
-            viewState = {
-              ...viewState,
-              isMuted: preferences.isMuted,
-              isMarkedUnread: preferences.isMarkedUnread,
-              isPinned: preferences.isPinned,
-              isHidden: preferences.isHidden,
-            };
-            this.conversationViewState.set(entry.conversationId, viewState);
-          } catch {
-            // Keep the chat list usable if a preference sync request fails.
-          }
+          this.writeConversationViewState(entry.conversationId, viewState);
         }
         if (viewState?.isHidden) {
           return undefined;
         }
-        if (
-          normalizeConversationType(entry.conversationType) !== 'single'
-          && !hasInboxDisplayProjection(entry)
-        ) {
-          try {
-            const profile = await this.client().conversations.getProfile(entry.conversationId);
-            viewState = applyConversationProfile(viewState, profile);
-            this.conversationViewState.set(entry.conversationId, viewState);
-          } catch {
-            // Keep local naming/avatar fallbacks usable if profile sync is temporarily unavailable.
-          }
-        }
-        viewState = await this.hydrateDirectConversationViewState(entry, viewState);
         return applyLocalLastMessageToChat(
           mapInboxEntryToChat(entry, viewState),
           this.localMessages.get(entry.conversationId)?.at(-1),
         );
       },
     );
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return [];
+    }
     return chatResults.filter((chat): chat is Chat => Boolean(chat));
   }
 
   async listChatsPage(options?: { cursor?: string; pageSize?: number }): Promise<ChatListPage> {
-    const pageSize = Math.min(options?.pageSize ?? INBOX_PAGE_LIMIT, INBOX_PAGE_LIMIT);
-    try {
-      const response = await this.client().chat.inbox.list({
-        pageSize,
-        ...(options?.cursor ? { cursor: options.cursor } : {}),
-      });
-      const items = await this.hydrateInboxEntriesToChats(response.items);
-      void persistDesktopOfflineChats(items).catch(() => undefined);
-      const pageInfo = (response as { pageInfo?: { hasMore?: boolean; nextCursor?: string | null } }).pageInfo;
-      const page = readSdkCursorPageInfo(pageInfo);
-      return {
-        items: items.sort(sortChats),
-        hasMore: page.hasMore,
-        nextCursor: page.nextCursor,
-      };
-    } catch (error) {
-      if (options?.cursor) {
-        throw error;
+    const pageSize = normalizeInboxPageSize(options?.pageSize);
+    const generation = this.authSessionGeneration;
+    const emptyPage = (): ChatListPage => ({
+      items: [],
+      hasMore: false,
+      nextCursor: undefined,
+    });
+    // First-page (no cursor) loads are deduplicated in-flight AND via a short
+    // TTL cache. The TTL covers the startup sequence where syncOfflineMessages
+    // and refreshChats call listChatsPage() back-to-back (serial await defeats
+    // pure in-flight dedup). Concurrent callers, TTL-fresh calls, and in-flight
+    // calls all share one network request.
+    if (!options?.cursor) {
+      const inFlight = this.inboxFirstPagePromises.get(pageSize);
+      if (inFlight?.generation === generation) {
+        return inFlight.promise;
       }
-      const offlineChats = await loadDesktopOfflineChats(pageSize);
-      if (offlineChats.length === 0) {
-        throw error;
+      const cached = this.inboxFirstPageCaches.get(pageSize);
+      if (cached?.generation === generation && Date.now() < cached.expiresAt) {
+        return cached.promise;
       }
-      return {
-        items: offlineChats.sort(sortChats),
-        hasMore: false,
-        nextCursor: undefined,
-      };
+      if (cached) {
+        this.inboxFirstPageCaches.delete(pageSize);
+        if (this.inboxFirstPageCache === cached) {
+          this.inboxFirstPageCache = undefined;
+        }
+      }
     }
+    const run = (async (): Promise<ChatListPage> => {
+      try {
+        const response = await (await this.client()).chat.inbox.list({
+          pageSize,
+          ...(options?.cursor ? { cursor: options.cursor } : {}),
+        });
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return emptyPage();
+        }
+        const items = await this.hydrateInboxEntriesToChats(response.items, generation);
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return emptyPage();
+        }
+        void persistDesktopOfflineChats(items).catch(() => undefined);
+        const pageInfo = (response as { pageInfo?: { hasMore?: boolean; nextCursor?: string | null } }).pageInfo;
+        const page = readSdkCursorPageInfo(pageInfo);
+        const sortedItems = items.sort(sortChats);
+        if (!options?.cursor) {
+          this.lastChatListSnapshot = sortedItems;
+        }
+        return {
+          items: sortedItems,
+          hasMore: page.hasMore,
+          nextCursor: page.nextCursor,
+        };
+      } catch (error) {
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return emptyPage();
+        }
+        if (options?.cursor) {
+          throw error;
+        }
+        const offlineChats = await loadDesktopOfflineChats(pageSize);
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return emptyPage();
+        }
+        if (offlineChats.length === 0) {
+          throw error;
+        }
+        const sortedOfflineChats = offlineChats.sort(sortChats);
+        this.lastChatListSnapshot = sortedOfflineChats;
+        return {
+          items: sortedOfflineChats,
+          hasMore: false,
+          nextCursor: undefined,
+        };
+      }
+    })();
+    if (!options?.cursor) {
+      let firstPagePromise: Promise<ChatListPage>;
+      firstPagePromise = run
+        .then((page) => {
+          const currentRequest = this.inboxFirstPagePromises.get(pageSize);
+          if (
+            this.isAuthSessionGenerationCurrent(generation)
+            && currentRequest?.generation === generation
+            && currentRequest.promise === firstPagePromise
+          ) {
+            const cacheEntry = {
+              promise: firstPagePromise,
+              expiresAt: Date.now() + INBOX_FIRST_PAGE_TTL_MS,
+              generation,
+              pageSize,
+            };
+            this.inboxFirstPageCache = cacheEntry;
+            this.inboxFirstPageCaches.set(pageSize, cacheEntry);
+          }
+          return page;
+        })
+        .finally(() => {
+          if (this.inboxFirstPagePromises.get(pageSize)?.promise === firstPagePromise) {
+            this.inboxFirstPagePromises.delete(pageSize);
+          }
+          if (this.inboxFirstPagePromise === firstPagePromise) {
+            this.inboxFirstPagePromise = undefined;
+            this.inboxFirstPagePromiseGeneration = undefined;
+            this.inboxFirstPagePromisePageSize = undefined;
+          }
+        });
+      this.inboxFirstPagePromise = firstPagePromise;
+      this.inboxFirstPagePromiseGeneration = generation;
+      this.inboxFirstPagePromisePageSize = pageSize;
+      this.inboxFirstPagePromises.set(pageSize, { generation, promise: firstPagePromise });
+      return firstPagePromise;
+    }
+    return run;
   }
 
   async getChats(): Promise<Chat[]> {
-    const chats: Chat[] = [];
-    await forEachCursorPage(
-      (cursor) => this.listChatsPage({ cursor }),
-      (items) => {
-        chats.push(...items);
-      },
-      { maxItems: MAX_INBOX_CONVERSATIONS * 10 },
-    );
+    const page = await this.listChatsPage();
+    const chats = [...page.items];
 
     for (const [chatId, localMessages] of this.localMessages.entries()) {
       if (this.conversationViewState.get(chatId)?.isHidden || chats.some((chat) => chat.id === chatId)) {
@@ -2039,8 +2340,31 @@ class SdkworkChatService implements ChatService {
   }
 
   private setLocalMessages(chatId: string, messages: Message[]): void {
-    this.localMessages.set(chatId, messages);
-    this.trimLocalMessages(chatId);
+    this.localMessages.set(
+      chatId,
+      messages.length > LOCAL_MESSAGES_PER_CONVERSATION_CAP
+        ? messages.slice(-LOCAL_MESSAGES_PER_CONVERSATION_CAP)
+        : messages,
+    );
+    this.recordLocalConversationCacheWrite(chatId);
+    this.pruneLiveSubscriptionNotificationVersions(chatId);
+  }
+
+  private pruneLiveSubscriptionNotificationVersions(
+    chatId: string,
+    subscription = this.liveSubscriptions.get(chatId),
+  ): void {
+    if (!subscription) {
+      return;
+    }
+    const retainedMessageIds = new Set(
+      (this.localMessages.get(chatId) ?? []).map((message) => message.id),
+    );
+    for (const messageId of subscription.notifiedMessageVersions.keys()) {
+      if (!retainedMessageIds.has(messageId)) {
+        subscription.notifiedMessageVersions.delete(messageId);
+      }
+    }
   }
 
   private queuePersistOfflineMessages(messages: OfflinePersistableMessage[]): void {
@@ -2055,137 +2379,185 @@ class SdkworkChatService implements ChatService {
   }
 
   async getMessages(chatId: string, options?: { pageSize?: number }): Promise<Message[]> {
+    if (this.isConversationHidden(chatId)) {
+      return [];
+    }
+    // Deduplicate concurrent getMessages calls for the same chatId so that
+    // MessageList's mount effect and subscribeMessages' catch-up share one request.
+    const existing = this.getMessagesPromises.get(chatId);
+    if (existing) {
+      return existing;
+    }
+    this.assertMessageHistoryLoadCapacity();
+    const cacheToken = this.ensureConversationCacheToken(chatId);
+    const promise = this.doGetMessages(chatId, options, cacheToken).finally(() => {
+      if (this.getMessagesPromises.get(chatId) === promise) {
+        this.getMessagesPromises.delete(chatId);
+      }
+      this.activeMessageHistoryLoads.delete(promise);
+      this.trimLocalConversationCache();
+    });
+    this.getMessagesPromises.set(chatId, promise);
+    this.activeMessageHistoryLoads.add(promise);
+    this.touchLocalConversationCacheIfPresent(chatId);
+    this.trimLocalConversationCache();
+    return promise;
+  }
+
+  private async doGetMessages(
+    chatId: string,
+    options: { pageSize?: number } | undefined,
+    cacheToken: ConversationCacheToken,
+  ): Promise<Message[]> {
     const pageSize = options?.pageSize ?? DEFAULT_MESSAGE_INITIAL_LIMIT;
     try {
       const cachedMessages = new Map(
         (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
       );
-      const remoteMessages: Message[] = [];
-      const persistableMessages: OfflinePersistableMessage[] = [];
-      let afterSeq = 0;
-      let nextPaginationState: TimelinePaginationState = {
-        hasMore: false,
-        nextAfterSeq: 0,
-      };
+      const response = await (await this.client()).conversations.listMessages(chatId, {
+        pageSize,
+      });
+      if (!this.isConversationCacheTokenCurrent(chatId, cacheToken)) {
+        return [];
+      }
+      const pageMessages = this.mapConversationMessageEntriesToMessages(
+        chatId,
+        response.items,
+        cachedMessages,
+      );
+      for (const message of pageMessages) {
+        cachedMessages.set(message.id, message);
+      }
+      const latestMessageSeq = response.items.reduce(
+        (latest, entry) => Math.max(latest, entry.messageSeq),
+        this.latestReadSeq.get(chatId) ?? 0,
+      );
+      this.writeLatestReadSeq(chatId, latestMessageSeq);
 
-      do {
-        const response = await this.client().conversations.listMessages(chatId, {
-          afterSeq,
-          pageSize,
-        });
-        const pageMessages = await this.enrichMessagesWithInteractionSummaries(
-          chatId,
-          response.items,
-          cachedMessages,
-        );
-        remoteMessages.push(...pageMessages);
-        for (const message of pageMessages) {
-          cachedMessages.set(message.id, message);
-        }
-        persistableMessages.push(
-          ...response.items.map((entry, index) => ({
-            ...mapTimelineEntryToMessage(entry, index, response.items.length, cachedMessages.get(entry.messageId)),
-            messageSeq: entry.messageSeq,
-          })),
-        );
+      this.writeMessageHistoryPaginationState(
+        chatId,
+        normalizeMessageHistoryPagination(response.pageInfo, pageMessages.length),
+      );
 
-        const timelinePage = readSeqCursorPageInfo(response.pageInfo);
-        const canContinue = timelinePage.hasMore
-          && timelinePage.nextAfterSeq > afterSeq
-          && remoteMessages.length < LOCAL_MESSAGES_PER_CONVERSATION_CAP;
-        nextPaginationState = {
-          hasMore: canContinue || (
-            timelinePage.hasMore
-            && timelinePage.nextAfterSeq > afterSeq
-            && remoteMessages.length >= LOCAL_MESSAGES_PER_CONVERSATION_CAP
-          ),
-          nextAfterSeq: timelinePage.nextAfterSeq,
-        };
-        if (!canContinue) {
-          break;
-        }
-        afterSeq = timelinePage.nextAfterSeq;
-      } while (true);
-
-      this.timelinePaginationState.set(chatId, nextPaginationState);
-
-      const mergedMessages = mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
+      const mergedMessages = mergeMessageLists(pageMessages, this.localMessages.get(chatId) ?? []);
       this.setLocalMessages(chatId, mergedMessages);
-      this.queuePersistOfflineMessages(persistableMessages);
+      this.queuePersistOfflineMessages(
+        response.items.map((entry, index) => ({
+          ...mapConversationMessageEntryToMessage(entry, index, response.items.length, cachedMessages.get(entry.messageId)),
+          messageSeq: entry.messageSeq,
+        })),
+      );
       return mergedMessages;
     } catch (error) {
-      const offlineMessages = await loadDesktopOfflineMessages(chatId, 0, pageSize);
+      if (!this.isConversationCacheTokenCurrent(chatId, cacheToken)) {
+        return [];
+      }
+      const offlineMessages = await loadDesktopOfflineMessages(chatId, undefined, pageSize);
+      if (!this.isConversationCacheTokenCurrent(chatId, cacheToken)) {
+        return [];
+      }
       if (offlineMessages.length === 0) {
         throw error;
       }
       const mergedMessages = mergeMessageLists(offlineMessages, this.localMessages.get(chatId) ?? []);
       this.setLocalMessages(chatId, mergedMessages);
-      this.timelinePaginationState.set(chatId, {
+      this.writeMessageHistoryPaginationState(chatId, {
         hasMore: false,
-        nextAfterSeq: 0,
       });
       return mergedMessages;
     }
   }
 
   hasMoreMessages(chatId: string): boolean {
-    return this.timelinePaginationState.get(chatId)?.hasMore ?? false;
+    return this.messageHistoryPaginationState.get(chatId)?.hasMore ?? false;
   }
 
   async loadMoreMessages(chatId: string, pageSize?: number): Promise<Message[]> {
-    const state = this.timelinePaginationState.get(chatId);
-    if (!state || !state.hasMore) {
+    if (this.isConversationHidden(chatId)) {
+      return [];
+    }
+    const existing = this.loadMoreMessagesPromises.get(chatId);
+    if (existing) {
+      return existing;
+    }
+    const state = this.messageHistoryPaginationState.get(chatId);
+    if (!state?.hasMore || !state.nextCursor) {
+      return [];
+    }
+    this.assertMessageHistoryLoadCapacity();
+    const cacheToken = this.ensureConversationCacheToken(chatId);
+    const promise = this.doLoadMoreMessages(
+      chatId,
+      pageSize,
+      state,
+      cacheToken,
+    ).finally(() => {
+      if (this.loadMoreMessagesPromises.get(chatId) === promise) {
+        this.loadMoreMessagesPromises.delete(chatId);
+      }
+      this.activeMessageHistoryLoads.delete(promise);
+      this.trimLocalConversationCache();
+    });
+    this.loadMoreMessagesPromises.set(chatId, promise);
+    this.activeMessageHistoryLoads.add(promise);
+    this.touchLocalConversationCacheIfPresent(chatId);
+    this.trimLocalConversationCache();
+    return promise;
+  }
+
+  private async doLoadMoreMessages(
+    chatId: string,
+    pageSize: number | undefined,
+    state: MessageHistoryPaginationState,
+    cacheToken: ConversationCacheToken,
+  ): Promise<Message[]> {
+    if (!state.nextCursor) {
+      return [];
+    }
+    const response = await (await this.client()).conversations.listMessages(chatId, {
+      cursor: state.nextCursor,
+      pageSize: pageSize ?? MESSAGE_PAGE_LIMIT,
+    });
+    if (!this.isConversationCacheTokenCurrent(chatId, cacheToken)) {
       return [];
     }
 
-    const afterSeq = state.nextAfterSeq;
-    try {
-      const response = await this.client().conversations.listMessages(chatId, {
-        afterSeq,
-        pageSize: pageSize ?? MESSAGE_PAGE_LIMIT,
-      });
+    const cachedMessages = new Map(
+      (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
+    );
+    const newMessages = this.mapConversationMessageEntriesToMessages(
+      chatId,
+      response.items,
+      cachedMessages,
+    );
+    const latestMessageSeq = response.items.reduce(
+      (latest, entry) => Math.max(latest, entry.messageSeq),
+      this.latestReadSeq.get(chatId) ?? 0,
+    );
+    this.writeLatestReadSeq(chatId, latestMessageSeq);
 
-      const cachedMessages = new Map(
-        (this.localMessages.get(chatId) ?? []).map((message) => [message.id, message]),
-      );
-      const newMessages = await this.enrichMessagesWithInteractionSummaries(
-        chatId,
-        response.items,
-        cachedMessages,
-      );
+    this.writeMessageHistoryPaginationState(
+      chatId,
+      normalizeMessageHistoryPagination(response.pageInfo, newMessages.length),
+    );
 
-      const timelinePage = readSeqCursorPageInfo(response.pageInfo);
-      this.timelinePaginationState.set(chatId, {
-        hasMore: timelinePage.hasMore,
-        nextAfterSeq: timelinePage.hasMore && timelinePage.nextAfterSeq > afterSeq
-          ? timelinePage.nextAfterSeq
-          : afterSeq,
-      });
-
-      const mergedMessages = mergeMessageLists(newMessages, this.localMessages.get(chatId) ?? []);
-      this.setLocalMessages(chatId, mergedMessages);
-      this.queuePersistOfflineMessages(
-        response.items.map((entry, index) => ({
-          ...mapTimelineEntryToMessage(entry, index, response.items.length, cachedMessages.get(entry.messageId)),
-          messageSeq: entry.messageSeq,
-        })),
-      );
-      return newMessages;
-    } catch (error) {
-      const offlineMessages = await loadDesktopOfflineMessages(chatId, afterSeq, pageSize ?? MESSAGE_PAGE_LIMIT);
-      if (offlineMessages.length === 0) {
-        throw error;
-      }
-      const mergedMessages = mergeMessageLists(offlineMessages, this.localMessages.get(chatId) ?? []);
-      this.setLocalMessages(chatId, mergedMessages);
-      return offlineMessages;
-    }
+    const mergedMessages = mergeMessageLists(newMessages, this.localMessages.get(chatId) ?? []);
+    this.setLocalMessages(chatId, mergedMessages);
+    this.queuePersistOfflineMessages(
+      response.items.map((entry, index) => ({
+        ...mapConversationMessageEntryToMessage(entry, index, response.items.length, cachedMessages.get(entry.messageId)),
+        messageSeq: entry.messageSeq,
+      })),
+    );
+    return newMessages;
   }
 
   subscribeMessages(chatId: string, handler: MessageHandler): () => void {
+    if (this.isConversationHidden(chatId)) {
+      return () => undefined;
+    }
     const subscription = this.getOrCreateLiveSubscription(chatId);
     subscription.handlers.add(handler);
-    void this.catchUpConversationMessages(chatId).catch(() => undefined);
 
     return () => {
       subscription.handlers.delete(handler);
@@ -2202,7 +2574,14 @@ class SdkworkChatService implements ChatService {
     replyTo?: Message['replyTo'],
     extraInfo?: ChatMessageExtraInfo,
   ): Promise<Message> {
-    const client = this.client();
+    const generation = this.authSessionGeneration;
+    const assertCurrentGeneration = (): void => {
+      if (!this.isAuthSessionGenerationCurrent(generation)) {
+        throw new Error('Chat session changed while sending message.');
+      }
+    };
+    const client = await this.client();
+    assertCurrentGeneration();
     const currentUser = contactService.getCurrentUser();
     const clientMsgId = `pc-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const replyReference = buildReplyReference(replyTo);
@@ -2223,11 +2602,16 @@ class SdkworkChatService implements ChatService {
             chatId,
             content,
             extraInfo,
-            getDriveUploader: this.getDriveUploader,
+            getDriveUploader: async () => {
+              const uploader = await this.getDriveUploader();
+              assertCurrentGeneration();
+              return uploader;
+            },
             getSession: this.getSession,
             type,
           })
         : undefined;
+      assertCurrentGeneration();
       remoteSummary = mediaUpload?.resource.fileName ?? remoteSummary;
       parts = type === 'text'
         ? undefined
@@ -2246,6 +2630,7 @@ class SdkworkChatService implements ChatService {
             ...(parts ? { parts } : {}),
             renderHints,
           });
+      assertCurrentGeneration();
 
       const message: Message = {
         id: postResult.messageId,
@@ -2258,17 +2643,23 @@ class SdkworkChatService implements ChatService {
         ...localExtraInfo,
       };
       const storedMessage = this.upsertLocalMessage(chatId, message, true);
-      this.latestReadSeq.set(chatId, Math.max(this.latestReadSeq.get(chatId) ?? 0, postResult.messageSeq));
+      this.writeLatestReadSeq(chatId, Math.max(
+        this.latestReadSeq.get(chatId) ?? 0,
+        postResult.messageSeq,
+      ));
       const subscription = this.liveSubscriptions.get(chatId);
       if (subscription) {
         this.notifyLiveSubscription(subscription, storedMessage);
       }
-      await this.emitChatList().catch(() => undefined);
+      this.emitLocalChatListSnapshot();
+      void this.emitChatList().catch(() => undefined);
       return storedMessage;
     } catch (error) {
+      assertCurrentGeneration();
       const canQueueOffline = isRetryableDesktopSendError(error)
         && (await ensureDesktopOfflineChatCache())
         && (type === 'text' || Boolean(mediaUpload));
+      assertCurrentGeneration();
       if (!canQueueOffline) {
         throw error;
       }
@@ -2288,6 +2679,7 @@ class SdkworkChatService implements ChatService {
               renderHints,
             }),
       });
+      assertCurrentGeneration();
       const pendingMessage: Message = {
         id: clientMsgId,
         chatId,
@@ -2304,14 +2696,17 @@ class SdkworkChatService implements ChatService {
       if (subscription) {
         this.notifyLiveSubscription(subscription, storedMessage);
       }
-      await this.emitChatList().catch(() => undefined);
+      this.emitLocalChatListSnapshot();
+      void this.emitChatList().catch(() => undefined);
       return storedMessage;
     }
   }
 
   async forwardMessages(targetChatIds: string[], messages: Message[]): Promise<void> {
+    const generation = this.authSessionGeneration;
     for (const targetChatId of targetChatIds) {
       for (const message of messages) {
+        this.assertAuthSessionGenerationCurrent(generation, 'forwarding messages');
         if (isMediaMessageType(message.type)) {
           throw new Error('Forwarding media messages requires a reusable Drive reference before sending.');
         }
@@ -2323,6 +2718,7 @@ class SdkworkChatService implements ChatService {
           appIcon: message.appIcon,
           desc: message.desc,
         });
+        this.assertAuthSessionGenerationCurrent(generation, 'forwarding messages');
       }
     }
   }
@@ -2339,7 +2735,7 @@ class SdkworkChatService implements ChatService {
       throw new Error('Only text messages can be retried from the local failed queue.');
     }
 
-    this.localMessages.set(
+    this.setLocalMessages(
       chatId,
       messages.filter((message) => message.id !== messageId),
     );
@@ -2359,60 +2755,171 @@ class SdkworkChatService implements ChatService {
     if (typeof context.isWindowFocused === 'boolean') {
       this.windowFocused = context.isWindowFocused;
     }
+    if (context.activeConversationId) {
+      this.touchLocalConversationCacheIfPresent(context.activeConversationId);
+    }
+    this.trimLocalConversationCache();
   }
 
-  private async resolveReadSeqForMarkAsRead(chatId: string): Promise<number> {
-    const cachedSeq = this.latestReadSeq.get(chatId) ?? 0;
-    if (cachedSeq > 0) {
-      return cachedSeq;
-    }
-
-    try {
-      const response = await this.client().conversations.listMessages(chatId, { pageSize: 1 });
-      const latestEntry = response.items?.at(-1);
-      const resolvedSeq = latestEntry?.messageSeq ?? 0;
-      if (resolvedSeq > 0) {
-        this.latestReadSeq.set(chatId, resolvedSeq);
-      }
-      return resolvedSeq;
-    } catch {
-      return 0;
-    }
+  private resolveReadSeqForMarkAsRead(chatId: string): number {
+    return this.latestReadSeq.get(chatId) ?? 0;
   }
 
   private isConversationActivelyViewed(chatId: string): boolean {
     return this.windowFocused && this.focusedConversationId === chatId;
   }
 
-  async markAsRead(chatId: string): Promise<void> {
-    const readSeq = await this.resolveReadSeqForMarkAsRead(chatId);
-    if (readSeq > 0) {
-      await this.client().conversations.updateReadCursor(chatId, { readSeq });
-      this.latestReadSeq.set(chatId, readSeq);
+  private queueRealtimeReadCursorSync(
+    chatId: string,
+    readSeq: number,
+    generation = this.authSessionGeneration,
+  ): void {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
     }
-    await this.client().conversations.updatePreferences(chatId, { isMarkedUnread: false });
-    this.conversationViewState.set(chatId, {
+    const normalizedReadSeq = Number.isFinite(readSeq) ? Math.max(0, Math.floor(readSeq)) : 0;
+    if (normalizedReadSeq <= 0) {
+      return;
+    }
+
+    this.writePendingRealtimeReadCursorSeq(
+      chatId,
+      Math.max(this.pendingRealtimeReadCursorSeqs.get(chatId) ?? 0, normalizedReadSeq),
+    );
+    this.writeConversationViewState(chatId, {
+      ...this.conversationViewState.get(chatId),
+      isMarkedUnread: false,
+    });
+    this.scheduleRealtimeReadCursorSync(generation);
+  }
+
+  private scheduleRealtimeReadCursorSync(generation = this.authSessionGeneration): void {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    if (this.realtimeReadCursorSyncPromise) {
+      return;
+    }
+
+    const syncPromise = Promise.resolve()
+      .then(() => this.flushRealtimeReadCursorSync(generation))
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.realtimeReadCursorSyncPromise === syncPromise) {
+          this.realtimeReadCursorSyncPromise = undefined;
+        }
+        if (
+          this.isAuthSessionGenerationCurrent(generation)
+          && this.pendingRealtimeReadCursorSeqs.size > 0
+        ) {
+          this.scheduleRealtimeReadCursorSync(generation);
+        }
+      });
+    this.realtimeReadCursorSyncPromise = syncPromise;
+  }
+
+  private async flushRealtimeReadCursorSync(generation: number): Promise<void> {
+    while (
+      this.isAuthSessionGenerationCurrent(generation)
+      && this.pendingRealtimeReadCursorSeqs.size > 0
+    ) {
+      const updates = Array.from(this.pendingRealtimeReadCursorSeqs.entries());
+      for (const [conversationId] of updates) {
+        this.beginReadCursorSync(conversationId);
+      }
+      this.pendingRealtimeReadCursorSeqs.clear();
+      try {
+        const client = await this.client();
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return;
+        }
+        await mapWithConcurrencyLimit(
+          updates,
+          REALTIME_READ_CURSOR_SYNC_CONCURRENCY,
+          async ([conversationId, readSeq]) => {
+            try {
+              await client.conversations.updateReadCursor(conversationId, { readSeq });
+              if (!this.isAuthSessionGenerationCurrent(generation)) {
+                return;
+              }
+              this.writeLatestReadSeq(conversationId, Math.max(
+                this.latestReadSeq.get(conversationId) ?? 0,
+                readSeq,
+              ));
+            } catch {
+              // Realtime read sync is opportunistic; explicit mark-as-read remains the durable retry path.
+            }
+          },
+        );
+      } finally {
+        if (this.isAuthSessionGenerationCurrent(generation)) {
+          for (const [conversationId] of updates) {
+            this.endReadCursorSync(conversationId);
+          }
+        }
+      }
+    }
+  }
+
+  async markAsRead(chatId: string): Promise<void> {
+    const generation = this.authSessionGeneration;
+    const readSeq = this.resolveReadSeqForMarkAsRead(chatId);
+    const client = await this.client();
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    if (readSeq > 0) {
+      this.beginReadCursorSync(chatId);
+      try {
+        await client.conversations.updateReadCursor(chatId, { readSeq });
+        if (!this.isAuthSessionGenerationCurrent(generation)) {
+          return;
+        }
+        this.writeLatestReadSeq(chatId, readSeq);
+      } finally {
+        if (this.isAuthSessionGenerationCurrent(generation)) {
+          this.endReadCursorSync(chatId);
+        }
+      }
+    }
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    await client.conversations.updatePreferences(chatId, { isMarkedUnread: false });
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    this.writeConversationViewState(chatId, {
       ...this.conversationViewState.get(chatId),
       isMarkedUnread: false,
     });
   }
 
   async markAsUnread(chatId: string): Promise<void> {
-    await this.client().conversations.updatePreferences(chatId, { isMarkedUnread: true });
-    this.conversationViewState.set(chatId, {
+    const operation = 'marking a conversation unread';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.conversations.updatePreferences(chatId, { isMarkedUnread: true });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    this.writeConversationViewState(chatId, {
       ...this.conversationViewState.get(chatId),
       isMarkedUnread: true,
     });
   }
 
   async deleteMessage(chatId: string, messageId: string): Promise<void> {
-    await this.client().messages.deleteForMe(messageId);
+    const operation = 'deleting a message';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.messages.deleteForMe(messageId);
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     const messages = this.localMessages.get(chatId) ?? [];
-    this.localMessages.set(chatId, messages.filter((message) => message.id !== messageId));
+    this.setLocalMessages(chatId, messages.filter((message) => message.id !== messageId));
   }
 
   async recallMessage(chatId: string, messageId: string): Promise<void> {
-    await this.client().recallMessage(messageId);
+    const operation = 'recalling a message';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.recallMessage(messageId);
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     let recalledMessage: Message | undefined;
     this.updateLocalMessage(chatId, messageId, (message) => {
       recalledMessage = { ...message, isRecalled: true, content: '', reactions: [] };
@@ -2429,7 +2936,10 @@ class SdkworkChatService implements ChatService {
     if (!trimmed) {
       throw new Error('Edited message text must not be empty.');
     }
-    await this.client().editMessage(messageId, { text: trimmed });
+    const operation = 'editing a message';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.editMessage(messageId, { text: trimmed });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     let editedMessage: Message | undefined;
     this.updateLocalMessage(chatId, messageId, (message) => {
       editedMessage = { ...message, content: trimmed, isEdited: true };
@@ -2442,32 +2952,49 @@ class SdkworkChatService implements ChatService {
   }
 
   async deleteChat(chatId: string): Promise<void> {
-    await this.client().conversations.updatePreferences(chatId, { isHidden: true });
-    this.conversationViewState.set(chatId, {
-      ...this.conversationViewState.get(chatId),
-      isHidden: true,
-    });
-    this.localMessages.delete(chatId);
+    const operation = 'deleting a conversation';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.conversations.updatePreferences(chatId, { isHidden: true });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    const liveSubscription = this.liveSubscriptions.get(chatId);
+    if (liveSubscription) {
+      this.closeLiveSubscription(chatId, liveSubscription);
+    }
+    this.getMessagesPromises.delete(chatId);
+    this.loadMoreMessagesPromises.delete(chatId);
+    this.evictLocalConversationCache(chatId);
+    this.writeConversationViewState(chatId, { isHidden: true });
+    this.inboxFirstPageCache = undefined;
+    this.emitLocalChatListSnapshot();
   }
 
   async pinChat(chatId: string, isPinned: boolean): Promise<void> {
-    await this.client().conversations.updatePreferences(chatId, { isPinned });
-    this.conversationViewState.set(chatId, {
+    const operation = 'updating a conversation pin';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.conversations.updatePreferences(chatId, { isPinned });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    this.writeConversationViewState(chatId, {
       ...this.conversationViewState.get(chatId),
       isPinned,
     });
   }
 
   async muteChat(chatId: string, isMuted: boolean): Promise<void> {
-    await this.client().conversations.updatePreferences(chatId, { isMuted });
-    this.conversationViewState.set(chatId, {
+    const operation = 'updating a conversation mute preference';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.conversations.updatePreferences(chatId, { isMuted });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    this.writeConversationViewState(chatId, {
       ...this.conversationViewState.get(chatId),
       isMuted,
     });
   }
 
   async addReaction(chatId: string, messageId: string, emoji: string): Promise<void> {
-    await this.client().addReaction(messageId, emoji);
+    const operation = 'adding a message reaction';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.addReaction(messageId, emoji);
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     this.updateLocalMessage(chatId, messageId, (message) => {
       const reactions = [...(message.reactions ?? [])];
       const existing = reactions.find((reaction) => reaction.emoji === emoji);
@@ -2482,7 +3009,10 @@ class SdkworkChatService implements ChatService {
   }
 
   async removeReaction(chatId: string, messageId: string, emoji: string): Promise<void> {
-    await this.client().removeReaction(messageId, emoji);
+    const operation = 'removing a message reaction';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    await client.removeReaction(messageId, emoji);
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     this.updateLocalMessage(chatId, messageId, (message) => {
       const reactions = (message.reactions ?? [])
         .map((reaction) => {
@@ -2501,44 +3031,51 @@ class SdkworkChatService implements ChatService {
   }
 
   async updateChat(chatId: string, updates: Partial<Chat>): Promise<Chat> {
+    const operation = 'updating a conversation';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
     const profileUpdate = buildConversationProfileUpdate(updates);
     if (hasProfileUpdate(profileUpdate)) {
-      const profile = await this.client().conversations.updateProfile(chatId, profileUpdate);
-      this.conversationViewState.set(chatId, applyConversationProfile(
+      const profile = await client.conversations.updateProfile(chatId, profileUpdate);
+      this.assertAuthSessionGenerationCurrent(generation, operation);
+      this.writeConversationViewState(chatId, applyConversationProfile(
         this.conversationViewState.get(chatId),
         profile,
       ));
     }
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     const localViewUpdate = buildLocalConversationViewUpdate(updates);
-    this.conversationViewState.set(chatId, {
+    this.writeConversationViewState(chatId, {
       ...this.conversationViewState.get(chatId),
       ...localViewUpdate,
     });
-    const updated = (await this.getChats()).find((chat) => chat.id === chatId);
+    const updated = this.buildCachedConversationChat(chatId);
     if (!updated) {
       throw new Error('Chat not found');
     }
-    this.conversationViewState.set(chatId, {
-      ...this.conversationViewState.get(chatId),
-      ...localViewUpdate,
-    });
-    return {
-      ...updated,
-      ...localViewUpdate,
-    };
+    return updated;
   }
 
-  async createChat(chat: Chat): Promise<void> {
-    await this.client().conversations.create({
-      conversationId: chat.id,
-      conversationType: chat.type,
+  async createChat(chat: Chat): Promise<Chat> {
+    if (chat.type !== 'group') {
+      throw new Error('Single conversations must be created through startDirectChat.');
+    }
+    const operation = 'creating a conversation';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    const result = await client.conversations.create({
+      conversationType: 'group',
+      groupName: chat.name,
+      clientRequestKey: createChatClientRequestKey(),
     });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    const conversationId = result.conversationId;
     const profileUpdate = buildConversationProfileUpdate(chat);
     if (hasProfileUpdate(profileUpdate)) {
-      await this.client().conversations.updateProfile(chat.id, profileUpdate);
+      await client.conversations.updateProfile(conversationId, profileUpdate);
+      this.assertAuthSessionGenerationCurrent(generation, operation);
     }
-    await this.client().conversations.updatePreferences(chat.id, { isHidden: false });
-    this.conversationViewState.set(chat.id, {
+    await client.conversations.updatePreferences(conversationId, { isHidden: false });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    this.writeConversationViewState(conversationId, {
       avatar: chat.avatar,
       isHidden: false,
       memberCount: chat.memberCount,
@@ -2547,8 +3084,12 @@ class SdkworkChatService implements ChatService {
       type: chat.type,
     });
     if (chat.lastMessage) {
-      this.localMessages.set(chat.id, [chat.lastMessage]);
+      this.setLocalMessages(conversationId, [{ ...chat.lastMessage, chatId: conversationId }]);
     }
+    return {
+      ...chat,
+      id: conversationId,
+    };
   }
 
   async startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { conversationId?: string; directChatId?: string; id: string }): Promise<Chat> {
@@ -2556,10 +3097,13 @@ class SdkworkChatService implements ChatService {
     if (!targetUserId) {
       throw new Error('Direct chat target user id is required');
     }
+    const operation = 'starting a direct conversation';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
     const projectedConversationId = user.conversationId?.trim();
     if (projectedConversationId) {
-      await this.client().conversations.updatePreferences(projectedConversationId, { isHidden: false });
-      this.conversationViewState.set(projectedConversationId, {
+      await client.conversations.updatePreferences(projectedConversationId, { isHidden: false });
+      this.assertAuthSessionGenerationCurrent(generation, operation);
+      this.writeConversationViewState(projectedConversationId, {
         ...this.conversationViewState.get(projectedConversationId),
         avatar: user.avatar,
         isHidden: false,
@@ -2575,27 +3119,29 @@ class SdkworkChatService implements ChatService {
         updatedAt: Date.now(),
       };
     }
-    const currentUser = contactService.getCurrentUser();
-    const currentUserId = currentUser.id.trim();
+    const currentUserId = this.resolveCurrentUserId().trim();
     if (!currentUserId) {
       throw new Error('Current user id is required');
     }
-    const result = await this.client().conversations.bindDirectChat({
+    const result = await client.conversations.bindDirectChat({
       leftActorId: currentUserId,
       leftActorKind: 'user',
       rightActorId: targetUserId,
       rightActorKind: 'user',
     });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     const boundConversationId = result.conversationId;
     const profileUpdate = buildConversationProfileUpdate({
       avatar: user.avatar,
       name: user.name,
     });
     if (hasProfileUpdate(profileUpdate)) {
-      await this.client().conversations.updateProfile(boundConversationId, profileUpdate);
+      await client.conversations.updateProfile(boundConversationId, profileUpdate);
+      this.assertAuthSessionGenerationCurrent(generation, operation);
     }
-    await this.client().conversations.updatePreferences(boundConversationId, { isHidden: false });
-    this.conversationViewState.set(boundConversationId, {
+    await client.conversations.updatePreferences(boundConversationId, { isHidden: false });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    this.writeConversationViewState(boundConversationId, {
       ...this.conversationViewState.get(boundConversationId),
       avatar: user.avatar,
       isHidden: false,
@@ -2614,36 +3160,31 @@ class SdkworkChatService implements ChatService {
 
   async startAgentChat(agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'> & { id: string }): Promise<Chat> {
     const agentId = requireStandardAgentChatId(agent.id);
-    const currentUser = contactService.getCurrentUser();
-    const currentUserId = currentUser.id.trim();
+    const operation = 'starting an agent conversation';
+    const auth = await this.beginAuthSessionOperation(operation);
+    const currentUserId = this.resolveCurrentUserId().trim();
     if (!currentUserId) {
       throw new Error('Current user id is required');
     }
 
-    const result = await this.client().conversations.createAgentDialog({
+    const existingEntry = await this.findExistingAgentDialogEntry(agentId, auth);
+    this.assertAuthSessionGenerationCurrent(auth.generation, operation);
+    if (existingEntry) {
+      return this.restoreAgentChatFromInbox(existingEntry, agent, auth);
+    }
+
+    const result = await auth.client.conversations.createAgentDialog({
       agentId,
     });
+    this.assertAuthSessionGenerationCurrent(auth.generation, operation);
     const boundConversationId = result.conversationId;
-    this.conversationViewState.set(boundConversationId, {
-      ...this.conversationViewState.get(boundConversationId),
-      avatar: agent.avatar,
-      isHidden: false,
-      name: agent.name,
-      type: 'single',
-      welcomeMessage: agent.welcomeMessage,
-    });
-    const profileUpdate = buildConversationProfileUpdate({
-      avatar: agent.avatar,
-      name: agent.name,
-    });
-    try {
-      if (hasProfileUpdate(profileUpdate)) {
-        await this.client().conversations.updateProfile(boundConversationId, profileUpdate);
-      }
-      await this.client().conversations.updatePreferences(boundConversationId, { isHidden: false });
-    } catch {
-      // Keep local naming/avatar usable if profile sync is temporarily unavailable.
-    }
+    await this.syncAgentConversationPresentation(boundConversationId, agent, auth);
+    this.assertAuthSessionGenerationCurrent(auth.generation, operation);
+    this.rememberAgentConversation(
+      boundConversationId,
+      agent,
+      this.conversationViewState.get(boundConversationId),
+    );
     return {
       id: boundConversationId,
       name: agent.name,
@@ -2660,8 +3201,9 @@ class SdkworkChatService implements ChatService {
     if (!enterpriseId) {
       throw new Error('Enterprise chat target id is required');
     }
-    const currentUser = contactService.getCurrentUser();
-    const currentUserId = currentUser.id.trim();
+    const operation = 'starting an enterprise conversation';
+    const { client, generation } = await this.beginAuthSessionOperation(operation);
+    const currentUserId = this.resolveCurrentUserId().trim();
     if (!currentUserId) {
       throw new Error('Current user id is required');
     }
@@ -2669,22 +3211,25 @@ class SdkworkChatService implements ChatService {
     const displayName = enterprise.name.endsWith(' (Official)')
       ? enterprise.name
       : `${enterprise.name} (Official)`;
-    const result = await this.client().conversations.bindDirectChat({
+    const result = await client.conversations.bindDirectChat({
       leftActorId: currentUserId,
       leftActorKind: 'user',
       rightActorId: enterpriseId,
       rightActorKind: 'enterprise',
     });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
     const boundConversationId = result.conversationId;
     const profileUpdate = buildConversationProfileUpdate({
       avatar: enterprise.avatar,
       name: displayName,
     });
     if (hasProfileUpdate(profileUpdate)) {
-      await this.client().conversations.updateProfile(boundConversationId, profileUpdate);
+      await client.conversations.updateProfile(boundConversationId, profileUpdate);
+      this.assertAuthSessionGenerationCurrent(generation, operation);
     }
-    await this.client().conversations.updatePreferences(boundConversationId, { isHidden: false });
-    this.conversationViewState.set(boundConversationId, {
+    await client.conversations.updatePreferences(boundConversationId, { isHidden: false });
+    this.assertAuthSessionGenerationCurrent(generation, operation);
+    this.writeConversationViewState(boundConversationId, {
       ...this.conversationViewState.get(boundConversationId),
       avatar: enterprise.avatar,
       isHidden: false,
@@ -2702,19 +3247,11 @@ class SdkworkChatService implements ChatService {
   }
 
   async syncOfflineMessages(): Promise<ChatOfflineSyncResult> {
-    const chats = await this.getChats();
-    let appliedMessages = 0;
-    let refreshedChats = 0;
-
-    for (const chat of chats) {
-      const messages = await this.getMessages(chat.id);
-      appliedMessages += messages.length;
-      refreshedChats += 1;
-    }
+    const page = await this.listChatsPage();
 
     return {
-      appliedMessages,
-      refreshedChats,
+      appliedMessages: 0,
+      refreshedChats: page.items.length,
     };
   }
 
@@ -2730,10 +3267,18 @@ class SdkworkChatService implements ChatService {
     this.configureRealtimeConnectionManager();
     const existing = this.liveSubscriptions.get(chatId);
     if (existing) {
+      this.liveSubscriptions.delete(chatId);
+      this.liveSubscriptions.set(chatId, existing);
       return existing;
+    }
+    if (this.liveSubscriptions.size >= MAX_LIVE_CONVERSATION_SUBSCRIPTIONS) {
+      throw new RangeError(
+        `Live conversation subscription limit (${MAX_LIVE_CONVERSATION_SUBSCRIPTIONS}) reached.`,
+      );
     }
 
     const subscription: ConversationLiveSubscription = {
+      chatId,
       handlers: new Set<MessageHandler>(),
       notifiedMessageVersions: new Map(
         (this.localMessages.get(chatId) ?? []).map((message) => [
@@ -2752,10 +3297,11 @@ class SdkworkChatService implements ChatService {
     if (this.conversationWireUnsubs.has(conversationId)) {
       return;
     }
+    const generation = this.authSessionGeneration;
     const unsubscribe = subscribePcConversationMessages(
       conversationId,
       (message, context) => {
-        this.handleLiveMessage(conversationId, message, context);
+        this.handleLiveMessage(conversationId, message, context, generation);
       },
     );
     this.conversationWireUnsubs.set(conversationId, unsubscribe);
@@ -2776,8 +3322,9 @@ class SdkworkChatService implements ChatService {
     if (!inboxScope) {
       return;
     }
+    const generation = this.authSessionGeneration;
     this.liveInboxWireUnsub = subscribePcRealtimeScope(inboxScope, (context) => {
-      this.handleLiveScopeEvent(context);
+      this.handleLiveScopeEvent(context, generation);
     });
   }
 
@@ -2808,17 +3355,23 @@ class SdkworkChatService implements ChatService {
     }
     this.liveSubscriptions.delete(chatId);
     this.releaseConversationWireSubscription(chatId);
+    subscription.handlers.clear();
+    subscription.notifiedMessageVersions.clear();
+    this.trimLocalConversationCache();
     if (this.liveSubscriptions.size === 0 && this.chatListHandlers.size === 0) {
       this.releaseInboxWireSubscription();
     }
   }
 
   private closeAllLiveSubscriptions(_reason: string): void {
-    for (const conversationId of [...this.liveSubscriptions.keys()]) {
+    for (const [conversationId, subscription] of this.liveSubscriptions.entries()) {
       this.releaseConversationWireSubscription(conversationId);
+      subscription.handlers.clear();
+      subscription.notifiedMessageVersions.clear();
     }
     this.liveSubscriptions.clear();
     this.releaseInboxWireSubscription();
+    this.trimLocalConversationCache();
   }
 
   private closeLiveSession(_reason: string): void {
@@ -2829,34 +3382,38 @@ class SdkworkChatService implements ChatService {
     return this.liveSubscriptions.size > 0 || this.chatListHandlers.size > 0;
   }
 
-  private async catchUpOnConnectionOpen(): Promise<void> {
-    await this.hydrateDesktopPendingSends().catch(() => undefined);
-    await this.flushDesktopPendingSendQueue().catch(() => undefined);
-
-    if (!this.hasLiveSubscriptionDemand()) {
+  private async handleConnectionOpen(generation = this.authSessionGeneration): Promise<void> {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    await this.hydrateDesktopPendingSends(generation).catch(() => undefined);
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    await this.flushDesktopPendingSendQueue(generation).catch(() => undefined);
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
       return;
     }
 
-    const conversationIds = Array.from(this.liveSubscriptions.keys());
-    for (const conversationId of conversationIds) {
-      if (!this.liveSubscriptions.has(conversationId)) {
-        continue;
-      }
-      await this.catchUpConversationMessages(conversationId).catch(() => undefined);
-    }
     if (this.chatListHandlers.size > 0) {
-      await this.emitChatList().catch(() => undefined);
+      await this.emitChatList(generation).catch(() => undefined);
     }
   }
 
-  private async hydrateDesktopPendingSends(): Promise<void> {
+  private async hydrateDesktopPendingSends(generation = this.authSessionGeneration): Promise<void> {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
     const pending = await listDesktopPendingSends();
-    if (pending.length === 0) {
+    if (!this.isAuthSessionGenerationCurrent(generation) || pending.length === 0) {
       return;
     }
 
     const currentUser = contactService.getCurrentUser();
     for (const item of pending) {
+      if (!this.isAuthSessionGenerationCurrent(generation)) {
+        return;
+      }
       const existing = this.localMessages.get(item.chatId) ?? [];
       if (existing.some((message) => message.id === item.clientMsgId)) {
         continue;
@@ -2877,56 +3434,103 @@ class SdkworkChatService implements ChatService {
     }
   }
 
-  private async flushDesktopPendingSendQueue(): Promise<void> {
-    const pending = await listDesktopPendingSends();
-    if (pending.length === 0) {
+  private async flushDesktopPendingSendQueue(generation = this.authSessionGeneration): Promise<void> {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
       return;
     }
-
-    for (const item of pending) {
-      try {
-        const replyReference = buildReplyReference(item.replyTo);
-        const postResult = item.type === 'text'
-          ? await this.client().conversations.postText(item.chatId, item.content, {
-              clientMsgId: item.clientMsgId,
-              summary: item.content,
-              ...(replyReference ? { replyTo: replyReference } : {}),
-            })
-          : await this.client().conversations.postMessage(item.chatId, {
-              clientMsgId: item.clientMsgId,
-              summary: item.summary ?? item.content,
-              ...(replyReference ? { replyTo: replyReference } : {}),
-              ...(item.parts ? { parts: item.parts as ContentPart[] } : {}),
-              ...(item.renderHints ? { renderHints: item.renderHints } : {}),
-            });
-        await removeDesktopPendingSend(item.clientMsgId);
-
-        const messages = this.localMessages.get(item.chatId) ?? [];
-        let replacedMessage: Message | undefined;
-        const updatedMessages = messages.map((message) => {
-          if (message.id !== item.clientMsgId) {
-            return message;
+    let processedPending = false;
+    await runDesktopPendingSendFlush(async (pending) => {
+      const releasePendingClaims = async (startIndex: number): Promise<void> => {
+        for (let index = startIndex; index < pending.length; index += 1) {
+          const claim = pending[index];
+          if (claim) {
+            await releaseDesktopPendingSendClaim(claim).catch(() => undefined);
           }
-          replacedMessage = {
-            ...message,
-            id: postResult.messageId,
-            sendState: undefined,
-            timestamp: Date.now(),
-          };
-          return replacedMessage;
-        });
-        this.setLocalMessages(item.chatId, updatedMessages);
-        this.latestReadSeq.set(
-          item.chatId,
-          Math.max(this.latestReadSeq.get(item.chatId) ?? 0, postResult.messageSeq),
-        );
-        const subscription = this.liveSubscriptions.get(item.chatId);
-        if (subscription && replacedMessage) {
-          this.notifyLiveSubscription(subscription, replacedMessage);
         }
-      } catch (error) {
-        if (!isRetryableDesktopSendError(error)) {
-          await removeDesktopPendingSend(item.clientMsgId).catch(() => undefined);
+      };
+      if (!this.isAuthSessionGenerationCurrent(generation)) {
+        await releasePendingClaims(0);
+        return { retryableFailure: true };
+      }
+      processedPending = pending.length > 0;
+      let retryableFailure = false;
+      for (const [index, item] of pending.entries()) {
+        if (
+          !this.isAuthSessionGenerationCurrent(generation)
+          || !isDesktopPendingSendClaimCurrent(item)
+        ) {
+          await releasePendingClaims(index);
+          retryableFailure = true;
+          break;
+        }
+        try {
+          const replyReference = buildReplyReference(item.replyTo);
+          const client = await this.client();
+          if (!this.isAuthSessionGenerationCurrent(generation)) {
+            await releasePendingClaims(index);
+            retryableFailure = true;
+            break;
+          }
+          const postResult = item.type === 'text'
+            ? await client.conversations.postText(item.chatId, item.content, {
+                clientMsgId: item.clientMsgId,
+                summary: item.content,
+                ...(replyReference ? { replyTo: replyReference } : {}),
+              })
+            : await client.conversations.postMessage(item.chatId, {
+                clientMsgId: item.clientMsgId,
+                summary: item.summary ?? item.content,
+                ...(replyReference ? { replyTo: replyReference } : {}),
+                ...(item.parts ? { parts: item.parts as ContentPart[] } : {}),
+                ...(item.renderHints ? { renderHints: item.renderHints } : {}),
+              });
+          await removeDesktopPendingSend(item);
+          if (!this.isAuthSessionGenerationCurrent(generation)) {
+            await releasePendingClaims(index + 1);
+            retryableFailure = true;
+            break;
+          }
+
+          const messages = this.localMessages.get(item.chatId) ?? [];
+          let replacedMessage: Message | undefined;
+          const updatedMessages = messages.map((message) => {
+            if (message.id !== item.clientMsgId) {
+              return message;
+            }
+            replacedMessage = {
+              ...message,
+              id: postResult.messageId,
+              sendState: undefined,
+              timestamp: Date.now(),
+            };
+            return replacedMessage;
+          });
+          this.setLocalMessages(item.chatId, updatedMessages);
+          this.writeLatestReadSeq(
+            item.chatId,
+            Math.max(this.latestReadSeq.get(item.chatId) ?? 0, postResult.messageSeq),
+          );
+          const subscription = this.liveSubscriptions.get(item.chatId);
+          if (subscription && replacedMessage) {
+            this.notifyLiveSubscription(subscription, replacedMessage);
+          }
+        } catch (error) {
+          if (!this.isAuthSessionGenerationCurrent(generation)) {
+            await releasePendingClaims(index);
+            retryableFailure = true;
+            break;
+          }
+          if (isRetryableDesktopSendError(error)) {
+            await releasePendingClaims(index);
+            retryableFailure = true;
+            break;
+          }
+          await removeDesktopPendingSend(item).catch(() => undefined);
+          if (!this.isAuthSessionGenerationCurrent(generation)) {
+            await releasePendingClaims(index + 1);
+            retryableFailure = true;
+            break;
+          }
           const messages = this.localMessages.get(item.chatId) ?? [];
           const updatedMessages = messages.map((message) => (
             message.id === item.clientMsgId
@@ -2941,84 +3545,16 @@ class SdkworkChatService implements ChatService {
           }
         }
       }
+      return { retryableFailure };
+    }, { generation });
+
+    if (
+      processedPending
+      && this.isAuthSessionGenerationCurrent(generation)
+      && this.chatListHandlers.size > 0
+    ) {
+      await this.emitChatList(generation).catch(() => undefined);
     }
-
-    if (this.chatListHandlers.size > 0) {
-      await this.emitChatList().catch(() => undefined);
-    }
-  }
-
-  private async catchUpConversationMessages(conversationId: string): Promise<void> {
-    if (this.liveCatchUpConversations.has(conversationId)) {
-      return;
-    }
-
-    this.liveCatchUpConversations.add(conversationId);
-    try {
-      await this.doCatchUpConversationMessages(conversationId);
-    } finally {
-      this.liveCatchUpConversations.delete(conversationId);
-    }
-  }
-
-  private async doCatchUpConversationMessages(conversationId: string): Promise<void> {
-    const checkpointSeq = this.latestReadSeq.get(conversationId) ?? 0;
-    if (checkpointSeq <= 0) {
-      return;
-    }
-
-    const entries: TimelineViewEntry[] = [];
-    let afterSeq = checkpointSeq;
-    let pagesFetched = 0;
-    while (pagesFetched < MAX_CATCH_UP_MESSAGE_PAGES) {
-      const response = await this.client().conversations.listMessages(conversationId, {
-        afterSeq,
-        pageSize: MESSAGE_PAGE_LIMIT,
-      });
-      entries.push(...response.items.filter((entry) => entry.messageSeq > checkpointSeq));
-      pagesFetched += 1;
-
-      const timelinePage = readSeqCursorPageInfo(response.pageInfo);
-      if (
-        !timelinePage.hasMore
-        || timelinePage.nextAfterSeq <= afterSeq
-      ) {
-        break;
-      }
-
-      afterSeq = timelinePage.nextAfterSeq;
-    }
-
-    if (entries.length === 0) {
-      return;
-    }
-
-    const cachedMessages = new Map(
-      (this.localMessages.get(conversationId) ?? []).map((message) => [message.id, message]),
-    );
-    const messages = await this.enrichMessagesWithInteractionSummaries(
-      conversationId,
-      entries,
-      cachedMessages,
-    );
-
-    const mergedMessages = mergeMessageLists(messages, this.localMessages.get(conversationId) ?? []);
-    this.localMessages.set(conversationId, mergedMessages);
-    for (const entry of entries) {
-      this.latestReadSeq.set(conversationId, Math.max(
-        this.latestReadSeq.get(conversationId) ?? 0,
-        entry.messageSeq,
-      ));
-    }
-
-    const subscription = this.liveSubscriptions.get(conversationId);
-    if (!subscription) {
-      return;
-    }
-    for (const message of messages) {
-      this.notifyLiveSubscription(subscription, message);
-    }
-    void this.emitChatList().catch(() => undefined);
   }
 
   private getChatListRealtimeScopes(): ImRealtimeScopeSubscription[] {
@@ -3038,7 +3574,14 @@ class SdkworkChatService implements ChatService {
     ];
   }
 
-  private handleLiveScopeEvent(context: ImRealtimeEventContext): void {
+  private handleLiveScopeEvent(
+    context: ImRealtimeEventContext,
+    generation = this.authSessionGeneration,
+  ): void {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      void context.ack().catch(() => undefined);
+      return;
+    }
     if (
       context.eventType
       && !CHAT_LIST_REALTIME_EVENT_TYPES.includes(context.eventType)
@@ -3051,18 +3594,21 @@ class SdkworkChatService implements ChatService {
       : undefined;
     if (message && !this.conversationViewState.get(message.chatId)?.isHidden) {
       const storedMessage = this.upsertLocalMessage(message.chatId, message, true);
+      const messageSeq = pickNumber(context.payload?.messageSeq, context.sequence) ?? 0;
       if (storedMessage.senderId !== this.resolveCurrentUserId()) {
         if (this.isConversationActivelyViewed(message.chatId)) {
-          void this.markAsRead(message.chatId).catch(() => undefined);
+          this.queueRealtimeReadCursorSync(message.chatId, messageSeq);
         } else {
-          this.conversationViewState.set(message.chatId, {
+          this.writeConversationViewState(message.chatId, {
             ...this.conversationViewState.get(message.chatId),
             isMarkedUnread: true,
           });
         }
       }
-      const messageSeq = pickNumber(context.payload?.messageSeq, context.sequence) ?? 0;
-      this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq));
+      this.writeLatestReadSeq(
+        message.chatId,
+        Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq),
+      );
       this.queuePersistOfflineMessage({ ...storedMessage, messageSeq });
       const subscription = this.liveSubscriptions.get(message.chatId);
       if (subscription) {
@@ -3071,45 +3617,124 @@ class SdkworkChatService implements ChatService {
     }
 
     void context.ack().catch(() => undefined);
-    void this.emitChatList().catch(() => undefined);
+    void this.emitChatList(generation).catch(() => undefined);
   }
 
   private handleLiveMessage(
     fallbackChatId: string,
     decodedMessage: ImDecodedMessage,
     context: ImMessageContext,
+    generation = this.authSessionGeneration,
   ): void {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      void context.ack().catch(() => undefined);
+      return;
+    }
     const message = mapLiveMessageToMessage(fallbackChatId, decodedMessage, context);
+    if (this.isConversationHidden(message.chatId) || this.isConversationHidden(fallbackChatId)) {
+      void context.ack().catch(() => undefined);
+      return;
+    }
     const isRtcCallUpdate = Boolean(resolveRtcCallDisplayState(message));
     const storedMessage = this.upsertLocalMessage(message.chatId, message, isRtcCallUpdate);
     const messageSeq = pickNumber(decodedMessage.messageSeq, context.payload?.messageSeq, context.sequence) ?? 0;
-    this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq));
+    if (
+      storedMessage.senderId !== this.resolveCurrentUserId()
+      && this.isConversationActivelyViewed(message.chatId)
+    ) {
+      this.queueRealtimeReadCursorSync(message.chatId, messageSeq);
+    }
+    this.writeLatestReadSeq(
+      message.chatId,
+      Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq),
+    );
     this.queuePersistOfflineMessage({ ...storedMessage, messageSeq });
     const subscription = this.liveSubscriptions.get(message.chatId) ?? this.liveSubscriptions.get(fallbackChatId);
     if (subscription) {
       this.notifyLiveSubscription(subscription, storedMessage);
     }
-    void this.emitChatList().catch(() => undefined);
+    void this.emitChatList(generation).catch(() => undefined);
     void context.ack().catch(() => undefined);
   }
 
-  private async emitChatList(): Promise<void> {
+  private emitChatList(generation = this.authSessionGeneration): Promise<void> {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return Promise.resolve();
+    }
     if (this.chatListHandlers.size === 0) {
+      return Promise.resolve();
+    }
+    // If a refresh is already in-flight, mark that another is pending so the
+    // completion handler will pick up the latest state once without extra requests.
+    if (this.chatListRefreshPromise) {
+      this.chatListRefreshPending = true;
+      return this.chatListRefreshPromise;
+    }
+    // Coalesce bursts of realtime events into a single network request. If a
+    // coalesce timer is already scheduled, just mark pending and return.
+    if (this.chatListCoalesceTimer !== undefined) {
+      this.chatListRefreshPending = true;
+      return this.chatListCoalescePromise ?? Promise.resolve();
+    }
+    const coalescePromise = new Promise<void>((resolve) => {
+      this.chatListCoalesceResolve = resolve;
+      this.chatListCoalesceTimer = setTimeout(() => {
+        this.chatListCoalesceTimer = undefined;
+        if (this.chatListCoalescePromise === coalescePromise) {
+          this.chatListCoalescePromise = undefined;
+          this.chatListCoalesceResolve = undefined;
+        }
+        void this.runEmitChatList(generation).then(resolve).catch(() => resolve());
+      }, CHAT_LIST_COALESCE_MS);
+    });
+    this.chatListCoalescePromise = coalescePromise;
+    return coalescePromise;
+  }
+
+  private async runEmitChatList(generation = this.authSessionGeneration): Promise<void> {
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
       return;
     }
-    const page = await this.listChatsPage();
-    const chats = this.mergeLiveLocalChats(page.items);
-    for (const handler of this.chatListHandlers) {
-      handler(chats);
+    if (this.chatListRefreshPromise) {
+      this.chatListRefreshPending = true;
+      return this.chatListRefreshPromise;
     }
+    const refreshPromise = this.doEmitChatList(generation).finally(() => {
+      if (this.chatListRefreshPromise === refreshPromise) {
+        this.chatListRefreshPromise = undefined;
+        if (
+          this.chatListRefreshPending
+          && this.isAuthSessionGenerationCurrent(generation)
+        ) {
+          this.chatListRefreshPending = false;
+          void this.emitChatList(generation).catch(() => undefined);
+        }
+      }
+    });
+    this.chatListRefreshPromise = refreshPromise;
+    return refreshPromise;
+  }
+
+  private async doEmitChatList(generation: number): Promise<void> {
+    const page = await this.listChatsPage();
+    if (!this.isAuthSessionGenerationCurrent(generation)) {
+      return;
+    }
+    const chats = this.mergeLiveLocalChats(page.items);
+    this.notifyChatListHandlers(chats);
   }
 
   private notifyLiveSubscription(subscription: ConversationLiveSubscription, message: Message): void {
     const nextVersion = buildMessageNotificationVersion(message);
     if (subscription.notifiedMessageVersions.get(message.id) === nextVersion) {
+      subscription.notifiedMessageVersions.delete(message.id);
+      subscription.notifiedMessageVersions.set(message.id, nextVersion);
+      this.pruneLiveSubscriptionNotificationVersions(subscription.chatId, subscription);
       return;
     }
+    subscription.notifiedMessageVersions.delete(message.id);
     subscription.notifiedMessageVersions.set(message.id, nextVersion);
+    this.pruneLiveSubscriptionNotificationVersions(subscription.chatId, subscription);
     for (const handler of subscription.handlers) {
       handler(message);
     }
@@ -3127,12 +3752,10 @@ class SdkworkChatService implements ChatService {
         )
       : message;
     byId.set(message.id, nextMessage);
-    this.localMessages.set(
+    this.setLocalMessages(
       chatId,
       Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp),
     );
-    this.trimLocalMessages(chatId);
-    this.trimLocalConversationCache();
     return nextMessage;
   }
 
@@ -3142,14 +3765,14 @@ class SdkworkChatService implements ChatService {
     updater: (message: Message) => Message,
   ): void {
     const messages = this.localMessages.get(chatId) ?? [];
-    this.localMessages.set(
+    this.setLocalMessages(
       chatId,
       messages.map((message) => message.id === messageId ? updater(message) : message),
     );
   }
 }
 
-export function createSdkworkChatService(dependencies?: ChatServiceDependencies | (() => ImSdkClient)): ChatService {
+export function createSdkworkChatService(dependencies?: ChatServiceDependencies | ImSdkClientProvider): ChatService {
   return new SdkworkChatService(dependencies);
 }
 

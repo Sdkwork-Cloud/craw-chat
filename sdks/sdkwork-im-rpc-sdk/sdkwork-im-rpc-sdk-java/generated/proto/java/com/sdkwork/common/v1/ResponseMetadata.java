@@ -28,7 +28,7 @@ private static final long serialVersionUID = 0L;
     super(builder);
   }
   private ResponseMetadata() {
-    requestId_ = "";
+    traceId_ = "";
     traceparent_ = "";
     serverTime_ = "";
     warnings_ =
@@ -55,39 +55,39 @@ private static final long serialVersionUID = 0L;
             com.sdkwork.common.v1.ResponseMetadata.class, com.sdkwork.common.v1.ResponseMetadata.Builder.class);
   }
 
-  public static final int REQUEST_ID_FIELD_NUMBER = 1;
+  public static final int TRACE_ID_FIELD_NUMBER = 1;
   @SuppressWarnings("serial")
-  private volatile java.lang.Object requestId_ = "";
+  private volatile java.lang.Object traceId_ = "";
   /**
-   * <code>string request_id = 1 [json_name = "requestId"];</code>
-   * @return The requestId.
+   * <code>string trace_id = 1 [json_name = "traceId"];</code>
+   * @return The traceId.
    */
   @java.lang.Override
-  public java.lang.String getRequestId() {
-    java.lang.Object ref = requestId_;
+  public java.lang.String getTraceId() {
+    java.lang.Object ref = traceId_;
     if (ref instanceof java.lang.String) {
       return (java.lang.String) ref;
     } else {
       com.google.protobuf.ByteString bs = 
           (com.google.protobuf.ByteString) ref;
       java.lang.String s = bs.toStringUtf8();
-      requestId_ = s;
+      traceId_ = s;
       return s;
     }
   }
   /**
-   * <code>string request_id = 1 [json_name = "requestId"];</code>
-   * @return The bytes for requestId.
+   * <code>string trace_id = 1 [json_name = "traceId"];</code>
+   * @return The bytes for traceId.
    */
   @java.lang.Override
   public com.google.protobuf.ByteString
-      getRequestIdBytes() {
-    java.lang.Object ref = requestId_;
+      getTraceIdBytes() {
+    java.lang.Object ref = traceId_;
     if (ref instanceof java.lang.String) {
       com.google.protobuf.ByteString b = 
           com.google.protobuf.ByteString.copyFromUtf8(
               (java.lang.String) ref);
-      requestId_ = b;
+      traceId_ = b;
       return b;
     } else {
       return (com.google.protobuf.ByteString) ref;
@@ -260,8 +260,8 @@ private static final long serialVersionUID = 0L;
   @java.lang.Override
   public void writeTo(com.google.protobuf.CodedOutputStream output)
                       throws java.io.IOException {
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(requestId_)) {
-      com.google.protobuf.GeneratedMessage.writeString(output, 1, requestId_);
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(traceId_)) {
+      com.google.protobuf.GeneratedMessage.writeString(output, 1, traceId_);
     }
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(traceparent_)) {
       com.google.protobuf.GeneratedMessage.writeString(output, 2, traceparent_);
@@ -279,8 +279,8 @@ private static final long serialVersionUID = 0L;
   }
   private int computeSerializedSize_0() {
     int size = 0;
-    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(requestId_)) {
-      size += com.google.protobuf.GeneratedMessage.computeStringSize(1, requestId_);
+    if (!com.google.protobuf.GeneratedMessage.isStringEmpty(traceId_)) {
+      size += com.google.protobuf.GeneratedMessage.computeStringSize(1, traceId_);
     }
     if (!com.google.protobuf.GeneratedMessage.isStringEmpty(traceparent_)) {
       size += com.google.protobuf.GeneratedMessage.computeStringSize(2, traceparent_);
@@ -328,8 +328,8 @@ private static final long serialVersionUID = 0L;
     }
     com.sdkwork.common.v1.ResponseMetadata other = (com.sdkwork.common.v1.ResponseMetadata) obj;
 
-    if (!getRequestId()
-        .equals(other.getRequestId())) return false;
+    if (!getTraceId()
+        .equals(other.getTraceId())) return false;
     if (!getTraceparent()
         .equals(other.getTraceparent())) return false;
     if (!getServerTime()
@@ -349,8 +349,8 @@ private static final long serialVersionUID = 0L;
     }
     int hash = 41;
     hash = (19 * hash) + getDescriptor().hashCode();
-    hash = (37 * hash) + REQUEST_ID_FIELD_NUMBER;
-    hash = (53 * hash) + getRequestId().hashCode();
+    hash = (37 * hash) + TRACE_ID_FIELD_NUMBER;
+    hash = (53 * hash) + getTraceId().hashCode();
     hash = (37 * hash) + TRACEPARENT_FIELD_NUMBER;
     hash = (53 * hash) + getTraceparent().hashCode();
     hash = (37 * hash) + SERVER_TIME_FIELD_NUMBER;
@@ -494,7 +494,7 @@ private static final long serialVersionUID = 0L;
     public Builder clear() {
       super.clear();
       bitField0_ = 0;
-      requestId_ = "";
+      traceId_ = "";
       traceparent_ = "";
       serverTime_ = "";
       warnings_ =
@@ -535,7 +535,7 @@ private static final long serialVersionUID = 0L;
     private void buildPartial0(com.sdkwork.common.v1.ResponseMetadata result) {
       int from_bitField0_ = bitField0_;
       if (((from_bitField0_ & 0x00000001) != 0)) {
-        result.requestId_ = requestId_;
+        result.traceId_ = traceId_;
       }
       if (((from_bitField0_ & 0x00000002) != 0)) {
         result.traceparent_ = traceparent_;
@@ -565,8 +565,8 @@ private static final long serialVersionUID = 0L;
 
     public Builder mergeFrom(com.sdkwork.common.v1.ResponseMetadata other) {
       if (other == com.sdkwork.common.v1.ResponseMetadata.getDefaultInstance()) return this;
-      if (!other.getRequestId().isEmpty()) {
-        requestId_ = other.requestId_;
+      if (!other.getTraceId().isEmpty()) {
+        traceId_ = other.traceId_;
         bitField0_ |= 0x00000001;
         onChanged();
       }
@@ -627,7 +627,7 @@ private static final long serialVersionUID = 0L;
               done = true;
               break;
             case 10: {
-              requestId_ = input.readStringRequireUtf8();
+              traceId_ = input.readStringRequireUtf8();
               bitField0_ |= 0x00000001;
               break;
             } // case 10
@@ -668,73 +668,73 @@ private static final long serialVersionUID = 0L;
     }
     private int bitField0_;
 
-    private java.lang.Object requestId_ = "";
+    private java.lang.Object traceId_ = "";
     /**
-     * <code>string request_id = 1 [json_name = "requestId"];</code>
-     * @return The requestId.
+     * <code>string trace_id = 1 [json_name = "traceId"];</code>
+     * @return The traceId.
      */
-    public java.lang.String getRequestId() {
-      java.lang.Object ref = requestId_;
+    public java.lang.String getTraceId() {
+      java.lang.Object ref = traceId_;
       if (!(ref instanceof java.lang.String)) {
         com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
-        requestId_ = s;
+        traceId_ = s;
         return s;
       } else {
         return (java.lang.String) ref;
       }
     }
     /**
-     * <code>string request_id = 1 [json_name = "requestId"];</code>
-     * @return The bytes for requestId.
+     * <code>string trace_id = 1 [json_name = "traceId"];</code>
+     * @return The bytes for traceId.
      */
     public com.google.protobuf.ByteString
-        getRequestIdBytes() {
-      java.lang.Object ref = requestId_;
+        getTraceIdBytes() {
+      java.lang.Object ref = traceId_;
       if (ref instanceof String) {
         com.google.protobuf.ByteString b = 
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
-        requestId_ = b;
+        traceId_ = b;
         return b;
       } else {
         return (com.google.protobuf.ByteString) ref;
       }
     }
     /**
-     * <code>string request_id = 1 [json_name = "requestId"];</code>
-     * @param value The requestId to set.
+     * <code>string trace_id = 1 [json_name = "traceId"];</code>
+     * @param value The traceId to set.
      * @return This builder for chaining.
      */
-    public Builder setRequestId(
+    public Builder setTraceId(
         java.lang.String value) {
       if (value == null) { throw new NullPointerException(); }
-      requestId_ = value;
+      traceId_ = value;
       bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
     /**
-     * <code>string request_id = 1 [json_name = "requestId"];</code>
+     * <code>string trace_id = 1 [json_name = "traceId"];</code>
      * @return This builder for chaining.
      */
-    public Builder clearRequestId() {
-      requestId_ = getDefaultInstance().getRequestId();
+    public Builder clearTraceId() {
+      traceId_ = getDefaultInstance().getTraceId();
       bitField0_ = (bitField0_ & ~0x00000001);
       onChanged();
       return this;
     }
     /**
-     * <code>string request_id = 1 [json_name = "requestId"];</code>
-     * @param value The bytes for requestId to set.
+     * <code>string trace_id = 1 [json_name = "traceId"];</code>
+     * @param value The bytes for traceId to set.
      * @return This builder for chaining.
      */
-    public Builder setRequestIdBytes(
+    public Builder setTraceIdBytes(
         com.google.protobuf.ByteString value) {
       if (value == null) { throw new NullPointerException(); }
       checkByteStringIsUtf8(value);
-      requestId_ = value;
+      traceId_ = value;
       bitField0_ |= 0x00000001;
       onChanged();
       return this;

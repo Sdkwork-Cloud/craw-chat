@@ -43,9 +43,9 @@ Reads an automation execution by identifier.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.read`. |
-| `404` | `automation_execution_not_found` | The requested automation execution does not exist. |
-| `503` | `automation_store_unavailable` | Automation persistence is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.read`. |
+| `404` | `40401` | The requested automation execution does not exist. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>

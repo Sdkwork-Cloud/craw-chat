@@ -19,21 +19,24 @@ const authorityPairs = [
   {
     apisPath: 'apis/open-api/im/sdkwork-im-im.openapi.yaml',
     sdkMirrorPath: 'sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml',
-    assemblyPath: 'sdks/sdkwork-im-sdk/.sdkwork-assembly.json',
+    manifestPath: 'sdks/sdkwork-im-sdk/sdk-manifest.json',
+    legacyAssemblyPath: 'sdks/sdkwork-im-sdk/.sdkwork-assembly.json',
     componentSpecPath: 'sdks/sdkwork-im-sdk/specs/component.spec.json',
     expectedAuthoritySpec: '../../apis/open-api/im/sdkwork-im-im.openapi.yaml',
   },
   {
     apisPath: 'apis/app-api/communication/sdkwork-im-app-api.openapi.yaml',
     sdkMirrorPath: 'sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml',
-    assemblyPath: 'sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json',
+    manifestPath: 'sdks/sdkwork-im-app-sdk/sdk-manifest.json',
+    legacyAssemblyPath: 'sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json',
     componentSpecPath: 'sdks/sdkwork-im-app-sdk/specs/component.spec.json',
     expectedAuthoritySpec: '../../apis/app-api/communication/sdkwork-im-app-api.openapi.yaml',
   },
   {
     apisPath: 'apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml',
     sdkMirrorPath: 'sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml',
-    assemblyPath: 'sdks/sdkwork-im-backend-sdk/.sdkwork-assembly.json',
+    manifestPath: 'sdks/sdkwork-im-backend-sdk/sdk-manifest.json',
+    legacyAssemblyPath: 'sdks/sdkwork-im-backend-sdk/.sdkwork-assembly.json',
     componentSpecPath: 'sdks/sdkwork-im-backend-sdk/specs/component.spec.json',
     expectedAuthoritySpec: '../../apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml',
   },
@@ -51,8 +54,13 @@ for (const entry of authorityPairs) {
     `${entry.apisPath} must match ${entry.sdkMirrorPath} until SDK mirrors are retired`,
   );
 
-  const assembly = JSON.parse(read(entry.assemblyPath));
-  assert.equal(assembly.authoritySpec, entry.expectedAuthoritySpec);
+  assert.ok(
+    !fs.existsSync(path.join(repoRoot, entry.legacyAssemblyPath)),
+    `${entry.legacyAssemblyPath} must not be restored; sdk-manifest.json is the SDK family metadata SSOT`,
+  );
+
+  const sdkManifest = JSON.parse(read(entry.manifestPath));
+  assert.equal(sdkManifest.authoritySpec, entry.expectedAuthoritySpec);
 
   const componentSpec = JSON.parse(read(entry.componentSpecPath));
   const authorityOpenApi = componentSpec.contracts?.apiAuthority?.authorityOpenApi

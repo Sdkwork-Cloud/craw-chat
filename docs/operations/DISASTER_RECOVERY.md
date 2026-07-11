@@ -1,4 +1,4 @@
-# Sdkwork IM — Disaster Recovery Plan
+# Sdkwork IM - Disaster Recovery Plan
 
 Status: active
 Owner: SDKWork maintainers
@@ -22,10 +22,10 @@ detected, contained, and recovered* in production.
 | In Scope | Out of Scope |
 | --- | --- |
 | Service-level, component-level, and region-level failures | Single-user support tickets |
-| PostgreSQL, Redis, object storage, and microservice recovery | Application bug fixes (see OPERATIONS_MANUAL §3) |
+| PostgreSQL, Redis, object storage, and microservice recovery | Application bug fixes (see OPERATIONS_MANUAL section 3) |
 | Multi-region failover (Phase 2 active-passive) | Active-active write coordination (Phase 3 roadmap only) |
-| Data corruption point-in-time recovery | Capacity planning (see OPERATIONS_MANUAL §4) |
-| DR drills, communication, and post-incident review | Security incident response (see OPERATIONS_MANUAL §5.3) |
+| Data corruption point-in-time recovery | Capacity planning (see OPERATIONS_MANUAL section 4) |
+| DR drills, communication, and post-incident review | Security incident response (see OPERATIONS_MANUAL section 5.3) |
 
 ### 1.2 Audience
 
@@ -50,7 +50,7 @@ same region.
 | Component | Current Topology | DR Implication |
 | --- | --- | --- |
 | PostgreSQL primary | Single writer per region | Loss of primary = write outage until promoted replica is live |
-| PostgreSQL replicas | 1–2 read replicas, same region | No cross-region standby; region loss = RPO gap |
+| PostgreSQL replicas | 1-2 read replicas, same region | No cross-region standby; region loss = RPO gap |
 | Redis cluster | Single cluster, 6 nodes, same region | Cache only; rebuilt on cold start, but session resumption is lost |
 | Object storage (SDKWork Drive) | Region-local with optional cross-region replication | Media availability depends on replication being enabled |
 | Kubernetes cluster | Single regional cluster | Pod auto-restart only; no cross-cluster failover |
@@ -68,7 +68,7 @@ same region.
 5. **Redis is not durable**: session and presence state is not replicated across regions; a
    regional failover forces all clients to reconnect and re-authenticate.
 
-These limitations are the reason the Enterprise RPO of 5 minutes (see §5) is only achievable once
+These limitations are the reason the Enterprise RPO of 5 minutes (see section 5) is only achievable once
 Phase 2 cross-region replication ships. Until then, region-level RPO is bounded by the WAL
 archival interval (best case 1 hour for Professional tier).
 
@@ -82,7 +82,7 @@ archival interval (best case 1 hour for Professional tier).
 | Phase 2 | 2026 Q4 | Active-passive, two regions | Async logical replication to DR region; manual failover | 30 min / 5 min |
 | Phase 3 | 2027+ (roadmap) | Active-active, multi-region | Dual-write + conflict-free journals; automated failover | Target < 5 min / < 1 min |
 
-### 3.2 Phase 2 Strategy — Active-Passive
+### 3.2 Phase 2 Strategy - Active-Passive
 
 - **Primary region**: serves all read and write traffic. PostgreSQL primary, Redis cluster,
   full microservice fleet (15 services).
@@ -93,7 +93,7 @@ archival interval (best case 1 hour for Professional tier).
 - **Failover**: manual decision, DNS switch, promote DR PostgreSQL, shift ingress.
 - **Fallback**: planned switch-back after primary region is repaired and re-synced.
 
-### 3.3 Phase 3 Roadmap — Active-Active
+### 3.3 Phase 3 Roadmap - Active-Active
 
 Phase 3 is research-only at this point. The intended direction is region-affinity with
 conflict-free replicated journals (CRDT-style sequence assignment or region-prefixed event IDs)
@@ -114,7 +114,7 @@ are unaffected.
 | Detection | Kubernetes liveness/readiness probe failure; Prometheus `HighErrorRate` or pod restart alert |
 | Recovery mechanism | Kubernetes auto-restart (`Deployment` with `restartPolicy: Always`); HPA scales healthy pods |
 | Owner | On-call engineer (verify only) |
-| Typical recovery time | 30–90 seconds |
+| Typical recovery time | 30-90 seconds |
 | Data loss | None |
 
 ```bash
@@ -127,7 +127,7 @@ kubectl -n sdkwork-im describe pod <pod-name>
 kubectl -n sdkwork-im logs <pod-name> --previous
 ```
 
-If a pod fails to recover after 3 restarts, escalate to §4.2 (component failure) — the root cause
+If a pod fails to recover after 3 restarts, escalate to section 4.2 (component failure) - the root cause
 is likely a dependency (PostgreSQL or Redis), not the pod itself.
 
 ### 4.2 Component Failure (PostgreSQL Primary Down)
@@ -140,7 +140,7 @@ microservice that appends to `im_commit_journal` or reads projections.
 | Detection | `PostgreSQLDown` alert (`pg_up == 0` for 1 min); write errors on conversation/message APIs |
 | Recovery mechanism | Promote a synchronous streaming replica to primary; reconfigure services via `SDKWORK_IM_DATABASE_URL` |
 | Owner | SRE on-call + on-call engineer |
-| Typical recovery time | 5–15 minutes (Enterprise RTO 30 min) |
+| Typical recovery time | 5-15 minutes (Enterprise RTO 30 min) |
 | Data loss | Zero if a synchronous replica was promoted; otherwise up to last WAL flush |
 
 Recovery path:
@@ -167,7 +167,7 @@ unreachable. This is the scenario the Phase 2 DR region exists for.
 | Typical recovery time | 30 minutes (Enterprise RTO), 2 hours (Professional) |
 | Data loss | Up to RPO: 5 min (Enterprise, Phase 2) or up to 1 hr (Phase 1, WAL archival gap) |
 
-Recovery path: see §7 Failover Procedure.
+Recovery path: see section 7 Failover Procedure.
 
 ### 4.4 Data Corruption (Logical or Accidental)
 
@@ -179,7 +179,7 @@ projection. The cluster is up, but the data is wrong.
 | Detection | Audit log anomaly, projection checksum mismatch, user reports of missing/wrong messages |
 | Recovery mechanism | Point-in-time recovery (PITR) from WAL archives; journal replay to rebuild projections |
 | Owner | SRE + on-call engineer |
-| Typical recovery time | 30–90 minutes depending on database size |
+| Typical recovery time | 30-90 minutes depending on database size |
 | Data loss | Transactions between PITR target and now must be re-applied manually or lost |
 
 Recovery path:
@@ -216,18 +216,18 @@ reproduced here for operational reference. This document does not redefine them.
 
 | Scenario | Tier | Target RTO | Target RPO | Phase 1 achievable? | Phase 2 achievable? |
 | --- | --- | --- | --- | --- | --- |
-| Single pod crash (§4.1) | All | 90 seconds | 0 | Yes | Yes |
-| PostgreSQL primary down (§4.2) | Enterprise | 15 minutes | 0 (sync replica) | Yes | Yes |
-| PostgreSQL primary down (§4.2) | Professional | 30 minutes | Up to last WAL | Yes | Yes |
-| Region failure (§4.3) | Enterprise | 30 minutes | 5 minutes | No (RPO up to 1 hr) | Yes |
-| Region failure (§4.3) | Professional | 2 hours | 1 hour | No (best-effort) | Partial |
-| Data corruption (§4.4) | All | 60 minutes | Up to PITR target | Yes | Yes |
+| Single pod crash (section 4.1) | All | 90 seconds | 0 | Yes | Yes |
+| PostgreSQL primary down (section 4.2) | Enterprise | 15 minutes | 0 (sync replica) | Yes | Yes |
+| PostgreSQL primary down (section 4.2) | Professional | 30 minutes | Up to last WAL | Yes | Yes |
+| Region failure (section 4.3) | Enterprise | 30 minutes | 5 minutes | No (RPO up to 1 hr) | Yes |
+| Region failure (section 4.3) | Professional | 2 hours | 1 hour | No (best-effort) | Partial |
+| Data corruption (section 4.4) | All | 60 minutes | Up to PITR target | Yes | Yes |
 
 ### 5.3 Error Budget Interaction
 
-Per `SLA_SLO.md` §6, a regional failover that exceeds the RTO consumes the monthly error budget.
+Per `SLA_SLO.md` section 6, a regional failover that exceeds the RTO consumes the monthly error budget.
 If the budget is already exhausted, only security and reliability fixes may deploy during the
-recovery window. DR failover itself is never blocked by the error budget policy — availability
+recovery window. DR failover itself is never blocked by the error budget policy - availability
 takes precedence over the deployment freeze.
 
 ## 6. Multi-Region Architecture (Phase 2)
@@ -263,9 +263,9 @@ CREATE SUBSCRIPTION sdkwork_im_dr_sub
 
 Replication lag is monitored via `pg_stat_subscription` and exported to Prometheus. The SLO for
 replication lag is P95 < 5 seconds; if lag exceeds 60 seconds, a `DRReplicationLagHigh` alert
-fires (see OPERATIONS_MANUAL §2.3).
+fires (see OPERATIONS_MANUAL section 2.3).
 
-### 6.3 Redis — Independent Clusters
+### 6.3 Redis - Independent Clusters
 
 Redis is treated as a cache, not a durable store. Each region runs its own independent Redis
 cluster; there is no cross-region Redis replication.
@@ -278,10 +278,10 @@ cluster; there is no cross-region Redis replication.
 | Rate-limit counters | Reset; brief burst tolerance allowed |
 
 This is an explicit trade-off: the cost of cross-region Redis replication (latency, split-brain
-risk) is not justified for non-durable data. The impact is bounded — clients reconnect within
+risk) is not justified for non-durable data. The impact is bounded - clients reconnect within
 seconds via the WebSocket reconnection protocol.
 
-### 6.4 Object Storage — Cross-Region Replication via SDKWork Drive
+### 6.4 Object Storage - Cross-Region Replication via SDKWork Drive
 
 Media attachments and file messages are stored in SDKWork Drive, which performs cross-region
 replication at the storage layer. This is independent of the PostgreSQL replication path.
@@ -292,9 +292,9 @@ replication at the storage layer. This is independent of the PostgreSQL replicat
 | Tenant avatars | Async cross-region replication | < 1 minute |
 | Audit log bundles | Replicated on archival | < 1 hour |
 
-Replication is configured in `configs/topology/cloud.split-services.production.env` via
+Replication is configured in `configs/topology/cloud.production.env` via
 `SDKWORK_IM_DRIVE_REPLICATION_TARGETS`. Tenants with data residency constraints (per
-`COMPLIANCE_FRAMEWORK.md` §4) may opt out of cross-region replication; such tenants are not
+`COMPLIANCE_FRAMEWORK.md` section 4) may opt out of cross-region replication; such tenants are not
 eligible for cross-region DR and must rely on intra-region recovery only.
 
 ### 6.5 Microservice Fleet in DR Region
@@ -325,7 +325,7 @@ control cost. On failover, HPA scales them to production capacity.
 Regional failover is a five-phase procedure. Each phase has an owner, a verification gate, and a
 rollback path.
 
-### 7.1 Phase A — Detection
+### 7.1 Phase A - Detection
 
 | Signal | Source | Threshold |
 | --- | --- | --- |
@@ -336,7 +336,7 @@ rollback path.
 
 Detection is automated; the alert pages the SRE on-call and the engineering leader on call.
 
-### 7.2 Phase B — Decision (Manual)
+### 7.2 Phase B - Decision (Manual)
 
 Failover is **manual**, not automated. An automated failover risks split-brain if the primary
 region is only partially degraded. The decision matrix:
@@ -351,7 +351,7 @@ region is only partially degraded. The decision matrix:
 Decision authority: **engineering leadership on-call**, in consultation with SRE. The decision and
 its rationale are recorded in the incident channel before execution.
 
-### 7.3 Phase C — Execution
+### 7.3 Phase C - Execution
 
 ```bash
 # 1. Stop write traffic in the primary region (if still reachable)
@@ -369,7 +369,7 @@ psql $DR_DATABASE_URL -c "ALTER SUBSCRIPTION sdkwork_im_dr_sub DISABLE;"
 
 # 4. Scale the DR microservice fleet to production capacity
 kubectl --context=dr-context -n sdkwork-im scale deployment im-gateway --replicas=3
-# ... repeat for each service per §6.5
+# ... repeat for each service per section 6.5
 
 # 5. Switch DNS / ingress to the DR region
 #    Update the global load balancer or DNS record (TTL <= 60s)
@@ -380,7 +380,7 @@ scripts/dr-switch-dns.sh --to dr-region
 kubectl --context=dr-context -n sdkwork-im rollout restart deployment
 ```
 
-### 7.4 Phase D — Verification
+### 7.4 Phase D - Verification
 
 Failover is not complete until every gate passes. A failed gate blocks customer traffic from being
 declared restored.
@@ -391,12 +391,12 @@ declared restored.
 | Auth | Login + token validation | Success |
 | Write path | Send a test message in a sandbox tenant | Message appended to `im_commit_journal` in DR |
 | Realtime | WebSocket handshake + `auth.init` | Connection stable for 60s |
-| Read path | Fetch inbox + timeline for sandbox tenant | Returns expected data |
+| Read path | Fetch inbox + message history for sandbox tenant | Returns expected data |
 | Replication lag | `pg_stat_subscription` lag (before disable) | < 5 MB backlog |
 | Data consistency | Projection checksum vs journal cursor | Match |
 | Monitoring | Prometheus scraping DR fleet | All targets up |
 
-### 7.5 Phase E — Fallback (Planned Switch-Back)
+### 7.5 Phase E - Fallback (Planned Switch-Back)
 
 Fallback is **planned and scheduled**, never rushed. The repaired primary region must be
 re-synced and verified before traffic returns.
@@ -404,8 +404,8 @@ re-synced and verified before traffic returns.
 1. Repair the primary region's PostgreSQL and Kubernetes cluster.
 2. Reverse the replication: primary region becomes the logical subscriber to DR.
 3. Wait for lag to drain to zero.
-4. Schedule a maintenance window (announced ≥ 48 hours in advance per `SLA_SLO.md` §3.2).
-5. Repeat §7.3 in reverse: stop DR writes, promote primary, switch DNS, verify.
+4. Schedule a maintenance window (announced >= 48 hours in advance per `SLA_SLO.md` section 3.2).
+5. Repeat section 7.3 in reverse: stop DR writes, promote primary, switch DNS, verify.
 6. Confirm DR region is back to standby role.
 
 Fallback is optional if the DR region is performing within SLO. Some incidents may justify
@@ -417,35 +417,31 @@ leaving traffic in the DR region until the next planned maintenance window.
 
 ```
 Primary Region                          DR Region (Standby)
-─────────────────                       ───────────────────
-                                         ┌──────────────────┐
-┌──────────────────┐   logical rep      │ PostgreSQL       │
-│ PostgreSQL       │ ─────────────────▶ │ (subscriber,     │
-│ (primary,        │   publication/     │  promotable)     │
-│  publisher)      │   subscription     └──────────────────┘
-└──────────────────┘                            │
-        │                                       │ projection
-        │ same-tx write                         │ rebuild
-        ▼                                       ▼
-┌──────────────────┐                     ┌──────────────────┐
-│ im_commit_journal│                     │ im_commit_journal│
-│ im_outbox_events │                     │ im_outbox_events │
-└──────────────────┘                     └──────────────────┘
++------------------+                    +------------------+
+| PostgreSQL       | logical rep        | PostgreSQL       |
+| (primary,        |------------------->| (subscriber,     |
+|  publisher)      | publication/sub    |  promotable)     |
++------------------+                    +------------------+
+        |                                      |
+        | same-tx write                        | projection rebuild
+        v                                      v
++------------------+                    +------------------+
+| im_commit_journal|                    | im_commit_journal|
+| im_outbox_events |                    | im_outbox_events |
++------------------+                    +------------------+
 
-┌──────────────────┐                     ┌──────────────────┐
-│ Redis cluster    │   no replication    │ Redis cluster    │
-│ (primary)        │   (cache, rebuild)  │ (standby, cold)  │
-└──────────────────┘                     └──────────────────┘
++------------------+                    +------------------+
+| Redis cluster    | no replication     | Redis cluster    |
+| (primary)        | (cache, rebuild)   | (standby, cold)  |
++------------------+                    +------------------+
 
-┌──────────────────┐   cross-region      ┌──────────────────┐
-│ SDKWork Drive    │ ◀────────────────▶ │ SDKWork Drive    │
-│ (object storage) │   replication       │ (object storage) │
-└──────────────────┘                     └──────────────────┘
-```
++------------------+ cross-region       +------------------+
+| SDKWork Drive    |<------------------>| SDKWork Drive    |
+| (object storage) | replication        | (object storage) |
++------------------+                    +------------------+
+### 8.2 PostgreSQL - Logical Replication
 
-### 8.2 PostgreSQL — Logical Replication
-
-- **Method**: publication/subscription (see §6.2).
+- **Method**: publication/subscription (see section 6.2).
 - **What is replicated**: `im_commit_journal`, `im_outbox_events`, and all projection tables
   listed in the publication. Schema changes (DDL) are **not** replicated by logical replication;
   migrations must be applied to both regions in a coordinated rollout.
@@ -454,7 +450,7 @@ Primary Region                          DR Region (Standby)
 - **Conflict resolution**: none. The DR region is read-only as a subscriber; conflicts cannot
   arise unless someone writes to it directly, which is forbidden by the runbook.
 
-### 8.3 Event Journal — Dual-Write vs CDC
+### 8.3 Event Journal - Dual-Write vs CDC
 
 Two options were evaluated for the journal replication path:
 
@@ -486,10 +482,10 @@ A DR plan that is never tested will fail when invoked. Drills are mandatory and 
 
 | Drill | Frequency | Scope | Owner | Pass criteria |
 | --- | --- | --- | --- | --- |
-| Tabletop exercise | Monthly | Walkthrough of §7 failover with the on-call team | SRE lead | All steps understood; gaps logged |
+| Tabletop exercise | Monthly | Walkthrough of section 7 failover with the on-call team | SRE lead | All steps understood; gaps logged |
 | Partial failover | Quarterly | Fail over one non-critical service to DR | SRE on-call | Service recovers within RTO |
-| Full failover test | Quarterly | Fail over the entire platform to DR in staging | SRE lead | §7.4 gates pass; RTO/RPO met |
-| Full DR simulation | Annually | Fail over production to DR during a maintenance window | Engineering leadership | Production traffic served from DR for ≥ 1 hour |
+| Full failover test | Quarterly | Fail over the entire platform to DR in staging | SRE lead | section 7.4 gates pass; RTO/RPO met |
+| Full DR simulation | Annually | Fail over production to DR during a maintenance window | Engineering leadership | Production traffic served from DR for >=1 hour |
 | PITR restore test | Quarterly | Restore PostgreSQL to a target time in staging | SRE on-call | Restored data matches checksum |
 
 ### 9.2 Drill Records
@@ -502,7 +498,7 @@ Each drill produces a record stored in `docs/operations/dr-drills/` with:
 - Action items with owners and due dates.
 - Evidence (command output, Prometheus screenshots, gate checklists).
 
-A drill that fails any §7.4 gate triggers a mandatory follow-up within 2 weeks.
+A drill that fails any section 7.4 gate triggers a mandatory follow-up within 2 weeks.
 
 ### 9.3 Continuous Replication Health
 
@@ -576,14 +572,14 @@ post for transparency with Enterprise customers.
 These checklists are the operational runbook for each scenario. They are designed to be executed
 in order, top to bottom, without skipping steps.
 
-### 11.1 Single Pod Crash (§4.1)
+### 11.1 Single Pod Crash (section 4.1)
 
 ```markdown
 # Runbook: Single Pod Crash
 
 ## Detect
 - [ ] Identify failing service from Prometheus alert
-- [ ] Confirm scope: only one service affected (else escalate to §4.2/§4.3)
+- [ ] Confirm scope: only one service affected (else escalate to section 4.2/section 4.3)
 
 ## Recover
 - [ ] Check pod status: `kubectl -n sdkwork-im get pods -l app.kubernetes.io/name=<svc>`
@@ -599,7 +595,7 @@ in order, top to bottom, without skipping steps.
 - [ ] Log recovery in #incidents
 ```
 
-### 11.2 PostgreSQL Primary Down (§4.2)
+### 11.2 PostgreSQL Primary Down (section 4.2)
 
 ```markdown
 # Runbook: PostgreSQL Primary Down
@@ -607,7 +603,7 @@ in order, top to bottom, without skipping steps.
 ## Detect
 - [ ] `PostgreSQLDown` alert fired (pg_up == 0 for 1 min)
 - [ ] Confirm: `psql $SDKWORK_IM_DATABASE_URL -c "SELECT 1"` fails
-- [ ] Check scope: is Redis also down? (if yes, suspect network/host — escalate to §4.3)
+- [ ] Check scope: is Redis also down? (if yes, suspect network/host - escalate to section 4.3)
 
 ## Decide
 - [ ] Identify most up-to-date replica: `SELECT * FROM pg_stat_replication`
@@ -629,7 +625,7 @@ in order, top to bottom, without skipping steps.
 - [ ] Log recovery, file PIR if RTO was at risk
 ```
 
-### 11.3 Region Failure (§4.3)
+### 11.3 Region Failure (section 4.3)
 
 ```markdown
 # Runbook: Region Failure
@@ -640,7 +636,7 @@ in order, top to bottom, without skipping steps.
 - [ ] Cloud provider status page confirms regional incident
 - [ ] Confirm DR region is healthy (it must be, to fail over)
 
-## Decide (manual — engineering leadership)
+## Decide (manual - engineering leadership)
 - [ ] Page engineering leadership on-call
 - [ ] Confirm primary region is truly unreachable (not a partition):
       - Probe from a third region or external monitor
@@ -649,21 +645,21 @@ in order, top to bottom, without skipping steps.
 - [ ] If confirmed regional outage: authorise failover
 - [ ] Record decision rationale in #incidents
 
-## Execute (see §7.3 for commands)
+## Execute (see section 7.3 for commands)
 - [ ] Stop write traffic in primary (if reachable): scale im-gateway to 0
 - [ ] Check DR replication lag has drained: `pg_stat_subscription`
 - [ ] Disable DR subscription: `ALTER SUBSCRIPTION sdkwork_im_dr_sub DISABLE;`
-- [ ] Scale DR microservice fleet to production capacity (per §6.5)
+- [ ] Scale DR microservice fleet to production capacity (per section 6.5)
 - [ ] Switch DNS to DR ingress: `scripts/dr-switch-dns.sh --to dr-region`
 - [ ] Rollout DR configmap with DR DB + Redis endpoints
 - [ ] Notify customer success + status page owner
 
-## Verify (per §7.4 gates — ALL must pass)
+## Verify (per section 7.4 gates - ALL must pass)
 - [ ] Health gate: /healthz, /readyz return 200
 - [ ] Auth gate: login + token validation succeeds
 - [ ] Write gate: test message appended to im_commit_journal in DR
 - [ ] Realtime gate: WebSocket handshake stable for 60s
-- [ ] Read gate: inbox + timeline return expected data
+- [ ] Read gate: inbox + message history return expected data
 - [ ] Consistency gate: projection checksum matches journal cursor
 - [ ] Monitoring gate: Prometheus scraping all DR targets
 
@@ -676,11 +672,11 @@ in order, top to bottom, without skipping steps.
 - [ ] Repair primary region
 - [ ] Reverse replication (primary subscribes to DR)
 - [ ] Wait for lag to drain
-- [ ] Schedule maintenance window (≥48h notice)
+- [ ] Schedule maintenance window (>= 8h notice)
 - [ ] Repeat execution in reverse
 ```
 
-### 11.4 Data Corruption (§4.4)
+### 11.4 Data Corruption (section 4.4)
 
 ```markdown
 # Runbook: Data Corruption
@@ -705,7 +701,7 @@ in order, top to bottom, without skipping steps.
 - [ ] Corrupted rows are correct
 - [ ] No unrelated data lost (compare row counts)
 - [ ] Write path functional: test message send
-- [ ] Read path functional: inbox + timeline
+- [ ] Read path functional: inbox + message history
 
 ## Restore traffic
 - [ ] Scale im-gateway back to production replicas
@@ -715,24 +711,24 @@ in order, top to bottom, without skipping steps.
 
 ## 12. References
 
-- [OPERATIONS_MANUAL.md](OPERATIONS_MANUAL.md) — Operations manual; §3 fault handling, §6 backup
-  and recovery, §6.4 recovery verification checklist.
-- [SLA_SLO.md](../product/compliance/SLA_SLO.md) — Service level agreements; §7 recovery
-  objectives (Enterprise RTO 30 min / RPO 5 min), §6 error budget policy, §8 SLA credit policy.
-- [COMPLIANCE_FRAMEWORK.md](../product/compliance/COMPLIANCE_FRAMEWORK.md) — Regulatory
-  compliance; §4 data residency (cross-region replication opt-in), §3 data classification and
-  retention, §5 data subject rights (erasure implications for DR).
-- [CUSTOMER_OPERATIONS.md](../product/compliance/CUSTOMER_OPERATIONS.md) — Customer-facing
+- [OPERATIONS_MANUAL.md](OPERATIONS_MANUAL.md) - Operations manual; section 3 fault handling, section 6 backup
+  and recovery, section 6.4 recovery verification checklist.
+- [SLA_SLO.md](../product/compliance/SLA_SLO.md) - Service level agreements; section 7 recovery
+  objectives (Enterprise RTO 30 min / RPO 5 min), section 6 error budget policy, section 8 SLA credit policy.
+- [COMPLIANCE_FRAMEWORK.md](../product/compliance/COMPLIANCE_FRAMEWORK.md) - Regulatory
+  compliance; section 4 data residency (cross-region replication opt-in), section 3 data classification and
+  retention, section 5 data subject rights (erasure implications for DR).
+- [CUSTOMER_OPERATIONS.md](../product/compliance/CUSTOMER_OPERATIONS.md) - Customer-facing
   operations guide.
-- [DATA_PROTECTION.md](../product/compliance/DATA_PROTECTION.md) — Data protection summary.
-- [TECH_ARCHITECTURE.md](../architecture/tech/TECH_ARCHITECTURE.md) — Technical architecture;
+- [DATA_PROTECTION.md](../product/compliance/DATA_PROTECTION.md) - Data protection summary.
+- [TECH_ARCHITECTURE.md](../architecture/tech/TECH_ARCHITECTURE.md) - Technical architecture;
   CQRS + Event Sourcing, `im_commit_journal`, microservice boundaries.
-- `configs/topology/cloud.split-services.production.env` — Regional deployment topology.
-- `deployments/observability/prometheus-rules.yaml` — Alert rules including DR replication lag.
-- `deployments/kubernetes/cloud-split-services/` — Per-service deployment manifests (15 services).
-- `docs/runbooks/RUNBOOK-audit-log-investigation.md` — Audit log continuity verification after
+- `configs/topology/cloud.production.env` - Regional deployment topology.
+- `deployments/observability/prometheus-rules.yaml` - Alert rules including DR replication lag.
+- `deployments/kubernetes/cloud/` - Per-service deployment manifests (15 services).
+- `docs/runbooks/RUNBOOK-audit-log-investigation.md` - Audit log continuity verification after
   failover.
-- `docs/runbooks/RUNBOOK-provider-outage.md` — Provider outage response (upstream cloud
+- `docs/runbooks/RUNBOOK-provider-outage.md` - Provider outage response (upstream cloud
   provider incidents).
 
 ---

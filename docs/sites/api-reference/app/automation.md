@@ -45,11 +45,11 @@ Requests a new automation execution.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The automation execution request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.execute`. |
-| `409` | `automation_execution_conflict` | The execution id conflicts with an existing request. |
-| `503` | `automation_store_unavailable`, `journal_unavailable` | Automation persistence is unavailable. |
+| `400` | `40001` | The automation execution request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.execute`. |
+| `409` | `40901` | The execution id conflicts with an existing request. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>
 
@@ -85,11 +85,11 @@ Starts an agent response stream for an automation execution.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The automation execution request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.execute`. |
-| `409` | `automation_execution_conflict` | The execution id conflicts with an existing request. |
-| `503` | `automation_store_unavailable`, `journal_unavailable` | Automation persistence is unavailable. |
+| `400` | `40001` | The automation execution request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.execute`. |
+| `409` | `40901` | The execution id conflicts with an existing request. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>
 
@@ -131,11 +131,11 @@ Appends a frame to an active agent response stream.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The automation execution request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.execute`. |
-| `409` | `automation_execution_conflict` | The execution id conflicts with an existing request. |
-| `503` | `automation_store_unavailable`, `journal_unavailable` | Automation persistence is unavailable. |
+| `400` | `40001` | The automation execution request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.execute`. |
+| `409` | `40901` | The execution id conflicts with an existing request. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>
 
@@ -177,11 +177,11 @@ Completes an agent response stream and returns the final stream session state.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The automation execution request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.execute`. |
-| `409` | `automation_execution_conflict` | The execution id conflicts with an existing request. |
-| `503` | `automation_store_unavailable`, `journal_unavailable` | Automation persistence is unavailable. |
+| `400` | `40001` | The automation execution request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.execute`. |
+| `409` | `40901` | The execution id conflicts with an existing request. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>
 
@@ -217,11 +217,11 @@ Requests a tool call as part of an automation execution.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The automation execution request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.execute`. |
-| `409` | `automation_execution_conflict` | The execution id conflicts with an existing request. |
-| `503` | `automation_store_unavailable`, `journal_unavailable` | Automation persistence is unavailable. |
+| `400` | `40001` | The automation execution request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.execute`. |
+| `409` | `40901` | The execution id conflicts with an existing request. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>
 
@@ -264,11 +264,11 @@ Completes a pending agent tool call for a specific automation execution.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The automation execution request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.execute`. |
-| `409` | `automation_execution_conflict` | The execution id conflicts with an existing request. |
-| `503` | `automation_store_unavailable`, `journal_unavailable` | Automation persistence is unavailable. |
+| `400` | `40001` | The automation execution request is invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.execute`. |
+| `409` | `40901` | The execution id conflicts with an existing request. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>
 <a id="get-automation-execution"></a>
@@ -307,9 +307,9 @@ Reads an automation execution by identifier.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `automation.read`. |
-| `404` | `automation_execution_not_found` | The requested automation execution does not exist. |
-| `503` | `automation_store_unavailable` | Automation persistence is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `automation.read`. |
+| `404` | `40401` | The requested automation execution does not exist. |
+| `503` | `50301` | Automation persistence is unavailable. |
 
 </section>

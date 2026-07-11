@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-# Cloud-split service Dockerfile for SDKWork IM.
+# Cloud service Dockerfile for SDKWork IM.
 # Builds a single service binary for cloud-deployment profile.
 #
 # Usage:
 #   docker build -f deployments/docker/sdkwork-im-cloud-service.Dockerfile \
 #     --build-arg SERVICE_BIN=session-gateway-bin \
 #     --build-arg SERVICE_NAME=session-gateway \
-#     --build-arg HEALTH_PORT=18080 \
+#     --build-arg HEALTH_PORT=28080 \
 #     -t ghcr.io/sdkwork/session-gateway:latest .
 #
 # Available SERVICE_BIN values (matching Cargo package names):
@@ -64,7 +64,7 @@ RUN apt-get update \
 
 ARG SERVICE_BIN
 ARG SERVICE_NAME
-ARG HEALTH_PORT=18080
+ARG HEALTH_PORT=28080
 
 WORKDIR /opt/sdkwork/im
 COPY --from=builder /src/target/release/${SERVICE_BIN} /usr/local/bin/service

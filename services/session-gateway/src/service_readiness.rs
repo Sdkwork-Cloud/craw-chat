@@ -1,9 +1,14 @@
 use axum::Json;
 use axum::extract::State;
 use serde::Serialize;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use crate::AppState;
 use crate::api_error::ApiError;
+
+const REDIS_READINESS_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,6 +23,7 @@ pub struct ReadinessResponse {
 pub struct ServiceReadiness {
     redis_url: Option<String>,
     postgres_configured: bool,
+    draining: Arc<AtomicBool>,
 }
 
 impl ServiceReadiness {
@@ -32,14 +38,26 @@ impl ServiceReadiness {
                 .ok()
                 .map(|value| !value.trim().is_empty())
                 .unwrap_or(false),
+            draining: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    pub fn is_ready(&self) -> bool {
+    pub async fn is_ready(&self) -> bool {
+        if self.is_draining() {
+            return false;
+        }
         if let Some(redis_url) = self.redis_url.as_deref() {
-            return ping_redis(redis_url);
+            return ping_redis(redis_url).await;
         }
         true
+    }
+
+    pub fn mark_draining(&self) {
+        self.draining.store(true, Ordering::Release);
+    }
+
+    pub fn is_draining(&self) -> bool {
+        self.draining.load(Ordering::Acquire)
     }
 
     pub fn redis_url(&self) -> Option<&str> {
@@ -51,12 +69,26 @@ impl ServiceReadiness {
     }
 }
 
-fn ping_redis(redis_url: &str) -> bool {
-    redis::Client::open(redis_url)
-        .ok()
-        .and_then(|client| client.get_connection().ok())
-        .and_then(|mut connection| redis::cmd("PING").query::<String>(&mut connection).ok())
-        .is_some_and(|response| response.eq_ignore_ascii_case("PONG"))
+async fn ping_redis(redis_url: &str) -> bool {
+    let Ok(client) = redis::Client::open(redis_url) else {
+        return false;
+    };
+    let Ok(Ok(mut connection)) = tokio::time::timeout(
+        REDIS_READINESS_TIMEOUT,
+        client.get_multiplexed_async_connection(),
+    )
+    .await
+    else {
+        return false;
+    };
+    tokio::time::timeout(
+        REDIS_READINESS_TIMEOUT,
+        redis::cmd("PING").query_async::<String>(&mut connection),
+    )
+    .await
+    .ok()
+    .and_then(Result::ok)
+    .is_some_and(|response| response.eq_ignore_ascii_case("PONG"))
 }
 
 #[derive(Debug, Serialize)]
@@ -74,7 +106,7 @@ pub async fn healthz() -> Json<HealthResponse> {
 }
 
 pub async fn readyz(State(state): State<AppState>) -> Result<Json<ReadinessResponse>, ApiError> {
-    let ready = state.readiness.is_ready();
+    let ready = state.readiness.is_ready().await;
     let response = ReadinessResponse {
         status: if ready { "ready" } else { "not_ready" },
         service: "session-gateway",
@@ -91,7 +123,28 @@ pub async fn readyz(State(state): State<AppState>) -> Result<Json<ReadinessRespo
         Err(ApiError {
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
             code: "not_ready",
-            message: "session-gateway dependencies are not ready".to_owned(),
+            message: if state.readiness.is_draining() {
+                "session-gateway is draining".to_owned()
+            } else {
+                "session-gateway dependencies are not ready".to_owned()
+            },
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ServiceReadiness;
+
+    #[tokio::test]
+    async fn draining_readiness_is_shared_and_fail_closed() {
+        let readiness = ServiceReadiness::default();
+        let observer = readiness.clone();
+        assert!(observer.is_ready().await);
+
+        readiness.mark_draining();
+
+        assert!(observer.is_draining());
+        assert!(!observer.is_ready().await);
     }
 }

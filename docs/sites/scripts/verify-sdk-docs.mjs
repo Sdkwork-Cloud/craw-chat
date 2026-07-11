@@ -168,7 +168,7 @@ for (const marker of [
   "sdkwork-im-backend-sdk",
   "sdkwork-rtc-sdk",
   "generated/server-openapi",
-  ".sdkwork-assembly.json",
+  "sdk-manifest.json",
   "SdkworkAppClient",
   "SdkworkBackendClient",
   "There are no current standalone admin or control-plane SDK families",
@@ -275,7 +275,7 @@ for (const marker of [
   "sdkwork-im-app-sdk",
   "sdkwork-im-backend-sdk",
   "sdkwork-rtc-sdk",
-  ".sdkwork-assembly.json",
+  "sdk-manifest.json",
 ]) {
   requireIncludes(cliSource, cliPath, marker, `must include ${marker}`);
 }

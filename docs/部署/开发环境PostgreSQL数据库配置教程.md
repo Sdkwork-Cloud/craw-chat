@@ -48,7 +48,8 @@ Copy-Item .env.postgres.example .env.postgres
 `.env.postgres` 使用拆分字段维护数据库连接，不把 host、database、username、password 混在一条长 URL 中。
 
 ```env
-SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=127.0.0.1
 SDKWORK_IM_DATABASE_PORT=5432

@@ -21,10 +21,10 @@ function cargoCommand(platform = process.platform) {
 function printHelp() {
   console.log(`Usage: node scripts/release/build-sdkwork-im-production.mjs [options]
 
-Build Sdkwork IM production artifacts for server archives and desktop installers.
+Build Sdkwork IM production artifacts for browser bundles, server archives, and desktop installers.
 
 Options:
-  --target <value>          Build target: server, desktop, all (default all).
+  --target <value>          Build target: browser, server, desktop, all (default all).
   --target-triple <value>   Tauri/Rust target triple for desktop packaging.
   --platform <value>        Desktop target platform override: windows, linux, macos.
   --arch <value>            Desktop target architecture override: x64, arm64.
@@ -90,8 +90,8 @@ function parseProductionBuildArgs(argv = process.argv.slice(2)) {
     }
   }
 
-  if (!['server', 'desktop', 'all'].includes(settings.target)) {
-    throw new Error('--target must be server, desktop, or all');
+  if (!['browser', 'server', 'desktop', 'all'].includes(settings.target)) {
+    throw new Error('--target must be browser, server, desktop, or all');
   }
 
   return settings;
@@ -106,9 +106,10 @@ function createSdkworkImProductionBuildPlan({
   targetTriple = null,
 } = {}) {
   const steps = [];
+  const includeBrowser = target === 'browser';
   const includeServer = target === 'server' || target === 'all';
   const includeDesktop = target === 'desktop' || target === 'all';
-  const includeWebAssets = includeServer || includeDesktop;
+  const includeWebAssets = includeBrowser || includeServer || includeDesktop;
 
   if (includeWebAssets) {
     steps.push({

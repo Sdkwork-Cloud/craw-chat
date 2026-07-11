@@ -18,7 +18,6 @@ import { TextMessageItem, ImageMessageItem, VideoMessageItem, VoiceMessageItem, 
 interface MessageListProps {
   chatId: string;
   fallbackMessages?: Message[];
-  refreshKey?: number;
   searchQuery?: string;
   senderProfiles?: Record<string, User>;
   onReply?: (msg: Message, senderName: string) => void;
@@ -29,6 +28,7 @@ interface MessageListProps {
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_SENDER_PROFILES: Record<string, User> = {};
 const RTC_CALL_DESCRIPTOR_PREFIX = 'rtc-call:';
+const MESSAGE_HISTORY_LOAD_COOLDOWN_MS = 800;
 
 type RtcCallDisplayState = 'accepted' | 'ended' | 'rejected' | 'started' | 'syncing';
 
@@ -212,7 +212,6 @@ function isCurrentUserMessage(message: Message, currentUser: User | null): boole
 export const MessageList: React.FC<MessageListProps> = ({
   chatId,
   fallbackMessages = EMPTY_MESSAGES,
-  refreshKey = 0,
   searchQuery = '',
   senderProfiles = EMPTY_SENDER_PROFILES,
   onReply,
@@ -231,16 +230,25 @@ export const MessageList: React.FC<MessageListProps> = ({
   const [isForwardModalOpen, setIsForwardModalOpen] = useState(false);
   const scrollParentRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
-  const loadingOlderRef = useRef(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingNextPageRef = useRef(false);
+  const lastHistoryLoadAtRef = useRef(0);
+  const [loadingNextPage, setLoadingNextPage] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string> | null>(null);
   const reactionInFlightRef = useRef<Set<string>>(new Set());
 
   const [viewerState, setViewerState] = useState({ isOpen: false, currentIndex: 0 });
-  const fallbackMessageIds = React.useMemo(
-    () => new Set(fallbackMessages.map((message) => message.id)),
+  const stableFallbackMessages = React.useMemo(
+    () => (fallbackMessages.length === 0 ? EMPTY_MESSAGES : fallbackMessages),
     [fallbackMessages],
+  );
+  // Keep a ref so useEffects can read the latest fallback messages without
+  // re-firing when the parent passes a new array reference on re-render.
+  const stableFallbackMessagesRef = React.useRef(stableFallbackMessages);
+  stableFallbackMessagesRef.current = stableFallbackMessages;
+  const fallbackMessageIds = React.useMemo(
+    () => new Set(stableFallbackMessages.map((message) => message.id)),
+    [stableFallbackMessages],
   );
 
   const filteredMessages = React.useMemo(() => {
@@ -266,36 +274,49 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
     virtualizer.scrollToIndex(filteredMessages.length - 1, { align: 'end' });
   }, [filteredMessages.length, virtualizer]);
+  // Ref so the getMessages effect can call the latest scrollToBottom without
+  // re-running when filteredMessages.length changes (which would cause a
+  // reload of the entire message list on every incoming message).
+  const scrollToBottomRef = useRef(scrollToBottom);
+  scrollToBottomRef.current = scrollToBottom;
 
-  const loadOlderMessages = useCallback(async () => {
-    if (loadingOlderRef.current || !chatService.hasMoreMessages(chatId)) {
+  const loadNextMessagePage = useCallback(async () => {
+    if (loadingNextPageRef.current || !chatService.hasMoreMessages(chatId)) {
       return;
     }
-    loadingOlderRef.current = true;
-    setLoadingOlder(true);
+    const now = Date.now();
+    if (now - lastHistoryLoadAtRef.current < MESSAGE_HISTORY_LOAD_COOLDOWN_MS) {
+      return;
+    }
+    lastHistoryLoadAtRef.current = now;
+    loadingNextPageRef.current = true;
+    setLoadingNextPage(true);
+    const scrollElement = scrollParentRef.current;
+    const previousScrollHeight = scrollElement?.scrollHeight ?? 0;
+    shouldStickToBottomRef.current = false;
     try {
-      const element = scrollParentRef.current;
-      const previousHeight = element?.scrollHeight ?? 0;
-      const olderMessages = await chatService.loadMoreMessages(chatId);
-      if (olderMessages.length === 0) {
+      const nextMessages = await chatService.loadMoreMessages(chatId);
+      if (nextMessages.length === 0) {
         return;
       }
       setMessages((previous) => {
         const existingIds = new Set(previous.map((message) => message.id));
-        const mergedOlder = olderMessages.filter((message) => !existingIds.has(message.id));
-        return [...mergedOlder, ...previous];
+        return [
+          ...nextMessages.filter((message) => !existingIds.has(message.id)),
+          ...previous,
+        ];
       });
       requestAnimationFrame(() => {
-        const scrollElement = scrollParentRef.current;
-        if (scrollElement) {
-          scrollElement.scrollTop = scrollElement.scrollHeight - previousHeight;
+        const element = scrollParentRef.current;
+        if (element) {
+          element.scrollTop += element.scrollHeight - previousScrollHeight;
         }
       });
     } catch {
       toast(t('chat.messageList.toast.loadFailed'), 'error');
     } finally {
-      loadingOlderRef.current = false;
-      setLoadingOlder(false);
+      loadingNextPageRef.current = false;
+      setLoadingNextPage(false);
     }
   }, [chatId, t]);
 
@@ -306,10 +327,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
     const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
     shouldStickToBottomRef.current = distanceFromBottom < 120;
-    if (element.scrollTop < 80) {
-      void loadOlderMessages();
-    }
-  }, [loadOlderMessages]);
+  }, []);
 
   const scrollToMessage = useCallback((messageId: string) => {
     const index = filteredMessages.findIndex((message) => message.id === messageId);
@@ -334,12 +352,12 @@ export const MessageList: React.FC<MessageListProps> = ({
         if (!isMounted) {
           return;
         }
-        setMessages(mergeDisplayMessages(data, fallbackMessages));
+        setMessages(mergeDisplayMessages(data, stableFallbackMessagesRef.current));
         shouldStickToBottomRef.current = true;
-        setTimeout(() => scrollToBottom(true), 50);
+        setTimeout(() => scrollToBottomRef.current(true), 50);
       } catch {
         if (isMounted) {
-          setMessages(fallbackMessages);
+          setMessages(stableFallbackMessagesRef.current);
           toast(t('chat.messageList.toast.loadFailed'), 'error');
         }
       } finally {
@@ -352,7 +370,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [chatId, fallbackMessages, refreshKey, scrollToBottom]);
+  }, [chatId]);
 
   useEffect(() => {
     scrollToBottom(false);
@@ -365,7 +383,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         byId.set(message.id, { ...byId.get(message.id), ...message });
         return mergeDisplayMessages(
           Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp),
-          fallbackMessages,
+          stableFallbackMessagesRef.current,
         );
       });
     });
@@ -373,7 +391,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     return () => {
       unsubscribe();
     };
-  }, [chatId, fallbackMessages]);
+  }, [chatId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -690,9 +708,21 @@ export const MessageList: React.FC<MessageListProps> = ({
       className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col bg-[#1e1e1e] custom-scrollbar relative"
     >
       {loading && <div className="text-center text-[12px] text-gray-500 my-4">{t('chat.messageList.loading')}</div>}
-      {loadingOlder && (
-        <div className="text-center text-[12px] text-gray-500 my-2" role="status">
-          {t('chat.messageList.loadingOlder', { defaultValue: 'Loading earlier messages…' })}
+      {!loading && chatService.hasMoreMessages(chatId) && (
+        <button
+          type="button"
+          className="mx-auto mb-3 rounded border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] text-gray-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={loadingNextPage}
+          onClick={() => {
+            void loadNextMessagePage();
+          }}
+        >
+          {t('chat.messageList.loadMore')}
+        </button>
+      )}
+      {loadingNextPage && (
+        <div className="mb-2 text-center text-[12px] text-gray-500" role="status">
+          {t('chat.messageList.loadingMore')}
         </div>
       )}
       {!loading && filteredMessages.length > 0 && (
@@ -843,7 +873,6 @@ export const MessageList: React.FC<MessageListProps> = ({
           );
         })}
       </div>
-
       {isMultiSelect && (
         <div className="sticky bottom-4 left-1/2 -translate-x-1/2 w-max bg-[#2b2b2d] border border-white/10 rounded-full shadow-2xl px-6 py-3 flex items-center gap-6 z-50 mx-auto mt-auto">
           <span className="text-sm text-gray-300">{t('chat.messageList.multiSelect.selected', { count: selectedIds.size })}</span>

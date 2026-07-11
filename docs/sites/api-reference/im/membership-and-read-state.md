@@ -12,7 +12,7 @@
 
 <div class="api-link-list">
   <a href="/api-reference/im/conversations"><code>Conversations</code> Creation, inbox, and agent handoff are documented separately</a>
-  <a href="/api-reference/im/messages"><code>Messages</code> Timeline reads and message mutation flows live on their own page</a>
+  <a href="/api-reference/im/messages"><code>Messages</code> Message history reads and message mutation flows live on their own page</a>
   <a href="/sdk/app-sdk"><code>App SDK</code> These routes map to <code>sdk.conversations</code> rather than a standalone membership client</a>
 </div>
 
@@ -66,11 +66,11 @@ Lists conversation members visible to the current principal.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="add-member"></a>
@@ -112,8 +112,12 @@ Adds a principal to the conversation roster.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `403` | `conversation_permission_denied` | The caller cannot add members to this conversation. |
-| `409` | `member_already_exists` | The target principal is already present in the conversation. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -157,12 +161,12 @@ Removes a member by membership identifier.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="transfer-owner"></a>
@@ -205,12 +209,12 @@ Transfers ownership to another active member.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="change-member-role"></a>
@@ -253,12 +257,12 @@ Changes the role assigned to an existing member.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="leave-conversation"></a>
@@ -301,12 +305,12 @@ None. This operation does not accept a JSON request body.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="get-read-cursor"></a>
@@ -345,11 +349,11 @@ Returns the read cursor for the current principal in the target conversation.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="update-read-cursor"></a>
@@ -392,11 +396,11 @@ Updates the read cursor for the current principal.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

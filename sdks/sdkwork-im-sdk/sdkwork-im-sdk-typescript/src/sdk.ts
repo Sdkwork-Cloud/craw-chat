@@ -1,16 +1,17 @@
-import { SdkworkImClient as GeneratedSdkworkImClient } from '@sdkwork/im-sdk-generated';
+import { SdkworkImClient as GeneratedSdkworkImClient } from '../generated/server-openapi/dist/index.js';
 import type {
   EditMessageRequest,
   FavoriteMessageRequest,
   MessageFavoriteType,
   MessageFavoriteView,
+  MessageMutationResult,
   MessagePinMutationResult,
   MessageReactionMutationResult,
   MessageReactionRequest,
-  PostedMessageResponse,
   QueryParams,
+  RecallMessageRequest,
   SdkworkImConfig,
-} from '@sdkwork/im-sdk-generated';
+} from '../generated/server-openapi/dist/index.js';
 import type {
   DeleteMessageFavoriteResponse,
   FavoriteMessagesResponse,
@@ -56,8 +57,7 @@ function resolveApiBaseUrl(options: ImSdkClientOptions): string {
   const fromEnv =
     (typeof import.meta !== 'undefined' &&
       (import.meta as { env?: Record<string, string> }).env?.SDKWORK_IM_API_BASE_URL) ||
-    (typeof process !== 'undefined' &&
-      process.env?.SDKWORK_IM_API_BASE_URL);
+    (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.SDKWORK_IM_API_BASE_URL;
   if (fromEnv) {
     return fromEnv;
   }
@@ -159,36 +159,36 @@ export class ImSdkClient {
   }
 
   addReaction(
-    messageId: string | number,
+    messageId: string,
     reactionKeyOrBody: string | MessageReactionRequest,
   ): Promise<MessageReactionMutationResult> {
     return this.messages.addReaction(messageId, reactionKeyOrBody);
   }
 
   removeReaction(
-    messageId: string | number,
+    messageId: string,
     reactionKeyOrBody: string | MessageReactionRequest,
   ): Promise<MessageReactionMutationResult> {
     return this.messages.removeReaction(messageId, reactionKeyOrBody);
   }
 
-  pinMessage(messageId: string | number): Promise<MessagePinMutationResult> {
+  pinMessage(messageId: string): Promise<MessagePinMutationResult> {
     return this.messages.pinMessage(messageId);
   }
 
-  unpinMessage(messageId: string | number): Promise<MessagePinMutationResult> {
+  unpinMessage(messageId: string): Promise<MessagePinMutationResult> {
     return this.messages.unpinMessage(messageId);
   }
 
-  deleteMessageForMe(messageId: string | number): Promise<void> {
+  deleteMessageForMe(messageId: string): Promise<void> {
     return this.messages.deleteForMe(messageId);
   }
 
-  recallMessage(messageId: string | number): Promise<PostedMessageResponse> {
-    return this.messages.recall(messageId);
+  recallMessage(messageId: string, body?: RecallMessageRequest): Promise<MessageMutationResult> {
+    return this.messages.recall(messageId, body);
   }
 
-  editMessage(messageId: string | number, body: EditMessageRequest): Promise<PostedMessageResponse> {
+  editMessage(messageId: string, body: EditMessageRequest): Promise<MessageMutationResult> {
     return this.messages.edit(messageId, body);
   }
 
@@ -196,11 +196,11 @@ export class ImSdkClient {
     return this.messages.listFavorites(params);
   }
 
-  favoriteMessage(messageId: string | number, body: FavoriteMessageRequest): Promise<MessageFavoriteView> {
+  favoriteMessage(messageId: string, body: FavoriteMessageRequest): Promise<MessageFavoriteView> {
     return this.messages.favoriteMessage(messageId, body);
   }
 
-  deleteMessageFavorite(favoriteId: string | number): Promise<DeleteMessageFavoriteResponse> {
+  deleteMessageFavorite(favoriteId: string): Promise<DeleteMessageFavoriteResponse> {
     return this.messages.deleteFavorite(favoriteId);
   }
 }

@@ -1,4 +1,4 @@
-# Sdkwork IM PC Playwright E2E
+﻿# Sdkwork IM PC Playwright E2E
 
 ## Scope
 
@@ -12,9 +12,9 @@ Commercial readiness runs four Playwright specs against the production build:
 
 Fixtures live under `e2e/fixtures/`:
 
-- `auth.ts` — JWT-shaped IAM session + SdkWorkApiResponse envelope (`code: 0`, `data`, `traceId`)
-- `setup-authenticated-page.ts` — session seeding and IAM/IM route mocks
-- `im-api.ts` — inbox, timeline, contacts, and post-message mocks
+- `auth.ts` 鈥?JWT-shaped IAM session + SdkWorkApiResponse envelope (`code: 0`, `data`, `traceId`)
+- `setup-authenticated-page.ts` 鈥?session seeding and IAM/IM route mocks
+- `im-api.ts` 鈥?inbox, timeline, contacts, and post-message mocks
 
 ## CI / commercial gate
 
@@ -43,9 +43,9 @@ pnpm exec playwright test
 
 ## Staging boundary
 
-CI uses **mock-based** IAM/IM responses so the gate stays deterministic without a live split-service stack.
+CI uses **mock-based** IAM/IM responses so the gate stays deterministic without a live cloud-service stack.
 
-For staging-backed runs against `configs/topology/cloud.split-services.staging.env`:
+For staging-backed runs against `configs/topology/cloud.staging.env`:
 
 1. Deploy or point to a reachable staging ingress
 2. Export `PLAYWRIGHT_BASE_URL` to that ingress

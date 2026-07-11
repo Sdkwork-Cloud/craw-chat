@@ -13,6 +13,7 @@ import {
   acquirePcLiveConnectionLease,
   configurePcRealtimeConnectionManager,
   ensurePcLiveConnection,
+  subscribePcRealtimeScope,
 } from '@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import {
@@ -69,6 +70,7 @@ export interface SdkworkCallSnapshot {
 export interface StartOutgoingCallOptions {
   conversationId: string;
   targetName: string;
+  targetUserId?: string;
   type: SdkworkCallType;
 }
 
@@ -85,12 +87,18 @@ export interface WatchIncomingCallsOptions {
   conversationIds: string[];
 }
 
+export interface RecoverActiveCallResult {
+  recovered: boolean;
+  snapshot: SdkworkCallSnapshot;
+}
+
 export interface CallService {
   acceptIncomingCall(): Promise<SdkworkCallSnapshot>;
   bindLocalVideoElement(element: HTMLElement | null): Promise<void>;
   bindRemoteVideoElement(remoteUserId: string | null | undefined, element: HTMLElement | null): Promise<void>;
   endCall(options?: EndCallOptions): Promise<void>;
   getSnapshot(): SdkworkCallSnapshot;
+  recoverActiveCall(): Promise<RecoverActiveCallResult>;
   recoverRtcSession(rtcSessionId: string, options?: RecoverRtcSessionOptions): Promise<SdkworkCallSnapshot>;
   rejectIncomingCall(options?: EndCallOptions): Promise<SdkworkCallSnapshot>;
   setAudioMuted(muted: boolean): Promise<SdkworkCallSnapshot>;
@@ -155,12 +163,22 @@ function toCallType(rtcMode: string | undefined): SdkworkCallType {
 function toRecoveredServiceState(state: ImCallSession['state']): SdkworkCallState {
   switch (state) {
     case 'accepted':
+    case 'connecting':
+    case 'connected':
       return 'connected';
     case 'rejected':
       return 'rejected';
     case 'ended':
+    case 'canceled':
+    case 'failed':
+    case 'timeout':
       return 'ended';
+    case 'on_hold':
+    case 'reconnecting':
+      return 'connected';
     case 'started':
+    case 'initiating':
+    case 'ringing':
     default:
       return 'ringing';
   }
@@ -207,6 +225,68 @@ function toErrorMessage(error: unknown): string {
   return typeof error === 'string' && error.trim().length > 0 ? error : 'Call signaling failed.';
 }
 
+// 检测 SDK 抛出的 404 / 资源不存在错误。SDK 底层抛出 SdkError(NotFoundError)，
+// 其 code === 'NOT_FOUND' 且 httpStatus === 404。由于本包不直接依赖 @sdkwork/sdk-common，
+// 这里使用鸭子类型检测以避免引入额外耦合。
+function isNotFoundHttpError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const record = error as Record<string, unknown>;
+  if (record.httpStatus === 404 || record.code === 'NOT_FOUND') {
+    return true;
+  }
+  if (error instanceof Error) {
+    return /not\s+found/iu.test(error.message) || error.name === 'NotFoundError';
+  }
+  return false;
+}
+
+// --- 活跃通话持久化（用于页面刷新后恢复） ---
+const ACTIVE_CALL_STORAGE_KEY = 'sdkwork-im-pc:active-call:v1';
+
+interface PersistedActiveCall {
+  rtcSessionId: string;
+  conversationId?: string;
+  direction?: 'incoming' | 'outgoing';
+  targetName?: string;
+  type?: SdkworkCallType;
+}
+
+function readPersistedActiveCall(): PersistedActiveCall | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_CALL_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PersistedActiveCall>;
+    if (typeof parsed.rtcSessionId !== 'string' || !parsed.rtcSessionId.trim()) {
+      return null;
+    }
+    return parsed as PersistedActiveCall;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistedActiveCall(call: PersistedActiveCall | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    if (call) {
+      window.localStorage.setItem(ACTIVE_CALL_STORAGE_KEY, JSON.stringify(call));
+    } else {
+      window.localStorage.removeItem(ACTIVE_CALL_STORAGE_KEY);
+    }
+  } catch {
+    // localStorage 不可用时静默降级，不影响通话功能。
+  }
+}
+
 class SdkworkImCallService implements CallService {
   private readonly listeners = new Set<(snapshot: SdkworkCallSnapshot) => void>();
   private readonly getClient: (session: SdkworkChatSession | null) => ImSdkClient;
@@ -214,6 +294,7 @@ class SdkworkImCallService implements CallService {
   private readonly rtcMediaService: SdkworkRtcMediaService;
   private activeMediaRtcSessionId?: string;
   private incomingConnectionLease?: () => void;
+  private incomingScopeSubscription?: () => void;
   private incomingSubscription?: () => void;
   private participantCredential?: ImCallParticipantCredential;
   private snapshot: SdkworkCallSnapshot = createIdleSnapshot();
@@ -260,7 +341,7 @@ class SdkworkImCallService implements CallService {
       roomId: rtcSessionId,
       rtcMode,
       rtcSessionId,
-      peerUserId: undefined,
+      peerUserId: options.targetUserId,
       targetName: options.targetName,
       type: options.type,
     });
@@ -348,28 +429,29 @@ class SdkworkImCallService implements CallService {
         .filter((conversationId) => conversationId.length > 0),
     )];
 
-    if (this.hasActiveCall()) {
-      return this.getSnapshot();
-    }
-
-    if (normalizedConversationIds.length === 0) {
-      this.incomingSubscription?.();
-      this.incomingSubscription = undefined;
-      this.incomingConnectionLease?.();
-      this.incomingConnectionLease = undefined;
-      this.applySnapshot(createIdleSnapshot());
-      return this.getSnapshot();
-    }
+    // Note: we do NOT early-return when hasActiveCall() is true. The
+    // subscription's conversationIds filter must be refreshed so that
+    // events for newly created conversations (e.g. a direct chat created
+    // moments before placing an outgoing call) are not silently dropped.
+    // The snapshot overwrite guard below (rtcSessionId && controllerState
+    // !== 'watching') prevents clobbering an active call's state.
 
     try {
       const session = this.readSession();
+      const principalId = resolveParticipantId(session);
       const imClient = this.getClient(session);
       this.configureRealtimeConnectionManager();
       this.incomingSubscription?.();
+      this.incomingSubscription = undefined;
+      this.incomingScopeSubscription?.();
+      this.incomingScopeSubscription = subscribePcRealtimeScope(
+        { scopeType: 'user', scopeId: principalId },
+        () => undefined,
+      );
       this.incomingSubscription = imClient.calls.subscribe((callSession) => {
-        if (!normalizedConversationIds.includes(callSession.conversationId ?? '')) {
-          return;
-        }
+        // 活跃通话的事件必须优先处理，不受 conversationIds 过滤限制。
+        // 用户可能在通话期间切换到其他会话，此时活跃通话的 accepted/ended
+        // 事件仍需正确投递，否则主叫会永远振铃或媒体无法释放。
         if (this.snapshot.rtcSessionId && this.snapshot.rtcSessionId === callSession.rtcSessionId) {
           const participantId = this.snapshot.participantId ?? resolveParticipantId(this.readSession());
           this.applySessionSnapshot(callSession, {
@@ -390,6 +472,13 @@ class SdkworkImCallService implements CallService {
                 });
               });
           }
+          return;
+        }
+        // 非活跃通话事件应用 conversationIds 过滤（仅处理当前关注的会话来电）。
+        if (
+          normalizedConversationIds.length > 0
+          && !normalizedConversationIds.includes(callSession.conversationId ?? '')
+        ) {
           return;
         }
         if (this.hasActiveCall()) {
@@ -414,11 +503,18 @@ class SdkworkImCallService implements CallService {
         connection,
         conversationIds: normalizedConversationIds,
         deviceId: resolveSdkworkChatPcClientId(),
+        principalId,
       });
       if (this.snapshot.rtcSessionId && this.snapshot.controllerState !== 'watching') {
         return this.getSnapshot();
       }
-      if (incoming && normalizedConversationIds.includes(incoming.conversationId ?? '')) {
+      if (
+        incoming
+        && (
+          normalizedConversationIds.length === 0
+          || normalizedConversationIds.includes(incoming.conversationId ?? '')
+        )
+      ) {
         this.applySessionSnapshot(incoming, {
           direction: 'incoming',
           participantId: resolveParticipantId(session),
@@ -434,6 +530,8 @@ class SdkworkImCallService implements CallService {
     } catch (error) {
       this.incomingSubscription?.();
       this.incomingSubscription = undefined;
+      this.incomingScopeSubscription?.();
+      this.incomingScopeSubscription = undefined;
       this.incomingConnectionLease?.();
       this.incomingConnectionLease = undefined;
       this.applySnapshot({
@@ -495,12 +593,18 @@ class SdkworkImCallService implements CallService {
       await this.releaseRtcMedia();
       return this.getSnapshot();
     } catch (error) {
+      // 当会话已被对端取消或超时清理时，reject 接口返回 404。
+      // 此时应视为已拒绝而非错误。
+      const treatAsRejected = isNotFoundHttpError(error);
       this.applySnapshot({
         ...this.snapshot,
-        state: 'errored',
-        controllerState: 'errored',
-        errorMessage: toErrorMessage(error),
+        state: treatAsRejected ? 'rejected' : 'errored',
+        controllerState: treatAsRejected ? 'rejected' : 'errored',
+        errorMessage: treatAsRejected ? undefined : toErrorMessage(error),
       });
+      if (treatAsRejected) {
+        await this.releaseRtcMedia();
+      }
       return this.getSnapshot();
     }
   }
@@ -529,11 +633,14 @@ class SdkworkImCallService implements CallService {
       await this.releaseRtcMedia();
     } catch (error) {
       await this.releaseRtcMedia();
+      // 当会话已被对端结束或因超时被服务端清理时，end 接口返回 404。
+      // 此时应视为已结束而非错误，避免 UI 进入 errored 状态。
+      const treatAsEnded = isNotFoundHttpError(error);
       this.applySnapshot({
         ...this.snapshot,
-        state: 'errored',
-        controllerState: 'errored',
-        errorMessage: toErrorMessage(error),
+        state: treatAsEnded ? 'ended' : 'errored',
+        controllerState: treatAsEnded ? 'ended' : 'errored',
+        errorMessage: treatAsEnded ? undefined : toErrorMessage(error),
         isParticipantCredentialReady: false,
         participantCredentialExpiresAt: undefined,
       });
@@ -567,15 +674,54 @@ class SdkworkImCallService implements CallService {
       }
       return this.getSnapshot();
     } catch (error) {
-      if (sequence === this.sequence) {
+      if (sequence !== this.sequence) {
+        return this.getSnapshot();
+      }
+      // 恢复时如果会话已不存在（404），视为已结束而非错误。
+      const treatAsEnded = isNotFoundHttpError(error);
+      this.applySnapshot({
+        ...this.snapshot,
+        state: treatAsEnded ? 'ended' : 'errored',
+        controllerState: treatAsEnded ? 'ended' : 'errored',
+        errorMessage: treatAsEnded ? undefined : toErrorMessage(error),
+        isParticipantCredentialReady: false,
+        participantCredentialExpiresAt: undefined,
+      });
+      return this.getSnapshot();
+    }
+  }
+
+  async recoverActiveCall(): Promise<RecoverActiveCallResult> {
+    const persisted = readPersistedActiveCall();
+    if (!persisted) {
+      return { recovered: false, snapshot: this.getSnapshot() };
+    }
+    // 如果当前已有活跃通话，不需要恢复。
+    if (this.hasActiveCall()) {
+      return { recovered: false, snapshot: this.getSnapshot() };
+    }
+    try {
+      const snapshot = await this.recoverRtcSession(persisted.rtcSessionId, {
+        targetName: persisted.targetName,
+        type: persisted.type,
+      });
+      // 如果恢复后发现会话已结束（404 或 retrieve 返回终态），清除持久化。
+      if (snapshot.state === 'ended' || snapshot.state === 'rejected' || snapshot.state === 'errored') {
+        writePersistedActiveCall(null);
+        return { recovered: false, snapshot };
+      }
+      // 恢复方向信息（recoverRtcSession 使用 snapshot.direction，初始为 undefined）
+      if (!snapshot.direction && persisted.direction) {
         this.applySnapshot({
           ...this.snapshot,
-          state: 'errored',
-          controllerState: 'errored',
-          errorMessage: toErrorMessage(error),
+          direction: persisted.direction,
+          controllerState: toControllerState(this.snapshot.state, persisted.direction),
         });
       }
-      return this.getSnapshot();
+      return { recovered: true, snapshot: this.getSnapshot() };
+    } catch {
+      writePersistedActiveCall(null);
+      return { recovered: false, snapshot: this.getSnapshot() };
     }
   }
 
@@ -763,9 +909,29 @@ class SdkworkImCallService implements CallService {
     this.snapshot = {
       ...snapshot,
     };
+    this.persistActiveCall();
     for (const listener of this.listeners) {
       listener(this.getSnapshot());
     }
+  }
+
+  private persistActiveCall(): void {
+    const s = this.snapshot;
+    const isTerminal = s.state === 'idle'
+      || s.state === 'ended'
+      || s.state === 'rejected'
+      || s.state === 'errored';
+    if (!s.rtcSessionId || isTerminal) {
+      writePersistedActiveCall(null);
+      return;
+    }
+    writePersistedActiveCall({
+      rtcSessionId: s.rtcSessionId,
+      conversationId: s.conversationId,
+      direction: s.direction,
+      targetName: s.targetName,
+      type: s.type,
+    });
   }
 }
 

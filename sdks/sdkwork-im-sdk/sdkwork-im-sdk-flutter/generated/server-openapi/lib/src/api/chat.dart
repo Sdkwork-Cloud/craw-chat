@@ -58,7 +58,7 @@ class ChatApi {
   }
 
   /// Create an agent handoff
-  Future<ConversationsAgentHandoffsCreateResponse201?> conversationsAgentHandoffsCreate(CreateAgentDialogRequest body) async {
+  Future<ConversationsAgentHandoffsCreateResponse201?> conversationsAgentHandoffsCreate(CreateAgentHandoffRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/agent_handoffs'), body: payload, contentType: 'application/json');
     return (() {
@@ -68,7 +68,7 @@ class ChatApi {
   }
 
   /// Create a system channel
-  Future<ConversationsSystemChannelsCreateResponse201?> conversationsSystemChannelsCreate(CreateConversationRequest body) async {
+  Future<ConversationsSystemChannelsCreateResponse201?> conversationsSystemChannelsCreate(CreateSystemChannelRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/system_channels'), body: payload, contentType: 'application/json');
     return (() {
@@ -78,7 +78,7 @@ class ChatApi {
   }
 
   /// Create a thread conversation
-  Future<ConversationsThreadsCreateResponse201?> conversationsThreadsCreate(CreateConversationRequest body) async {
+  Future<ConversationsThreadsCreateResponse201?> conversationsThreadsCreate(CreateThreadConversationRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/chat/conversations/threads'), body: payload, contentType: 'application/json');
     return (() {
@@ -279,8 +279,8 @@ class ChatApi {
     })();
   }
 
-  /// List conversation message timeline
-  Future<ConversationsMessagesListResponse?> conversationsMessagesList(String conversationId, [int? afterSeq, int? pageSize]) async {
+  /// List conversation message history
+  Future<ConversationMessageListResponse?> conversationsMessagesList(String conversationId, [int? afterSeq, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('afterSeq', afterSeq, 'form', true, false, null),
       QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
@@ -288,7 +288,7 @@ class ChatApi {
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.imPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ConversationsMessagesListResponse.fromJson(map);
+      return map == null ? null : ConversationMessageListResponse.fromJson(map);
     })();
   }
 
@@ -341,8 +341,9 @@ class ChatApi {
   }
 
   /// Recall a message
-  Future<MessagesRecallResponse?> messagesRecall(String messageId) async {
-    final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/recall'));
+  Future<MessagesRecallResponse?> messagesRecall(String messageId, RecallMessageRequest body) async {
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.imPath('/chat/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}/recall'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : MessagesRecallResponse.fromJson(map);

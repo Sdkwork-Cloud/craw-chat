@@ -40,7 +40,11 @@ Reads the public tenant-portal home snapshot used for the landing experience.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `503` | `*_unavailable` | The portal snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -72,7 +76,11 @@ Reads the public portal access snapshot. Login, token refresh, tenant, user, and
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `503` | `*_unavailable` | The portal snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -119,9 +127,11 @@ Reads the current authenticated tenant workspace summary used by the portal shel
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the workspace summary. |
-| `503` | `*_unavailable` | The workspace snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -153,9 +163,11 @@ Reads the authenticated dashboard snapshot for tenant operations.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the dashboard snapshot. |
-| `503` | `*_unavailable` | The dashboard snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -187,9 +199,11 @@ Reads the portal conversations module snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the conversations snapshot. |
-| `503` | `*_unavailable` | The conversations snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -221,9 +235,11 @@ Reads the portal realtime posture snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the realtime snapshot. |
-| `503` | `*_unavailable` | The realtime snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -255,9 +271,11 @@ Reads the portal media and RTC snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the media snapshot. |
-| `503` | `*_unavailable` | The media snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -289,9 +307,11 @@ Reads the portal automation and notification posture snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the automation snapshot. |
-| `503` | `*_unavailable` | The automation snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 
@@ -323,8 +343,10 @@ Reads the portal governance and compliance snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `portal_access_denied`, `permission_denied` | The principal cannot access the governance snapshot. |
-| `503` | `*_unavailable` | The governance snapshot source is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

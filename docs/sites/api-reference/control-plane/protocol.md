@@ -66,10 +66,12 @@ Returns the active protocol registry snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
 <a id="get-protocol_governance"></a>
@@ -101,9 +103,11 @@ Returns the effective control-plane governance snapshot.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

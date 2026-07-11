@@ -8,7 +8,6 @@ public class BindDirectChatRequest {
     private String leftActorKind;
     private String rightActorId;
     private String rightActorKind;
-    private String targetUserId;
 
     public String getConversationId() {
         return this.conversationId;
@@ -56,13 +55,5 @@ public class BindDirectChatRequest {
 
     public void setRightActorKind(String rightActorKind) {
         this.rightActorKind = rightActorKind;
-    }
-
-    public String getTargetUserId() {
-        return this.targetUserId;
-    }
-
-    public void setTargetUserId(String targetUserId) {
-        this.targetUserId = targetUserId;
     }
 }

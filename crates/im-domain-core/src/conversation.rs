@@ -1,4 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
+use std::ops::Bound;
 
 use serde::{Deserialize, Serialize};
 
@@ -331,7 +332,29 @@ pub struct ConversationRoster {
     members: BTreeMap<String, ConversationMember>,
     principal_members: HashMap<String, String>,
     read_cursors: BTreeMap<String, ConversationReadCursor>,
-    active_member_ids: BTreeSet<String>,
+    active_members_by_principal: BTreeMap<ConversationMemberSortKey, String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ConversationMemberSortKey {
+    principal_kind: String,
+    principal_id: String,
+}
+
+impl ConversationMemberSortKey {
+    fn from_member(member: &ConversationMember) -> Self {
+        Self {
+            principal_kind: member.principal_kind.clone(),
+            principal_id: member.principal_id.clone(),
+        }
+    }
+
+    fn new(principal_kind: &str, principal_id: &str) -> Self {
+        Self {
+            principal_kind: principal_kind.to_owned(),
+            principal_id: principal_id.to_owned(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -359,14 +382,71 @@ impl ConversationRoster {
     }
 
     pub fn active_principal_count(&self) -> usize {
-        self.principal_members
-            .values()
-            .filter(|member_id| {
-                self.members
-                    .get(member_id.as_str())
-                    .is_some_and(ConversationMember::is_active)
-            })
-            .count()
+        self.active_members_by_principal.len()
+    }
+
+    pub fn estimated_heap_bytes(&self) -> usize {
+        const MEMBER_INDEX_OVERHEAD_BYTES: usize = 256;
+        const READ_CURSOR_INDEX_OVERHEAD_BYTES: usize = 192;
+        let member_bytes = self.members.values().fold(0usize, |total, member| {
+            total
+                .saturating_add(member.tenant_id.len())
+                .saturating_add(member.conversation_id.len())
+                .saturating_add(member.member_id.len())
+                .saturating_add(member.principal_id.len())
+                .saturating_add(member.principal_kind.len())
+                .saturating_add(
+                    member
+                        .invited_by
+                        .as_deref()
+                        .map(str::len)
+                        .unwrap_or_default(),
+                )
+                .saturating_add(member.joined_at.len())
+                .saturating_add(
+                    member
+                        .removed_at
+                        .as_deref()
+                        .map(str::len)
+                        .unwrap_or_default(),
+                )
+                .saturating_add(member.attributes.iter().fold(
+                    0usize,
+                    |attributes, (key, value)| {
+                        attributes
+                            .saturating_add(key.len())
+                            .saturating_add(value.len())
+                    },
+                ))
+                .saturating_add(MEMBER_INDEX_OVERHEAD_BYTES)
+        });
+        let read_cursor_bytes = self.read_cursors.values().fold(0usize, |total, cursor| {
+            total
+                .saturating_add(cursor.tenant_id.len())
+                .saturating_add(cursor.conversation_id.len())
+                .saturating_add(cursor.member_id.len())
+                .saturating_add(cursor.principal_id.len())
+                .saturating_add(cursor.principal_kind.len())
+                .saturating_add(
+                    cursor
+                        .device_id
+                        .as_deref()
+                        .map(str::len)
+                        .unwrap_or_default(),
+                )
+                .saturating_add(
+                    cursor
+                        .last_read_message_id
+                        .as_deref()
+                        .map(str::len)
+                        .unwrap_or_default(),
+                )
+                .saturating_add(cursor.updated_at.len())
+                .saturating_add(READ_CURSOR_INDEX_OVERHEAD_BYTES)
+        });
+        std::mem::size_of::<Self>()
+            .saturating_add(member_bytes)
+            .saturating_add(read_cursor_bytes)
     }
 
     /// Lists active members using the maintained active-member index without scanning inactive rows.
@@ -391,7 +471,7 @@ impl ConversationRoster {
         let mut items = Vec::with_capacity(limit.saturating_add(1));
         let mut has_more = false;
 
-        for member_id in &self.active_member_ids {
+        for member_id in self.active_members_by_principal.values() {
             let Some(member) = self.members.get(member_id.as_str()) else {
                 continue;
             };
@@ -429,6 +509,45 @@ impl ConversationRoster {
         }
     }
 
+    /// Lists active members after a stable `(principal_kind, principal_id)` keyset.
+    pub fn list_active_members_after(
+        &self,
+        cursor: Option<(&str, &str)>,
+        limit: usize,
+    ) -> ConversationMemberListWindow {
+        let limit = limit.max(1);
+        let start = cursor
+            .map(|(principal_kind, principal_id)| {
+                Bound::Excluded(ConversationMemberSortKey::new(principal_kind, principal_id))
+            })
+            .unwrap_or(Bound::Unbounded);
+        let mut items = Vec::with_capacity(limit.saturating_add(1));
+        for (_, member_id) in self
+            .active_members_by_principal
+            .range((start, Bound::Unbounded))
+        {
+            let Some(member) = self.members.get(member_id.as_str()) else {
+                continue;
+            };
+            if !member.is_active() {
+                continue;
+            }
+            items.push(member.clone());
+            if items.len() > limit {
+                break;
+            }
+        }
+        let has_more = items.len() > limit;
+        if has_more {
+            items.truncate(limit);
+        }
+        ConversationMemberListWindow {
+            items,
+            next_offset: None,
+            has_more,
+        }
+    }
+
     pub fn upsert_member(&mut self, member: ConversationMember) {
         self.principal_members.insert(
             principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str()),
@@ -443,15 +562,20 @@ impl ConversationRoster {
             principal_member_key(member.principal_id.as_str(), member.principal_kind.as_str())
                 .as_str(),
         );
-        self.active_member_ids.remove(member.member_id.as_str());
+        self.active_members_by_principal
+            .remove(&ConversationMemberSortKey::from_member(&member));
         self.members.insert(member.member_id.clone(), member);
     }
 
     fn sync_active_member_index(&mut self, member: &ConversationMember) {
         if member.is_active() {
-            self.active_member_ids.insert(member.member_id.clone());
+            self.active_members_by_principal.insert(
+                ConversationMemberSortKey::from_member(member),
+                member.member_id.clone(),
+            );
         } else {
-            self.active_member_ids.remove(member.member_id.as_str());
+            self.active_members_by_principal
+                .remove(&ConversationMemberSortKey::from_member(member));
         }
     }
 

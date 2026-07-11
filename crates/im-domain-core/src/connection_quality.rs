@@ -11,7 +11,7 @@
 //!
 //! ## Architecture
 //!
-//! ```
+//! ```text
 //! Client                          Server
 //!   |                               |
 //!   |------ Heartbeat ------------>|  (adaptive interval)
@@ -713,7 +713,7 @@ mod tests {
         // 4 timeouts (i=0,3,6,9), 6 successes (i=1,2,4,5,7,8)
         let success_count = metrics.total_successes.load(Ordering::Relaxed);
         assert!(
-            success_count >= 5 && success_count <= 7,
+            (5..=7).contains(&success_count),
             "expected ~6 successes ±1 (race), got {success_count}"
         );
     }

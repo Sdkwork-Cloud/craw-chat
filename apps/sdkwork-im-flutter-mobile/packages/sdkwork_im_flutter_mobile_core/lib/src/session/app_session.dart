@@ -13,6 +13,13 @@ class ImAppSession {
   final String organizationId;
   final String userId;
 
+  bool get isComplete =>
+      accessToken.isNotEmpty &&
+      authToken.isNotEmpty &&
+      tenantId.isNotEmpty &&
+      organizationId.isNotEmpty &&
+      userId.isNotEmpty;
+
   Map<String, dynamic> toJson() => {
         'accessToken': accessToken,
         'authToken': authToken,
@@ -23,29 +30,23 @@ class ImAppSession {
 
   factory ImAppSession.fromJson(Map<String, dynamic> json) {
     final accessToken = json['accessToken']?.toString().trim() ?? '';
-    final authToken = json['authToken']?.toString().trim() ?? accessToken;
+    final authToken = json['authToken']?.toString().trim() ?? '';
     return ImAppSession(
       accessToken: accessToken,
       authToken: authToken,
-      tenantId: json['tenantId']?.toString().trim().isNotEmpty == true
-          ? json['tenantId'].toString().trim()
-          : defaultAppSession.tenantId,
-      organizationId: json['organizationId']?.toString().trim().isNotEmpty == true
-          ? json['organizationId'].toString().trim()
-          : defaultAppSession.organizationId,
-      userId: json['userId']?.toString().trim().isNotEmpty == true
-          ? json['userId'].toString().trim()
-          : defaultAppSession.userId,
+      tenantId: json['tenantId']?.toString().trim() ?? '',
+      organizationId: json['organizationId']?.toString().trim() ?? '',
+      userId: json['userId']?.toString().trim() ?? '',
     );
   }
 }
 
 const defaultAppSession = ImAppSession(
-  accessToken: 'dev-access-token',
-  authToken: 'dev-auth-token',
-  tenantId: '100001',
-  organizationId: '0',
-  userId: 'user',
+  accessToken: '',
+  authToken: '',
+  tenantId: '',
+  organizationId: '',
+  userId: '',
 );
 
 const imFlutterMobileSessionStorageKey = 'sdkwork-im-flutter-mobile:session:v1';

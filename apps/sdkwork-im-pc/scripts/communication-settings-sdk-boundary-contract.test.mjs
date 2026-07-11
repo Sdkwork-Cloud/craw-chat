@@ -37,8 +37,13 @@ assert.match(
 );
 assert.match(
   groupServiceSource,
-  /\.chat\.inbox\.retrieve\s*\(/u,
-  'Console communication group service must list conversation-backed groups through IM SDK inbox retrieval.',
+  /\.chat\.inbox\.list\s*\(/u,
+  'Console communication group service must list conversation-backed groups through IM SDK inbox pagination.',
+);
+assert.match(
+  groupServiceSource,
+  /\.chat\.inbox\.list\s*\(\s*\{[\s\S]*conversationType:\s*['"]group['"]/u,
+  'Console communication group service must request server-side group filtering instead of paging the mixed inbox then filtering locally.',
 );
 
 for (const [label, source] of [

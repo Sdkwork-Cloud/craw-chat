@@ -16,7 +16,7 @@
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/messages/{messageId}/recall</code>
-  <span class="api-op-id">operationId: recallMessage</span>
+  <span class="api-op-id">operationId: messages.recall</span>
 </div>
 
 Recalls a message. This operation does not require a JSON request body.
@@ -26,7 +26,7 @@ Recalls a message. This operation does not require a JSON request body.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 MessageMutationResult` in `data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -56,4 +56,3 @@ None. This operation does not accept a JSON request body.
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
 
 </section>
-

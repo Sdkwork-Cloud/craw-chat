@@ -19,8 +19,8 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 ## Contract Manifest
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- Split mode defaults Appbase, Drive, and Notary foundation upstreams to the shared
-  `sdkwork-api-cloud-gateway` root. Direct dependency module URLs are explicit split-deployment
+- Shared-gateway mode defaults Appbase, Drive, and Notary foundation upstreams to the shared
+  `sdkwork-api-cloud-gateway` root. Direct dependency module URLs are explicit external upstream
   overrides through the config keys listed in the component manifest.
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.

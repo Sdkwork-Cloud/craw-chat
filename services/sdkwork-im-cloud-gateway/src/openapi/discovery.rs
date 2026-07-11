@@ -320,7 +320,7 @@ pub(crate) fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewayRuntimeMode".to_owned(),
         json!({
             "type": "string",
-            "enum": ["split", "unified"]
+            "enum": ["singleIngress"]
         }),
     );
     schemas.insert(

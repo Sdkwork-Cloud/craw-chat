@@ -110,7 +110,8 @@ Copy-Item .env.postgres.example .env.postgres
 标准字段：
 
 ```env
-SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DEPLOYMENT_PROFILE=standalone
+SDKWORK_IM_RUNTIME_TARGET=server
 SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=127.0.0.1
 SDKWORK_IM_DATABASE_PORT=5432
@@ -253,4 +254,3 @@ schema:
 - 线上环境使用 `/etc/sdkwork/chat/database.secret` 或平台密钥管理系统。
 - Server 与 container 默认 PostgreSQL。
 - Desktop 默认使用浏览器本地存储(IndexedDB / localStorage),除非用户显式配置外部 PostgreSQL 数据库。
-

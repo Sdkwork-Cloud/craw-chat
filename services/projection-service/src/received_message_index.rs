@@ -132,6 +132,8 @@ mod tests {
             occurred_at: "2026-04-05T10:00:01Z".into(),
             committed_at: Some("2026-04-05T10:00:01Z".into()),
             retention_until: None,
+            reaction_counts: Vec::new(),
+            pin: None,
         }
     }
 

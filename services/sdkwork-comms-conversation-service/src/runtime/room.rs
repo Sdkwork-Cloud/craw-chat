@@ -4,6 +4,7 @@ use im_domain_core::room::{
     is_room_business_type, room_kind_from_business_type,
 };
 
+use super::support::resolve_room_create_conversation_id;
 use super::*;
 
 fn room_create_request_key(
@@ -45,7 +46,7 @@ where
 
     pub fn create_room_with_creator_kind(
         &self,
-        command: CreateRoomCommand,
+        mut command: CreateRoomCommand,
         creator_kind: &str,
     ) -> Result<CreateConversationResult, RuntimeError> {
         validate_payload_size(
@@ -83,11 +84,15 @@ where
                 "room create requires room_id".into(),
             ));
         }
-        if command.conversation_id.trim().is_empty() {
-            return Err(RuntimeError::InvalidInput(
-                "room create requires conversation_id".into(),
-            ));
-        }
+        command.conversation_id = resolve_room_create_conversation_id(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            creator_kind,
+            command.creator_id.as_str(),
+            command.room_id.as_str(),
+            room_kind.as_wire_value(),
+            command.conversation_id.as_str(),
+        )?;
 
         let request_key = room_create_request_key(
             command.tenant_id.as_str(),
@@ -246,7 +251,7 @@ where
             command.creator_id.as_str(),
             creator_kind,
         ))?;
-        state.conversations.insert(scope_key, conversation);
+        state.insert_conversation(scope_key, conversation);
         state
             .business_index
             .insert(business_scope_key, command.conversation_id.clone());
@@ -385,6 +390,12 @@ where
             member
         };
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            conversation_id.as_str(),
+        );
+
         Ok(member)
     }
 
@@ -431,6 +442,7 @@ where
         validate_payload_size("roomId", room_id, CONVERSATION_MAX_ID_BYTES)?;
         let conversation_id =
             self.resolve_room_conversation_id(tenant_id, organization_id, room_id)?;
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id.as_str())?;
         let scope_key =
             conversation_scope_key(tenant_id, organization_id, conversation_id.as_str());
         let state = read_runtime_state(&self.state, "conversation-runtime.state.room.view");
@@ -519,7 +531,7 @@ mod tests {
                 CreateRoomCommand {
                     tenant_id: "100001".into(),
                     organization_id: "org_a".into(),
-                    conversation_id: "c_game_room".into(),
+                    conversation_id: String::new(),
                     room_id: "room_game_001".into(),
                     room_kind: "game".into(),
                     creator_id: "1".into(),
@@ -527,7 +539,7 @@ mod tests {
                 "user",
             )
             .expect("game room create should succeed");
-        assert_eq!(created.conversation_id, "c_game_room");
+        assert!(created.conversation_id.starts_with("r_"));
 
         let view = runtime
             .room_view("100001", "org_a", "room_game_001")

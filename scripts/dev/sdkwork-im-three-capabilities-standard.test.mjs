@@ -180,6 +180,16 @@ assert.match(
   'ChatService must flush desktop pending send queue on realtime reconnect',
 );
 assert.match(
+  chatServiceText,
+  /runDesktopPendingSendFlush/u,
+  'ChatService pending send flush must claim queued sends before posting to avoid duplicate sends across reconnects or windows',
+);
+assert.match(
+  chatServiceText,
+  /releaseDesktopPendingSendClaim/u,
+  'ChatService pending send flush must release claimed sends when retryable failures keep them queued',
+);
+assert.match(
   offlineStoreText,
   /offline_pending_sends/u,
   'Tauri offline store must persist pending outbound sends',

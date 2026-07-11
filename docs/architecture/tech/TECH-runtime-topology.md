@@ -3,7 +3,7 @@
 
 # Runtime Topology
 
-Sdkwork IM uses topology v2 connectivity planes. See `specs/topology.spec.json` and
+Sdkwork IM uses topology v4 connectivity planes. See `specs/topology.spec.json` and
 `docs/topology-greenfield.md`.
 
 ## Development default
@@ -20,7 +20,7 @@ PC / Web Client
 
 Commands:
 
-- `pnpm dev` — `standalone.unified-process.development`
+- `pnpm dev` — `standalone.development`
 - `pnpm dev:browser` — browser development target
 - `pnpm dev:desktop` — desktop development target
 - `pnpm dev:server` — server-only dev stack
@@ -32,13 +32,13 @@ Commands:
 | IM application | `im.sdkwork.com` |
 | Platform gateway | `api.sdkwork.com` |
 
-## Split internal upstreams
+## Internal upstreams
 
-When `serviceLayout=split-services`, `sdkwork-im-server` proxies to internal services declared in
-`specs/topology.spec.json` → `internalUpstreams.split-services`.
+Cloud and server-only profiles may proxy to internal services declared in
+`specs/topology.spec.json` under `internalUpstreams`. Public profile ids do not encode process
+layout.
 
 ## Retired
 
-Pre-topology-v2 minimal-node/minimal/default profile ids are removed. Do not use legacy per-profile
+Pre-topology-v4 minimal-node/minimal/default profile ids are removed. Do not use legacy per-profile
 runtime config trees under `.runtime/` or retired env templates under `deployments/templates/`.
-

@@ -62,6 +62,7 @@ function operation({
   tag,
   operationId,
   summary,
+  description,
   parameters = [],
   request,
   response = 'AckResponse',
@@ -72,6 +73,7 @@ function operation({
     tags: [tag],
     operationId,
     summary,
+    ...(description ? { description } : {}),
     ...(parameters.length > 0 ? { parameters } : {}),
     ...(request
       ? {
@@ -111,7 +113,10 @@ const pathParameters = {
 };
 
 const queryParameters = {
-  AfterSeqQuery: parameter('afterSeq', 'query', sequenceSchema(), { required: false }),
+  ConversationTypeQuery: parameter('conversation_type', 'query', stringSchema(), {
+    description: 'Optional conversation type filter applied by the inbox projection before pagination.',
+    required: false,
+  }),
   CursorQuery: parameter('cursor', 'query', stringSchema(), { required: false }),
   DirectionQuery: parameter('direction', 'query', stringSchema({ enum: ['incoming', 'outgoing'] }), { required: false }),
   FavoriteTypeQuery: parameter('favoriteType', 'query', { $ref: '#/components/schemas/MessageFavoriteType' }, { required: false }),
@@ -327,7 +332,7 @@ const schemas = {
     summary: nullable(stringSchema()),
     metadata: mapSchema(),
   }, ['parts']),
-  TimelineViewEntry: objectSchema({
+  ConversationMessageEntry: objectSchema({
     tenantId: stringSchema(),
     conversationId: stringSchema(),
     messageId: stringSchema(),
@@ -343,11 +348,18 @@ const schemas = {
     occurredAt: stringSchema({ format: 'date-time' }),
     committedAt: nullable(stringSchema({ format: 'date-time' })),
   }, ['tenantId', 'conversationId', 'messageId', 'messageSeq', 'sender', 'body', 'messageType', 'deliveryMode', 'occurredAt']),
-  TimelineResponse: objectSchema({
-    items: arrayOf(ref('TimelineViewEntry')),
-    nextAfterSeq: nullable(sequenceSchema()),
-    hasMore: boolSchema(),
-  }, ['items', 'hasMore']),
+  ConversationMessageListResponse: {
+    allOf: [
+      ref('SdkWorkApiResponse'),
+      objectSchema({
+        data: objectSchema({
+          items: arrayOf(ref('ConversationMessageEntry')),
+          pageInfo: ref('PageInfo'),
+          highWatermark: sequenceSchema(),
+        }, ['items', 'pageInfo', 'highWatermark']),
+      }, ['data']),
+    ],
+  },
   PostMessageRequest: objectSchema({
     text: nullable(stringSchema()),
     parts: arrayOf(ref('ContentPart')),
@@ -360,14 +372,27 @@ const schemas = {
     text: nullable(stringSchema()),
     parts: arrayOf(ref('ContentPart')),
     replyTo: nullable(ref('MessageReplyReference')),
+    summary: nullable(stringSchema()),
+    renderHints: mapSchema(),
+    idempotencyKey: nullable(stringSchema()),
   }),
-  PostedMessageResponse: objectSchema({
+  RecallMessageRequest: objectSchema({
+    idempotencyKey: nullable(stringSchema()),
+  }),
+  PostMessageResult: objectSchema({
+    messageId: stringSchema(),
+    messageSeq: sequenceSchema(),
+    eventId: stringSchema(),
+    requestKey: stringSchema(),
+    deliveryStatus: stringSchema({ enum: ['applied', 'replayed'] }),
+    proofVersion: stringSchema(),
+  }, ['messageId', 'messageSeq', 'eventId', 'deliveryStatus']),
+  MessageMutationResult: objectSchema({
     conversationId: stringSchema(),
     messageId: stringSchema(),
     messageSeq: sequenceSchema(),
-    body: ref('MessageBody'),
-    occurredAt: stringSchema({ format: 'date-time' }),
-  }, ['conversationId', 'messageId', 'messageSeq', 'body', 'occurredAt']),
+    eventId: stringSchema(),
+  }, ['conversationId', 'messageId', 'messageSeq', 'eventId']),
   MessageReactionRequest: objectSchema({
     reactionKey: stringSchema({ maxLength: 32 }),
   }, ['reactionKey']),
@@ -515,7 +540,7 @@ const schemas = {
     lastMessageAt: nullable(stringSchema({ format: 'date-time' })),
     unreadCount: int32Schema({ minimum: 0 }),
   }, ['tenantId', 'conversationId', 'conversationType', 'lastActivityAt', 'messageCount', 'lastMessageSeq', 'unreadCount']),
-  InboxResponse: objectSchema({
+  ConversationInboxPage: objectSchema({
     items: arrayOf(ref('ConversationInboxEntry')),
     nextCursor: nullable(stringSchema()),
     hasMore: boolSchema(),
@@ -740,25 +765,42 @@ const schemas = {
   }, ['friendship']),
   CreateConversationRequest: objectSchema({
     conversationId: nullable(stringSchema()),
-    conversationType: nullable(stringSchema()),
-    kind: nullable(stringSchema()),
-    title: nullable(stringSchema()),
-    memberIds: arrayOf(stringSchema()),
-  }),
+    conversationType: stringSchema(),
+    groupName: nullable(stringSchema({ maxLength: 256 })),
+    clientRequestKey: nullable(stringSchema({ maxLength: 256 })),
+    policyVersion: nullable(stringSchema()),
+    capabilityFlags: nullable(arrayOf(stringSchema())),
+    historyVisibility: nullable(stringSchema()),
+    retentionPolicyRef: nullable(stringSchema()),
+  }, ['conversationType']),
   CreateAgentDialogRequest: objectSchema({
     agentId: stringSchema(),
     conversationId: nullable(stringSchema()),
-    title: nullable(stringSchema()),
   }, ['agentId']),
+  CreateAgentHandoffRequest: objectSchema({
+    conversationId: stringSchema(),
+    targetId: stringSchema(),
+    targetKind: stringSchema(),
+    handoffSessionId: stringSchema(),
+    handoffReason: nullable(stringSchema()),
+  }, ['conversationId', 'targetId', 'targetKind', 'handoffSessionId']),
+  CreateSystemChannelRequest: objectSchema({
+    conversationId: stringSchema(),
+    subscriberId: stringSchema(),
+  }, ['conversationId', 'subscriberId']),
+  CreateThreadConversationRequest: objectSchema({
+    conversationId: stringSchema(),
+    parentConversationId: stringSchema(),
+    rootMessageId: stringSchema(),
+  }, ['conversationId', 'parentConversationId', 'rootMessageId']),
   BindDirectChatRequest: objectSchema({
     conversationId: nullable(stringSchema()),
     directChatId: nullable(stringSchema()),
-    leftActorId: nullable(stringSchema()),
-    leftActorKind: nullable(stringSchema()),
-    rightActorId: nullable(stringSchema()),
-    rightActorKind: nullable(stringSchema()),
-    targetUserId: stringSchema(),
-  }),
+    leftActorId: stringSchema(),
+    leftActorKind: stringSchema(),
+    rightActorId: stringSchema(),
+    rightActorKind: stringSchema(),
+  }, ['leftActorId', 'leftActorKind', 'rightActorId', 'rightActorKind']),
   CreateConversationResult: objectSchema({
     tenantId: stringSchema(),
     conversationId: stringSchema(),
@@ -962,7 +1004,7 @@ const paths = Object.fromEntries([
     get: operation({ tag: 'chat', operationId: 'contacts.list', summary: 'List IM contacts', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'ContactsResponse' }),
   }),
   pathItem('/chat/inbox', {
-    get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery')], response: 'InboxResponse' }),
+    get: operation({ tag: 'chat', operationId: 'inbox.list', summary: 'List current inbox window', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('ConversationTypeQuery')], response: 'ConversationInboxPage' }),
   }),
   pathItem('/chat/conversations', {
     post: operation({ tag: 'chat', operationId: 'conversations.create', summary: 'Create a conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
@@ -971,13 +1013,13 @@ const paths = Object.fromEntries([
     post: operation({ tag: 'chat', operationId: 'conversations.agentDialogs.create', summary: 'Create an agent dialog', request: 'CreateAgentDialogRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/agent_handoffs', {
-    post: operation({ tag: 'chat', operationId: 'conversations.agentHandoffs.create', summary: 'Create an agent handoff', request: 'CreateAgentDialogRequest', response: 'AckResponse', successStatus: '201' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.agentHandoffs.create', summary: 'Create an agent handoff', request: 'CreateAgentHandoffRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/system_channels', {
-    post: operation({ tag: 'chat', operationId: 'conversations.systemChannels.create', summary: 'Create a system channel', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.systemChannels.create', summary: 'Create a system channel', request: 'CreateSystemChannelRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/threads', {
-    post: operation({ tag: 'chat', operationId: 'conversations.threads.create', summary: 'Create a thread conversation', request: 'CreateConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.threads.create', summary: 'Create a thread conversation', request: 'CreateThreadConversationRequest', response: 'CreateConversationResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/direct_chats/bindings', {
     post: operation({ tag: 'chat', operationId: 'conversations.directChats.bindings.create', summary: 'Create a direct chat conversation binding', request: 'BindDirectChatRequest', response: 'CreateConversationResult', successStatus: '201' }),
@@ -1051,12 +1093,19 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/conversations/{conversationId}/messages', {
     parameters: [p('ConversationIdPath')],
-    get: operation({ tag: 'chat', operationId: 'conversations.messages.list', summary: 'List conversation message timeline', parameters: [p('ConversationIdPath'), p('AfterSeqQuery'), p('PageSizeQuery')], response: 'TimelineResponse' }),
-    post: operation({ tag: 'chat', operationId: 'conversations.messages.create', summary: 'Post a conversation message', parameters: [p('ConversationIdPath')], request: 'PostMessageRequest', response: 'PostedMessageResponse', successStatus: '201' }),
+    get: operation({
+      tag: 'chat',
+      operationId: 'conversations.messages.list',
+      summary: 'List conversation message history',
+      description: 'Returns the latest message page when cursor is omitted. Subsequent requests pass the opaque server-issued cursor to continue toward older messages. Items in each page are returned in chronological messageSeq order. The cursor is bound to the authenticated tenant, organization, and conversation and must not be parsed or constructed by clients.',
+      parameters: [p('ConversationIdPath'), p('CursorQuery'), p('PageSizeQuery')],
+      response: 'ConversationMessageListResponse',
+    }),
+    post: operation({ tag: 'chat', operationId: 'conversations.messages.create', summary: 'Post a conversation message', parameters: [p('ConversationIdPath')], request: 'PostMessageRequest', response: 'PostMessageResult', successStatus: '201' }),
   }),
   pathItem('/chat/conversations/{conversationId}/system_channel/publish', {
     parameters: [p('ConversationIdPath')],
-    post: operation({ tag: 'chat', operationId: 'conversations.systemChannel.publish', summary: 'Publish a system channel message', parameters: [p('ConversationIdPath')], request: 'PostMessageRequest', response: 'PostedMessageResponse' }),
+    post: operation({ tag: 'chat', operationId: 'conversations.systemChannel.publish', summary: 'Publish a system channel message', parameters: [p('ConversationIdPath')], request: 'PostMessageRequest', response: 'PostMessageResult' }),
   }),
   pathItem('/chat/conversations/{conversationId}/pins', {
     parameters: [p('ConversationIdPath')],
@@ -1068,11 +1117,11 @@ const paths = Object.fromEntries([
   }),
   pathItem('/chat/messages/{messageId}/edit', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.edit', summary: 'Edit a message', parameters: [p('MessageIdPath')], request: 'EditMessageRequest', response: 'PostedMessageResponse' }),
+    post: operation({ tag: 'chat', operationId: 'messages.edit', summary: 'Edit a message', parameters: [p('MessageIdPath')], request: 'EditMessageRequest', response: 'MessageMutationResult' }),
   }),
   pathItem('/chat/messages/{messageId}/recall', {
     parameters: [p('MessageIdPath')],
-    post: operation({ tag: 'chat', operationId: 'messages.recall', summary: 'Recall a message', parameters: [p('MessageIdPath')], response: 'PostedMessageResponse' }),
+    post: operation({ tag: 'chat', operationId: 'messages.recall', summary: 'Recall a message', parameters: [p('MessageIdPath')], request: 'RecallMessageRequest', response: 'MessageMutationResult' }),
   }),
   pathItem('/chat/messages/favorites', {
     get: operation({ tag: 'chat', operationId: 'messages.favorites.list', summary: 'List message favorites', parameters: [p('PageSizeQuery'), p('CursorQuery'), p('FavoriteTypeQuery'), p('QQuery')], response: 'FavoriteMessagesResponse' }),
@@ -1169,6 +1218,7 @@ const document = {
 
 applySdkworkV3OpenApiStandard(document);
 const yaml = await loadGeneratorYaml(workspaceRoot);
+const serialized = yaml.dump(document, { noRefs: true, sortKeys: false, lineWidth: 120 });
 mkdirSync(path.dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, yaml.dump(document, { noRefs: true, sortKeys: false, lineWidth: 120 }), 'utf8');
+writeFileSync(outputPath, serialized, 'utf8');
 console.log(`[sdkwork-im-sdk] materialized ${path.relative(workspaceRoot, outputPath).replaceAll('\\', '/')}`);

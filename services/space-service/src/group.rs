@@ -167,6 +167,7 @@ pub async fn create_group(
                     tenant_id: auth.tenant_id.clone(),
                     organization_id: auth.organization_id.clone(),
                     conversation_id: conversation_id.clone(),
+                    group_name: record.group_name.clone(),
                     creator_user_id: auth.actor_id.clone(),
                     max_members,
                 })

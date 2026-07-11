@@ -1,27 +1,33 @@
 import type {
   CreateConversationResult,
-  CreateRoomRequest,
   EnterRoomResponse,
   RoomView,
-} from '@sdkwork/im-sdk-generated';
-import type { ImTransportClientLike } from './transport-client-like';
+} from '../generated/server-openapi/dist/index.js';
+import { requireStringIdentifier } from './identifier-boundary';
+import type { ImCreateRoomRequest, ImTransportClientLike } from './transport-client-like';
 
 export class ImRoomsModule {
   constructor(private readonly transportClient: ImTransportClientLike) {}
 
-  create(body: CreateRoomRequest): Promise<CreateConversationResult> {
+  create(body: ImCreateRoomRequest): Promise<CreateConversationResult> {
     return this.transportClient.chat.rooms.create(body);
   }
 
-  get(roomId: string | number): Promise<RoomView> {
-    return this.transportClient.chat.rooms.retrieve(roomId);
+  get(roomId: string): Promise<RoomView> {
+    return this.transportClient.chat.rooms.retrieve(
+      requireStringIdentifier(roomId, 'roomId'),
+    );
   }
 
-  enter(roomId: string | number): Promise<EnterRoomResponse> {
-    return this.transportClient.chat.rooms.enter(roomId);
+  enter(roomId: string): Promise<EnterRoomResponse> {
+    return this.transportClient.chat.rooms.enter(
+      requireStringIdentifier(roomId, 'roomId'),
+    );
   }
 
-  leave(roomId: string | number): Promise<EnterRoomResponse> {
-    return this.transportClient.chat.rooms.leave(roomId);
+  leave(roomId: string): Promise<EnterRoomResponse> {
+    return this.transportClient.chat.rooms.leave(
+      requireStringIdentifier(roomId, 'roomId'),
+    );
   }
 }

@@ -33,6 +33,39 @@ enum StartupMode {
 struct EmbeddedStartup {
     runtime: web_gateway::EmbeddedSessionGatewayRuntime,
     retention_scheduler: Option<im_adapters_postgres_journal::RetentionPurgeSchedulerHandle>,
+    realtime_relays: EmbeddedRealtimeRelayHandles,
+    _application_assembly: sdkwork_im_gateway_assembly::ApplicationAssembly,
+}
+
+#[derive(Default)]
+struct EmbeddedRealtimeRelayHandles {
+    rtc: Option<sdkwork_im_gateway_assembly::RtcOutboxRelayHandle>,
+    conversation: Option<sdkwork_im_gateway_assembly::ConversationOutboxRelayHandle>,
+    social: Option<sdkwork_im_gateway_assembly::SocialOutboxRelayHandle>,
+}
+
+impl EmbeddedRealtimeRelayHandles {
+    fn shutdown(self) {
+        if let Some(handle) = self.rtc {
+            handle.shutdown();
+        }
+        if let Some(handle) = self.conversation {
+            handle.shutdown();
+        }
+        if let Some(handle) = self.social {
+            handle.shutdown();
+        }
+    }
+}
+
+impl EmbeddedStartup {
+    async fn shutdown(self) {
+        if let Some(handle) = self.retention_scheduler {
+            handle.shutdown();
+        }
+        self.realtime_relays.shutdown();
+        self.runtime.shutdown().await;
+    }
 }
 
 async fn run() -> Result<(), String> {
@@ -47,10 +80,15 @@ async fn run() -> Result<(), String> {
     })?;
     let base_url = format!("http://{}", display_listener_addr(local_addr));
     let registry = web_gateway::build_gateway_registry()?;
-    let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
     sdkwork_im_service_readiness::bootstrap_im_service_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IM process database pools: {error}"))?;
+    let embedded_application = sdkwork_im_gateway_assembly::assemble_application_router().await;
+    let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
+    let runtime_fallback_router = embedded_application
+        .router
+        .clone()
+        .merge(product_runtime_router);
     let mut embedded_runtime = if should_embed_session_gateway(&config) {
         sdkwork_iam_database_host::bootstrap_iam_database_from_env()
             .await
@@ -72,13 +110,25 @@ async fn run() -> Result<(), String> {
         EmbeddedStartup {
             runtime: embedded,
             retention_scheduler,
+            realtime_relays: EmbeddedRealtimeRelayHandles::default(),
+            _application_assembly: embedded_application,
         }
     } else {
         EmbeddedStartup {
             runtime: web_gateway::EmbeddedSessionGatewayRuntime::empty(),
             retention_scheduler: None,
+            realtime_relays: EmbeddedRealtimeRelayHandles::default(),
+            _application_assembly: embedded_application,
         }
     };
+    if let Some(session_state) = embedded_runtime
+        .runtime
+        .embedded_realtime_app_state
+        .as_ref()
+    {
+        embedded_runtime.realtime_relays =
+            wire_embedded_realtime_plane(session_state, &embedded_runtime._application_assembly);
+    }
     let session_router = embedded_runtime.runtime.session_router.take();
     let embedded_realtime_app_state = embedded_runtime.runtime.embedded_realtime_app_state.take();
     println!(
@@ -95,7 +145,7 @@ async fn run() -> Result<(), String> {
         web_gateway::build_app_with_registry_product_runtime_and_embedded_services_from_env(
             config,
             registry,
-            Some(product_runtime_router),
+            Some(runtime_fallback_router),
             session_router,
             embedded_realtime_app_state,
         )
@@ -104,14 +154,31 @@ async fn run() -> Result<(), String> {
     )
     .with_graceful_shutdown(async move {
         sdkwork_im_service_readiness::shutdown_signal().await;
-        if let Some(handle) = embedded_runtime.retention_scheduler {
-            handle.shutdown();
-        }
-        embedded_runtime.runtime.shutdown().await;
+        embedded_runtime.shutdown().await;
     })
     .await
     .map_err(|error| format!("sdkwork-im-cloud-gateway server should run: {error}"))?;
     Ok(())
+}
+
+fn wire_embedded_realtime_plane(
+    session_state: &session_gateway::AppState,
+    application_assembly: &sdkwork_im_gateway_assembly::ApplicationAssembly,
+) -> EmbeddedRealtimeRelayHandles {
+    let realtime_runtime = session_state.realtime_runtime();
+    conversation_runtime::register_embedded_realtime_publisher(realtime_runtime.clone());
+    sdkwork_im_gateway_assembly::wire_social_runtime_embedded_plane(
+        &application_assembly.social_runtime,
+        realtime_runtime.clone(),
+        conversation_runtime::resolve_embedded_conversation_runtime(),
+    );
+    EmbeddedRealtimeRelayHandles {
+        rtc: sdkwork_im_gateway_assembly::spawn_rtc_outbox_relay_from_env(realtime_runtime.clone()),
+        conversation: sdkwork_im_gateway_assembly::spawn_conversation_outbox_relay_from_env(
+            realtime_runtime.clone(),
+        ),
+        social: sdkwork_im_gateway_assembly::spawn_social_outbox_relay_from_env(realtime_runtime),
+    }
 }
 
 async fn build_gateway_product_runtime_router(base_url: &str) -> Result<axum::Router, String> {
@@ -138,7 +205,6 @@ fn has_explicit_portal_api_base_url() -> bool {
         "SDKWORK_IM_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
         "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
-        "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
         "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
     ]
     .iter()

@@ -60,7 +60,7 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Create an agent handoff
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentHandoffsCreateResponse201?> ConversationsAgentHandoffsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateAgentDialogRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentHandoffsCreateResponse201?> ConversationsAgentHandoffsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateAgentHandoffRequest body)
         {
             return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsAgentHandoffsCreateResponse201>(ApiPaths.ImPath("/chat/conversations/agent_handoffs"), body, null, null, "application/json");
         }
@@ -68,7 +68,7 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Create a system channel
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsSystemChannelsCreateResponse201?> ConversationsSystemChannelsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateConversationRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsSystemChannelsCreateResponse201?> ConversationsSystemChannelsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateSystemChannelRequest body)
         {
             return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsSystemChannelsCreateResponse201>(ApiPaths.ImPath("/chat/conversations/system_channels"), body, null, null, "application/json");
         }
@@ -76,7 +76,7 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Create a thread conversation
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsThreadsCreateResponse201?> ConversationsThreadsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateConversationRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsThreadsCreateResponse201?> ConversationsThreadsCreateAsync(Sdkwork.Im.Sdk.Generated.Models.CreateThreadConversationRequest body)
         {
             return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsThreadsCreateResponse201>(ApiPaths.ImPath("/chat/conversations/threads"), body, null, null, "application/json");
         }
@@ -247,16 +247,16 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         }
 
         /// <summary>
-        /// List conversation message timeline
+        /// List conversation message history
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationsMessagesListResponse?> ConversationsMessagesListAsync(string conversationId, int? afterSeq = null, int? pageSize = null)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.ConversationMessageListResponse?> ConversationsMessagesListAsync(string conversationId, int? afterSeq = null, int? pageSize = null)
         {
             var queryString = BuildQueryString(new[]
             {
                 new QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
                 new QueryParameterSpec("page_size", pageSize, "form", true, false, null),
             });
-            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationsMessagesListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/messages"), queryString));
+            return await _client.GetAsync<Sdkwork.Im.Sdk.Generated.Models.ConversationMessageListResponse>(ApiPaths.AppendQueryString(ApiPaths.ImPath($"/chat/conversations/{SerializePathParameter(conversationId, new PathParameterSpec("conversationId", "simple", false))}/messages"), queryString));
         }
 
         /// <summary>
@@ -302,9 +302,9 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         /// <summary>
         /// Recall a message
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.MessagesRecallResponse?> MessagesRecallAsync(string messageId)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.MessagesRecallResponse?> MessagesRecallAsync(string messageId, Sdkwork.Im.Sdk.Generated.Models.RecallMessageRequest body)
         {
-            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.MessagesRecallResponse>(ApiPaths.ImPath($"/chat/messages/{SerializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false))}/recall"), null);
+            return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.MessagesRecallResponse>(ApiPaths.ImPath($"/chat/messages/{SerializePathParameter(messageId, new PathParameterSpec("messageId", "simple", false))}/recall"), body, null, null, "application/json");
         }
 
         /// <summary>

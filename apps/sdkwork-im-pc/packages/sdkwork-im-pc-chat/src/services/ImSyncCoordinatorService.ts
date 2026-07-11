@@ -1,6 +1,6 @@
 import { chatService, type ChatOfflineSyncResult, type ChatService } from './ChatService';
-import { contactService, type ContactService, type ContactSyncResult } from './ContactService';
-import { groupService, type GroupMemberSyncChange, type GroupService } from './GroupService';
+import type { ContactService, ContactSyncResult } from './ContactService';
+import type { GroupMemberSyncChange, GroupService } from './GroupService';
 
 export interface ImStartupSyncOptions {}
 
@@ -41,18 +41,15 @@ function toErrorMessage(error: unknown): string {
 
 class SdkworkImSyncCoordinatorService implements ImSyncCoordinatorService {
   private readonly chatService: Pick<ChatService, 'syncOfflineMessages'>;
-  private readonly contactService: Pick<ContactService, 'syncContacts'>;
-  private readonly groupService: Pick<GroupService, 'syncGroupMembers'>;
 
   constructor(dependencies: ImSyncCoordinatorServiceDependencies = {}) {
     this.chatService = dependencies.chatService ?? chatService;
-    this.contactService = dependencies.contactService ?? contactService;
-    this.groupService = dependencies.groupService ?? groupService;
   }
 
   async syncStartup(_options: ImStartupSyncOptions = {}): Promise<ImStartupSyncResult> {
     const result: ImStartupSyncResult = {
       errors: [],
+      groups: [],
       recoveredRtcSessions: [],
     };
 
@@ -60,18 +57,6 @@ class SdkworkImSyncCoordinatorService implements ImSyncCoordinatorService {
       result.chat = await this.chatService.syncOfflineMessages();
     } catch (error) {
       result.errors.push({ stage: 'chat', message: toErrorMessage(error) });
-    }
-
-    try {
-      result.contacts = await this.contactService.syncContacts();
-    } catch (error) {
-      result.errors.push({ stage: 'contacts', message: toErrorMessage(error) });
-    }
-
-    try {
-      result.groups = await this.groupService.syncGroupMembers();
-    } catch (error) {
-      result.errors.push({ stage: 'groups', message: toErrorMessage(error) });
     }
 
     return result;

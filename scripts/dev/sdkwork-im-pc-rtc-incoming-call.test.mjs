@@ -18,6 +18,21 @@ assert.match(
   /watchIncomingCalls\s*\(/u,
   'CallService must expose watchIncomingCalls so the PC app subscribes to conversation RTC invitations.',
 );
+assert.doesNotMatch(
+  callServiceSource,
+  /if\s*\(\s*normalizedConversationIds\.length\s*===\s*0\s*\)\s*\{[\s\S]*?return\s+this\.getSnapshot\(\)\s*;[\s\S]*?\}/u,
+  'CallService must keep user-scope incoming call watch active even when no conversation ids are preloaded.',
+);
+assert.match(
+  callServiceSource,
+  /calls\.watchIncoming\s*\(\s*\{[\s\S]*conversationIds:\s*normalizedConversationIds[\s\S]*principalId/u,
+  'CallService incoming watch must pass the current user principal so empty conversation filters still receive user-scope RTC invitations.',
+);
+assert.match(
+  callServiceSource,
+  /normalizedConversationIds\.length\s*===\s*0\s*\|\|[\s\S]*normalizedConversationIds\.includes/u,
+  'CallService must treat an empty conversation filter as user-scope watch-all, not as watch-none.',
+);
 assert.match(
   callServiceSource,
   /acceptIncomingCall\s*\(/u,

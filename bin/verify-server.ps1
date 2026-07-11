@@ -129,12 +129,12 @@ $storageContent = if (-not [string]::IsNullOrWhiteSpace($postgresqlPath)) { Get-
 
 if (-not [string]::IsNullOrWhiteSpace($serverConfigPath)) {
     if ((Split-Path -Leaf $serverConfigPath) -eq "server.yaml") {
-        foreach ($contract in @("instance:", "name:", "network:", "bindAddress:", "publicEndpoints:", "baseUrl:", "runtime:", "dataRoot:")) {
+        foreach ($contract in @("instance:", "name:", "network:", "bindAddress:", "publicEndpoints:", "baseUrl:", "runtime:", "deploymentProfile: standalone", "runtimeTarget: server")) {
             if (-not $serverContent.Contains($contract)) { $configMissing.Add($contract) }
         }
     }
     else {
-        foreach ($contract in @("[runtime]", "deployment_mode = ""server""", "app_code = ""chat""", "[server]", "bind_address =")) {
+        foreach ($contract in @("[runtime]", "deployment_profile = ""standalone""", "runtime_target = ""server""", "app_code = ""chat""", "[server]", "bind_address =")) {
             if (-not $serverContent.Contains($contract)) { $configMissing.Add($contract) }
         }
     }

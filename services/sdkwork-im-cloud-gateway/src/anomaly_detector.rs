@@ -145,7 +145,7 @@ impl RecommendedAction {
 }
 
 /// Rate tracking for a single user/IP.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 struct RateTrackerEntry {
     /// Message timestamps in the current window.
     message_times: VecDeque<Instant>,
@@ -238,7 +238,7 @@ impl RateTrackerEntry {
     /// Record an IP and check for multiple IP pattern.
     fn record_ip(&mut self, ip: IpAddr, multiple_ip_threshold: usize) -> bool {
         // Only add if different from last IP
-        if self.recent_ips.back().map_or(true, |last| *last != ip) {
+        if self.recent_ips.back().is_none_or(|last| *last != ip) {
             self.recent_ips.push_back(ip);
         }
 
@@ -254,6 +254,12 @@ impl RateTrackerEntry {
     /// Get current message rate.
     fn current_message_rate(&self) -> f64 {
         self.message_times.len() as f64
+    }
+}
+
+impl Default for RateTrackerEntry {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -590,10 +596,7 @@ impl AnomalyDetector {
             }
         }
 
-        let mut user_tracker = self
-            .user_trackers
-            .entry(user_id.to_owned())
-            .or_insert_with(RateTrackerEntry::new);
+        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
         let user_rate = user_tracker.record_message(self.config.rate_window);
         if user_rate > threshold {
             Some(user_rate)
@@ -631,10 +634,7 @@ impl AnomalyDetector {
             }
         }
 
-        let mut ip_tracker = self
-            .ip_trackers
-            .entry(client_ip)
-            .or_insert_with(RateTrackerEntry::new);
+        let mut ip_tracker = self.ip_trackers.entry(client_ip).or_default();
         let ip_rate = ip_tracker.record_message(self.config.rate_window);
         if ip_rate > threshold {
             Some(ip_rate)
@@ -667,10 +667,7 @@ impl AnomalyDetector {
             }
         }
 
-        let mut user_tracker = self
-            .user_trackers
-            .entry(user_id.to_owned())
-            .or_insert_with(RateTrackerEntry::new);
+        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
         if user_tracker.record_connection(self.config.rate_window) {
             Some(threshold.saturating_add(1))
         } else {
@@ -699,10 +696,7 @@ impl AnomalyDetector {
             }
         }
 
-        let mut ip_tracker = self
-            .ip_trackers
-            .entry(client_ip)
-            .or_insert_with(RateTrackerEntry::new);
+        let mut ip_tracker = self.ip_trackers.entry(client_ip).or_default();
         ip_tracker.record_failed_auth(self.config.auth_window)
     }
 
@@ -735,16 +729,16 @@ impl AnomalyDetector {
 
     fn block_ip_temporarily(&self, client_ip: IpAddr) {
         let duration_secs = self.config.auth_block_duration.as_secs().max(1);
-        if let Some(redis) = &self.redis_ip_blocks {
-            if let Err(error) = redis.block_for_secs(&client_ip, duration_secs) {
-                tracing::warn!(
-                    target: "sdkwork.im.gateway.anomaly",
-                    event = "im.gateway.ip_block_redis_write_failed",
-                    ?error,
-                    client_ip = %client_ip,
-                    "failed to persist temporary ip block to redis"
-                );
-            }
+        if let Some(redis) = &self.redis_ip_blocks
+            && let Err(error) = redis.block_for_secs(&client_ip, duration_secs)
+        {
+            tracing::warn!(
+                target: "sdkwork.im.gateway.anomaly",
+                event = "im.gateway.ip_block_redis_write_failed",
+                ?error,
+                client_ip = %client_ip,
+                "failed to persist temporary ip block to redis"
+            );
         }
         self.ip_blocks
             .insert(client_ip, Instant::now() + self.config.auth_block_duration);
@@ -876,10 +870,7 @@ impl AnomalyDetector {
 
         // Track failed auth by user (if identified)
         if let Some(uid) = user_id {
-            let mut user_tracker = self
-                .user_trackers
-                .entry(uid.to_owned())
-                .or_insert_with(RateTrackerEntry::new);
+            let mut user_tracker = self.user_trackers.entry(uid.to_owned()).or_default();
             let user_failed = user_tracker.record_failed_auth(self.config.auth_window);
 
             if user_failed >= self.config.failed_auth_threshold {
@@ -927,10 +918,7 @@ impl AnomalyDetector {
         }
 
         // Check for multiple IPs (per-process heuristic; multi-IP set not shared across replicas)
-        let mut user_tracker = self
-            .user_trackers
-            .entry(user_id.to_owned())
-            .or_insert_with(RateTrackerEntry::new);
+        let mut user_tracker = self.user_trackers.entry(user_id.to_owned()).or_default();
         let multiple_ips =
             user_tracker.record_ip(client_ip, self.config.multiple_ip_threshold as usize);
         if multiple_ips {
@@ -1003,28 +991,22 @@ impl AnomalyDetector {
         // Clean up user trackers
         self.user_trackers.retain(|_user_id, tracker| {
             // Keep if any activity in the last hour
-            tracker.message_times.back().map_or(false, |t| *t > cutoff)
+            tracker.message_times.back().is_some_and(|t| *t > cutoff)
                 || tracker
                     .failed_auth_times
                     .back()
-                    .map_or(false, |t| *t > cutoff)
-                || tracker
-                    .connection_times
-                    .back()
-                    .map_or(false, |t| *t > cutoff)
+                    .is_some_and(|t| *t > cutoff)
+                || tracker.connection_times.back().is_some_and(|t| *t > cutoff)
         });
 
         // Clean up IP trackers
         self.ip_trackers.retain(|_ip, tracker| {
-            tracker.message_times.back().map_or(false, |t| *t > cutoff)
+            tracker.message_times.back().is_some_and(|t| *t > cutoff)
                 || tracker
                     .failed_auth_times
                     .back()
-                    .map_or(false, |t| *t > cutoff)
-                || tracker
-                    .connection_times
-                    .back()
-                    .map_or(false, |t| *t > cutoff)
+                    .is_some_and(|t| *t > cutoff)
+                || tracker.connection_times.back().is_some_and(|t| *t > cutoff)
         });
 
         // Log cleanup stats
@@ -1070,6 +1052,16 @@ mod tests {
     }
 
     #[test]
+    fn rate_tracker_default_preserves_reserved_capacity() {
+        let tracker = RateTrackerEntry::default();
+
+        assert!(tracker.message_times.capacity() >= 100);
+        assert!(tracker.failed_auth_times.capacity() >= 50);
+        assert!(tracker.connection_times.capacity() >= 20);
+        assert!(tracker.recent_ips.capacity() >= 10);
+    }
+
+    #[test]
     fn content_analyzer_detects_spam() {
         let analyzer = ContentAnalyzer::new();
 
@@ -1101,8 +1093,9 @@ mod tests {
         for i in 0..20 {
             let anomaly = detector.check_message("user_1", "tenant_1", ip, "test message");
 
-            if i >= 10 && anomaly.is_some() {
-                let event = anomaly.unwrap();
+            if i >= 10
+                && let Some(event) = anomaly
+            {
                 assert_eq!(event.anomaly_type, AnomalyType::MessageRateSpike);
                 assert_eq!(event.recommended_action, RecommendedAction::RateLimit);
                 return;

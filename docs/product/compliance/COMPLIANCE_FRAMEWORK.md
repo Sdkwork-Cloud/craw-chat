@@ -1,4 +1,4 @@
-# Sdkwork IM — Regulatory Compliance Framework
+﻿# Sdkwork IM 鈥?Regulatory Compliance Framework
 
 Status: active
 Owner: SDKWork maintainers
@@ -67,9 +67,9 @@ evidence requirements for commercial deployment.
 
 | Region | Data Center | Profile | Data Stored |
 | --- | --- | --- | --- |
-| China (Mainland) | AliCloud / Tencent Cloud | `cloud.split-services.production` | All IM data within PRC |
-| Europe (EU) | AWS Frankfurt / Azure EU | `cloud.split-services.production` | All IM data within EU |
-| North America | AWS US-East / Azure US | `cloud.split-services.production` | All IM data within US |
+| China (Mainland) | AliCloud / Tencent Cloud | `cloud.production` | All IM data within PRC |
+| Europe (EU) | AWS Frankfurt / Azure EU | `cloud.production` | All IM data within EU |
+| North America | AWS US-East / Azure US | `cloud.production` | All IM data within US |
 | Private/on-prem | Customer data center | `standalone.unified-process.production` | Customer-controlled |
 
 ### 4.2 Cross-Border Transfer Controls
@@ -321,12 +321,12 @@ Enterprise customers may request:
 
 ## 13. References
 
-- [DATA_PROTECTION.md](DATA_PROTECTION.md) — Data protection summary.
-- [CUSTOMER_OPERATIONS.md](CUSTOMER_OPERATIONS.md) — Customer operations guide.
-- [SLA_SLO.md](SLA_SLO.md) — Service level agreements and objectives.
+- [DATA_PROTECTION.md](DATA_PROTECTION.md) 鈥?Data protection summary.
+- [CUSTOMER_OPERATIONS.md](CUSTOMER_OPERATIONS.md) 鈥?Customer operations guide.
+- [SLA_SLO.md](SLA_SLO.md) 鈥?Service level agreements and objectives.
 - [docs/runbooks/RUNBOOK-audit-log-investigation.md](../../runbooks/RUNBOOK-audit-log-investigation.md)
 - [docs/runbooks/RUNBOOK-tenant-isolation-verification.md](../../runbooks/RUNBOOK-tenant-isolation-verification.md)
 - [docs/runbooks/RUNBOOK-token-key-rotation.md](../../runbooks/RUNBOOK-token-key-rotation.md)
-- `../sdkwork-specs/PRIVACY_SPEC.md` — Platform privacy standard.
-- `../sdkwork-specs/SECURITY_SPEC.md` — Platform security standard.
-- `../sdkwork-specs/IAM_SPEC.md` — Identity and access management standard.
+- `../sdkwork-specs/PRIVACY_SPEC.md` 鈥?Platform privacy standard.
+- `../sdkwork-specs/SECURITY_SPEC.md` 鈥?Platform security standard.
+- `../sdkwork-specs/IAM_SPEC.md` 鈥?Identity and access management standard.

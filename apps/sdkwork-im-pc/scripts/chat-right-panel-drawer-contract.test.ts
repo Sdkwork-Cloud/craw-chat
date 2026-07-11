@@ -11,15 +11,30 @@ const chatLayoutSource = readFileSync(
   'utf8',
 );
 
-const zhLocale = JSON.parse(readFileSync(
-  './packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json',
-  'utf8',
-)) as { chat?: { rightPanel?: { actions?: Record<string, string> } } };
+function readJson(relativePath: string) {
+  return JSON.parse(readFileSync(relativePath, 'utf8')) as Record<string, unknown>;
+}
 
-const enLocale = JSON.parse(readFileSync(
-  './packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json',
-  'utf8',
-)) as { chat?: { rightPanel?: { actions?: Record<string, string> } } };
+function mergeJson(relativePaths: string[]) {
+  return Object.assign({}, ...relativePaths.map(readJson));
+}
+
+function readChatLocale(locale: string) {
+  return mergeJson([
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/sidebar.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/agent.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/profile.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/contacts.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/favorites.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/settings-modal.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/chat.json`,
+    `./packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/scan-qr.json`,
+  ]);
+}
+
+const zhLocale = readChatLocale('zh-CN') as { chat?: { rightPanel?: { actions?: Record<string, string> } } };
+
+const enLocale = readChatLocale('en-US') as { chat?: { rightPanel?: { actions?: Record<string, string> } } };
 
 assert.match(
   chatRightPanelSource,

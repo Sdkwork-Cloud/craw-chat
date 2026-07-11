@@ -45,7 +45,7 @@ impl Default for OpsRuntime {
         Self::new(
             "ops_node_1",
             "standalone",
-            "127.0.0.1:18091",
+            "127.0.0.1:28091",
             vec!["ops-service".into()],
             vec!["node:ops_node_1".into()],
         )

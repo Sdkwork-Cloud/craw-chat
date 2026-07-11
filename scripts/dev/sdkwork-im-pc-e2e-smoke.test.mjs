@@ -3,14 +3,27 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
-import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+  assertPortAvailable,
+  createOwnedProcessLifecycle,
+  parseTcpPort,
+  waitForOwnedHttpOk,
+} from './sdkwork-im-pc-playwright-runner.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pcRoot = path.join(repoRoot, 'apps', 'sdkwork-im-pc');
 const distIndex = path.join(pcRoot, 'dist', 'index.html');
 const serverEntry = path.join(pcRoot, 'dist', 'server.cjs');
+const serverPort = parseTcpPort(
+  process.env.PLAYWRIGHT_PC_SMOKE_PORT ?? '3000',
+  'PLAYWRIGHT_PC_SMOKE_PORT',
+);
+const serverBaseUrl = `http://127.0.0.1:${serverPort}`;
+const lifecycle = createOwnedProcessLifecycle();
+const useProcessGroup = process.platform !== 'win32';
 
 assert.equal(
   fs.existsSync(distIndex),
@@ -23,74 +36,41 @@ assert.equal(
   'apps/sdkwork-im-pc/dist/server.cjs must exist; run pnpm build in apps/sdkwork-im-pc first',
 );
 
-const server = spawn(process.execPath, [serverEntry], {
-  cwd: pcRoot,
-  env: {
-    ...process.env,
-    NODE_ENV: 'production',
-    PORT: '3000',
-  },
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-
-function waitForHttpOk(url, timeoutMs = 30_000) {
-  const started = Date.now();
-  return new Promise((resolve, reject) => {
-    const attempt = () => {
-      const request = http.get(url, (response) => {
-        response.resume();
-        if (response.statusCode === 200) {
-          resolve();
-          return;
-        }
-        if (Date.now() - started > timeoutMs) {
-          reject(new Error(`expected HTTP 200 from ${url}, received ${response.statusCode}`));
-          return;
-        }
-        setTimeout(attempt, 500);
-      });
-      request.on('error', () => {
-        if (Date.now() - started > timeoutMs) {
-          reject(new Error(`timed out waiting for ${url}`));
-          return;
-        }
-        setTimeout(attempt, 500);
-      });
-    };
-    attempt();
+async function main() {
+  await lifecycle.run(async ({ signal }) => {
+    await assertPortAvailable({ host: '0.0.0.0', port: serverPort });
+    if (signal.aborted) {
+      return;
+    }
+    const server = lifecycle.track(spawn(process.execPath, [serverEntry], {
+      cwd: pcRoot,
+      detached: useProcessGroup,
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        PORT: String(serverPort),
+      },
+      shell: false,
+      stdio: 'inherit',
+      windowsHide: true,
+    }), { processGroup: useProcessGroup });
+    const { body } = await waitForOwnedHttpOk({
+      child: server,
+      url: `${serverBaseUrl}/`,
+      verifyResponse: ({ body: html, headers }) => (
+        headers['x-content-type-options'] === 'nosniff'
+        && /<div\s+id=["']root["']/u.test(html)
+        && html.includes('<title>')
+      ),
+    });
+    assert.match(body, /<div\s+id=["']root["']/u, 'PC production shell must expose #root mount point');
+    if (!signal.aborted) {
+      console.log('sdkwork-im PC e2e smoke passed');
+    }
   });
 }
 
-function stopServer(child) {
-  if (!child || child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve();
-  }
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = () => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      resolve();
-    };
-    child.once('exit', settle);
-    child.kill('SIGTERM');
-    setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) {
-        child.kill('SIGKILL');
-      }
-    }, 5_000);
-    setTimeout(settle, 10_000);
-  });
-}
-
-try {
-  await waitForHttpOk('http://127.0.0.1:3000/');
-  const html = await fetch('http://127.0.0.1:3000/').then((response) => response.text());
-  assert.match(html, /<div id="root"/u, 'PC production shell must expose #root mount point');
-  assert.match(html, /<title>/u, 'PC production shell must include document title');
-  console.log('sdkwork-im PC e2e smoke passed');
-} finally {
-  await stopServer(server);
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+if (isMain) {
+  await main();
 }

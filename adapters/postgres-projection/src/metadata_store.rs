@@ -3,8 +3,8 @@ use r2d2_postgres::postgres::types::Json;
 use sdkwork_utils_rust::sha256_hash;
 
 use crate::{
-    PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_unavailable,
-    run_postgres_io,
+    PostgresProjectionPool, now_rfc3339, postgres_pool_client, postgres_timestamptz,
+    postgres_unavailable, run_postgres_io,
 };
 
 const UPSERT_METADATA_SNAPSHOT_SQL: &str = r#"
@@ -29,13 +29,6 @@ where snapshot_scope = $1
   and snapshot_key = $2
 "#;
 
-const LIST_METADATA_SCOPES_SQL: &str = r#"
-select distinct snapshot_scope
-from im_projection_metadata_snapshots
-where snapshot_key = $1
-order by snapshot_scope asc
-"#;
-
 #[derive(Clone)]
 pub struct PostgresMetadataStore {
     pool: PostgresProjectionPool,
@@ -44,18 +37,6 @@ pub struct PostgresMetadataStore {
 impl PostgresMetadataStore {
     pub fn from_pool(pool: PostgresProjectionPool) -> Self {
         Self { pool }
-    }
-
-    pub fn list_scopes_for_snapshot_key(&self, key: &str) -> Result<Vec<String>, ContractError> {
-        let pool = self.pool.clone();
-        let key = key.to_owned();
-        run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "metadata list scopes")?;
-            let rows = client
-                .query(LIST_METADATA_SCOPES_SQL, &[&key])
-                .map_err(|error| postgres_unavailable("metadata list scopes select", error))?;
-            Ok(rows.into_iter().map(|row| row.get(0)).collect())
-        })
     }
 }
 
@@ -68,7 +49,7 @@ impl MetadataStore for PostgresMetadataStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "metadata put snapshot")?;
             let payload_hash = sha256_hash(value.as_bytes());
-            let created_at = now_rfc3339();
+            let created_at = postgres_timestamptz(&now_rfc3339(), "created_at")?;
             client
                 .execute(
                     UPSERT_METADATA_SNAPSHOT_SQL,

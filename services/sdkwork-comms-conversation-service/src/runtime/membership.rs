@@ -1,5 +1,10 @@
+use super::member_list_cursor::{
+    MemberListCursorError, MemberListCursorScope, decode_member_list_cursor,
+    encode_member_list_cursor,
+};
 use super::support::{deactivate_roster_member, upsert_roster_member};
 use super::*;
+use im_platform_contracts::ConversationMemberPageCursor;
 use sdkwork_utils_rust::{PageInfo, PageMode, cursor_list_page_data};
 use std::collections::BTreeMap;
 
@@ -9,6 +14,16 @@ const SHARED_HISTORY_LINK_ATTRIBUTE_KEYS: [&str; 3] = [
     "externalMemberId",
 ];
 const SHARED_CHANNEL_SYNC_REQUEST_KEY_ATTRIBUTE: &str = "sharedChannelSyncRequestKey";
+const READ_CURSOR_JOURNAL_APPEND_MAX_ATTEMPTS: usize = 3;
+
+fn is_journal_position_conflict(error: &RuntimeError) -> bool {
+    let message = match error {
+        RuntimeError::Contract(ContractError::Conflict(message))
+        | RuntimeError::Conflict(message) => message.as_str(),
+        _ => return false,
+    };
+    message.contains("journal position") && message.contains("already occupied")
+}
 
 fn has_non_empty_shared_history_link_value(
     attributes: &BTreeMap<String, String>,
@@ -124,7 +139,7 @@ where
         &self,
         auth: &AppContext,
         conversation_id: &str,
-        limit: Option<usize>,
+        page_size: Option<usize>,
         cursor: Option<&str>,
     ) -> Result<ListMembersResult, RuntimeError> {
         self.require_active_member_from_auth_context(auth, conversation_id)?;
@@ -132,7 +147,7 @@ where
             auth.tenant_id.as_str(),
             organization_id_from_auth_context(auth).as_str(),
             conversation_id,
-            limit,
+            page_size,
             cursor,
         )
     }
@@ -141,12 +156,12 @@ where
         &self,
         auth: &AppContext,
         conversation_id: &str,
-        limit: Option<usize>,
+        page_size: Option<usize>,
         cursor: Option<&str>,
         query: &str,
     ) -> Result<ListMembersResult, RuntimeError> {
         self.require_active_member_from_auth_context(auth, conversation_id)?;
-        let limit = normalize_member_list_limit(limit).map_err(RuntimeError::InvalidInput)?;
+        let limit = normalize_member_list_limit(page_size).map_err(RuntimeError::InvalidInput)?;
         let offset = parse_member_list_cursor(cursor)?;
         let organization_id = organization_id_from_auth_context(auth);
         let scope_key = conversation_scope_key(
@@ -174,7 +189,7 @@ where
         &self,
         auth: &AppContext,
         conversation_id: &str,
-        after_seq: Option<u64>,
+        before_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
         self.list_messages_with_actor_kind(
@@ -183,7 +198,7 @@ where
             conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
-            after_seq,
+            before_seq,
             limit,
         )
     }
@@ -1081,6 +1096,11 @@ where
             result
         };
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         Ok(result)
     }
 
@@ -1215,6 +1235,11 @@ where
             result
         };
 
+        self.best_effort_persist_aggregate_state(
+            command.tenant_id.as_str(),
+            organization_id.as_str(),
+            command.conversation_id.as_str(),
+        );
         Ok(result)
     }
 
@@ -1245,11 +1270,56 @@ where
         tenant_id: &str,
         organization_id: &str,
         conversation_id: &str,
-        limit: Option<usize>,
+        page_size: Option<usize>,
         cursor: Option<&str>,
     ) -> Result<ListMembersResult, RuntimeError> {
-        let limit = normalize_member_list_limit(limit).map_err(RuntimeError::InvalidInput)?;
-        let offset = parse_member_list_cursor(cursor)?;
+        let limit = normalize_member_list_limit(page_size).map_err(RuntimeError::InvalidInput)?;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let cursor_scope = MemberListCursorScope {
+            tenant_id,
+            organization_id: normalized_organization_id.as_str(),
+            conversation_id,
+        };
+        let repository_cursor = cursor
+            .map(|cursor| decode_member_list_cursor(cursor, cursor_scope))
+            .transpose()
+            .map_err(member_list_cursor_runtime_error)?;
+
+        if let Some(aggregate_store) = self.aggregate_store.as_ref() {
+            let page = aggregate_store
+                .load_members_page(
+                    tenant_id,
+                    normalized_organization_id.as_str(),
+                    conversation_id,
+                    repository_cursor.as_ref(),
+                    limit,
+                )
+                .map_err(RuntimeError::from)?;
+            let next_cursor = match (page.has_more, page.next_cursor.as_ref()) {
+                (true, Some(next_cursor)) => Some(
+                    encode_member_list_cursor(cursor_scope, next_cursor)
+                        .map_err(member_list_cursor_runtime_error)?,
+                ),
+                (true, None) => {
+                    return Err(RuntimeError::Contract(ContractError::Invalid(
+                        "conversation aggregate store returned has_more without next_cursor".into(),
+                    )));
+                }
+                (false, _) => None,
+            };
+            return Ok(cursor_list_page_data(
+                page.items
+                    .iter()
+                    .map(conversation_member_from_record)
+                    .collect(),
+                limit,
+                next_cursor,
+                page.has_more,
+            ));
+        }
+
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
@@ -1257,13 +1327,35 @@ where
             .get(scope_key.as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
 
-        let window = conversation
-            .roster
-            .list_active_members_window(offset, limit);
+        let window = conversation.roster.list_active_members_after(
+            repository_cursor
+                .as_ref()
+                .map(|cursor| (cursor.principal_kind.as_str(), cursor.principal_id.as_str())),
+            limit,
+        );
+        let next_cursor = if window.has_more {
+            let last_member = window.items.last().ok_or_else(|| {
+                RuntimeError::Contract(ContractError::Invalid(
+                    "conversation roster returned has_more without a member".into(),
+                ))
+            })?;
+            Some(
+                encode_member_list_cursor(
+                    cursor_scope,
+                    &ConversationMemberPageCursor {
+                        principal_kind: last_member.principal_kind.clone(),
+                        principal_id: last_member.principal_id.clone(),
+                    },
+                )
+                .map_err(member_list_cursor_runtime_error)?,
+            )
+        } else {
+            None
+        };
         Ok(cursor_list_page_data(
             window.items,
             limit,
-            window.next_offset.map(|value| value.to_string()),
+            next_cursor,
             window.has_more,
         ))
     }
@@ -1322,85 +1414,143 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_payload_size("actorKind", actor_kind, CONVERSATION_MAX_KIND_BYTES)?;
+        self.ensure_conversation_loaded(
+            command.tenant_id.as_str(),
+            command.organization_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(command.organization_id.as_str());
+        let store_high_watermark = if let Some(store) = self.message_store.as_ref() {
+            Some(
+                store
+                    .read_high_watermark(
+                        command.tenant_id.as_str(),
+                        normalized_organization_id.as_str(),
+                        command.conversation_id.as_str(),
+                    )
+                    .map_err(RuntimeError::from)?,
+            )
+        } else {
+            None
+        };
         let scope_key = conversation_scope_key(
             command.tenant_id.as_str(),
             command.organization_id.as_str(),
             command.conversation_id.as_str(),
         );
-        let cursor = {
-            let mut state =
-                write_runtime_state(&self.state, "conversation-runtime.state.membership");
-            let conversation =
-                state
-                    .conversations
-                    .get_mut(scope_key.as_str())
-                    .ok_or_else(|| {
-                        RuntimeError::ConversationNotFound(command.conversation_id.clone())
-                    })?;
-            if command.read_seq > conversation.message_log.high_watermark() {
-                return Err(RuntimeError::ReadCursorInvalid(format!(
-                    "read cursor exceeds conversation high watermark: {} > {}",
-                    command.read_seq,
-                    conversation.message_log.high_watermark()
-                )));
-            }
-
-            let actor_member = resolve_active_member_with_kind(
-                conversation,
-                command.principal_id.as_str(),
-                actor_kind,
-            )?;
-            policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
-            let retention_class = conversation_retention_class(conversation);
-            let member_id = actor_member.member_id.clone();
-            let device_id = command.device_id.clone();
-            let cursor_missing = conversation
-                .roster
-                .read_cursor(member_id.as_str(), device_id.as_deref())
-                .is_none();
-            let cursor = conversation
-                .roster
-                .read_cursor(member_id.as_str(), device_id.as_deref())
-                .cloned()
-                .unwrap_or_else(|| ConversationReadCursor {
-                    tenant_id: command.tenant_id.clone(),
-                    conversation_id: command.conversation_id.clone(),
-                    member_id: member_id.clone(),
-                    principal_id: command.principal_id.clone(),
-                    principal_kind: actor_member.principal_kind.clone(),
-                    device_id: device_id.clone(),
-                    read_seq: 0,
-                    last_read_message_id: None,
-                    updated_at: conversation_timestamp(),
-                });
-
-            if command.read_seq > cursor.read_seq {
-                let updated_cursor = ConversationReadCursor {
-                    read_seq: command.read_seq,
-                    last_read_message_id: command.last_read_message_id.clone(),
-                    updated_at: conversation_timestamp(),
-                    device_id: device_id.clone(),
-                    ..cursor
-                };
-                self.journal.append(build_read_cursor_envelope(
-                    command.tenant_id.as_str(),
-                    command.organization_id.as_str(),
-                    command.conversation_id.as_str(),
-                    updated_cursor.clone(),
-                    updated_cursor.read_seq,
-                    retention_class.as_str(),
-                    command.principal_id.as_str(),
-                    actor_member.principal_kind.as_str(),
-                ))?;
-                conversation
-                    .roster
-                    .upsert_read_cursor(updated_cursor.clone());
-                updated_cursor
-            } else {
-                if cursor_missing {
-                    conversation.roster.upsert_read_cursor(cursor.clone());
+        let mut refreshed_journal_watermark = None;
+        let mut append_attempt = 0usize;
+        let cursor = loop {
+            append_attempt += 1;
+            let cursor_attempt = (|| -> Result<ConversationReadCursor, RuntimeError> {
+                let mut state =
+                    write_runtime_state(&self.state, "conversation-runtime.state.membership");
+                let conversation =
+                    state
+                        .conversations
+                        .get_mut(scope_key.as_str())
+                        .ok_or_else(|| {
+                            RuntimeError::ConversationNotFound(command.conversation_id.clone())
+                        })?;
+                if let Some(high_watermark) = store_high_watermark {
+                    conversation
+                        .message_log
+                        .observe_high_watermark(high_watermark);
                 }
-                cursor
+                if let Some(journal_watermark) = refreshed_journal_watermark.take() {
+                    conversation.aggregate.observe_commit_seq(journal_watermark);
+                }
+                let high_watermark = conversation.message_log.high_watermark();
+                if command.read_seq > high_watermark {
+                    return Err(RuntimeError::ReadCursorInvalid(format!(
+                        "read cursor exceeds conversation high watermark: {} > {}",
+                        command.read_seq, high_watermark
+                    )));
+                }
+
+                let actor_member = resolve_active_member_with_kind(
+                    conversation,
+                    command.principal_id.as_str(),
+                    actor_kind,
+                )?;
+                policy::ensure_actor_kind_matches_member(&actor_member, actor_kind)?;
+                let retention_class = conversation_retention_class(conversation);
+                let member_id = actor_member.member_id.clone();
+                let principal_kind = actor_member.principal_kind.clone();
+                let device_id = command.device_id.clone();
+                let cursor_missing = conversation
+                    .roster
+                    .read_cursor(member_id.as_str(), device_id.as_deref())
+                    .is_none();
+                let cursor = conversation
+                    .roster
+                    .read_cursor(member_id.as_str(), device_id.as_deref())
+                    .cloned()
+                    .unwrap_or_else(|| ConversationReadCursor {
+                        tenant_id: command.tenant_id.clone(),
+                        conversation_id: command.conversation_id.clone(),
+                        member_id: member_id.clone(),
+                        principal_id: command.principal_id.clone(),
+                        principal_kind: principal_kind.clone(),
+                        device_id: device_id.clone(),
+                        read_seq: 0,
+                        last_read_message_id: None,
+                        updated_at: conversation_timestamp(),
+                    });
+
+                if command.read_seq > cursor.read_seq {
+                    let updated_cursor = ConversationReadCursor {
+                        read_seq: command.read_seq,
+                        last_read_message_id: command.last_read_message_id.clone(),
+                        updated_at: conversation_timestamp(),
+                        device_id: device_id.clone(),
+                        ..cursor
+                    };
+                    // Allocate the next monotonic journal `ordering_seq` from
+                    // the conversation aggregate, not from the message read
+                    // sequence. The journal key is shared by every event type
+                    // in this conversation.
+                    let journal_ordering_seq = conversation.aggregate.next_commit_seq();
+                    self.journal
+                        .append(build_read_cursor_envelope(
+                            command.tenant_id.as_str(),
+                            command.organization_id.as_str(),
+                            command.conversation_id.as_str(),
+                            updated_cursor.clone(),
+                            journal_ordering_seq,
+                            retention_class.as_str(),
+                            command.principal_id.as_str(),
+                            principal_kind.as_str(),
+                        ))
+                        .map_err(RuntimeError::from)?;
+                    conversation
+                        .roster
+                        .upsert_read_cursor(updated_cursor.clone());
+                    Ok(updated_cursor)
+                } else {
+                    if cursor_missing {
+                        conversation.roster.upsert_read_cursor(cursor.clone());
+                    }
+                    Ok(cursor)
+                }
+            })();
+
+            match cursor_attempt {
+                Ok(cursor) => break cursor,
+                Err(error)
+                    if append_attempt < READ_CURSOR_JOURNAL_APPEND_MAX_ATTEMPTS
+                        && is_journal_position_conflict(&error) =>
+                {
+                    refreshed_journal_watermark = self.load_journal_watermark_for_conversation(
+                        command.tenant_id.as_str(),
+                        command.conversation_id.as_str(),
+                    )?;
+                    if refreshed_journal_watermark.is_none() {
+                        return Err(error);
+                    }
+                }
+                Err(error) => return Err(error),
             }
         };
 
@@ -1420,6 +1570,7 @@ where
         conversation_id: &str,
         principal_id: &str,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
@@ -1464,7 +1615,7 @@ where
         )
     }
 
-    pub fn read_cursor_view_with_actor_kind_and_device(
+    fn read_cursor_view_with_actor_kind_and_device(
         &self,
         tenant_id: &str,
         organization_id: &str,
@@ -1473,6 +1624,7 @@ where
         principal_kind: &str,
         device_id: Option<&str>,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
+        self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         let state = read_runtime_state(&self.state, "conversation-runtime.state.membership");
         let conversation = state
@@ -1506,7 +1658,7 @@ where
         organization_id: &str,
         conversation_id: &str,
         principal_id: &str,
-        after_seq: Option<u64>,
+        before_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
         let limit = validate_message_history_limit(limit)?;
@@ -1516,7 +1668,7 @@ where
             conversation_id,
             principal_id,
             None,
-            after_seq,
+            before_seq,
             limit,
         )
     }
@@ -1528,7 +1680,7 @@ where
         conversation_id: &str,
         principal_id: &str,
         principal_kind: &str,
-        after_seq: Option<u64>,
+        before_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
         let limit = validate_message_history_limit(limit)?;
@@ -1538,7 +1690,7 @@ where
             conversation_id,
             principal_id,
             Some(principal_kind),
-            after_seq,
+            before_seq,
             limit,
         )
     }
@@ -1550,9 +1702,35 @@ where
         conversation_id: &str,
         principal_id: &str,
         principal_kind: Option<&str>,
-        after_seq: Option<u64>,
+        before_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
+        if let Some(history) = self.list_messages_history_window_from_loaded_conversation(
+            tenant_id,
+            organization_id,
+            conversation_id,
+            principal_id,
+            principal_kind,
+            before_seq,
+            limit,
+        )? {
+            return Ok(history);
+        }
+
+        if let Some(history) = self
+            .list_messages_history_window_from_store_if_joined_member_projection_allows(
+                tenant_id,
+                organization_id,
+                conversation_id,
+                principal_id,
+                principal_kind,
+                before_seq,
+                limit,
+            )?
+        {
+            return Ok(history);
+        }
+
         self.ensure_conversation_loaded(tenant_id, organization_id, conversation_id)?;
         let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
         {
@@ -1568,12 +1746,19 @@ where
             }
         }
 
-        let after = after_seq.unwrap_or_default();
         if let Some(store) = &self.message_store {
+            let normalized_organization_id =
+                im_domain_events::normalize_commit_organization_id(organization_id);
             let window = store
-                .read_window(tenant_id, organization_id, conversation_id, after, limit)
+                .read_history_window(
+                    tenant_id,
+                    normalized_organization_id.as_str(),
+                    conversation_id,
+                    before_seq,
+                    limit,
+                )
                 .map_err(RuntimeError::from)?;
-            return Ok(message_history_window_from_store(window, after_seq));
+            return message_history_window_from_store(window, limit);
         }
 
         let in_memory = {
@@ -1585,9 +1770,109 @@ where
                 .conversations
                 .get(scope_key.as_str())
                 .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-            conversation.message_log.message_window_after(after, limit)
+            conversation
+                .message_log
+                .message_window_before(before_seq, limit)
         };
-        Ok(message_history_window(in_memory, after_seq))
+        Ok(message_history_window(in_memory, limit))
+    }
+
+    fn list_messages_history_window_from_loaded_conversation(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        before_seq: Option<u64>,
+        limit: usize,
+    ) -> Result<Option<MessageHistoryResult>, RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, organization_id, conversation_id);
+        {
+            let state =
+                read_runtime_state(&self.state, "conversation-runtime.state.list_messages.hot");
+            let Some(conversation) = state.conversations.get(scope_key.as_str()) else {
+                return Ok(None);
+            };
+            if let Some(kind) = principal_kind {
+                policy::ensure_history_read_allowed_with_kind(conversation, principal_id, kind)?;
+            } else {
+                policy::ensure_history_read_allowed(conversation, principal_id)?;
+            }
+            if self.message_store.is_none() {
+                return Ok(Some(message_history_window(
+                    conversation
+                        .message_log
+                        .message_window_before(before_seq, limit),
+                    limit,
+                )));
+            }
+        }
+
+        let Some(store) = self.message_store.as_ref() else {
+            return Ok(None);
+        };
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let window = store
+            .read_history_window(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                before_seq,
+                limit,
+            )
+            .map_err(RuntimeError::from)?;
+        Ok(Some(message_history_window_from_store(window, limit)?))
+    }
+
+    fn list_messages_history_window_from_store_if_joined_member_projection_allows(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        principal_id: &str,
+        principal_kind: Option<&str>,
+        before_seq: Option<u64>,
+        limit: usize,
+    ) -> Result<Option<MessageHistoryResult>, RuntimeError> {
+        let Some(store) = self.message_store.as_ref() else {
+            return Ok(None);
+        };
+        let Some(aggregate_store) = self.aggregate_store.as_ref() else {
+            return Ok(None);
+        };
+        let Some(principal_kind) = principal_kind else {
+            return Ok(None);
+        };
+        let normalized_organization_id =
+            im_domain_events::normalize_commit_organization_id(organization_id);
+        let member = aggregate_store
+            .load_member(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                principal_kind,
+                principal_id,
+            )
+            .map_err(RuntimeError::from)?;
+        let Some(member) = member else {
+            return Ok(None);
+        };
+        if !member.membership_state.eq_ignore_ascii_case("joined") {
+            return Ok(None);
+        }
+
+        let window = store
+            .read_history_window(
+                tenant_id,
+                normalized_organization_id.as_str(),
+                conversation_id,
+                before_seq,
+                limit,
+            )
+            .map_err(RuntimeError::from)?;
+        Ok(Some(message_history_window_from_store(window, limit)?))
     }
 
     pub fn stored_message_from_auth_context(
@@ -1710,11 +1995,22 @@ fn parse_member_list_cursor(cursor: Option<&str>) -> Result<usize, RuntimeError>
     })
 }
 
+fn member_list_cursor_runtime_error(error: MemberListCursorError) -> RuntimeError {
+    match error {
+        MemberListCursorError::Invalid => {
+            RuntimeError::InvalidInput("conversation member list cursor is invalid".into())
+        }
+        MemberListCursorError::Configuration(message) => {
+            RuntimeError::Contract(ContractError::Unavailable(message))
+        }
+    }
+}
+
 fn message_history_page(
     items: Vec<im_domain_core::message::StoredMessage>,
     page_size: usize,
     high_watermark: u64,
-    next_after_seq: Option<u64>,
+    next_before_seq: Option<u64>,
     has_more: bool,
 ) -> MessageHistoryResult {
     MessageHistoryResult {
@@ -1726,49 +2022,49 @@ fn message_history_page(
                 page_size: Some(page_size as i32),
                 total_items: None,
                 total_pages: None,
-                next_cursor: next_after_seq.map(|value| value.to_string()),
+                next_cursor: None,
                 has_more: Some(has_more),
             },
         },
         high_watermark,
+        next_before_seq,
     }
 }
 
 fn message_history_window(
     window: im_domain_core::message::MessageHistoryWindow,
-    after_seq: Option<u64>,
+    page_size: usize,
 ) -> MessageHistoryResult {
-    let _ = after_seq;
-    let page_size = window.items.len().max(1);
     message_history_page(
         window.items,
         page_size,
         window.high_watermark,
-        window.next_after_seq,
+        window.next_before_seq,
         window.has_more,
     )
 }
 
 fn message_history_window_from_store(
     window: im_platform_contracts::MessageWindow,
-    after_seq: Option<u64>,
-) -> MessageHistoryResult {
-    message_history_window(
+    page_size: usize,
+) -> Result<MessageHistoryResult, RuntimeError> {
+    let items = window
+        .items
+        .iter()
+        .map(stored_message_from_record)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(message_history_window(
         im_domain_core::message::MessageHistoryWindow {
-            items: window
-                .items
-                .iter()
-                .filter_map(|record| stored_message_from_record(record).ok())
-                .collect(),
+            items,
             high_watermark: window.high_watermark,
-            next_after_seq: window.next_after_seq,
+            next_before_seq: window.next_before_seq,
             has_more: window.has_more,
         },
-        after_seq,
-    )
+        page_size,
+    ))
 }
 
-fn stored_message_from_record(
+pub(super) fn stored_message_from_record(
     record: &im_platform_contracts::StoredMessageRecord,
 ) -> Result<im_domain_core::message::StoredMessage, RuntimeError> {
     use im_domain_core::message::{MessageBody, MessageType, Sender, StoredMessage};
@@ -1796,7 +2092,7 @@ fn stored_message_from_record(
                 metadata: Default::default(),
             },
             message_type,
-            delivery_mode: "standard".into(),
+            delivery_mode: "discrete".into(),
             client_msg_id: record.client_msg_id.clone(),
             stream_session_id: None,
             rtc_session_id: None,

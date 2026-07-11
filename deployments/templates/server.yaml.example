@@ -1,9 +1,10 @@
-instance:
+﻿instance:
   name: default
 
 runtime:
   environment: production
-  deploymentMode: server
+  deploymentProfile: standalone
+  runtimeTarget: server
   appCode: chat
   configDirectory: /etc/sdkwork/chat
   configFile: /etc/sdkwork/chat/chat.toml
@@ -16,7 +17,7 @@ runtime:
   runDir: /run/sdkwork/chat
 
 network:
-  bindAddress: 0.0.0.0:18080
+  bindAddress: 0.0.0.0:18079
   trustForwardedHeaders: true
 
 publicEndpoints:

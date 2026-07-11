@@ -322,6 +322,14 @@ pub struct RtcSignalSender {
 #[serde(rename_all = "camelCase")]
 pub struct RtcSession {
     pub tenant_id: String,
+    /// Organization scope that owns this session. Captured from the
+    /// creating principal's `AppContext.organization_id` at creation time
+    /// so that system-initiated transitions (e.g. ring-timeout expiry)
+    /// can reconstruct the correct outbox scope without a caller context.
+    /// Defaults to empty string for records persisted before this field
+    /// existed; callers SHOULD fall back to the relay default when empty.
+    #[serde(default)]
+    pub organization_id: String,
     pub rtc_session_id: String,
     pub conversation_id: Option<String>,
     pub rtc_mode: String,
@@ -773,6 +781,7 @@ mod tests {
             rtc_session_id: "rtc_demo".into(),
             session: RtcSession {
                 tenant_id: "100001".into(),
+                organization_id: "default".into(),
                 rtc_session_id: "rtc_demo".into(),
                 conversation_id: Some("c_demo".into()),
                 rtc_mode: "voice".into(),

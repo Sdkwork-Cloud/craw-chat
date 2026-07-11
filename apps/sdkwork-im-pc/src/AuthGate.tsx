@@ -472,6 +472,8 @@ export function AuthGate({ children }: AuthGateProps) {
   );
   const isAuthenticated = isAuthenticatedSession(readAppSdkSessionTokens());
   const isAuthPath = isAuthRoute(location.pathname);
+  const authAppearance = useMemo(() => resolveSdkworkChatAuthAppearance(), []);
+  const authRuntimeConfig = useMemo(() => resolveSdkworkChatAuthRuntimeConfig(), []);
 
   useEffect(() => {
     let disposed = false;
@@ -564,12 +566,12 @@ export function AuthGate({ children }: AuthGateProps) {
   return (
     <SdkworkChatAuthShell>
       <SdkworkIamAuthRoutes
-        appearance={resolveSdkworkChatAuthAppearance()}
+        appearance={authAppearance}
         basePath="/auth"
         getRuntime={getSdkworkChatIamRuntime}
         homePath="/"
         locale={resolveAuthLocale()}
-        runtimeConfig={resolveSdkworkChatAuthRuntimeConfig()}
+        runtimeConfig={authRuntimeConfig}
         viewportMode="fixed"
       />
     </SdkworkChatAuthShell>

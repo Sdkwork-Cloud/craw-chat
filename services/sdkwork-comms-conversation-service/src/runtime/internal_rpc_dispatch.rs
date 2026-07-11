@@ -103,11 +103,7 @@ async fn dispatch_internal_create_room(
     let organization_id = optional_organization_id(request.organization_id);
     let actor_id = required_field(request.actor_id, "actor_id")?;
     let actor_kind = required_field(request.actor_kind, "actor_kind")?;
-    let conversation_id = if request.conversation_id.trim().is_empty() {
-        derive_idempotent_resource_id(metadata, "internal-room-conversation")?
-    } else {
-        request.conversation_id
-    };
+    let conversation_id = request.conversation_id;
     let room_id = if request.room_id.trim().is_empty() {
         derive_idempotent_resource_id(metadata, "internal-room")?
     } else {
@@ -290,7 +286,7 @@ async fn dispatch_internal_conversation_message(
             .clone()
             .filter(|value| !value.trim().is_empty())
     });
-    let session_id = metadata.request_id.clone();
+    let session_id = None;
     let body = MessageBody {
         summary: None,
         parts: vec![ContentPart::Data(im_domain_core::message::DataPart {

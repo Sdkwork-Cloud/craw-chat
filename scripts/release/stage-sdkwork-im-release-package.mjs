@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -35,7 +35,7 @@ const SERVER_SCRIPT_PATTERNS = Object.freeze([
 function printHelp() {
   console.log(`Usage: node scripts/release/stage-sdkwork-im-release-package.mjs [options]
 
-Stage one Sdkwork IM server archive or desktop bundle package from production build outputs.
+Stage one Sdkwork IM browser bundle, server archive, or desktop bundle package from production build outputs.
 
 Options:
   --package-id <id>       Package id from the release package plan.
@@ -127,9 +127,7 @@ function createSdkworkImReleaseStagingPlan({
     throw new Error(`Unknown release package id: ${packageId}`);
   }
   const absoluteStagingRoot = path.resolve(root, stagingRoot ?? path.join('dist', 'release-staging', packageId));
-  const actions = packageItem.deploymentMode === 'desktop'
-    ? createDesktopStagingActions({ packageItem, root, stagingRoot: absoluteStagingRoot })
-    : createServerStagingActions({ packageItem, root, stagingRoot: absoluteStagingRoot });
+  const actions = createStagingActions({ packageItem, root, stagingRoot: absoluteStagingRoot });
 
   return {
     schemaVersion: STAGING_SCHEMA_VERSION,
@@ -138,6 +136,35 @@ function createSdkworkImReleaseStagingPlan({
     stagingRoot: absoluteStagingRoot,
     actions,
   };
+}
+
+function createStagingActions({ packageItem, root, stagingRoot }) {
+  if (packageItem.profile === 'browser') {
+    return createBrowserStagingActions({ packageItem, root, stagingRoot });
+  }
+  if (packageItem.profile === 'desktop') {
+    return createDesktopStagingActions({ packageItem, root, stagingRoot });
+  }
+  return createServerStagingActions({ packageItem, root, stagingRoot });
+}
+
+function createBrowserStagingActions({ packageItem, root, stagingRoot }) {
+  return [
+    copyAction(
+      path.join(root, 'apps', 'sdkwork-im-pc', 'dist'),
+      path.join(stagingRoot, 'web', 'sdkwork-im-pc', 'dist'),
+      'sdkwork-im-pc web dist',
+      true,
+      stagingRoot,
+    ),
+    generatedAction(
+      path.join(stagingRoot, 'web-manifest.json'),
+      'web manifest',
+      () => JSON.stringify(createWebManifest(packageItem), null, 2) + '\n',
+      true,
+      stagingRoot,
+    ),
+  ];
 }
 
 function createServerStagingActions({ packageItem, root, stagingRoot }) {
@@ -318,7 +345,7 @@ function validateSdkworkImReleaseStagingPlan(plan, { requireSources = true } = {
       issues.push(`${plan.package.id} requires source ${action.sourcePath}`);
     }
   }
-  if (plan.package?.deploymentMode === 'desktop' && requireSources) {
+  if (plan.package?.profile === 'desktop' && requireSources) {
     const desktopCopies = plan.actions.filter((action) => action.kind === 'copy' && action.label === 'desktop installer artifact');
     if (desktopCopies.length === 0) {
       issues.push(`${plan.package.id} requires at least one desktop installer artifact. Run release:build:desktop first.`);
@@ -403,13 +430,14 @@ async function copyPath(sourcePath, targetPath) {
 function createServerEnvExample(packageItem) {
   const paths = serverRuntimePathsFor(packageItem.platform);
   return [
-    'SDKWORK_IM_DEPLOYMENT_MODE=server',
+    `SDKWORK_IM_DEPLOYMENT_PROFILE=${packageItem.deploymentProfile}`,
+    `SDKWORK_IM_RUNTIME_TARGET=${packageItem.runtimeTarget}`,
     `SDKWORK_IM_CONFIG_FILE=${paths.configDir}/chat.toml`,
     `SDKWORK_IM_DATA_DIR=${paths.dataDir}`,
     `SDKWORK_IM_LOG_DIR=${paths.logDir}`,
     `SDKWORK_IM_RUN_DIR=${paths.runDir}`,
     'SDKWORK_IM_ID_NODE_ID=1',
-    'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080',
+    'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18079',
     'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
     'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
     'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
@@ -471,6 +499,34 @@ function createInstallGuide(packageItem) {
   ].join('\n');
 }
 
+function createWebManifest(packageItem) {
+  return {
+    schemaVersion: '2026-07-08.sdkwork-im.web-manifest.v1',
+    generatedAt: manifestTimestamp(),
+    product: 'chat',
+    package: {
+      id: packageItem.id,
+      version: packageItem.version,
+      platform: packageItem.platform,
+      architecture: packageItem.architecture,
+      deploymentProfile: packageItem.deploymentProfile,
+      profile: packageItem.profile,
+      runtimeTarget: packageItem.runtimeTarget,
+      format: packageItem.format,
+      archiveName: packageItem.archiveName,
+    },
+    web: {
+      root: 'web/sdkwork-im-pc/dist',
+      entrypoint: 'web/sdkwork-im-pc/dist/index.html',
+      publicRuntimeConfig: 'served by deployment environment before SDK client construction',
+    },
+    security: {
+      noSecretsInPackage: true,
+      browserBundleMustNotEmbedPrivateConfig: true,
+    },
+  };
+}
+
 function createInstallManifest(packageItem) {
   return {
     schemaVersion: '2026-06-04.sdkwork-im.install-manifest.v1',
@@ -481,8 +537,10 @@ function createInstallManifest(packageItem) {
       version: packageItem.version,
       platform: packageItem.platform,
       architecture: packageItem.architecture,
-      deploymentMode: packageItem.deploymentMode,
-      runtimeProfile: packageItem.runtimeProfile,
+      deploymentProfile: packageItem.deploymentProfile,
+      profile: packageItem.profile,
+      runtimeTarget: packageItem.runtimeTarget,
+      format: packageItem.format,
       archiveName: packageItem.archiveName,
       binaryName: packageItem.binaryName,
       startCommand: packageItem.startCommand,
@@ -509,7 +567,8 @@ function manifestTimestamp({ env = process.env, now = new Date() } = {}) {
 function currentHostServerPackageId(platform = process.platform, arch = process.arch) {
   const normalizedPlatform = platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux';
   const normalizedArch = arch === 'arm64' ? 'arm64' : 'x64';
-  return `${normalizedPlatform}-${normalizedArch}-server-archive`;
+  const formatToken = normalizedPlatform === 'windows' ? 'zip' : 'tar-gz';
+  return `${normalizedPlatform}-${normalizedArch}-standalone-server-${formatToken}`;
 }
 
 function normalizeArchivePath(value) {

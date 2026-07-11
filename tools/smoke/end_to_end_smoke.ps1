@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$BaseUrl = "http://127.0.0.1:18079"
 )
 
@@ -126,7 +126,7 @@ if ($auditExport.total -lt 2) {
 }
 
 $opsCluster = Invoke-RestMethod -Method Get -Uri "$BaseUrl/backend/v3/api/ops/cluster" -Headers $headers
-if ($opsCluster.nodes[0].profile -ne "self-hosted.split-services.development") {
+if ($opsCluster.nodes[0].profile -ne "standalone.development") {
     throw "Unexpected ops cluster profile"
 }
 

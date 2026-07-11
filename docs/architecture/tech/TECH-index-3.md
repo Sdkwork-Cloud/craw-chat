@@ -16,7 +16,7 @@ This section answers two practical questions:
 - conversation creation
 - agent dialog, handoff, and system-channel flows
 - membership changes, ownership transfer, role changes, and leave
-- message send, edit, recall, and timeline reads
+- message send, edit, recall, and message history reads
 - inbox, conversation summary, and read-cursor views
 
 ### Realtime and session delivery
@@ -72,4 +72,3 @@ mean roadmap intent or naming-only presence.
   semantics.
 - Switch to [SDK Overview](/sdk/index) when you need import names, language surfaces, or publication
   boundaries.
-

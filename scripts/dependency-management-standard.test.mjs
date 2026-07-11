@@ -319,10 +319,10 @@ function assertSharedGatewayFoundationIntegration() {
     !Array.isArray(foundationGateway?.legacyCompatibilityDefaultFoundationUpstreams),
     'Sdkwork IM must not document per-module foundation upstreams as defaults beside the shared gateway root',
   );
-  const explicitSplitOverrideUpstreams = (foundationGateway?.splitOverrideFoundationUpstreams ?? [])
+  const explicitExternalFoundationUpstreams = (foundationGateway?.explicitExternalFoundationUpstreams ?? [])
     .slice()
     .sort();
-  const expectedSplitOverrideUpstreams = [
+  const expectedExternalFoundationUpstreams = [
       'sdkwork-iam-app-api',
       'sdkwork-drive-app-api',
       'sdkwork-notary-app-api',
@@ -342,8 +342,8 @@ function assertSharedGatewayFoundationIntegration() {
       'sdkwork-knowledgebase-app-api',
     ].sort();
   assert(
-    JSON.stringify(explicitSplitOverrideUpstreams) === JSON.stringify(expectedSplitOverrideUpstreams),
-    'Sdkwork IM may keep per-module foundation upstreams only as explicit split-deployment overrides',
+    JSON.stringify(explicitExternalFoundationUpstreams) === JSON.stringify(expectedExternalFoundationUpstreams),
+    'Sdkwork IM may keep per-module foundation upstreams only as explicit external upstream overrides',
   );
 
   for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-cloud-gateway/Cargo.toml']) {

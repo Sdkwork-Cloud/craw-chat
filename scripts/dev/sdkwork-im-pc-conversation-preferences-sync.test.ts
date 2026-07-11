@@ -26,6 +26,12 @@ const fakeClient = {
             {
               conversationId: 'chat-1',
               conversationType: 'group',
+              preferences: {
+                isPinned: true,
+                isMuted: true,
+                isMarkedUnread: true,
+                isHidden: false,
+              },
               unreadCount: 3,
               lastMessageSeq: 7,
               lastActivityAt: '2026-06-04T11:00:00.000Z',
@@ -33,6 +39,12 @@ const fakeClient = {
             {
               conversationId: 'chat-hidden',
               conversationType: 'group',
+              preferences: {
+                isPinned: false,
+                isMuted: false,
+                isMarkedUnread: false,
+                isHidden: true,
+              },
               unreadCount: 1,
               lastMessageSeq: 3,
               lastActivityAt: '2026-06-04T10:00:00.000Z',
@@ -118,8 +130,8 @@ async function main(): Promise<void> {
   const chats = await service.getChats();
   assert.deepEqual(
     retrieveCalls,
-    [{ conversationId: 'chat-1' }, { conversationId: 'chat-hidden' }],
-    'chat list sync must restore per-user conversation preferences through the IM SDK',
+    [],
+    'chat list sync must use ConversationInboxEntry.preferences and must not issue N+1 preference reads when inbox projection is complete',
   );
   assert.equal(chats[0]?.isPinned, true);
   assert.equal(chats[0]?.isMuted, true);

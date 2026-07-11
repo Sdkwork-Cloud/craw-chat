@@ -72,7 +72,7 @@ Probe infrastructure: Prometheus scrape targets defined in
 | --- | --- | --- | --- | --- |
 | Send message (POST `/im/v3/api/messages`) | 50 ms | 150 ms | 300 ms | P99 > 500 ms for 5 min |
 | Fetch inbox (GET `/im/v3/api/chat/inbox`) | 80 ms | 200 ms | 400 ms | P99 > 800 ms for 5 min |
-| Fetch timeline (GET `/im/v3/api/chat/conversations/{conversationId}/messages`) | 100 ms | 250 ms | 500 ms | P99 > 1000 ms for 5 min |
+| Fetch message history (GET `/im/v3/api/chat/conversations/{conversationId}/messages`) | 100 ms | 250 ms | 500 ms | P99 > 1000 ms for 5 min |
 | Create conversation (POST `/im/v3/api/chat/conversations`) | 80 ms | 200 ms | 400 ms | P99 > 800 ms for 5 min |
 | User authentication (POST `/im/v3/api/auth/*`) | 100 ms | 300 ms | 600 ms | P99 > 1000 ms for 5 min |
 | File upload metadata (POST `/im/v3/api/media`) | 60 ms | 150 ms | 300 ms | P99 > 500 ms for 5 min |

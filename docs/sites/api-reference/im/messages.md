@@ -1,7 +1,7 @@
 # Messages
 
 <p class="api-page-intro">
-  Message endpoints expose timeline reads, regular and system-channel submission, and message
+  Message endpoints expose paged message history reads, regular and system-channel submission, and message
   mutations such as edit and recall. The recommended TypeScript SDK surface for these routes is the
   root <code>ImSdkClient</code> message path, not raw route-group calls.
 </p>
@@ -95,7 +95,7 @@ operations are also available on `sdk.conversations.listMessages(...)`,
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/messages</code>
-  <span class="api-op-id">operationId: postMessage</span>
+  <span class="api-op-id">operationId: conversations.messages.create</span>
 </div>
 
 Posts a regular conversation message.
@@ -105,7 +105,7 @@ Posts a regular conversation message.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation-bound write access.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 PostMessageResult`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 PostMessageResult in data.item`</span></div>
 </div>
 
 ### Path Parameters
@@ -118,7 +118,7 @@ Posts a regular conversation message.
 
 <ApiSchemaTable schema="PostMessageRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="PostMessageResult" />
 
@@ -137,15 +137,15 @@ Posts a regular conversation message.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
-<a id="get-timeline"></a>
+<a id="list-messages"></a>
 <section class="api-op">
 
 ## `GET /im/v3/api/chat/conversations/{conversationId}/messages`
@@ -153,17 +153,32 @@ Posts a regular conversation message.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/messages</code>
-  <span class="api-op-id">operationId: getTimeline</span>
+  <span class="api-op-id">operationId: conversations.messages.list</span>
 </div>
 
-Returns the projection-backed message timeline for the conversation.
+Lists a durable, store-backed message history window for the conversation. This public route is
+owned by `sdkwork-comms-conversation-service`; `projection-service` does not register or serve
+`GET /im/v3/api/chat/conversations/{conversationId}/messages`. Projection remains responsible for
+inbox, conversation summaries, read cursors, message search, pins, visibility, and interaction
+summary reads.
+
+Production deployments read from `message_store.read_window` on `PostgresMessageStore` with
+`message_seq > afterSeq`, ascending sequence order, and `page_size + 1` fetch-ahead. Startup is
+fail-closed outside dev/test when Postgres is not configured, so a `50301` on this route means the
+conversation runtime's required durable dependency is unavailable, not that the GET API is missing.
+The dev/test in-memory message-log fallback is only for explicit in-memory runtime tests and must
+not be treated as the production history store.
+
+The handler never performs unbounded in-process pagination for this path. Normal app clients request
+one page, render it, and call `sdk.conversations.listMessages(...)` again with the returned cursor
+only when the user explicitly loads more history.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.messages`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.conversations.listMessages(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Active conversation member.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 TimelineListResponse`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`200 ConversationMessageListResponse`</span></div>
 </div>
 
 ### Path Parameters
@@ -172,20 +187,37 @@ Returns the projection-backed message timeline for the conversation.
 | --- | --- | --- | --- |
 | `conversation_id` | `string` | Yes | Conversation identifier. |
 
+### Query Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `afterSeq` | `integer` | No | Return messages with `messageSeq` greater than this value. Defaults to `0`. |
+| `page_size` | `integer` | No | Page size. Defaults to `20`; maximum is `200`. |
+
 ### Response `200`
 
-<ApiSchemaTable schema="TimelineListResponse" />
+<ApiSchemaTable schema="ConversationMessageListResponse" />
+
+The response uses the SDKWork list envelope: `data.items`, `data.pageInfo`, and
+`data.highWatermark`. `data.pageInfo.mode` is `cursor`; callers continue by passing the last
+returned `messageSeq` as `afterSeq`.
+
+`ConversationMessageEntry` is the message-history DTO for this route. It contains message identity,
+sequence, sender, message body, summary, type, delivery mode, and timestamps. It intentionally does
+not inline `reactionCounts` or `pin` state; clients must not issue hidden per-message
+`interaction_summary` requests while loading history. Reactions, pins, and other interaction state
+remain explicit projection operations.
 
 
 ### Error Responses
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to access the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the read or handshake flow. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="publish-system-channel-message"></a>
@@ -196,7 +228,7 @@ Returns the projection-backed message timeline for the conversation.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/conversations/{conversationId}/system_channel/publish</code>
-  <span class="api-op-id">operationId: publishSystemChannelMessage</span>
+  <span class="api-op-id">operationId: conversations.systemChannel.publish</span>
 </div>
 
 Publishes a system message to the conversation's system channel.
@@ -230,12 +262,12 @@ Uses the same request schema as regular message submission.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="edit-message"></a>
@@ -246,7 +278,7 @@ Uses the same request schema as regular message submission.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/messages/{messageId}/edit</code>
-  <span class="api-op-id">operationId: editMessage</span>
+  <span class="api-op-id">operationId: messages.edit</span>
 </div>
 
 Edits a previously posted message.
@@ -278,12 +310,12 @@ Edits a previously posted message.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>
 <a id="recall-message"></a>
@@ -294,7 +326,7 @@ Edits a previously posted message.
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
   <code>/im/v3/api/chat/messages/{messageId}/recall</code>
-  <span class="api-op-id">operationId: recallMessage</span>
+  <span class="api-op-id">operationId: messages.recall</span>
 </div>
 
 Recalls a message. This operation does not require a JSON request body.
@@ -326,11 +358,11 @@ None. This operation does not accept a JSON request body.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

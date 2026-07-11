@@ -42,7 +42,7 @@
         },
         {
           "moduleId": "im",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "manifestRef": "../../../../../specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -61,6 +61,9 @@
         "forbidLocalPermissionCatalogForDependencyDomains": true,
         "allowExplicitOverridesOnly": true,
         "allowFrontendHintsWithoutServerDuplication": true
+      },
+      "applicationModule": {
+        "manifestRef": "../../../../../specs/iam.module.manifest.json"
       }
     },
     "dependencyApiExports": [],

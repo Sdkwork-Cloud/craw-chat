@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import type { TimelineViewEntry } from "@sdkwork/im-sdk";
+import type { ConversationMessageEntry } from "@sdkwork/im-sdk";
 
 import { useI18n } from "@sdkwork/im-h5-commons";
 
 import { markConversationRead } from "../services/chatInboxService";
 import {
-  fetchConversationTimeline,
-  fetchConversationTimelineDelta,
+  fetchConversationProfile,
+  fetchConversationMessageDelta,
+  fetchConversationMessages,
   sendConversationImage,
   sendConversationText,
 } from "../services/chatConversationService";
@@ -21,11 +22,16 @@ import {
 } from "../services/offlineSendQueue";
 import { subscribeConversationLiveMessages } from "../services/chatRealtimeService";
 import {
-  mergeTimelineEntries,
-  pickTimelinePagination,
+  mergeConversationMessageEntries,
+  pickMessageHistoryPagination,
   resolveLatestMessageSeq,
-  type TimelinePaginationState,
-} from "../services/chatTimelineUtils";
+  type MessageHistoryPaginationState,
+} from "../services/chatMessageHistoryUtils";
+import {
+  readRememberedConversationTitle,
+  rememberConversationTitle,
+  resolveConversationProfileDisplayTitle,
+} from "../services/chatConversationTitleStore";
 
 interface ChatConversationPageProps {
   conversationId: string;
@@ -34,8 +40,8 @@ interface ChatConversationPageProps {
 
 export function ChatConversationPage({ conversationId, title }: ChatConversationPageProps) {
   const { t } = useI18n();
-  const [entries, setEntries] = useState<TimelineViewEntry[]>([]);
-  const [pagination, setPagination] = useState<TimelinePaginationState>({
+  const [entries, setEntries] = useState<ConversationMessageEntry[]>([]);
+  const [pagination, setPagination] = useState<MessageHistoryPaginationState>({
     hasMore: false,
     nextAfterSeq: 0,
   });
@@ -46,42 +52,45 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [liveConnected, setLiveConnected] = useState(false);
+  const [resolvedTitle, setResolvedTitle] = useState<string | undefined>(() => (
+    title ?? readRememberedConversationTitle(conversationId)
+  ));
   const latestSeqRef = useRef(0);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const messageHistoryRef = useRef<HTMLDivElement>(null);
   const loadingOlderRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
-    getScrollElement: () => timelineRef.current,
+    getScrollElement: () => messageHistoryRef.current,
     estimateSize: () => 76,
     overscan: 10,
   });
 
-  const applyTimelineResponse = useCallback((items: TimelineViewEntry[], responsePagination: TimelinePaginationState, mode: "replace" | "append" | "merge") => {
+  const applyConversationMessagePage = useCallback((items: ConversationMessageEntry[], responsePagination: MessageHistoryPaginationState, mode: "replace" | "append" | "merge") => {
     setEntries((previous) => {
       const next = mode === "replace"
         ? items
         : mode === "append"
-          ? mergeTimelineEntries(previous, items)
-          : mergeTimelineEntries(previous, items);
+          ? mergeConversationMessageEntries(previous, items)
+          : mergeConversationMessageEntries(previous, items);
       latestSeqRef.current = resolveLatestMessageSeq(next);
       return next;
     });
     setPagination(responsePagination);
   }, []);
 
-  const loadTimeline = useCallback((options?: { silent?: boolean }) => {
+  const loadMessageHistory = useCallback((options?: { silent?: boolean }) => {
     if (!options?.silent) {
       setLoading(true);
     }
     setError(null);
 
-    fetchConversationTimeline(conversationId)
+    fetchConversationMessages(conversationId)
       .then((response) => {
-        applyTimelineResponse(
+        applyConversationMessagePage(
           response.items ?? [],
-          pickTimelinePagination(response),
+          pickMessageHistoryPagination(response),
           "replace",
         );
       })
@@ -94,23 +103,23 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
           setLoading(false);
         }
       });
-  }, [applyTimelineResponse, conversationId, t]);
+  }, [applyConversationMessagePage, conversationId, t]);
 
-  const appendNewTimelineEntries = useCallback(async () => {
+  const appendNewMessageEntries = useCallback(async () => {
     const afterSeq = latestSeqRef.current;
     if (afterSeq <= 0) {
       return;
     }
     try {
-      const response = await fetchConversationTimelineDelta(conversationId, afterSeq);
+      const response = await fetchConversationMessageDelta(conversationId, afterSeq);
       if ((response.items ?? []).length === 0) {
         return;
       }
-      applyTimelineResponse(response.items ?? [], pickTimelinePagination(response), "merge");
+      applyConversationMessagePage(response.items ?? [], pickMessageHistoryPagination(response), "merge");
     } catch {
-      // Keep existing timeline visible when incremental sync fails.
+      // Keep existing messages visible when incremental sync fails.
     }
-  }, [applyTimelineResponse, conversationId]);
+  }, [applyConversationMessagePage, conversationId]);
 
   const loadOlderMessages = useCallback(async () => {
     if (loadingOlderRef.current || !pagination.hasMore) {
@@ -118,15 +127,15 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     }
     loadingOlderRef.current = true;
     setLoadingOlder(true);
-    const listElement = timelineRef.current;
+    const listElement = messageHistoryRef.current;
     const previousHeight = listElement?.scrollHeight ?? 0;
 
     try {
-      const response = await fetchConversationTimeline(conversationId, {
+      const response = await fetchConversationMessages(conversationId, {
         afterSeq: pagination.nextAfterSeq,
         pageSize: 50,
       });
-      applyTimelineResponse(response.items ?? [], pickTimelinePagination(response), "append");
+      applyConversationMessagePage(response.items ?? [], pickMessageHistoryPagination(response), "append");
       requestAnimationFrame(() => {
         if (listElement) {
           listElement.scrollTop = listElement.scrollHeight - previousHeight;
@@ -139,11 +148,38 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       loadingOlderRef.current = false;
       setLoadingOlder(false);
     }
-  }, [applyTimelineResponse, conversationId, pagination.hasMore, pagination.nextAfterSeq, t]);
+  }, [applyConversationMessagePage, conversationId, pagination.hasMore, pagination.nextAfterSeq, t]);
 
   useEffect(() => {
-    loadTimeline();
-  }, [loadTimeline]);
+    loadMessageHistory();
+  }, [loadMessageHistory]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (title) {
+      rememberConversationTitle(conversationId, title);
+      setResolvedTitle(title);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setResolvedTitle(readRememberedConversationTitle(conversationId));
+    fetchConversationProfile(conversationId)
+      .then((profile) => {
+        if (cancelled) {
+          return;
+        }
+        const profileTitle = resolveConversationProfileDisplayTitle(profile);
+        rememberConversationTitle(conversationId, profileTitle);
+        setResolvedTitle(profileTitle ?? readRememberedConversationTitle(conversationId));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, title]);
 
   useEffect(() => {
     void markConversationRead(conversationId, { readSeq: latestSeqRef.current }).catch(() => undefined);
@@ -164,10 +200,10 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         }
       }
       if (scoped.length > 0) {
-        await appendNewTimelineEntries();
+        await appendNewMessageEntries();
       }
     });
-  }, [appendNewTimelineEntries, conversationId]);
+  }, [appendNewMessageEntries, conversationId]);
 
   useEffect(() => {
     void flushPendingSends();
@@ -188,7 +224,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     let unsubscribe: (() => void) | undefined;
 
     void subscribeConversationLiveMessages(conversationId, () => {
-      void appendNewTimelineEntries();
+      void appendNewMessageEntries();
     })
       .then((dispose) => {
         if (cancelled) {
@@ -209,7 +245,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       unsubscribe?.();
       setLiveConnected(false);
     };
-  }, [appendNewTimelineEntries, conversationId]);
+  }, [appendNewMessageEntries, conversationId]);
 
   const handleSend = async () => {
     const text = draft.trim();
@@ -222,7 +258,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
       await sendConversationText(conversationId, text, { clientMsgId });
       await removePendingTextSend(clientMsgId);
       setDraft("");
-      await appendNewTimelineEntries();
+      await appendNewMessageEntries();
     } catch (cause: unknown) {
       if (isRetryableH5SendError(cause)) {
         await enqueuePendingTextSend({ conversationId, text, clientMsgId });
@@ -242,7 +278,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     setError(null);
     try {
       await sendConversationImage(conversationId, file);
-      await appendNewTimelineEntries();
+      await appendNewMessageEntries();
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : t("chat.conversation.uploadError");
       setError(message);
@@ -254,15 +290,15 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
     }
   };
 
-  const handleTimelineScroll = () => {
-    const element = timelineRef.current;
+  const handleMessageHistoryScroll = () => {
+    const element = messageHistoryRef.current;
     if (!element || element.scrollTop > 80) {
       return;
     }
     void loadOlderMessages();
   };
 
-  const heading = title ?? t("chat.conversation.fallbackTitle", { id: conversationId });
+  const heading = resolvedTitle ?? t("chat.conversation.fallbackTitle", { id: conversationId });
 
   return (
     <section className="im-h5-chat-conversation" aria-label={t("chat.conversation.aria")}>
@@ -290,7 +326,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
         <div className="im-h5-chat-error" role="alert">
           <p>{error}</p>
           {entries.length === 0 ? (
-            <button type="button" className="im-h5-chat-retry" onClick={() => loadTimeline()}>
+            <button type="button" className="im-h5-chat-retry" onClick={() => loadMessageHistory()}>
               {t("chat.conversation.retry")}
             </button>
           ) : null}
@@ -299,15 +335,15 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
 
       {!loading && !error ? (
         <div
-          ref={timelineRef}
-          className="im-h5-chat-timeline"
-          onScroll={handleTimelineScroll}
+          ref={messageHistoryRef}
+          className="im-h5-chat-message-history"
+          onScroll={handleMessageHistoryScroll}
         >
           {entries.length === 0 ? (
             <p className="im-h5-chat-status">{t("chat.conversation.empty")}</p>
           ) : (
             <ul
-              className="im-h5-chat-timeline-list"
+              className="im-h5-chat-message-history-list"
               style={{
                 height: `${rowVirtualizer.getTotalSize()}px`,
                 position: "relative",
@@ -318,7 +354,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
                 return (
                   <li
                     key={entry.messageId}
-                    className="im-h5-chat-timeline-item"
+                    className="im-h5-chat-message-history-item"
                     style={{
                       position: "absolute",
                       top: 0,
@@ -327,7 +363,7 @@ export function ChatConversationPage({ conversationId, title }: ChatConversation
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <div className="im-h5-chat-timeline-meta">
+                    <div className="im-h5-chat-message-history-meta">
                       <strong>{entry.sender?.displayName ?? entry.sender?.id ?? t("chat.conversation.unknownSender")}</strong>
                       <time>{entry.occurredAt}</time>
                     </div>

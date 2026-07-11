@@ -4,7 +4,7 @@ use super::model::{
     ConversationPreferencesView, ConversationProfileView, UpdateConversationPreferencesRequest,
     UpdateConversationProfileRequest,
 };
-use super::{TimelineProjectionService, lock_projection_mutex, scope::scope_key};
+use super::{TimelineProjectionService, lock_projection_mutex, scope::scope_key, snapshot};
 
 pub(super) fn conversation_preferences_key(
     tenant_id: &str,
@@ -61,10 +61,87 @@ impl TimelineProjectionService {
         conversation_id: &str,
     ) -> ConversationProfileView {
         let key = scope_key(tenant_id, organization_id, conversation_id);
+        let profile = if let Some(profile) =
+            lock_projection_mutex(&self.conversation_profiles, "conversation profile store")
+                .get(key.as_str())
+                .cloned()
+        {
+            profile
+        } else {
+            self.load_conversation_profile_from_durable_store(key.as_str())
+                .unwrap_or_else(|| default_conversation_profile(tenant_id, conversation_id))
+        };
+
+        self.apply_catalog_title_profile_fallback(key.as_str(), profile)
+    }
+
+    fn apply_catalog_title_profile_fallback(
+        &self,
+        scope: &str,
+        mut profile: ConversationProfileView,
+    ) -> ConversationProfileView {
+        if !profile.display_name.trim().is_empty() {
+            return profile;
+        }
+        let Some((display_name, created_at)) = self.catalog_title_for_profile_fallback(scope)
+        else {
+            return profile;
+        };
+
+        profile.display_name = display_name;
+        if profile.updated_at.trim().is_empty() {
+            profile.updated_at = created_at;
+        }
         lock_projection_mutex(&self.conversation_profiles, "conversation profile store")
-            .get(key.as_str())
+            .insert(scope.to_owned(), profile.clone());
+        profile
+    }
+
+    fn catalog_title_for_profile_fallback(&self, scope: &str) -> Option<(String, String)> {
+        let catalog = lock_projection_mutex(&self.conversations, "conversation store")
+            .get(scope)
             .cloned()
-            .unwrap_or_else(|| default_conversation_profile(tenant_id, conversation_id))
+            .or_else(|| self.load_conversation_catalog_from_durable_store(scope))?;
+        let title = catalog
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())?
+            .to_owned();
+        Some((title, catalog.created_at))
+    }
+
+    /// Read-through fallback: load conversation profile from the durable
+    /// metadata store and hydrate the in-memory profile cache. Returns
+    /// `None` when the durable store is not configured, the snapshot is
+    /// absent, or the load fails (warn-logged).
+    fn load_conversation_profile_from_durable_store(
+        &self,
+        scope: &str,
+    ) -> Option<ConversationProfileView> {
+        let store = self.durable_metadata_store()?;
+        match snapshot::load_metadata_snapshot::<ConversationProfileView>(
+            store.as_ref(),
+            scope,
+            snapshot::CONVERSATION_PROFILE_KEY,
+        ) {
+            Ok(Some(profile)) => {
+                lock_projection_mutex(&self.conversation_profiles, "conversation profile store")
+                    .insert(scope.to_owned(), profile.clone());
+                Some(profile)
+            }
+            Ok(None) => None,
+            Err(error) => {
+                tracing::warn!(
+                    target: "sdkwork.im.projection.read_through",
+                    event = "im.projection.conversation_profile_durable_read_failed",
+                    scope = %scope,
+                    error = %error,
+                    "durable metadata read-through failed for conversation profile",
+                );
+                None
+            }
+        }
     }
 
     pub fn update_conversation_profile(

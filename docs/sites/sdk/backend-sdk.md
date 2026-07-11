@@ -62,7 +62,7 @@ node .\sdks\sdkwork-im-backend-sdk\bin\generate-sdk.mjs --language typescript
 ```
 
 The verifier enforces `/backend/v3/api/*` ownership, required ops/audit/automation/control/admin
-paths, SDKWork dual-token security, generated output structure, and assembly metadata.
+paths, SDKWork dual-token security, generated output structure, and SDK manifest metadata.
 
 ## Related API Docs
 

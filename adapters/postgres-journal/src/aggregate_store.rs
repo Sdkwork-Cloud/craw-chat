@@ -3,11 +3,15 @@
 //! Manages conversation members and read cursors with Snowflake IDs.
 
 use im_platform_contracts::{
-    ContractError, ConversationAggregateState, ConversationAggregateStore,
-    ConversationMemberRecord, ReadCursorRecord,
+    CONVERSATION_AGGREGATE_PAGE_SIZE_MAX, ContractError, ConversationAggregateStore,
+    ConversationMemberPage, ConversationMemberPageCursor, ConversationMemberRecord, ReadCursorPage,
+    ReadCursorPageCursor, ReadCursorRecord,
 };
 
-use crate::{PostgresJournalPool, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    PostgresJournalPool, postgres_pool_client, postgres_timestamptz, postgres_unavailable,
+    run_postgres_io,
+};
 
 /// PostgreSQL implementation of [`ConversationAggregateStore`].
 #[derive(Clone)]
@@ -29,6 +33,9 @@ select tenant_id, organization_id, conversation_id, principal_kind, principal_id
 from im_projection_conversation_members
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and membership_state in ('joined', 'linked', 'invited')
+    and ($4::text is null or (principal_kind, principal_id) > ($4, $5))
+order by principal_kind asc, principal_id asc
+limit $6
 "#;
 
 const LOAD_MEMBER_SQL: &str = r#"
@@ -37,6 +44,26 @@ select tenant_id, organization_id, conversation_id, principal_kind, principal_id
 from im_projection_conversation_members
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
     and principal_kind = $4 and principal_id = $5
+"#;
+
+const LOAD_MEMBER_BY_ID_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
+    member_id, membership_role, membership_state, invited_by, joined_at, removed_at, attributes_json::text
+from im_projection_conversation_members
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+    and member_id = $4
+"#;
+
+const LOAD_EVENT_RECIPIENTS_SQL: &str = r#"
+select tenant_id, organization_id, conversation_id, principal_kind, principal_id,
+    member_id, membership_role, membership_state, invited_by, joined_at, removed_at, attributes_json::text
+from im_projection_conversation_members
+where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+    and membership_state in ('joined', 'linked')
+    and ($4::text is null or (principal_kind, principal_id) > ($4, $5))
+    and joined_at <= $6
+order by principal_kind asc, principal_id asc
+limit $7
 "#;
 
 const UPSERT_MEMBER_SQL: &str = r#"
@@ -66,11 +93,10 @@ select tenant_id, organization_id, conversation_id, member_id, device_id, princi
     read_seq, last_read_message_id, updated_at
 from im_projection_read_cursors
 where tenant_id = $1 and organization_id = $2 and conversation_id = $3
+    and ($4::bigint is null or (member_id, device_id) > ($4, $5))
 order by member_id asc, device_id asc
-limit $4 offset $5
+limit $6
 "#;
-
-const READ_CURSOR_RESTORE_BATCH_SIZE: i64 = 500;
 
 const LOAD_READ_CURSOR_SQL: &str = r#"
 select tenant_id, organization_id, conversation_id, member_id, device_id, principal_kind, principal_id,
@@ -106,6 +132,8 @@ where tenant_id = $1 and organization_id = $2 and conversation_id = $3
 "#;
 
 fn row_to_member(row: &postgres::Row) -> ConversationMemberRecord {
+    let joined_at: chrono::DateTime<chrono::Utc> = row.get(9);
+    let removed_at: Option<chrono::DateTime<chrono::Utc>> = row.get(10);
     ConversationMemberRecord {
         tenant_id: row.get(0),
         organization_id: row.get(1),
@@ -116,13 +144,14 @@ fn row_to_member(row: &postgres::Row) -> ConversationMemberRecord {
         membership_role: row.get(6),
         membership_state: row.get(7),
         invited_by: row.get(8),
-        joined_at: row.get(9),
-        removed_at: row.get(10),
+        joined_at: joined_at.to_rfc3339(),
+        removed_at: removed_at.map(|dt| dt.to_rfc3339()),
         attributes_json: row.get(11),
     }
 }
 
 fn row_to_cursor(row: &postgres::Row) -> ReadCursorRecord {
+    let updated_at: chrono::DateTime<chrono::Utc> = row.get(9);
     ReadCursorRecord {
         tenant_id: row.get(0),
         organization_id: row.get(1),
@@ -133,30 +162,57 @@ fn row_to_cursor(row: &postgres::Row) -> ReadCursorRecord {
         principal_id: row.get(6),
         read_seq: row.get::<_, i64>(7) as u64,
         last_read_message_id: row.get(8),
-        updated_at: row.get(9),
+        updated_at: updated_at.to_rfc3339(),
     }
 }
 
 impl ConversationAggregateStore for PostgresAggregateStore {
-    fn load_members(
+    fn load_members_page(
         &self,
         tenant_id: &str,
         organization_id: &str,
         conversation_id: &str,
-    ) -> Result<Vec<ConversationMemberRecord>, ContractError> {
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        let query_limit = validated_page_query_limit(page_size)?;
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
+        let cursor_principal_kind = cursor.map(|cursor| cursor.principal_kind.clone());
+        let cursor_principal_id = cursor.map(|cursor| cursor.principal_id.clone());
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "load_members")?;
+            let mut client = postgres_pool_client(&pool, "load_members_page")?;
             let rows = client
                 .query(
                     LOAD_MEMBERS_SQL,
-                    &[&tenant_id, &organization_id, &conversation_id],
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &cursor_principal_kind,
+                        &cursor_principal_id,
+                        &query_limit,
+                    ],
                 )
-                .map_err(|error| postgres_unavailable("load_members", error))?;
-            Ok(rows.iter().map(row_to_member).collect())
+                .map_err(|error| postgres_unavailable("load_members_page", error))?;
+            let mut items = rows.iter().map(row_to_member).collect::<Vec<_>>();
+            let has_more = items.len() > page_size;
+            if has_more {
+                items.truncate(page_size);
+            }
+            let next_cursor = has_more.then(|| items.last()).flatten().map(|member| {
+                ConversationMemberPageCursor {
+                    principal_kind: member.principal_kind.clone(),
+                    principal_id: member.principal_id.clone(),
+                }
+            });
+            Ok(ConversationMemberPage {
+                items,
+                next_cursor,
+                has_more,
+            })
         })
     }
 
@@ -192,10 +248,86 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         })
     }
 
+    fn load_member_by_id(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        member_id: i64,
+    ) -> Result<Option<ConversationMemberRecord>, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let conversation_id = conversation_id.to_owned();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "load_member_by_id")?;
+            let row = client
+                .query_opt(
+                    LOAD_MEMBER_BY_ID_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id, &member_id],
+                )
+                .map_err(|error| postgres_unavailable("load_member_by_id", error))?;
+            Ok(row.map(|row| row_to_member(&row)))
+        })
+    }
+
+    fn load_event_recipients_page(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+        joined_before_or_at: &str,
+        cursor: Option<&ConversationMemberPageCursor>,
+        page_size: usize,
+    ) -> Result<ConversationMemberPage, ContractError> {
+        let query_limit = validated_page_query_limit(page_size)?;
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let conversation_id = conversation_id.to_owned();
+        let joined_before_or_at = postgres_timestamptz(joined_before_or_at, "joined_before_or_at")?;
+        let cursor_principal_kind = cursor.map(|cursor| cursor.principal_kind.clone());
+        let cursor_principal_id = cursor.map(|cursor| cursor.principal_id.clone());
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "load_event_recipients_page")?;
+            let rows = client
+                .query(
+                    LOAD_EVENT_RECIPIENTS_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &cursor_principal_kind,
+                        &cursor_principal_id,
+                        &joined_before_or_at,
+                        &query_limit,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("load_event_recipients_page", error))?;
+            let mut items = rows.iter().map(row_to_member).collect::<Vec<_>>();
+            let has_more = items.len() > page_size;
+            if has_more {
+                items.truncate(page_size);
+            }
+            let next_cursor = has_more.then(|| items.last()).flatten().map(|member| {
+                ConversationMemberPageCursor {
+                    principal_kind: member.principal_kind.clone(),
+                    principal_id: member.principal_id.clone(),
+                }
+            });
+            Ok(ConversationMemberPage {
+                items,
+                next_cursor,
+                has_more,
+            })
+        })
+    }
+
     fn upsert_member(&self, member: ConversationMemberRecord) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "upsert_member")?;
+            let joined_at = postgres_timestamptz(member.joined_at.as_str(), "joined_at")?;
             let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
                 &member.tenant_id,
                 &member.organization_id,
@@ -206,8 +338,8 @@ impl ConversationAggregateStore for PostgresAggregateStore {
                 &member.membership_role,
                 &member.membership_state,
                 &member.invited_by,
-                &member.joined_at,
-                &member.joined_at,
+                &joined_at,
+                &joined_at,
             ];
             client
                 .execute(UPSERT_MEMBER_SQL, params)
@@ -234,6 +366,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let removed_at = removed_at.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "remove_member")?;
+            let removed_at_ts = postgres_timestamptz(removed_at.as_str(), "removed_at")?;
             client
                 .execute(
                     REMOVE_MEMBER_SQL,
@@ -243,7 +376,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
                         &conversation_id,
                         &principal_kind,
                         &principal_id,
-                        &removed_at,
+                        &removed_at_ts,
                     ],
                 )
                 .map_err(|error| postgres_unavailable("remove_member", error))?;
@@ -251,43 +384,54 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         })
     }
 
-    fn load_read_cursors(
+    fn load_read_cursors_page(
         &self,
         tenant_id: &str,
         organization_id: &str,
         conversation_id: &str,
-    ) -> Result<Vec<ReadCursorRecord>, ContractError> {
+        cursor: Option<&ReadCursorPageCursor>,
+        page_size: usize,
+    ) -> Result<ReadCursorPage, ContractError> {
+        let query_limit = validated_page_query_limit(page_size)?;
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
+        let cursor_member_id = cursor.map(|cursor| cursor.member_id);
+        let cursor_device_id = cursor.map(|cursor| cursor.device_id.clone());
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "load_read_cursors")?;
-            let mut offset = 0i64;
-            let mut records = Vec::new();
-            loop {
-                let rows = client
-                    .query(
-                        LOAD_READ_CURSORS_SQL,
-                        &[
-                            &tenant_id,
-                            &organization_id,
-                            &conversation_id,
-                            &READ_CURSOR_RESTORE_BATCH_SIZE,
-                            &offset,
-                        ],
-                    )
-                    .map_err(|error| postgres_unavailable("load_read_cursors", error))?;
-                let batch_len = rows.len();
-                for row in rows {
-                    records.push(row_to_cursor(&row));
-                }
-                if batch_len < READ_CURSOR_RESTORE_BATCH_SIZE as usize {
-                    break;
-                }
-                offset = offset.saturating_add(READ_CURSOR_RESTORE_BATCH_SIZE);
+            let mut client = postgres_pool_client(&pool, "load_read_cursors_page")?;
+            let rows = client
+                .query(
+                    LOAD_READ_CURSORS_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &cursor_member_id,
+                        &cursor_device_id,
+                        &query_limit,
+                    ],
+                )
+                .map_err(|error| postgres_unavailable("load_read_cursors_page", error))?;
+            let mut items = rows.iter().map(row_to_cursor).collect::<Vec<_>>();
+            let has_more = items.len() > page_size;
+            if has_more {
+                items.truncate(page_size);
             }
-            Ok(records)
+            let next_cursor =
+                has_more
+                    .then(|| items.last())
+                    .flatten()
+                    .map(|cursor| ReadCursorPageCursor {
+                        member_id: cursor.member_id,
+                        device_id: cursor.device_id.clone(),
+                    });
+            Ok(ReadCursorPage {
+                items,
+                next_cursor,
+                has_more,
+            })
         })
     }
 
@@ -319,6 +463,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "upsert_read_cursor")?;
             let read_seq_i64 = cursor.read_seq as i64;
+            let updated_at = postgres_timestamptz(cursor.updated_at.as_str(), "updated_at")?;
             let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
                 &cursor.tenant_id,
                 &cursor.organization_id,
@@ -329,7 +474,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
                 &cursor.principal_id,
                 &read_seq_i64,
                 &cursor.last_read_message_id,
-                &cursor.updated_at,
+                &updated_at,
             ];
             client
                 .execute(UPSERT_READ_CURSOR_SQL, params)
@@ -338,23 +483,26 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         })
     }
 
-    fn load_aggregate_state(
+    fn load_high_watermark(
         &self,
         tenant_id: &str,
         organization_id: &str,
         conversation_id: &str,
-    ) -> Result<ConversationAggregateState, ContractError> {
-        let members = self.load_members(tenant_id, organization_id, conversation_id)?;
-        let read_cursors = self.load_read_cursors(tenant_id, organization_id, conversation_id)?;
-        let high_watermark =
-            self.read_high_watermark(tenant_id, organization_id, conversation_id)?;
-        Ok(ConversationAggregateState {
-            tenant_id: tenant_id.to_owned(),
-            organization_id: organization_id.to_owned(),
-            conversation_id: conversation_id.to_owned(),
-            members,
-            read_cursors,
-            high_watermark,
+    ) -> Result<u64, ContractError> {
+        let pool = self.pool.clone();
+        let tenant_id = tenant_id.to_owned();
+        let organization_id = organization_id.to_owned();
+        let conversation_id = conversation_id.to_owned();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "aggregate_load_high_watermark")?;
+            let row = client
+                .query_one(
+                    READ_HIGH_WATERMARK_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id],
+                )
+                .map_err(|error| postgres_unavailable("aggregate_load_high_watermark", error))?;
+            let high_watermark: i64 = row.get(0);
+            Ok(high_watermark as u64)
         })
     }
 
@@ -388,27 +536,49 @@ impl ConversationAggregateStore for PostgresAggregateStore {
     }
 }
 
-impl PostgresAggregateStore {
-    fn read_high_watermark(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        conversation_id: &str,
-    ) -> Result<u64, ContractError> {
-        let pool = self.pool.clone();
-        let tenant_id = tenant_id.to_owned();
-        let organization_id = organization_id.to_owned();
-        let conversation_id = conversation_id.to_owned();
-        run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "aggregate_read_high_watermark")?;
-            let row = client
-                .query_one(
-                    READ_HIGH_WATERMARK_SQL,
-                    &[&tenant_id, &organization_id, &conversation_id],
-                )
-                .map_err(|error| postgres_unavailable("aggregate_read_high_watermark", error))?;
-            let high_watermark: i64 = row.get(0);
-            Ok(high_watermark as u64)
-        })
+fn validated_page_query_limit(page_size: usize) -> Result<i64, ContractError> {
+    if page_size == 0 || page_size > CONVERSATION_AGGREGATE_PAGE_SIZE_MAX {
+        return Err(ContractError::Invalid(format!(
+            "conversation aggregate page_size must be between 1 and {CONVERSATION_AGGREGATE_PAGE_SIZE_MAX}: {page_size}"
+        )));
+    }
+    i64::try_from(page_size.saturating_add(1)).map_err(|error| {
+        ContractError::Invalid(format!(
+            "conversation aggregate page_size cannot convert to PostgreSQL limit: {error}"
+        ))
+    })
+}
+
+#[cfg(test)]
+mod pagination_contract_tests {
+    use super::*;
+
+    #[test]
+    fn member_pages_use_stable_keyset_and_sql_limit() {
+        let normalized = LOAD_MEMBERS_SQL.to_ascii_lowercase();
+        assert!(normalized.contains("(principal_kind, principal_id) >"));
+        assert!(normalized.contains("order by principal_kind asc, principal_id asc"));
+        assert!(normalized.contains("limit $6"));
+        assert!(!normalized.contains(" offset "));
+    }
+
+    #[test]
+    fn read_cursor_pages_use_stable_keyset_and_sql_limit() {
+        let normalized = LOAD_READ_CURSORS_SQL.to_ascii_lowercase();
+        assert!(normalized.contains("(member_id, device_id) >"));
+        assert!(normalized.contains("order by member_id asc, device_id asc"));
+        assert!(normalized.contains("limit $6"));
+        assert!(!normalized.contains(" offset "));
+    }
+
+    #[test]
+    fn event_recipient_pages_include_only_active_members_at_event_time() {
+        let normalized = LOAD_EVENT_RECIPIENTS_SQL.to_ascii_lowercase();
+        assert!(normalized.contains("membership_state in ('joined', 'linked')"));
+        assert!(!normalized.contains("'invited'"));
+        assert!(normalized.contains("joined_at <= $6"));
+        assert!(normalized.contains("order by principal_kind asc, principal_id asc"));
+        assert!(normalized.contains("limit $7"));
+        assert!(!normalized.contains(" offset "));
     }
 }

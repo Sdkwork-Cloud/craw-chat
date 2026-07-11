@@ -49,7 +49,7 @@
   <a href="/api-reference/im/conversations"><code>Conversation</code> Conversation creation, system channels, and agent handoff flows</a>
   <a href="/api-reference/im/rooms"><code>Rooms</code> Live, chat, and game room lifecycle on group conversations</a>
   <a href="/api-reference/im/membership-and-read-state"><code>Membership</code> Member roster operations and read-cursor updates</a>
-  <a href="/api-reference/im/messages"><code>Messages</code> Timeline reads, message send, edit, recall, and system-channel publish</a>
+  <a href="/api-reference/im/messages"><code>Messages</code> Message history reads, message send, edit, recall, and system-channel publish</a>
   <a href="/api-reference/im/media"><code>Media</code> Upload initiation, completion, media lookup, signed download, and attach</a>
   <a href="/api-reference/im/streams"><code>Streams</code> Stream open, frame append, list, checkpoint, complete, and abort</a>
   <a href="/api-reference/im/calls"><code>Calls</code> IM call signaling lifecycle, credentials, and RTC media handoff</a>

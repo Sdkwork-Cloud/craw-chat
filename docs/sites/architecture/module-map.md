@@ -25,7 +25,7 @@ directories are stable enough to document as product surfaces.
 | `sdkwork-im-cloud-gateway` | Unified application ingress, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `comms-conversation-service` | Conversation, membership, message, and handoff behavior |
 | `session-gateway` | client route heartbeat, presence, realtime route ownership, disconnect fences, and websocket handling |
-| `projection-service` | Inbox, timeline, summary, and read-model projection support |
+| `projection-service` | Inbox, summaries, read cursors, member directories, pins, search, visibility, and interaction read-model projection support |
 | `media-service` | Media upload lifecycle, lookup, attachment, and provider-aware download URLs |
 | `streaming-service` | Stream sessions, frames, checkpoints, completion, and abort flow |
 | `im_calls` / `calls` | IM-owned call lifecycle, signaling, credentials, and RTC media handoff |

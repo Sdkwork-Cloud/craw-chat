@@ -12,8 +12,8 @@ family.
 
 The TypeScript family is layered:
 
-- `@sdkwork/im-sdk-generated` is the generator-owned HTTP transport package.
-- `@sdkwork/im-sdk` is the authored app-facing facade package.
+- `sdkwork-im-sdk-generated-typescript` is the generator-owned HTTP transport id.
+- `@sdkwork/im-sdk` is the authored app-facing consumer package.
 - The websocket adapter is authored under `sdkwork-im-sdk-typescript/src` because
   websocket transport is not generated HTTP output.
 

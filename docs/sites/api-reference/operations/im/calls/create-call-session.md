@@ -24,14 +24,14 @@ Creates an IM-owned call signaling session.
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.calls`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Conversation `call.create` capability when the session is bound to a conversation.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 RtcSessionMutationResponse`</span></div>
+  <div class="api-meta-card"><strong>Success</strong><span>`201 RtcSessionMutationResponse in data.item`</span></div>
 </div>
 
 ### Request Body
 
 <ApiSchemaTable schema="CreateRtcSessionRequest" />
 
-### Response `200`
+### Response `201`
 
 <ApiSchemaTable schema="RtcSessionMutationResponse" />
 
@@ -40,8 +40,8 @@ Creates an IM-owned call signaling session.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `40001` | The request payload or parameters are invalid. |
-| `401` | `40101`, `40102` | AppContext projection is missing or invalid. |
-| `403` | `40301`, `40302` | The caller is not allowed to mutate the target resource. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
 | `404` | `40401` | The requested resource does not exist. |
 | `409` | `40901` | Current runtime state blocks the mutation. |
 | `503` | `50301` | A required subsystem or provider is unavailable. |

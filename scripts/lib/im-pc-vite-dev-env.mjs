@@ -7,7 +7,7 @@ import {
 } from '../lib/im-topology.mjs';
 import {
   deriveWebSocketBaseUrlFromHttpBaseUrl,
-  isStandaloneUnifiedProcess,
+  isStandaloneSingleIngress,
   resolveApplicationPublicHttpUrl,
   resolveSdkworkApiGatewayBaseUrl,
 } from '../lib/im-pc-dev.mjs';
@@ -76,7 +76,7 @@ export async function resolveSdkworkImPcViteDevEnv(env = process.env) {
         SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: discoveredGateway,
         VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: discoveredGateway,
       };
-      if (isStandaloneUnifiedProcess(mergedEnv)) {
+      if (isStandaloneSingleIngress(mergedEnv)) {
         mergedEnv = {
           ...mergedEnv,
           SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: discoveredGateway,

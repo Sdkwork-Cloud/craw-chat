@@ -1,0 +1,23 @@
+{
+  "sidebar": {
+    "chat": "聊天",
+    "workspace": "工作台",
+    "orders": "订单中心",
+    "shop": "购物中心",
+    "calendar": "日历",
+    "notary": "公证业务",
+    "knowledge": "知识库",
+    "drive": "网盘",
+    "enterprise": "企业中心",
+    "devices": "智能硬件",
+    "community": "社群圈子",
+    "agent": "智能体",
+    "voice": "声音市场",
+    "course": "在线课程",
+    "contacts": "通讯录",
+    "favorites": "收藏",
+    "mobile": "手机",
+    "settings": "设置",
+    "settingsLocked": "当前应用设置已锁定"
+  }
+}

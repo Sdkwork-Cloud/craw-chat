@@ -4,17 +4,17 @@
 # Local Binary
 
 Local development no longer uses retired local-install wrapper scripts or the removed minimal-node
-service crate. The verified binary workflow is topology v2 orchestration through Node scripts and
+service crate. The verified binary workflow is topology v4 orchestration through Node scripts and
 the `sdkwork-im-server` ingress binary.
 
 ## Development Commands
 
 | Command | Profile | Purpose |
 | --- | --- | --- |
-| `pnpm dev` | `standalone.unified-process.development` | Default PostgreSQL standalone browser dev stack |
-| `pnpm dev:browser` | `standalone.unified-process.development` | Browser dev stack |
-| `pnpm dev:desktop` | `standalone.unified-process.development` | Desktop dev stack |
-| `pnpm dev:server` | `standalone.split-services.development` | Explicit server-only split-services dev stack |
+| `pnpm dev` | `standalone.development` | Default PostgreSQL standalone browser dev stack |
+| `pnpm dev:browser` | `standalone.development` | Browser dev stack |
+| `pnpm dev:desktop` | `standalone.development` | Desktop dev stack |
+| `pnpm dev:server` | `standalone.development` | Server-only development stack |
 
 Configuration authority:
 
@@ -34,7 +34,7 @@ The packaged binary name is `sdkwork-im-server`.
 
 ## Default Dev Bind Address
 
-Application ingress listens on `127.0.0.1:18079` in the default split-services development profile.
+Application ingress listens on `127.0.0.1:18079` in the default standalone development profile.
 
 ```bash
 curl http://127.0.0.1:18079/healthz

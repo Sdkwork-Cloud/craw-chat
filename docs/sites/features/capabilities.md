@@ -9,7 +9,7 @@ Implementation-aligned capability map for the current Sdkwork IM repository.
 | Conversations | Standard conversations, agent dialogs, handoffs, system channels | `services/sdkwork-im-cloud-gateway`, `services/comms-conversation-service` |
 | Rooms | Live, chat, and game room binding with enter/leave orchestration | `services/comms-conversation-service` |
 | Membership | List, add, remove, transfer owner, change role, leave | OpenAPI `/im/v3/api/chat/*` |
-| Messages | Send, edit, recall, timeline reads | `services/comms-conversation-service` |
+| Messages | Send, edit, recall, message history reads | `services/sdkwork-comms-conversation-service` |
 | Read models | Inbox, conversation summary, read cursor | `services/projection-service` |
 
 ## Realtime

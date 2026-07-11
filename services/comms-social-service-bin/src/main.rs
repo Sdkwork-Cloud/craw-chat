@@ -6,7 +6,7 @@ use social_service::SocialRuntime;
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_COMMS_SOCIAL_SERVICE_BIND_ADDR";
 const LEGACY_BIND_ADDR_ENV: &str = "SDKWORK_IM_SOCIAL_SERVICE_BIND_ADDR";
 const RUNTIME_DIR_ENV: &str = "SDKWORK_IM_RUNTIME_DIR";
-const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18092";
+const DEFAULT_BIND_ADDR: &str = "127.0.0.1:28092";
 
 #[tokio::main]
 async fn main() -> ExitCode {

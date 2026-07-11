@@ -4,14 +4,14 @@
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "dependencies": {
-    "@sdkwork-internal/im-backend-api-generated": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
     "@sdkwork/im-pc-commons": "workspace:*",
     "@sdkwork/im-pc-core": "workspace:*",
     "@sdkwork/sdk-common": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-router-dom": "catalog:"
+    "react-router-dom": "catalog:",
+    "@sdkwork/im-backend-sdk": "workspace:*"
   },
   "exports": {
     ".": {

@@ -114,7 +114,7 @@ Success responses use `application/json` with the `SdkWorkApiResponse` envelope:
 ### Error Responses (`HTTP 4xx` / `HTTP 5xx`)
 
 Error responses use `application/problem+json` (`ProblemDetail`, RFC 9457) with a
-numeric `code` and `traceId`:
+numeric `code`, `traceId`, route correlation, and an i18n key:
 
 ```json
 {
@@ -123,12 +123,31 @@ numeric `code` and `traceId`:
   "status": 400,
   "code": 40001,
   "detail": "rtcSessionId must be a non-empty string",
-  "traceId": "01HXY..."
+  "instance": "GET /im/v3/api/chat/conversations/{conversationId}/messages",
+  "operationId": "conversations",
+  "traceId": "01HXY...",
+  "i18nKey": "errors.result.40001"
 }
 ```
 
 - `code` is a numeric non-zero platform error code (see table below).
-- `traceId` correlates with the success envelope's `traceId`.
+- `traceId` correlates with the success envelope's `traceId` and is propagated
+  from request headers in priority order: `x-sdkwork-trace-id`,
+  `traceparent` (W3C Trace Context `trace-id`), then `x-request-id`.
+- `instance` is the RFC 9457 problem instance. It **MUST** use the resolved
+  route template (`{METHOD} {routeTemplate}`, e.g.
+  `GET /im/v3/api/chat/conversations/{conversationId}/messages`) and **MUST
+  NOT** contain raw business resource identifiers (user, tenant, conversation,
+  message, file, object, token, or provider ids). When no route template is
+  available, the gateway redacts identifiable path segments before emitting
+  `instance` (see `OBSERVABILITY_SPEC.md` §2).
+- `operationId` is emitted when the gateway or handler resolved the matched
+  route's operation group; it is omitted only when routing context is
+  unavailable (e.g. malformed path that matches no registered route).
+- `i18nKey` is the canonical localization key, always derived from the numeric
+  `code` as `errors.result.<code>` (e.g. `errors.result.50301`). Clients
+  **MUST** use `i18nKey` for localization and **MUST NOT** parse `detail` or
+  `title` for translatable text (see `I18N_SPEC.md`).
 - Business failures **MUST NOT** use `HTTP 2xx` with a non-zero `code`,
   string wire codes, a `success` boolean, or a human `message` field.
 
@@ -176,10 +195,12 @@ when the full envelope is required.
 
 1. Branch on the numeric `code` for application handling. Do not depend on the
    exact wording of `detail` or `title`.
-2. Correlate client-side telemetry with the server-issued `traceId`.
-3. Treat operation pages as the source for endpoint-specific conflicts and
+2. Localize user-facing error messages from `i18nKey` (`errors.result.<code>`),
+   never from `detail` or `title`.
+3. Correlate client-side telemetry with the server-issued `traceId`.
+4. Treat operation pages as the source for endpoint-specific conflicts and
    resource-not-found cases.
-4. Use the SDK pages as the source for language-surface questions, and this
+5. Use the SDK pages as the source for language-surface questions, and this
    page as the source for shared auth and error semantics.
 
 ## What To Read Next

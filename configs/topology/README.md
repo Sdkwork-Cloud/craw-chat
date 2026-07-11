@@ -7,12 +7,12 @@ Platform standard: [../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md](../../
 
 | File | Profile id | Use |
 | --- | --- | --- |
-| `standalone.unified-process.development.env` | `standalone.unified-process.development` | Default dev (`pnpm dev`) |
-| `standalone.split-services.development.env` | `standalone.split-services.development` | Standalone split local integration |
-| `standalone.unified-process.production.env` | `standalone.unified-process.production` | Standalone unified production |
-| `standalone.split-services.production.env` | `standalone.split-services.production` | Standalone split production |
-| `cloud.split-services.production.env` | `cloud.split-services.production` | Cloud production |
-| `cloud.split-services.staging.env` | `cloud.split-services.staging` | Cloud staging / pre-production |
+| `standalone.development.env` | `standalone.development` | Default dev (`pnpm dev`) |
+| `standalone.staging.env` | `standalone.staging` | Standalone staging smoke |
+| `standalone.production.env` | `standalone.production` | Standalone production |
+| `cloud.development.env` | `cloud.development` | Cloud development integration |
+| `cloud.staging.env` | `cloud.staging` | Cloud staging / pre-production |
+| `cloud.production.env` | `cloud.production` | Cloud production |
 
 ## Standalone gateway
 
@@ -20,6 +20,9 @@ Standalone profiles embed IAM and IM application ingress through `sdkwork-im-sta
 on `application.public-ingress`. Client and platform SDK URLs collapse to the same bind.
 Startup also provisions IAM tenant application runtime `sdkwork-im-pc` for tenant `100001`
 before credential-entry routes (login, registration, QR auth) are served.
+The standalone gateway runs the current single-ingress application assembly, so
+IM foundation routes such as conversation messages are served by embedded
+handlers unless an explicit cloud upstream is configured.
 
 | Command | Purpose |
 | --- | --- |
@@ -28,21 +31,25 @@ before credential-entry routes (login, registration, QR auth) are served.
 
 ## Default development binds
 
-| Surface | Env key | Standalone unified value |
+| Surface | Env key | Standalone value |
 | --- | --- | --- |
 | Application ingress | `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` | `127.0.0.1:18079` |
 | Application HTTP | `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` | `http://127.0.0.1:18079` |
 | Platform gateway (collapsed) | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `http://127.0.0.1:18079` |
 
-In the default standalone unified development profile, IM API, OpenAPI, health, readiness, IAM app-api, and embedded dependency routes all share `http://127.0.0.1:18079`. Port `3900` can be used by a separate platform or edge gateway in other workspaces; verify the process identity before diagnosing IM behavior from `3900`.
+In the default `standalone.development` profile, IM API, OpenAPI, health, readiness, IAM app-api, and embedded dependency routes all share `http://127.0.0.1:18079`. Process layout is an implementation detail behind the selected deployment profile and must not appear in profile ids or public pnpm scripts. Port `3900` can be used by a separate platform or edge gateway in other workspaces; verify the process identity before diagnosing IM behavior from `3900`.
+
+For `sdkwork-im-standalone-gateway`, `/openapi/runtime-summary.json` must report
+`runtimeMode: "unified"`. A standalone process that tries to proxy IM chat routes
+to unconfigured internal HTTP upstreams is stale or mis-launched and can return
+`50301 dependency_unavailable`.
 
 Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selected profile before spawning services.
 
-## Split-services internal upstreams
+## Internal RPC endpoints
 
 | Service | Bind env | Default bind |
 | --- | --- | --- |
-| session-gateway (HTTP/WS) | `SDKWORK_IM_INTERNAL_SESSION_GATEWAY_BIND` | `127.0.0.1:18080` |
 | session-gateway-rpc (gRPC Phase 1) | `SDKWORK_IM_SESSION_GATEWAY_RPC_BIND_ADDR` | `127.0.0.1:50051` |
 | comms-conversation-rpc (gRPC Phase 1) | `SDKWORK_IM_COMMS_CONVERSATION_RPC_BIND_ADDR` | `127.0.0.1:50052` |
 | comms-conversation-internal-rpc (gRPC Phase 1.5) | `SDKWORK_IM_COMMS_CONVERSATION_INTERNAL_RPC_BIND_ADDR` | `127.0.0.1:50053` |
@@ -53,15 +60,23 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 | --- | --- |
 | `SDKWORK_IM_REALTIME_NODE_ID` | Realtime node identity for cluster routing |
 | `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` | Redis pub/sub URL for cross-node route events |
-| `SDKWORK_IM_DATABASE_URL` | Postgres-backed realtime stores (**required** when cluster bus is enabled — fail-closed) |
+| `SDKWORK_IM_DATABASE_URL` | Postgres-backed realtime stores (**required** when cluster bus is enabled - fail-closed) |
 | `SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS` | WebSocket connection ceiling |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS` | HTTP in-flight request gate |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES` | Max HTTP request body size |
+| `SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS` | Total application drain deadline in seconds; default `45`, valid range `5`-`300`, invalid values fail startup |
 
 > **HA fail-closed**: When `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` is set (multi-node topology),
 > `SDKWORK_IM_DATABASE_URL` must also be set to a shared Postgres instance. The bootstrap
 > will reject startup if cluster bus is enabled without Postgres-backed disconnect fence
 > storage, because in-memory fallback is unsafe across nodes.
+
+On SIGTERM/SIGINT, the gateway first fails readiness and marks its realtime node
+draining, then stops listeners and maintenance work, persists disconnect fences,
+releases owned routes, cancels the Redis subscriber, and waits only within the
+configured total deadline. The Kubernetes reference uses a 45-second application
+deadline and `terminationGracePeriodSeconds: 75`, leaving 30 seconds for the
+preStop signal, scheduler delay, and forced process termination.
 
 ### Gateway protection (rate limit + circuit breaker)
 
@@ -75,7 +90,7 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 | `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs for X-Forwarded-For |
 | `SDKWORK_IM_GATEWAY_OPENAPI_CACHE_TTL_SECS` | `60` | Successful aggregate `/openapi.json` cache TTL; concurrent misses are coalesced |
 
-Standalone unified-process applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. Cloud gateway mode applies its own edge limiter inside `sdkwork-im-cloud-gateway`. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt from IP rate limiting in every gateway middleware variant.
+Standalone applies one final edge `HybridIpRateLimiter` after IM, IAM, and embedded dependency routers are merged. Cloud gateway mode applies its own edge limiter inside `sdkwork-im-cloud-gateway`. Probe paths (`/health`, `/healthz`, `/livez`, `/ready`, `/readyz`, `/metrics`) are exempt from IP rate limiting in every gateway middleware variant.
 
 `/openapi.json` skips configured upstreams whose `{baseUrl}/openapi.json` resolves to the current gateway aggregate endpoint. This prevents recursive OpenAPI aggregation, the request fan-out that caused API calls to remain pending after startup, and the secondary rate-limit/socket pressure that followed.
 

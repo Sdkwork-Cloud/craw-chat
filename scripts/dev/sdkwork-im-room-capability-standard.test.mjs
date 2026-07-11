@@ -33,7 +33,7 @@ const flutterGeneratedChat = read(
 const rustGeneratedChat = read(
   'sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/generated/server-openapi/src/api/chat.rs',
 );
-const assembly = read('sdks/sdkwork-im-sdk/.sdkwork-assembly.json');
+const sdkManifest = read('sdks/sdkwork-im-sdk/sdk-manifest.json');
 const generateSdk = read('sdks/sdkwork-im-sdk/bin/generate-sdk.mjs');
 
 assert.match(roomDomain, /ROOM_BUSINESS_TYPE_LIVE/);
@@ -93,7 +93,7 @@ assert.match(generatedChatApi, /EnterRoomResponse/);
 assert.match(flutterGeneratedChat, /roomsCreate/);
 assert.match(rustGeneratedChat, /rooms_create/);
 assert.match(rustGeneratedChat, /\/chat\/rooms/);
-assert.match(assembly, /"authoritySpec": "\.\.\/\.\.\/apis\/open-api\/im\/sdkwork-im-im\.openapi\.yaml"/);
+assert.match(sdkManifest, /"authoritySpec": "\.\.\/\.\.\/apis\/open-api\/im\/sdkwork-im-im\.openapi\.yaml"/);
 assert.match(generateSdk, /sync-openapi-authority-mirror\.mjs/);
 assert.match(read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/RoomService.ts'), /roomService = createSdkworkRoomService/);
 

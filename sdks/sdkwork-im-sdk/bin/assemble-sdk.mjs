@@ -6,7 +6,7 @@ import { loadGeneratorYaml } from '../../workspace-sdk-generator-root-shared.mjs
 import { officialLanguages } from '../../workspace-im-v3-sdk-family.mjs';
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const assemblyPath = path.join(workspaceRoot, '.sdkwork-assembly.json');
+const manifestPath = path.join(workspaceRoot, 'sdk-manifest.json');
 const authorityPath = path.join(workspaceRoot, 'openapi', 'sdkwork-im-im.openapi.yaml');
 const yaml = await loadGeneratorYaml(workspaceRoot);
 const authority = yaml.load(readFileSync(authorityPath, 'utf8'));
@@ -24,7 +24,7 @@ const languageManifests = {
 };
 
 const packageNames = {
-  typescript: '@sdkwork/im-sdk-generated',
+  typescript: 'sdkwork-im-sdk-generated-typescript',
   flutter: 'im_sdk_generated',
   rust: 'im-sdk-generated',
   java: 'com.sdkwork:im-sdk-generated',
@@ -62,6 +62,8 @@ const languages = officialLanguages.map((language) => {
     description: `Generator-owned ${languageDescriptions[language]} transport SDK for the Sdkwork IM IM standardized development API.`,
   };
   if (language === 'typescript') {
+    entry.consumerPackageName = '@sdkwork/im-sdk';
+    entry.transportPackageName = 'sdkwork-im-sdk-generated-typescript';
     entry.consumerSurface = {
       primaryClient: 'SdkworkImClient',
       apiPrefix: '/im/v3/api',
@@ -72,7 +74,23 @@ const languages = officialLanguages.map((language) => {
   return entry;
 });
 
-const assembly = {
+const currentManifest = existsSync(manifestPath)
+  ? JSON.parse(readFileSync(manifestPath, 'utf8'))
+  : {};
+
+const manifest = {
+  ...currentManifest,
+  schemaVersion: 1,
+  sdkFamily: 'sdkwork-im-sdk',
+  sdkName: 'sdkwork-im-sdk',
+  packageName: '@sdkwork/im-sdk',
+  transportPackageName: 'sdkwork-im-sdk-generated-typescript',
+  typescript: {
+    composedRoot: 'sdkwork-im-sdk-typescript',
+    composedEntry: 'sdkwork-im-sdk-typescript/src/index.ts',
+    transportRoot: 'sdkwork-im-sdk-typescript/generated/server-openapi',
+    transportEntry: 'sdkwork-im-sdk-typescript/generated/server-openapi/src/index.ts',
+  },
   workspace: 'sdkwork-im-sdk',
   title: 'SDKWork IM SDK',
   apiVersion: authority.info?.version || '0.1.0',
@@ -96,7 +114,7 @@ const assembly = {
   apiAuthority: 'sdkwork-im.im',
 };
 
-const next = `${JSON.stringify(assembly, null, 2)}\n`;
-if (!existsSync(assemblyPath) || readFileSync(assemblyPath, 'utf8') !== next) {
-  writeFileSync(assemblyPath, next, 'utf8');
+const next = `${JSON.stringify(manifest, null, 2)}\n`;
+if (!existsSync(manifestPath) || readFileSync(manifestPath, 'utf8') !== next) {
+  writeFileSync(manifestPath, next, 'utf8');
 }

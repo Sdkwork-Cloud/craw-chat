@@ -17,7 +17,7 @@ export const sdkFamilyConfig = {
   flutterDerivedSpec: 'openapi/sdkwork-im-im.flutter.sdkgen.yaml',
   sdkDependencies: [],
   packages: {
-    typescript: '@sdkwork/im-sdk-generated',
+    typescript: 'sdkwork-im-sdk-generated-typescript',
     flutter: 'im_sdk_generated',
     rust: 'im-sdk-generated',
     java: 'com.sdkwork:im-sdk-generated',
@@ -26,6 +26,9 @@ export const sdkFamilyConfig = {
     kotlin: 'com.sdkwork:im-sdk-generated',
     go: 'github.com/sdkwork/im-sdk-generated',
     python: 'sdkwork-im-sdk-generated',
+  },
+  consumerPackages: {
+    typescript: '@sdkwork/im-sdk',
   },
   namespaces: {
     csharp: 'Sdkwork.Im.Sdk.Generated',

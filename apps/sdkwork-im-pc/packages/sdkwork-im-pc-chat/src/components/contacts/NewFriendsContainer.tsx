@@ -1,5 +1,5 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { Loader2, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { toast } from '../Toast';
@@ -8,23 +8,50 @@ import type { FriendRequest } from '../../services/ContactService';
 
 export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ onAddFriend }) => {
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const refreshRequests = useCallback((showLoading = false) => {
     if (showLoading) {
       setLoading(true);
     }
-    return contactService.getFriendRequests()
-      .then((data) => {
-        setRequests(data);
+    return contactService.listFriendRequestsPage({ direction: 'all' })
+      .then((page) => {
+        setRequests(page.items);
+        setNextCursor(page.nextCursor);
+        setHasMore(page.hasMore);
       })
       .catch(() => {
         setRequests([]);
-        toast(t('contacts.newFriends.toast.loadFailed'), 'error');
+        setNextCursor(undefined);
+        setHasMore(false);
+        toast(tRef.current('contacts.newFriends.toast.loadFailed'), 'error');
       })
       .finally(() => setLoading(false));
-  }, [t]);
+  }, []);
+
+  const loadMoreRequests = useCallback(() => {
+    if (!hasMore || loading || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    void contactService.listFriendRequestsPage({ direction: 'all', cursor: nextCursor })
+      .then((page) => {
+        setRequests((previousRequests) => [...previousRequests, ...page.items]);
+        setNextCursor(page.nextCursor);
+        setHasMore(page.hasMore);
+      })
+      .catch(() => {
+        toast(tRef.current('contacts.newFriends.toast.loadFailed'), 'error');
+      })
+      .finally(() => setLoadingMore(false));
+  }, [hasMore, loading, loadingMore, nextCursor]);
 
   useEffect(() => {
     void refreshRequests(true);
@@ -38,6 +65,28 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
       window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshOnChange);
     };
   }, [refreshRequests]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      if (!hasMore || loading || loadingMore) {
+        return;
+      }
+      const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (remaining < 240) {
+        loadMoreRequests();
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [hasMore, loadMoreRequests, loading, loadingMore]);
 
   const [processingRequestIds, setProcessingRequestIds] = useState<Set<string>>(new Set());
 
@@ -112,7 +161,7 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
           <Plus size={16} /> {t('contacts.newFriends.addFriend')}
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-8">
         <div className="flex flex-col gap-4 max-w-3xl">
           {loading ? (
             <div className="text-sm text-gray-500">{t('contacts.newFriends.loading')}</div>
@@ -169,6 +218,12 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
               </div>
             </div>
           ))}
+          {loadingMore && (
+            <div className="flex items-center gap-2 py-3 text-sm text-gray-500">
+              <Loader2 size={16} className="animate-spin" />
+              <span>{t('contacts.newFriends.loading')}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

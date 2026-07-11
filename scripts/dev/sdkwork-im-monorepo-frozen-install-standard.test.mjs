@@ -17,6 +17,7 @@ function readJsonExists(relativePath) {
 
 const workspaceYaml = readExists('pnpm-workspace.yaml');
 for (const composedFacade of [
+  'sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript',
   'sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript',
   'sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript',
   '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript',
@@ -37,9 +38,10 @@ for (const overrideKey of [
   '@sdkwork/agents-app-sdk',
   '@sdkwork/voice-app-sdk',
   '@sdkwork/skills-app-sdk',
-  '@sdkwork/im-sdk-generated',
+  '@sdkwork/im-sdk',
+  '@sdkwork/im-app-sdk',
+  '@sdkwork/im-backend-sdk',
   '@sdkwork/knowledgebase-backend-sdk',
-  '@sdkwork-internal/im-backend-api-generated',
 ]) {
   assert.equal(
     overrides[overrideKey],
@@ -48,23 +50,46 @@ for (const overrideKey of [
   );
 }
 
-const imBackendTransport = readJsonExists(
-  'sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/package.json',
-);
-assert.equal(
-  imBackendTransport.name,
-  '@sdkwork-internal/im-backend-api-generated',
-  'IM backend transport package name must match workspace consumer override',
-);
-
-const imOpenTransport = readJsonExists(
-  'sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/package.json',
-);
-assert.equal(
-  imOpenTransport.name,
+for (const forbiddenOverrideKey of [
   '@sdkwork/im-sdk-generated',
-  'IM open transport package name must match composed facade dependency',
-);
+  '@sdkwork-internal/im-sdk-generated',
+  '@sdkwork-internal/im-app-api-generated',
+  '@sdkwork-internal/im-backend-api-generated',
+  'sdkwork-im-sdk-generated-typescript',
+  'sdkwork-im-app-sdk-generated-typescript',
+  'sdkwork-im-backend-sdk-generated-typescript',
+]) {
+  assert.equal(
+    overrides[forbiddenOverrideKey],
+    undefined,
+    `package.json pnpm.overrides must not expose generated transport ${forbiddenOverrideKey}`,
+  );
+}
+
+for (const [label, manifestPath, expectedName] of [
+  [
+    'IM open transport',
+    'sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/package.json',
+    'sdkwork-im-sdk-generated-typescript',
+  ],
+  [
+    'IM app transport',
+    'sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/package.json',
+    'sdkwork-im-app-sdk-generated-typescript',
+  ],
+  [
+    'IM backend transport',
+    'sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/package.json',
+    'sdkwork-im-backend-sdk-generated-typescript',
+  ],
+]) {
+  const transportManifest = readJsonExists(manifestPath);
+  assert.equal(
+    transportManifest.name,
+    expectedName,
+    `${label} package name must be the generated transport id, not a consumer workspace package`,
+  );
+}
 
 const commercialReadiness = readExists('scripts/release/commercial-readiness.mjs');
 assert.match(

@@ -3,9 +3,9 @@
 Layered TypeScript SDK for Sdkwork IM IM runtime APIs.
 
 This package exposes the app-facing `ImSdkClient` facade. Generated HTTP
-transport is consumed through `@sdkwork/im-sdk-generated`, whose source remains
-under `generated/server-openapi`; realtime websocket behavior and semantic
-convenience modules live in `src/`.
+transport is consumed through the local `generated/server-openapi` boundary, whose generated
+transport id is `sdkwork-im-sdk-generated-typescript`; applications import only `@sdkwork/im-sdk`.
+Realtime websocket behavior and semantic convenience modules live in `src/`.
 
 ## Realtime Websocket
 
@@ -27,16 +27,19 @@ browser connection starts with:
 ```json
 {
   "type": "auth.init",
-  "requestId": "sdkwork-im-auth-init-1",
   "authToken": "<auth-token>",
   "accessToken": "<access-token>",
   "deviceId": "<device-id>"
 }
 ```
 
-After `auth.ok`, the SDK completes the CCP control handshake (`hello` → `hello_ack` →
-`auth_bind` → `auth_ok`) and only then enters lifecycle `open` and sends `subscriptions.sync`
-frames as CCP `kind: cmd` business envelopes. `conversationId` values must not be appended to the websocket URL.
+The server responds with `auth.ok` or `error` carrying a server-generated
+`traceId`; clients do not send `requestId` or client-created trace identifiers
+for realtime correlation. After `auth.ok`, the SDK completes the CCP control
+handshake (`hello` → `hello_ack` → `auth_bind` → `auth_ok`) and only then enters
+lifecycle `open` and sends `subscriptions.sync` frames as CCP `kind: cmd`
+business envelopes. `conversationId` values must not be appended to the
+websocket URL.
 
 Node, Tauri, tests, and other host runtimes can inject a transport:
 

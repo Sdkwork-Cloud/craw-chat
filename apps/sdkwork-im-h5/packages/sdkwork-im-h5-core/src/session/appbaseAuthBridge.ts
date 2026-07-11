@@ -1,12 +1,11 @@
-import type { ImH5AppSession } from "./appSession";
-import { DEFAULT_APP_SESSION } from "./appSession";
+export interface ImH5AppbaseCallbackSession {
+  accessToken: string;
+  authToken: string;
+}
 
 const CALLBACK_KEYS = {
   accessToken: ["accessToken", "access_token"],
   authToken: ["authToken", "auth_token", "token"],
-  tenantId: ["tenantId", "tenant_id", "x-sdkwork-tenant-id"],
-  organizationId: ["organizationId", "organization_id", "x-sdkwork-organization-id"],
-  userId: ["userId", "user_id", "x-sdkwork-user-id", "actorId", "actor_id"],
 } as const;
 
 function readParam(params: URLSearchParams, keys: readonly string[]): string {
@@ -22,7 +21,7 @@ function readParam(params: URLSearchParams, keys: readonly string[]): string {
 export function parseAppbaseCallbackSession(
   search = window.location.search,
   hash = window.location.hash,
-): ImH5AppSession | null {
+): ImH5AppbaseCallbackSession | null {
   const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : hash.replace(/^#/, "");
   const params = new URLSearchParams(search);
   for (const [key, value] of new URLSearchParams(hashQuery)) {
@@ -32,19 +31,12 @@ export function parseAppbaseCallbackSession(
   }
 
   const accessToken = readParam(params, CALLBACK_KEYS.accessToken);
-  if (!accessToken) {
+  const authToken = readParam(params, CALLBACK_KEYS.authToken);
+  if (!accessToken || !authToken) {
     return null;
   }
 
-  const authToken = readParam(params, CALLBACK_KEYS.authToken) || accessToken;
-  return {
-    accessToken,
-    authToken,
-    tenantId: readParam(params, CALLBACK_KEYS.tenantId) || DEFAULT_APP_SESSION.tenantId,
-    organizationId:
-      readParam(params, CALLBACK_KEYS.organizationId) || DEFAULT_APP_SESSION.organizationId,
-    userId: readParam(params, CALLBACK_KEYS.userId) || DEFAULT_APP_SESSION.userId,
-  };
+  return { accessToken, authToken };
 }
 
 export function stripAppbaseCallbackFromLocation(): void {
@@ -52,9 +44,6 @@ export function stripAppbaseCallbackFromLocation(): void {
   for (const key of [
     ...CALLBACK_KEYS.accessToken,
     ...CALLBACK_KEYS.authToken,
-    ...CALLBACK_KEYS.tenantId,
-    ...CALLBACK_KEYS.organizationId,
-    ...CALLBACK_KEYS.userId,
   ]) {
     url.searchParams.delete(key);
   }
@@ -65,9 +54,6 @@ export function stripAppbaseCallbackFromLocation(): void {
     for (const key of [
       ...CALLBACK_KEYS.accessToken,
       ...CALLBACK_KEYS.authToken,
-      ...CALLBACK_KEYS.tenantId,
-      ...CALLBACK_KEYS.organizationId,
-      ...CALLBACK_KEYS.userId,
     ]) {
       hashParams.delete(key);
     }

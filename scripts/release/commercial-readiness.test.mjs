@@ -377,6 +377,70 @@ test('app release evidence assessment accepts complete direct package supply-cha
   assert.equal(assessment.blockers.length, 0);
 });
 
+test('app release evidence assessment rejects empty objects and nonexistent local evidence refs', async () => {
+  const tempRepoRoot = await mkdtemp(path.join(os.tmpdir(), 'commercial-readiness-release-evidence-'));
+  const manifest = {
+    security: {
+      checksumRequired: true,
+      signatureRequired: true,
+      sbomRequired: true,
+    },
+    media: {
+      icons: {
+        primary: {
+          id: 'primary-icon',
+          enabled: true,
+          metadata: {},
+        },
+        platform: [],
+      },
+      screenshots: [
+        {
+          id: 'catalog-screenshot',
+          enabled: true,
+          metadata: {},
+        },
+      ],
+      previews: [],
+    },
+    artifacts: {
+      installConfig: {
+        packages: [
+          {
+            id: 'web-universal-cloud-browser-zip',
+            enabled: true,
+            sourceType: 'WEB_URL',
+            packageFormat: 'ZIP',
+            checksumAlgorithm: 'SHA-256',
+            checksum: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+            metadata: {
+              signing: {},
+              sbom: {
+                format: 'CycloneDX',
+                ref: 'release-evidence/missing-web.zip.cdx.json',
+              },
+              provenance: {
+                format: 'slsa',
+                ref: '../outside-web.zip.intoto.jsonl',
+              },
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  const assessment = assessAppReleaseEvidence(manifest, { repoRoot: tempRepoRoot });
+
+  assert.equal(assessment.ok, false);
+  assert.match(assessment.blockers.join('\n'), /signature evidence/i);
+  assert.match(assessment.blockers.join('\n'), /empty/i);
+  assert.match(assessment.blockers.join('\n'), /missing-web\.zip\.cdx\.json/);
+  assert.match(assessment.blockers.join('\n'), /does not exist/i);
+  assert.match(assessment.blockers.join('\n'), /outside-web\.zip\.intoto\.jsonl/);
+  assert.match(assessment.blockers.join('\n'), /must stay inside/i);
+});
+
 test('pre-release evidence assessment accepts fully collected pre-release evidence', () => {
   const assessment = assessPreReleaseEvidenceIndex({
     tier: 'Pre-Release Tier',
@@ -460,6 +524,8 @@ test('release README documents the commercial readiness command and honest capac
   const releaseReadme = await readFile(releaseReadmePath, 'utf8');
 
   assert.match(releaseReadme, /node scripts\/release\/commercial-readiness\.mjs/);
+  assert.match(releaseReadme, /release:validate:evidence/);
+  assert.match(releaseReadme, /release:stage:evidence/);
   assert.match(releaseReadme, /capacity-tier-evidence-index\.json/);
   assert.match(releaseReadme, /pre-release-tier-evidence-index\.json/);
   assert.match(releaseReadme, /sdkwork\.app\.config\.json/);

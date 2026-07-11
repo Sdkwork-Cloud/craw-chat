@@ -10,7 +10,7 @@ This README is the SDKWork module entrypoint for `portal-service`. The service e
 ## Public API
 
 - HTTP handlers under `/im/v3/api/portal/*` assembled via `sdkwork-routes-im-portal-app-api`.
-- `build_app` / bootstrap helpers for embedded and split-deploy hosts.
+- `build_app` / bootstrap helpers for embedded and cloud hosts.
 
 ## Required SDK Surface
 
@@ -22,7 +22,7 @@ Uses shared IM app context and ops/audit runtime wiring from host bootstrap; see
 
 ## SaaS/Private/Local Behavior
 
-Follows split-deploy topology env vars for ops and audit dependencies; production requires durable audit when governance snapshots are enabled.
+Follows topology env vars for ops and audit dependencies; production requires durable audit when governance snapshots are enabled.
 
 ## Security
 

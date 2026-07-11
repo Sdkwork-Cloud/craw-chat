@@ -1,0 +1,210 @@
+{
+  "contacts": {
+    "menu": {
+      "all": "全部好友",
+      "new": "新的朋友",
+      "groups": "我的群组",
+      "organization": "组织架构",
+      "tags": "标签"
+    },
+    "starred": {
+      "title": "星标联系人",
+      "loading": "加载中...",
+      "emptyTitle": "星标联系人",
+      "emptyDescription": "请从左侧选择一个星标联系人查看",
+      "loadFailed": "加载联系人失败"
+    },
+    "addFriend": {
+      "add": "添加",
+      "placeholder": "邮箱、Chat ID 或手机号",
+      "searchAction": "搜索",
+      "searchingAction": "搜索中...",
+      "title": "添加好友",
+      "notice": {
+        "noResults": "未找到与 {{query}} 匹配的联系人",
+        "searching": "正在搜索联系人..."
+      },
+      "toast": {
+        "requestFailed": "好友申请发送失败",
+        "requestSent": "已向 {{name}} 发送好友申请",
+        "searchFailed": "搜索失败",
+        "alreadyFriend": "对方已经是你的好友",
+        "requestPending": "好友申请已在处理中",
+        "requestBlocked": "无法向该用户发送好友申请"
+      }
+    },
+    "tags": {
+      "title": "标签管理",
+      "description": "分类管理您的联系人，方便快速查找",
+      "create": "新建标签",
+      "rename": "重命名",
+      "contactCount": "{{count}} 个联系人",
+      "addMembers": "添加人员",
+      "emptyMembers": "这里将展示 \"{{name}}\" 标签下的联系人列表",
+      "prompt": {
+        "createName": "请输入新标签名称：",
+        "renameName": "请输入新的标签名称",
+        "addMemberIds": "请输入要添加的联系人ID，逗号分隔："
+      },
+      "toast": {
+        "loadFailed": "加载标签失败",
+        "createSucceeded": "新建标签成功",
+        "createFailed": "新建标签失败",
+        "renameSucceeded": "重命名成功",
+        "renameFailed": "重命名失败",
+        "deleteSucceeded": "标签已删除",
+        "deleteFailed": "删除标签失败",
+        "addMembersSucceeded": "已成功将 {{count}} 个成员加入该标签",
+        "addMembersFailed": "添加标签成员失败"
+      }
+    },
+    "groups": {
+      "title": "我的群组",
+      "description": "管理你加入的所有群组",
+      "promptName": "请输入新群组名称：",
+      "startGroup": "发起群聊",
+      "loading": "加载中...",
+      "memberStats": "{{count}} 人 · {{activeCount}} 人活跃",
+      "toast": {
+        "loadFailed": "加载群组失败",
+        "createSucceeded": "创建群组成功",
+        "createFailed": "创建群组失败"
+      }
+    },
+    "newFriends": {
+      "title": "新的朋友",
+      "description": "查看和处理好友申请",
+      "addFriend": "添加朋友",
+      "loading": "加载中...",
+      "incomingDefaultMsg": "请求添加你为好友",
+      "outgoingDefaultMsg": "等待对方验证",
+      "accept": "同意",
+      "reject": "拒绝",
+      "cancel": "撤回",
+      "statusAdded": "已添加",
+      "statusCancelled": "已撤回",
+      "statusRejected": "已拒绝",
+      "empty": "暂无新的好友申请",
+      "toast": {
+        "loadFailed": "加载好友申请失败",
+        "acceptSucceeded": "已通过申请",
+        "rejectSucceeded": "已拒绝申请",
+        "cancelSucceeded": "已撤回申请",
+        "handleFailed": "处理好友申请失败",
+        "cancelFailed": "撤回好友申请失败",
+        "incomingSingle": "收到新的好友申请",
+        "incomingMultiple": "收到 {{count}} 条新的好友申请"
+      }
+    },
+    "allContacts": {
+      "title": "全部好友",
+      "count": "共 {{count}} 个联系人",
+      "addContact": "增加联系人",
+      "loading": "加载中...",
+      "loadingMore": "加载更多联系人...",
+      "groupLabel": "全部好友",
+      "scrollTop": "顶部",
+      "toast": {
+        "loadFailed": "加载联系人失败"
+      }
+    },
+    "detail": {
+      "addToBlacklist": "加入黑名单",
+      "removeFromBlacklist": "移出黑名单",
+      "basicInfo": "基本信息",
+      "chatId": "Chat ID",
+      "company": "公司",
+      "copyChatId": "复制 Chat ID",
+      "delete": "删除",
+      "department": "部门",
+      "email": "邮箱",
+      "location": "位置",
+      "message": "发消息",
+      "more": "更多",
+      "phone": "电话",
+      "recommend": "推荐",
+      "setRemark": "设置备注",
+      "signature": "个性签名",
+      "starContact": "星标联系人",
+      "unknownPosition": "未知岗位",
+      "unstarContact": "取消星标",
+      "videoCall": "视频通话",
+      "voiceCall": "语音通话",
+      "toast": {
+        "blacklisted": "已加入黑名单",
+        "blacklistFailed": "黑名单更新失败",
+        "unblacklisted": "已移出黑名单",
+        "unblacklistFailed": "移出黑名单失败",
+        "chatIdCopied": "Chat ID 已复制",
+        "chatIdNotReady": "Chat ID 尚未准备好，请稍后重试。",
+        "deleted": "联系人已删除",
+        "deleteFailed": "删除联系人失败",
+        "mailSelected": "已选择邮件应用",
+        "messagingUnavailable": "消息能力暂不可用",
+        "recommendationFailed": "推荐失败",
+        "recommendationSent": "推荐已发送",
+        "remarkUpdated": "备注已更新",
+        "remarkUpdateFailed": "备注更新失败",
+        "starred": "已星标联系人",
+        "unstarred": "已取消星标",
+        "updateFailed": "联系人更新失败",
+        "videoUnavailable": "视频通话暂不可用",
+        "voiceUnavailable": "语音通话暂不可用"
+      }
+    },
+    "emptyDetail": "请选择一个联系人以查看详细信息",
+    "unknownContent": "未选定内容",
+    "missingView": "此功能模块无对应视图",
+    "organizationDirectory": {
+      "treeTitle": "组织架构",
+      "searchPlaceholder": "搜索组织、部门、成员",
+      "loading": "加载中...",
+      "emptyTree": "暂无组织架构数据",
+      "membersTitle": "成员",
+      "emptyMembers": "暂无成员数据",
+      "loadingMembers": "加载成员中...",
+      "addMember": "添加成员",
+      "inviteMember": "邀请成员",
+      "close": "关闭",
+      "add": "添加",
+      "invite": "邀请",
+      "selectDepartment": "选择部门",
+      "assignmentType": "岗位类型",
+      "userIdPlaceholder": "用户ID",
+      "displayNamePlaceholder": "姓名",
+      "emailPlaceholder": "邮箱",
+      "positionIdPlaceholder": "岗位ID",
+      "roleCodesPlaceholder": "角色编码",
+      "submitting": "提交中",
+      "submit": "提交",
+      "managementUnavailable": "组织成员管理能力未接入",
+      "unknownOrganization": "未知组织",
+      "sendMessage": "发消息",
+      "positionCount": "{{count}} 个岗位",
+      "assignment": {
+        "primary": "主岗",
+        "secondary": "兼岗",
+        "acting": "代理"
+      },
+      "boundary": {
+        "operatingSubject": "独立主体",
+        "organizationIsolated": "组织数据域",
+        "regulatedIsolated": "监管数据域",
+        "appBoundary": "应用边界"
+      },
+      "toast": {
+        "loadTreeFailed": "加载组织架构失败",
+        "loadMembersFailed": "加载部门成员失败",
+        "selectOrganization": "请选择组织",
+        "managementUnavailable": "组织成员管理能力未接入",
+        "noManagePermission": "没有组织成员管理权限",
+        "inviteUnavailable": "组织成员邀请能力未接入",
+        "selectDepartment": "请选择部门",
+        "enterUserId": "请输入用户ID",
+        "memberSubmitted": "成员管理已提交",
+        "memberSubmitFailed": "成员管理提交失败",
+        "chatUnavailable": "聊天能力未接入，无法发起会话"
+      }
+    }
+  }
+}

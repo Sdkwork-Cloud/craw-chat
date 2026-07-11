@@ -36,11 +36,11 @@ runtime inventory payload in the checked-in control-plane authority. Treat it as
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks the required control-plane permission. |
-| `404` | `*_not_found` | The requested inventory source does not exist. |
-| `409` | `*_conflict` | Current runtime state blocks the read. |
-| `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
+| `400` | `40003` | Query or path parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks the required control-plane permission. |
+| `404` | `40401` | The requested control-plane resource does not exist. |
+| `409` | `40901` | Current control-plane state blocks the read. |
+| `503` | `50301` | The governance snapshot or provider runtime is unavailable. |
 
 </section>

@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "language": "typescript",
   "sdkType": "app",
-  "packageName": "@sdkwork-internal/im-app-api-generated",
-  "transportPackageName": "@sdkwork-internal/im-app-api-generated",
+  "packageName": "sdkwork-im-app-sdk-generated-typescript",
+  "transportPackageName": "sdkwork-im-app-sdk-generated-typescript",
   "consumerPackageName": "@sdkwork/im-app-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {

@@ -14,18 +14,31 @@ function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
 
+function mergeJson(relativePaths) {
+  return Object.assign({}, ...relativePaths.map(readJson));
+}
+
+function readChatLocale(locale) {
+  return mergeJson([
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/sidebar.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/agent.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/profile.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/contacts.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/favorites.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/settings-modal.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/chat.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/scan-qr.json`,
+  ]);
+}
+
 const addGroupMembersModalSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/AddGroupMembersModal.tsx',
 );
 const contactMemberPickerPanelSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ContactMemberPickerPanel.tsx',
 );
-const chatEnUsMessages = readJson(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json',
-);
-const chatZhCnMessages = readJson(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json',
-);
+const chatEnUsMessages = readChatLocale('en-US');
+const chatZhCnMessages = readChatLocale('zh-CN');
 
 assert.match(
   addGroupMembersModalSource,

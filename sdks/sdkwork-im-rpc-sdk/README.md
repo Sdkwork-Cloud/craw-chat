@@ -1,4 +1,4 @@
-# SDKWork IM RPC SDK
+﻿# SDKWork IM RPC SDK
 
 `sdkwork-im-rpc-sdk` is the canonical gRPC SDK family for Sdkwork IM communication services. It is additive to the existing HTTP SDK families and does not replace `sdkwork-im-sdk`, `sdkwork-im-app-sdk`, or `sdkwork-im-backend-sdk`.
 
@@ -57,7 +57,7 @@ This RPC SDK is designed for multiple deployment shapes:
 | Mode | Shape | Expected RPC use |
 | --- | --- | --- |
 | single-process local mode | `sdkwork-im-server` with `unified-process` layout hosts app, runtime, realtime, and control behavior in one process. | RPC may bind to loopback for local tools and native desktop hosts. |
-| split service mode | Conversation, realtime, streaming, notification, automation, ops, and control-plane processes run separately. | App/backend RPC clients call explicit service endpoints; metadata providers attach auth, access token, trace, deadline, and idempotency metadata. |
+| cloud service mode | Conversation, realtime, streaming, notification, automation, ops, and control-plane processes run separately. | App/backend RPC clients call explicit service endpoints; metadata providers attach auth, access token, trace, deadline, and idempotency metadata. |
 | sharded realtime mode | Multiple realtime/session nodes own route leases and fanout shards. | Internal RPC uses `RuntimeTopologyService`, `RouteLeaseService`, and `DomainEventRelayService` for node discovery, route ownership, event relay, and repair. |
 | private integration mode | Other backend services integrate Sdkwork IM without browser HTTP SDKs. | Backend/internal RPC clients use TLS or mTLS, health checking, deadlines, and retry rules from the manifest. |
 

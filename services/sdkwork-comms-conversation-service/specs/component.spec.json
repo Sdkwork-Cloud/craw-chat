@@ -99,7 +99,10 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "SDKWORK_IM_CONVERSATION_CACHE_MAX_BYTES",
+      "SDKWORK_IM_CONVERSATION_MAX_IN_MEMORY"
+    ],
     "routeManifest": null
   },
   "integration": {

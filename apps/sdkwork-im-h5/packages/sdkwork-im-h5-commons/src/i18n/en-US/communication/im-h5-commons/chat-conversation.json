@@ -1,0 +1,23 @@
+{
+  "chat.conversation.back": "← Inbox",
+  "chat.conversation.live": "Live",
+  "chat.conversation.liveAria": "Live updates connected",
+  "chat.conversation.aria": "Chat conversation",
+  "chat.conversation.empty": "No messages yet.",
+  "chat.conversation.loading": "Loading messages…",
+  "chat.conversation.loadingOlder": "Loading earlier messages…",
+  "chat.conversation.loadError": "Failed to load messages",
+  "chat.conversation.retry": "Retry",
+  "chat.conversation.loadEarlierError": "Failed to load earlier messages",
+  "chat.conversation.sendError": "Failed to send message",
+  "chat.conversation.uploadError": "Failed to upload image",
+  "chat.conversation.fallbackTitle": "Conversation {{id}}",
+  "chat.conversation.unknownSender": "Unknown",
+  "chat.conversation.uploading": "Uploading…",
+  "chat.conversation.image": "Image",
+  "chat.conversation.uploadAria": "Upload image",
+  "chat.conversation.placeholder": "Type a message",
+  "chat.conversation.messageAria": "Message text",
+  "chat.conversation.send": "Send",
+  "chat.conversation.sending": "Sending…"
+}

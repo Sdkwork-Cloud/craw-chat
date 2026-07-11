@@ -15,8 +15,11 @@
 //! ```rust
 //! use im_domain_core::rate_limiter::DomainRateLimiter;
 //!
-//! let limiter = DomainRateLimiter::new(100, 10); // 100 max, 10/sec refill
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut limiter = DomainRateLimiter::new(100, 10); // 100 max, 10/sec refill
 //! limiter.check_rate("tenant1", "operation1")?;
+//! # Ok(())
+//! # }
 //! ```
 
 use std::collections::HashMap;

@@ -1,0 +1,88 @@
+{
+  "scanQr": {
+    "modal": {
+      "title": "扫一扫"
+    },
+    "tabs": {
+      "upload": "上传二维码",
+      "camera": "摄像头"
+    },
+    "upload": {
+      "title": "上传二维码图片",
+      "description": "支持 PNG、JPG 等图片文件，识别后会自动进入对应的处理流程。"
+    },
+    "camera": {
+      "title": "摄像头扫码",
+      "description": "开启摄像头后，将二维码放入画面中心区域。",
+      "state": {
+        "idle": "摄像头未开启",
+        "starting": "正在启动摄像头",
+        "active": "正在识别二维码"
+      },
+      "device": "摄像头",
+      "defaultDevice": "默认摄像头",
+      "deviceName": "摄像头 {{index}}",
+      "loadingDevices": "正在加载摄像头...",
+      "noDevices": "使用默认摄像头"
+    },
+    "browser": {
+      "title": "内置网页浏览器"
+    },
+    "result": {
+      "user": "用户二维码",
+      "group": "群组二维码",
+      "community": "圈子二维码",
+      "url": "网页链接",
+      "unknown": "二维码内容",
+      "source": "来源：{{source}}"
+    },
+    "group": {
+      "memberCount": "{{count}} 位成员",
+      "unknownName": "未知群聊",
+      "unresolved": "群资料暂不可用"
+    },
+    "community": {
+      "memberCount": "{{count}} 位成员",
+      "unknownName": "未知圈子",
+      "unresolved": "圈子资料暂不可用"
+    },
+    "actions": {
+      "chooseFile": "选择文件",
+      "decoding": "识别中...",
+      "startCamera": "开启摄像头",
+      "stopCamera": "停止扫码",
+      "viewUserProfile": "查看资料",
+      "addFriend": "添加好友",
+      "openGroup": "打开群聊",
+      "joinGroup": "加入群组",
+      "openCommunity": "查看圈子",
+      "joinCommunity": "加入圈子",
+      "openLink": "打开链接",
+      "viewContent": "查看内容",
+      "closeBrowser": "关闭",
+      "copyContent": "复制内容"
+    },
+    "unknownContent": {
+      "modalTitle": "二维码内容"
+    },
+    "userProfile": {
+      "modalTitle": "用户信息"
+    },
+    "state": {
+      "resolving": "正在读取二维码内容...",
+      "resolveFailed": "二维码内容读取失败",
+      "invalidContent": "二维码内容无效",
+      "decodeFailed": "未能识别二维码，请更换图片或调整清晰度。",
+      "cameraUnavailable": "摄像头不可用或权限未授予。",
+      "joinCapabilityUnavailable": "当前客户端未接入扫码加入能力，已按标准场景识别并展示内容。"
+    },
+    "toast": {
+      "copied": "二维码内容已复制",
+      "copyFailed": "复制失败",
+      "friendRequestSent": "已向 {{name}} 发送好友申请",
+      "friendRequestFailed": "发送好友申请失败",
+      "joinCapabilityUnavailable": "扫码加入能力尚未接入",
+      "communityNotFound": "未找到圈子"
+    }
+  }
+}

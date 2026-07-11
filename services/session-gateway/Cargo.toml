@@ -36,6 +36,7 @@ im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 sdkwork-im-database-pool = { path = "../../crates/sdkwork-im-database-pool" }
 im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

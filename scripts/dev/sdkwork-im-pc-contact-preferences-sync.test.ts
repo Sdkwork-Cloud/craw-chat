@@ -270,23 +270,18 @@ async function main(): Promise<void> {
 
   assert.deepEqual(
     preferenceReads,
-    ['u_alice', 'u_bob'],
-    'contact list hydration must retrieve SDK-backed preferences for each visible contact page item',
+    [],
+    'contact list loading must not issue per-contact preference reads',
   );
   assert.deepEqual(
     contacts.map((contact) => contact.id),
-    ['u_alice'],
-    'blocked contacts must be filtered using SDK-backed contact preferences',
+    ['u_alice', 'u_bob'],
+    'contact list loading must use the paged contact projection without filtering through per-contact preferences',
   );
   assert.equal(
     contacts[0]?.name,
-    'Alice Ops',
-    'contact remarks must override display names from SDK-backed contact preferences',
-  );
-  assert.equal(
-    contacts[0]?.avatar,
-    'https://cdn.example.test/alice.png',
-    'contact list hydration must resolve avatars through the real social user search endpoint instead of local seed avatars',
+    'u_alice',
+    'contact list loading must not require per-contact remarks before rendering the first page',
   );
   assert.equal(
     contacts[0]?.conversationId,
@@ -302,22 +297,27 @@ async function main(): Promise<void> {
   assert.equal(
     cachedContact?.conversationId,
     'c_direct_contact_alice',
-    'contact lookup must keep the projected direct chat conversation id after profile cache hydration',
+    'contact lookup must keep the projected direct chat conversation id from the lightweight contact projection',
   );
   assert.deepEqual(
     userSearchCalls,
-    [
-      { q: 'u_alice', pageSize: 20 },
-      { q: 'u_bob', pageSize: 20 },
-    ],
-    'contact list hydration must resolve backend contact ids through the real social user search endpoint',
+    [],
+    'contact list and cached contact lookup must not resolve every contact through social user search',
+  );
+
+  const alicePreferences = await service.getContactPreferences('u_alice');
+  assert.equal(alicePreferences.remark, 'Alice Ops');
+  assert.deepEqual(
+    preferenceReads,
+    ['u_alice'],
+    'contact preferences must be loaded only for an explicitly selected contact',
   );
 
   const starred = await service.getStarredContacts();
   assert.deepEqual(
     starred.map((contact) => contact.id),
     ['u_alice'],
-    'starred contacts must come from SDK-backed contact preferences',
+    'starred contacts must come from locally loaded contact preference cache',
   );
 
   await service.toggleStarContact('u_alice', false);

@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "language": "typescript",
   "sdkType": "backend",
-  "packageName": "@sdkwork-internal/im-backend-api-generated",
-  "transportPackageName": "@sdkwork-internal/im-backend-api-generated",
+  "packageName": "sdkwork-im-backend-sdk-generated-typescript",
+  "transportPackageName": "sdkwork-im-backend-sdk-generated-typescript",
   "consumerPackageName": "@sdkwork/im-backend-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {

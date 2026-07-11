@@ -3,7 +3,7 @@ use std::process::ExitCode;
 const BIND_ADDR_ENV: &str = "SDKWORK_IM_COMMS_SPACE_SERVICE_BIND_ADDR";
 const LEGACY_BIND_ADDR_ENV: &str = "SDKWORK_IM_SPACE_SERVICE_BIND_ADDR";
 const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
-const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18093";
+const DEFAULT_BIND_ADDR: &str = "127.0.0.1:28093";
 
 #[tokio::main]
 async fn main() -> ExitCode {

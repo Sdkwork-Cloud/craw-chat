@@ -7,9 +7,9 @@ export interface ImH5AppSession {
 }
 
 export const DEFAULT_APP_SESSION: ImH5AppSession = {
-  accessToken: "dev-access-token",
-  authToken: "dev-auth-token",
-  tenantId: "100001",
-  organizationId: "0",
-  userId: "user",
+  accessToken: "",
+  authToken: "",
+  tenantId: "",
+  organizationId: "",
+  userId: "",
 };

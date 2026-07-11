@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { ImSdkClient } from '@sdkwork/im-sdk';
 import { createSdkworkChatService } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService';
+import type { SdkworkChatSession } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
 type StartEnterpriseChatCall =
   | {
@@ -14,6 +15,26 @@ type StartEnterpriseChatCall =
     };
 
 const calls: StartEnterpriseChatCall[] = [];
+const authenticatedSession: SdkworkChatSession = {
+  accessToken: 'test-access-token',
+  authToken: 'test-auth-token',
+  context: {
+    appId: 'sdkwork-im-pc',
+    authLevel: 'password',
+    dataScope: [],
+    deploymentMode: 'saas',
+    environment: 'dev',
+    permissionScope: [],
+    sessionId: 'session-1',
+    tenantId: '100001',
+    userId: 'session-user-1',
+  },
+  sessionId: 'session-1',
+  user: {
+    id: 'cached-local-user',
+    userId: 'session-user-1',
+  },
+};
 
 const fakeClient = {
   conversations: {
@@ -56,7 +77,10 @@ const fakeClient = {
 } as unknown as ImSdkClient;
 
 async function main(): Promise<void> {
-  const service = createSdkworkChatService(() => fakeClient);
+  const service = createSdkworkChatService({
+    getClient: () => fakeClient,
+    getSession: () => authenticatedSession,
+  });
 
   const chat = await service.startEnterpriseChat({
     id: 'enterprise-a',
@@ -68,7 +92,7 @@ async function main(): Promise<void> {
     {
       method: 'conversations.bindDirectChat',
       body: {
-        leftActorId: 'current-user',
+        leftActorId: 'session-user-1',
         leftActorKind: 'user',
         rightActorId: 'enterprise-a',
         rightActorKind: 'enterprise',
@@ -83,14 +107,14 @@ async function main(): Promise<void> {
         body: {
           displayName: 'Enterprise A (Official)',
         },
-        conversationId: 'pc-enterprise-current-user-enterprise-a',
+        conversationId: 'pc-enterprise-session-user-1-enterprise-a',
         method: 'conversations.updateProfile',
       },
       {
         body: {
           isHidden: false,
         },
-        conversationId: 'pc-enterprise-current-user-enterprise-a',
+        conversationId: 'pc-enterprise-session-user-1-enterprise-a',
         method: 'conversations.updatePreferences',
       },
     ],
@@ -98,7 +122,7 @@ async function main(): Promise<void> {
   );
   assert.deepEqual(
     [chat.id, chat.name, chat.avatar, chat.type, chat.unreadCount],
-    ['pc-enterprise-current-user-enterprise-a', 'Enterprise A (Official)', undefined, 'single', 0],
+    ['pc-enterprise-session-user-1-enterprise-a', 'Enterprise A (Official)', undefined, 'single', 0],
   );
 
   console.log('sdkwork-im-pc start enterprise chat contract passed');

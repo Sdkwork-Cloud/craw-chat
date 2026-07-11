@@ -108,11 +108,11 @@ storage_content="$(cat "$storage_config_path" 2>/dev/null || true)"
 
 if [[ -n "$server_config_path" ]]; then
   if [[ "$(basename "$server_config_path")" == "server.yaml" ]]; then
-    for contract in "instance:" "name:" "network:" "bindAddress:" "publicEndpoints:" "baseUrl:" "runtime:" "dataRoot:"; do
+    for contract in "instance:" "name:" "network:" "bindAddress:" "publicEndpoints:" "baseUrl:" "runtime:" "deploymentProfile: standalone" "runtimeTarget: server"; do
       [[ "$server_content" == *"$contract"* ]] || config_missing+=("$contract")
     done
   else
-    for contract in "[runtime]" "deployment_mode = \"server\"" "app_code = \"chat\"" "[server]" "bind_address ="; do
+    for contract in "[runtime]" "deployment_profile = \"standalone\"" "runtime_target = \"server\"" "app_code = \"chat\"" "[server]" "bind_address ="; do
       [[ "$server_content" == *"$contract"* ]] || config_missing+=("$contract")
     done
   fi
@@ -186,7 +186,7 @@ else
   echo "sdkwork-im-server verify report"
   echo "config: ${config_dir}"
   echo "configValid: ${config_valid}"
-  echo "storageValid: ${config_valid}"
+  echo "storageValid: ${storage_valid}"
   echo "ready: ${ready}"
   if [[ ${#missing[@]} -gt 0 ]]; then
     echo "missing: ${missing[*]}"

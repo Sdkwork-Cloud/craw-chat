@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.app.json && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "lint": "tsc --noEmit -p tsconfig.app.json",
-    "test:drive-app-sdk-integration": "node scripts/drive-app-sdk-integration-contract.test.mjs"
+    "test:drive-app-sdk-integration": "node scripts/drive-app-sdk-integration-contract.test.mjs",
+    "test:chat-conversation-title": "tsx --tsconfig tsconfig.app.json scripts/chat-conversation-title-contract.test.ts"
   },
   "dependencies": {
     "@sdkwork/auth-pc-react": "workspace:*",

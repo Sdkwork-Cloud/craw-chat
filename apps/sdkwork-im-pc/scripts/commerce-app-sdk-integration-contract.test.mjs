@@ -7,7 +7,7 @@ import {
   COMMERCE_T1_APP_API_AUTHORITIES,
   COMMERCE_T1_APP_SDK_PACKAGES,
   COMMERCE_T1_APP_SDK_WORKSPACE_PATHS,
-  COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS,
+  COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS,
 } from '../../../scripts/dev/commerce-t1-capabilities.mjs';
 
 const appRoot = path.resolve(import.meta.dirname, '..');
@@ -28,6 +28,10 @@ function readRepoText(...segments) {
 
 function readRepoJson(...segments) {
   return JSON.parse(readRepoText(...segments));
+}
+
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 function escapeRegExp(value) {
@@ -195,25 +199,76 @@ for (const authority of ['sdkwork-catalog-app-api', 'sdkwork-order-app-api', 'sd
 }
 
 for (const authority of COMMERCE_T1_APP_API_AUTHORITIES) {
-  const splitKeys = componentSpec.integration?.foundationApiGateway?.splitOverrideEnvKeys?.[authority];
-  const expected = COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS.find(
+  const externalUpstreamKeys =
+    componentSpec.integration?.foundationApiGateway?.explicitExternalUpstreamEnvKeys?.[authority];
+  const expected = COMMERCE_T1_EXTERNAL_UPSTREAM_ENV_KEY_GROUPS.find(
     (group) => group.some((key) => key.includes(authority.replace(/^sdkwork-/, '').replace(/-app-api$/, '').replace(/-/g, '_').toUpperCase())),
   );
   if (authority === 'sdkwork-catalog-app-api' || authority === 'sdkwork-order-app-api' || authority === 'sdkwork-shop-app-api') {
-    assert.ok(splitKeys?.length, `component.spec.json must document split override env keys for ${authority}.`);
-    assert.deepEqual(splitKeys, expected, `component.spec.json split override keys must match commerce T1 registry for ${authority}.`);
+    assert.ok(
+      externalUpstreamKeys?.length,
+      `component.spec.json must document explicit external upstream env keys for ${authority}.`,
+    );
+    assert.deepEqual(
+      externalUpstreamKeys,
+      expected,
+      `component.spec.json explicit external upstream keys must match commerce T1 registry for ${authority}.`,
+    );
   }
 }
 
 for (const repoId of ['sdkwork-catalog', 'sdkwork-shop', 'sdkwork-order']) {
-  const assemblyPath = path.join(
-    workspaceRoot,
-    repoId,
-    'sdks',
-    `${repoId}-app-sdk`,
-    '.sdkwork-assembly.json',
+  const capability = repoId.replace(/^sdkwork-/u, '');
+  const sdkFamily = `${repoId}-app-sdk`;
+  const familyRoot = path.join(workspaceRoot, repoId, 'sdks', sdkFamily);
+  const legacyAssemblyPath = path.join(familyRoot, '.sdkwork-assembly.json');
+  const manifestPath = path.join(familyRoot, 'sdk-manifest.json');
+  const componentSpecPath = path.join(familyRoot, 'specs', 'component.spec.json');
+
+  assert.ok(fs.existsSync(manifestPath), `T1 repo ${repoId} must publish sdk-manifest.json for its app SDK family.`);
+  assert.ok(
+    !fs.existsSync(legacyAssemblyPath),
+    `T1 repo ${repoId} must not restore retired per-family .sdkwork-assembly.json; sdk-manifest.json is the SDK family SSOT.`,
   );
-  assert.ok(fs.existsSync(assemblyPath), `T1 repo ${repoId} must publish .sdkwork-assembly.json for its app SDK family.`);
+  assert.ok(
+    fs.existsSync(componentSpecPath),
+    `T1 repo ${repoId} must publish specs/component.spec.json for its app SDK family.`,
+  );
+
+  const manifest = readJsonFile(manifestPath);
+  const component = readJsonFile(componentSpecPath);
+  assert.equal(manifest.sdkFamily, sdkFamily, `${repoId} app SDK manifest must declare the SDK family.`);
+  assert.equal(manifest.sdkName, sdkFamily, `${repoId} app SDK manifest must use SDK family as sdkName.`);
+  assert.equal(manifest.sdkOwner, repoId, `${repoId} app SDK manifest must declare the repository owner.`);
+  assert.equal(manifest.apiAuthority, `${repoId}-app-api`, `${repoId} app SDK manifest must declare app-api authority.`);
+  assert.equal(
+    manifest.generationInputSpec,
+    `openapi/${repoId}-app-api.sdkgen.json`,
+    `${repoId} app SDK manifest must point to the derived sdkgen input.`,
+  );
+  assert.deepEqual(manifest.sdkDependencies, [], `${repoId} app SDK manifest must explicitly declare no SDK dependencies.`);
+  assert.equal(manifest.packageName, `@sdkwork/${capability}-app-sdk`, `${repoId} app SDK manifest must declare the composed consumer package.`);
+  assert.equal(
+    manifest.transportPackageName,
+    `${sdkFamily}-generated-typescript`,
+    `${repoId} app SDK manifest must declare the generated transport package.`,
+  );
+  assert.equal(component.component?.type, 'sdk-family', `${repoId} app SDK component spec must classify the family.`);
+  assert.equal(component.component?.root, `sdks/${sdkFamily}`, `${repoId} app SDK component spec must use the SDK family root.`);
+  assert.equal(component.sdk?.family, manifest.sdkFamily, `${repoId} app SDK component spec must mirror sdk-manifest family.`);
+  assert.equal(component.sdk?.authority, manifest.apiAuthority, `${repoId} app SDK component spec must mirror sdk-manifest authority.`);
+  assert.equal(component.sdk?.sdkOwner, manifest.sdkOwner, `${repoId} app SDK component spec must mirror sdk-manifest owner.`);
+  assert.equal(component.sdk?.packageName, manifest.packageName, `${repoId} app SDK component spec must mirror sdk-manifest package.`);
+  assert.deepEqual(
+    component.contracts?.sdkDependencies,
+    manifest.sdkDependencies,
+    `${repoId} app SDK component spec must mirror sdk-manifest sdkDependencies.`,
+  );
+  assert.deepEqual(
+    component.contracts?.dependencyApiExports,
+    [],
+    `${repoId} app SDK component spec must explicitly declare no dependency API exports.`,
+  );
 }
 
 assert.match(

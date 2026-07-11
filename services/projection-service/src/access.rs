@@ -600,9 +600,23 @@ impl TimelineProjectionService {
         limit: Option<usize>,
         cursor: Option<&str>,
     ) -> Result<super::InboxWindowView, ProjectionAccessError> {
+        self.inbox_window_from_auth_context_filtered(auth, limit, cursor, None)
+    }
+
+    pub fn inbox_window_from_auth_context_filtered(
+        &self,
+        auth: &AppContext,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+        conversation_type: Option<&str>,
+    ) -> Result<super::InboxWindowView, ProjectionAccessError> {
         let limit = validate_list_limit(limit)?;
         let list_cursor = parse_inbox_list_cursor(cursor)?;
         let organization_id = Self::auth_organization_id(auth);
+        let requested_conversation_type = conversation_type
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_ascii_lowercase);
         self.inbox_window_for_principal_kind_filtered(
             InboxWindowQuery {
                 tenant_id: auth.tenant_id.as_str(),
@@ -617,7 +631,13 @@ impl TimelineProjectionService {
                     auth.tenant_id.as_str(),
                     organization_id.as_str(),
                     entry.conversation_id.as_str(),
-                )
+                ) && requested_conversation_type
+                    .as_ref()
+                    .is_none_or(|conversation_type| {
+                        entry
+                            .conversation_type
+                            .eq_ignore_ascii_case(conversation_type.as_str())
+                    })
             },
         )
         .map_err(ProjectionAccessError::from)
@@ -663,16 +683,28 @@ impl TimelineProjectionService {
         self.ensure_history_reader_from_auth_context(auth, conversation_id)?;
         let limit = validate_timeline_limit(limit)?;
         let organization_id = Self::auth_organization_id(auth);
-        self.timeline_window_for_principal(TimelineWindowForPrincipalQuery {
-            tenant_id: auth.tenant_id.as_str(),
-            organization_id: organization_id.as_str(),
+        let mut window = self
+            .timeline_window_for_principal(TimelineWindowForPrincipalQuery {
+                tenant_id: auth.tenant_id.as_str(),
+                organization_id: organization_id.as_str(),
+                conversation_id,
+                principal_kind: auth.actor_kind.as_str(),
+                principal_id: auth.actor_id.as_str(),
+                after_seq,
+                limit,
+            })
+            .map_err(|error| ProjectionAccessError::store_unavailable(error.to_string()))?;
+
+        // Batch-enrich timeline entries with inline interaction data (reactions, pin)
+        // to eliminate N+1 client-side interaction_summary requests.
+        self.enrich_timeline_entries_with_interactions(
+            auth.tenant_id.as_str(),
+            organization_id.as_str(),
             conversation_id,
-            principal_kind: auth.actor_kind.as_str(),
-            principal_id: auth.actor_id.as_str(),
-            after_seq,
-            limit,
-        })
-        .map_err(|error| ProjectionAccessError::store_unavailable(error.to_string()))
+            &mut window.items,
+        );
+
+        Ok(window)
     }
 
     pub fn conversation_summary_from_auth_context(

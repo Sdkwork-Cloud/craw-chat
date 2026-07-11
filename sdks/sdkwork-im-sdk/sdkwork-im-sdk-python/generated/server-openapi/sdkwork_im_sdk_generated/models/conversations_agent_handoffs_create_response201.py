@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, List, Dict, Any
 
 if TYPE_CHECKING:
-    from .ack_response import AckResponse
+    from .create_conversation_result import CreateConversationResult
 
 
 @dataclass

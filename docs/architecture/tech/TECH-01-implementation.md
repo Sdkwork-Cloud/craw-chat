@@ -51,7 +51,7 @@
        全部在同一 PostgreSQL 事务内
 
 读路径（查询真值，可重建）:
-  projection-service / API -> MessageStore.read_window()      // 直读 im_conversation_messages
+  conversation-service / API -> MessageStore.read_window()    // 直读 im_conversation_messages
                           -> ConversationSummaryStore.read()  // 直读 im_projection_*
 
 投递路径（异步，与写解耦）:
@@ -145,7 +145,7 @@ CREATE UNIQUE INDEX uk_im_conversation_messages_client
     ON im_conversation_messages (tenant_id, organization_id, conversation_id, sender_principal_kind, sender_principal_id, client_msg_id)
     WHERE client_msg_id IS NOT NULL;
 
--- timeline 读取索引
+-- message history 读取索引
 CREATE INDEX idx_im_messages_tenant_conv_seq
     ON im_conversation_messages (tenant_id, organization_id, conversation_id, message_seq DESC);
 
@@ -386,4 +386,3 @@ pnpm run test:workflow-commercial-gates
 - **阶段 1**（实时层）：Redis 接入、多 gateway、跨节点推送、租户级限流。依赖阶段 0 的"runtime 可水平复制"前提。
 - **阶段 2**（隔离与总线）：PostgreSQL RLS、表分区、Redpanda 事件总线、`im_inbox_events` 消费幂等。依赖阶段 0 的 organization_id 列与 outbox。
 - **阶段 3**（治理）：Prometheus metrics、OpenTelemetry trace、归档 job、KMS 密钥管理。
-

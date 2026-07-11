@@ -392,10 +392,10 @@ mod tests {
     }
 
     fn matches_env_flag(value: &str) -> bool {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "0" | "false" | "no" | "off" => false,
-            _ => true,
-        }
+        !matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        )
     }
 
     #[test]

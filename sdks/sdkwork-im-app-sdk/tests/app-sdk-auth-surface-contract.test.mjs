@@ -171,7 +171,7 @@ const appbaseAuthority = readExternalYaml(path.join(
 const sdkworkImAuthority = readYaml('openapi/sdkwork-im-app-api.openapi.yaml');
 const sdkworkImDerived = readYaml('openapi/sdkwork-im-app-api.sdkgen.yaml');
 const sdkworkImFlutterDerived = readYaml('openapi/sdkwork-im-app-api.flutter.sdkgen.yaml');
-const assembly = readJson('.sdkwork-assembly.json');
+const sdkManifest = readJson('sdk-manifest.json');
 const componentSpec = readJson('specs/component.spec.json');
 const readme = readText('README.md');
 
@@ -194,11 +194,11 @@ for (const appbaseRoute of appbaseOwnedAppRoutes) {
 }
 
 const configDependency = dependencyByWorkspace(sdkFamilyConfig.sdkDependencies ?? [], 'sdkwork-iam-app-sdk');
-const assemblyDependency = dependencyByWorkspace(assembly.sdkDependencies ?? [], 'sdkwork-iam-app-sdk');
+const manifestDependency = dependencyByWorkspace(sdkManifest.sdkDependencies ?? [], 'sdkwork-iam-app-sdk');
 const componentSpecDependency = dependencyByWorkspace(componentSpec.contracts?.sdkDependencies ?? [], 'sdkwork-iam-app-sdk');
 
 assert.ok(configDependency, 'sdk-family-config must declare sdkwork-iam-app-sdk dependency.');
-assert.deepEqual(assemblyDependency, configDependency, '.sdkwork-assembly.json appbase dependency must match sdk-family-config.mjs.');
+assert.deepEqual(manifestDependency, configDependency, 'sdk-manifest.json appbase dependency must match sdk-family-config.mjs.');
 assert.deepEqual(
   componentSpecDependency,
   configDependency,

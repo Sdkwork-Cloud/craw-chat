@@ -1,0 +1,44 @@
+{
+  "settingsModal": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "modules": "Modules",
+      "notifications": "Notifications",
+      "privacy": "Privacy",
+      "appearance": "Appearance",
+      "devices": "Devices"
+    },
+    "logout": "Log out",
+    "general": {
+      "language": "Language",
+      "languageZh": "Simplified Chinese",
+      "languageEn": "English",
+      "autoStartTitle": "Launch at startup",
+      "autoStartDescription": "Automatically start Sdkwork IM when the system boots"
+    },
+    "modules": {
+      "description": "Choose which modules appear in the sidebar:",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "privacy": {
+      "requireAuth": "Require verification for friend requests",
+      "showOnline": "Show online status to friends",
+      "clearCache": "Clear local data",
+      "cacheCleared": "Local cache cleared"
+    },
+    "appearance": {
+      "themeTitle": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "devices": {
+      "currentDevice": "Current device ({{name}})",
+      "online": "Online",
+      "signOut": "Sign out",
+      "signedOut": "Signed out {{name}}"
+    }
+  }
+}

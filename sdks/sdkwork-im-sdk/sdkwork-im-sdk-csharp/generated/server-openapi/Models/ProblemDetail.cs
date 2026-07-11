@@ -13,6 +13,8 @@ namespace Sdkwork.Im.Sdk.Generated.Models
         public string? Instance { get; set; }
         public int Code { get; set; }
         public string TraceId { get; set; }
+        public string? I18nKey { get; set; }
+        public string? Locale { get; set; }
         public List<FieldError>? Errors { get; set; }
     }
 }

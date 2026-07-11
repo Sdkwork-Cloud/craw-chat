@@ -1,8 +1,8 @@
 > Migrated from `docs/topology-standard.md` on 2026-06-24.
 > Owner: SDKWork maintainers
 
-Human-facing summary for IM. Machine contract: `../specs/topology.spec.json`.
-Platform naming authority: `../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_NAMING.md`.
+Human-facing summary for IM. Machine contract: `../../../specs/topology.spec.json`.
+Platform naming authority: `../../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md`.
 
 ## Archetype
 
@@ -10,19 +10,19 @@ Platform naming authority: `../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_NAMING.md`.
 
 ## Default Profile
 
-**standalone.unified-process.development**
+**standalone.development**
 
 Profile env files: `configs/topology/`
 
 ## Surfaces
 
-| Surface id | Standalone unified-process | Cloud split-services |
+| Surface id | Standalone | Cloud |
 | --- | --- | --- |
-| `application.public-ingress` | `sdkwork-im-standalone-gateway` | `sdkwork-im-server` |
+| `application.public-ingress` | `sdkwork-im-standalone-gateway` | `sdkwork-im-cloud-gateway` / `sdkwork-im-server` |
 | `platform.api-gateway` | embedded in standalone gateway | `sdkwork-api-cloud-gateway` |
 | `operations.control-ingress` | (optional) | (optional) |
 
-## Env Keys (standalone unified-process development)
+## Env Keys (standalone development)
 
 ```bash
 # Application plane — IM product APIs + embedded IAM
@@ -44,9 +44,9 @@ VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=http://127.0.0.1:18079
 ## Commands
 
 ```bash
-pnpm dev           # standalone.unified-process.development
+pnpm dev           # standalone.development
 pnpm gateway:run:standalone
-pnpm build         # cloud.split-services.production
+pnpm build         # cloud.production
 ```
 
 ## Cloud URLs (Pattern A)
@@ -66,4 +66,3 @@ Public application host for IM: **`im.sdkwork.com`**.
 - "Foundation SDKs use **SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL** only."
 
 See `topology-greenfield.md` for migration notes.
-

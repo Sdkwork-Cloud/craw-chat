@@ -1,4 +1,4 @@
-//! Postgres-backed direct message access gate for split-deploy conversation processes.
+//! Postgres-backed direct message access gate for cloud conversation processes.
 
 use std::sync::Arc;
 

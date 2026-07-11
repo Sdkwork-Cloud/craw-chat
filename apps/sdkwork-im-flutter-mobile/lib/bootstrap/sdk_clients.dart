@@ -19,12 +19,14 @@ ImSdkClientBundle? _sharedBundle;
 
 ImSdkClients createSdkClients({ImAppSession? session}) {
   final env = resolveEnvironment();
-  final activeSession = session ?? loadAppSession();
+  final candidateSession = session ?? loadAppSession();
+  final activeSession =
+      candidateSession?.isComplete == true ? candidateSession : null;
   final bundle = createImSdkClient(
     applicationPublicHttpUrl: env.applicationPublicHttpUrl,
     applicationPublicWebSocketUrl: env.applicationPublicWebSocketUrl,
     accessToken: activeSession?.accessToken,
-    authToken: activeSession?.authToken ?? activeSession?.accessToken,
+    authToken: activeSession?.authToken,
     existingClient: _sharedBundle?.imSdk,
     existingComposedClient: _sharedBundle?.composed,
   );

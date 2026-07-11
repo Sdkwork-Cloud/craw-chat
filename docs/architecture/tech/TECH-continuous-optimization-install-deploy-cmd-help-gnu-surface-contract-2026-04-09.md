@@ -14,7 +14,7 @@
 - `cmd /c .\bin\retired-lifecycle-install.cmd --help` only showed:
   - `Usage: powershell -ExecutionPolicy Bypass -File (retired lifecycle script) [-Release] [-BindAddress <host:port>]`
 - `cmd /c .\bin\retired-lifecycle-deploy.cmd --help` only showed:
-  - `Usage: powershell -ExecutionPolicy Bypass -File pnpm dev [-ProfileName <standalone.split-services.development|standalone.split-services.development>] [-SkipSmoke] [-SmokeBaseUrl <url>]`
+  - `Usage: powershell -ExecutionPolicy Bypass -File (retired lifecycle deploy script) [-ProfileName <standalone.development|cloud.development>] [-SkipSmoke] [-SmokeBaseUrl <url>]`
 - That left the same drift already closed for `retired-lifecycle-start.cmd` and `retired-lifecycle-status.cmd`:
   - docs taught `--release`, `--bind-addr`, `--profile`, `--skip-smoke`, `--smoke-base-url`
   - local Windows help still surfaced only PowerShell syntax
@@ -61,4 +61,3 @@ cargo fmt --all --check
 - The next higher-value gap is no longer operator help parity; it is deeper runtime/provider maturity:
   - invalid `principal-profile-external-catalog` bootstrap semantics and health reporting
   - real RTC / object-storage / IoT provider runtime depth beyond current contract baseline
-

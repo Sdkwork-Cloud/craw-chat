@@ -52,6 +52,50 @@ Interactive list APIs use SDKWork cursor pagination with canonical HTTP query pa
 (`pageSize`, `limit`, `page_no`, `pageNo`, `per_page`, and `size`) with
 `40003 INVALID_PARAMETER`; `page` and `cursor` are also rejected when combined.
 
+## Read-Model Consistency Model
+
+The projection service maintains an in-memory read model backed by a Postgres durable
+snapshot store. Multi-replica deployments and post-restart reads rely on a read-through
+fallback to keep read models consistent without waiting for journal consumer replay.
+
+### Durable Read-Through
+
+The following read paths fall back to the durable metadata snapshot when the in-memory
+store misses, hydrating the memory cache so subsequent reads hit memory directly:
+
+| Read Path | Durable Snapshot Key |
+| --- | --- |
+| `conversation_summary` | `conversation-summary` |
+| `history_visibility_for_conversation` | `conversation-catalog` |
+| `member_snapshot_for_principal_kind` | `conversation-members` |
+| `read_cursor_for_principal_kind_and_device` | `conversation-read_cursors` |
+| `conversation_profile` | `conversation-profile` |
+| `message_interaction_summary` | `message-interactions` |
+| `message_visibility_for_principal` | `message-visibilities` |
+| `timeline_window` | Timeline projection store (tiered) |
+
+Read-through failures are warn-logged at `sdkwork.im.projection.read_through` and return
+`None` / default values — they never fail the HTTP request.
+
+### Journal Consumer Persist Retry
+
+The journal consumer persists durable state after applying events. Persist failures are
+retried up to 3 times with 50/100 ms backoff (`persist_durable_state_with_retry`). The
+combined worst-case sleep (150 ms) stays below the default 250 ms poll interval so the
+consumer never falls behind. When all retries fail, the consumer keeps advancing — the
+next cycle re-attempts the full accumulated state.
+
+### Embedded Apply (Unified vs Separated Deployment)
+
+- **Unified-process (standalone):** the projection HTTP bootstrap initializes the shared
+  runtime; journal append paths call `try_apply_commit_envelope` for immediate local
+  projection feedback without waiting for replay polling.
+- **Separated cloud deployment:** separated services (e.g. `conversation-service` without
+  projection HTTP handlers) never initialize the shared runtime. `resolve_embedded_projection_service`
+  uses `try_shared_projection_runtime` (no lazy init) in production, so embedded apply
+  becomes a silent no-op. The journal consumer on `projection-service` replicas drives
+  read-model consistency instead.
+
 Regression coverage for pending-sensitive inbox reads:
 
 - `cargo test -p projection-service inbox_window_from_auth_context_returns_without_reentrant_member_lock --lib -- --nocapture`

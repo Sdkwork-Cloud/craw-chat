@@ -74,19 +74,21 @@ SDKWork IM is a multi-tenant, event-sourced instant messaging platform built on 
 
 Manages WebSocket lifecycle, presence, and cluster routing:
 
-- **CCP Protocol**: Dual-protocol WebSocket with `auth.init` frame authentication. Tokens are passed via `Authorization` and `Access-Token` headers in the auth frame, never in query parameters. Query-token mode is rejected in production.
-- **Connection Limiting**: Semaphore-based concurrent WebSocket connection cap (`SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS`). Max message size 512 KB, max frame size 256 KB.
-- **Cluster Bus**: Inter-node presence sync via `SDKWORK_IM_REALTIME_CLUSTER_BUS_*` env vars. Redis-backed in HA; in-memory fallback for single-node dev.
-- **Disconnect Fence**: Prevents stale session takeover during network partitions. Storage backend is configurable — Redis for HA, in-memory for dev. The `expire_fences_older_than()` method cleans up fences older than N days, preventing storage 膨胀 from long-term offline devices.
+- **CCP Protocol**: WebSocket `auth.init` frame authentication. Tokens are passed via `Authorization` and `Access-Token` fields in the auth frame, never in query parameters. Legacy JSON compatibility is disabled by default, and query-token mode is rejected in production.
+- **Connection Limiting**: `SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS` caps active WebSockets; `SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS` independently caps HTTP in-flight work. Max message size is 512 KB and max frame size is 256 KB.
+- **Cluster Bus**: `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` enables Redis Pub/Sub route events. A shared PostgreSQL `SDKWORK_IM_DATABASE_URL` is mandatory in clustered production so checkpoints, presence, event windows, subscriptions, and disconnect fences remain durable across nodes.
+- **Disconnect Fence**: The fence is scoped by tenant, organization, principal kind, principal id, device, and session. The disconnected session is rejected with `reconnect_required`; a different authenticated session conditionally clears the stale fence and proceeds. Fences older than 24 hours are ignored and purged through bounded maintenance, preventing unbounded growth for long-offline devices.
 - **Heartbeat Mechanism**: Server-initiated heartbeat at configurable interval (default 30s) detects silent disconnects and enforces idle timeout (default 90s). This prevents zombie connections that would otherwise occupy route slots indefinitely. Configurable via `SDKWORK_IM_WEBSOCKET_HEARTBEAT_INTERVAL_SECS` and `SDKWORK_IM_WEBSOCKET_IDLE_TIMEOUT_SECS`.
 - **Route Epoch Change Grace**: 250ms grace window gives clients time to handle route migrations without missing state changes.
+- **Graceful Drain**: SIGINT/SIGTERM first flips shared readiness to not-ready and marks the route node draining. HTTP shutdown is triggered, link listeners and maintenance jobs stop, every owned route is fenced before conditional release, and the Redis subscriber is cancelled. `SDKWORK_IM_SESSION_GATEWAY_DRAIN_TIMEOUT_SECS` is one total deadline (default 45 seconds, valid 5-300); Kubernetes grants 75 seconds before forced termination.
 
 ### 2.3 Comms Conversation Service
 
 Event-sourced conversation engine:
 
 - **Write Path**: Commands append to `im_commit_journal` via append-only journal with idempotency keys.
-- **Read Path**: Projections serve materialized views from `im_conversation_messages` with `(tenant_id, organization_id, conversation_id)` composite indexes.
+- **Message History Read Path**: `sdkwork-comms-conversation-service` owns `GET /im/v3/api/chat/conversations/{conversationId}/messages` and reads durable message windows from `PostgresMessageStore` / `im_conversation_messages` with `(tenant_id, organization_id, conversation_id, message_seq)` scoping.
+- **Projection Read Path**: `projection-service` serves inbox, conversation summaries, read cursors, message search, pins, visibility, and interaction summaries from maintained projection stores; it does not own the public conversation message-history route.
 - **Recovery**: On startup, replays journal from last checkpoint to rebuild in-memory state. Checkpoint store is Redis-backed in HA.
 
 ### 2.4 Social Service
@@ -147,7 +149,7 @@ All organization-scoped tables enforce:
 
 ### 4.1 Connection Lifecycle
 
-1. Client connects to `wss://gateway/ws/v1/realtime`
+1. Client connects to `/im/v3/api/realtime/ws` over `wss`
 2. Client sends `auth.init` frame with access token + device ID
 3. Server validates token via IAM auth pool, resolves tenant + organization
 4. Server sends `auth.ok` confirmation
@@ -176,7 +178,7 @@ This prevents zombie connections that would otherwise occupy route slots and cau
 
 ### 4.4 Cluster Routing
 
-In HA deployments, session gateway nodes share presence state via Redis cluster bus. The disconnect fence ensures that when a client reconnects to a different node, the old connection is properly closed before the new one is established.
+In HA deployments, session gateway nodes exchange route events through the Redis cluster bus while PostgreSQL remains the durable realtime store. Draining a node writes a session-scoped disconnect fence before releasing each owned route. A reconnect carrying the fenced session id fails closed with `reconnect_required`; only a different authenticated session may clear that stale fence. Conditional compare-and-clear prevents an older reconnect from deleting a newer disconnect fence.
 
 **Realtime scope access (production):** When shared IM PostgreSQL pools are installed, the embedded realtime plane wires `ConversationMemberRealtimeScopeAccessPolicy`. Conversation scopes require active membership in `im_projection_conversation_members`; user scopes are limited to the authenticated principal. Development-only bypass: `SDKWORK_IM_REALTIME_PERMISSIVE_SCOPE_ACCESS=true`.
 
@@ -239,7 +241,7 @@ Split-deploy conversation processes enqueue `message.posted` to `im_outbox_event
 
 Production fail-closed: set `SDKWORK_IM_REQUIRE_REALTIME_PUBLISHER=1` when neither embedded publisher/fanout nor outbox store is configured; `post_message` and social commits that require realtime delivery return unavailable.
 
-When a session is bound to `conversationId`, signal projection into IM timeline remains the primary multi-device sync path; the outbox relay covers pure RTC sessions and low-latency participant notification.
+When a session is bound to `conversationId`, signal projection into IM message history remains the primary multi-device sync path; the outbox relay covers pure RTC sessions and low-latency participant notification.
 
 ### 4.8 Space Conversation Binding
 
@@ -273,7 +275,7 @@ Conversation preferences and message favorites are hot-path in-memory projection
 |---|---|
 | `personalization_snapshot.rs` | Persists/restores per-principal preferences + favorites under metadata catalog `projection-personalization` |
 | `persist_all_durable_snapshots` / `restore_all_durable_snapshots` | Includes personalization on bootstrap and periodic snapshot commits when Postgres projection stores are configured |
-| Production bootstrap | `projection-service` fail-closed when Postgres metadata/timeline stores are unavailable (no silent in-memory fallback) |
+| Production bootstrap | `projection-service` fail-closed when Postgres metadata/projection stores are unavailable (no silent in-memory fallback) |
 
 ## 5. Security Architecture
 
@@ -325,7 +327,9 @@ Static topology configuration in `configs/topology/` maps upstream service URLs.
 ### 6.3 Database
 
 - **PostgreSQL**: Production, staging, and default development IM persistence authority (schema in `database/ddl/baseline/postgres/`)
-- **SQLite**: Lifecycle parity and desktop gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); IM journal, projections, social materializer, and message search do not persist to SQLite
+- **Server SQLite baseline**: Lifecycle parity and standalone gateway/sibling-module co-location checks only (schema in `database/ddl/baseline/sqlite/`); IM journal, projections, social materializer, and message search do not use SQLite as production persistence
+- **PC desktop SQLite**: A separate application-data database owned by the Tauri host is a bounded offline cache and pending-send queue, never a server source of truth. Schema v3 scopes every row by tenant, organization, principal kind, and principal id. Conversation, message, and cursor cache rows have TTL, row-count, and logical-byte budgets; pending sends have separate row/byte limits, a 60-second claim lease, claim-token fenced acknowledge/release/quarantine transitions, and a bounded 30-day corrupt-payload quarantine.
+- Desktop SQLite work runs on the Tauri blocking pool behind one serialized connection with WAL, `synchronous=NORMAL`, foreign keys, a bounded busy timeout, and WAL autocheckpointing. Logout/account switch purges cache rows after awaiting completion while preserving unsent rows; an opaque server history cursor is never persisted or parsed as sequence arithmetic by the PC UI.
 - Both DDL files are consolidated baselines with `organization_id` dual isolation from Migration 010+
 - SQLite DDL uses SQLite-compatible syntax: `TEXT` for JSONB/TIMESTAMPTZ, `json_valid()` CHECK constraints, no `DO $$`/`pg_constraint`/`USING GIN`
 - Migrations in `database/migrations/postgres/` (0001–0005)

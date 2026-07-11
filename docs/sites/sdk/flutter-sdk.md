@@ -225,7 +225,7 @@ final connection = composed.connect(
     ),
   ),
 );
-connection.messages.onConversation('conversation-1', (_) { /* refresh timeline */ });
+connection.messages.onConversation('conversation-1', (_) { /* refresh message history */ });
 connection.events.onScope('user', '1', (_) { /* refresh inbox */ });
 ```
 
@@ -288,15 +288,18 @@ semantic helpers with explicit generated request types.
 - Flutter Web should keep `automatic()` or use `queryBearer()` unless a custom `webSocketFactory`
   can attach authenticated upgrade headers.
 
-## Assembly Metadata
+## SDK Manifest Metadata
 
-The workspace root emits `.sdkwork-assembly.json` as the verified package-layer record for Flutter.
+The SDK family root keeps `sdk-manifest.json` as the verified package-layer record for Flutter.
 
 Use it when you need to trace package ownership instead of inferring from folder names:
 
 - `manifestPath` maps the generated and composed package manifests into the assembly output
-- `generatedAt` stays stable when assembly content is unchanged
+- language workspace entries map each Flutter package layer to its checked-in path
 - Flutter records the `generated` `im_sdk_generated` layer and the `composed` `im_sdk_composed` layer
+
+Per-family `.sdkwork-assembly.json` is retired and must not be restored. Keep package and release
+metadata in `sdk-manifest.json`.
 
 ## Local Workspace Workflow
 
@@ -384,7 +387,7 @@ process in the current environment.
 
 - Authority contract: `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
 - Generated transport manifest: `sdkwork-im-sdk-flutter/generated/server-openapi/pubspec.yaml`
-- Assembly metadata: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
+- SDK manifest metadata: `sdks/sdkwork-im-sdk/sdk-manifest.json`
 
 ## What To Read Next
 

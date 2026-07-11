@@ -1,21 +1,18 @@
 //! Shared helpers for domain outbox relay workers.
 
 use std::sync::Arc;
+use std::time::Duration;
 
-use im_platform_contracts::{OutboxEventRecord, OutboxStore};
+use im_platform_contracts::{OutboxEventClaim, OutboxEventRecord, OutboxStore};
 use tracing::warn;
 
-pub fn mark_outbox_failed(outbox: &Arc<dyn OutboxStore>, event: &OutboxEventRecord, reason: &str) {
-    let _ = outbox.mark_failed(
-        event.tenant_id.as_str(),
-        event.organization_id.as_str(),
-        event.outbox_id.as_str(),
-        reason,
-    );
+pub const DEFAULT_OUTBOX_CLAIM_LEASE: Duration = Duration::from_secs(30);
+
+pub fn mark_outbox_failed(outbox: &Arc<dyn OutboxStore>, claim: &OutboxEventClaim, reason: &str) {
+    let _ = outbox.mark_failed(claim, reason);
 }
 
-pub fn mark_unexpected_aggregate_type(
-    outbox: &Arc<dyn OutboxStore>,
+pub fn log_unexpected_aggregate_type(
     event: &OutboxEventRecord,
     expected_aggregate_type: &str,
     relay_name: &str,
@@ -26,19 +23,15 @@ pub fn mark_unexpected_aggregate_type(
         expected_aggregate_type = expected_aggregate_type,
         "{relay_name} outbox relay skipped event with unexpected aggregate type"
     );
-    mark_outbox_failed(
-        outbox,
-        event,
-        &format!("{relay_name} outbox relay unexpected aggregate type"),
-    );
 }
 
 pub fn mark_missing_recipients(
     outbox: &Arc<dyn OutboxStore>,
-    event: &OutboxEventRecord,
+    claim: &OutboxEventClaim,
     relay_name: &str,
     recipient_field: &str,
 ) {
+    let event = &claim.event;
     warn!(
         outbox_id = event.outbox_id.as_str(),
         event_type = event.event_type.as_str(),
@@ -48,7 +41,7 @@ pub fn mark_missing_recipients(
     );
     mark_outbox_failed(
         outbox,
-        event,
+        claim,
         &format!("{relay_name} outbox relay missing {recipient_field}"),
     );
 }

@@ -98,13 +98,13 @@ FROM locked_space ls, member_count mc
 "#;
 
 const SPACE_MEMBER_GET_SQL: &str = r#"
-SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at, updated_at
+SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at::text, updated_at::text
 FROM im_space_members
 WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3 AND user_id = $4
 "#;
 
 const SPACE_MEMBER_LIST_SQL: &str = r#"
-SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at, updated_at
+SELECT tenant_id, organization_id, space_id, user_id, role, nickname, joined_at::text, updated_at::text
 FROM im_space_members
 WHERE tenant_id = $1 AND organization_id = $2 AND space_id = $3
   AND ($4::timestamptz IS NULL OR (joined_at, user_id) > ($4::timestamptz, $5::text))
@@ -484,7 +484,7 @@ const INVITATION_GET_SQL: &str = r#"
 SELECT tenant_id, organization_id, invitation_id, inviter_user_id,
        invitee_user_id, invitee_email, invitee_phone,
        target_type, target_id, role, status, message,
-       expires_at::text, accepted_at::text, created_at, updated_at
+       expires_at::text, accepted_at::text, created_at::text, updated_at::text
 FROM im_invitations
 WHERE tenant_id = $1 AND organization_id = $2 AND invitation_id = $3
 "#;
@@ -493,7 +493,7 @@ const INVITATION_LIST_BY_TARGET_SQL: &str = r#"
 SELECT tenant_id, organization_id, invitation_id, inviter_user_id,
        invitee_user_id, invitee_email, invitee_phone,
        target_type, target_id, role, status, message,
-       expires_at::text, accepted_at::text, created_at, updated_at
+       expires_at::text, accepted_at::text, created_at::text, updated_at::text
 FROM im_invitations
 WHERE tenant_id = $1 AND organization_id = $2
   AND target_type = $3 AND target_id = $4
@@ -712,7 +712,7 @@ const BAN_GET_ACTIVE_SQL: &str = r#"
 SELECT tenant_id, organization_id, ban_id, target_type, target_id,
        banned_user_id, banned_by_user_id, reason,
        expires_at::text, unbanned_at::text, unbanned_by_user_id,
-       created_at, updated_at
+       created_at::text, updated_at::text
 FROM im_ban_records
 WHERE tenant_id = $1 AND organization_id = $2
   AND target_type = $3 AND target_id = $4 AND banned_user_id = $5
@@ -726,7 +726,7 @@ const BAN_LIST_ACTIVE_SQL: &str = r#"
 SELECT tenant_id, organization_id, ban_id, target_type, target_id,
        banned_user_id, banned_by_user_id, reason,
        expires_at::text, unbanned_at::text, unbanned_by_user_id,
-       created_at, updated_at
+       created_at::text, updated_at::text
 FROM im_ban_records
 WHERE tenant_id = $1 AND organization_id = $2
   AND target_type = $3 AND target_id = $4

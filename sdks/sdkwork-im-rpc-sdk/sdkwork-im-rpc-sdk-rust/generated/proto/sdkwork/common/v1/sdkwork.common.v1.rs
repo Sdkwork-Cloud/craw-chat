@@ -37,7 +37,7 @@ pub struct CallerContext {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RequestMetadata {
     #[prost(string, tag="1")]
-    pub request_id: ::prost::alloc::string::String,
+    pub trace_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
     pub traceparent: ::prost::alloc::string::String,
     #[prost(string, tag="3")]
@@ -54,7 +54,7 @@ pub struct RequestMetadata {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ResponseMetadata {
     #[prost(string, tag="1")]
-    pub request_id: ::prost::alloc::string::String,
+    pub trace_id: ::prost::alloc::string::String,
     #[prost(string, tag="2")]
     pub traceparent: ::prost::alloc::string::String,
     #[prost(string, tag="3")]

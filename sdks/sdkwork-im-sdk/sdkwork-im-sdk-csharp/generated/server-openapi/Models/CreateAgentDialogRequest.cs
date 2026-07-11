@@ -8,6 +8,5 @@ namespace Sdkwork.Im.Sdk.Generated.Models
     {
         public string AgentId { get; set; }
         public string? ConversationId { get; set; }
-        public string? Title { get; set; }
     }
 }

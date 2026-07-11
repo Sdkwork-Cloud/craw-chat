@@ -41,19 +41,19 @@ class ChatApi(private val client: HttpClient) {
     }
 
     /** Create an agent handoff */
-    suspend fun conversationsAgentHandoffsCreate(body: CreateAgentDialogRequest): ConversationsAgentHandoffsCreateResponse201? {
+    suspend fun conversationsAgentHandoffsCreate(body: CreateAgentHandoffRequest): ConversationsAgentHandoffsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/chat/conversations/agent_handoffs"), body, null, null, "application/json")
         return client.convertValue(raw, object : TypeReference<ConversationsAgentHandoffsCreateResponse201>() {})
     }
 
     /** Create a system channel */
-    suspend fun conversationsSystemChannelsCreate(body: CreateConversationRequest): ConversationsSystemChannelsCreateResponse201? {
+    suspend fun conversationsSystemChannelsCreate(body: CreateSystemChannelRequest): ConversationsSystemChannelsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/chat/conversations/system_channels"), body, null, null, "application/json")
         return client.convertValue(raw, object : TypeReference<ConversationsSystemChannelsCreateResponse201>() {})
     }
 
     /** Create a thread conversation */
-    suspend fun conversationsThreadsCreate(body: CreateConversationRequest): ConversationsThreadsCreateResponse201? {
+    suspend fun conversationsThreadsCreate(body: CreateThreadConversationRequest): ConversationsThreadsCreateResponse201? {
         val raw = client.post(ApiPaths.imPath("/chat/conversations/threads"), body, null, null, "application/json")
         return client.convertValue(raw, object : TypeReference<ConversationsThreadsCreateResponse201>() {})
     }
@@ -182,14 +182,14 @@ class ChatApi(private val client: HttpClient) {
         return client.convertValue(raw, object : TypeReference<ConversationsMemberDirectoryListResponse>() {})
     }
 
-    /** List conversation message timeline */
-    suspend fun conversationsMessagesList(conversationId: String, afterSeq: Int? = null, pageSize: Int? = null): ConversationsMessagesListResponse? {
+    /** List conversation message history */
+    suspend fun conversationsMessagesList(conversationId: String, afterSeq: Int? = null, pageSize: Int? = null): ConversationMessageListResponse? {
         val query = buildQueryString(listOf(
             QueryParameterSpec("afterSeq", afterSeq, "form", true, false, null),
             QueryParameterSpec("page_size", pageSize, "form", true, false, null)
         ))
         val raw = client.get(ApiPaths.appendQueryString(ApiPaths.imPath("/chat/conversations/${serializePathParameter(conversationId, PathParameterSpec("conversationId", "simple", false))}/messages"), query))
-        return client.convertValue(raw, object : TypeReference<ConversationsMessagesListResponse>() {})
+        return client.convertValue(raw, object : TypeReference<ConversationMessageListResponse>() {})
     }
 
     /** Post a conversation message */
@@ -223,8 +223,8 @@ class ChatApi(private val client: HttpClient) {
     }
 
     /** Recall a message */
-    suspend fun messagesRecall(messageId: String): MessagesRecallResponse? {
-        val raw = client.post(ApiPaths.imPath("/chat/messages/${serializePathParameter(messageId, PathParameterSpec("messageId", "simple", false))}/recall"), null)
+    suspend fun messagesRecall(messageId: String, body: RecallMessageRequest): MessagesRecallResponse? {
+        val raw = client.post(ApiPaths.imPath("/chat/messages/${serializePathParameter(messageId, PathParameterSpec("messageId", "simple", false))}/recall"), body, null, null, "application/json")
         return client.convertValue(raw, object : TypeReference<MessagesRecallResponse>() {})
     }
 

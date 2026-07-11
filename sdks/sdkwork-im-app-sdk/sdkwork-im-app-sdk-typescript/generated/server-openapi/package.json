@@ -1,5 +1,5 @@
 {
-  "name": "@sdkwork-internal/im-app-api-generated",
+  "name": "sdkwork-im-app-sdk-generated-typescript",
   "version": "0.1.0",
   "private": true,
   "sdkworkRole": "transport",

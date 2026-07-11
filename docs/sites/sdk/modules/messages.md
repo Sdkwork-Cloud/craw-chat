@@ -2,7 +2,7 @@
 
 ## What This Module Is For
 
-This module covers timeline reads and message mutation flows.
+This module covers message history reads and message mutation flows.
 
 ## Public Entrypoints
 
@@ -14,7 +14,7 @@ The primary App API alignment is the messages domain.
 
 ## Common Workflows
 
-Typical flows include reading a timeline, sending text, and editing messages.
+Typical flows include reading message history, sending text, and editing messages.
 
 ## Ownership and Status
 

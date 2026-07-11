@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationInboxEntry, ConversationMember, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostedMessageResponse, PostMessageRequest, ReadCursorView, RemoveConversationMemberRequest, RoomView, TimelineViewEntry, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
+import type { AckResponse, AddConversationMemberRequest, BindDirectChatRequest, ChangeConversationMemberRoleRequest, ContactView, ConversationInboxEntry, ConversationMember, ConversationMessageEntry, ConversationPreferencesView, ConversationProfileView, ConversationSummaryView, CreateAgentDialogRequest, CreateAgentHandoffRequest, CreateConversationRequest, CreateConversationResult, CreateRoomRequest, CreateSystemChannelRequest, CreateThreadConversationRequest, EditMessageRequest, EnterRoomResponse, FavoriteMessageRequest, MessageFavoriteType, MessageFavoriteView, MessageInteractionSummaryView, MessageMutationResult, MessagePinMutationResult, MessageReactionMutationResult, MessageReactionRequest, PageInfo, PostMessageRequest, PostMessageResult, ReadCursorView, RecallMessageRequest, RemoveConversationMemberRequest, RoomView, TransferConversationOwnerRequest, UpdateConversationPreferencesRequest, UpdateConversationProfileRequest, UpdateReadCursorRequest } from '../types';
 
 
 export class ChatRoomsApi {
@@ -118,13 +118,13 @@ export class ChatMessagesApi {
 
 
 /** Edit a message */
-  async edit(messageId: string, body: EditMessageRequest): Promise<PostedMessageResponse> {
-    return this.client.post<PostedMessageResponse>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/edit`), body, undefined, undefined, 'application/json');
+  async edit(messageId: string, body: EditMessageRequest): Promise<MessageMutationResult> {
+    return this.client.post<MessageMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/edit`), body, undefined, undefined, 'application/json');
   }
 
 /** Recall a message */
-  async recall(messageId: string): Promise<PostedMessageResponse> {
-    return this.client.post<PostedMessageResponse>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/recall`));
+  async recall(messageId: string, body: RecallMessageRequest): Promise<MessageMutationResult> {
+    return this.client.post<MessageMutationResult>(imApiPath(`/chat/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}/recall`), body, undefined, undefined, 'application/json');
   }
 
 /** Pin a message */
@@ -167,7 +167,7 @@ export class ChatConversationsMessagesInteractionSummaryApi {
 }
 
 export interface ChatConversationsMessagesListParams {
-  afterSeq?: number;
+  cursor?: string;
   pageSize?: number;
 }
 
@@ -181,18 +181,18 @@ export class ChatConversationsMessagesApi {
   }
 
 
-/** List conversation message timeline */
+/** List conversation message history */
   async list(conversationId: string, params?: ChatConversationsMessagesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'afterSeq', value: params?.afterSeq, style: 'form', explode: true, allowReserved: false },
+      { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), query));
   }
 
 /** Post a conversation message */
-  async create(conversationId: string, body: PostMessageRequest): Promise<PostedMessageResponse> {
-    return this.client.post<PostedMessageResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), body, undefined, undefined, 'application/json');
+  async create(conversationId: string, body: PostMessageRequest): Promise<PostMessageResult> {
+    return this.client.post<PostMessageResult>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -354,7 +354,7 @@ export class ChatConversationsThreadsApi {
 
 
 /** Create a thread conversation */
-  async create(body: CreateConversationRequest): Promise<CreateConversationResult> {
+  async create(body: CreateThreadConversationRequest): Promise<CreateConversationResult> {
     return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/threads`), body, undefined, undefined, 'application/json');
   }
 }
@@ -368,13 +368,13 @@ export class ChatConversationsSystemChannelsApi {
 
 
 /** Create a system channel */
-  async create(body: CreateConversationRequest): Promise<CreateConversationResult> {
+  async create(body: CreateSystemChannelRequest): Promise<CreateConversationResult> {
     return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/system_channels`), body, undefined, undefined, 'application/json');
   }
 
 /** Publish a system channel message */
-  async publish(conversationId: string, body: PostMessageRequest): Promise<PostedMessageResponse> {
-    return this.client.post<PostedMessageResponse>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/system_channel/publish`), body, undefined, undefined, 'application/json');
+  async publish(conversationId: string, body: PostMessageRequest): Promise<PostMessageResult> {
+    return this.client.post<PostMessageResult>(imApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/system_channel/publish`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -387,8 +387,8 @@ export class ChatConversationsAgentHandoffsApi {
 
 
 /** Create an agent handoff */
-  async create(body: CreateAgentDialogRequest): Promise<AckResponse> {
-    return this.client.post<AckResponse>(imApiPath(`/chat/conversations/agent_handoffs`), body, undefined, undefined, 'application/json');
+  async create(body: CreateAgentHandoffRequest): Promise<CreateConversationResult> {
+    return this.client.post<CreateConversationResult>(imApiPath(`/chat/conversations/agent_handoffs`), body, undefined, undefined, 'application/json');
   }
 
 /** Retrieve agent handoff state */
@@ -472,6 +472,7 @@ export class ChatConversationsApi {
 export interface ChatInboxListParams {
   pageSize?: number;
   cursor?: string;
+  conversationType?: string;
 }
 
 export class ChatInboxApi {
@@ -487,6 +488,7 @@ export class ChatInboxApi {
     const query = buildQueryString([
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
       { name: 'cursor', value: params?.cursor, style: 'form', explode: true, allowReserved: false },
+      { name: 'conversation_type', value: params?.conversationType, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(imApiPath(`/chat/inbox`), query));
   }

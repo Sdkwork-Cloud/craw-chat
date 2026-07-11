@@ -25,7 +25,7 @@
 //! let mut manager = CapacityManager::new(ResourceQuota::default());
 //!
 //! // Atomic check-and-increment: returns Err on quota exceeded.
-//! match manager.allocate("tenant1", ResourceType::Connection, 1) {
+//! match manager.allocate("tenant1", ResourceType::WebSocketConnection, 1) {
 //!     Ok(()) => { /* connection accepted */ }
 //!     Err(error) => { /* quota exceeded; reject connection */ }
 //! }

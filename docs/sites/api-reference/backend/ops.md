@@ -40,9 +40,9 @@ Returns service-level health and projection-plane health.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-cluster"></a>
@@ -75,9 +75,9 @@ Returns the cluster topology as seen by the current node.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-lag"></a>
@@ -110,9 +110,9 @@ Returns lag measurements for runtime components.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-replay-status"></a>
@@ -145,9 +145,9 @@ Returns projection replay state and replay lag metrics.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-runtime-dir"></a>
@@ -180,9 +180,9 @@ Returns runtime directory inspection results.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-provider-bindings"></a>
@@ -215,9 +215,9 @@ Returns the node-local mirror of provider binding snapshots.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-provider-binding-drift"></a>
@@ -250,9 +250,9 @@ Returns tenant drift relative to the baseline provider binding selection.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>
 <a id="get-ops-diagnostics"></a>
@@ -285,8 +285,8 @@ Returns the aggregated diagnostic bundle for the current node.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `permission_denied` | The caller lacks `ops.read`. |
-| `503` | `*_unavailable` | Operational diagnostics are temporarily unavailable. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller lacks `ops.read`. |
+| `503` | `50301` | Operational diagnostics are temporarily unavailable. |
 
 </section>

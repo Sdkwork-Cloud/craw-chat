@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: chat
-Updated: 2026-07-07
+Updated: 2026-07-10
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
@@ -38,7 +38,7 @@ Product detail lives in the linked PRD shards below.
 
 ### 3.1b Voice/Video Calls
 
-- **Call signaling lifecycle**: Owned by `im-calls-service` at `/im/v3/api/calls/sessions/*`. Full state machine `started → accepted → ended` plus `rejected` terminal state, with idempotency keys per mutation and monotonic signal sequence numbers.
+- **Call signaling lifecycle**: Owned by `im-calls-service` at `/im/v3/api/calls/sessions/*`. Full state machine `started -> accepted -> ended` plus `rejected` terminal state, with idempotency keys per mutation and monotonic signal sequence numbers.
 - **Signaling endpoints**: `create`, `retrieve`, `invite`, `accept`, `reject`, `end`, `signals` (post relay), `credentials` (participant credential issuance with initiator/participant authorization gate).
 - **Provider handoff**: RTC media runtime comes from `../sdkwork-rtc`; the IM service issues tenant-scoped credentials that the RTC media runtime validates. Call state and signaling events are durable (`im_rtc_sessions`, `im_rtc_signals` tables).
 - **Boundary**: IM owns signaling; RTC owns media. The boundary is enforced by `pnpm test:rtc-signaling-boundary`.
@@ -109,13 +109,13 @@ Product detail lives in the linked PRD shards below.
 
 ## 8. Commercial Readiness Status
 
-As of 2026-07-07:
+As of 2026-07-10:
 
 ### Backend, API, and Admin
 
 - OpenAPI authorities for `/im/v3/api`, `/app/v3/api`, and `/backend/v3/api` are checked in with generated TypeScript and Flutter SDK families; `check-api-response-envelope` and `check-pagination` gates pass at repository root.
-- PostgreSQL migrations live under `database/migrations/` with framework contract tests (`pnpm run test:database-framework-standard`). IM core durable authority is PostgreSQL-only; desktop uses browser local storage (IndexedDB / localStorage) for gateway webstore and sibling modules, with no local SQL database file.
-- Message history reads prefer PostgreSQL `message_store` when configured (in-memory cache is not authoritative in split-deploy).
+- PostgreSQL migrations live under `database/migrations/` with framework contract tests (`pnpm run test:database-framework-standard`). IM core durable authority is PostgreSQL-only. The PC web runtime uses browser storage (IndexedDB / localStorage) for gateway webstore and sibling modules; the Tauri desktop runtime additionally owns a separate bounded, principal-scoped SQLite offline cache and pending-send queue that is never a server source of truth.
+- Message history reads prefer PostgreSQL `message_store` when configured (in-memory cache is not authoritative in cloud service deployments).
 - Audit list/export/verify paths fail-closed on PostgreSQL read errors (no silent empty lists).
 - Ops lag surfaces start empty until governance/runtime wiring publishes real lag items (no synthetic zero-lag defaults).
 - `distributed_runtime_service.proto` (RuntimeTopology, RouteLease, DomainEventRelay) remains **Phase 2 contract-only**; internal RPC host serves RoomOrchestration and MessageDispatch unary RPCs only.
@@ -126,7 +126,7 @@ As of 2026-07-07:
 - Audit, conversation journal, and RTC state stores fail-closed in production when durable backends are unavailable.
 - Commit journal recovery and projection consumers replay in bounded batches (`COMMIT_JOURNAL_REPLAY_BATCH_LIMIT` = 500) via `CommitJournal::recorded_page` (PostgreSQL `LIMIT` keyset), preventing unbounded OOM on large journals.
 - Single-conversation journal recovery uses aggregate-scoped `CommitJournal::recorded_page_for_aggregate` (PostgreSQL `WHERE aggregate_id = $1`) instead of full-journal scan plus in-memory filter.
-- Embedded projection apply after journal commit is fail-closed in production (`ContractError::Unavailable`); split-deploy projection remains the durable path.
+- Embedded projection apply after journal commit is fail-closed in production (`ContractError::Unavailable`); the cloud projection runtime remains the durable path.
 - Portal dashboard/conversations/realtime snapshots expose `dataAvailability: false` until ops metrics wiring reports healthy runtime with non-empty lag or replay counters.
 - Gateway `realtime.events.list` returns `SdkWorkApiResponse` envelope; RPC cursor pagination sets `total_count = 0` when the total is unknown.
 - Interactive list HTTP query parameters use canonical `page_size` and `cursor`; `pageSize` is SDK/model naming only and is rejected when sent as a URL query alias.
@@ -141,10 +141,10 @@ As of 2026-07-07:
 
 | Surface | Root | Status | Notes |
 | --- | --- | --- | --- |
-| PC web/desktop | `apps/sdkwork-im-pc` | **Production pilot ready** | Core chat SDK-backed with inbox/groups/contacts pagination (`list*Page`, `getGroupById`); bounded sync via `forEachCursorPage`; shell exposes only `COMMERCIAL_RUNTIME_MODULES` with verified SDK read/write surfaces |
-| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production pilot ready** | Admin overview wired to backend ops/audit SDKs |
-| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox pagination (memory cap 200) + virtualized timeline (cap 500), incremental WebSocket sync, offline text send queue (IndexedDB + claim/lease, cap 100), Drive via `@sdkwork/drive-app-sdk`, user-visible retry on load failures |
-| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket timeline sync (cap 500), scroll-up pagination, offline text send queue (`shared_preferences` v2 + claim/lease, cap 100), Drive upload facade; tokens in `flutter_secure_storage`; inbox error/retry UX |
+| PC web/desktop | `apps/sdkwork-im-pc` | **Production release-candidate remediation in progress** | Core chat uses generated/composed SDKs and server pagination. The Tauri offline store is principal-scoped and bounded, uses lease-fenced multi-batch sends, quarantines corrupt payloads, and never replaces PostgreSQL as the production source of truth. Large-list memory evidence, authorization gaps, capacity evidence, and signed release artifacts remain release blockers. |
+| Console/admin | `apps/sdkwork-im-pc` (`sdkwork-im-console-*`, `sdkwork-im-admin-*`) | **Production release-candidate remediation in progress** | Reachable SDK-backed operations are enabled; route-level RBAC, secret-redaction, and unsupported-capability removal remain release blockers. |
+| H5 mobile | `apps/sdkwork-im-h5` | **Production pilot ready** | IAM `platform: "h5"`, inbox pagination (memory cap 200) + virtualized message history window (cap 500), incremental WebSocket message sync, offline text send queue (IndexedDB + claim/lease, cap 100), Drive via `@sdkwork/drive-app-sdk`, user-visible retry on load failures |
+| Flutter mobile | `apps/sdkwork-im-flutter-mobile` | **Production pilot ready** | Inbox + conversation REST, incremental WebSocket message sync (cap 500), explicit message-history pagination, offline text send queue (`shared_preferences` v2 + claim/lease, cap 100), Drive upload facade; tokens in `flutter_secure_storage`; inbox error/retry UX |
 
 ### Commerce and Extension Modules (pre-GA boundaries)
 
@@ -157,20 +157,20 @@ As of 2026-07-07:
 
 ### Operations and Evidence
 
-- CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and split-service tests on `main`.
+- CI `im-commercial-gates.yml` runs `pnpm verify`, `pnpm check:commercial-readiness`, Playwright Chromium install, and cloud-service tests on `main`.
 - Pre-Release and Capacity tier evidence indexes both require `evidence_collected_gate_passed`; doc-captured backfill boundaries are declared in each index `boundary` field.
 - Push delivery supports FCM HTTP v1 OAuth (`SDKWORK_IM_FCM_CREDENTIALS_PATH`) with legacy server-key fallback, and APNs HTTP/2 JWT (`SDKWORK_IM_APNS_*`) for iOS device tokens.
 - Kubernetes reference manifests cover gateway, realtime, conversation, governance, notification, projection, media, streaming, audit, automation, social, space, and ops services with Ingress, PDB, HPA, ConfigMap, Secret, and NetworkPolicy templates. (`contact-service` / `interaction-service` are retired; use `social-service` + `projection-service`.)
-- Staging topology profile: `cloud.split-services.staging`.
+- Staging topology profile: `cloud.staging`.
 - Customer operations and data protection guides: `docs/product/compliance/`.
 - Observability runbook: `deployments/observability/README.md`.
 
 ### Remaining Enterprise Rollout Items
 
-- Staging-backed Playwright runs against real split-service topology (mock-based chat e2e ships in CI today).
+- Staging-backed Playwright runs against real cloud-service topology (mock-based chat e2e ships in CI today).
 - Multi-region DR automation and published SDK artifact registry (git materialization remains the default today).
 - Dedicated staging/capacity topology runs to replace doc-captured Step-11 backfill before formal GA sign-off.
-- Desktop-parity offline cache for H5/Flutter (PC desktop ships full offline store today; mobile clients queue text sends only).
+- Desktop-parity offline cache for H5/Flutter (PC desktop has a bounded principal-scoped SQLite cache; mobile clients queue text sends only).
 - H5/Flutter RTC calls, reactions, threads, and rich media beyond image attachments.
 - Implement or formally defer `distributed_runtime_service.proto` streaming RPC hosts (Phase 2).
 - Voice market: `@sdkwork/voice-pc-market` lists `audio_assets` via SDK in production; pilot preview via `VITE_SDKWORK_VOICE_MARKET_PILOT` (clone UI pilot-only).

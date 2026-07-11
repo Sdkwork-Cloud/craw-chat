@@ -63,18 +63,10 @@ type SettingsTab =
   | "appearance"
   | "devices";
 
-const LANGUAGE_CHANGED_EVENT = "sdkwork-im-pc:language-changed";
 const SUPPORTED_LANGUAGES = new Set(["zh-CN", "en-US"]);
 
 function normalizeLanguage(lang: string | undefined) {
   return lang && SUPPORTED_LANGUAGES.has(lang) ? lang : "zh-CN";
-}
-
-function notifyLanguageChanged(lang: string) {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(LANGUAGE_CHANGED_EVENT, {
-    detail: { lang },
-  }));
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -112,7 +104,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setSettings(newSettings);
     if (typeof nextUpdate.lang === "string") {
       await i18n.changeLanguage(nextUpdate.lang);
-      notifyLanguageChanged(nextUpdate.lang);
     }
   };
 

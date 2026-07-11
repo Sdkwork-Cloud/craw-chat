@@ -14,6 +14,27 @@ function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
 
+function mergeJson(relativePaths) {
+  return Object.assign({}, ...relativePaths.map(readJson));
+}
+
+function readChatLocale(locale) {
+  return mergeJson([
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/sidebar.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/agent.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/profile.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/contacts.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/favorites.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/settings-modal.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/chat.json`,
+    `apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/${locale}/communication/im-pc-chat/scan-qr.json`,
+  ]);
+}
+
+function readWorkspaceLocale(locale) {
+  return readJson(`apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/i18n/${locale}/communication/im-pc-workspace/home.json`);
+}
+
 function flattenStrings(value, prefix = '') {
   if (typeof value === 'string') {
     return [[prefix, value]];
@@ -36,10 +57,10 @@ function assertNoMojibake(label, payload) {
   );
 }
 
-const chatZh = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/zh-CN.json');
-const chatEn = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/i18n/locales/en-US.json');
-const workspaceZh = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/i18n/locales/zh-CN.json');
-const workspaceEn = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/i18n/locales/en-US.json');
+const chatZh = readChatLocale('zh-CN');
+const chatEn = readChatLocale('en-US');
+const workspaceZh = readWorkspaceLocale('zh-CN');
+const workspaceEn = readWorkspaceLocale('en-US');
 const rootPackage = readJson('package.json');
 
 assert.equal(
@@ -174,7 +195,18 @@ assert.doesNotMatch(
 const settingsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/SettingsModal.tsx');
 assert.match(settingsSource, /useTranslation/u, 'Settings modal must use react-i18next');
 assert.match(settingsSource, /i18n\.changeLanguage/u, 'Settings language selector must update the chat i18next instance');
-assert.match(settingsSource, /sdkwork-im-pc:language-changed/u, 'Settings language selector must notify nested workspace i18n instances');
+
+const settingsServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/SettingsService.ts');
+assert.match(
+  settingsServiceSource,
+  /SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT/u,
+  'SettingsService must dispatch the canonical language-changed event when language changes',
+);
+assert.match(
+  settingsServiceSource,
+  /notifyLanguageChanged/u,
+  'SettingsService must notify nested i18n instances (including knowledgebase) when language changes',
+);
 assert.doesNotMatch(
   settingsSource,
   /通用设置|功能模块|消息通知|隐私安全|外观设置|设备管理|加我为朋友时需要验证|清理本地数据|主题配色|跟随系统|下线/u,

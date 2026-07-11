@@ -121,9 +121,9 @@ assertContains(
 );
 assertContains(
   "reference/cli-and-scripts.md",
-  "node .\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs",
+  "node ..\\sdkwork-rtc\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs",
 );
-assertContains("reference/cli-and-scripts.md", ".sdkwork-assembly.json");
+assertContains("reference/cli-and-scripts.md", "sdk-manifest.json");
 assertContains("reference/cli-and-scripts.md", "Do not use a separate admin or control SDK family.");
 assertDoesNotContain(
   "reference/cli-and-scripts.md",

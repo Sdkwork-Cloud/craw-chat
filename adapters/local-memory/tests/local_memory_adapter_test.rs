@@ -202,8 +202,10 @@ fn test_memory_notification_task_store_uses_recipient_kind_index_for_listing() {
     let source = include_str!("../src/lib.rs").replace("\r\n", "\n");
 
     assert!(
-        source.contains("tasks_by_recipient: HashMap<String, BTreeSet<String>>"),
-        "local memory notification task store should maintain a tenant/recipient-kind/recipient-id -> notification-key index"
+        source.contains(
+            "tasks_by_recipient: HashMap<String, BTreeMap<NotificationRecipientSortKey, String>>"
+        ),
+        "local memory notification task store should maintain an ordered tenant/recipient-kind/recipient-id -> notification-key index"
     );
     assert!(
         source.contains("notification_recipient_scope_key("),

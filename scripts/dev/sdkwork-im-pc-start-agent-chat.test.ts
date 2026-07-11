@@ -5,6 +5,14 @@ import { createSdkworkChatService } from '../../apps/sdkwork-im-pc/packages/sdkw
 type StartAgentChatCall =
   | {
       body: Record<string, unknown>;
+      method: 'chat.inbox.list';
+    }
+  | {
+      conversationId: string;
+      method: 'conversations.listMembers';
+    }
+  | {
+      body: Record<string, unknown>;
       method: 'conversations.createAgentDialog';
     }
   | {
@@ -16,9 +24,79 @@ type StartAgentChatCall =
 const calls: StartAgentChatCall[] = [];
 
 const CANONICAL_AGENT_DIALOG_ID = 'c_agent_0123456789abcdef01234567';
+const EXISTING_AGENT_DIALOG_ID = 'c_agent_89abcdef0123456789abcdef01';
+let inboxScenario: 'existing-agent-dialog' | 'missing-agent-dialog' = 'existing-agent-dialog';
 
 const fakeClient = {
+  chat: {
+    inbox: {
+      async list(params?: Record<string, unknown>) {
+        calls.push({ method: 'chat.inbox.list', body: params ?? {} });
+        return {
+          items: inboxScenario === 'existing-agent-dialog'
+            ? [
+                {
+                  tenantId: '100001',
+                  conversationId: EXISTING_AGENT_DIALOG_ID,
+                  conversationType: 'agent_dialog',
+                  preferences: {
+                    isPinned: false,
+                    isMuted: false,
+                    isMarkedUnread: false,
+                    isHidden: false,
+                  },
+                  lastActivityAt: '2026-06-10T08:00:00.000Z',
+                  lastMessageId: 'msg-agent-existing-1',
+                  lastSenderId: 'agent.code',
+                  messageCount: 1,
+                  lastMessageSeq: 12,
+                  lastSummary: 'Existing agent response',
+                  unreadCount: 0,
+                },
+              ]
+            : [],
+          pageInfo: {
+            mode: 'cursor',
+            hasMore: false,
+            nextCursor: null,
+          },
+        };
+      },
+    },
+  },
   conversations: {
+    async listMembers(conversationId: string) {
+      calls.push({ method: 'conversations.listMembers', conversationId });
+      return {
+        items: [
+          {
+            tenantId: '100001',
+            conversationId,
+            memberId: 'member-current-user',
+            principalId: 'current-user',
+            principalKind: 'user',
+            role: 'owner',
+            state: 'joined',
+            joinedAt: '2026-06-04T00:00:00.000Z',
+          },
+          {
+            tenantId: '100001',
+            conversationId,
+            memberId: 'member-agent-code',
+            principalId: 'agent.code',
+            principalKind: 'agent',
+            role: 'member',
+            state: 'joined',
+            joinedAt: '2026-06-04T00:00:00.000Z',
+          },
+        ],
+        pageInfo: {
+          mode: 'cursor',
+          hasMore: false,
+          nextCursor: null,
+        },
+      };
+    },
     async createAgentDialog(body: Record<string, unknown>) {
       calls.push({ method: 'conversations.createAgentDialog', body });
       return {
@@ -57,6 +135,33 @@ const fakeClient = {
 async function main(): Promise<void> {
   const service = createSdkworkChatService(() => fakeClient);
 
+  const existingChat = await service.startAgentChat({
+    avatar: 'https://cdn.example.test/agent.png',
+    id: 'agent.code',
+    name: 'Code Assistant',
+  });
+
+  assert.deepEqual(
+    calls.map((call) => call.method),
+    [
+      'chat.inbox.list',
+      'conversations.listMembers',
+      'conversations.updateProfile',
+      'conversations.updatePreferences',
+    ],
+    'starting an agent chat must first reuse the unified conversation inbox instead of posting a duplicate agent dialog',
+  );
+  assert.equal(
+    existingChat.id,
+    EXISTING_AGENT_DIALOG_ID,
+    'starting an existing agent chat must return the unified inbox conversation id',
+  );
+  assert.equal(existingChat.name, 'Code Assistant');
+  assert.equal(existingChat.avatar, 'https://cdn.example.test/agent.png');
+  assert.equal(existingChat.unreadCount, 0);
+
+  inboxScenario = 'missing-agent-dialog';
+  calls.length = 0;
   const chat = await service.startAgentChat({
     avatar: 'https://cdn.example.test/agent.png',
     id: 'agent.code',
@@ -64,14 +169,19 @@ async function main(): Promise<void> {
   });
 
   assert.deepEqual(
-    calls[0],
+    calls.slice(0, 2).map((call) => call.method),
+    ['chat.inbox.list', 'conversations.createAgentDialog'],
+    'starting a new agent chat may create a backend agent dialog only after the unified inbox has no matching conversation',
+  );
+  assert.deepEqual(
+    calls[1],
     {
       method: 'conversations.createAgentDialog',
       body: {
         agentId: 'agent.code',
       },
     },
-    'starting an agent chat must create a real backend agent dialog conversation through the IM SDK',
+    'new agent dialog creation must still go through the generated IM SDK',
   );
   assert.equal(
     chat.id,
@@ -84,7 +194,7 @@ async function main(): Promise<void> {
     'agent dialog conversation ids must use the canonical server format',
   );
   assert.deepEqual(
-    calls.slice(1),
+    calls.slice(2),
     [
       {
         body: {

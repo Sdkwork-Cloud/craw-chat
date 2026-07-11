@@ -46,7 +46,11 @@ Adds a principal to the conversation roster.
 
 | HTTP | `code` | Description |
 | --- | --- | --- |
-| `403` | `conversation_permission_denied` | The caller cannot add members to this conversation. |
-| `409` | `member_already_exists` | The target principal is already present in the conversation. |
+| `400` | `40001` | The request payload or parameters are invalid. |
+| `401` | `40101` | AppContext projection is missing or invalid. |
+| `403` | `40301` | The caller is not allowed to mutate the target resource. |
+| `404` | `40401` | The requested resource does not exist. |
+| `409` | `40901` | Current runtime state blocks the mutation. |
+| `503` | `50301` | A required subsystem or provider is unavailable. |
 
 </section>

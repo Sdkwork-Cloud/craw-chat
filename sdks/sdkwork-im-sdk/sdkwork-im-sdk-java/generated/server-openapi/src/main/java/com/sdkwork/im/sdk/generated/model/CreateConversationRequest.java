@@ -5,9 +5,12 @@ import java.util.List;
 public class CreateConversationRequest {
     private String conversationId;
     private String conversationType;
-    private String kind;
-    private String title;
-    private List<String> memberIds;
+    private String groupName;
+    private String clientRequestKey;
+    private String policyVersion;
+    private List<String> capabilityFlags;
+    private String historyVisibility;
+    private String retentionPolicyRef;
 
     public String getConversationId() {
         return this.conversationId;
@@ -25,27 +28,51 @@ public class CreateConversationRequest {
         this.conversationType = conversationType;
     }
 
-    public String getKind() {
-        return this.kind;
+    public String getGroupName() {
+        return this.groupName;
     }
 
-    public void setKind(String kind) {
-        this.kind = kind;
+    public void setGroupName(String groupName) {
+        this.groupName = groupName;
     }
 
-    public String getTitle() {
-        return this.title;
+    public String getClientRequestKey() {
+        return this.clientRequestKey;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setClientRequestKey(String clientRequestKey) {
+        this.clientRequestKey = clientRequestKey;
     }
 
-    public List<String> getMemberIds() {
-        return this.memberIds;
+    public String getPolicyVersion() {
+        return this.policyVersion;
     }
 
-    public void setMemberIds(List<String> memberIds) {
-        this.memberIds = memberIds;
+    public void setPolicyVersion(String policyVersion) {
+        this.policyVersion = policyVersion;
+    }
+
+    public List<String> getCapabilityFlags() {
+        return this.capabilityFlags;
+    }
+
+    public void setCapabilityFlags(List<String> capabilityFlags) {
+        this.capabilityFlags = capabilityFlags;
+    }
+
+    public String getHistoryVisibility() {
+        return this.historyVisibility;
+    }
+
+    public void setHistoryVisibility(String historyVisibility) {
+        this.historyVisibility = historyVisibility;
+    }
+
+    public String getRetentionPolicyRef() {
+        return this.retentionPolicyRef;
+    }
+
+    public void setRetentionPolicyRef(String retentionPolicyRef) {
+        this.retentionPolicyRef = retentionPolicyRef;
     }
 }

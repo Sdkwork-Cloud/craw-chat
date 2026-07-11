@@ -5,6 +5,7 @@
 
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 /// Outbox 事件记录
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,6 +25,16 @@ pub struct OutboxEventRecord {
     pub published_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// A bounded claim on one pending outbox event.
+///
+/// `lease_expires_at` is also the fencing token used by state transitions. A
+/// worker whose lease has expired cannot overwrite a newer worker's result.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OutboxEventClaim {
+    pub event: OutboxEventRecord,
+    pub lease_expires_at: String,
 }
 
 /// 发布状态
@@ -67,50 +78,41 @@ pub trait OutboxStore: Send + Sync {
     /// 唯一约束：uk_im_outbox_events_event (tenant_id, organization_id, event_id)
     fn enqueue(&self, event: OutboxEventRecord) -> Result<(), ContractError>;
 
-    /// 拉取待投递事件（批量）
+    /// 原子领取待投递事件（批量）
     ///
-    /// 使用 FOR UPDATE SKIP LOCKED 实现多 worker 并发安全：
+    /// The store filters by aggregate type, selects rows with
+    /// `FOR UPDATE SKIP LOCKED`, and moves `available_at` to the lease expiry
+    /// in the same database statement. Returning a row without atomically
+    /// leasing it is not a valid implementation because an auto-commit query
+    /// releases row locks before the worker publishes.
     ///
-    /// SELECT * FROM im_outbox_events
-    /// WHERE tenant_id=$1 AND organization_id=$2
-    ///   AND publish_status='pending'
-    ///   AND available_at <= NOW()
-    /// ORDER BY available_at, outbox_id
-    /// FOR UPDATE SKIP LOCKED
-    /// LIMIT $3
-    ///
-    /// 返回的事件已被当前连接锁定，其他 worker 无法获取
-    fn drain_pending(
+    /// `lease_expires_at` is a fencing token. `mark_published` and
+    /// `mark_failed` must update only a pending row whose current
+    /// `available_at` still equals that token.
+    fn claim_pending(
         &self,
         tenant_id: &str,
         organization_id: &str,
+        aggregate_type: &str,
         batch_size: usize,
-    ) -> Result<Vec<OutboxEventRecord>, ContractError>;
+        lease_duration: Duration,
+    ) -> Result<Vec<OutboxEventClaim>, ContractError>;
 
     /// 标记已发布
     ///
     /// UPDATE im_outbox_events
     /// SET publish_status='published', published_at=NOW(), updated_at=NOW()
     /// WHERE tenant_id=$1 AND organization_id=$2 AND outbox_id=$3
-    fn mark_published(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        outbox_id: &str,
-    ) -> Result<(), ContractError>;
+    ///   AND publish_status='pending' AND available_at=$4
+    fn mark_published(&self, claim: &OutboxEventClaim) -> Result<(), ContractError>;
 
     /// 标记失败
     ///
     /// UPDATE im_outbox_events
     /// SET publish_status='failed', attempt_count=attempt_count+1, updated_at=NOW()
     /// WHERE tenant_id=$1 AND organization_id=$2 AND outbox_id=$3
-    fn mark_failed(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-        outbox_id: &str,
-        reason: &str,
-    ) -> Result<(), ContractError>;
+    ///   AND publish_status='pending' AND available_at=$4
+    fn mark_failed(&self, claim: &OutboxEventClaim, reason: &str) -> Result<(), ContractError>;
 
     /// 重试失败事件（将 failed 状态重置为 pending）
     fn retry_failed(
@@ -132,5 +134,9 @@ pub trait OutboxStore: Send + Sync {
     fn count_pending(&self, tenant_id: &str, organization_id: &str) -> Result<u64, ContractError>;
 
     /// 列出存在待投递事件的租户/组织作用域（relay worker 多租户轮询）
-    fn list_pending_scopes(&self, limit: usize) -> Result<Vec<(String, String)>, ContractError>;
+    fn list_pending_scopes(
+        &self,
+        aggregate_type: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, String)>, ContractError>;
 }

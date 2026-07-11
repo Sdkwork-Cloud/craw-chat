@@ -143,7 +143,7 @@ pub(crate) async fn dispatch_list_favorite_messages(
     auth: &AppContext,
     request: ListFavoriteMessagesRequest,
 ) -> Result<ImRpcUnaryResponse, ImRpcError> {
-    let (limit, cursor) = page_request(request.page);
+    let (limit, cursor) = page_request(request.page)?;
     let window = projection_service()
         .message_favorites_window_from_auth_context(
             auth,

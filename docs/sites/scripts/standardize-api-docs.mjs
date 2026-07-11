@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(currentDir, "..");
+const repoRoot = path.resolve(docsRoot, "..", "..");
 const apiRoot = path.join(docsRoot, "api-reference");
 
 const markdownFiles = [];
@@ -44,6 +45,76 @@ function isRoute(route, suffix) {
   return routeSuffix(route) === suffix;
 }
 
+function readTextIfExists(filePath) {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function extractOpenApiSuccessStatuses(yaml) {
+  const statuses = new Map();
+  const lines = yaml.split(/\r?\n/u);
+  let currentPath = null;
+  let currentMethod = null;
+  let inResponses = false;
+
+  for (const line of lines) {
+    const pathMatch = line.match(/^  (\/(?:im|app|backend)\/v3\/api\/[^\s:]+):\s*$/u);
+    if (pathMatch) {
+      currentPath = pathMatch[1];
+      currentMethod = null;
+      inResponses = false;
+      continue;
+    }
+
+    const methodMatch = line.match(/^    (get|post|put|patch|delete):\s*$/u);
+    if (methodMatch) {
+      currentMethod = methodMatch[1].toUpperCase();
+      inResponses = false;
+      continue;
+    }
+
+    if (!currentPath || !currentMethod) {
+      continue;
+    }
+
+    if (/^      responses:\s*$/u.test(line)) {
+      inResponses = true;
+      continue;
+    }
+
+    if (!inResponses) {
+      continue;
+    }
+
+    const statusMatch = line.match(/^        '(\d{3})':\s*$/u);
+    if (statusMatch) {
+      const status = statusMatch[1];
+      if (status.startsWith("2")) {
+        statuses.set(`${currentMethod} ${currentPath}`, status);
+      }
+      inResponses = false;
+    }
+  }
+
+  return statuses;
+}
+
+const openApiSuccessStatuses = extractOpenApiSuccessStatuses(
+  readTextIfExists(path.join(repoRoot, "sdks", "sdkwork-im-sdk", "openapi", "sdkwork-im-im.openapi.yaml")),
+);
+
+function canonicalSuccessStatus(method, route) {
+  return openApiSuccessStatuses.get(`${method} ${route}`) ?? null;
+}
+
+function normalizeSuccessResponse(block, method, route) {
+  const status = canonicalSuccessStatus(method, route);
+  if (!status) {
+    return block;
+  }
+
+  return block.replace(/### Response `\d{3}`/u, `### Response \`${status}\``);
+}
+
 function inferSuccessLabel(method, route, block) {
   const firstResponse = block.match(/### Response `(\d+)`/);
   if (!firstResponse) {
@@ -57,6 +128,12 @@ function inferSuccessLabel(method, route, block) {
     new RegExp(`### Response \`${status}\`[\\s\\S]*?<ApiSchemaTable schema="([^"]+)" \\/>`),
   );
   if (schemaMatch) {
+    if (isRoute(route, "/chat/inbox") || isRoute(route, "/inbox")) {
+      return `${status} SdkWorkPageData<${schemaMatch[1]}>`;
+    }
+    if (status === "201") {
+      return `${status} ${schemaMatch[1]} in data.item`;
+    }
     return `${status} ${schemaMatch[1]}`;
   }
 
@@ -369,38 +446,38 @@ function metaGrid(method, route, block, filePath) {
 
 function appReadErrors() {
   return [
-    ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
+    ["401", "`40101`", "AppContext projection is missing or invalid."],
     [
       "403",
-      "`conversation_permission_denied`, `permission_denied`",
+      "`40301`",
       "The caller is not allowed to access the target resource.",
     ],
-    ["404", "`*_not_found`", "The requested resource does not exist."],
+    ["404", "`40401`", "The requested resource does not exist."],
     [
       "409",
-      "`reconnect_required`, `disconnect_fence_conflict`, `conflict`",
+      "`40901`",
       "Current runtime state blocks the read or handshake flow.",
     ],
-    ["503", "`*_unavailable`", "A required subsystem or provider is unavailable."],
+    ["503", "`50301`", "A required subsystem or provider is unavailable."],
   ];
 }
 
 function appWriteErrors() {
   return [
-    ["400", "`invalid_request`, `validation_error`", "The request payload or parameters are invalid."],
-    ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
+    ["400", "`40001`", "The request payload or parameters are invalid."],
+    ["401", "`40101`", "AppContext projection is missing or invalid."],
     [
       "403",
-      "`conversation_permission_denied`, `permission_denied`",
+      "`40301`",
       "The caller is not allowed to mutate the target resource.",
     ],
-    ["404", "`*_not_found`", "The requested resource does not exist."],
+    ["404", "`40401`", "The requested resource does not exist."],
     [
       "409",
-      "`reconnect_required`, `disconnect_fence_conflict`, `conflict`",
+      "`40901`",
       "Current runtime state blocks the mutation.",
     ],
-    ["503", "`*_unavailable`", "A required subsystem or provider is unavailable."],
+    ["503", "`50301`", "A required subsystem or provider is unavailable."],
   ];
 }
 
@@ -412,53 +489,53 @@ function errorRows(page, method, route) {
   switch (page) {
     case "backend/ops":
       return [
-        ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-        ["403", "`permission_denied`", "The caller lacks `ops.read`."],
-        ["503", "`*_unavailable`", "Operational diagnostics are temporarily unavailable."],
+        ["401", "`40101`", "AppContext projection is missing or invalid."],
+        ["403", "`40301`", "The caller lacks `ops.read`."],
+        ["503", "`50301`", "Operational diagnostics are temporarily unavailable."],
       ];
     case "backend/audit":
       return method === "POST"
         ? [
-            ["400", "`invalid_request`, `validation_error`", "The audit anchor payload is invalid."],
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks `audit.write`."],
+            ["400", "`40001`", "The audit anchor payload is invalid."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks `audit.write`."],
           ]
         : [
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks `audit.read`."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks `audit.read`."],
           ];
     case "app/automation":
       return method === "POST"
         ? [
-            ["400", "`invalid_request`, `validation_error`", "The automation execution request is invalid."],
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks `automation.execute`."],
-            ["409", "`automation_execution_conflict`", "The execution id conflicts with an existing request."],
-            ["503", "`automation_store_unavailable`, `journal_unavailable`", "Automation persistence is unavailable."],
+            ["400", "`40001`", "The automation execution request is invalid."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks `automation.execute`."],
+            ["409", "`40901`", "The execution id conflicts with an existing request."],
+            ["503", "`50301`", "Automation persistence is unavailable."],
           ]
         : [
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks `automation.read`."],
-            ["404", "`automation_execution_not_found`", "The requested automation execution does not exist."],
-            ["503", "`automation_store_unavailable`", "Automation persistence is unavailable."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks `automation.read`."],
+            ["404", "`40401`", "The requested automation execution does not exist."],
+            ["503", "`50301`", "Automation persistence is unavailable."],
           ];
     case "app/notifications":
       return method === "POST"
         ? [
-            ["400", "`invalid_request`, `validation_error`", "The notification request is invalid."],
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks delegated notification authority."],
-            ["409", "`notification_conflict`", "The idempotent notification request conflicts with existing state."],
+            ["400", "`40001`", "The notification request is invalid."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks delegated notification authority."],
+            ["409", "`40901`", "The idempotent notification request conflicts with existing state."],
           ]
         : [
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller is not allowed to read the target notification scope."],
-            ["404", "`notification_not_found`", "The requested notification task does not exist."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller is not allowed to read the target notification scope."],
+            ["404", "`40401`", "The requested notification task does not exist."],
           ];
     case "app/provider-health":
       return [
-        ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-        ["503", "`*_unavailable`", "The provider health source is unavailable."],
+        ["401", "`40101`", "AppContext projection is missing or invalid."],
+        ["503", "`50301`", "The provider health source is unavailable."],
       ];
     case "control-plane/protocol":
     case "control-plane/providers":
@@ -467,20 +544,20 @@ function errorRows(page, method, route) {
     case "control-plane/nodes":
       return method === "GET"
         ? [
-            ["400", "`invalid_request`", "Query or path parameters are invalid."],
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks the required control-plane permission."],
-            ["404", "`*_not_found`", "The requested control-plane resource does not exist."],
-            ["409", "`*_conflict`", "Current control-plane state blocks the read."],
-            ["503", "`*_unavailable`", "The governance snapshot or provider runtime is unavailable."],
+            ["400", "`40003`", "Query or path parameters are invalid."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks the required control-plane permission."],
+            ["404", "`40401`", "The requested control-plane resource does not exist."],
+            ["409", "`40901`", "Current control-plane state blocks the read."],
+            ["503", "`50301`", "The governance snapshot or provider runtime is unavailable."],
           ]
         : [
-            ["400", "`invalid_request`, `invalid_provider_policy`", "The mutation payload is invalid."],
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`permission_denied`", "The caller lacks `control.write`."],
-            ["404", "`*_not_found`, `provider_plugin_not_found`", "The requested node, plugin, or target resource does not exist."],
-            ["409", "`*_conflict`, `provider_policy_conflict`", "Current control-plane state blocks the mutation."],
-            ["503", "`*_unavailable`", "The governance snapshot or provider runtime is unavailable."],
+            ["400", "`40001`", "The mutation payload is invalid."],
+            ["401", "`40101`", "AppContext projection is missing or invalid."],
+            ["403", "`40301`", "The caller lacks `control.write`."],
+            ["404", "`40401`", "The requested node, plugin, or target resource does not exist."],
+            ["409", "`40901`", "Current control-plane state blocks the mutation."],
+            ["503", "`50301`", "The governance snapshot or provider runtime is unavailable."],
           ];
     default:
       return method === "GET" ? appReadErrors() : appWriteErrors();
@@ -498,6 +575,24 @@ function buildErrorResponses(method, route, filePath) {
 | HTTP | \`code\` | Description |
 | --- | --- | --- |
 ${rows.map(([status, code, description]) => `| \`${status}\` | ${code} | ${description} |`).join("\n")}`;
+}
+
+function insertOrReplaceErrorResponses(block, errors) {
+  if (!errors) {
+    return block;
+  }
+
+  const errorResponsesPattern =
+    /\r?\n### Error Responses\r?\n[\s\S]*?(?=\r?\n<\/section>\s*$)/u;
+
+  if (errorResponsesPattern.test(block)) {
+    return block.replace(
+      errorResponsesPattern,
+      `\n${errors}\n`,
+    );
+  }
+
+  return block.replace(/\n<\/section>\s*$/, `\n\n${errors}\n\n</section>\n`);
 }
 
 function insertOrReplaceMetaGrid(block, meta) {
@@ -532,6 +627,8 @@ function normalizeBlock(block, filePath) {
 
   const [, method, route] = titleMatch;
   let nextBlock = block;
+
+  nextBlock = normalizeSuccessResponse(nextBlock, method, route);
   const meta = metaGrid(method, route, nextBlock, filePath);
 
   nextBlock = insertOrReplaceMetaGrid(nextBlock, meta);
@@ -540,12 +637,10 @@ function normalizeBlock(block, filePath) {
     nextBlock = ensureNoBodyRequestSection(nextBlock);
   }
 
-  if (!nextBlock.includes("### Error Responses")) {
-    const errors = buildErrorResponses(method, route, filePath);
-    if (errors) {
-      nextBlock = nextBlock.replace(/\n<\/section>\s*$/, `\n\n${errors}\n\n</section>\n`);
-    }
-  }
+  nextBlock = insertOrReplaceErrorResponses(
+    nextBlock,
+    buildErrorResponses(method, route, filePath),
+  );
 
   return nextBlock;
 }

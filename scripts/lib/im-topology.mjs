@@ -40,7 +40,6 @@ function resolveAppTopologyEntryPath() {
 }
 
 const {
-  buildProfileId,
   createTopologyRuntime,
   isTcpPortReachable,
   loadTopologySpec,
@@ -52,11 +51,11 @@ const spec = loadTopologySpec(SPEC_PATH);
 const runtime = createTopologyRuntime(spec, REPO_ROOT);
 
 export const VALID_DEPLOYMENT_PROFILES = runtime.deploymentProfileValues;
-export const VALID_SERVICE_LAYOUTS = runtime.serviceLayoutValues;
 export const VALID_ENVIRONMENTS = runtime.environmentValues;
 export const DEFAULT_DEV_PROFILE_ID = runtime.defaults.developmentProfileId;
 export const DEFAULT_BUILD_PROFILE_ID = runtime.defaults.productionProfileId;
-export const DEFAULT_STANDALONE_BUILD_PROFILE_ID = 'standalone.unified-process.production';
+export const DEFAULT_STANDALONE_BUILD_PROFILE_ID =
+  runtime.defaults.desktopBuildProfileId ?? 'standalone.production';
 export const DEFAULT_GATEWAY_BIND = runtime.defaults.gatewayBind ?? '127.0.0.1:18079';
 export const POSTGRES_REACHABILITY_TIMEOUT_MS = 2000;
 
@@ -69,10 +68,10 @@ export const APPLICATION_PUBLIC_INGRESS_PACKAGE_TARGETS = GATEWAY_PACKAGE_TARGET
 );
 export const IM_CLOUD_GATEWAY_CONFIGS = spec.packaging?.cloudConfigFiles ?? [];
 
-export function resolveDevProfileId(deploymentProfile, serviceLayout = 'unified-process') {
+export function resolveDevProfileId(deploymentProfile, environment = 'development') {
   runtime.assertDeploymentProfile(deploymentProfile);
-  runtime.assertServiceLayout(serviceLayout);
-  return buildProfileId(deploymentProfile, serviceLayout, 'development');
+  runtime.assertEnvironment(environment);
+  return runtime.buildProfileId(deploymentProfile, environment);
 }
 
 export function resolveBuildProfileId(deploymentProfile) {
@@ -88,7 +87,6 @@ export const applyProfileEnv = runtime.applyProfileEnv;
 export const mergeRuntimeEnv = runtime.mergeRuntimeEnv;
 export const loadEnvFile = runtime.loadEnvFile;
 export const assertDeploymentProfile = runtime.assertDeploymentProfile;
-export const assertServiceLayout = runtime.assertServiceLayout;
 export const resolveSurfaceHttpUrl = runtime.resolveSurfaceHttpUrl.bind(runtime);
 export const resolveSurfaceWebsocketOrigin = runtime.resolveSurfaceWebsocketOrigin.bind(runtime);
 export const resolveSurfaceBind = runtime.resolveSurfaceBind.bind(runtime);
@@ -111,4 +109,6 @@ export function listGatewayPackageTargets(profile) {
   return runtime.listPackageTargetsByProfile?.(profile) ?? [];
 }
 
-export { buildProfileId, normalizeText, isTcpPortReachable, waitForHttpHealthy, spec, runtime };
+export const buildProfileId = runtime.buildProfileId;
+
+export { normalizeText, isTcpPortReachable, waitForHttpHealthy, spec, runtime };

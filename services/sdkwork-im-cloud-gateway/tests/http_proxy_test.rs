@@ -12,7 +12,7 @@ use im_app_context::{
     resolve_app_context,
 };
 use sdkwork_im_api_registry::HttpMethod;
-use sdkwork_im_cloud_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
+use sdkwork_im_cloud_gateway_config::{WebGatewayConfig, service_upstream};
 use serde_json::json;
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -161,7 +161,7 @@ async fn gateway_routes_control_requests_to_control_plane_api() {
 }
 
 #[tokio::test]
-async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
+async fn gateway_routes_conversation_messages_reads_and_writes_to_runtime_upstream() {
     let appbase = spawn_app_upstream(Router::new().route(
         "/app/v3/api/auth/sessions/current",
         get(appbase_current_session),
@@ -201,7 +201,7 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
             .to_bytes(),
     )
     .expect("read response should be valid json");
-    assert_eq!(read_value["serviceId"], "projection-service");
+    assert_eq!(read_value["serviceId"], "comms-conversation-service");
 
     let write_response = app
         .oneshot(
@@ -226,6 +226,36 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
     )
     .expect("write response should be valid json");
     assert_eq!(write_value["serviceId"], "comms-conversation-service");
+}
+
+#[tokio::test]
+async fn gateway_delegates_conversation_messages_to_embedded_runtime_when_upstream_is_missing() {
+    let product_runtime = Router::new().route(
+        "/im/v3/api/chat/conversations/{conversationId}/messages",
+        get(|| async { Json(json!({ "servedBy": "embedded-application" })) }),
+    );
+    let app = web_gateway::build_app_with_registry_and_product_runtime(
+        test_gateway_config(Vec::new()),
+        web_gateway::build_gateway_registry().expect("gateway route registry should build"),
+        Some(product_runtime),
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/im/v3/api/chat/conversations/c_direct_09a8255a1fd3632675c2d355/messages")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("gateway request should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let value = read_json_body(response).await;
+    assert_eq!(value["servedBy"], "embedded-application");
 }
 
 #[tokio::test]
@@ -486,7 +516,7 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
             "/im/v3/api/chat/rooms/{roomId}/enter",
         ),
         (
-            "projection-service",
+            "comms-conversation-service",
             Method::GET,
             "/im/v3/api/chat/conversations/c_demo/messages",
             "/im/v3/api/chat/conversations/{id}/messages",
@@ -608,7 +638,7 @@ async fn gateway_derives_context_for_protected_routes_without_appbase_session_lo
             "/im/v3/api/chat/rooms/{roomId}/leave",
         ),
         (
-            "projection-service",
+            "comms-conversation-service",
             Method::GET,
             "/im/v3/api/chat/conversations/c_demo/messages",
             "/im/v3/api/chat/conversations/{id}/messages",
@@ -741,6 +771,50 @@ fn gateway_registry_routes_message_favorites_to_projection_service() {
     assert_eq!(delete_route.service_id, "projection-service");
 }
 
+#[test]
+fn gateway_registry_keeps_conversation_truth_reads_on_conversation_runtime() {
+    let registry = web_gateway::build_gateway_registry().expect("registry should build");
+
+    for path in [
+        "/im/v3/api/chat/conversations/c_demo/messages",
+        "/im/v3/api/chat/conversations/c_demo/members",
+        "/im/v3/api/chat/conversations/c_demo/read_cursor",
+        "/im/v3/api/chat/conversations/c_demo/binding",
+        "/im/v3/api/chat/conversations/c_demo/agent_handoff",
+    ] {
+        let route = registry
+            .resolve(HttpMethod::Get, path)
+            .unwrap_or_else(|| panic!("conversation truth read route should resolve for {path}"));
+        assert_eq!(
+            route.service_id, "comms-conversation-service",
+            "{path} must be served by the conversation runtime"
+        );
+    }
+}
+
+#[test]
+fn gateway_registry_keeps_projection_only_conversation_reads_on_projection_service() {
+    let registry = web_gateway::build_gateway_registry().expect("registry should build");
+
+    for path in [
+        "/im/v3/api/chat/conversations/c_demo",
+        "/im/v3/api/chat/conversations/c_demo/member_directory",
+        "/im/v3/api/chat/conversations/c_demo/pins",
+        "/im/v3/api/chat/conversations/c_demo/messages/msg_1/interaction_summary",
+        "/im/v3/api/chat/conversations/c_demo/profile",
+        "/im/v3/api/chat/conversations/c_demo/preferences",
+        "/im/v3/api/chat/messages/search",
+    ] {
+        let route = registry
+            .resolve(HttpMethod::Get, path)
+            .unwrap_or_else(|| panic!("projection read route should resolve for {path}"));
+        assert_eq!(
+            route.service_id, "projection-service",
+            "{path} must be served by projection-service"
+        );
+    }
+}
+
 #[tokio::test]
 async fn gateway_handles_browser_cors_preflight_for_im_app_iam_routes() {
     let appbase = spawn_upstream("sdkwork-iam-app-api").await;
@@ -854,7 +928,7 @@ fn test_gateway_config(
     ensure_gateway_test_web_environment();
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),
-        runtime_mode: GatewayRuntimeMode::Split,
+        runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::SingleIngress,
         strict_startup: true,
         upstreams,
     }
@@ -1146,40 +1220,6 @@ async fn echo_context_upstream(headers: HeaderMap) -> Json<serde_json::Value> {
     }
 }
 
-async fn require_signed_context_upstream(headers: HeaderMap) -> Response {
-    match im_app_context::resolve_app_context_with_signature_config(
-        &headers,
-        im_app_context::AppContextSignatureConfig {
-            require_signature: true,
-            shared_secret: Some("gateway-signing-secret".to_owned()),
-        },
-    ) {
-        Ok(context) => Json(json!({
-            "tenantId": context.tenant_id,
-            "userId": context.user_id,
-            "sessionId": context.session_id,
-            "signaturePresent": header_value(&headers, "x-sdkwork-context-signature").is_some(),
-            "sdkworkInternalHeadersForwarded": has_sdkwork_internal_header(&headers),
-        }))
-        .into_response(),
-        Err(error) => (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({
-                "code": error.code(),
-                "message": error.message(),
-            })),
-        )
-            .into_response(),
-    }
-}
-
-fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned)
-}
-
 fn has_sdkwork_internal_header(headers: &HeaderMap) -> bool {
     [
         "x-sdkwork-tenant-id",
@@ -1190,4 +1230,116 @@ fn has_sdkwork_internal_header(headers: &HeaderMap) -> bool {
     ]
     .iter()
     .any(|name| headers.contains_key(*name))
+}
+
+/// Verifies that gateway 50301 responses comply with `API_SPEC.md` §15.2 and
+/// `OBSERVABILITY_SPEC.md` §2:
+/// - `instance` uses the route template, not the raw path with business ids.
+/// - `operationId` is present when the gateway resolved the matched route.
+/// - `traceId` is generated by the gateway and does not trust caller headers.
+/// - `code` is the numeric platform code 50301.
+#[tokio::test]
+async fn gateway_problem_response_uses_route_template_and_correlation_for_50301() {
+    // Configure an upstream that always returns 500 to trip the circuit breaker.
+    let upstream = spawn_app_upstream(Router::new().route(
+        "/{*path}",
+        any(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "upstream down") }),
+    ))
+    .await;
+
+    // Lower the circuit breaker threshold so a single failure trips it.
+    let _threshold = ScopedEnvVar::set("SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD", "1");
+
+    let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
+        "comms-conversation-service",
+        upstream.base_url.as_str(),
+    )]));
+
+    let conversation_path =
+        "/im/v3/api/chat/conversations/c_direct_09a8255a1fd3632675c2d355/messages";
+
+    // First request trips the breaker by hitting the failing upstream.
+    let _ = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(conversation_path)
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(
+                    "traceparent",
+                    "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+                )
+                .header("x-request-id", "client-request-1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+
+    // Second request is rejected by the circuit breaker → 50301.
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(conversation_path)
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(
+                    "traceparent",
+                    "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+                )
+                .header("x-request-id", "client-request-2")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("gateway circuit-breaker request should succeed");
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let value = read_json_body(response).await;
+
+    // Numeric platform code (API_SPEC.md §15.3)
+    assert_eq!(value["code"].as_i64(), Some(50301));
+
+    // traceId is server-owned and must not be copied from client correlation headers.
+    let trace_id = value["traceId"]
+        .as_str()
+        .expect("gateway problem response must include traceId");
+    assert!(
+        !trace_id.trim().is_empty(),
+        "traceId must be non-empty: {value}"
+    );
+    assert_ne!(trace_id, "4bf92f3577b34da6a3ce929d0e0e4736");
+    assert_ne!(trace_id, "client-request-2");
+
+    // instance must use the route template, not the raw path with business ids
+    // (OBSERVABILITY_SPEC.md §2, API_SPEC.md §15.2)
+    let instance = value["instance"]
+        .as_str()
+        .expect("instance field should be present");
+    assert!(
+        !instance.contains("c_direct_09a8255a1fd3632675c2d355"),
+        "instance must not leak business resource id, got: {instance}"
+    );
+    assert!(
+        instance.contains("{conversationId}") || instance.contains("{*path}"),
+        "instance should use route template, got: {instance}"
+    );
+
+    // operationId should be present when the gateway resolved the route
+    // (API_SPEC.md §15.2)
+    assert!(
+        value.get("operationId").is_some(),
+        "operationId should be present, got: {value}"
+    );
+
+    // i18nKey must follow the `errors.result.<code>` convention
+    // (I18N_SPEC.md, API_SPEC.md §15.2)
+    assert_eq!(
+        value["i18nKey"].as_str(),
+        Some("errors.result.50301"),
+        "i18nKey should be derived from numeric code, got: {value}"
+    );
 }

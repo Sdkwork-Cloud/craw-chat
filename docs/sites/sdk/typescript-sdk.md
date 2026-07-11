@@ -148,7 +148,7 @@ when you need exact OpenAPI operations, request bodies, or transport DTO details
 ## Conversations
 
 `sdk.conversations` is the route-aligned domain for conversation lifecycle, membership changes,
-read cursors, direct timeline access, and system-channel publishing. Use it when you want a
+read cursors, direct message-history access, and system-channel publishing. Use it when you want a
 near-1:1 mapping with the public OpenAPI routes. Use the root message-first path
 `sdk.createXxxMessage(...)` plus `sdk.send(...)` when you want the default builder-first
 experience. Use `sdk.messages` when you want the same behavior through a namespaced module surface.
@@ -238,7 +238,7 @@ await sdk.rooms.leave(room.roomId);
 | Leave the conversation | `sdk.conversations.leave(...)` |
 | Read the current principal cursor | `sdk.conversations.getReadCursor(...)` |
 | Advance the cursor | `sdk.conversations.updateReadCursor(...)` |
-| Read the route-level message timeline | `sdk.conversations.listMessages(...)` |
+| Read route-level message history | `sdk.conversations.listMessages(...)` |
 | Post a raw message body | `sdk.conversations.postMessage(...)` |
 | Post plain text quickly | `sdk.conversations.postText(...)` |
 | Publish a raw system message | `sdk.conversations.publishSystemMessage(...)` |
@@ -266,7 +266,7 @@ await sdk.conversations.updateReadCursor(conversationId, {
   readSeq: cursor.readSeq,
 });
 
-const timeline = await sdk.conversations.listMessages(conversationId);
+const messageHistory = await sdk.conversations.listMessages(conversationId);
 
 await sdk.conversations.postText(conversationId, 'Route-aligned text delivery', {
   summary: 'Route-aligned text delivery',
@@ -290,7 +290,7 @@ await sdk.conversations.removeMember(conversationId, {
 
 await sdk.conversations.leave(conversationId);
 
-console.log(timeline.items.length);
+console.log(messageHistory.items.length);
 ```
 
 ### Inbox
@@ -714,18 +714,23 @@ Use `sdk.transport` when you need exact DTOs or route-group control. Reach for
 `sdk.transport.streams.create(...)` when the route group already matches the API cleanly. Use the
 semantic domains on `ImSdkClient` for normal application integration.
 
-## Assembly Metadata
+## SDK Manifest Metadata
 
-The TypeScript workspace publishes its contract into `.sdkwork-assembly.json`.
+The SDK family publishes its contract into `sdks/sdkwork-im-sdk/sdk-manifest.json`.
 
 Use that file when you need the verified package-layer picture instead of guessing from folder
 names:
 
-- `generatedAt` tells you whether the assembly content actually changed
 - `manifestPath` records the manifest that defined each package layer
+- `transportPackageName` records the generator-owned TypeScript transport id
+- `consumerPackageName` records the public TypeScript package imported by applications
 - TypeScript records `generated`, `composed`, and `root` package layers together
 - the internal generated layer is assembled from `generated/server-openapi` and emitted under `src/generated/**`
 - the public consumer layer is the root `@sdkwork/im-sdk` package
+
+Per-family `.sdkwork-assembly.json` is retired and must not be restored. Keep package and release
+metadata in `sdk-manifest.json`; use the repo-level `sdks/.sdkwork-assembly.json` only as a
+multi-surface generation registry when required.
 
 ## Local Workspace Workflow
 
@@ -739,7 +744,7 @@ roles:
 - repository package root
   The assembled single-package consumer output published as `@sdkwork/im-sdk`
 
-If you are debugging package metadata or release layout, start from `.sdkwork-assembly.json` before
+If you are debugging package metadata or release layout, start from `sdk-manifest.json` before
 editing manifests by hand.
 
 ## Verification
